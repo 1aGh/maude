@@ -529,6 +529,13 @@ ${presentHidesCss()}
 .dc-canvas .dc-artboard:not(.dc-positioned)[data-dc-kind]:not([data-dc-kind='digital']) .dc-artboard-label {
   background: color-mix(in oklab, var(--maude-hud-accent, var(--maude-chrome-fg-2, #4a3f30)) 10%, var(--maude-chrome-bg-2, #e8e3d8));
 }
+.dc-canvas .dc-artboard[data-dc-kind='video'] > .dc-artboard-label[data-dc-vtail]::after {
+  content: attr(data-dc-vtail);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.86;
+  white-space: pre;
+}
 .dc-canvas .dc-artboard-kind-chip {
   display: inline-flex;
   align-items: center;

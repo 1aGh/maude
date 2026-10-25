@@ -397,6 +397,11 @@ describe('copy', () => {
       'display: inline-flex;\ngap: var(--space-8);\nbackground: var(--ink);\nborder-radius: var(--radius-round);'
     );
     expect(written[1]).toBe('book-call');
+    // 06 ad-inspector (round 7): the Element id row ends in the board's quiet copy glyph, named for the reader
+    const idBtn = q(host, 'inspector-copy-id');
+    expect(idBtn.getAttribute('aria-label')).toBe('Copy id');
+    expect(idBtn.className).toContain('icon-btn');
+    expect(idBtn.querySelector('svg')).not.toBeNull();
   });
 });
 

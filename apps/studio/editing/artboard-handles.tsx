@@ -31,6 +31,7 @@ import {
   sizeText,
 } from './artboard-resize.ts';
 import { runEditOp } from './edit-op.ts';
+import { videoLabelTail } from './video-label.ts';
 import { PresetRuler, type RulerHud, type ScreenRect } from './preset-ruler.tsx';
 
 /** The two attributes a size on paper is read from (`kind`, `print`), off the artboard's frame. */
@@ -206,12 +207,20 @@ const CSS_TEXT = `
   font-weight: 400;
   font-variant-numeric: tabular-nums;
   opacity: 0.86;
+  white-space: pre;
+}
+/* 07 M1 - a video's tail ("\00a0· Reels · 0:14", then the size chip) already starts with its own gap and its
+   separator; the rest label carries the same words (no chip) so the name never changes under the pointer. */
+.dc-canvas .dc-artboard[data-dc-kind='video'][data-ed-selected] > .dc-artboard-label[data-dc-vtail]::after {
+  content: attr(data-ed-size);
+  margin-left: 0;
 }
 `;
 
 /**
- * A video artboard's selected label ends with its length - "Hype trailer · 0:15" (08 ak-video, "Duration on the label") -
- * not its pixel size. Read off the comp the page registered; '' for any other kind or a comp not yet mounted.
+ * A video artboard's selected label ends with " · Reels · 0:15" and the size chip (07 · M1 - "Name · Format · Length",
+ * the board's "Hype trailer · Reels · 0:14   1080 × 1920"), not a bare pixel size. Read off the comp the page
+ * registered; '' for any other kind or a comp not yet mounted.
  */
 function videoLengthWords(article: Element, id: string): string {
   if (article.getAttribute('data-dc-kind') !== 'video') return '';
@@ -221,13 +230,19 @@ function videoLengthWords(article: Element, id: string): string {
         artboardId: string | null;
         fps: number;
         durationInFrames: number;
+        width?: number;
+        height?: number;
       }[];
     }
   ).__maude_comps__?.();
   const c = comps?.find((x) => x.artboardId === id);
   if (!c || !(c.fps > 0) || !(c.durationInFrames > 0)) return '';
-  const secs = Math.round(c.durationInFrames / c.fps);
-  return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+  const label = article.querySelector(':scope > .dc-artboard-label')?.textContent ?? '';
+  return videoLabelTail(
+    label,
+    { fps: c.fps, durationInFrames: c.durationInFrames, width: c.width ?? 0, height: c.height ?? 0 },
+    true
+  );
 }
 
 type DragMods = { alt: boolean; meta: boolean; shift: boolean };
@@ -313,6 +328,9 @@ export function ArtboardHandles(): React.ReactNode {
         physicalSizeWords({ attrs: attrsOf(m.article) }) ||
         sizeText(m.box.w, m.box.h);
       size = chipSize(dragRef.current?.last?.box, size);
+      // a video's rule draws its tail flush (it carries its own gap): a plain size still needs one
+      if (m.article.getAttribute('data-dc-kind') === 'video' && !size.startsWith('\u00a0'))
+        size = `\u00a0${size}`;
       if (size !== lastSize) {
         lastSize = size;
         const label = m.article.querySelector(':scope > .dc-artboard-label');

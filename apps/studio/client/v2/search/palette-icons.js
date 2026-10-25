@@ -17,6 +17,16 @@ const BY_WORDS = [
   [/\bfile\b/i, 'file'],
 ];
 
+/** The Advanced switches, read from the row's OWN name (not its path): each says what it does, never a chevron. */
+const BY_NAME = [
+  [/^open all\b/i, 'plus'],
+  [/^close all\b/i, 'minus'],
+  [/\blonger videos?\b/i, 'clock'],
+  [/\bhidden files?\b/i, 'eye'],
+  [/\bkeep .* open\b/i, 'pin'],
+  [/\blayers\b/i, 'layers'],
+];
+
 /** The glyph for a row that did not name one. `group` is the palette group id; `fallback` its group default. */
 export function glyphFor(
   { name = '', meta = '', where = '' } = {},
@@ -29,6 +39,7 @@ export function glyphFor(
   if (/^copy\b/i.test(name) && !/\b(file path|folder|export|transcript|logs?|link)\b/i.test(name)) {
     return 'duplicate';
   }
+  for (const [re, glyph] of BY_NAME) if (re.test(name)) return glyph;
   for (const [re, glyph] of BY_WORDS) if (re.test(words)) return glyph;
   return fallback;
 }

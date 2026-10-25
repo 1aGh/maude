@@ -30,6 +30,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { canvasModeStore } from './bridge/canvas-mode-store.ts';
+import { videoLabelTail } from './editing/video-label.ts';
 import { resolvedPoster } from './kinds/meta.ts';
 import { VideoPlayChrome } from './video-play-chrome.tsx';
 
@@ -435,15 +436,20 @@ export function findArtboardOf(el: Element | null): {
   // reads hidden nodes happily. The label is shell chrome the user reads to know
   // which artboard the transport moves, so it must come from the element
   // canvas-lib owns, not from whatever matches the class first.
-  const header = Array.from(board.children).find(
-    (c) =>
-      (c.tagName === 'HEADER' || c.tagName === 'BUTTON') &&
-      c.classList.contains('dc-artboard-label')
-  );
+  const header = labelElementOf(board);
   return {
     artboardId: board.getAttribute('data-dc-screen'),
     artboardLabel: header?.textContent?.trim() || null,
   };
+}
+
+/** The artboard's own label element (a direct child, the two tags canvas-lib renders it as), else null. */
+function labelElementOf(board: Element): Element | undefined {
+  return Array.from(board.children).find(
+    (c) =>
+      (c.tagName === 'HEADER' || c.tagName === 'BUTTON') &&
+      c.classList.contains('dc-artboard-label')
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -594,12 +600,20 @@ export function VideoComp({
       inputProps: inputProps ?? {},
     };
     registry().set(compId, entry);
+    // 07 · M1: the label reads "Name · Format · Length" — the tail is data the label's ::after draws (canvas-lib css)
+    const board = hostRef.current?.closest?.('[data-dc-screen]') ?? null;
+    const labelEl = board ? labelElementOf(board) : undefined;
+    labelEl?.setAttribute(
+      'data-dc-vtail',
+      videoLabelTail(artboardLabel ?? '', { fps, durationInFrames, width, height }, false)
+    );
     emitPlayhead();
     // Announce comps to the shell so the Timeline panel can auto-suggest.
     postToShell({ dgn: 'timeline-comps', comps: seekWindow()?.__maude_comps__?.() ?? [] });
     return () => {
       const cur = registry().get(compId);
       if (cur === entry) registry().delete(compId);
+      labelEl?.removeAttribute('data-dc-vtail');
       emitPlayhead();
       postToShell({ dgn: 'timeline-comps', comps: seekWindow()?.__maude_comps__?.() ?? [] });
     };
