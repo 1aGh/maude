@@ -861,3 +861,18 @@ describe('the left panel footer only hosts', () => {
     expect(listened).toBe(1);
   });
 });
+
+describe('06 ad-settings: Reset all settings… draws in the warning colour (V2-8.5 c9)', () => {
+  // `.btn` sets its ink in the components layer, which sits above the shell layer: a bare `.v2s-warn` colour in the
+  // shell layer never showed. The board's rule is `.btn.ad-btn-warn { color: var(--status-error-text) }`.
+  const css = readFileSync(
+    join(import.meta.dir, '..', 'client', 'v2', 'settings', 'settings.css'),
+    'utf8'
+  );
+  const at = css.lastIndexOf('@layer components');
+  test('the rule lives in the components layer, one class above .btn, on the error ink', () => {
+    expect(at).toBeGreaterThan(0);
+    const rule = /\.btn\.v2s-warn\s*\{([^}]*)\}/.exec(css.slice(at))?.[1] ?? '';
+    expect(rule).toContain('color: var(--status-error-text)');
+  });
+});
