@@ -155,3 +155,34 @@ Re-shot on the p8-c6-aisurf worktree tip, both themes, committed pairs overwritt
 | `cf-ai-done` | re-shot (round 6) | re-shot (round 6) |
 | `cf-undo-before` | re-shot (round 6) | re-shot (round 6) |
 | `cf-undo-ai` | re-shot (round 6) | re-shot (round 6) |
+
+## FINAL (D4, 21c9714cf)
+Final re-shoot D4 of the IMPL side on the merged `feat/maude-v2` tip 21c9714cf (stage C rounds 1-6 + bugs4 merged); no product code changed. This section supersedes every earlier "after" / FINAL section above. 19 artboards with pairs (light + dark), 1 without a frame. Evidence only — no match / mismatch judged here.
+
+- **IMPL.** D3 harness (`_d-harness-g1-d3/`; the round-6 `_c6-harness-g2/s01ai.mjs` differs from it only in the fake-acp path, so the D3 copy ran unchanged), repointed to this worktree and kept in `_d-harness-g1-d4/` with a 01-only chain (`chain01.mjs`: s01ai, s01b, s01c, s01d, then home2 for `cf-home-prompt`) and `final-index-d4.mjs`. No scenario needed adapting to the round-6 product: every id was reached. Fresh release client, throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, Playwright Chromium 1600 x 1000, light + dark. The AI frames use the fake agent (9 s steps); the finish frame is shot inside the 1.8 s `data-fresh` window with the panel folded and the result toast up; `cf-undo-ai` waits for the run's Done, then shoots while the "Undone — <label> · Redo" toast is up.
+
+- **SPEC.** reused: board 01 `.tsx` / `.css` unchanged since stage A (`git log` over `.design/ui/v2/01*` since 2026-10-18 is empty); the same full-size spec PNGs as D3.
+- **Full-size pairs.** `full-size-path.txt` (the last line, "final (D4)"); committed `<id>-<theme>.jpg` overwritten (JPEG q55, <= 1100 px).
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `cf-home-prompt` | re-shot | re-shot |  |
+| `cf-ai-drafting` | re-shot | re-shot | IMPL = drafting frame + the tablet-landed frame (the shell fits the camera while AI drafts) |
+| `cf-ai-done` | re-shot | re-shot | IMPL = two frames: the panel-folded frame with the result toast shot while `[data-fresh]` is on, and the panel reopened ~2 s later (settled) |
+| `cf-select-tweak` | re-shot | re-shot |  |
+| `cf-sticky-comment` | re-shot | re-shot |  |
+| `cf-undo-before` | re-shot | re-shot |  |
+| `cf-undo-ai` | re-shot | re-shot | shot after the run ended (⌘Z is refused while your own AI works), while the undo toast "Undone — Try a dark hero · Redo" is up |
+| `cf-blank` | re-shot | re-shot |  |
+| `cf-add-artboard` | re-shot | re-shot |  |
+| `cf-duplicate-width` | re-shot | re-shot |  |
+| `cf-duplicate-done` | re-shot | re-shot |  |
+| `cf-frames-text` | re-shot | re-shot |  |
+| `cf-big-tree` | re-shot | re-shot |  |
+| `cf-panel-search` | re-shot | re-shot |  |
+| `cf-search-k` | re-shot | re-shot |  |
+| `cf-open-big` | re-shot | re-shot |  |
+| `cf-busy` | unreachable | unreachable | unreachable — needs other people on the canvas (presence, two AI chats, a second person): a hub / collab peers; no local route |
+| `cf-status-words` | re-shot | re-shot |  |
+| `cf-render-error` | re-shot | re-shot |  |
+| `cf-offline-create` | re-shot | re-shot |  |
