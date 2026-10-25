@@ -186,3 +186,8 @@ Final re-shoot D4 of the IMPL side on the merged `feat/maude-v2` tip 21c9714cf (
 | `cf-status-words` | re-shot | re-shot |  |
 | `cf-render-error` | re-shot | re-shot |  |
 | `cf-offline-create` | re-shot | re-shot |  |
+
+## Round 7 (p8-c7-cf08) — after
+
+Harness `_c7-harness-g1/` (s01b / s01c / s01d on top of `_d-harness-g1-d4/`). Re-shot light + dark: cf-select-tweak (the Desktop ARTBOARD selected, AI panel open), cf-frames-text (Layers open), cf-sticky-comment (the Sticky tool armed: colour row), cf-duplicate-width / cf-duplicate-done (the menu's copy lands under the source), cf-add-artboard, cf-big-tree, cf-panel-search (flat list, one line per canvas), cf-search-k (picture tiles, Ask AI pinned), cf-open-big (⌘0 then ⌘\: panels hidden + the toast), cf-render-error (the throwing-component variant: Go back to <time>, the dimmed last good version, details folded; the cold Broken.tsx frame is not part of the pair this round), cf-status-words, cf-offline-create, cf-blank. NOT re-shot (unchanged by this round): cf-home-prompt, cf-ai-drafting, cf-ai-done, cf-undo-before, cf-undo-ai.
+Open: cf-big-tree (opens its last canvas + Recent block), the "Zoom to fit · N %" read-out, the add-artboard picker placement, the duplicate gap pill — see `fix-c7-cf08.md`.
