@@ -107,6 +107,7 @@ import { canvasKeyIndex, resolveCanvasKey } from './actions/canvas-keys.ts';
 import { ArtboardActivityOverlay } from './artboard-activity-overlay.tsx';
 import { ArtboardGhostsLayer } from './artboard-ghosts-overlay.tsx';
 import { ArtboardConvertMarks } from './artboard-convert-marks.tsx';
+import { ArtboardGapMark } from './artboard-gap-mark.tsx';
 import { ArtboardGrowthTag, useGrowthDelta } from './artboard-growth-tag.tsx';
 import {
   ArtboardGuidesOverlay,
@@ -3169,6 +3170,8 @@ export function DCArtboard({
         h={rect.h}
         show={artboardEditChrome}
       />
+      {/* V2-8.5 c7 (01 cf-duplicate-done) — the gap to the source and the shared left edge after a menu duplicate */}
+      <ArtboardGapMark id={id} show={artboardEditChrome} />
     </>
   );
 }
