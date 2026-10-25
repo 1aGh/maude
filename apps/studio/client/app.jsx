@@ -2442,7 +2442,9 @@ function ShellTimelinePanel() {
       onSelect={setTimelineSelectedClip}
       transitionClips={timelineTransClips}
       onClipVerb={timelineClipVerb}
-      comments={(commentsByFile[activePath] || []).filter((c) => c && c.timeline)}
+      comments={(commentsByFile[activePath] || []).filter(
+        (c) => c && (c.timeline || typeof c.t === 'number')
+      )}
       promptText={askText}
       onAddComment={timelineAddComment}
       onResolveComment={(id) =>
