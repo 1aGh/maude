@@ -7,6 +7,7 @@
 //   · ask-selection.js the composer hand-off event, the bubble's placement
 //   · the lane        input → asked → closed; the canvas's two messages validated by the dgn table
 
+import { readFileSync } from 'node:fs';
 import { describe, expect, test } from 'bun:test';
 
 import { DGN_TABLE } from '../bridge/dgn-protocol.ts';
@@ -345,5 +346,17 @@ describe('the lane: input → asked → closed', () => {
     say(ask);
     switchTo('.design/ui/other.tsx');
     expect(lane.get().phase).toBe('closed');
+  });
+});
+
+describe('the asked bubble’s hint is a pill on its own surface (V2-8.5 c9, board 14 `.ed-hint`)', () => {
+  // the line sits over the artboard, not over the app: bare grey text on a dark artboard failed AA in light
+  const css = readFileSync(new URL('../client/v2/ai/ask-selection.css', import.meta.url), 'utf8');
+  const rule = /\.as-hint\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+  test('own surface, the readable ink, the board’s pill shape', () => {
+    expect(rule).toContain('background: var(--bg-2)');
+    expect(rule).toContain('color: var(--fg-1)');
+    expect(rule).toContain('border-radius: var(--radius-pill)');
+    expect(rule).not.toContain('var(--fg-2)');
   });
 });

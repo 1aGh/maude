@@ -21,12 +21,18 @@
       inset 0 0 0 0.5px var(--island-edge);
     animation: as-in var(--dur-flip) var(--ease-out);
   }
+  /* 14 `ed-edge-ask`: the bubble and its hint share a line; where the viewport has no room the hint drops below */
   .as-asked {
-    max-width: 448px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    max-width: min(760px, calc(100vw - var(--space-8)));
   }
   .as-asked .as-bubble {
     position: static;
     width: auto;
+    max-width: 448px;
   }
   .as-chip {
     flex: none;
@@ -102,11 +108,23 @@
     font-size: var(--type-xs);
     color: var(--fg-2);
   }
+  /* the board's `.ed-hint`: a pill on its own surface — the line sits over the artboard, so bare grey ink fails AA on a
+     dark one in the light theme */
   .as-hint {
-    margin: var(--space-1) var(--space-2) 0;
+    display: inline-flex;
+    align-items: center;
+    height: 26px;
+    margin: 0;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-pill);
+    background: var(--bg-2);
+    color: var(--fg-1);
     font-size: var(--type-xs);
     line-height: var(--lh-xs);
-    color: var(--fg-2);
+    white-space: nowrap;
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 0.5px var(--island-edge);
   }
   @keyframes as-in {
     from {
