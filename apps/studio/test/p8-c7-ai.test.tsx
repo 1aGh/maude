@@ -135,3 +135,34 @@ describe('Advanced › AI may (03 ai-advanced)', () => {
     expect(mayLine(readMay())).toBe('[maude-may no-assets no-web]');
   });
 });
+
+describe('the panel-closed done toast (03 ai-panel-closed offers Show; 01 cf-ai-done, a whole-canvas draft, Undo)', () => {
+  const changed = (artboards: string | string[]) => ({
+    scope: { canvas: 'ui/c.tsx', artboards },
+    touched: { 'ui/c.tsx': ['post'] },
+    objects: [],
+  });
+  test('a run asked about named artboards says "… The logo stays white." and offers Show', async () => {
+    const { doneNotice } = await import('../client/v2/ai/needs-you-toast.js');
+    const n = doneNotice({
+      id: 'd',
+      text: 'Done — Post 1:1 is greener. The logo stays white.',
+      run: changed(['post']),
+      onShow() {},
+      onUndo() {},
+    });
+    expect(n?.title).toBe('Done — Post 1:1 is greener. The logo stays white.');
+    expect(n?.action.label).toBe('Show');
+  });
+  test('a whole-canvas run that changed things still offers Undo', async () => {
+    const { doneNotice } = await import('../client/v2/ai/needs-you-toast.js');
+    const n = doneNotice({
+      id: 'd',
+      text: 'Done — Desktop is on the canvas.',
+      run: changed('*'),
+      onShow() {},
+      onUndo() {},
+    });
+    expect(n?.action.label).toBe('Undo');
+  });
+});
