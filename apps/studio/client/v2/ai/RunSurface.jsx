@@ -25,6 +25,7 @@ import {
   followUps,
   interruptedText,
   isWorking,
+  runIsFromEarlierTurn,
   showsWorkingLine,
   lastAssistantDigest,
   resultVerbs,
@@ -35,7 +36,8 @@ import {
 import { shellMode } from '../shell/use-canvas-mode-lane.js';
 import { compareStore } from '../history/compare-store.js';
 import { viewingWords } from '../history/use-versions.js';
-import { compareView, fetchRunVersions } from './run-compare.js';
+import { compareView } from './run-compare.js';
+import { useRunVersions } from './use-run-versions.js';
 import { artboardLabel, runFile } from './runs-model.js';
 import { useBoardLabels } from './RunList.jsx';
 import { shortArtboardName } from './scope.js';
@@ -46,38 +48,7 @@ import { useChatRuns } from './use-chat-runs.js';
 import { setAnswered, setResultShown } from './result-shown.js';
 
 const IDLE = { runId: null, status: 'idle', note: '' };
-const PICTURE_RETRY_MS = 1500;
-const PICTURE_RETRIES = 4;
 
-/** S5.19 G4: the run's version and the one before it (versions list) once the run has ended having changed things. */
-function useRunVersions(run, designRel) {
-  const [state, setState] = useState({ runId: null, versions: null });
-  const runId = run?.runId ?? null;
-  const wants = !!run && run.state === 'ended' && run.outcome === 'done';
-  useEffect(() => {
-    if (!wants || !runId) return undefined;
-    let cancelled = false;
-    let timer = null;
-    let tries = 0;
-    const read = async () => {
-      const v = await fetchRunVersions(run, { designRel });
-      if (cancelled) return;
-      setState({ runId, versions: v });
-      // pictures still being drawn: look again a few times, then settle for Compare alone
-      if (v && compareView(v).pending && tries < PICTURE_RETRIES) {
-        tries += 1;
-        timer = setTimeout(read, PICTURE_RETRY_MS);
-      }
-    };
-    void read();
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-    // biome-ignore lint/correctness/useExhaustiveDependencies: one read per ended run
-  }, [wants, runId, designRel]);
-  return state.runId === runId ? state.versions : null;
-}
 const ANNOUNCE_MAX = 240;
 
 export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel = '.design' }) {
@@ -95,7 +66,14 @@ export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel
   const versions = useRunVersions(run, designRel);
   const view = useMemo(() => compareView(versions ?? { after: null, before: null }), [versions]);
   const verbs = useMemo(() => resultVerbs(run, { canCompare: view.canCompare }), [run, view]);
-  const showResult = !live && ended && (verbs.length > 0 || cutShort);
+  // P8 c10: a result of an EARLIER turn sits under its own reply (TurnResult), not at the tail of the feed
+  const lastAskAt = useThread((t) => {
+    const asks = t.messages.filter((m) => m.role === 'user');
+    const at = asks[asks.length - 1]?.createdAt;
+    return at instanceof Date ? at.getTime() : null;
+  });
+  const earlier = runIsFromEarlierTurn(run, lastAskAt);
+  const showResult = !live && ended && !earlier && (verbs.length > 0 || cutShort);
   // P8 c6 (03 ai-done): the fold only on a long run; ONE chip row — the strip above the composer yields to it
   const folded = useMemo(() => foldedSteps(digest.steps), [digest.steps]);
   const chips = useMemo(() => followUps(run, artboards), [run, artboards]);
@@ -105,7 +83,8 @@ export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel
     return () => setResultShown(chatId, false);
   }, [chatId, chipsShown]);
   // 03 `ai-question`: a turn that ended well and changed nothing was an answer — the strip follows it
-  const answeredOnly = ended && !live && run?.outcome === 'done' && !changedSomething(run);
+  const answeredOnly =
+    ended && !live && !earlier && run?.outcome === 'done' && !changedSomething(run);
   useEffect(() => {
     setAnswered(chatId, answeredOnly);
     return () => setAnswered(chatId, false);

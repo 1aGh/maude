@@ -44,6 +44,7 @@ import {
   UserMessage,
 } from '../v2/ai/Feed.jsx';
 import { RunSurface } from '../v2/ai/RunSurface.jsx';
+import { useChatRuns } from '../v2/ai/use-chat-runs.js';
 import { cleanChatTitle, runTitleFor, shownChatTitle } from '../v2/ai/chat-list-model.js';
 import { useAiRuns } from '../v2/ai/runs-store.js';
 import { fetchChatRuns, undoNote, undoRun } from '../v2/ai/run-api.js';
@@ -135,6 +136,10 @@ function toThreadMessages(msgs) {
         content: [{ type: 'text', text: (m.parts || []).map((p) => p.text || '').join('') }],
         // S5.19 — the day dividers read when the ask was sent
         ...(Number.isFinite(m.at) ? { createdAt: new Date(m.at) } : {}),
+        // P8 c10 — what the ask was sent with (acp/transcript.ts parses the attachments block back)
+        ...(Array.isArray(m.attachments) && m.attachments.length
+          ? { metadata: { custom: { attachments: m.attachments } } }
+          : {}),
       };
     }
     return {
@@ -298,14 +303,18 @@ function ChatThread({
   // ThreadPrimitive.Messages' component registry, which doesn't pass custom
   // props through, so this context is the only way it reaches the filter.
   const [lightboxSrc, setLightboxSrc] = useState(null);
+  // P8 c10 (03 `ai-long`): the chat's runs, so an earlier reply can draw its own result card (v2/ai/TurnResult.jsx)
+  const { runs: chatRunList } = useChatRuns(conn, chatId);
+  const chatRuns = useMemo(() => ({ runs: chatRunList }), [chatRunList]);
   const media = useMemo(
     () => ({
       chipName: (token) => attachmentName(attachmentsRef.current.map.get(token) || ''),
       openLightbox: setLightboxSrc,
       designRel,
       transcriptView,
+      chatRuns,
     }),
-    [designRel, transcriptView]
+    [designRel, transcriptView, chatRuns]
   );
   const [activeTools, setActiveTools] = useState([]);
   useEffect(() => conn.onActivity(setActiveTools), [conn]);

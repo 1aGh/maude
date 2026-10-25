@@ -39,7 +39,7 @@ export const ImageGlyph = () => (
     <path d="M2.5 11l3-3 2.5 2.5L10 8.5l3.5 3.5" />
   </svg>
 );
-const Play = () => (
+export const Play = () => (
   <svg aria-hidden="true" {...g} width={8} height={8}>
     <path d="M5 3.5v9l7-4.5-7-4.5Z" fill="currentColor" />
   </svg>

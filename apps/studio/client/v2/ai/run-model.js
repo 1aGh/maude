@@ -307,3 +307,42 @@ export function dayDividerFor(stamps, id, now = Date.now()) {
   const time = `${two(d.getHours())}:${two(d.getMinutes())}`;
   return `${word}, ${time}`;
 }
+
+// ── older turns (P8 c10, 03 `ai-long`) ───────────────────────────────────────────────────────────────
+
+/** A run created this long BEFORE its ask's time stamp still belongs to it: the stamp is the panel's clock, the run the server's. */
+const TURN_SKEW_MS = 3_000;
+
+/**
+ * The run that was one turn of the chat: the ask at `userAt`, the next ask at `nextUserAt` (null = none). It is the
+ * run created closest after the ask and before the next one. No time known = no run (a card is never guessed).
+ */
+export function turnRunFor(runs, userAt, nextUserAt) {
+  if (!Number.isFinite(userAt)) return null;
+  const end = Number.isFinite(nextUserAt) ? nextUserAt - TURN_SKEW_MS : Number.POSITIVE_INFINITY;
+  let best = null;
+  for (const run of Array.isArray(runs) ? runs : []) {
+    const at = run?.createdAt;
+    if (!Number.isFinite(at) || at < userAt - TURN_SKEW_MS || at >= end) continue;
+    if (!best || Math.abs(at - userAt) < Math.abs(best.createdAt - userAt)) best = run;
+  }
+  return best;
+}
+
+/**
+ * Does this run belong to a turn BEFORE the chat's last ask? Then the run's result lives under its own reply
+ * (TurnResult) and the tail of the feed has nothing to say about it. No time known = false (the tail keeps it).
+ */
+export const runIsFromEarlierTurn = (run, lastAskAt) =>
+  Number.isFinite(lastAskAt) &&
+  Number.isFinite(run?.createdAt) &&
+  run.createdAt < lastAskAt - TURN_SKEW_MS;
+
+/** The verbs under an older turn: the run's own, without "Keep going" (a finished turn has nothing to resume). */
+export function turnCardVerbs(run, { canCompare = false } = {}) {
+  return resultVerbs(run, { canCompare }).filter((v) => v !== 'Keep going');
+}
+
+/** One title per tool call of a reply (the fold's list). */
+export const partSteps = (parts) =>
+  (Array.isArray(parts) ? parts : []).filter((p) => p?.type === 'tool-call').map(stepTitle);

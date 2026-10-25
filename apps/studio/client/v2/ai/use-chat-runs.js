@@ -27,5 +27,6 @@ export function useChatRuns(conn, chatId) {
   useEffect(() => refresh(), [refresh]);
 
   const run = useMemo(() => latestRun(state), [state]);
-  return { run, refresh };
+  const runs = useMemo(() => Object.values(state.byId), [state]);
+  return { run, runs, refresh };
 }

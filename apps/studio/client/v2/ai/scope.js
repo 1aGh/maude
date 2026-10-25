@@ -25,13 +25,17 @@ const ID_RE = /^[A-Za-z0-9_.:-]{1,128}$/;
 
 const first = (s) => (Array.isArray(s) ? s : s == null ? [] : [s]);
 
-/** "Post 1:1 · Combine 2026" → "Post 1:1". Cut, never wrapped. */
+/** A copy's label ends " · copy" (canvas-edit `copyArtboard`); the chip keeps that tail (03 `ai-copy`: "Post 1:1 · copy"). */
+const COPY_TAIL = ' · copy';
+
+/** "Post 1:1 · Combine 2026" → "Post 1:1"; "Post 1:1 · Combine 2026 · copy" → "Post 1:1 · copy". Cut, never wrapped. */
 export function shortArtboardName(label, max = SCOPE_NAME_MAX) {
-  const head = String(label ?? '')
-    .split(' · ')[0]
-    .trim();
-  if (head.length <= max) return head;
-  return `${head.slice(0, max - 1).trimEnd()}…`;
+  const full = String(label ?? '').trim();
+  const tail = full.endsWith(COPY_TAIL) && full.length > COPY_TAIL.length ? COPY_TAIL : '';
+  const head = full.split(' · ')[0].trim();
+  const room = max - tail.length;
+  if (head.length <= room) return head + tail;
+  return `${head.slice(0, room - 1).trimEnd()}…${tail}`;
 }
 
 /** The artboard ids a selection reaches on `canvas`, in selection order, each once. */

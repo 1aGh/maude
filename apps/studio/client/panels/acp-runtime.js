@@ -6,6 +6,7 @@
 // JSON frames into the streamed assistant message parts assistant-ui renders.
 
 import { attachmentBlock } from '../v2/ai/attach.js';
+import { recordSent, sentFromChips } from '../v2/ai/sent-attachments.js';
 import { readMay } from '../v2/ai/ai-may.js';
 import { mayField, mergeOutbox, newAskId, promptFrame, reduceQueued } from '../v2/ai/ask-frame.js';
 import { noteAskedAnnotations } from '../v2/ai/ai-offer.js';
@@ -946,6 +947,11 @@ export function makeAcpAdapter(
       // paths the SERVER answered (client/v2/ai/attach.js). A folder still waiting on consent stays.
       const attached = attachmentBlock(att?.chips?.current);
       const typed = attached ? `${words}\n\n${attached}` : words;
+      // P8 c10 (03 `ai-long`): the chips that rode are drawn above this ask's bubble
+      recordSent(
+        [...messages].reverse().find((m) => m.role === 'user')?.id,
+        sentFromChips(att?.chips?.current)
+      );
       att?.onSent?.();
       // Freeze the canvas/selection context AT SEND (feature-acp-context-
       // hardening): the turn keeps the context it had when the user hit Enter,
