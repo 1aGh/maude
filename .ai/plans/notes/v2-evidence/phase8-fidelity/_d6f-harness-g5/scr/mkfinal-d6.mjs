@@ -19,11 +19,11 @@ const extra = {
     'Also shot (no spec pair, full-size only): `ds-edit-colour-pending`, `ds-make-entry`, `ds-make-sentence`, `ds-edge-trash-board`, `ds-multi-schema.row`.',
   ],
   '14-editing': [
-    'Scenarios: `s14a`/`s14b`/`s14c` (studio + Alligators fixtures), then `s14e` (ed-edge-keys, ed-edge-paste), `s14f` (ed-obj-order + side shots), `s14g` (ed-inspector, Advanced open), `s14ai` (ed-edge-ai through the fake agent), `s14t` (ed-edge-tereza, a second browser) — later runs win. The fixture Homepage is the flat one of round 7 (edit3).',
+    'Scenarios: `s14a`/`s14b`/`s14c` (studio + Alligators fixtures), then `s14e` (ed-edge-keys, ed-edge-paste), `s14f` (ed-obj-order + side shots), `s14g` (ed-inspector, Advanced open), `s14ai` (ed-edge-ai through the fake agent), `s14t` (ed-edge-tereza, a second browser) — later runs win; then the round-8 scripts `s14h` (studio: lay-auto, lay-reorder, obj-order, comp-pick, comp-instance), `s14i` (Alligators: text-edit, img, pen, lay-free, shape, text-style), `s14j` (edge-huge), `s14e` + `s14g` again. In the full chain the ed-comp-instance step of `s14h` timed out in both themes (the Text field never appeared after the picker); it was re-run alone (`chain.sh 14h`, `ONLY=comp-instance`) and that shot is the one kept. The fixture Homepage is the flat one of round 7 (edit3); Alligators is the round-8 fixture (assets, Datum frame over a real Shape).',
     'Also shot (no spec pair): `ed-edge-huge-fit`, `ed-edge-ai.chat`, `ed-obj-order-nudge`, `ed-obj-order-locked`.',
   ],
   '15-annotations': [
-    'Scenarios: `s15.mjs` groups a–f, then `s15g.mjs` gesture groups g1–g5 (later runs win: an-arrow-bind, an-arrow-kinds, an-convert, an-visibility, an-video, an-vote, an-stamps).',
+    'Scenarios: `s15.mjs` groups a–f, then `s15g.mjs` gesture groups g1–g5 (the round-8 versions; later runs win: an-arrow-bind, an-arrow-kinds, an-convert, an-visibility, an-video, an-vote, an-stamps).',
   ],
 };
 

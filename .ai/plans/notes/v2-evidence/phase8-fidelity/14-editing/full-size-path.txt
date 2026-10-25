@@ -16,3 +16,4 @@ round 7 (p8-c7-edit3): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a7
 final (D5): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ab9bfb98617a582f7/.scr/pairs/14-editing
 
 round 8 (p8-c8-edit): /Users/iagh/git/personal/maude/.claude/worktrees/agent-afb8b926595fb24de/.scr/pairs/14-editing (re-shot both themes: ed-lay-auto, ed-lay-reorder, ed-obj-multi, ed-obj-order, ed-comp-pick, ed-comp-instance, ed-edge-paste, ed-edge-keys, ed-edge-huge, ed-text-edit, ed-lay-free, ed-shape, ed-text-style, ed-img, ed-pen, ed-inspector; IMPL frames alone: .scr/impl/14-editing; harness: _c8e-harness-g5 on top of _d5-harness-g5; the other ids keep their D5 pairs)
+final (D6): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad16b7d7df8d5efc0/.scr/pairs/14-editing
