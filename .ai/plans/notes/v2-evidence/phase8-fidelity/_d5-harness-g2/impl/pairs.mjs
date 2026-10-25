@@ -28,7 +28,7 @@ for (const [canvas, c] of Object.entries(cfg)) {
       let impl = null;
       let note = '';
       if (m.impl) {
-        const src = `${S}/impl-out/${c.dir}/${m.impl}-${theme}.jpg`;
+        const src = `${S}/d5/${c.dir}/${m.impl}-${theme}.jpg`;
         if (existsSync(src)) {
           impl = `${S}/tmp-impl.png`;
           if (m.crop) {
