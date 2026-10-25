@@ -58,6 +58,9 @@ const NOT_A_FILE_PLANE_WRITE = new Map([
   // the file plane refuses to carry it in either direction, so a journal row
   // for it could not exist. The owner sets it through its own door instead.
   ['project-config-door.mjs', "writes config.json, which the file plane classifies 'never'"],
+  // p8-c4b: the stored-grant canvas list handed to the studio child —
+  // `<dataDir>/known-canvases.json`, never a designRoot path.
+  ['known-canvases.mjs', 'the known-canvas list for the studio child, in dataDir'],
 ]);
 
 /**
