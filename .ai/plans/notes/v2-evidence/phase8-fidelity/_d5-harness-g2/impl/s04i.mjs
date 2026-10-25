@@ -1,6 +1,15 @@
 // c7-g15b: 04 md-edit-image - the Image slot is pressed while the Assets panel is open (shell-panels)
 import { studioSite } from './fx5.mjs';
-export const fixture = async () => studioSite();
+// D5: the board's Assets panel holds six photos (Photos group); the g5 site fixture has none, so seed the same six as the 04 studio fixture (fx4)
+import { cpSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+export const fixture = async () => {
+  const d = await studioSite();
+  const as = join(d, '.design/assets');
+  mkdirSync(as, { recursive: true });
+  cpSync(join(import.meta.dirname, '../../.ai/plans/notes/v2-evidence/phase8-fidelity/_d5-harness-g2/fixtures/photos'), as, { recursive: true });
+  return d;
+};
 export const page = { w: 1440, h: 900 };
 export async function run(h) {
   const { page, sleep } = h;

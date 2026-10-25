@@ -22,6 +22,7 @@ case "$NN" in
   04) for s in s04a s04c; do run $s; done
       SHOT_CHANNEL=chrome run s04v
       for s in s04d s04k s04i; do run $s; done ;;
+  04i) run s04i ;;
   06) node mk-dsconv.mjs 2>&1 | tail -3
       for s in s06b s06f s06d s06e s06g s06h s06i; do run $s; done ;;
 esac

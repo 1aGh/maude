@@ -202,3 +202,39 @@ IMPL re-shot, both themes, on the merged tip + p8-c7-modes. The committed `<id>-
 - md-draw: Preview on Combine-kampan, Sticky armed with its colour strip, two stickies, AI chat beside.
 - md-keys: the View menu (the amended rows and keys) open on a deselected canvas.
 - md-edge-ai: the canvas file is written under a Preview (a terminal agent's edit): rim, tag and the AI pointer (`+ AI`).
+
+
+## FINAL (D5, e37e7d82a)
+
+Final verification shoot on the merged tip after stage C round 7 (harness `_d5-harness-g2/`, a flattened copy of the newest per-canvas layers; shot on the Mac mini with Google Chrome, not the Playwright headless shell). Spec side reused (the boards `.design/ui/v2/03|04|06` are unchanged since 2026-10-19). Committed JPEG pairs overwritten (spec left | impl right). The critic judges; this builder does not.
+
+- Impl frames: scenarios s04a s04c s04v (Google Chrome, H.264) s04d s04k s04i (md-edit-image: Image slot pressed beside the Assets panel) both themes in one chain on the mini; md-edge-mixed is a contact sheet of the real Present frames per kind (assembled locally from the five per-kind frames); the extra-impl frames (md-comment-thread, md-edge-ai-after, md-present-video-play) were refreshed too.
+
+| id | dark | light |
+|---|---|---|
+| `md-model` | re-shot | re-shot |
+| `md-keys` | re-shot | re-shot |
+| `md-edit` | re-shot | re-shot |
+| `md-edit-image` | re-shot | re-shot |
+| `md-edit-component` | re-shot | re-shot |
+| `md-motion` | unreachable (An animation storyboard of Edit to Preview (frames over 0 to 220 ms), not a state.) | unreachable (An animation storyboard of Edit to Preview (frames over 0 to 220 ms), not a state.) |
+| `md-annotate` | re-shot | re-shot |
+| `md-preview` | re-shot | re-shot |
+| `md-preview-follow` | re-shot | re-shot |
+| `md-preview-combine` | re-shot | re-shot |
+| `md-present-menu` | re-shot | re-shot |
+| `md-present-lift` | re-shot | re-shot |
+| `md-present-full` | re-shot | re-shot |
+| `md-present-video` | re-shot | re-shot |
+| `md-present-canvas` | re-shot | re-shot |
+| `md-presenter` | unreachable (Presenter view needs a second display (desktop shell).) | unreachable (Presenter view needs a second display (desktop shell).) |
+| `md-present-link` | unreachable (A cloud viewer link needs a hub project.) | unreachable (A cloud viewer link needs a hub project.) |
+| `md-comment` | re-shot | re-shot |
+| `md-comment-only` | unreachable (A Can comment role needs a hub / second person.) | unreachable (A Can comment role needs a hub / second person.) |
+| `md-draw` | re-shot | re-shot |
+| `md-inspect` | re-shot | re-shot |
+| `md-edge-ai` | re-shot | re-shot |
+| `md-edge-viewer` | unreachable (A view-only link in a browser needs a cloud project.) | unreachable (A view-only link in a browser needs a cloud project.) |
+| `md-edge-mixed` | re-shot | re-shot |
+| `md-edge-offline` | unreachable (Offline Present with a missing clip is a desktop-shell state (Presenter view).) | unreachable (Offline Present with a missing clip is a desktop-shell state (Presenter view).) |
+| `md-esc` | re-shot | re-shot |
