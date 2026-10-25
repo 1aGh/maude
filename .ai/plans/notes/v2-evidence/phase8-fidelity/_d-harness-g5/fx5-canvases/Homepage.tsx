@@ -1,7 +1,7 @@
 import { DCArtboard, DCSection, DesignCanvas } from "@maude/canvas-lib";
 
 const card = (bg: string, dot: string, t: string, d: string) => (
-  <div data-cd-id={`card-${t.split(" ")[0].toLowerCase()}`} style={{ flex: 1, background: bg, borderRadius: 14, padding: 24, display: "flex", flexDirection: "column", gap: 8 }}>
+  <div data-cd-id={`card-${t.split(" ")[0].toLowerCase()}`} style={{ flex: 1, background: bg, borderRadius: "var(--radius-lg)", padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
     <span style={{ width: 12, height: 12, borderRadius: 6, background: dot }} />
     <strong style={{ fontSize: 17 }}>{t}</strong>
     <span style={{ fontSize: 13, color: "#555" }}>{d}</span>
@@ -10,19 +10,19 @@ const card = (bg: string, dot: string, t: string, d: string) => (
 
 const Hero = ({ w }: { w: number }) => (
   <div style={{ width: w, background: "#fff", color: "#16181d", fontFamily: "system-ui, sans-serif", position: "relative" }}>
-    <div data-cd-id="nav" style={{ display: "flex", alignItems: "center", gap: 28, padding: "20px 56px", fontSize: 14 }}>
+    <div data-cd-id="nav" style={{ position: "relative", display: "flex", alignItems: "center", gap: 28, padding: "20px 56px", fontSize: 14 }}>
       <span style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, marginRight: "auto" }}>
         <b style={{ width: 14, height: 14, borderRadius: 7, background: "#f7a38d", display: "inline-block" }} />Studio
       </span>
       <span>Work</span><span>Services</span><span>Pricing</span><span>About</span>
-      <em data-cd-id="book" style={{ fontStyle: "normal", background: "#16181d", color: "#fff", padding: "8px 16px", borderRadius: 999 }}>Book a call</em>
+      <button data-cd-id="book" style={{ position: "absolute", right: 72, top: 22, border: 0, font: "inherit", fontSize: 14, background: "#16181d", color: "#fff", padding: "10px var(--space-5)", borderRadius: "var(--radius-pill)", display: "inline-flex", gap: "var(--space-2)" }}>Book a call</button>
     </div>
     <div style={{ display: "flex", gap: 40, padding: "48px 56px" }}>
       <div style={{ flex: 1 }}>
         <h1 data-cd-id="headline" style={{ fontSize: 56, lineHeight: 1.05, margin: 0, fontWeight: 650 }}>Calm software, made in Brno.</h1>
         <p data-cd-id="sub" style={{ fontSize: 17, color: "#555", maxWidth: 440 }}>A small studio for product and brand. Two designers, one developer, no rush.</p>
         <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
-          <button data-cd-id="see-work" style={{ background: "#16181d", color: "#fff", border: 0, padding: "12px 22px", borderRadius: 999, fontSize: 15 }}>See the work</button>
+          <button data-cd-id="see-work" style={{ background: "#16181d", color: "#fff", border: 0, padding: "10px var(--space-5)", borderRadius: "var(--radius-pill)", fontSize: 15 }}>See the work</button>
           <button data-cd-id="see-pricing" style={{ background: "#fff", color: "#16181d", border: "1px solid #16181d", padding: "12px 22px", borderRadius: 999, fontSize: 15 }}>See pricing →</button>
         </div>
       </div>
@@ -32,7 +32,7 @@ const Hero = ({ w }: { w: number }) => (
     </div>
     <div style={{ padding: "8px 56px 0" }}>
       <p style={{ fontSize: 13, color: "#555", margin: "0 0 12px" }}>What we do</p>
-      <div data-cd-id="services" style={{ display: "flex", gap: 24 }}>
+      <div data-cd-id="services" style={{ display: "flex", gap: "var(--space-5)" }}>
         {card("#fde3dc", "#f4947d", "Product design", "Apps and tools people enjoy using.")}
         {card("#dff3e4", "#5cc27d", "Brand systems", "Logos, type and colour that hold up.")}
         {card("#e9e4f7", "#9a86e0", "Small apps", "From sketch to the App Store in weeks.")}

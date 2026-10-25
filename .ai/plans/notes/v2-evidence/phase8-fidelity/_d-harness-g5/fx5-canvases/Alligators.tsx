@@ -11,7 +11,7 @@ const Post = ({ t1, t2, sub, btn }: P) => (
   <div style={{ position: "relative", width: 1080, height: 1080, background: "#123524", color: "#fff", fontFamily: FONT, overflow: "hidden" }}>
     <svg data-cd-id="mark" width="72" height="72" viewBox="0 0 72 72" style={{ position: "absolute", left: 64, top: 64 }}><path d="M8 60 L36 8 L64 60 Z" fill="#f6c915" /></svg>
     <div data-cd-id="date-bg" style={{ position: "absolute", left: 52, top: 704, width: 600, height: 64, background: "#1f4d36", borderRadius: "4px 20px 4px 4px" }} />
-    <h1 data-cd-id="title" style={{ position: "absolute", left: 64, top: 330, margin: 0, fontSize: 132, lineHeight: 0.95, fontWeight: 800, letterSpacing: 1 }}>{t1}<br />{t2}</h1>
+    <h1 data-cd-id="title" lang="cs" style={{ position: "absolute", left: 64, top: 330, margin: 0, fontSize: 132, lineHeight: 0.95, fontWeight: 800, letterSpacing: 1 }}>{t1}<br />{t2}</h1>
     <p data-cd-id="date" style={{ position: "absolute", left: 64, top: 712, margin: 0, fontSize: 30, width: 560 }}>{sub}</p>
     <button data-cd-id="cta" style={{ position: "absolute", left: 64, top: 880, background: "#f6c915", color: "#123524", border: 0, padding: "22px 44px", fontSize: 34, fontWeight: 800, borderRadius: 6 }}>{btn}</button>
     <Photo w={460} h={720} style={{ right: 0, bottom: 0 }} />

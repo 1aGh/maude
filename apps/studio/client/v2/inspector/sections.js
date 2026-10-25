@@ -189,7 +189,14 @@ export const KIND_SECTIONS = Object.freeze({
   'multi-artboard': ['size', 'fill', 'safe-zones', 'export'],
 });
 
-export function sectionsFor(kindId) {
+export function sectionsFor(kindId, opts = {}) {
+  // V2-8.5 c6 (14 ed-lay-auto): a frame that runs an auto layout and that no layout places leads with Layout, then
+  // Size ("Layout · Auto", Direction, Gap, Padding, Align; Size) — an object IN a layout keeps Position first
+  // ("In Services · Set by Services") because who places it is its first fact.
+  if (opts.layoutFirst) {
+    const lead = ['layout', 'size', 'position'];
+    return [...lead.map((id) => BY_ID.get(id)), ...SECTIONS.filter((s) => !lead.includes(s.id))];
+  }
   const named = KIND_SECTIONS[kindId];
   if (named) return named.map((id) => BY_ID.get(id));
   if (kindId !== 'artboard') return SECTIONS;

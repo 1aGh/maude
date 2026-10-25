@@ -16189,10 +16189,10 @@
     "hook": "insp-sides",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Layout › Padding: opens the four per-side rows (Top · Right · Bottom · Left). `aria-pressed` while open; an uneven box opens it itself and the H / V controls say \"Mixed\" (`insp-mixed-h`, `insp-mixed-v`).",
+    "meaning": "Layout header: opens the four per-side Padding rows (Top · Right · Bottom · Left). `aria-pressed` while open; an uneven box opens it itself and the H / V controls say \"Mixed\" (`insp-mixed-h`, `insp-mixed-v`).",
     "producer": {
       "file": "apps/studio/client/v2/inspector/sections/layout.jsx",
-      "symbol": "LayoutBody"
+      "symbol": "SidesToggle"
     },
     "region": "inspector",
     "consumers": [],
@@ -21334,10 +21334,26 @@
     "v2": "new"
   },
   {
+    "hook": "insp-in-layout",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inspector › Position: \"Set by Services · 2 of 3\" — who places an object an auto layout arranges (it has no X · Y of its own; 14 ed-obj-enter).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/position.jsx",
+      "symbol": "PositionBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-sections.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "insp-place-freely",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Inspector › Position: the Place freely button of an object that sits in an auto layout (runs `object.place-freely`).",
+    "meaning": "Inspector › Position: the Place freely switch of an object that sits in an auto layout (turning it on runs `object.place-freely`; 14 ed-obj-enter). The checkbox is inside.",
     "producer": {
       "file": "apps/studio/client/v2/inspector/kinds/frame.jsx",
       "symbol": "PlaceFreelyBody"

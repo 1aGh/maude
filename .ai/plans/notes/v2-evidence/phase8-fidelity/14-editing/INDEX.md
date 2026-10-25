@@ -327,3 +327,19 @@ Re-shot 50 of 52 pairs; 2 unreachable. Supersedes every earlier "after" / "FINAL
 | `ed-text-edit` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ed-text-style` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ed-text-style` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+## After (round 6, c6-objinsp) - IMPL re-shot on the p8-c6-objinsp tip, both themes
+Re-shot: ed-obj-enter, ed-lay-auto, ed-text-edit, ed-inspector, ed-comp-instance (the other ids keep their round-5 / D3 pairs). Changed in the product: an object a layout places reads "In <frame> - Set by <frame> - n of m" with a Place freely switch (no X / Y of its own); a frame that runs an auto layout and that nothing places leads with Layout then Size; Padding is one row (one chip when the four sides are alike, "H chip V chip" when they differ; the per-side icon is the Layout header's); token chips carry 14's token glyph and never wrap; the Size / weight pair no longer overlaps; a status sentence draws in its own soft box. Harness: the Homepage fixture is a bound project (space / radius tokens) with a real Book a call button pinned right / top; the Alligators title is lang="cs"; ed-text-edit is shot on the Alligators "Zapis se" post; ed-inspector in a tall window with Advanced opened. Still open: see `fix-c6-objinsp.md`.
+
+| id | theme | status | spec |
+|---|---|---|---|
+| `ed-comp-instance` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-comp-instance` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-inspector` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-inspector` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-auto` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-auto` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-enter` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-enter` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-text-edit` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-text-edit` | light | re-shot | spec reused (board unchanged since the stage-A shot) |

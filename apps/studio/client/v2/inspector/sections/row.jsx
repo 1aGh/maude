@@ -23,9 +23,10 @@ export function Row({ k, name, dim = false, mod = false, children }) {
 }
 
 /** A quiet line under a row: what is true, in one sentence. */
-export function Quiet({ children, testid }) {
+export function Quiet({ children, testid, line = false }) {
   return (
-    <p className="insp-quiet" data-testid={testid}>
+    // line = board 14's Line: the sentence in its own soft box (V2-8.5 c6)
+    <p className={line ? 'insp-quiet insp-quiet--line' : 'insp-quiet'} data-testid={testid}>
       {children}
     </p>
   );

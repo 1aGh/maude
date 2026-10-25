@@ -20,6 +20,7 @@ import { blocksFor, blocksVersion, subscribeBlocks } from './blocks.js';
 import { bindInspectorActions } from './inspector-actions.js';
 import { writeLink } from './link-write.js';
 import { kindChipOf, resolveKind } from './kinds/index.js';
+import { isArranging, sitsInLayout } from './kinds/frame.jsx';
 import { useInstanceSelection } from './kinds/instance.jsx';
 // S10.7 — a token of the Design system canvas is a kind of its own (client/v2/ds/kinds/token.jsx)
 import '../ds/kinds/token.jsx';
@@ -27,7 +28,8 @@ import '../ds/kinds/token.jsx';
 import '../ds/kinds/master.jsx';
 // S10.16b — and so is a direction the AI drafted for a system being made (client/v2/ds/direction-bar.jsx)
 import '../ds/direction-bar.jsx';
-import { crumbsOf, cssTextOf, hasUsableId, titleOf } from './model.js';
+import { crumbsOf, cssTextOf, hasUsableId, placementOf, titleOf } from './model.js';
+import { effectiveCss } from './sections/row.jsx';
 import { sectionsFor } from './sections.js';
 import { useFormatsVersion } from './formats-ui.js';
 import { hasAnySlot, slotsFor, slotsVersion, subscribeSlots } from './slots.js';
@@ -167,6 +169,8 @@ export function InspectorFrame({
   if (!el) return null;
 
   const kind = resolveKind(selected);
+  const readCss = effectiveCss(el, el?.authored || {});
+  const layoutFirst = kind.id === 'frame' && isArranging(el, readCss) && !sitsInLayout(el, readCss);
   const chip = kindChipOf(selected);
   const crumbs = crumbsOf(layersTree, Array.isArray(selected) ? null : el);
   const ds = activeDsNameFor(canvasFile, cfg);
@@ -184,6 +188,8 @@ export function InspectorFrame({
     canvasFile,
     cfg,
     editable: !!el.id,
+    // V2-8.5 c6 (14 ed-obj-enter): "In Services · Set by Services · 2 of 3"
+    placement: placementOf(layersTree, Array.isArray(selected) ? null : el),
     refreshInstance,
     onOptimistic,
     onRecordEdit,
@@ -229,7 +235,7 @@ export function InspectorFrame({
         {blocksFor(kind.id, 'top').map(({ id, Body }) => (
           <Body key={id} el={el} selection={selected} kind={kind.id} ctx={ctx} />
         ))}
-        {(kind.bare ? [] : sectionsFor(kind.id))
+        {(kind.bare ? [] : sectionsFor(kind.id, { layoutFirst }))
           .filter((def) => !kind.sections || kind.sections.includes(def.id))
           .map((def) => {
             const entries = slotsFor(def.id, kind.id, selected, ctx);

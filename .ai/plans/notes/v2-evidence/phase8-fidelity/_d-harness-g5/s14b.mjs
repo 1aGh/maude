@@ -49,9 +49,12 @@ export async function run(h) {
       await sleep(500);
     });
     await h.esc(3);
-    await h.step(`${D}/ed-inspector`, 'The inspector for one button', 'select the button; inspector open', async () => {
-      await k.deep(hp('[data-cd-id="see-work"]'), 4);
+    await h.step(`${D}/ed-inspector`, 'The inspector for one button', 'select Book a call (nav button); inspector open, Advanced open, tall window', async () => {
+      await page.setViewportSize({ width: 1440, height: 1560 }); await sleep(900);
+      await k.deep(hp('[data-cd-id="book"]'), 3);
+      await page.locator('[data-testid="inspector-panel"] button', { hasText: 'Advanced' }).first().click().catch(() => {}); await sleep(700);
     });
+    await page.setViewportSize({ width: 1440, height: 900 }); await sleep(600);
     await h.esc(3);
     await h.step(`${D}/ed-comp-pick`, 'Component ⇧I — from the Design system', 'press ⇧I', async () => {
       await page.mouse.click(700, 700); await sleep(300);
@@ -73,6 +76,14 @@ export async function run(h) {
     await k.fold();
     await k.inspector(true);
     await k.fit();
+    await h.step(`${D}/ed-text-edit`, 'Edit text in place', 'double-click the title on the Zapis se post and type', async () => {
+      const t = '[data-dc-screen="p2"] [data-cd-id="title"]';
+      await k.click(t);
+      await k.dbl(t);
+      if (await k.fr.locator('.dc-text-editing').count()) { await page.keyboard.press('End'); await page.keyboard.type(' '); }
+      await sleep(500);
+    });
+    await h.esc(2);
     await h.step(`${D}/ed-lay-free`, 'Free placement with constraints', 'select the date badge on a post', async () => {
       await k.deep('[data-dc-screen="p1"] [data-cd-id="datum"]', 1);
     });

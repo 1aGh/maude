@@ -17,6 +17,7 @@ import { constraintsToCss, positionToCss, toWords } from '../../../../edit-ops/w
 import { NumberField, Select } from '../../../inspector-controls.jsx';
 import { useCssWrite } from '../css-write.js';
 import { registerSlot } from '../slots.js';
+import { sitsInLayout } from '../kinds/frame.jsx';
 import { BOXY_KINDS } from './size.jsx';
 import { Quiet, Row, effectiveCss } from './row.jsx';
 
@@ -116,6 +117,21 @@ export function PositionBody({ el, ctx }) {
     const v = p.top && p.bottom ? 'both' : p.bottom ? 'bottom' : p.top ? 'top' : 'center';
     setPin({ h, v });
   };
+
+  // V2-8.5 c6 (14 ed-obj-enter): an object its frame lays out has no X · Y of its own. The card says who places it
+  // ("In Services — Set by Services · 2 of 3"); Place freely (kinds/frame.jsx) is the one way to make them its own.
+  if (!placed && sitsInLayout(el, read)) {
+    const where = ctx?.placement;
+    const frame = where?.parent || null;
+    const nth = where?.index && where?.count ? ` · ${where.index} of ${where.count}` : '';
+    return (
+      <Row k={frame ? `In ${frame}` : 'In layout'} name="in-layout">
+        <span className="insp-from" data-testid="insp-in-layout">
+          {`Set by ${frame || 'its frame'}${nth}`}
+        </span>
+      </Row>
+    );
+  }
 
   return (
     <>
