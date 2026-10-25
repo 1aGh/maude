@@ -13,6 +13,7 @@
 import { parsePathD, pointCount } from './edit-ops/path-model.ts';
 import type { TextInfo } from './edit-ops/text-style.ts';
 import { type KidsSummary, summarizeKids } from './editing/kids-summary.ts';
+import { getPenPoint, penPointAttr } from './editing/pen/point-store.ts';
 import { probeTextInfo } from './editing/type-role.ts';
 import type { HoverTarget } from './input-router.tsx';
 import { currentCanvasFile } from './shell-canvas-file.ts';
@@ -369,6 +370,11 @@ const KNOB_PROPS = [
   'white-space',
   // Overflow
   'overflow',
+  // P8 c10 (14 ed-pen) — a Pen path / line draws a stroke: the Stroke row and its Ends row read these
+  'stroke',
+  'stroke-width',
+  'stroke-linecap',
+  'stroke-linejoin',
   // Media framing
   'object-fit',
   'aspect-ratio',
@@ -436,6 +442,9 @@ function styleMapsFor(el: Element | null): {
           /* arcs: no count */
         }
       }
+      // 14 ed-pen — the point being edited (the Point card): set by the Pen's point editing, never stored in the file
+      const point = penPointAttr(getPenPoint(el));
+      if (point) attrs['data-dc-pen-point'] = point;
     }
     // Dogfood follow-up (print artboards) — ATTR_SKIP deliberately hides the
     // engine's own `data-dc-*` plumbing from the generic "custom HTML

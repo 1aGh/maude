@@ -31,6 +31,7 @@ import { type EditOpAsk, editOpRecord, runEditOp } from '../edit-op.ts';
 import { refOfElement, selectionOf } from '../object-actions.ts';
 import { isLockedDom } from '../selection.tsx';
 import { EDIT_HINTS, PEN_CSS, PenChip, PenHints, useFrameTick } from './overlay.tsx';
+import { penPointInfo, setPenPoint } from './point-store.ts';
 import {
   addedAt,
   dragged,
@@ -131,7 +132,13 @@ export function PointEdit({ readOnly = false }: { readOnly?: boolean }) {
   }, []);
   useFrameTick(frameKey, on);
 
-  const leave = useCallback(() => {
+  // `republish`: the path stays the selection (↵ / esc), so the shell is told the point is gone
+  const leave = useCallback((republish = false) => {
+    const svg = editRef.current?.svg;
+    if (svg) {
+      setPenPoint(svg, null);
+      if (republish) ctx.current.selSet.replace(selectionOf(svg));
+    }
     setEdit(null);
     setDrag(null);
   }, []);
@@ -168,6 +175,27 @@ export function PointEdit({ readOnly = false }: { readOnly?: boolean }) {
     );
     if (!keep || (tool && tool !== 'move')) leave();
   }, [edit, selSet.selected, tool, leave]);
+
+  // The selected point is said to the shell (the inspector's Point card: Corner, X · Y): the selection is re-posted with
+  // it on the path's payload when the point or its numbers change — not while a drag is in flight.
+  const where = edit?.sel ? `${edit.sel.sub}:${edit.sel.i}` : '';
+  const info =
+    edit && edit.sel ? penPointInfo(edit.model, edit.sel, svgOrigin(edit.svg)) : null;
+  const infoKey = info ? `${where}:${info.kind}:${info.x}:${info.y}` : '';
+  const dragging = !!drag;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `infoKey` stands for `info`
+  const told = useRef('');
+  useEffect(() => {
+    const e = editRef.current;
+    if (!e) {
+      told.current = '';
+      return;
+    }
+    if (dragging || readOnly || infoKey === told.current) return;
+    told.current = infoKey;
+    setPenPoint(e.svg, info);
+    ctx.current.selSet.replace(selectionOf(e.svg));
+  }, [infoKey, dragging, edit?.svg, readOnly]);
 
   // The file's `d` changed (our own edit landed, an undo, a peer): re-read it.
   useEffect(() => {
@@ -211,7 +239,7 @@ export function PointEdit({ readOnly = false }: { readOnly?: boolean }) {
       if (ev.key === 'Enter' || ev.key === 'Escape') {
         ev.preventDefault();
         ev.stopPropagation();
-        return leave();
+        return leave(true);
       }
       if ((ev.key === 'Backspace' || ev.key === 'Delete') && e.sel) {
         ev.preventDefault();

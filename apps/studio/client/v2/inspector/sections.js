@@ -18,6 +18,14 @@ export const SECTIONS = Object.freeze(
     // S2.15 — a picture's own rows come first (14 Editing, ed-img). Both are drawn for the Image kind only: the frame
     // draws a section only when a body is registered for the selected kind. Numbered after the ten drawn ones and S2.14's Combine (11).
     {
+      // P8 c10 (14 ed-pen): the point of a Pen path being edited — Corner Smooth / Sharp and X · Y. Drawn for a path only.
+      n: 28,
+      id: 'point',
+      title: 'Point',
+      explain:
+        'The point you picked on the path: Smooth bends through it, Sharp turns a corner. X and Y say where it sits; typing moves it.',
+    },
+    {
       n: 12,
       id: 'image',
       title: 'Image',
@@ -184,6 +192,8 @@ export const sectionById = (id) => BY_ID.get(id);
 export const KIND_SECTIONS = Object.freeze({
   text: ['type', 'fill', 'position', 'size', 'interaction', 'export'],
   shape: ['size', 'corners', 'fill', 'border', 'effects', 'position', 'interaction', 'export'],
+  // 14 ed-pen: a Pen path opens on its point, then its Stroke; Combine shapes follows; where it sits stays one click away
+  path: ['point', 'border', 'fill', 'combine', 'position', 'size', 'effects', 'interaction', 'export'],
   image: ['image', 'adjust', 'position', 'size', 'interaction', 'export'],
   instance: [],
   'multi-artboard': ['size', 'fill', 'safe-zones', 'export'],
