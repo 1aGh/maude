@@ -332,6 +332,14 @@ export function VersionHistoryPanel({
             {CW.restoreOnly(target.label)}
           </button>
         ) : null}
+        {/* 03 ai-history: the held row is still your AI's row while it is compared — Undo this chat stays beside Restore */}
+        <ChatUndoButton
+          row={aRow}
+          canEdit={canEdit}
+          fetchImpl={fetchImpl}
+          toast={toast}
+          onDone={() => onChanged?.()}
+        />
         {canEdit ? (
           <button
             type="button"
