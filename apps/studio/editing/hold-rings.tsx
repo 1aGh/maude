@@ -121,6 +121,26 @@ export interface HoldView {
 
 type Ref = { artboard: string; element: string };
 
+/** The key an AI hold is drawn (and de-duplicated) under. */
+export const aiHoldKey = (h: Pick<AiHoldRow, 'artboard' | 'element' | 'occurrence'>) =>
+  `${h.artboard}|${h.element}|${h.occurrence ?? 0}`;
+
+/**
+ * 01 cf-ai-drafting: a run that writes a whole page holds the page, its heading, its text and its button at once, and
+ * four tags piled on one corner hide the very words the AI is writing. Every held object keeps its dashed outline (the
+ * hold is real, the server enforces it), but an artboard prints ONE tag: the first hold's.
+ */
+export function aiHoldTagCarriers(holds: readonly AiHoldRow[]): Set<string> {
+  const byBoard = new Set<string>();
+  const out = new Set<string>();
+  for (const h of holds) {
+    if (byBoard.has(h.artboard)) continue;
+    byBoard.add(h.artboard);
+    out.add(aiHoldKey(h));
+  }
+  return out;
+}
+
 /**
  * The selection's holds: a person holding it, and an AI run holding it (`held`) or another object in
  * its artboard. null = nothing to say.
@@ -190,6 +210,7 @@ const CSS_TEXT = `
   text-overflow: ellipsis; font: 600 11px/16px system-ui, -apple-system, sans-serif;
 }
 .ed-hold-ring .ed-hold-tag { background: var(--ed-hold-c); color: var(--maude-hud-accent-fg, #fff); }
+.ed-ai-hold--quiet .ed-hold-tag { display: none; }
 .ed-ai-hold .ed-hold-tag { background: var(--ed-hold-spark); color: var(--ed-hold-spark-fg); }
 .ed-ai-tip {
   position: fixed; z-index: 7; pointer-events: none; padding: 4px 8px; border-radius: 6px;
@@ -360,6 +381,7 @@ export function HoldRings() {
   const rings = [...live.entries()];
   // S2.19 — the objects a ⌘/ ask names are one outline (ai-scope-outline.tsx), not one ring each
   const aiRings = aiHolds.filter((h) => !h.scope);
+  const tagged = aiHoldTagCarriers(aiRings);
   const drawn = rings.length + aiRings.length;
   useEffect(() => {
     if (!drawn || typeof document === 'undefined') return;
@@ -407,7 +429,7 @@ export function HoldRings() {
       {aiRings.map((h) => (
         <div
           key={`ai-${h.artboard}-${h.element}-${h.occurrence ?? 0}`}
-          className="ed-ai-hold"
+          className={`ed-ai-hold${tagged.has(aiHoldKey(h)) ? '' : ' ed-ai-hold--quiet'}`}
           data-testid="edit-ai-hold"
           data-hold="ai"
           data-artboard={h.artboard}
