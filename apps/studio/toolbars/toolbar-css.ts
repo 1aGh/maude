@@ -93,6 +93,23 @@ export const TOOLBAR_CSS = `
   background: var(--maude-hud-accent-muted, color-mix(in oklab, var(--maude-hud-accent, #2a6fd6) 14%, transparent));
   color: var(--maude-hud-accent-text, var(--maude-hud-accent, #2a6fd6));
 }
+/* The panels are hidden (01 cf-open-big, board Toolbar folded): the toolbar is one pressed tool glyph, not a control. */
+.dc-tool-palette--zen .dc-tp-b {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: calc(var(--maude-hud-radius-xl, 20px) - 8px);
+  background: var(--maude-hud-accent-muted, color-mix(in oklab, var(--maude-hud-accent, #2a6fd6) 14%, transparent));
+  color: var(--maude-hud-accent-text, var(--maude-hud-accent, #2a6fd6));
+  pointer-events: none;
+}
+.dc-tool-palette--zen .dc-tp-b svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
 /* Sticky is a note in the paper it places; the Marker wears its ink; Stickers a filled disc (board AnnotateIcon). */
 .dc-tool-palette .dc-tp-note {
   display: block;

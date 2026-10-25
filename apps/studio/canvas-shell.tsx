@@ -3114,7 +3114,9 @@ function CanvasRouter({
       if (m.dgn === 'shell-panels') {
         if (e.source !== window.parent) return;
         const open = (m as { open?: unknown }).open;
-        setShellPanelOpen(open === 'stickers' || open === 'assets' ? open : null);
+        setShellPanelOpen(
+          open === 'stickers' || open === 'assets' || open === 'components' ? open : null
+        );
         return;
       }
       // V2-8.5 c7 (08 ak-convert-after) — the two marks after "Make A6 print". Parent-only, like the rest of this block:
@@ -3300,6 +3302,7 @@ function CanvasRouter({
           guides?: boolean;
           print?: boolean;
           safeZones?: boolean;
+          zen?: boolean;
         };
         const patch: {
           minimap?: boolean;
@@ -3308,7 +3311,10 @@ function CanvasRouter({
           guides?: boolean;
           print?: boolean;
           safeZones?: boolean;
+          zen?: boolean;
         } = {};
+        // P8 C8 (01 cf-open-big) - the panels are hidden: the toolbar folds to its current tool. Shell-driven.
+        if (typeof mm.zen === 'boolean') patch.zen = mm.zen;
         if (typeof mm.minimap === 'boolean') patch.minimap = mm.minimap;
         if (typeof mm.zoom === 'boolean') patch.zoom = mm.zoom;
         if (typeof mm.present === 'boolean') patch.present = mm.present;

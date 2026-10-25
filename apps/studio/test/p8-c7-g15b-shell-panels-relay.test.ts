@@ -46,6 +46,7 @@ describe('shell-panels relay', () => {
 
   test('app.jsx mounts it with the gallery request and the Assets panel state', () => {
     const src = readFileSync(join(import.meta.dir, '../client/app.jsx'), 'utf8');
-    expect(src).toContain('useShellPanelsRelay({ stickersOpen: !!stickerPickerReq, assetsOpen })');
+    expect(src).toContain('useShellPanelsRelay({');
+    expect(src).toContain('componentsOpen: !!componentsReq');
   });
 });

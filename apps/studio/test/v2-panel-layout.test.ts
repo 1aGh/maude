@@ -39,7 +39,9 @@ describe('panel layout store', () => {
     const { store, said, unsaid } = rig();
     store.toggleHidden();
     expect(store.get().hidden).toBe(true);
-    expect(said).toEqual([{ id: 'panels-hidden', title: PANELS_HIDDEN_HINT, kind: 'info' }]);
+    expect(said).toEqual([
+      { id: 'panels-hidden', title: PANELS_HIDDEN_HINT, kind: 'info', placement: 'top' },
+    ]);
     expect(PANELS_HIDDEN_HINT).toBe('Panels hidden. Press ⌘\\ to bring them back.');
     store.toggleHidden();
     expect(store.get().hidden).toBe(false);

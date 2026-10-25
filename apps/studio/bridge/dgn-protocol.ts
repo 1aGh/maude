@@ -443,6 +443,8 @@ export interface ShellToCanvas {
     guides: boolean;
     print: boolean;
     safeZones: boolean;
+    /** P8 C8 (01 cf-open-big): ⌘\ hid the panels - the toolbar folds to its one current tool. */
+    zen: boolean;
   }>;
   'view-annotations': { visible: boolean };
   'canvas-cap': { t: string };
@@ -570,7 +572,7 @@ export interface ShellToCanvas {
   // V2-8.5 c7 (15 an-stk-gallery, 04 md-edit-image): which of the shell's tool panels is open, so the canvas dock can
   // press the slot that opened it (Stickers · E while the gallery is up, Image · I while the Assets panel is). A state:
   // the whole answer each time, `null` = none. Two words and nothing else; the canvas never learns what the panel shows.
-  'shell-panels': { v: 1; open: 'stickers' | 'assets' | null };
+  'shell-panels': { v: 1; open: 'stickers' | 'assets' | 'components' | null };
   // V2-8.5 c7 (03 ai-copy): the artboards a "Run on a copy" made, each with the artboard it was copied from. The canvas
   // draws a dashed link between the pair and "Copied from <the original's name>" under the copy. Ids only: the
   // canvas reads the name off its own artboard, and nothing the person asked (or the busy chat's title) crosses
@@ -1867,6 +1869,7 @@ const s2c: S2C = {
       guides: opt(bool),
       print: opt(bool),
       safeZones: opt(bool),
+      zen: opt(bool),
     }),
   },
   'view-annotations': {
@@ -2077,7 +2080,7 @@ const s2c: S2C = {
     // sent by v2/shell/shell-panels-relay.js (the Stickers gallery / Assets panel opened or closed, and again to a frame
     // that has just loaded); read by canvas-shell.tsx into toolbars/shell-panels.ts, which the dock's panel slots follow
     owner: 'shell-panels',
-    parse: p({ v: lit(1), open: nul(lit('stickers', 'assets')) }),
+    parse: p({ v: lit(1), open: nul(lit('stickers', 'assets', 'components')) }),
   },
   'ai-copies': {
     gate: 'parent',

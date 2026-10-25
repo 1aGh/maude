@@ -497,6 +497,7 @@ function ChatThread({
                     enabled={suggestOn}
                     lastFailed={!!turnError}
                     chatId={chatId}
+                    canvas={activeCanvas}
                   />
                 </ThreadPrimitive.If>
               }

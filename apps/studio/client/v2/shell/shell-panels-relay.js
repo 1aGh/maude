@@ -2,19 +2,20 @@
 // canvas which of ITS tool panels is up, so the dock presses the slot that opened it (Stickers · E under the
 // gallery, Image · I beside the Assets panel). Parent -> iframe only; the canvas never answers.
 //
-//   { dgn: 'shell-panels', v: 1, open: 'stickers' | 'assets' | null }
+//   { dgn: 'shell-panels', v: 1, open: 'stickers' | 'assets' | 'components' | null }
 //
 // A state, not an event: the whole answer each time. A frame that has just loaded does not listen yet, so it is
 // told again on `loaded` / `canvas-rendered`; an unchanged answer is not re-sent to a frame that already has it.
-// The Stickers gallery wins when both are up (it is the one anchored to the dock).
+// The Stickers gallery wins when several are up (it is the one anchored to the dock), then the Component picker
+// (P8 C8, 04 md-edit-component: its slot is pressed while the picker is open), then Assets.
 
 import { useEffect, useRef } from 'react';
 
 const FRAME = 'iframe[data-testid="canvas-frame"]';
 
 /** What the canvas is told for the two shell facts. */
-export function openPanel({ stickers, assets }) {
-  return stickers ? 'stickers' : assets ? 'assets' : null;
+export function openPanel({ stickers, assets, components = false }) {
+  return stickers ? 'stickers' : components ? 'components' : assets ? 'assets' : null;
 }
 
 export function createShellPanelsLane({
@@ -70,7 +71,7 @@ export function createShellPanelsLane({
 }
 
 /** Mounted once by the shell (app.jsx). */
-export function useShellPanelsRelay({ stickersOpen, assetsOpen }) {
+export function useShellPanelsRelay({ stickersOpen, assetsOpen, componentsOpen = false }) {
   const laneRef = useRef(null);
   if (!laneRef.current) laneRef.current = createShellPanelsLane();
   const lane = laneRef.current;
@@ -78,7 +79,11 @@ export function useShellPanelsRelay({ stickersOpen, assetsOpen }) {
     lane.attach();
     return () => lane.detach();
   }, [lane]);
-  const next = openPanel({ stickers: !!stickersOpen, assets: !!assetsOpen });
+  const next = openPanel({
+    stickers: !!stickersOpen,
+    assets: !!assetsOpen,
+    components: !!componentsOpen,
+  });
   useEffect(() => {
     lane.set(next);
   }, [lane, next]);

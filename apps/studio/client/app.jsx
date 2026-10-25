@@ -1694,7 +1694,7 @@ function ShellProjectPill() {
     paletteAndPanels: { leftActive },
     comments,
   } = useShellStore();
-  const { hidden: panelsHidden, pinned } = usePanelLayout();
+  const { hidden: panelsHidden, pinned, userHidden: panelsUserHiddenLayout } = usePanelLayout();
   const native = isNativeApp();
   const online = useOnline();
   const canvasOpen = !!activePath && activePath !== SYSTEM_TAB;
@@ -1977,7 +1977,7 @@ function ShellProjectPill() {
         switcher={switcher}
         docked={pinned && !panelsHidden && !!leftActive}
         // S3.9 — Preview folds the pill to its mark (04 md-preview).
-        folded={previewing}
+        folded={previewing || panelsUserHiddenLayout}
         onOpen={(el) => {
           openerRef.current = el;
           diag.onMenuOpen();
@@ -2946,6 +2946,8 @@ function ShellTree() {
   // ⌘-click, Comments) shows by itself, the Canvases and AI chat panels stay folded.
   const shownRef = useRef({ l: leftActive, r: rightActive, ai: assistantOpen });
   const [rightInFold, setRightInFold] = useState(false);
+  // P8 C8 (04 md-draw): the AI chat opened during Preview's fold shows by itself (Canvases stay folded)
+  const [aiInFold, setAiInFold] = useState(false);
   useEffect(() => {
     const prev = shownRef.current;
     const next = { l: leftActive, r: rightActive, ai: assistantOpen };
@@ -2956,11 +2958,32 @@ function ShellTree() {
       userHidden: panelsUserHidden,
       folded: panelsFolded,
       rightInFold,
+      aiInFold,
     });
     if (d.rightInFold !== rightInFold) setRightInFold(d.rightInFold);
+    if (d.aiInFold !== aiInFold) setAiInFold(d.aiInFold);
     if (d.show) panelLayout.show();
-  }, [leftActive, rightActive, assistantOpen, panelsUserHidden, panelsFolded, rightInFold]);
-  const rightHidden = panelsHidden && !(rightInFold && !panelsUserHidden);
+  }, [
+    leftActive,
+    rightActive,
+    assistantOpen,
+    panelsUserHidden,
+    panelsFolded,
+    rightInFold,
+    aiInFold,
+  ]);
+  // P8 C8 (01 cf-open-big): the panels' hide key folds the canvas toolbar too (the project pill and the share
+  // cluster follow it); every open frame hears it, a frame opened later is seeded on load.
+  useEffect(() => {
+    for (const el of iframesRef.current.values()) {
+      try {
+        el.contentWindow.postMessage({ dgn: 'view-chrome', zen: panelsUserHidden }, '*');
+      } catch {}
+    }
+  }, [panelsUserHidden, iframesRef]);
+  const rightMainHidden = panelsHidden && !(rightInFold && !panelsUserHidden);
+  const aiFoldShown = aiInFold && !panelsUserHidden && rightHostsAssistant && assistantOpen;
+  const rightHidden = rightMainHidden && !aiFoldShown;
   // P8 c5 (03 ai-long-pinned): the chat docked as a column narrows the canvas frame - Fit the canvas to what is left
   useFitOnAiPin({
     iframesRef,
@@ -3003,7 +3026,11 @@ function ShellTree() {
     },
   });
   // V2-8.5 c7 - the open panel reaches the canvas dock (Stickers · E, Image · I press while theirs is up)
-  useShellPanelsRelay({ stickersOpen: !!stickerPickerReq, assetsOpen });
+  useShellPanelsRelay({
+    stickersOpen: !!stickerPickerReq,
+    assetsOpen,
+    componentsOpen: !!componentsReq,
+  });
   // S8.19 — "Waiting for Jonas's Mac" vs Missing: each open canvas hears its pictures' states
   // (dgn `asset-state`); a Missing frame's Relink… (and the Inspector's box) opens the relink sheet (S8.19c).
   const relink = useRelinkSheet({ canEdit: !viewerMode });
@@ -3166,7 +3193,7 @@ function ShellTree() {
               side="right"
               width={rpW}
               mainWidth={rightMainWidth({ active: rightActive, base: rpSize.w })}
-              open={!!rightActive}
+              open={!!rightActive && !rightMainHidden}
               ids={rightIds}
               activeId={rightActive}
               onPick={togglePanel}
@@ -3174,7 +3201,7 @@ function ShellTree() {
               labels={dockLabels}
               floating={floating}
               hidden={rightHidden}
-              aiShown={rightHostsAssistant && assistantOpen && !panelsFolded}
+              aiShown={rightHostsAssistant && assistantOpen && (!panelsFolded || aiInFold)}
               ai={rightHostsAssistant ? renderAssistant() : null}
             >
               {rightActive && renderPanelBody(rightActive)}
@@ -3195,9 +3222,11 @@ function ShellTree() {
                     side: leftHostsAssistant ? 'left' : 'right',
                     shown: assistantOpen,
                     busy: assistantBusy,
+                    inFold: aiFoldShown,
                   }
                 : null
             }
+            onShowAi={() => setAiInFold(true)}
             onOpen={openPanelExclusive}
             onShow={panelLayout.show}
           />

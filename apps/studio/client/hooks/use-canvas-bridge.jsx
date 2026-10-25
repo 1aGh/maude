@@ -16,6 +16,7 @@ import { browseFirstRunHint, layersTreeSig, shellToast } from '../shell/util.js'
 // S7.21 — the toast after the inspector's "Add a width" (08 ak-web-widths) and the video artboard's length
 import { settleDuplicateAtWidth } from '../v2/create/duplicate-done.js';
 import { menuRunner } from '../v2/shell/menu-runner.js';
+import { panelLayout } from '../v2/shell/use-panel-layout.js';
 
 // 01 cf-duplicate-done / 08 ak-web-widths: a copy made is told with the copy glyph, not a success tick
 const DUPLICATE_TOAST = { kind: 'info', icon: 'duplicate' };
@@ -1284,6 +1285,8 @@ export function useCanvasBridge({
                 minimap: minimapVisible,
                 zoom: zoomCtlVisible,
                 present: presentMode,
+                // P8 C8 (01 cf-open-big): a frame opened while the panels are hidden folds its toolbar too
+                zen: panelLayout.get().userHidden,
               },
               '*'
             );

@@ -229,6 +229,36 @@ describe('who sees the card', () => {
     expect($('home-signin-quiet')?.textContent).toContain('Sign in to cloud.maude.sh');
   });
 
+  test('the first launch writes the per-Mac flag once the card is up, and keeps the card for this visit', async () => {
+    mount();
+    await flush();
+    expect($('signin-card')).not.toBeNull();
+    expect(
+      calls.filter((c) => c.url.includes('/_home/first-run') && c.method === 'POST')
+    ).toHaveLength(1);
+  });
+
+  test('a later launch (flag set), still no project and no account: board 05 shelf + the quiet pill, no card (05 es-home-local)', async () => {
+    routes['/_home/first-run'] = () => [200, { seen: true }];
+    mount();
+    await flush();
+    expect($('signin-card')).toBeNull();
+    expect($('home-projects-empty')?.textContent).toContain('No projects on this Mac yet.');
+    expect($('home-signin-quiet')?.textContent).toContain('Sign in to cloud.maude.sh');
+    // nothing is written again
+    expect(
+      calls.filter((c) => c.url.includes('/_home/first-run') && c.method === 'POST')
+    ).toHaveLength(0);
+  });
+
+  test('the quiet pill still opens the sign-in card after the first launch', async () => {
+    routes['/_home/first-run'] = () => [200, { seen: true }];
+    mount();
+    await flush();
+    await click('home-signin-quiet');
+    expect($('signin-card')).not.toBeNull();
+  });
+
   test('signed in with nothing made: no card, no quiet link', async () => {
     cloud = IN(0);
     mount();

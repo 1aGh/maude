@@ -328,7 +328,6 @@ export function Viewport({
           viewing={viewing?.path === canvasTab}
           canEdit={!cfg?.readOnly}
           askAiAvailable={isNativeApp() && !cfg?.readOnly}
-          onAskAi={(text) => dispatchCanvasOp('ask-ai-fix', canvasTab, text)}
           onReload={() => onRetryCanvasLoad?.(canvasTab)}
           onNotify={(msg, ok) => shellToast(msg, ok)}
         />

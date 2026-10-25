@@ -49,6 +49,11 @@ export interface ChromeVisibilityState {
    * the opt-in, only an explicit `false` hides it.
    */
   safeZones: boolean;
+  /**
+   * P8 C8 (01 cf-open-big) — ⌘\ hid the panels: the toolbar folds to its one current tool (the board's
+   * `Toolbar folded`). Shell-driven like `present` (`view-chrome {zen}`), never stored.
+   */
+  zen: boolean;
 }
 
 export interface ChromeVisibilityValue extends ChromeVisibilityState {
@@ -78,6 +83,7 @@ export function ChromeVisibilityProvider({
     guides: initial?.guides ?? false,
     print: initial?.print ?? false,
     safeZones: initial?.safeZones ?? true,
+    zen: initial?.zen ?? false,
   });
   const setChrome = useCallback((patch: Partial<ChromeVisibilityState>) => {
     setState((prev) => ({ ...prev, ...patch }));

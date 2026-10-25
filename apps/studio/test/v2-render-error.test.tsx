@@ -9,6 +9,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { repairOfferFor, resetRepairOffers } from '../client/v2/create/repair-offer.js';
 import {
   cardShown,
   noteRender,
@@ -143,6 +144,7 @@ describe('<RenderErrorHost>', () => {
   });
   afterEach(async () => {
     for (const r of roots.splice(0)) await act(async () => r.unmount());
+    resetRepairOffers();
     document.body.innerHTML = '';
   });
 
@@ -258,22 +260,33 @@ describe('<RenderErrorHost>', () => {
     expect(q('canvas-error-last-good')).toBeNull();
   });
 
-  test('Ask AI fix PRE-FILLS the composer with what happened and never sends', async () => {
-    const asked: string[] = [];
+  test('the card keeps ONE verb; Ask AI to fix it is announced for the AI panel chip (P8 C8, 01 cf-render-error)', async () => {
+    await mount(
+      <RenderErrorHost canvas={PATH_A} entry={entry} runsStore={runsStore()} askAiAvailable />
+    );
+    expect(q('canvas-error-ask-ai')).toBeNull();
+    expect(q('canvas-error-go-back')).not.toBeNull();
+    const text = repairOfferFor(PATH_A) ?? '';
+    expect(text).toContain("Pricing can't be drawn right now. Fix it.");
+    expect(text).toContain('It stopped while drawing');
+    expect(text).toContain('“plan is not defined”');
+  });
+
+  test('no offer when AI is not available (a browser tab has no chat)', async () => {
+    await mount(<RenderErrorHost canvas={PATH_A} entry={entry} runsStore={runsStore()} />);
+    expect(repairOfferFor(PATH_A)).toBeNull();
+  });
+
+  test('the offer goes with the card: none once the canvas draws again', async () => {
     await mount(
       <RenderErrorHost
         canvas={PATH_A}
-        entry={entry}
+        entry={{ ...entry, status: 'ok' }}
         runsStore={runsStore()}
         askAiAvailable
-        onAskAi={(t: string) => asked.push(t)}
       />
     );
-    await click(q('canvas-error-ask-ai'));
-    expect(asked).toHaveLength(1);
-    expect(asked[0]).toContain("Pricing can't be drawn right now. Fix it.");
-    expect(asked[0]).toContain('It stopped while drawing');
-    expect(asked[0]).toContain('“plan is not defined”');
+    expect(repairOfferFor(PATH_A)).toBeNull();
   });
 
   test("silent during this Mac's own run on the canvas — and it appears if the canvas is still broken when the run ends", async () => {

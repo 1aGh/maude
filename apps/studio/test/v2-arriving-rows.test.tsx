@@ -54,7 +54,10 @@ describe('arrivingSlots (pure)', () => {
       'ui/2026/Combine-video-AI.tsx',
     ]);
     expect(out.ghosts[0].slot).toEqual({ dim: true, arriving: true });
-    expect(out.foot).toEqual({ text: 'Getting Alligators brand · 41 of 93 canvases' });
+    expect(out.foot).toEqual({
+      text: 'Getting Alligators brand · 41 of 93 canvases',
+      progress: 41 / 93,
+    });
   });
 
   test('present on the server, not yet in the panel index: still arriving — then gone, never missing', async () => {
@@ -222,6 +225,9 @@ describe('the Canvases panel', () => {
       'Getting Alligators brand · 41 of 93 canvases'
     );
     expect(q(host, 'canvases-foot')?.getAttribute('data-slot')).toBe('arriving');
+    // P8 C8 (05 es-arriving): the foot carries the board's 4 px progress bar - 41 of 93 as a share
+    const bar = q(host, 'canvases-foot-progress')?.querySelector<HTMLElement>('.es-bar i');
+    expect(bar?.style.width).toBe('44%');
   });
 
   test('a canvas lands mid-open: arriving → the normal row, no frame of missing, never two rows', async () => {

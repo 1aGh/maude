@@ -124,6 +124,8 @@ export function ShareCluster({
       data-docked={docked ? 'true' : undefined}
       data-mode={mode ?? undefined}
       data-cluster={cluster}
+      // P8 C8 (01 cf-open-big): with the panels hidden the cluster is zen - the panels button alone, the way back
+      data-zen={panelsHidden ? 'true' : undefined}
     >
       {accountSlot}
       <PresenceFaces faces={faces} onFollow={onFollow} presence={presence} />

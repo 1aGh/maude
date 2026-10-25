@@ -42,3 +42,14 @@ Branch `p8-c7-oboard` from feat/maude-v2 `6f503db82`. Checklist = the MUST rows 
 ## Shoot (stage D)
 02 + 05 re-shot with `_d-harness-g1-d3` repointed to this worktree (`.scr/h`), plus: run.mjs dismisses `.maude-notice-close` right before each shot;
 home2.mjs `es-home-local` registers no project (the board's "No projects on this Mac yet." card).
+
+## Round 8 (p8-c8-misc)
+
+| id | what | where | tests |
+|---|---|---|---|
+| md-edit-component | the Components slot is pressed while the picker is open (`shell-panels` dgn gains `components`); the picker was already centred on the slot (checked: slot x 825-865, panel 696-996, anchored above); harness folds Canvases first | `shell-panels-relay.js`, `shell-panels.ts`, `dgn-protocol.ts`, `canvas-shell.tsx`, `app.jsx`; harness `_c8-harness-g2/impl/s04a.mjs` | `p8-c8-misc`, `dgn-protocol-gates`, `p8-c7-g15b-shell-panels-relay` |
+| md-draw | the AI chat opened during Preview's fold shows by itself; Canvases stay folded (`panelOpenDecision` `aiInFold`, corner spark no longer calls `onShow` under the fold alone) | `panel-layout.js`, `corner-icons.jsx`, `app.jsx` | `p8-c8-misc` |
+| md-inspect | harness: ⌘0 fit before the ⌘-click | `_c8-harness-g2/impl/s04a.mjs` | - |
+| md-edge-mixed | harness: a Banner 1200 x 300 artboard added in `prepare`, sixth part of the contact sheet (checked locally: letterbox bars above and below) | `_c8-harness-g2/impl/s04d.mjs` | - |
+
+Open: stage D re-shoot of 04 not run (budget).
