@@ -149,3 +149,30 @@ All of 10 re-shot on the round-7c tip (release-built client, Chromium, light + d
 | co-trashed | the ghost row is two lines (name, "In the trash · open here"), selected; the shell stays in Viewing (open question in `fix-c7-ex10c.md`) |
 | co-comment-video | shot in Edit with the trailer selected: two timed threads are face markers on the timeline strip, header "2 comments on this video" (Preview shows no timeline) |
 | the rest | re-shot, no product change this round |
+
+
+## FINAL (D5, e37e7d82a) — merged tip after round 7
+
+Every reachable id re-shot on the merged tip `feat/maude-v2` @ `e37e7d82a` (release-built client, light + dark, IMPL side only), by `_d5-harness-g4/chain10.sh` (scenarios `s10 s10cm s10c s10d s10e s10m s10k s10v`; the round-7c harness) on the Mac mini with Google Chrome (no Playwright Chromium download there). Spec frames reused from stage A: `.design/ui/v2/10 Share and Collaboration.*` last changed 2026-10-19, before the spec shoot. No match judged here.
+
+| artboard id | light | dark | note |
+|---|---|---|---|
+| co-share-sheet | re-shot | re-shot | |
+| co-share-roles | re-shot | re-shot | |
+| co-browser-view | re-shot | re-shot | plain browser tab, no `__TAURI__` stub |
+| co-presence | re-shot | re-shot | |
+| co-comment-thread | re-shot | re-shot | |
+| co-comment-video | re-shot | re-shot | Edit, trailer selected, timeline markers (`s10v`) |
+| co-comment-print | re-shot | re-shot | |
+| co-sync-offline | re-shot | re-shot | |
+| co-sync-back | re-shot | re-shot | |
+| co-conflict | re-shot | re-shot | Canvases panel folded (`s10k`) |
+| co-trashed | re-shot | re-shot | Canvases panel folded (`s10k`) |
+| co-local-cloud | re-shot | re-shot | |
+| co-ask-edit | re-shot | re-shot | pair uses the `co-ask-edit-tip` frame; `-ask` and `-rel` frames are in the raw impl dir |
+| co-access-ends | re-shot | re-shot | |
+| co-share-advanced | re-shot | re-shot | pair uses the tall 1040 px frame (`co-share-advanced-tall`) |
+| co-follow, co-bring, co-spotlight, co-twelve | unreachable | unreachable | need N live Yjs awareness peers; the stage-C fix (`fix-share.md`) did not build them; spec-only JPEGs in `spec-only/` |
+| co-mention-notify | unreachable | unreachable | OS banner + hub mention e-mail template do not exist in the lane |
+
+Harness note: picture fixtures are drawn in Chromium (no ImageMagick on the runner), not `plasma:fractal` — only matters for canvases with placed photos (12).

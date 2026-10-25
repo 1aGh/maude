@@ -120,3 +120,29 @@ All reachable ids re-shot dark + light on the release client of branch `p8-c7-g1
 | pn-compare | re-shot | the two frames follow the theme (they were dark in light), borderless stage |
 | pn-move | re-shot | `s11c7.mjs`: a canvas held over the folder club-web → the drop tag "Move here" on the folder |
 
+
+
+## FINAL (D5, e37e7d82a) — merged tip after round 7
+
+Every reachable id re-shot on the merged tip `feat/maude-v2` @ `e37e7d82a` (release-built client, light + dark, IMPL side only), by `_d5-harness-g4/chain1112.sh` (+ `chain11d.sh` for `pn-switch-ai`) on the Mac mini with Google Chrome (no Playwright Chromium download there): the round-7 `_c7-harness-g1112b` scenarios (`s11 s11e s11b s11dl s11r2 s11k s11c7 s11ds7`, `strip-shoot`, `home11`) plus `s11d`. Spec frames reused from stage A: `.design/ui/v2/11 Projects and Navigation.*` unchanged since 2026-10-08. No match judged here.
+
+| artboard id | light | dark | note |
+|---|---|---|---|
+| pn-tab-b, pn-tab-b20 | re-shot | re-shot | the real `apps/desktop/src/strip.html` fed a stubbed `tabs_state` (`strip-shoot`); native window chrome absent by construction |
+| pn-switch-ai | re-shot | re-shot | ⌘K › Keyboard shortcuts (`s11d`) |
+| pn-switch-ai-strip | re-shot | re-shot | strip with working / needs-you / done |
+| pn-relaunch, pn-relaunch-strip | re-shot | re-shot | |
+| pn-home, pn-home-search | re-shot | re-shot | Home server mode with a seeded machine index (`home11`) |
+| pn-ds, pn-ds-search | re-shot | re-shot | ONE design system, the system open (`s11ds7`, a copy of this tree's maude-v2) |
+| pn-organise | re-shot | re-shot | |
+| pn-move | re-shot | re-shot | canvas held over a folder, "Move here" (`s11c7`) |
+| pn-trash | re-shot | re-shot | |
+| pn-jump | re-shot | re-shot | artboard selected, list opened and scrolled (`s11c7`) |
+| pn-k-across, pn-k-close | re-shot | re-shot | |
+| pn-history, pn-compare | re-shot | re-shot | |
+| pn-deeplink | re-shot | re-shot | waits for the toast; the artboard is selected (`s11dl`) |
+| pn-tab-a, pn-tab-a20 | unreachable | unreachable | variant A not picked (decision `v2-3.7-own-tab-bar`), superseded boards; spec-only |
+| pn-ab | unreachable | unreachable | a decision board, no UI |
+| pn-tab-menu, pn-windows | unreachable | unreachable | native NSMenu / multi-window, not drawable in a browser |
+| pn-accounts | unreachable | unreachable | the account card is not built (S1.21-accounts GAP) |
+| pn-cant-open | unreachable | unreachable | needs a moved project root / removed access in the Rust shell + hub |
