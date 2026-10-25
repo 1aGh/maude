@@ -1,9 +1,8 @@
 // hooks/use-photo-and-timeline.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ANNOTATIONS_HIDDEN_TOAST } from '../../annotations/ui/visibility.ts';
+import { syncAnnotationsHiddenToast } from './annotations-hidden-toast.js';
 import { acceptFromCanvas } from '../../bridge/dgn-protocol.ts';
-import { notify } from '../../notifications.tsx';
 import { persistUiPrefs, shellToast } from '../shell/util.js';
 import { installDropGuard } from '../shell/drop-guard.js';
 import { togglePresentCanvas, usePresentMode } from '../v2/shell/use-canvas-mode-lane.js';
@@ -36,15 +35,6 @@ import {
   pruneDirs,
   toggleSection as toggleSectionState,
 } from '../tree-expansion.js';
-
-/** "Annotations hidden. Press ⇧P to bring them back." + Show — one toast, whichever path hid them. */
-export function notifyAnnotationsHidden(onShow) {
-  notify({
-    id: 'annotations-hidden',
-    title: ANNOTATIONS_HIDDEN_TOAST.title,
-    action: { label: ANNOTATIONS_HIDDEN_TOAST.action, onClick: onShow },
-  });
-}
 
 export function usePhotoAndTimeline({
   groups,
@@ -519,7 +509,7 @@ export function usePhotoAndTimeline({
       }
       // S4.9: hiding says how to bring them back; the shell owns the toast because canvas notices
       // can't carry an action (decision v2-S4.9-shell-owns-hidden-toast).
-      if (!next) queueMicrotask(() => notifyAnnotationsHidden(() => toggleAnnotations()));
+      queueMicrotask(() => syncAnnotationsHiddenToast(next, () => toggleAnnotations()));
       return next;
     });
   }, [activePath]);
@@ -543,7 +533,7 @@ export function usePhotoAndTimeline({
       const m = acceptFromCanvas(e, { canvasOrigin, active: win });
       if (m && m.dgn === 'annotations-visibility') {
         setAnnotationsVisible(m.visible);
-        if (!m.visible) notifyAnnotationsHidden(() => toggleAnnotationsRef.current());
+        syncAnnotationsHiddenToast(m.visible, () => toggleAnnotationsRef.current());
       }
     };
     window.addEventListener('message', onMessage);
