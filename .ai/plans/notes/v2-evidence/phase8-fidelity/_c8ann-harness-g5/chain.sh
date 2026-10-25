@@ -37,8 +37,8 @@ case "$N" in
   for s in s14e s14f s14g s14ai s14t; do echo "== $s $T"; run .scr/$s.mjs $T; done
   ;;
 15)
-  for g in a b c d e f; do echo "== s15 G=$g $T"; G=$g run .scr/s15.mjs $T; done
-  for g in g1 g2 g3 g4 g5; do echo "== s15g G=$g $T"; G=$g run .scr/s15g.mjs $T; done
+  for g in ${S15G:-a b c d e f}; do echo "== s15 G=$g $T"; G=$g run .scr/s15.mjs $T; done
+  for g in ${S15GG:-g1 g2 g3 g4 g5}; do echo "== s15g G=$g $T"; G=$g run .scr/s15g.mjs $T; done
   ;;
 esac
 echo "CHAIN-D5-DONE $N $T"

@@ -175,7 +175,7 @@ export async function run(h) {
       if (await page.locator('[data-testid="panel-fold-left"]').count()) await k.fold();
       await k.seed(REL, sec, 2500);
       await k.seed(REL, stk, 5500);
-      await page.mouse.click(700, 120); await sleep(300); await k.fit(); await sleep(600);
+      await page.mouse.click(700, 120); await sleep(300); await k.fit(); for (let i = 0; i < 3; i++) { await page.keyboard.press('Meta+-'); await sleep(500); } await page.mouse.wheel(0, 260); await sleep(900);
       await page.mouse.move(60, 520); await sleep(1500);
     });
   }
