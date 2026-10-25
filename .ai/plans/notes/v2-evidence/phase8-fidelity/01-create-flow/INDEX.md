@@ -277,3 +277,34 @@ Re-shot light + dark on the Mac mini (Google Chrome), impl side only; spec reuse
 | --- | --- | --- | --- |
 | `cf-render-error` | dark | re-shot | AI panel open while the card shows, so the "Ask AI to fix it" chip is on the shot |
 | `cf-render-error` | light | re-shot | AI panel open while the card shows, so the "Ask AI to fix it" chip is on the shot |
+
+## FINAL (D7, 98ed9c011)
+
+Final verification re-shoot of the IMPL side (every artboard id x light + dark) on the merged `feat/maude-v2` tip 98ed9c011 (stage C rounds 1-10 merged, release client); no product code changed. Supersedes every earlier "after" / FINAL / ROUND section, round 10 included. 19 of 20 artboards with pairs. Evidence only: no match / mismatch judged here.
+
+- **IMPL.** `_d7-harness-g1/g1/` (the D6 G1 harness + the round-10 s01d delta (AI panel open while the render-error card shows)), shot on the Mac mini through `scripts/remote-lane.sh` in Google Chrome (viewport 1600 x 1000), throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, release-built client.
+- **SPEC.** reused: the boards `.design/ui/v2/01*` (.tsx / .css / .meta.json) have not changed since the D3 shoot (last board edits on 2026-10-19 / 10-24 touch other canvases); the spec PNGs are the D3 set.
+- **Pairs.** full-size: `.scr/pairs/01/<id>-<theme>.png` in the p8-d7-g1 worktree (spec left | impl right); the committed `<id>-<theme>.jpg` here were overwritten (<= 1100 px, q55).
+
+| id | dark | light |
+|---|---|---|
+| `cf-home-prompt` | re-shot | re-shot |
+| `cf-ai-drafting` | re-shot | re-shot |
+| `cf-ai-done` | re-shot | re-shot |
+| `cf-select-tweak` | re-shot | re-shot |
+| `cf-sticky-comment` | re-shot | re-shot |
+| `cf-undo-before` | re-shot | re-shot |
+| `cf-undo-ai` | re-shot | re-shot |
+| `cf-blank` | re-shot | re-shot |
+| `cf-add-artboard` | re-shot | re-shot |
+| `cf-duplicate-width` | re-shot | re-shot |
+| `cf-duplicate-done` | re-shot | re-shot |
+| `cf-frames-text` | re-shot | re-shot |
+| `cf-big-tree` | re-shot | re-shot |
+| `cf-panel-search` | re-shot | re-shot |
+| `cf-search-k` | re-shot | re-shot |
+| `cf-open-big` | re-shot | re-shot |
+| `cf-busy` | unreachable | unreachable |
+| `cf-status-words` | re-shot | re-shot |
+| `cf-render-error` | re-shot | re-shot |
+| `cf-offline-create` | re-shot | re-shot |
