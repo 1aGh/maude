@@ -20,7 +20,6 @@
 // only this block (kinds/index.js `bare`).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { followDark, formatLike, resolveColour } from '../../../../ds/contrast.ts';
 import { usedWords } from '../../../../ds/board/types.ts';
 import { toHex } from '../../../../draw/palette.ts';
@@ -34,6 +33,7 @@ import { contrastLine, roleWords } from '../contrast.js';
 import { ContrastWarning } from '../contrast-warning.jsx';
 import { EDGE_WORDS, fixOffer } from '../edge-model.js';
 import { fetchTrashQuestion, fixContrastNow, trashTokenNow } from '../edge-write.js';
+import { portalToBody } from '../../portal-scope.jsx';
 import { TrashTokenSheet } from '../trash-token-sheet.jsx';
 import { systemOfCanvas, useDsBoard } from '../use-ds-model.js';
 import {
@@ -468,7 +468,7 @@ export function TokenPanel({
         ) : null}
       </details>
       {trashQ && typeof document !== 'undefined'
-        ? createPortal(
+        ? portalToBody(
             <TrashTokenSheet
               question={trashQ}
               swatch={lightV}
@@ -482,8 +482,7 @@ export function TokenPanel({
                 }
                 return r;
               }}
-            />,
-            document.body
+            />
           )
         : null}
     </section>

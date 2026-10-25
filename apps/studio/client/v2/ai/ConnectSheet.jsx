@@ -9,7 +9,7 @@
 // it). Words are CONTRACT §7: "Connect your Claude account to let AI draft this." → Connect · Cancel.
 
 import { useId, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { portalToBody } from '../portal-scope.jsx';
 import { useModalFocus } from '../shell/modal-focus.js';
 import { Spark } from './icons.jsx';
 
@@ -108,15 +108,10 @@ export function ConnectModal({ testid = 'ai-connect-modal', onCancel, ...sheet }
   const connectRef = useRef(null);
   const root = useModalFocus({ onClose: onCancel, initialRef: connectRef });
   if (typeof document === 'undefined') return null;
-  // the body is outside the app's `.maude` root, and every kit rule (`.maude .btn…`) is scoped under it:
-  // without this wrapper Cancel / Connect render as bare browser buttons (D5 02 ob-ai-connect)
-  return createPortal(
-    <div className="maude">
-      <div className="ai-conn-veil" ref={root} tabIndex={-1} data-testid={testid}>
-        <ConnectSheet {...sheet} connectRef={connectRef} onCancel={onCancel} />
-      </div>
-    </div>,
-    document.body
+  return portalToBody(
+    <div className="ai-conn-veil" ref={root} tabIndex={-1} data-testid={testid}>
+      <ConnectSheet {...sheet} connectRef={connectRef} onCancel={onCancel} />
+    </div>
   );
 }
 
