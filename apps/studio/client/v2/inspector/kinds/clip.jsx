@@ -201,7 +201,6 @@ function TitleRows({ el, ctx }) {
   if (!t) return null;
   return (
     <div data-testid="timeline-inspector">
-      <TextRows t={t} />
       <StyleRows t={t} ctx={ctx} />
       <Row k="Motion" name="title-motion">
         <MotionGrid t={t} />
@@ -406,6 +405,8 @@ function TitleAdvanced({ el, open, onToggle }) {
   return (
     <AdvancedFold panel="inspector" hint={advancedHint(t)} open={open} onToggle={onToggle}>
       <div className="insp-adv insp-adv--title" data-testid="insp-adv-title">
+        {/* P8 C8 (07 · ve-text): the card is Font · Colour · Motion · Length; the words themselves live here */}
+        <TextRows t={t} />
         <div className="insp-css" data-testid="insp-adv-title-enter">
           <span className="insp-css-k k-mono">enter</span>
           <span className="insp-css-v k-mono">
