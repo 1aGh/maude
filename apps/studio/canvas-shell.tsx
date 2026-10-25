@@ -262,6 +262,18 @@ const HALO_CSS = `
 .dc-cv-group-bbox .tick-b { bottom: -3px; left: calc(50% - 3px); }
 .dc-cv-group-bbox .tick-l { left: -3px; top: calc(50% - 3px); }
 .dc-cv-group-bbox .tick-r { right: -3px; top: calc(50% - 3px); }
+/* P8 round 7 (12 · ia-placed \`.ia-groupsel-tag\`) — a group of photos says how many, inside its top-left corner */
+.dc-cv-group-tag {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--maude-hud-accent, #0d99ff);
+  color: #fff;
+  font: 600 11px/16px system-ui, -apple-system, sans-serif;
+  white-space: nowrap;
+}
 /*
  * Active-artboard indicator — the artboard whose center sits closest to the
  * viewport midpoint after pan settles is "active" (DesignCanvas tracks this
@@ -3009,7 +3021,7 @@ function CanvasRouter({
       // request-layers re-walks + posts the tree for an artboard.
       if (m.dgn === 'select-by-id') {
         if (e.source !== window.parent) return; // V2-2.8 S1 (see tool-set above)
-        const mm = m as { id?: string; artboardId?: string | null; index?: number };
+        const mm = m as { id?: string; artboardId?: string | null; index?: number; add?: boolean };
         // Dogfood follow-up — a bare ARTBOARD selection (no data-cd-id, the
         // ArtboardKnobs panel's own case) has no `mm.id` to resolve by, so
         // the element branch below never ran for it: after a structural
@@ -3041,13 +3053,14 @@ function CanvasRouter({
               one.id === mm.id &&
               (mm.index == null || one.index == null || one.index === mm.index)
             : !!one && !one.id && one.artboardId === (mm.artboardId ?? null);
-          selSet.replace(
-            hoverTargetToSelection({
-              el: target,
-              cdId: mm.id,
-              artboardId: mm.artboardId ?? null,
-            } as HoverTarget)
-          );
+          const picked = hoverTargetToSelection({
+            el: target,
+            cdId: mm.id,
+            artboardId: mm.artboardId ?? null,
+          } as HoverTarget);
+          // P8 round 7 (12 · ia-placed) — `add` grows the selection (the photos a place made, as one group)
+          if (mm.add && mm.id && !sameSelection) selSet.add(picked);
+          else selSet.replace(picked);
           // Task A1 — reveal THROUGH the camera, not host scroll. The old
           // `scrollIntoView` scrolled the overflow:hidden `.dc-canvas` /
           // `.dc-artboard-body` clip layers, desyncing the `.dc-world`
@@ -4614,6 +4627,14 @@ function ReorderDrag() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// P8 round 7 (12 · ia-placed) — a selection of two or more pictures and nothing else is "N photos" on the group box.
+export function groupPhotoCount(els: ReadonlyArray<Element | null | undefined>): number {
+  if (els.length < 2) return 0;
+  for (const el of els) if (!el || el.tagName !== 'IMG') return 0;
+  return els.length;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GroupBbox — dashed outline around the union of selected elements when N > 1.
 
 function GroupBbox() {
@@ -4668,11 +4689,17 @@ function GroupBbox() {
   }, [selected]);
 
   if (selected.length < 2) return null;
+  const photos = groupPhotoCount(selected.map((sel) => resolveSelectionEl(document, sel)));
   return (
     <div ref={ref} className="dc-cv-group-bbox" aria-hidden="true">
       {GROUP_TICK_CLASSES.map((cls) => (
         <i key={cls} className={`tick ${cls}`} />
       ))}
+      {photos ? (
+        <span className="dc-cv-group-tag" data-testid="canvas-group-tag">
+          {photos} photos
+        </span>
+      ) : null}
     </div>
   );
 }
