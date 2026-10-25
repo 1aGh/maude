@@ -1,0 +1,87 @@
+---
+title: Flow migration
+description: The flow plugin went from 30 commands to 10. What replaced what, the new /flow:run, role agents and run.* config, and how long the old names keep working.
+---
+
+The flow plugin used to ship 30 slash commands and a pile of overlapping skills. It now ships **10 commands**, and the variants are flags on those commands.
+
+## Why
+
+- **Fewer things to remember.** One `/flow:validate` with lanes beats six sibling commands you had to know existed.
+- **Current models need less hand-holding.** Most of the removed text was narration a modern model does not need. Real checks, gates and safety rules were kept.
+- **Cost is measured, not guessed.** `maude flow usage` reads a session transcript and reports tokens per agent, so the budget rules below rest on numbers.
+
+## Rename history (old to new)
+
+| Old | New |
+| --- | --- |
+| `/flow:setup-prd` | `/flow:plan --prd` |
+| `/flow:quick` | `/flow:execute --quick` |
+| `/flow:utils-verify` | `/flow:validate --fast` |
+| `/flow:validate-security` | `/flow:validate --security` |
+| `/flow:validate-a11y` | `/flow:validate --a11y` |
+| `/flow:validate-visual` | `/flow:validate --visual` |
+| `/flow:review-code` | `/flow:validate --review` |
+| `/flow:scenario` | `/flow:validate --scenario` |
+| `/flow:record-execution`, `/flow:record-retro` | `/flow:done` (report and retro steps) |
+| `/flow:release-changelog` | `/flow:release --changelog` |
+| `/flow:setup-context` | `/flow:init --context` |
+| `/flow:setup-codebase-map` | `/flow:init --map` |
+| `/flow:migrate-kgai` | `/flow:init --kgai` |
+| `/flow:pause`, `/flow:resume`, `/flow:status` | `/flow:run --pause`, `--resume`, `--status` |
+| `/flow:help` | Claude Code's native `/help` |
+| `/flow:maintain-ai-health`, `-clean`, `-discover`, `-docs` | Retired. Use `maude doctor`, or ask Claude directly. |
+
+Skills:
+
+| Old | New |
+| --- | --- |
+| `a11y-rules`, `a11y-checker`, `responsive-rules`, `motion-rules` | `flow:ui-rules` |
+| `ddr-keeper`, `claude-md-keeper`, `kgai-migrate` | `/flow:record-ddr`, `/flow:done`, `/flow:init --kgai` |
+| `skill-loader`, `make-skill-template`, `codebase-intelligence` | Retired. Native skills, `skill-creator`, `/flow:init --map`. |
+
+**The old names are gone in this release.** Typing a retired command does nothing; use the new form from the table above.
+
+## What is new
+
+### `/flow:run <plan>`
+
+Treats a plan as a goal and drives it to completion across turns. The Stop hook that keeps it going is opt-in and capped:
+
+- Off unless `run.hooks: true` is set in `.ai/workflows.config.json`.
+- Tied to the session that armed it; another session is never blocked. The run record lives outside the project (`~/.claude/flow-runs/`), so a cloned repo can never arm a run or choose the command the gate runs.
+- Expires after 24 hours (`run.expiresHours`).
+- Pauses itself after 3 identical red done-checks in a row (`run.maxStopBlocks`).
+- Optional token ceiling: `run.budget.maxRunTokens`.
+- Kill switches: `FLOW_RUN_HOOKS=0` in the shell, `/flow:run --pause`, or `/flow:run --stop`.
+
+`--status` shows where the run is and `--resume` picks a paused run back up.
+
+### `maude flow usage`
+
+`maude flow usage [sessionId] [--top N] [--json]` reports token use per agent for a session, and flags agents whose context peak went past the configured budget.
+
+### Role agents
+
+`/flow:execute` and `/flow:run` delegate to three narrow agents:
+
+- `flow:worker` implements one self-contained task slice. `/flow:plan` now writes tasks as slices a worker can take cold.
+- `flow:spike` answers one open question with a throwaway prototype.
+- `flow:scout` does read-only inventory and returns a compact table.
+
+The `flow:context-budget` skill holds their rules: turn caps, context ceilings, hand-back length, reading large files by range.
+
+### `run.*` config
+
+An optional block in `.ai/workflows.config.json`; absent means defaults.
+
+| Key | What it sets |
+| --- | --- |
+| `run.budget.preset` | `small`, `default` or `monorepo`; picks `agentTurns`, `agentContextK`, `handbackLines`, `leadCheckpointPct`. Explicit keys override it. |
+| `run.routing.<role>` | Tier (`fast`, `deep`, `inherit`) and effort per role: `worker`, `spike`, `scout`, `critic`. |
+| `run.riskClasses` | Globs or plan tags that send a task to the deep tier. |
+| `run.gates` | Run the full `quality` gates per batch (default) or per task. |
+| `run.lane` | Wrapper that serialises test suites, invoked as `<lane> -- <command>`. |
+| `run.hooks`, `run.maxStopBlocks`, `run.expiresHours` | The `/flow:run` hook switch and its caps. |
+
+See [Config](/docs/config) and the [config schema](/docs/config-schema) for the full reference.

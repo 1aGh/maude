@@ -1,31 +1,31 @@
 ---
 title: /flow:validate
-description: "Run project quality gates, tests, build and applicable cross-platform UI validation."
+description: "Run quality gates and validation lanes: full pipeline, --fast, --security, --a11y, --visual, --review, --scenario."
 ---
 
 | Property | Value |
 | -------- | ----- |
 | **Command** | `/flow:validate` |
 | **Category** | `daily` (daily) |
-| **Argument hint** | _(none)_ |
+| **Argument hint** | `[--fast \| --security \| --a11y \| --visual \| --review \| --scenario [name\|new <name>]] [--force]` |
 | **Source** | [`plugins/flow/commands/validate.md`](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/validate.md) |
 
 ## Description
 
-Run project quality gates, tests, build and applicable cross-platform UI validation.
+Run quality gates and validation lanes: full pipeline, --fast, --security, --a11y, --visual, --review, --scenario.
 
 ## Invocation
 
 **Claude Code**
 
 ```text
-/flow:validate
+/flow:validate [--fast | --security | --a11y | --visual | --review | --scenario [name|new <name>]] [--force]
 ```
 
 **Codex**
 
 ```text
-$flow:source-command-validate
+$flow:source-command-validate [--fast | --security | --a11y | --visual | --review | --scenario [name|new <name>]] [--force]
 ```
 
 Use the same arguments and flags. See [native Codex setup](/docs/codex) for

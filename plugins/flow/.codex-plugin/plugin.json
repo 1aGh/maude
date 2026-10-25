@@ -14,6 +14,8 @@
     "developerName": "1aGh",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],
-    "defaultPrompt": ["Use $flow:source-command-help to show the available workflows."]
+    "defaultPrompt": [
+      "Use $flow:source-command-plan to plan a feature, then $flow:source-command-execute."
+    ]
   }
 }

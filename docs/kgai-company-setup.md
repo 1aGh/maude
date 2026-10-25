@@ -110,7 +110,7 @@ A single company store is an **attacker-controlled writer surface**, structurall
 
 The `.kgairc` layer adds a fourth, engine-enforced rule: **a clone can propose capture rules and a store location, but never an upload target** (`remote` ignored) **and never silently** (`kg trust` gate).
 
-Before any broad multi-user rollout, run `/flow:validate-security` on the writer surface (a plan acceptance gate).
+Before any broad multi-user rollout, run `/flow:validate --security` on the writer surface (a plan acceptance gate).
 
 ## 7. Engine version — installer, not a pin
 
@@ -145,4 +145,4 @@ Seeing the first engineer's decision from a different machine confirms the share
 
 ## Cost / scale note
 
-Storage is ~2.6 KB per decision; sync is pull-on-command (`kg sync` at `/flow:done` + `/flow:pause`, plus a session-start pull). Model A's rebuild cost grows with the **whole** company log — if the graph ever gets large enough that this bites, revisit per-department keyspaces for the highest-sensitivity depts (the DDR-189 "revisit when" clause).
+Storage is ~2.6 KB per decision; sync is pull-on-command (`kg sync` at `/flow:done` + `/flow:run --pause`, plus a session-start pull). Model A's rebuild cost grows with the **whole** company log — if the graph ever gets large enough that this bites, revisit per-department keyspaces for the highest-sensitivity depts (the DDR-189 "revisit when" clause).

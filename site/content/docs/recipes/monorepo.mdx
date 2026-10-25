@@ -84,7 +84,7 @@ You'll end up with something like:
 - `/flow:validate` runs `turbo run build` and gates on it.
 - `/flow:done` honors Turbo's affected-graph when deciding what tests to run.
 
-In a monorepo, also declare **`qualityScoped`** — scoped gate variants the implementation inner loop (`/flow:utils-verify`) runs instead of the repo-wide `quality.*` commands:
+In a monorepo, also declare **`qualityScoped`** — scoped gate variants the implementation inner loop (`/flow:validate --fast`) runs instead of the repo-wide `quality.*` commands:
 
 ```json
 {
@@ -109,7 +109,7 @@ maude config set integrations.changelog.provider changesets
 maude config set integrations.changelog.scope "@acme/web"
 ```
 
-`/flow:release-changelog` will then drop entries into `.changeset/*.md` and `/flow:release` will walk the changesets-flavored release runbook (auto-scaffolded into `.ai/release-guide.md`).
+`/flow:release --changelog` will then drop entries into `.changeset/*.md` and `/flow:release` will walk the changesets-flavored release runbook (auto-scaffolded into `.ai/release-guide.md`).
 
 If you publish multiple packages, set `scope` to the most-frequently-released one. The others are still released, you just don't have to pass `--filter` every time.
 
@@ -140,7 +140,7 @@ maude design serve --port 4399
 
 - **One `CLAUDE.md` at root plus per-package overrides.** The root `CLAUDE.md` covers cross-cutting concerns (commit conventions, branch model). Per-package `CLAUDE.md` (placed in `apps/web/`, `apps/api/`, etc.) override or extend it.
 - **`workflows.config.json` is *not* hierarchical.** Pick Option A or Option B, don't mix. The flow plugin reads exactly one config from the directory you invoke it in.
-- **Turbo cache.** Flow doesn't manage Turbo's cache. If `/flow:utils-verify` reports a stale failure, `pnpm turbo run lint --force` and re-verify.
+- **Turbo cache.** Flow doesn't manage Turbo's cache. If `/flow:validate --fast` reports a stale failure, `pnpm turbo run lint --force` and re-verify.
 - **PR scopes.** Conventional commits for monorepos benefit from a scope: `feat(web): ...`, `fix(ui): ...`. `/flow:done` formats commits to match `conventions.commits` but won't auto-pick the scope. Add it when prompted.
 
 ## Next

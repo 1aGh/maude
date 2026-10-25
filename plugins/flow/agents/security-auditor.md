@@ -1,6 +1,6 @@
 ---
 name: security-auditor
-description: Use proactively after any code change touching auth, input handling, data storage, network IO, dependencies, MCP wiring, or model prompts (during /flow:utils-verify, /flow:validate step 6.5, /flow:validate-security, /flow:review-code). Defender pass — OWASP-class static + grep scan over changed files. Reports findings; does not edit code. Reads `security.severityFloor` from `.ai/workflows.config.json`.
+description: Use proactively after any code change touching auth, input handling, data storage, network IO, dependencies, MCP wiring, or model prompts (during /flow:validate --fast, /flow:validate step 6.5, /flow:validate --security, /flow:validate --review). Defender pass — OWASP-class static + grep scan over changed files. Reports findings; does not edit code. Reads `security.severityFloor` from `.ai/workflows.config.json`.
 tools: Read, Bash, Grep, Glob
 ---
 
@@ -119,7 +119,7 @@ If 0 blockers, say so explicitly. Don't pad. Don't manufacture findings to justi
 
 ## Output JSON block to caller
 
-End the response with a fenced JSON block (the orchestrator / `/flow:validate-security` parses this):
+End the response with a fenced JSON block (the orchestrator / `/flow:validate --security` parses this):
 
 ```json
 {
@@ -132,7 +132,7 @@ End the response with a fenced JSON block (the orchestrator / `/flow:validate-se
 }
 ```
 
-Caller (`/flow:validate-security`, `/flow:validate` step 6.5, `/flow:review-code`) decides go/no-go based on `blockers`.
+Caller (`/flow:validate --security`, `/flow:validate` step 6.5, `/flow:validate --review`) decides go/no-go based on `blockers`.
 
 ## Anti-patterns
 

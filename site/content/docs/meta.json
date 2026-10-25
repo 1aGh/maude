@@ -8,6 +8,7 @@
     "cli",
     "design",
     "flow",
+    "flow-migration",
     "orchestration",
     "hub",
     "cloud",

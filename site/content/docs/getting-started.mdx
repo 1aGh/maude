@@ -82,12 +82,12 @@ Design first, then ship.
 
 | Command | What it does |
 | ------- | ------------ |
-| `/flow:setup-prd` | One-time per project. Draft a PRD and auto-generate phase plans. |
+| `/flow:plan --prd` | One-time per project. Draft a PRD and auto-generate phase plans. |
 | `/flow:plan "<feature>"` | Per-feature. Draft a phase plan grounded in PRD + design system. |
 | `/flow:execute` | Walk the plan task-by-task with the Edit-Verify loop. |
 | `/flow:done` | Validate, commit, open a PR, archive the plan. |
 
-`/flow:status` works anywhere and tells you where you are.
+`/flow:run --status` works anywhere and tells you where you are.
 
 <CommandFlow variant="install" caption="Four steps and you're in — install, marketplace, plugins, init" />
 

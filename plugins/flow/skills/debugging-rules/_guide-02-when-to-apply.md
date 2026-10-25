@@ -2,7 +2,7 @@
 
 Use for **any** technical issue:
 
-- `/flow:utils-verify` failures during `/flow:execute` Edit-Verify Loop
+- `/flow:validate --fast` failures during `/flow:execute` Edit-Verify Loop
 - `/flow:validate` failures (typecheck, test, build, scenario, a11y, design-system)
 - Scenario report blockers or parity gaps across platforms
 - Test failures

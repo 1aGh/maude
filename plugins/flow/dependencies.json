@@ -33,8 +33,25 @@
         "linux": "apt-get install -y git || dnf install -y git"
       },
       "autoInstall": false,
-      "usedBy": ["commands/init.md", "commands/done.md", "commands/quick.md"],
+      "usedBy": ["commands/init.md", "commands/done.md", "commands/execute.md"],
       "docsUrl": "https://git-scm.com"
+    },
+    {
+      "id": "claude",
+      "type": "cli",
+      "hardness": "soft",
+      "check": {
+        "command": "claude --version",
+        "expectExit": 0,
+        "minVersion": "2.1.280"
+      },
+      "install": {
+        "preferred": "https://docs.anthropic.com/en/docs/claude-code"
+      },
+      "autoInstall": false,
+      "fallbackBehavior": "/flow:run hooks need Claude Code 2.1.280+ (SubagentStart/SubagentStop/Stop plugin hooks, agent model/effort frontmatter). Older versions and Codex run every flow command without them.",
+      "usedBy": ["commands/run.md", "hooks/hooks.json"],
+      "docsUrl": "https://docs.anthropic.com/en/docs/claude-code"
     },
     {
       "id": "maude",
@@ -64,11 +81,9 @@
         "preferred": "npm i -g @anthropic-ai/agent-browser"
       },
       "autoInstall": true,
-      "fallbackBehavior": "/flow:scenario and a11y-auditor degrade to screenshot-less reports. Web scenarios cannot run.",
+      "fallbackBehavior": "/flow:validate --scenario and a11y-auditor degrade to screenshot-less reports. Web scenarios cannot run.",
       "usedBy": [
-        "commands/scenario.md",
         "commands/validate.md",
-        "commands/utils-verify.md",
         "agents/scenario-runner.md",
         "agents/a11y-auditor.md",
         "skills/agent-browser/SKILL.md"
@@ -87,11 +102,11 @@
         "preferred": "Requires Xcode + Android SDK. See agent-device docs."
       },
       "autoInstall": false,
-      "fallbackBehavior": "/flow:scenario skips native (iOS/Android) variants. Web variants still run via agent-browser.",
+      "fallbackBehavior": "/flow:validate --scenario skips native (iOS/Android) variants. Web variants still run via agent-browser.",
       "usedBy": [
-        "commands/scenario.md",
         "agents/scenario-runner.md",
-        "skills/agent-device/SKILL.md"
+        "skills/agent-device/SKILL.md",
+        "commands/validate.md"
       ],
       "docsUrl": "https://github.com/anthropics/agent-device"
     },
@@ -109,7 +124,7 @@
       },
       "autoInstall": false,
       "fallbackBehavior": "flow/design fall back to the classic .ai/decisions/ + STATE.md file path (no regression). The kgai knowledge-graph backend (kg context/ingest/sync, cross-repo company memory) is inactive.",
-      "usedBy": ["skills/kgai-backend/SKILL.md", "commands/migrate-kgai.md"],
+      "usedBy": ["skills/kgai-backend/SKILL.md", "commands/init.md"],
       "docsUrl": "https://github.com/kgaidev/kgai"
     },
     {
@@ -126,13 +141,8 @@
         "win32": "winget install jqlang.jq"
       },
       "autoInstall": false,
-      "fallbackBehavior": "Slash commands' bash blocks that read .ai/workflows.config.json via jq cannot run. /flow:validate and /flow:utils-verify quality gates need this.",
-      "usedBy": [
-        "commands/validate.md",
-        "commands/utils-verify.md",
-        "commands/quick.md",
-        "commands/done.md"
-      ]
+      "fallbackBehavior": "Slash commands' bash blocks that read .ai/workflows.config.json via jq cannot run. /flow:validate (and its --fast lane) quality gates need this.",
+      "usedBy": ["commands/validate.md", "commands/done.md", "commands/execute.md"]
     },
     {
       "id": "askuserquestion-mcp",
@@ -144,17 +154,6 @@
       },
       "fallbackBehavior": "Question prompts fall back to numbered-prose chat. No multi-select UI.",
       "usedBy": ["skills/question-protocol/SKILL.md"]
-    },
-    {
-      "id": "terminal-skills-mcp",
-      "type": "mcp",
-      "hardness": "soft",
-      "check": {
-        "mcp": "terminal-skills",
-        "tool": "search_skills"
-      },
-      "fallbackBehavior": "skill-loader falls back to built-in plugin skills → matching agents → WebFetch on library docs.",
-      "usedBy": ["skills/skill-loader/SKILL.md"]
     }
   ]
 }

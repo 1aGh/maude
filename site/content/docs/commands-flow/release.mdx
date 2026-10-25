@@ -7,7 +7,7 @@ description: "Follow the project release runbook and its action approval gates."
 | -------- | ----- |
 | **Command** | `/flow:release` |
 | **Category** | `daily` (daily) |
-| **Argument hint** | _(none)_ |
+| **Argument hint** | `[--changelog]` |
 | **Source** | [`plugins/flow/commands/release.md`](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/release.md) |
 
 ## Description
@@ -19,13 +19,13 @@ Follow the project release runbook and its action approval gates.
 **Claude Code**
 
 ```text
-/flow:release
+/flow:release [--changelog]
 ```
 
 **Codex**
 
 ```text
-$flow:source-command-release
+$flow:source-command-release [--changelog]
 ```
 
 Use the same arguments and flags. See [native Codex setup](/docs/codex) for

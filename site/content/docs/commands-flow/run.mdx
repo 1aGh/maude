@@ -1,0 +1,40 @@
+---
+title: /flow:run
+description: "Run a plan unattended as a goal with a capped Stop gate; also where you are (--status), pause and resume work, with or without a run."
+---
+
+| Property | Value |
+| -------- | ----- |
+| **Command** | `/flow:run` |
+| **Category** | `daily` (daily) |
+| **Argument hint** | `<plan path> [--done-cmd <cmd>] \| --status \| --pause [reason] \| --resume \| --stop` |
+| **Source** | [`plugins/flow/commands/run.md`](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/run.md) |
+
+## Description
+
+Run a plan unattended as a goal with a capped Stop gate; also where you are (--status), pause and resume work, with or without a run.
+
+## Invocation
+
+**Claude Code**
+
+```text
+/flow:run <plan path> [--done-cmd <cmd>] | --status | --pause [reason] | --resume | --stop
+```
+
+**Codex**
+
+```text
+$flow:source-command-run <plan path> [--done-cmd <cmd>] | --status | --pause [reason] | --resume | --stop
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
+## Source of truth
+
+<Callout type="note" title="Generated from frontmatter">
+
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/run.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/run.md).
+
+</Callout>

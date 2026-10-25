@@ -7,7 +7,7 @@
 // Used by:
 //   - cli/commands/cache.mjs       (`maude cache list|clear|inspect|stats`)
 //   - plugins/design/agents/ux-research-agent.md   (research/domain + research/project)
-//   - plugins/flow/skills/codebase-intelligence/SKILL.md   (codebase-intelligence)
+//   - plugins/flow/commands/init.md --map                   (codebase-intelligence layer)
 //   - plugins/design/commands/{edit,new}.md         (design-context)
 //   - plugins/flow/commands/{done,validate,validate-security}.md   (security)
 //   - plugins/flow/commands/validate.md                            (validate — skip-if-clean)

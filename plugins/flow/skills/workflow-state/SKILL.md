@@ -18,7 +18,7 @@ This skill complements `workflow-orchestration` (which covers the protocol of ph
 Load **`flow:kgai-backend`** and check `maude kg resolve --json` before treating STATE.md as authoritative:
 
 - **`active: false`** (default — most repos) → the schema below **is** the source of truth. Everything in this skill applies unchanged. No regression.
-- **`active: true`** → the **knowledge graph is the history authority**, and `.ai/state/STATE.md` is a thin human-readable **pointer-stub** (written by `maude init --kg`): status line + "history lives in kgai — `kg history` / `kg context`". History rows, the Decisions section, and pause/resume state live as graph events (see `flow:kgai-backend` for the `plan:`/`session:` recipes; `/flow:pause` records a `paused` event, `/flow:resume` reconstructs from it, `/flow:status` overlays `kg history`/`kg context`). Do NOT append full History rows to the stub — write the movement to the graph instead. The narrative files STATE.md never owned (PRD, design-system, plans) stay on disk as prose.
+- **`active: true`** → the **knowledge graph is the history authority**, and `.ai/state/STATE.md` is a thin human-readable **pointer-stub** (written by `maude init --kg`): status line + "history lives in kgai — `kg history` / `kg context`". History rows, the Decisions section, and pause/resume state live as graph events (see `flow:kgai-backend` for the `plan:`/`session:` recipes; `/flow:run --pause` records a `paused` event, `/flow:run --resume` reconstructs from it, `/flow:run --status` overlays `kg history`/`kg context`). Do NOT append full History rows to the stub — write the movement to the graph instead. The narrative files STATE.md never owned (PRD, design-system, plans) stay on disk as prose.
 
 **This is behind the `active` gate — an inactive repo keeps the full STATE.md below, untouched (slim, never gut).**
 
@@ -55,7 +55,7 @@ Load **`flow:kgai-backend`** and check `maude kg resolve --json` before treating
 1. **Every phase change → a new history row.** History is append-only — no row gets rewritten, removed, or reordered.
 2. **Update the Updated field on every edit.** `/status` and `/resume` use it to detect stale state.
 3. **Pause path:** Phase → `paused`, Status → `paused`, keep the current `Active task` (do not clear it). Details go in `.ai/state/HANDOFF.md`.
-4. **Done path:** Phase → `done`, Status → `done`, Active task → `—`, Active plan → `—`. The plan moves to `.ai/plans/archive/` — unless `integrations.tracker.artifacts.store` is `orbit`, where there is no local archive and the **Active plan** line holds the orbit slug (`plan:<slug>`) instead of a path, so `/flow:resume` and `/flow:status` know to pull it (`flow:orbit-backend` [guide 06](../orbit-backend/_guide-06-artifact-store.md)).
+4. **Done path:** Phase → `done`, Status → `done`, Active task → `—`, Active plan → `—`. The plan moves to `.ai/plans/archive/` — unless `integrations.tracker.artifacts.store` is `orbit`, where there is no local archive and the **Active plan** line holds the orbit slug (`plan:<slug>`) instead of a path, so `/flow:run --resume` and `/flow:run --status` know to pull it (`flow:orbit-backend` [guide 06](../orbit-backend/_guide-06-artifact-store.md)).
 5. **Blocked:** Phase stays the same, Status → `blocked`, the Blockers section gets a bullet with the specifics.
 
 ## HANDOFF.md (only while paused)

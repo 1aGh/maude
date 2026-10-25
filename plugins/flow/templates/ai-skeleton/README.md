@@ -6,16 +6,16 @@ This folder is your project's persistent memory for the `flow` plugin. Plans, de
 
 | Folder | Owner command | Purpose |
 | ------ | ------------- | ------- |
-| `state/` | `/flow:status`, `/flow:pause`, `/flow:resume` | Single source of truth for current workflow phase. `STATE.md` is durable; `HANDOFF.md` is transient (created on pause, deleted on resume). |
+| `state/` | `/flow:run` | Single source of truth for current workflow phase. `STATE.md` is durable; `HANDOFF.md` is transient (created by `/flow:run --pause`, deleted by `--resume`). |
 | `plans/` | `/flow:plan`, `/flow:execute` | Feature plans with task lists. `archive/` holds completed plans. |
 | `decisions/` | `/flow:record-ddr` | Design Decision Records. Append-only, numbered, never deleted. |
-| `reviews/` | `/flow:review-code`, `/flow:record-retro` | Code review snapshots and retrospective notes from completed work. |
-| `scenarios/` | `/flow:scenario` | Cross-platform UI scenario specs + per-run report folders (screenshots, evidence). `_lib/` holds shared helpers. |
-| `logs/` | `/flow:validate`, `/flow:maintain-ai-health` | System-level audit logs (validation runs, infrastructure reviews). |
+| `reviews/` | `/flow:validate --review`, `/flow:done` | Code review snapshots and retrospective notes from completed work. |
+| `scenarios/` | `/flow:validate --scenario` | Cross-platform UI scenario specs + per-run report folders (screenshots, evidence). `_lib/` holds shared helpers. |
+| `logs/` | `/flow:validate`, `maude doctor` | System-level audit logs (validation runs, infrastructure reviews). |
 | `dev-logs/` | manual | Dev journal — free-form notes, links, scratchpad. Optional. |
 | `browser/` | `agent-browser` skill | Web automation evidence — DOM snapshots, HAR captures. |
 | `device/` | `agent-device` skill | Native device automation evidence — accessibility snapshots, screenshots, traces. |
-| `context/` | `/flow:setup-codebase-map`, `/flow:setup-context` | Living snapshots of codebase architecture (auto-generated, refresh periodically). |
+| `context/` | `/flow:init --map`, `/flow:init --context` | Living snapshots of codebase architecture (auto-generated, refresh periodically). |
 | `business/` | manual | Domain knowledge, glossary, stakeholders, personas. Hand-curated. |
 | `docs/` | manual | Internal design docs, patterns, ADR-adjacent prose. |
 | `design-import/` | `/design:handoff` (design plugin) | Canvas artifacts in transit from `.design/` to production code. |

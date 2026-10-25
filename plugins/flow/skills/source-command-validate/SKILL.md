@@ -1,6 +1,6 @@
 ---
 name: source-command-validate
-description: "Run project quality gates, tests, build and applicable cross-platform UI validation."
+description: "Run quality gates and validation lanes: full pipeline, --fast, --security, --a11y, --visual, --review, --scenario."
 user-invocable: false
 ---
 

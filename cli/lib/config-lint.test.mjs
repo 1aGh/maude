@@ -115,3 +115,29 @@ test('Levenshtein basic correctness', () => {
   assert.equal(levenshtein('abc', ''), 3);
   assert.equal(levenshtein('kitten', 'sitting'), 3);
 });
+
+test('run block — tiers, budget preset and hooks flag are accepted', async () => {
+  const r = await lintConfig({
+    config: {
+      name: 'x',
+      run: {
+        routing: { worker: { tier: 'fast', effort: 'high' }, spike: { tier: 'deep' } },
+        riskClasses: ['auth/**'],
+        budget: { preset: 'monorepo', agentContextK: 200 },
+        gates: 'per-batch',
+        lane: 'scripts/test-lane.sh',
+        hooks: true,
+      },
+    },
+    schema: SCHEMA,
+  });
+  assert.equal(r.ok, true, JSON.stringify(r.errors));
+});
+
+test('run block — a literal model id is rejected (tiers only, guardrail 4)', async () => {
+  const r = await lintConfig({
+    config: { name: 'x', run: { routing: { worker: { tier: 'claude-sonnet-5-5' } } } },
+    schema: SCHEMA,
+  });
+  assert.equal(r.ok, false);
+});

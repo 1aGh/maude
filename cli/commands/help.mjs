@@ -58,7 +58,7 @@ COMMANDS
         Deterministically generate the mechanical sections of a cross-platform
         scenario report.md (TL;DR, counter-delta parity, per-step pivot, path
         listing) from a scenario run directory. The LLM authors only the prose
-        sections. Used by /flow:scenario + the scenario-runner agent (DDR-061).
+        sections. Used by /flow:validate --scenario + the scenario-runner agent (DDR-061).
 
   hub serve [--port N] [--data PATH] [--secret HEX] [--insecure-http] [--dev]
         Start the self-hostable Yjs sync hub (Phase 9). Defaults to port 1234,
@@ -76,6 +76,11 @@ COMMANDS
         Run a plugin's dependency health check (the engine behind 'doctor').
         Plugin bin scripts + hooks call this via PATH instead of a relative
         cli/lib path that the marketplace never copies beside a plugin (DDR-061).
+
+  flow usage [sessionId] [--top N] [--json] [--root <dir>]
+        Token spend per agent of one Claude Code session: model, turns, peak
+        context, cache read/write. sessionId defaults to the /flow:run marker;
+        agents over run.budget.agentContextK are flagged.
 
   doctor [--plugin <name>] [--fix] [--json]
         Unified workspace health check. Reports missing dependencies, config

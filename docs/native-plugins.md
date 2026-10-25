@@ -51,9 +51,9 @@ resolved deliberately; this change does not migrate or delete a user's cache.
 | Plan | `/flow:plan` | `$flow:source-command-plan` |
 | Execute | `/flow:execute` | `$flow:source-command-execute` |
 | Validate | `/flow:validate` | `$flow:source-command-validate` |
-| Close / pause / resume | `/flow:done`, `/flow:pause`, `/flow:resume` | `$flow:source-command-done`, `$flow:source-command-pause`, `$flow:source-command-resume` |
+| Close / pause / resume | `/flow:done`, `/flow:run --pause`, `/flow:run --resume` | `$flow:source-command-done`, `$flow:source-command-run`, `$flow:source-command-run` |
 | New / edit canvas | `/design:new`, `/design:edit` | `$design:source-command-new`, `$design:source-command-edit` |
-| Browse all workflows | `/flow:help`, `/design:help` | `$flow:source-command-help`, `$design:source-command-help` |
+| Browse all workflows | `/help`, `/design:help` | `the skill list`, `$design:source-command-help` |
 | Shared skills | `flow:kgai-backend`, `design:design-system` | `$flow:kgai-backend`, `$design:design-system` |
 
 Pass the same brief, flags and task details after the invocation. Codex's built-in

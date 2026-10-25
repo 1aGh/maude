@@ -48,12 +48,12 @@ If a gate key is absent, print a one-line warning pointing at `maude doctor --fi
 
 ## 5. Inner loop vs outer gate — the posture split
 
-Implementation commands (`/flow:utils-verify`, per-task `/flow:execute`, `/flow:bug-fix`, `/flow:quick`) **never run a repo-wide gate in the foreground**. The full `quality.*` pipeline runs exactly once, at the outer gate (`/flow:validate` / `/flow:done`). Rationale, measured (AI-StudyMate wiki-adoption-telemetry execution report, 2026-09-01): a repo-wide `typecheck` fanned out to 37 turbo projects, ran 16m15s, and was force-killed **without producing a verdict** — pure loss; the same gates then ran again at `/flow:done`. A repo-wide check mid-implementation can only slow the user down; it cannot make the merge safer than the outer gate already does.
+Implementation commands (`/flow:validate --fast`, per-task `/flow:execute`, `/flow:bug-fix`, `/flow:execute --quick`) **never run a repo-wide gate in the foreground**. The full `quality.*` pipeline runs exactly once, at the outer gate (`/flow:validate` / `/flow:done`). Rationale, measured (AI-StudyMate wiki-adoption-telemetry execution report, 2026-09-01): a repo-wide `typecheck` fanned out to 37 turbo projects, ran 16m15s, and was force-killed **without producing a verdict** — pure loss; the same gates then ran again at `/flow:done`. A repo-wide check mid-implementation can only slow the user down; it cannot make the merge safer than the outer gate already does.
 
 During implementation the inner loop runs, per gate:
 
 1. **`qualityScoped.<gate>` declared** → run it (blocker on fail).
-2. **Not declared, gate is `format`/`lint`** → the command MAY run the `quality.<gate>` command constrained to changed files (`eval "$CMD -- $FILES"` — the same trick `/flow:quick` uses on staged files). If the tool ignores file args or `quality.<gate>` is absent → defer.
+2. **Not declared, gate is `format`/`lint`** → the command MAY run the `quality.<gate>` command constrained to changed files (`eval "$CMD -- $FILES"` — the same trick `/flow:execute --quick` uses on staged files). If the tool ignores file args or `quality.<gate>` is absent → defer.
 3. **Otherwise** → **defer**: print one line (`→ <gate>: no scoped gate declared — deferred to /flow:validate`) and move on. Never fall back to the repo-wide command; never fabricate a filter the user didn't declare.
 
 ## 6. `qualityScoped` — scoped gate variants
@@ -81,9 +81,9 @@ When the inner loop runs "affected tests", verify the filter actually filtered: 
 
 | Command | Gates read | Posture |
 | ------- | ---------- | ------- |
-| `/flow:utils-verify` | `qualityScoped.{format,lint,typecheck}` (declared-only) + affected tests; undeclared `format`/`lint` may run `quality.*` on changed files via file args | Blocker when run; undeclared → defer to `/flow:validate` (§5) |
-| `/flow:quick` | `qualityScoped.{format,lint}` if declared, else `quality.{format,lint}` staged-files-only | Blocker |
-| `/flow:execute` (per task) / `/flow:bug-fix` | — delegate to `/flow:utils-verify` | — |
+| `/flow:validate --fast` | `qualityScoped.{format,lint,typecheck}` (declared-only) + affected tests; undeclared `format`/`lint` may run `quality.*` on changed files via file args | Blocker when run; undeclared → defer to `/flow:validate` (§5) |
+| `/flow:execute --quick` | `qualityScoped.{format,lint}` if declared, else `quality.{format,lint}` staged-files-only | Blocker |
+| `/flow:execute` (per task) / `/flow:bug-fix` | — delegate to `/flow:validate --fast` | — |
 | `/flow:validate` | `format` → `lint` → `typecheck` → `tests` → `build` (in order, fail-fast) + custom `quality.*` gates; ignores `qualityScoped` | All blocker |
 | `/flow:done` | — delegates to `/flow:validate` | — |
 | `.ai/release-guide.md` pre-flight | every entry in `config.quality` | Blocker |
