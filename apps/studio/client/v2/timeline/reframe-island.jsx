@@ -76,10 +76,8 @@ export function useReframeUi() {
   return reframeUi.get();
 }
 
-const SCOPES = [
-  { value: 'format', label: 'This format' },
-  { value: 'all', label: 'All formats' },
-];
+/** A still (a photo clip) — the island draws it as an image; footage is a video held on one frame. */
+const IMAGE_URL = /\.(png|jpe?g|webp|gif|avif|svg)(\?|#|$)/i;
 const MAX_W = 560;
 const MAX_H = 340;
 const NUDGE = 0.01;
@@ -117,8 +115,7 @@ export function pictureBox(src) {
  *   at: number,                                      // the source second shown
  *   src: { w: number, h: number }|null,              // the picture's own size (null until read)
  *   options: Array<{ aspect: string, label: string, w: number, h: number }>,
- *   format: string|null, onFormat: (aspect: string) => void,
- *   scope: 'format'|'all', onScope: (scope: string) => void,
+ *   format: string|null, onFormat: (aspect: string) => void,   // the pill picked IS the scope (07 · ve-reframe)
  *   out: { w: number, h: number }|null,              // the shown format, px
  *   focus: [number, number],                         // the window's centre now
  *   zoom: number,
@@ -136,8 +133,6 @@ export function ReframeIsland({
   options,
   format,
   onFormat,
-  scope,
-  onScope,
   out,
   focus,
   zoom,
@@ -269,7 +264,17 @@ export function ReframeIsland({
         data-testid="reframe-source"
         style={{ width: box.w, height: box.h }}
       >
-        {url ? (
+        {url && IMAGE_URL.test(url) ? (
+          // a photo clip frames the same way (07 draws the picture under the window); there is no frame to seek to
+          <img
+            className="ve-src-media"
+            src={url}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            data-testid="reframe-picture"
+          />
+        ) : url ? (
           <video
             ref={videoRef}
             className="ve-src-media"
@@ -313,22 +318,8 @@ export function ReframeIsland({
         ) : null}
       </div>
       <div className="ve-reframe-foot">
-        <div className="st-cp-seg" role="radiogroup" aria-label="Who this framing is for">
-          {SCOPES.map((s) => (
-            <button
-              key={s.value}
-              type="button"
-              role="radio"
-              aria-checked={scope === s.value}
-              className={`st-cp-segbtn${scope === s.value ? ' is-active' : ''}`}
-              data-testid={`reframe-scope-${s.value}`}
-              onClick={() => onScope(s.value)}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-        <span className="ve-reframe-count" data-testid="reframe-count">
+        {/* 07 · .ve-reframe-foot draws Reset · Done only (the board has no hint line): the count is read, not drawn */}
+        <span className="sr-only" role="status" data-testid="reframe-count">
           {keyframeWords(keyCount)}
         </span>
         <span className="ve-tl-sp" />
@@ -384,7 +375,6 @@ export function ReframeHost({
   const { media } = useCompMedia(canvas, artboardId);
   const options = useMemo(() => formatOptions(media?.formats?.formats), [media]);
   const [format, setFormat] = useState(null);
-  const [scope, setScope] = useState('format');
   const [src, setSrc] = useState(null);
   const [held, setHeld] = useState(null);
   const stableId = seq?.stableId ?? null;
@@ -426,6 +416,8 @@ export function ReframeHost({
   }, [ui]);
 
   const option = options.find((o) => o.aspect === format) ?? null;
+  // the pill picked IS the scope: a format's own window. A video with no linked formats has only the shared framing.
+  const scope = option ? 'format' : 'all';
   const out = option
     ? { w: option.w, h: option.h }
     : comp
@@ -469,8 +461,6 @@ export function ReframeHost({
       options={options}
       format={format}
       onFormat={setFormat}
-      scope={scope}
-      onScope={setScope}
       out={out}
       focus={focus}
       zoom={reframe?.zoom ?? 1}

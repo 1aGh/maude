@@ -52,6 +52,7 @@ import { PeerHeads } from './peers.jsx';
 import { timelineSelection } from './selection.js';
 import { useTimelineIsland } from './island-context.js';
 import { AiCutStatus, AiEdge, useAiCut } from './ai-edge.jsx';
+import { LoopHandle } from './loop-handle.jsx';
 import { usePlayback } from './playhead.js';
 import { mss, readoutLabel, rulerLabel, rulerStepFrames } from './ruler.js';
 import { deriveTracks } from './tracks.js';
@@ -497,6 +498,17 @@ export default function TimelinePanel({
     [onSeek, totalFrames, pxf, gutter]
   );
 
+  // the frame under a pointer x, unclamped to the cut's last frame (the loop handles clamp to the band themselves)
+  const frameAtClientX = useCallback(
+    (clientX) => {
+      const el = trackRef.current;
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return Math.round(pxToFrame(clientX - r.left - gutter, pxf));
+    },
+    [pxf, gutter]
+  );
+
   useEffect(() => {
     if (!draggingRef.current) return undefined;
     const move = (e) => seekAt(e.clientX);
@@ -547,6 +559,9 @@ export default function TimelinePanel({
     // A click on a sequence block SELECTS it (handled there); a press on the
     // bare track deselects, scrubs, and starts a scrub drag.
     if (retimeDrag) return; // a resize is in flight — don't scrub
+    // P8 C9 — the gutter's own buttons (fold a track, the eye, the speaker) take their click: a press that starts a scrub
+    // here captures the pointer on the lanes, and the click then lands on the lanes, never on the button
+    if (e.target?.closest?.('.tl-track-cap')) return;
     if (commentMode) {
       e.preventDefault();
       placeCommentAt(e, null, null);
@@ -2250,6 +2265,23 @@ export default function TimelinePanel({
                   style={{ left: x(band.in), width: x(band.out - band.in) }}
                 />
               ) : null}
+              {/* 07 · .ve-inout (ve-play) — the band's two ends are "I" and "O" badges: drag one, or step it with ← →
+                  (⇧ = one second). The keys I / O set them at the playhead as before. */}
+              {isBand(band)
+                ? ['in', 'out'].map((end) => (
+                    <LoopHandle
+                      key={end}
+                      end={end}
+                      band={band}
+                      fps={fps}
+                      total={totalFrames}
+                      left={x(band[end])}
+                      valueText={fmtTime(band[end], fps)}
+                      frameAt={frameAtClientX}
+                      onChange={(next) => compId && playback.setLoop(compId, next)}
+                    />
+                  ))
+                : null}
               {/* 07 · .ve-poster-flag — the picture the video rests on; with none stored it is the default, 35 % in */}
               <span
                 className="tl-poster-flag"

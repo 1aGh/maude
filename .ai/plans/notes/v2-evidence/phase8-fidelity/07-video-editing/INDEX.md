@@ -201,3 +201,21 @@ Final verification shoot after stage C round 8, on the merged tip feat/maude-v2 
 | ve-fit-fill | unreachable — needs a real vertical file dropped | unreachable (same) |
 
 Totals: 38 id×theme re-shot (19 ids), 14 unreachable (7 ids). Open fixture gaps named in `fix-c8-video.md` (3-format fixture for ve-formats pills, 24-beat markers for ve-long fold rows, keyframe data for ve-advanced easing) are not covered by this harness.
+
+## Round 9 (p8-c9-video) — pairs re-shot light + dark on the Mac mini (impl frames overwritten in this folder)
+
+Harness `_c9v-harness-g3/` (`chain.sh 07` = `t07`, `t07c`, then `t07v` on three new fixtures: **HypeFormats** — one cut in Reels 9:16 · 16:9 · 1:1, **NaborKeyframes** — a title animated with `interpolate` + `Easing.bezier`, **ZapasLong** — 40 clips, 18 titles, 6 graphics, four markers). Shot at 6d96b9aa1 (+ the harness). No match judged here.
+
+| artboard id | after (round 9) |
+|---|---|
+| ve-formats | re-shot on HypeFormats: Formats list (3 rows, link badges, "this one"), "Shared by 3 formats", Safe zones, "Make an unlinked copy" |
+| ve-reframe | re-shot on HypeFormats: format pills in the header (Reels 9:16 · 16:9 · 1:1) = the scope, no "This format / All formats", Reset · Done only, a photo clip draws its picture |
+| ve-export | re-shot on HypeFormats: "Export 3 artboards", three ticked formats, "Export 3 videos" |
+| ve-long | re-shot on ZapasLong: 40 clips, "Text · 18" / "Graphics · 6" folded to striped lines, ruler markers (Výkop · TD 1 · Poločas · TD 2), Full timeline showing the ruler and every lane |
+| ve-advanced | re-shot on NaborKeyframes: keyframe diamonds on the title clip, the Easing card with a curve and `cubic-bezier(0.22, 1, 0.36, 1)`; Full timeline with the Music lane in view |
+| ve-play | re-shot: "I" and "O" badges on the loop range |
+| ve-music | re-shot: a tick per beat, a tall one per bar, over the song |
+| ve-none, ve-select, ve-deselect, ve-drop, ve-trim-split, ve-move-transition, ve-text, ve-captions, ve-transition, ve-render, ve-fullscreen, ve-footage | re-shot (unchanged ids; the Full timeline now keeps its ruler + Music lane) |
+| ve-ai-*, ve-together, ve-fit-fill | unreachable, as before |
+
+Still open: the "Title · Slide up" tag on the artboard and the captions "Also as a file" row (no file writer) — see `fix-c9-video.md`.

@@ -35,6 +35,7 @@ final (D6, 3d58f57df): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a8
 final (D6) IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a8e434254e5deab1e/.scr/d6/06-advanced/
 final (D6) SPEC images (reused from stage A): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a8e434254e5deab1e/.scr/spec/06/
 final (D6) harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_d6-harness-g2/ (chain.sh 06 on the remote lane, then mkpairs.sh 06-advanced)
+round 9: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a69e35dc3906732fe/.scr/c9-g3/impl/06-advanced/ad-timeline-<theme>.jpg (impl; Chrome, Mac mini, harness _c9v-harness-g3/t06v.mjs on a keyframed title; committed here as the SPEC | IMPL pair)
 
 final (D6b, 9557e9de1): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a9bb8a31ef03c91f8/.scr/pairs/06-advanced/
 (one PNG per artboard id and theme: <id>-<dark|light>.png, spec left | impl right, same height, label strip on top)

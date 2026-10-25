@@ -271,6 +271,8 @@ Final verification shoot on the merged tip after stage C round 8 (harness `_d6-h
 | `ad-edge-where` | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) |
 | `ad-edge-remember` | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) |
 
+## Round 9 (p8-c9-video) — ad-timeline re-shot light + dark on a keyframed title
+`ad-timeline` is shot on the NaborKeyframes fixture (`_c9v-harness-g3/t06v.mjs`): the title clip carries keyframe diamonds, the Keyframe card is the Easing card with its curve and `cubic-bezier(0.22, 1, 0.36, 1)`, and the cut as code is filled (the picked clip's EDL). Full timeline with the Music lane in view. Details: `../07-video-editing/fix-c9-video.md`. No match judged here.
 
 ## FINAL (D6b, 9557e9de1)
 

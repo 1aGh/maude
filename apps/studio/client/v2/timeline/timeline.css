@@ -433,12 +433,18 @@
   }
   .tl-panel[data-size="full"] .tl-scroll {
     overflow: auto;
-    /* the tracks never vanish under an open Advanced (07 ve-advanced: the ruler switches to frames, tracks stay) */
-    min-height: 112px;
+    /* the tracks never vanish under an open Advanced (07 ve-advanced: the ruler switches to frames, tracks stay) —
+       and the Full body at rest shows what the board draws: the ruler (16 + 4) and the four lanes
+       (Text 24 · Graphics 24 · Video 52 · Music 30, 4 px apart) plus the 3 px under them (P8 C9) */
+    min-height: 168px;
   }
   /* an open Advanced grows the island, never past the window: the cards scroll inside it */
   .tl-island .tl-panel[data-size="full"] {
     max-height: calc(100vh - 80px - 72px);
+    /* never shorter than its own parts: padding 12 + head 28 + gap 8 + the body (168) + gap 8 + the Advanced foot 30 +
+       padding 12. The shell's default timeline height (216) is shorter than that, so the foot used to hang out of the
+       island once the body kept its ruler and four lanes (P8 C9) */
+    min-height: 266px;
   }
   .tl-tracks {
     display: flex;
@@ -835,6 +841,26 @@
       inset 2px 0 0 var(--accent),
       inset -2px 0 0 var(--accent);
     pointer-events: none;
+  }
+  /* the band's two ends: "I" and "O" badges on the ruler (07 .ve-inout) — draggable, keyboard-steppable */
+  .tl-loop-handle {
+    position: absolute;
+    top: -1px;
+    z-index: 3;
+    translate: -50% 0;
+    padding: 0 3px;
+    border-radius: var(--radius-xs);
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-weight: var(--w-semibold);
+    line-height: 16px;
+    cursor: ew-resize;
+    touch-action: none;
+    user-select: none;
+  }
+  .tl-loop-handle:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
   }
   .tl-loop-lane {
     position: absolute;
@@ -1248,6 +1274,9 @@
     position: absolute;
     top: 0;
     bottom: 0;
+    /* over the song's block (z 2, 3 selected): the beat ticks and the volume line were painted UNDER it, so no tick was
+       ever seen (P8 C9, 07 ve-music) */
+    z-index: 4;
     overflow: visible;
     border-radius: var(--radius-sm);
     pointer-events: none;
