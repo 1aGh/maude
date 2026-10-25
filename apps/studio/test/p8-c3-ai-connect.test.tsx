@@ -32,6 +32,9 @@ describe('ConnectModal', () => {
     expect(veil).not.toBeNull();
     // not inside the host (the panel): a portal, so no ancestor can clip or pin it
     expect(host.contains(veil)).toBe(false);
+    // D5 02 ob-ai-connect: the body is outside the app root, so the portal carries its own `.maude` scope —
+    // every kit rule (`.maude .btn--primary`) is scoped under it, or Connect renders as a bare browser button
+    expect(veil.closest('.maude')).not.toBeNull();
     const sheet = veil.querySelector('[data-testid="ai-connect-sheet"]') as HTMLElement;
     expect(sheet.getAttribute('role')).toBe('dialog');
     expect(sheet.getAttribute('aria-modal')).toBe('true');

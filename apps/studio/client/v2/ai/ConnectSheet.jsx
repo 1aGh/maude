@@ -108,9 +108,13 @@ export function ConnectModal({ testid = 'ai-connect-modal', onCancel, ...sheet }
   const connectRef = useRef(null);
   const root = useModalFocus({ onClose: onCancel, initialRef: connectRef });
   if (typeof document === 'undefined') return null;
+  // the body is outside the app's `.maude` root, and every kit rule (`.maude .btn…`) is scoped under it:
+  // without this wrapper Cancel / Connect render as bare browser buttons (D5 02 ob-ai-connect)
   return createPortal(
-    <div className="ai-conn-veil" ref={root} tabIndex={-1} data-testid={testid}>
-      <ConnectSheet {...sheet} connectRef={connectRef} onCancel={onCancel} />
+    <div className="maude">
+      <div className="ai-conn-veil" ref={root} tabIndex={-1} data-testid={testid}>
+        <ConnectSheet {...sheet} connectRef={connectRef} onCancel={onCancel} />
+      </div>
     </div>,
     document.body
   );

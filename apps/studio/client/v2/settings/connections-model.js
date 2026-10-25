@@ -60,7 +60,7 @@ export function hubRow({ linkedHub, cloudUrl, project, lastSyncAt, now = Date.no
     return {
       linked: false,
       title: 'Your team’s own server',
-      status: 'A self-hosted server, beside the cloud. Sign in with your email and password.',
+      status: 'Sign in with your email and password.',
       tone: '',
       action: 'add',
     };
@@ -88,7 +88,7 @@ export function cloudRow({ state, email } = {}) {
   if (state === 'in')
     return { status: `Signed in as ${email || 'your account'}`, tone: 'ok', action: 'sign-out' };
   if (state === 'loading') return { status: 'Checking…', tone: '', action: null };
-  return { status: 'Where your projects live. Not signed in.', tone: '', action: 'sign-in' };
+  return { status: 'Not signed in', tone: '', action: 'sign-in' };
 }
 
 /** GitHub: a browser tab has no keychain to hold a token, and says so in the row. */
