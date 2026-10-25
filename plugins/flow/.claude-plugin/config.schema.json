@@ -305,6 +305,204 @@
         }
       }
     },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Economy and unattended-run settings for /flow:execute and /flow:run (flow:context-budget skill). Every key is optional; an absent block keeps today's behaviour apart from the preset defaults the skill documents.",
+      "properties": {
+        "routing": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Which tier and effort each role agent runs on. Defaults: worker fast/high, spike deep/high, scout fast/medium, critic fast.",
+          "properties": {
+            "worker": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "flow:worker — implements one plan task.",
+              "properties": {
+                "tier": {
+                  "type": "string",
+                  "enum": [
+                    "fast",
+                    "deep",
+                    "inherit"
+                  ],
+                  "description": "`fast` = the Sonnet-class model, `deep` = the Opus-class model, `inherit` = the lead's model. A tier, never a dated model id — the plugin maps it to the host alias."
+                },
+                "effort": {
+                  "type": "string",
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh"
+                  ]
+                }
+              }
+            },
+            "spike": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "flow:spike — resolves an open question.",
+              "properties": {
+                "tier": {
+                  "type": "string",
+                  "enum": [
+                    "fast",
+                    "deep",
+                    "inherit"
+                  ],
+                  "description": "`fast` = the Sonnet-class model, `deep` = the Opus-class model, `inherit` = the lead's model. A tier, never a dated model id — the plugin maps it to the host alias."
+                },
+                "effort": {
+                  "type": "string",
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh"
+                  ]
+                }
+              }
+            },
+            "scout": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "flow:scout — read-only fact finding.",
+              "properties": {
+                "tier": {
+                  "type": "string",
+                  "enum": [
+                    "fast",
+                    "deep",
+                    "inherit"
+                  ],
+                  "description": "`fast` = the Sonnet-class model, `deep` = the Opus-class model, `inherit` = the lead's model. A tier, never a dated model id — the plugin maps it to the host alias."
+                },
+                "effort": {
+                  "type": "string",
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh"
+                  ]
+                }
+              }
+            },
+            "critic": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Rubric reviewers (design critics, a11y-auditor, scenario-runner, design-system-guard). The security pair always inherits.",
+              "properties": {
+                "tier": {
+                  "type": "string",
+                  "enum": [
+                    "fast",
+                    "deep",
+                    "inherit"
+                  ],
+                  "description": "`fast` = the Sonnet-class model, `deep` = the Opus-class model, `inherit` = the lead's model. A tier, never a dated model id — the plugin maps it to the host alias."
+                },
+                "effort": {
+                  "type": "string",
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "riskClasses": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Globs or plan tags (e.g. `auth/**`, `migration`) that send a task's worker to the deep tier."
+        },
+        "budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Per-agent context budget. `preset` picks the defaults (see flow:context-budget); explicit keys override it.",
+          "properties": {
+            "preset": {
+              "type": "string",
+              "enum": [
+                "small",
+                "default",
+                "monorepo"
+              ],
+              "default": "default"
+            },
+            "agentTurns": {
+              "type": "integer",
+              "minimum": 10
+            },
+            "agentContextK": {
+              "type": "integer",
+              "minimum": 50
+            },
+            "handbackLines": {
+              "type": "integer",
+              "minimum": 10
+            },
+            "leadCheckpointPct": {
+              "type": "integer",
+              "minimum": 20,
+              "maximum": 95
+            },
+            "maxRunTokens": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "/flow:run only: total read+write tokens after which the Stop hook checkpoints and lets the run stop. Absent = no ceiling."
+            }
+          }
+        },
+        "largeFileKB": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 64,
+          "description": "Files above this size are read by range, never whole."
+        },
+        "gates": {
+          "type": "string",
+          "enum": [
+            "per-batch",
+            "per-task"
+          ],
+          "default": "per-batch",
+          "description": "When /flow:execute runs the full `quality` gates: after each batch of related tasks (default) or after every task. Workers always run their focused tests."
+        },
+        "lane": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional wrapper that serialises test suites, invoked as `<lane> -- <command>` (e.g. a script that takes a machine-wide lock). Absent = suites run directly."
+        },
+        "hooks": {
+          "type": "boolean",
+          "default": false,
+          "description": "/flow:run hooks (SubagentStart rules, SubagentStop Decisions check, Stop gate). OFF by default; every hook is a no-op unless this is true AND a run marker for this session exists. Kill switch for one shell: FLOW_RUN_HOOKS=0."
+        },
+        "maxStopBlocks": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 3,
+          "description": "/flow:run: identical red done-checks in a row after which the Stop hook writes the waiting file and lets the session stop."
+        },
+        "expiresHours": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 24,
+          "description": "/flow:run: hours after arming when the marker expires and every hook becomes a no-op."
+        }
+      }
+    },
     "knowledgeGraph": {
       "type": "object",
       "additionalProperties": false,
