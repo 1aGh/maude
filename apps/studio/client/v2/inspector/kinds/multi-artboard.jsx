@@ -9,6 +9,7 @@
 import { reduceMixed } from '../../../../edit-ops/words-paint.ts';
 import { Quiet, Row } from '../sections/row.jsx';
 import { registerSlot } from '../slots.js';
+import { multiKindModel } from './artboard-kinds-model.js';
 import { artboardFacts, presetOptions, presetValue } from './artboard-model.js';
 
 export const MULTI_ARTBOARD = 'multi-artboard';
@@ -104,7 +105,17 @@ export const MULTI_ARTBOARD_SLOTS = Object.freeze([
       Body: MultiArtboardRows,
     },
   ],
-  ['fill', { id: 'fill.multi-artboard', order: 10, kinds: K, Body: MultiArtboardFill }],
+  [
+    'fill',
+    {
+      id: 'fill.multi-artboard',
+      order: 10,
+      kinds: K,
+      // boards of different kinds draw their Fill inside the one flat card (artboard-multi.jsx, 08 ak-mixed-select)
+      when: ({ selection }) => !multiKindModel(selection).mixed,
+      Body: MultiArtboardFill,
+    },
+  ],
 ]);
 
 /** @returns {() => void} take the sections back out of the registry */

@@ -1,11 +1,11 @@
-// S2.22 G1 — an artboard draws Fill before Layout; every other kind keeps the table's order.
+// S2.22 G1 / V2-8.5 c7 — an artboard keeps the table's order (08 ak-web-hug: Width · Height · Layout · Fill · Other widths).
 import { describe, expect, test } from 'bun:test';
 import { SECTIONS, sectionsFor } from '../client/v2/inspector/sections.js';
 
 describe('sectionsFor', () => {
-  test('an artboard: Fill sits before Layout, nothing else moves or goes', () => {
+  test('an artboard: Layout sits before Fill (08 owns the card), nothing else moves or goes', () => {
     const ids = sectionsFor('artboard').map((s: { id: string }) => s.id);
-    expect(ids.indexOf('fill')).toBeLessThan(ids.indexOf('layout'));
+    expect(ids.indexOf('layout')).toBeLessThan(ids.indexOf('fill'));
     expect([...ids].sort()).toEqual(SECTIONS.map((s: { id: string }) => s.id).sort());
   });
 

@@ -9,11 +9,15 @@
 // Boards of ONE kind keep S2.9's rows (Preset · Size · Position · "Changes go to all N."). Only what both kinds
 // understand is offered: no size, no paper, until one board is picked.
 
+import { colourFromCss, colourToCss } from '../../../../edit-ops/words-paint.ts';
 import { Segmented } from '../../../inspector-controls.jsx';
 import { DigitalIcon, PrintIcon, VideoIcon, WebIcon } from '../../canvases/canvas-icons.jsx';
+import { ColorControl } from '../sections/color-control.jsx';
 import { Quiet, Row } from '../sections/row.jsx';
 import { registerSlot } from '../slots.js';
-import { multiKindModel } from './artboard-kinds-model.js';
+import { useDsFamilies } from '../token-chip.jsx';
+import { artboardFacts } from './artboard-model.js';
+import { heldAlignment, multiKindModel } from './artboard-kinds-model.js';
 import { MULTI_ARTBOARD } from './multi-artboard.jsx';
 
 const GLYPH = { digital: DigitalIcon, web: WebIcon, print: PrintIcon, video: VideoIcon };
@@ -30,8 +34,44 @@ export const V_ALIGN = Object.freeze([
   { value: 'align.bottom', label: 'Bottom' },
 ]);
 
+/**
+ * 08 ak-mixed-select: "Fill · [swatches] Mixed" — the boards' own fills side by side, then the word. Picking a colour
+ * sets it on every selected board.
+ */
+function MixedFillRow({ selection, ctx }) {
+  const fam = useDsFamilies(ctx);
+  const h = ctx?.artboard || {};
+  const facts = (Array.isArray(selection) ? selection : []).map(artboardFacts);
+  const fills = facts.map((f) => (f.bg ? colourFromCss(f.bg) : null));
+  const distinct = [...new Set(facts.map((f) => f.bg || `unset:${f.kind}`))];
+  const mixed = distinct.length > 1;
+  const shown = [...new Map(fills.map((c, i) => [facts[i].bg || `unset:${facts[i].kind}`, c])).values()];
+  return (
+    <Row k="Fill" name="mk-fill">
+      <span data-testid="insp-mab-bg">
+        <ColorControl
+          name="mk-fill"
+          label="Artboard fill"
+          value={mixed ? null : (fills[0] ?? null)}
+          mixed={mixed ? shown.map((c) => (c ? c : null)) : null}
+          colors={fam.color}
+          vals={fam.vals}
+          allowNone
+          noneLabel="Default"
+          disabled={!facts.every((f) => f.id)}
+          onChange={(c) => {
+            for (const f of facts)
+              f.id && h.onSetArtboardStyle?.(f.id, { background: c ? colourToCss(c) : null });
+          }}
+        />
+      </span>
+    </Row>
+  );
+}
+
 function MultiKindRows({ selection, ctx }) {
   const m = multiKindModel(selection);
+  const held = heldAlignment(selection);
   const run = (id) => ctx?.onRunAction?.({ dgn: 'run-action', v: 1, id });
   return (
     <>
@@ -47,14 +87,15 @@ function MultiKindRows({ selection, ctx }) {
           })}
         </span>
       </Row>
+      <MixedFillRow selection={selection} ctx={ctx} />
       <Row k="Horizontal" name="mk-horizontal">
         <span data-testid="insp-mk-horizontal">
-          <Segmented value="" ariaLabel="Align horizontally" options={H_ALIGN} onChange={run} />
+          <Segmented value={held.h} ariaLabel="Align horizontally" options={H_ALIGN} onChange={run} />
         </span>
       </Row>
       <Row k="Vertical" name="mk-vertical">
         <span data-testid="insp-mk-vertical">
-          <Segmented value="" ariaLabel="Align vertically" options={V_ALIGN} onChange={run} />
+          <Segmented value={held.v} ariaLabel="Align vertically" options={V_ALIGN} onChange={run} />
         </span>
       </Row>
       <Quiet testid="insp-mk-note">{m.note}</Quiet>
@@ -73,6 +114,8 @@ export const MULTI_KIND_SLOTS = Object.freeze([
       order: 10,
       kinds: K,
       title: 'Artboards',
+      // the board's mixed card is one flat list (Kinds · Fill · Horizontal · Vertical · note · Export), no head
+      headless: true,
       when: ({ selection }) => multiKindModel(selection).mixed,
       Body: MultiKindRows,
     },

@@ -8,7 +8,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
 import { ACTIONS_BY_ID } from '../actions/index.ts';
-import { AlignBarView } from '../editing/align-bar.tsx';
+import { AlignBarView, boardsMixKinds } from '../editing/align-bar.tsx';
 import {
   type BoardRect,
   TIDY_ACTION,
@@ -87,6 +87,21 @@ describe('Tidy up on the align bar', () => {
       tidy.click();
     });
     expect(seen).toEqual(['show', 'hide', 'show', 'hide', 'tidy']);
+  });
+});
+
+describe('p8-c7-cf08 — no bar over boards of different kinds (08 ak-mixed-select)', () => {
+  const rects = [
+    { id: 'ig', kind: 'digital' },
+    { id: 'karta', kind: 'print' },
+    { id: 'story', kind: 'digital' },
+  ];
+  test('the inspector aligns them; one kind keeps the bar', () => {
+    expect(boardsMixKinds([{ artboardId: 'ig' }, { artboardId: 'karta' }], rects)).toBe(true);
+    expect(boardsMixKinds([{ artboardId: 'ig' }, { artboardId: 'story' }], rects)).toBe(false);
+  });
+  test('an element picked inside a board does not count as the board', () => {
+    expect(boardsMixKinds([{ id: 'x', artboardId: 'karta' }, { artboardId: 'ig' }], rects)).toBe(false);
   });
 });
 

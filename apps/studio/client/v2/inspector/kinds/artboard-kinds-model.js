@@ -137,3 +137,25 @@ export function multiKindModel(selection) {
     note: 'Size and paper differ. Select one to change it.',
   };
 }
+
+/**
+ * Which align verbs already hold for these boards (08 ak-mixed-select draws "Left" and "Top" pressed): every board
+ * shares the same left edge / centre / right edge, and the same top / middle / bottom. Read from the boards' world
+ * geometry; `''` where they share none (or the geometry is unknown).
+ * @returns {{ h: string, v: string }} `align.left|hcentre|right` and `align.top|vmiddle|bottom`, or ''
+ */
+export function heldAlignment(selection) {
+  const list = (Array.isArray(selection) ? selection : [])
+    .map((el) => el?.geometry)
+    .filter(Boolean);
+  const out = { h: '', v: '' };
+  if (list.length < 2) return out;
+  const same = (xs) => xs.every((n) => Number.isFinite(n) && Math.abs(n - xs[0]) < 0.5);
+  if (same(list.map((g) => g.x))) out.h = 'align.left';
+  else if (same(list.map((g) => g.x + g.w / 2))) out.h = 'align.hcentre';
+  else if (same(list.map((g) => g.x + g.w))) out.h = 'align.right';
+  if (same(list.map((g) => g.y))) out.v = 'align.top';
+  else if (same(list.map((g) => g.y + g.h / 2))) out.v = 'align.vmiddle';
+  else if (same(list.map((g) => g.y + g.h))) out.v = 'align.bottom';
+  return out;
+}
