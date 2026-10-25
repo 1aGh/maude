@@ -12,7 +12,7 @@
 // Only the model process (`claude -p`, run.mjs) gets the person's real HOME — it needs the login.
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { stubClaudeEnv } from '../../../../../scripts/lib/stub-claude.mjs';
@@ -62,9 +62,9 @@ export function uniqueTextIn(project, canvas, artboard, skip = []) {
   }
   for (const body of regions.reverse()) {
     for (const m of body.matchAll(/>([A-Za-z][^<>{}\n]{5,60})</g)) {
-      const text = m[1];
-      if (!skip.includes(text) && src.split(text).length === 2)
-        return { old: text, new: `${text}!` };
+      // delimited, so the text of a label or a comment elsewhere in the file does not make it ambiguous
+      const old = m[0];
+      if (!skip.includes(m[1]) && src.split(old).length === 2) return { old, new: `>${m[1]}!<` };
     }
   }
   throw new Error(`no unique text in ${canvas} › ${artboard}`);
@@ -155,4 +155,36 @@ export async function stopStudio(project) {
       process.kill(pid, 'SIGKILL');
     } catch {}
   }
+}
+
+/**
+ * Copy every run folder of the project (`.design/_runs/<session>/`, minus the per-edit `snap/` copies) to
+ * `dest`. The released Stop hook deletes the folder when the run ends, so this is the only way its
+ * `touched.json`, `base/`, `stop-last*.json` and `shots.jsonl` outlive the trial. Best effort: a file
+ * caught mid-write is skipped.
+ */
+export function snapshotRuns(project, dest) {
+  const root = join(project, '.design', '_runs');
+  if (!existsSync(root)) return;
+  for (const name of readdirSync(root)) {
+    if (name === 'sessions') continue;
+    try {
+      cpSync(join(root, name), join(dest, name), {
+        recursive: true,
+        force: true,
+        filter: (src) => !/[\\/]snap([\\/]|$)/.test(src),
+      });
+    } catch {}
+  }
+}
+
+/** Snapshot every `ms` while a live model process runs; `stop()` takes the last one. */
+export function watchRuns(project, dest, ms = 400) {
+  const timer = setInterval(() => snapshotRuns(project, dest), ms);
+  return {
+    stop() {
+      clearInterval(timer);
+      snapshotRuns(project, dest);
+    },
+  };
 }

@@ -35,14 +35,25 @@ const readJson = (p, dflt = null) => {
   }
 };
 
-/** → { sessions: [{ name, touched, stopBlocks, shots, bases, agents }] } over every `_runs/<session>/`. */
-export function readRunState(project) {
-  const dir = join(project, '.design', '_runs');
+/**
+ * → { sessions: [{ name, touched, stopBlocks, shots, bases, agents, dir }] } over every run folder.
+ *
+ * The released Stop hook DELETES `_runs/<session>/` when the run ends cleanly (design-hook.mjs `stop`:
+ * `rmSync(ctx.run)`), so after a finished trial the project holds nothing. The harness therefore archives the
+ * folder while the run is alive (`lib/trial.mjs` `snapshotRuns`, into `<trial>/runlog/<session>/`); this reads
+ * the archive and the project's own folders (the project's wins: a crashed run leaves its folder behind).
+ */
+export function readRunState(project, runlog = null) {
+  const dirs = new Map();
+  for (const root of [runlog, join(project, '.design', '_runs')]) {
+    if (!root || !existsSync(root)) continue;
+    for (const name of readdirSync(root)) {
+      const p = join(root, name);
+      if (name !== 'sessions' && statSync(p).isDirectory()) dirs.set(name, p);
+    }
+  }
   const out = { sessions: [] };
-  if (!existsSync(dir)) return out;
-  for (const name of readdirSync(dir)) {
-    const p = join(dir, name);
-    if (!statSync(p).isDirectory() || name === 'sessions') continue;
+  for (const [name, p] of dirs) {
     const stop = readdirSync(p).filter((f) => /^stop-last(\..+)?\.json$/.test(f));
     let shots = [];
     try {
@@ -65,9 +76,9 @@ export function readRunState(project) {
 }
 
 /** The run base of `rel` (designRoot-relative): the bytes before the run first touched it, or undefined. */
-export function runBase(project, rel) {
+export function runBase(project, rel, runlog = null) {
   const key = createHash('sha256').update(rel, 'utf8').digest('hex').slice(0, 16);
-  for (const s of readRunState(project).sessions) {
+  for (const s of readRunState(project, runlog).sessions) {
     const p = join(s.dir, 'base', key);
     if (existsSync(p)) return readFileSync(p, 'utf8');
     if (existsSync(`${p}.new`)) return null; // the file did not exist before the run

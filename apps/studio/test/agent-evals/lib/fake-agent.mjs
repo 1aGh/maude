@@ -74,7 +74,14 @@ const contextOf = (outs) =>
     .filter(Boolean)
     .join('\n');
 
-export async function runFakeAgent({ script, prompt, project, trialDir, env }) {
+export async function runFakeAgent({
+  script,
+  prompt,
+  project,
+  trialDir,
+  env,
+  snapshot = () => {},
+}) {
   const t0 = Date.now();
   const session = randomUUID();
   const tx = join(trialDir, 'transcript.jsonl');
@@ -127,6 +134,14 @@ export async function runFakeAgent({ script, prompt, project, trialDir, env }) {
 
   async function step(s) {
     turns++;
+    try {
+      await step1(s);
+    } finally {
+      snapshot(); // the Stop hook deletes the run folder: keep what it held while it was alive
+    }
+  }
+
+  async function step1(s) {
     if (s.raw) {
       const p = abs(s.file);
       if (s.raw === 'rm') rmSync(p, { force: true });
@@ -205,6 +220,7 @@ export async function runFakeAgent({ script, prompt, project, trialDir, env }) {
   for (const s of script.steps) await step(s);
   let stopped = null;
   for (let n = 0; n < 3; n++) {
+    snapshot();
     const outs = runHooks(
       'Stop',
       null,

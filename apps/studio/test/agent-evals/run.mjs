@@ -33,7 +33,7 @@ import { judge } from './lib/judge.mjs';
 import { DESIGN_PLUGIN, HERE } from './lib/paths.mjs';
 import { gitDiff, renderCheck, renderTargets, serverDown } from './lib/render.mjs';
 import { readTranscript } from './lib/transcript.mjs';
-import { startTrial, studioEnv } from './lib/trial.mjs';
+import { snapshotRuns, startTrial, studioEnv, watchRuns } from './lib/trial.mjs';
 
 const CLI = join(REPO, 'cli', 'bin', 'maude.mjs');
 const argv = process.argv.slice(2);
@@ -163,6 +163,7 @@ async function runAgent(task, topology, trialDir, project) {
   const { createWriteStream } = await import('node:fs');
   const out = createWriteStream(transcript);
   const err = createWriteStream(errf);
+  const watcher = watchRuns(project, join(trialDir, 'runlog'));
   const child = spawn('claude', args, {
     cwd: project,
     env: liveEnv(trialDir),
@@ -177,6 +178,7 @@ async function runAgent(task, topology, trialDir, project) {
     setTimeout(() => child.kill('SIGKILL'), 10_000);
   }, TIMEOUT_MIN * 60_000);
   const code = await new Promise((res) => child.on('close', res));
+  watcher.stop();
   clearTimeout(timer);
   await new Promise((r) => out.end(r));
   await new Promise((r) => err.end(r));
@@ -200,7 +202,14 @@ async function gradeTrial(
   // `live` = the trial's own studio (lib/trial.mjs): its registry answer, taken before it stops, is the
   // evidence the hold was still in force; a re-grade of a finished trial has none.
   const registry = live ? { view: live.view() } : null;
-  const code = gradeCode({ task, project, transcript: tr, manifest: fx, registry });
+  const code = gradeCode({
+    task,
+    project,
+    transcript: tr,
+    manifest: fx,
+    registry,
+    runlog: join(trialDir, 'runlog'),
+  });
   let render = { ran: false, shots: [] };
   // a dry run never calls a model, so no judge; screenshots only when asked for (--render on)
   if (dry ? opt('render', 'off') === 'on' : RENDER) {
@@ -364,6 +373,7 @@ async function trial(taskId, topology, n, opts = {}) {
           project,
           trialDir,
           env: agentEnv(studioEnv(trialDir), trialDir),
+          snapshot: () => snapshotRuns(project, join(trialDir, 'runlog')),
         })
       : await runAgent(task, topology, trialDir, project);
     g = await gradeTrial(trialDir, task, topology, run, null, live, !!opts.script);

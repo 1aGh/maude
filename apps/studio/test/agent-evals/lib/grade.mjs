@@ -69,7 +69,7 @@ const isRed = (hex) => {
   return r >= 0xc0 && r - g >= 40 && r - b >= 40;
 };
 
-export function gradeCode({ task, project, transcript, manifest, registry = null }) {
+export function gradeCode({ task, project, transcript, manifest, registry = null, runlog = null }) {
   const e = task.expect ?? {};
   const inv = {};
   const q = {};
@@ -91,7 +91,7 @@ export function gradeCode({ task, project, transcript, manifest, registry = null
     );
   };
   const versioned = design.filter((c) => !c.rel.split('/')[0].startsWith('_') && !sameBoard(c));
-  const runState = readRunState(project);
+  const runState = readRunState(project, runlog);
   const hooklog = hookDecisions(transcript, runState);
 
   // ── check green: every changed versioned file passes the fast tier against the baseline ──
@@ -99,7 +99,7 @@ export function gradeCode({ task, project, transcript, manifest, registry = null
   for (const c of versioned) {
     if (c.st === 'D') continue;
     const abs = join(project, '.design', c.rel);
-    const base = runBase(project, c.rel);
+    const base = runBase(project, c.rel, runlog);
     const r = checkFile(project, abs, {
       against: base !== undefined ? base : headOf(project, `.design/${c.rel}`),
     });
@@ -445,7 +445,16 @@ export function gradeCode({ task, project, transcript, manifest, registry = null
   if (e.trash) {
     const c = e.trash.canvas;
     const gone = !existsSync(join(project, '.design', c));
-    const trashed = walk(join(project, '.design', '_trash'), (p) => p.endsWith(c)).length > 0;
+    // the studio's trash: `_trash/<stamp>__<slug>/…` with a `_trash-manifest.json` naming the canvas
+    const trashed = walk(join(project, '.design', '_trash'), (p) =>
+      p.endsWith('_trash-manifest.json')
+    ).some((m) => {
+      try {
+        return JSON.parse(readFileSync(m, 'utf8')).canvas === c;
+      } catch {
+        return false;
+      }
+    });
     set(
       inv,
       'trash-not-rm',

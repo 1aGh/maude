@@ -87,13 +87,23 @@ export async function runSmoke({ out, log = console.log } = {}) {
   unlinkSync(canvas);
   g = grade(app.dir, { trash: { canvas: 'ui/GitPanel.tsx' } });
   expect('rm of a canvas fails trash-not-rm', !g.invariants['trash-not-rm'].pass);
-  // (the real trash route is exercised end to end by `run.mjs dry`, task x2; here the graders see a trashed copy)
-  const trashed = join(app.d, '_trash', 'smoke', 'ui', 'GitPanel.tsx');
-  mkdirSync(join(app.d, '_trash', 'smoke', 'ui'), { recursive: true });
-  writeFileSync(trashed, src0);
+  // The studio's trash is `_trash/<stamp>__<slug>/<file>` + a `_trash-manifest.json` that names the canvas
+  // (found by running the real route in the dry run: the prototype grader looked for a nested path).
+  const tdir = join(app.d, '_trash', '2026-10-25T22-20-49-836Z__ui-gitpanel');
+  mkdirSync(tdir, { recursive: true });
+  writeFileSync(join(tdir, 'GitPanel.tsx'), src0);
   g = grade(app.dir, { trash: { canvas: 'ui/GitPanel.tsx' } });
   expect(
-    'a canvas that left the tree and sits in _trash passes trash-not-rm',
+    'a trash folder whose manifest does not name the canvas does not count (trash-not-rm red)',
+    !g.invariants['trash-not-rm'].pass
+  );
+  writeFileSync(
+    join(tdir, '_trash-manifest.json'),
+    JSON.stringify({ canvas: 'ui/GitPanel.tsx', slug: 'ui-gitpanel', trashed: ['ui/GitPanel.tsx'] })
+  );
+  g = grade(app.dir, { trash: { canvas: 'ui/GitPanel.tsx' } });
+  expect(
+    "a canvas in the studio's trash (manifest names it) passes trash-not-rm",
     g.invariants['trash-not-rm'].pass && g.quality['canvas-trashed'].pass,
     g.invariants['trash-not-rm'].why
   );
@@ -297,6 +307,7 @@ export async function runSmoke({ out, log = console.log } = {}) {
     runBase(busy.dir, ONB) === 'BEFORE'
   );
   expect('…and has none for another file', runBase(busy.dir, 'ui/Other.tsx') === undefined);
+  rmSync(join(runDir, 'base'), { recursive: true, force: true });
   writeFileSync(join(runDir, 'stop-last.json'), '{"sig":"x","at":1}');
   const ob = join(busy.d, ONB);
   const obSrc = readFileSync(ob, 'utf8');
@@ -313,7 +324,31 @@ export async function runSmoke({ out, log = console.log } = {}) {
     JSON.stringify([g.invariants.check, g.quality['stop-gate-settled']])
   );
   writeFileSync(ob, obSrc);
+  // The released Stop hook deletes `_runs/<session>/` when the run ends (design-hook.mjs `stop`): what the
+  // harness archived while the run was alive is the only record left, and the graders read it.
+  const archive = join(out, 'runlog');
+  mkdirSync(join(archive, session), { recursive: true });
+  writeFileSync(
+    join(archive, session, 'touched.json'),
+    JSON.stringify({ [ONB]: { at: 1, by: 'Edit', via: 'hook', artboards: ['hub'] } })
+  );
   rmSync(runDir, { recursive: true, force: true });
+  expect(
+    'a run folder the Stop hook deleted is still read from the harness archive',
+    readRunState(busy.dir, archive).sessions.length === 1 &&
+      readRunState(busy.dir).sessions.length === 0
+  );
+  g = gradeCode({
+    task: task({ readOnly: true }),
+    project: busy.dir,
+    transcript: EMPTY_TR,
+    manifest,
+    runlog: archive,
+  });
+  expect(
+    '…so run-log:busy-not-touched still catches a touch of the busy artboard',
+    g.quality['run-log:busy-not-touched']?.pass === false
+  );
 
   // the deleted stand-ins stay deleted
   const gone = ['harness/verbs.mjs', 'harness/hook.mjs', 'harness/plugin', 'lib/check.mjs'];
