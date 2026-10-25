@@ -36,12 +36,47 @@ const notify = () => {
   for (const fn of subs) fn();
 };
 
+// The copy a duplicate writes arrives with the canvas' own reload (a file change reloads the frame), so the mark
+// cannot live in memory alone: it is kept in this frame's sessionStorage until it has had its few seconds.
+const storeKey = () =>
+  typeof location === 'undefined' ? '' : `dc-gap-mark:${location.pathname}${location.search}`;
+function save(mark: GapMark | null, until: number): void {
+  try {
+    if (!storeKey()) return;
+    if (mark) sessionStorage.setItem(storeKey(), JSON.stringify({ mark, until }));
+    else sessionStorage.removeItem(storeKey());
+  } catch {
+    /* storage blocked: the mark lives for this load only */
+  }
+}
+function arm(until: number): void {
+  if (timer) clearTimeout(timer);
+  timer = setTimeout(() => setGapMark(null), Math.max(0, until - Date.now()));
+}
+function hydrate(): void {
+  try {
+    if (!storeKey()) return;
+    const o = JSON.parse(sessionStorage.getItem(storeKey()) || 'null');
+    if (o?.mark?.copyId && Number(o.until) > Date.now()) {
+      current = o.mark as GapMark;
+      arm(Number(o.until));
+    } else if (o) sessionStorage.removeItem(storeKey());
+  } catch {
+    /* unreadable: no mark */
+  }
+}
+hydrate();
+
 /** Show the mark (and take it back after `GAP_MARK_MS`). `null` clears it. */
 export function setGapMark(next: GapMark | null): void {
   if (timer) clearTimeout(timer);
   timer = null;
   current = next;
-  if (next) timer = setTimeout(() => setGapMark(null), GAP_MARK_MS);
+  if (next) {
+    const until = Date.now() + GAP_MARK_MS;
+    save(next, until);
+    arm(until);
+  } else save(null, 0);
   notify();
 }
 

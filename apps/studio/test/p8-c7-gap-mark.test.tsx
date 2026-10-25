@@ -61,6 +61,12 @@ describe('wiring', () => {
     expect(read('canvas-lib.tsx')).toContain('<ArtboardGapMark id={id}');
   });
 
+  test('the mark outlives the canvas reload the written copy causes (kept in the frame\'s sessionStorage)', () => {
+    const src = read('artboard-gap-mark.tsx');
+    expect(src).toContain('sessionStorage.setItem(storeKey()');
+    expect(src).toContain('hydrate();');
+  });
+
   test('the "copy made" toasts wear the copy glyph, not a success tick', () => {
     const src = read('client/hooks/use-canvas-bridge.jsx');
     expect(src).toContain("const DUPLICATE_TOAST = { kind: 'info', icon: 'duplicate' }");
