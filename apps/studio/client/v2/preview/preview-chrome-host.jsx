@@ -30,7 +30,7 @@ import { clearPreviewBack, runPreviewBack, setPreviewBack } from './preview-back
 import { previewHistory } from './preview-history.js';
 import { menuRunner } from '../shell/menu-runner.js';
 import { ZoomUndo, zoomUndoForm } from '../undo/zoom-undo.jsx';
-import { useViewportZoom, ZoomOnly } from './zoom-only.jsx';
+import { useViewportCamera, ZoomOnly } from './zoom-only.jsx';
 
 /** The islands, in Preview only. `state` is `in` while entering/showing, `out` for the exit fade.
  *  `openApp` — the browser's "Open in the Mac app" link (`openInAppLink`), absent everywhere else. */
@@ -185,7 +185,7 @@ export function ShellPreviewChrome() {
   const live = useRef({});
   live.current = { activePath, iframesRef, openTab };
   const link = useLinkFollow({ live, previewing, cfg });
-  const zoom = useViewportZoom({
+  const { zoom, fit } = useViewportCamera({
     canvasOrigin: cfg?.canvasOrigin || window.location.origin,
     activeWin: () => {
       const p = live.current.activePath;
@@ -200,6 +200,7 @@ export function ShellPreviewChrome() {
   const zoomUndo = zoomForm ? (
     <ZoomUndo
       zoom={zoom}
+      fit={fit}
       form={zoomForm}
       onUndo={() => menuRunner.run('edit.undo')}
       onRedo={() => menuRunner.run('edit.redo')}
