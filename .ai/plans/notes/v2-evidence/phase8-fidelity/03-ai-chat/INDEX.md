@@ -220,7 +220,7 @@ Re-shoot of the IMPL side on the merged tip 63592219a (stage C rounds 1-5 + bugs
 | `ai-history` | re-shot (in the finish window) | re-shot (in the finish window) |
 
 
-## Round 6 (p8-c6-aisurf, 8a9d2f0)
+## Round 6 (p8-c6-aisurf, 89a794e96)
 
 Re-shot on the p8-c6-aisurf worktree tip, both themes, committed pairs overwritten (spec left | impl right). The critic judges; this builder does not.
 

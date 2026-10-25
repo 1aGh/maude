@@ -141,7 +141,7 @@ Final re-shoot D3 of the IMPL side on the merged `feat/maude-v2` tip 63592219a (
 | `cf-offline-create` | re-shot | re-shot |  |
 
 
-## Round 6 (p8-c6-aisurf, 8a9d2f0)
+## Round 6 (p8-c6-aisurf, 89a794e96)
 
 Re-shot on the p8-c6-aisurf worktree tip, both themes, committed pairs overwritten (spec left | impl right). The critic judges; this builder does not.
 
