@@ -38,9 +38,11 @@ export interface DescribeRouteDeps {
 }
 
 function refusal(deps: DescribeRouteDeps, req: Request): Response | null {
-  if (deps.inCell) return json(409, { ok: false, reason: 'not-on-mac' });
+  // p8-c4 (403 sweep) — the caller's access first: a canvas-only guest hears the plain 403 in a
+  // cell too, never the cell's 409 (which named a project-level fact to a session refused it).
   const a = deps.access(req);
   if (a.role === null) return json(403, { ok: false, reason: 'project-only' });
+  if (deps.inCell) return json(409, { ok: false, reason: 'not-on-mac' });
   return null;
 }
 

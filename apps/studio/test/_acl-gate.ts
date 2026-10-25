@@ -171,7 +171,7 @@ const DESKTOP_HUB = 'http://hub.invalid:9';
 
 /** Boot the gate cell; `revert` names ACL checks the server runs without (the revert guard). */
 export async function bootGateCell(
-  opts: { revert?: readonly AclCheck[]; desktop?: boolean } = {}
+  opts: { revert?: readonly AclCheck[]; desktop?: boolean; env?: Record<string, string> } = {}
 ): Promise<GateCell> {
   const { root, designRoot } = makeSandbox();
   const home = join(root, 'home');
@@ -275,6 +275,7 @@ export async function bootGateCell(
           MAUDE_PROJECT_NAME: 'Alligators',
         }),
     MAUDE_TEST_ACL_REVERT: (opts.revert ?? []).join(','),
+    ...(opts.env ?? {}),
   });
   const base = `http://localhost:${port}`;
   const info = JSON.parse(readFileSync(join(designRoot, '_server.json'), 'utf8')) as {
@@ -435,7 +436,9 @@ export function scrapedFallthrough(src = HTTP_SRC()): string[] {
 /** The canvas origin's own map (routes/canvas-origin.ts); table `origin: 'canvas'` specs join it. */
 export function canvasOriginKeys(): string[] {
   const src = readFileSync(join(STUDIO, 'routes', 'canvas-origin.ts'), 'utf8');
-  return [...src.matchAll(/^ {4}'(\/[^']*)': http\./gm)].map((m) => m[1] as string);
+  // p8-c4 — a wrapped handler too (`'/_api/canvas-meta': canvasOriginMeta(http.routes[…])`): the
+  // old pattern read only `': http.` and so left canvas-meta out of every canvas-origin sweep.
+  return [...src.matchAll(/^ {4}'(\/[^']*)': (?:[A-Za-z]+\()?http\./gm)].map((m) => m[1] as string);
 }
 
 export interface RouteRow {

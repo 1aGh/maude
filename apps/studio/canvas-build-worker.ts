@@ -59,7 +59,19 @@ function studioDir(): string {
   return process.env.MAUDE_STUDIO_SRC || import.meta.dir;
 }
 
+/**
+ * p8-c4 (c4n note) — "a syntax error in the canvas's own source" is the pipeline's own
+ * `TranspileError` CLASS, never an error that merely carries the NAME (a name is a string anyone on
+ * the error path can set; the host keeps `transpile` failures legible to a frame). Until the
+ * pipeline loads, nothing is one (fail closed: the host answers like a refusal).
+ */
+let isTranspileError: (err: unknown) => boolean = () => false;
+
 async function main() {
+  const pipeline = (await import(join(studioDir(), 'canvas-pipeline.ts'))) as {
+    TranspileError: abstract new (...args: never[]) => Error;
+  };
+  isTranspileError = (err) => err instanceof pipeline.TranspileError;
   if (!designRoot || !canvasAbs) {
     process.stdout.write(JSON.stringify({ ok: false, error: 'usage: <designRoot> <canvasAbs>' }));
     process.exit(2);
@@ -97,7 +109,7 @@ main().catch((err) => {
       rejectedImports: Number(err?.rejectedImports ?? 0) || 0,
       // gate-b-c4m — a syntax error in the canvas's own source (the host keeps only that legible
       // to a frame; any other failure answers like a refusal).
-      transpile: err?.name === 'TranspileError',
+      transpile: isTranspileError(err),
     })
   );
   process.exit(1);

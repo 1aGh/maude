@@ -605,12 +605,14 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
     const out = new Set<string>();
     if (links) {
       // It uses DesignCanvas itself, or imports a carried name: any export may be it.
-      if (
-        links.namesRoot ||
-        links.computedImport ||
-        links.imports.some((i) => importReaches(i, carriedBySpec(rel, i.spec)))
-      )
-        out.add(CARRIES_ALL);
+      // p8-c4 (defender round 8, M) — EVERY import is evaluated, every pass: a short-circuit
+      // (`.some`) stopped at the first import that reached, so a module behind a later import that
+      // this pass did not revisit kept an earlier pass's approximation, and the fixed point then
+      // cached it as final ("carries nothing") for every later grant in this closure.
+      let reaches = links.namesRoot || links.computedImport;
+      for (const i of links.imports)
+        if (importReaches(i, carriedBySpec(rel, i.spec))) reaches = true;
+      if (reaches) out.add(CARRIES_ALL);
       for (const re of links.reexports) {
         const via = carriedBySpec(rel, re.spec);
         // A re-export of the literal name is a proxy whatever its source carries (monotone).
@@ -684,7 +686,19 @@ const canvasesOfFile = (rel: string): string[] => {
  * itself still hands it only to the specimen (c4l) — a DS user reads it when it imports it.
  */
 const isDsSurfaceStyle = (rel: string): boolean =>
-  /\.css$/i.test(rel) && isDsSurfaceRel(rel.replace(/\.css$/i, '.tsx'));
+  /\.css$/i.test(rel) && isDsSurfaceRel(rel.replace(/\.css$/i, '.tsx')) && !isUiKitRel(rel);
+
+/**
+ * p8-c4 (attacker round 8, L) — a UI kit / platform showcase (`system/<ds>/ui_kits/**`,
+ * `system/<ds>/preview/ui_kits-<platform>-<name>.*`) is a canvas of the project's own layout, not
+ * the system's styling: its stylesheet is that canvas's, so the specimen-stylesheet exemption
+ * stops here and importing it is importing that canvas (refused unless granted, c4j). Pure.
+ */
+function isUiKitRel(rel: string): boolean {
+  const segs = rel.split('/');
+  if (segs.length < 4 || segs[0] !== 'system') return false;
+  return segs[2] === 'ui_kits' || (segs[2] === 'preview' && /^ui_kits-/i.test(segs[3] ?? ''));
+}
 
 /** The Design system canvas's file name inside `system/<ds>/` (ds/engine.ts `DS_CANVAS`). */
 const DS_BOARD_FILE = 'design-system.tsx';
@@ -706,6 +720,10 @@ function walkImports(
   let blocked = false;
   const importable = (dep: string): boolean => {
     if (dep.startsWith('_') || CANVAS_SIDECAR_RE.test(dep)) return false;
+    // p8-c4 (attacker round 8, L) — a per-use photo edit is read ONLY through a granted canvas's
+    // own `data-photo-edit` on the element whose `src` is the picture (S8 §5.6, U1), never as an
+    // imported JSON module (its hash would be the only key).
+    if (PER_USE_PHOTO_RE.test(dep)) return false;
     const owners = isDsSurfaceStyle(dep) ? [] : /\.css$/i.test(dep) ? canvasesOfFile(dep) : [dep];
     for (const owner of owners)
       if (!granted.has(owner) && env.isCanvas(owner)) {
@@ -741,6 +759,10 @@ function walkImports(
     sys !== null && DS_SYSTEM_PATH_RE.test(sys.path) && canvas === `${sys.path}/${DS_BOARD_FILE}`;
   const ownSurface = (dep: string): boolean =>
     ownBoard && dep.startsWith(`${sys?.path}/`) && isDsSurfaceRel(dep);
+  // p8-c4 — and the stylesheet of one of them (a showcase's own `.css` is no longer DS styling for
+  // everyone, `isUiKitRel`, but the board draws the showcase, so it reads its stylesheet).
+  const ownSurfaceStyle = (dep: string): boolean =>
+    /\.css$/i.test(dep) && ownSurface(dep.replace(/\.css$/i, '.tsx'));
   const seen = new Set<string>();
   const visited: Array<{ rel: string; text: string }> = [];
   while (queue.length) {
@@ -767,7 +789,7 @@ function walkImports(
         if (!env.files.has(dep)) continue;
         resolved = true;
         if (seen.has(dep)) continue;
-        if (importable(dep)) queue.push(dep);
+        if (ownSurfaceStyle(dep) || importable(dep)) queue.push(dep);
         else blocked = true;
       }
       if (!resolved) blocked = true;

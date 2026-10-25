@@ -464,6 +464,8 @@ export async function buildCanvasModule(
       ...(allowlist ? [allowlist.plugin] : []),
       // After the allowlist: only an override whose file is gone today, already judged above.
       ...(overrides ? [overrides.resolveMissing] : []),
+      // p8-c4 — LAST: answers every remaining file load with the bytes it checked (no re-read).
+      macroPinnedLoad(macroRefusals, macroCtx.designRoot),
     ],
   });
 
@@ -824,6 +826,61 @@ function macroGuard(refusals: string[], designRoot: string): import('bun').BunPl
       });
     },
   };
+}
+
+/** Loaders whose bytes Bun never parses as a module of its own; their files load as before. */
+const UNPINNED_LOADERS = new Set(['napi', 'wasm', 'sqlite']);
+/** Loaders Bun reads raw bytes for (no text decode). */
+const BINARY_LOADERS = new Set(['file', 'dataurl', 'base64']);
+
+/**
+ * p8-c4 (c4n round 8, L) — the read-then-load race. `macroGuard` (first) reads a file, checks it and
+ * returns nothing, so the next loader — Bun's own — READ IT AGAIN: a file swapped on disk between
+ * the two reads (a sync landing, a peer's write, an agent) was parsed unchecked, and a macro in it
+ * ran. This plugin goes LAST, after every judge (the import allowlist's onLoad) and every loader
+ * that answers from memory or rewrites (the canvas entry, CSS overrides / url rewrite, `@maude/ds`):
+ * for whatever is left it reads the file ONCE, checks those bytes and hands Bun exactly those bytes
+ * with the loader Bun chose. What Bun parses is what was checked. Exported for the unit test.
+ */
+export function macroPinnedLoad(refusals: string[], designRoot: string): import('bun').BunPlugin {
+  return {
+    name: 'maude-macro-pinned-load',
+    setup(builder) {
+      builder.onLoad(
+        { filter: /.*/ },
+        (args: { path: string; namespace?: string; loader?: string }) => {
+          if (args.namespace && args.namespace !== 'file') return undefined;
+          const loader = args.loader ?? loaderForExt(args.path);
+          if (!loader || UNPINNED_LOADERS.has(loader)) return undefined;
+          let bytes: Buffer;
+          try {
+            bytes = readFileSync(args.path);
+          } catch {
+            return undefined; // a virtual module (its contents are ours) or a file Bun cannot read either
+          }
+          const text = bytes.toString('utf8');
+          if (hasMacroImport(text)) {
+            const reason = macroImportRefusal(macroDisplayName(args.path, designRoot));
+            refusals.push(reason);
+            throw new Error(reason);
+          }
+          return {
+            contents: BINARY_LOADERS.has(loader) ? bytes : text,
+            loader: loader as import('bun').Loader,
+          };
+        }
+      );
+    },
+  };
+}
+
+function loaderForExt(file: string): string | null {
+  const ext = path.extname(file).toLowerCase();
+  if (ext === '.tsx' || ext === '.jsx' || ext === '.ts' || ext === '.css' || ext === '.json')
+    return ext.slice(1);
+  if (ext === '.mts' || ext === '.cts') return 'ts';
+  if (ext === '.js' || ext === '.mjs' || ext === '.cjs') return 'js';
+  return null;
 }
 
 function filterForExactPath(absPath: string): RegExp {
