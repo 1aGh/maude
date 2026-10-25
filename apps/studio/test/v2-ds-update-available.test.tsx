@@ -52,6 +52,11 @@ describe('is this canvas left out?', () => {
     expect(leftOutOf('ui/2026/combine.tsx', { ...CFG, dsConverted: {} })).toBeNull(); // not converted
     expect(leftOutOf('ui/2026/combine.png', CFG)).toBeNull();
   });
+  test('p8 c7: a design-root-relative path finds the real index\'s tree-path key (the inspector block never mounted)', () => {
+    const real = { ...CFG, canvasDsRevs: { '.design/ui/2026/combine.tsx': OLD } };
+    expect(leftOutOf('ui/2026/combine.tsx', real)?.dsRev).toBe(OLD);
+    expect(leftOutOf('.design/ui/2026/combine.tsx', real)?.dsRev).toBe(OLD);
+  });
   test('the real index keys canvases by their TREE path (`.design/…`); the word lands on the row all the same', () => {
     // `/_index-data` `canvasDsRevs` is keyed by the tree path (api.ts `canvasRevs[fp]`), while a Canvases row is
     // designRoot-relative (tree-model `relOf`): slots keyed by the raw index key never matched, so the word
