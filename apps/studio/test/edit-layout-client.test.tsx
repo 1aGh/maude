@@ -861,6 +861,29 @@ describe('← → in an auto layout', () => {
     expect(said).toEqual([NEEDS_ONE_LINE, NEEDS_ONE_LINE]);
   });
 
+  // P8 c10-print (08 ak-advanced): the Advanced › Layout › Convert to absolute… row of an ARTBOARD (a selection with an
+  // artboard and no element) converts the artboard's body — the same function the kind switch uses
+  test('Convert on a selected artboard asks the artboard convert for it, with its own confirm', async () => {
+    document.body.innerHTML = `<article data-dc-screen="a"><div class="dc-artboard-body"><i data-cd-id="c"></i></div></article>`;
+    const seen: Array<[string, unknown]> = [];
+    const w = window as unknown as {
+      __maudeConvertArtboard?: (id: string, o?: { skipConfirm?: boolean }) => Promise<void>;
+    };
+    w.__maudeConvertArtboard = async (id, o) => {
+      seen.push([id, o]);
+    };
+    const said: string[] = [];
+    await runLayoutAction(
+      'layout.convert-to-absolute',
+      [{ artboardId: 'a', selector: '[data-dc-screen="a"]' }],
+      undefined,
+      { toast: (m) => said.push(m) }
+    );
+    expect(seen).toEqual([['a', undefined]]);
+    expect(said).toEqual([]);
+    w.__maudeConvertArtboard = undefined;
+  });
+
   test('Convert asks v1’s subtree convert for a frame; a leaf with no children is told to pick a frame', async () => {
     document.body.innerHTML = `<article data-dc-screen="a"><div class="dc-artboard-body"><div data-cd-id="f"><i data-cd-id="c"></i></div><i data-cd-id="leaf"></i></div></article>`;
     const seen: string[] = [];

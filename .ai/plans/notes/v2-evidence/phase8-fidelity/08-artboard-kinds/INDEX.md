@@ -260,3 +260,10 @@ Final verification shoot after stage C round 8, on the merged tip feat/maude-v2 
 | ak-picker-custom (extra impl frame, no board artboard) | shot into impl only, no spec, no pair | shot into impl only, no pair |
 
 Totals: 36 id×theme re-shot (18 ids), 2 unreachable (1 id). Still open per `fix-c8-misc2.md`: ak-advanced Grid tracks / Convert to absolute drawn disabled; the Safe zones menu is cut off at the card foot when the card has little under the row.
+
+## Round 10 (p8-c10-print) — after
+
+| artboard id | after (round 10) |
+|---|---|
+| ak-print-view | re-shot (Menu > View > Advanced > Print guides on): every print artboard now draws the dashed print-area outline, the four crop marks and the legend "Bleed 3 mm · trim · safe margin 5 mm" under the sheet, on the un-clipped print layer (`artboard-guides-overlay.tsx` outside registry, `print-overlay-content.tsx`) |
+| ak-advanced | re-shot: Layout · "Convert to absolute…" is live (it was greyed while no body layout was read: a print sheet with no `layout` prop is the plain "Top to bottom" flow); an artboard selection now converts the artboard's body (`editing/layout-actions.ts`). Grid tracks · "Edit tracks…" stays disabled (no print-board track editor) |

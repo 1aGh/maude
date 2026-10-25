@@ -163,7 +163,9 @@ export function PrintLookAndLayout({ el, ctx }) {
           onChange={(v) => f.id && h.onSetArtboardStyle(f.id, { layout: v || null })}
         />
       </AdvRow>
-      {/* 08 ak-advanced: the board's fold ends Look and layout with the two layout verbs, as 06 draws them */}
+      {/* 08 ak-advanced: the board's fold ends Look and layout with the two layout verbs, as 06 draws them.
+          Convert is live whenever the sheet can be edited: no `layout` prop is the plain page flow ("Top to
+          bottom"), and the sheet's elements are what it frees (P8 c10-print - it was off while no layout was read) */}
       <AdvRow k="Grid tracks" testid="insp-pr-grid-tracks">
         <button
           type="button"
@@ -184,8 +186,7 @@ export function PrintLookAndLayout({ el, ctx }) {
           type="button"
           className="btn btn--ghost btn--sm"
           data-testid="insp-pr-layout-convert-btn"
-          disabled={!f.layout || ctx?.canEdit === false}
-          title={f.layout ? undefined : 'Nothing is arranging the page yet'}
+          disabled={ctx?.canEdit === false}
           onClick={() =>
             (ctx?.runAction ?? ((id) => menuRunner.run(id)))('layout.convert-to-absolute')
           }

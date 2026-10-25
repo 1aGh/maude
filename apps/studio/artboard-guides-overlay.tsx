@@ -94,6 +94,10 @@ export type KindOverlayRenderFn = ((props: KindOverlayProps) => ReactNode) & {
 // their own kind-specific chrome off the same mount point.
 
 const kindOverlayRegistry = new Map<ArtboardKind, KindOverlayRenderFn>();
+// P8 C10 (10 co-comment-print, 08, 15 an-print): the UN-CLIPPED twin. The layer above clips at the artboard
+// (`overflow: hidden`), so a legend under the paper, an outline hugging it or crop marks outside its corners have
+// nowhere to draw; this registry hangs that content off a second layer with the same rect and no clip.
+const kindOutsideRegistry = new Map<ArtboardKind, KindOverlayRenderFn>();
 
 /**
  * Register additional overlay content for one artboard kind. Last call for a
@@ -103,10 +107,22 @@ export function registerKindOverlay(kind: ArtboardKind, renderFn: KindOverlayRen
   kindOverlayRegistry.set(kind, renderFn);
 }
 
+/**
+ * Register content that draws OUTSIDE the artboard (a legend below it, crop marks past its corners). Same props
+ * as `registerKindOverlay`; the renderer returns null to draw nothing, and then no layer mounts at all.
+ */
+export function registerKindOutsideOverlay(
+  kind: ArtboardKind,
+  renderFn: KindOverlayRenderFn
+): void {
+  kindOutsideRegistry.set(kind, renderFn);
+}
+
 /** Test-only: clear the registry between test files (module-scoped Map would
  *  otherwise leak registrations across `bun test`'s shared module graph). */
 export function __resetKindOverlayRegistryForTests(): void {
   kindOverlayRegistry.clear();
+  kindOutsideRegistry.clear();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -258,38 +274,61 @@ export function ArtboardGuidesOverlay({
   // an old canvas doesn't suddenly paint guides nobody asked to see. Only an
   // explicit `true` (the View-menu toggle) shows them.
   const showGenericGuides = visibility.guides === true && !!guides;
-  if (!showGenericGuides && !KindContent && !zones) return null;
+  const outsideProps: KindOverlayProps = { rect, kind, guides, print, visibility };
+  const outside = kindOutsideRegistry.get(kind)?.(outsideProps) ?? null;
+  if (!showGenericGuides && !KindContent && !zones && !outside) return null;
   return (
-    <div
-      className="dc-artboard-guides"
-      aria-hidden="true"
-      style={{
-        position: 'absolute',
-        left: rect.x,
-        top: rect.y,
-        width: rect.w,
-        height: rect.h,
-        overflow: 'hidden',
-        pointerEvents: 'none',
-      }}
-    >
-      {showGenericGuides && guides ? <GenericGuides rect={rect} guides={guides} /> : null}
-      {/* Kind-specific renderers see the full, ungated `visibility` bag and
+    <>
+      <div
+        className="dc-artboard-guides"
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          left: rect.x,
+          top: rect.y,
+          width: rect.w,
+          height: rect.h,
+          overflow: 'hidden',
+          pointerEvents: 'none',
+        }}
+      >
+        {showGenericGuides && guides ? <GenericGuides rect={rect} guides={guides} /> : null}
+        {/* Kind-specific renderers see the full, ungated `visibility` bag and
           decide their own show/hide (e.g. print's bleed toggle is a
           different key than `guides`). */}
-      {zones ? (
-        <SafeZonesOverlay preset={zones} w={rect.w} h={rect.h} artboardId={artboardId} />
+        {zones ? (
+          <SafeZonesOverlay preset={zones} w={rect.w} h={rect.h} artboardId={artboardId} />
+        ) : null}
+        {KindContent ? (
+          <KindContent
+            rect={rect}
+            kind={kind}
+            guides={guides}
+            print={print}
+            visibility={visibility}
+          />
+        ) : null}
+      </div>
+      {outside ? (
+        // same class as the clipped layer: the one every exporter hides (exporters/capture-chrome.ts) and Present
+        // never paints. No clip: the marks live outside the paper.
+        <div
+          className="dc-artboard-guides dc-artboard-guides--outside"
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            left: rect.x,
+            top: rect.y,
+            width: rect.w,
+            height: rect.h,
+            overflow: 'visible',
+            pointerEvents: 'none',
+          }}
+        >
+          {outside}
+        </div>
       ) : null}
-      {KindContent ? (
-        <KindContent
-          rect={rect}
-          kind={kind}
-          guides={guides}
-          print={print}
-          visibility={visibility}
-        />
-      ) : null}
-    </div>
+    </>
   );
 }
 ArtboardGuidesOverlay.displayName = 'ArtboardGuidesOverlay';
