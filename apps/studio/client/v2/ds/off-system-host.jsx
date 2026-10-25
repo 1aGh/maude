@@ -19,6 +19,12 @@ export const OFF_SYSTEM_POLL_MS = 8000;
 /** the first look comes a moment after the canvas opens: the question is a courtesy, never in the way */
 export const OFF_SYSTEM_FIRST_MS = 2500;
 
+/** "ui/Pricing.tsx" → "Pricing" */
+const canvasNameOf = (rel) =>
+  String(rel ?? '')
+    .replace(/^.*\//, '')
+    .replace(/\.tsx$/i, '');
+
 export function DsOffSystemHost({
   cfg,
   activePath,
@@ -77,6 +83,7 @@ export function DsOffSystemHost({
       key={findingKey(finding)}
       finding={finding}
       systemLabel={answer.system}
+      canvasName={canvasNameOf(rel)}
       onDismiss={() => putAway(finding)}
       onUse={async () => {
         const r = await applyNearestNow({ canvas, finding, css: finding.nearest?.css }, f());

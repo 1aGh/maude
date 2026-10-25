@@ -3,7 +3,9 @@
 // contrast warning inside the token inspector ("Lighten to 4.5:1", "Falls short in 3 canvases · Show"), the trash
 // sheet ("40 canvases use it … switch to …"), and the quiet off-system question ("Use Accent" / "Add it to the
 // system"). Only fetch and the panel's writers are faked; the server half is ds-edges.test.ts / ds-use-nearest.test.ts.
+
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -473,6 +475,37 @@ describe('canvas 28 — the off-system question', () => {
     await click(q('ds-off-system-add', host));
     await click(q('ds-off-system-dismiss', host));
     expect(calls).toEqual({ use: 1, add: 1, dismiss: 1 });
+  });
+
+  test("P8 C8 — drawn as the board's chat card: the canvas in the header, the closest colour bold, Use last, a Not now ⌄, docked bottom right", async () => {
+    const { OffSystemQuestion } = await import('../client/v2/ds/off-system.jsx');
+    const host = await mount(
+      <OffSystemQuestion
+        finding={finding}
+        systemLabel="Studio site"
+        canvasName="Pricing"
+        onUse={async () => ({ ok: true })}
+        onAdd={async () => ({ ok: true })}
+        onDismiss={() => undefined}
+      />
+    );
+    expect(q('ds-off-system-canvas', host)?.textContent).toBe('Pricing');
+    expect(q('ds-off-system-text', host)?.querySelector('b')?.textContent).toBe('Accent');
+    const buttons = [
+      ...(q('ds-off-system-text', host)?.parentElement?.querySelectorAll('button') ?? []),
+    ];
+    expect(buttons.map((b) => b.textContent)).toEqual(['Add it to the system', 'Use Accent']);
+    expect(buttons.at(-1)?.className).toContain('btn--primary');
+    const x = q('ds-off-system-dismiss', host);
+    expect(x?.getAttribute('aria-label')).toBe('Not now');
+    // the card sits bottom right (the AI panel's place), never centred over the toolbar
+    const css = readFileSync(new URL('../client/v2/ds/edges.css', import.meta.url), 'utf8').replace(
+      /\s+/g,
+      ' '
+    );
+    const rule = /\.ds-edge-ask \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(rule).toContain('right: var(--space-5)');
+    expect(rule).not.toContain('left: 50%');
   });
 
   test('without an addressable element there is no "Use": the colour can still be added', async () => {
