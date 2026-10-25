@@ -1,8 +1,20 @@
 // P8 stage C round 8 (p8-c8-ai) — 03 ai-question: after an answer that changed nothing the strip offers the way
 // on from the answer (make the change · check the others), not "Same on the other artboards / Try a variation".
-import { describe, expect, test } from 'bun:test';
-import { deriveSuggestions } from '../client/v2/ai/suggest-why.js';
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { isAnswered, setAnswered } from '../client/v2/ai/result-shown.js';
+import { deriveSuggestions } from '../client/v2/ai/suggest-why.js';
+
+// `setAnswered` tells every subscriber of the process-wide store, and a file that ran earlier in the SAME bun
+// process may have left a mounted component subscribed (React then reads `window` to schedule its update).
+// This file brings its own DOM so a combined run does not depend on what ran before it.
+beforeAll(() => {
+  GlobalRegistrator.register();
+});
+afterAll(() => {
+  setAnswered('c1', false);
+  GlobalRegistrator.unregister();
+});
 
 describe('an answered question', () => {
   const ask = { lastAsk: { text: 'Is the A4 poster readable from three metres?' } };

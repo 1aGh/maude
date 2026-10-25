@@ -1,6 +1,6 @@
 // P8 stage C round 8 (14 ed-inspector): a button / frame that holds text of its own shows the Style row in its Type
 // group ("Aa Link"), like a text object does; a frame with no text of its own does not.
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 
 import '../client/v2/inspector/sections/index.js';
 import { slotsFor } from '../client/v2/inspector/slots.js';
@@ -8,7 +8,20 @@ import { slotsFor } from '../client/v2/inspector/slots.js';
 const ids = (kind: string, selection: unknown) =>
   slotsFor('type', kind, selection, undefined).map((s: { id: string }) => s.id);
 
+// The slot registry is process-wide and the section modules register ONCE, when first imported. A file that
+// ran earlier in the same bun process and called `unregisterSections()` leaves this one with no Type slots
+// (the import above is a cache hit). So this file takes whatever is left of the text slots out and registers
+// its own copy from a fresh evaluation of the module, and removes that copy again afterwards.
+let fresh: { offTextStyle(): void; offTextBody(): void } | null = null;
+beforeAll(async () => {
+  const original = await import('../client/v2/inspector/kinds/text.jsx');
+  original.offTextStyle();
+  original.offTextBody();
+  fresh = await import('../client/v2/inspector/kinds/text.jsx?p8-c8-edit-frame-style');
+});
 afterAll(async () => {
+  fresh?.offTextStyle();
+  fresh?.offTextBody();
   const { unregisterSections } = await import('../client/v2/inspector/sections/index.js');
   unregisterSections();
 });
