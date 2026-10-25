@@ -56,6 +56,10 @@
     top: 56px;
     right: var(--space-4);
   }
+  /* round 7 — beside the pointer (access-host.jsx tipStyle sets left / top; the shell is the positioned box) */
+  .v2ac-tip--at {
+    position: fixed;
+  }
 
   .v2ac-scrim {
     position: absolute;

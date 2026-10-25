@@ -17,8 +17,17 @@ import {
   shellAccessFrame,
   VIEW_ONLY_EVENT,
 } from '../client/v2/access/access-client.js';
-import { AccessHost, AccessLayer, accessHostStep } from '../client/v2/access/access-host.jsx';
-import { startsDeadDrag, viewOnlyGestureTracker } from '../view-only-gesture.tsx';
+import {
+  AccessHost,
+  AccessLayer,
+  accessHostStep,
+  tipStyle,
+} from '../client/v2/access/access-host.jsx';
+import {
+  postViewOnlyGesture,
+  startsDeadDrag,
+  viewOnlyGestureTracker,
+} from '../view-only-gesture.tsx';
 
 beforeAll(() => {
   if (typeof globalThis.document === 'undefined') GlobalRegistrator.register();
@@ -85,6 +94,28 @@ describe('shell frames', () => {
 });
 
 describe('the layer', () => {
+  test('a tip with a pointer sits beside it (80 right, 18 down), inside the window; without one it stays under the cluster', () => {
+    expect(tipStyle({ x: 240, y: 196 }, { w: 1440, h: 900 })).toEqual({
+      left: 320,
+      top: 214,
+      right: 'auto',
+    });
+    expect(tipStyle({ x: 1400, y: 890 }, { w: 1440, h: 900 })).toEqual({
+      left: 1152,
+      top: 828,
+      right: 'auto',
+    });
+    const at = renderToStaticMarkup(
+      createElement(AccessLayer, { tip: true, tipAt: { x: 240, y: 196 }, canvas: 'ui/A.tsx' })
+    );
+    expect(at).toContain('v2ac-tip v2ac-tip--shell v2ac-tip--at');
+    expect(at).toContain('left:');
+    const bare = renderToStaticMarkup(
+      createElement(AccessLayer, { tip: true, canvas: 'ui/A.tsx' })
+    );
+    expect(bare).not.toContain('v2ac-tip--at');
+  });
+
   test('ended is the card alone; the tip names the open canvas; a trashed canvas shows the banner, no tip', () => {
     const ended = renderToStaticMarkup(
       createElement(AccessLayer, { ended: 'removed', tip: true, project: 'Alligators brand' })
@@ -155,13 +186,41 @@ describe('the canvas side (view-only-gesture.tsx)', () => {
     outside.remove();
   });
 
-  test('the message is bare: no text, no element, no position', async () => {
+  test('the message carries the pointer position (whole numbers) and no text, no element', async () => {
+    const posted: unknown[] = [];
+    const real = window.parent.postMessage;
+    // happy-dom: window.parent === window; capture what the canvas side posts
+    window.parent.postMessage = ((m: unknown) => posted.push(m)) as typeof real;
+    try {
+      postViewOnlyGesture({ x: 240.6, y: 196.2 });
+      postViewOnlyGesture({ x: Number.NaN, y: 3 });
+      postViewOnlyGesture();
+      postViewOnlyGesture({ x: 99999, y: -5 });
+    } finally {
+      window.parent.postMessage = real;
+    }
+    expect(posted).toEqual([
+      { dgn: 'view-only-gesture', v: 1, x: 241, y: 196 },
+      { dgn: 'view-only-gesture', v: 1 },
+      { dgn: 'view-only-gesture', v: 1 },
+      { dgn: 'view-only-gesture', v: 1, x: 16384, y: 0 },
+    ]);
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
-    const src = readFileSync(join(import.meta.dir, '..', 'view-only-gesture.tsx'), 'utf8');
-    expect(src.includes("postMessage({ dgn: 'view-only-gesture', v: 1 }, '*')")).toBe(true);
     const shell = readFileSync(join(import.meta.dir, '..', 'canvas-shell.tsx'), 'utf8');
     expect(shell.includes('{readOnly && <ViewOnlyGesture />}')).toBe(true);
+  });
+
+  test('the tracker hands the post the pointer where the drag passed the threshold', () => {
+    const post = mock((_at: { x: number; y: number }) => {});
+    const body = document.createElement('div');
+    body.className = 'dc-artboard-body';
+    document.body.append(body);
+    const g = viewOnlyGestureTracker({ post, now: () => 5000, quietMs: 30_000 });
+    g.down({ button: 0, clientX: 100, clientY: 120, target: body });
+    g.move({ clientX: 140.4, clientY: 121.6 });
+    expect(post).toHaveBeenCalledWith({ x: 140, y: 122 });
+    body.remove();
   });
 });
 
@@ -191,7 +250,7 @@ describe('the wiring', () => {
       join(import.meta.dir, '..', 'client', 'hooks', 'use-canvas-bridge.jsx'),
       'utf8'
     );
-    expect(bridge.includes('window.dispatchEvent(new CustomEvent(VIEW_ONLY_EVENT));')).toBe(true);
+    expect(bridge.includes('new CustomEvent(VIEW_ONLY_EVENT, { detail: at })')).toBe(true);
   });
 });
 
@@ -275,11 +334,14 @@ describe('the host, mounted', () => {
   test('the canvas’s dead drag shows the tip; the open canvas in the trash shows the banner and goes Viewing', async () => {
     const h = mount({});
     act(() => {
-      window.dispatchEvent(new CustomEvent(VIEW_ONLY_EVENT));
+      window.dispatchEvent(new CustomEvent(VIEW_ONLY_EVENT, { detail: { x: 240, y: 196 } }));
     });
     expect(h.el.querySelector('[data-testid="access-view-tip"]')?.textContent).toContain(
       'You can look at Combine-kampan, not change it.'
     );
+    expect(
+      (h.el.querySelector('[data-testid="access-view-tip"]') as HTMLElement | null)?.style.left
+    ).toBe('320px');
     h.unmount();
     expect(getTrashedOpen()).toBeNull();
 

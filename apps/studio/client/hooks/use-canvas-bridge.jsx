@@ -912,8 +912,14 @@ export function useCanvasBridge({
           if (isNativeApp()) openRightPanel('assistant');
           else notify({ title: 'AI chat is in the Maude desktop app.' });
         } else if (msg.dgn === 'view-only-gesture') {
-          // S9.21b — the access host's tip; its words are the shell's (the canvas sent none).
-          window.dispatchEvent(new CustomEvent(VIEW_ONLY_EVENT));
+          // S9.21b — the access host's tip; its words are the shell's (the canvas sent none). Round 7: the
+          // pointer's position in the frame, moved by the frame's own corner into the shell's coordinates.
+          const fr = iframesRef.current.get(activePath)?.getBoundingClientRect?.();
+          const at =
+            fr && Number.isFinite(msg.x) && Number.isFinite(msg.y)
+              ? { x: fr.left + msg.x, y: fr.top + msg.y }
+              : null;
+          window.dispatchEvent(new CustomEvent(VIEW_ONLY_EVENT, { detail: at }));
         }
       } else if (m.dgn === 'insert-artboard-request') {
         // Stage I4 — insert a new empty artboard from a screen-size preset.

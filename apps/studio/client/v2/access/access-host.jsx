@@ -67,12 +67,25 @@ export function accessHostRefusal(state, outcome) {
 }
 
 /**
+ * Round 7 (10 co-ask-edit) — where the tip sits when the canvas told us where the drag happened: beside the
+ * pointer, 80 px right and 18 px down like the board's callout, kept inside the window. Pure.
+ */
+export function tipStyle(at, win = { w: window.innerWidth, h: window.innerHeight }) {
+  const W = 280;
+  const H = 64;
+  const left = Math.max(8, Math.min(Math.round(at.x) + 80, win.w - W - 8));
+  const top = Math.max(8, Math.min(Math.round(at.y) + 18, win.h - H - 8));
+  return { left, top, right: 'auto' };
+}
+
+/**
  * The presentational layer (tests render it): the access card, the link card, the tip, the banner.
  */
 export function AccessLayer({
   ended,
   linkOff,
   tip,
+  tipAt,
   project,
   canvas,
   trashedItem,
@@ -93,7 +106,13 @@ export function AccessLayer({
           onError={onError}
         />
       ) : null}
-      {tip && !trashedItem ? <ViewOnlyTip canvas={canvas} className="v2ac-tip--shell" /> : null}
+      {tip && !trashedItem ? (
+        <ViewOnlyTip
+          canvas={canvas}
+          className={tipAt ? 'v2ac-tip--shell v2ac-tip--at' : 'v2ac-tip--shell'}
+          style={tipAt ? tipStyle(tipAt) : undefined}
+        />
+      ) : null}
     </>
   );
 }
@@ -114,6 +133,7 @@ export function AccessHost({
 }) {
   const [state, setState] = useState({ ended: null, linkOff: false });
   const [tip, setTip] = useState(false);
+  const [tipAt, setTipAt] = useState(null);
   const live = useRef({ activePath, designRel, toast, run, state });
   live.current = { ...live.current, activePath, designRel, toast, run };
 
@@ -171,7 +191,9 @@ export function AccessHost({
 
   useEffect(() => {
     let t;
-    const on = () => {
+    const on = (e) => {
+      const d = e?.detail;
+      setTipAt(d && Number.isFinite(d.x) && Number.isFinite(d.y) ? { x: d.x, y: d.y } : null);
       setTip(true);
       clearTimeout(t);
       t = setTimeout(() => setTip(false), TIP_MS);
@@ -191,7 +213,7 @@ export function AccessHost({
   }, [trashedItem, rel]);
   useEffect(() => () => setTrashedOpen(null), []);
   const open = (tabs || []).map((t) => canvasRel(t?.path, designRel)).filter(Boolean);
-  useTrashGhosts(items, open, onOpenTab);
+  useTrashGhosts(items, open, onOpenTab, rel);
 
   const onRestored = useCallback(() => void reload(), [reload]);
   const onError = useCallback((m) => toast?.({ title: m, kind: 'error' }), [toast]);
@@ -201,6 +223,7 @@ export function AccessHost({
       ended={state.ended}
       linkOff={state.linkOff}
       tip={tip}
+      tipAt={tipAt}
       project={project}
       canvas={rel}
       trashedItem={trashedItem}

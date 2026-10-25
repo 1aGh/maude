@@ -2,8 +2,9 @@
 // shell says why ("You can look at Combine-kampan, not change it." / "Ask to edit, top right, …").
 //
 // Mounted by canvas-shell only on a read-only canvas (`?ro=1`, where no edit chrome exists). It tells the shell
-// ONE fact — "a drag on the design went nowhere" — as `{ dgn: 'view-only-gesture', v: 1 }`: no text, no
-// element, no position (DDR-054: the canvas origin is untrusted; the shell writes the tip from its own state).
+// ONE fact — "a drag on the design went nowhere" — as `{ dgn: 'view-only-gesture', v: 1, x, y }`: no text, no
+// element; `x`/`y` are the pointer's position in this frame, whole numbers, so the shell can seat the tip beside
+// the pointer (DDR-054: the canvas origin is untrusted; the shell writes the tip from its own state).
 // At most once per `quietMs`, and never for a drag that the design itself uses (a field, a slider, a scroll area
 // or text being selected keeps its native behaviour and is not "nothing").
 
@@ -14,7 +15,7 @@ const NATIVE =
   'input, textarea, select, button, a[href], [contenteditable=""], [contenteditable="true"]';
 
 export interface ViewOnlyGestureDeps {
-  post: () => void;
+  post: (at: { x: number; y: number }) => void;
   now?: () => number;
   /** How long after one tip the next drag stays quiet (default 30 s). */
   quietMs?: number;
@@ -53,7 +54,7 @@ export function viewOnlyGestureTracker(deps: ViewOnlyGestureDeps) {
       start = null;
       if (now() - last < quiet) return;
       last = now();
-      deps.post();
+      deps.post({ x: Math.round(e.clientX), y: Math.round(e.clientY) });
     },
     up() {
       start = null;
@@ -61,9 +62,19 @@ export function viewOnlyGestureTracker(deps: ViewOnlyGestureDeps) {
   };
 }
 
-export function postViewOnlyGesture(): void {
+const clampPx = (n: number) => Math.min(16384, Math.max(0, Math.round(n)));
+
+export function postViewOnlyGesture(at?: { x: number; y: number }): void {
   try {
-    window.parent.postMessage({ dgn: 'view-only-gesture', v: 1 }, '*');
+    const msg: { dgn: 'view-only-gesture'; v: 1; x?: number; y?: number } = {
+      dgn: 'view-only-gesture',
+      v: 1,
+    };
+    if (at && Number.isFinite(at.x) && Number.isFinite(at.y)) {
+      msg.x = clampPx(at.x);
+      msg.y = clampPx(at.y);
+    }
+    window.parent.postMessage(msg, '*');
   } catch {
     /* detached */
   }
