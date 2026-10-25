@@ -2,9 +2,9 @@
 // ← →, the I / O keys still set the ends), the beat ticks are painted OVER the song's block, and the Full body keeps the
 // ruler + four lanes in view.
 
+import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
 beforeAll(() => {
@@ -156,10 +156,7 @@ describe('the gutter buttons take their own clicks (the lane press captured the 
 });
 
 describe('what P8 C9 pinned in CSS', () => {
-  const css = readFileSync(
-    join(import.meta.dir, '../client/v2/timeline/timeline.css'),
-    'utf8'
-  );
+  const css = readFileSync(join(import.meta.dir, '../client/v2/timeline/timeline.css'), 'utf8');
   const rule = (sel: string) => {
     const at = css.indexOf(`${sel} {`);
     expect(at).toBeGreaterThan(-1);
@@ -172,7 +169,9 @@ describe('what P8 C9 pinned in CSS', () => {
   });
 
   test('the Full body keeps the ruler and the four lanes in view at rest', () => {
-    const h = Number(/min-height:\s*(\d+)px/.exec(rule('.tl-panel[data-size="full"] .tl-scroll'))?.[1]);
+    const h = Number(
+      /min-height:\s*(\d+)px/.exec(rule('.tl-panel[data-size="full"] .tl-scroll'))?.[1]
+    );
     // ruler 16 + 4, Text 24, Graphics 24, Video 52, Music 30, three 4 px gaps, the 3 px under the lanes
     expect(h).toBeGreaterThanOrEqual(20 + 24 + 4 + 24 + 4 + 52 + 4 + 30 + 3);
   });

@@ -532,14 +532,18 @@ describe('the island on the selected clip (the Timeline’s wiring)', () => {
     expect(runs).toEqual([{ focus: [[2, 0.6, 0.5]], format: '9:16' }]);
     // the pill picked is the scope: another format's pill shows ITS window (a 16:9 window fills a 16:9 picture)
     await click(q(document.body, 'reframe-format-16x9'), '16:9');
-    expect(
-      parseFloat(must(q(document.body, 'reframe-window'), 'window').style.width)
-    ).toBeCloseTo(100, 4);
+    expect(parseFloat(must(q(document.body, 'reframe-window'), 'window').style.width)).toBeCloseTo(
+      100,
+      4
+    );
     expect(runs).toHaveLength(1);
   });
 
   test('a photo clip is drawn as the picture under the window (an image, not a video that never loads)', async () => {
-    await open({ seq: { ...SEQ, mediaTag: 'Img', mediaSrc: 'assets/pic.png' }, url: 'assets/pic.png' });
+    await open({
+      seq: { ...SEQ, mediaTag: 'Img', mediaSrc: 'assets/pic.png' },
+      url: 'assets/pic.png',
+    });
     const src = must(q(document.body, 'reframe-source'), 'source');
     expect(src.querySelector('video')).toBeNull();
     expect(q(src, 'reframe-picture')?.getAttribute('src')).toBe('assets/pic.png');
