@@ -190,3 +190,15 @@ Re-shoot of the IMPL side on the merged tip 63592219a (stage C rounds 1-5 + bugs
 | `md-edge-mixed` | re-shot | re-shot |
 | `md-edge-offline` | unreachable (Offline Present with a missing clip is a desktop-shell state (Presenter view).) | unreachable (same) |
 | `md-esc` | re-shot | re-shot |
+
+## after (round 7, p8-c7-modes)
+
+IMPL re-shot, both themes, on the merged tip + p8-c7-modes. The committed `<id>-<theme>.jpg` pairs (SPEC left | IMPL right) are overwritten for every 04 id the harness reaches. No match is judged here. Harness changes (`_c7-modes-harness/`):
+- md-edit: Canvases panel folded (md-edit is shot BEFORE Assets is opened) and the camera zoomed in so the handles and the `126 x 47` tag are not a pile.
+- md-inspect: Preview is entered from the selected Desktop artboard and the camera has settled before the cmd-click; the Inspect island is on screen.
+- md-present-menu: Combine-kampan in Edit, Post 1:1 selected (no toast); the menu now carries the greyed `Presenter view on another display` row, sub line `Needs a second display`.
+- md-present-full: Post 1:1 presented inside the 2 s the controls pill stays (dark stage + `2 / 5 · name · esc to leave`).
+- md-edge-mixed: a contact sheet of real Present frames per kind (Web, Post, Story, A4, 16:9) on Combine-kampan.
+- md-draw: Preview on Combine-kampan, Sticky armed with its colour strip, two stickies, AI chat beside.
+- md-keys: the View menu (the amended rows and keys) open on a deselected canvas.
+- md-edge-ai: the canvas file is written under a Preview (a terminal agent's edit): rim, tag and the AI pointer (`+ AI`).
