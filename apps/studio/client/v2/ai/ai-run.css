@@ -61,6 +61,10 @@
   }
 
   /* ── The result: the AI's sentence above, then Undo first and the way on ── */
+  /* an earlier turn's result (TurnResult) wraps the same card under its own reply: the wrapper adds no box */
+  .ai-turn-result {
+    display: contents;
+  }
   .ai-result {
     display: flex;
     flex-direction: column;

@@ -123,7 +123,8 @@ describe('class collisions and stacking (CSS wiring)', () => {
   test('Settings body copy is the body font; the v1 cards are re-pointed in the components layer', () => {
     const css = read('../client/v2/settings/settings.css');
     expect(css).toMatch(/\.v2s-sheet\s*\{\s*font-family:\s*var\(--font-body\)/);
-    expect(css).toMatch(/@layer components\s*\{\s*\.v2s-sheet\s+\.v2s-main\s+:where\(/);
+    // inside the components layer (other rules may come first in it)
+    expect(css).toMatch(/@layer components\s*\{[^@]*?\.v2s-sheet\s+\.v2s-main\s+:where\(/);
     expect(css).not.toMatch(/\.v2s-group-t\s*\{[^}]*text-transform:\s*uppercase/);
   });
 
