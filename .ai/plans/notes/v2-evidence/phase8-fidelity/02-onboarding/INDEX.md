@@ -148,3 +148,36 @@ Final re-shoot D3 of the IMPL side on the merged `feat/maude-v2` tip 63592219a (
 ## After (round 7, p8-c7-oboard @ 6f503db82 + p8-c7-oboard)
 IMPL re-shot light + dark with the newest harness (`_d-harness-g1-d3` repointed, stage D): the committed `<id>-<theme>.jpg` pairs of this canvas that the round's scenarios reach are overwritten. Changed on purpose: ob-adv-sheets (Figma link field + Advanced · Access token fold), ob-settings (Claude account row, Figma No token / Add token…).
 Harness notes: run.mjs dismisses `.maude-notice-close` before each shot; home2.mjs `es-home-local` registers no project; the What's new toast is still caught in some frames (fixture/notice timing, not product).
+
+
+## FINAL (D5, e37e7d82a)
+Final verification re-shoot of the IMPL side on the merged `feat/maude-v2` tip e37e7d82a (stage C rounds 1-7 merged, release client); no product code changed. Supersedes every earlier "after" / FINAL section. 20 of 22 artboards with pairs (light + dark). Evidence only — no match / mismatch judged here.
+
+- **IMPL.** `_d5-harness-g1/` (= _d-harness-g1-d4 + the round-7 / 7b scenario files, repo-relative), shot on the Mac mini through `scripts/remote-lane.sh` in Google Chrome (the mini has no Playwright chromium build; viewport 1600 × 1000), throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, release-built client. Harness deltas this round: es-home-local registers no project; s05f opens the Comments panel through ⌘K (the share-cluster icon no longer opened it); home thumbnails are committed flat JPEGs (no ImageMagick on the mini).
+- **SPEC.** reused — no board 01 / 02 / 05 file (.tsx / .css / .meta.json) changed since the D3 shoot (git log 63592219a..tip empty); the spec PNGs are the D3 set (02 re-rendered then).
+- **Full-size pairs.** `full-size-path.txt` (last line, "final (D5)"); committed `<id>-<theme>.jpg` overwritten (JPEG q55, <= 1100 px).
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `ob-first-launch` | re-shot | re-shot |  |
+| `ob-signin-browser` | re-shot | re-shot |  |
+| `ob-home-new` | re-shot | re-shot |  |
+| `ob-ai-connect` | re-shot | re-shot |  |
+| `ob-first-draw` | re-shot | re-shot | IMPL = the 01 fake-agent frames (drafting, tablet landed, done) |
+| `ob-sig-draw` | re-shot | re-shot | the motion study has no app counterpart; the pair shows the same fake-agent frames as ob-first-draw |
+| `ob-invite-page` | unreachable | unreachable | unreachable: a web page on cloud.maude.sh, not part of the app |
+| `ob-invite-landed` | re-shot | re-shot |  |
+| `ob-home-team` | re-shot | re-shot |  |
+| `ob-local-name` | re-shot | re-shot |  |
+| `ob-local-first` | re-shot | re-shot |  |
+| `ob-local-share` | re-shot | re-shot |  |
+| `ob-local-moved` | unreachable | unreachable | unreachable: needs a local project actually moved to a hub; no local route |
+| `ob-adv-open` | re-shot | re-shot |  |
+| `ob-adv-sheets` | re-shot | re-shot | five sheets; Import from Figma is the round-7 link sheet (Advanced · Access token fold) |
+| `ob-settings` | re-shot | re-shot | two frames; Connections carries the round-7 AI — your Claude account row |
+| `ob-edge-offline` | re-shot | re-shot |  |
+| `ob-edge-timeout` | re-shot | re-shot |  |
+| `ob-edge-other-mac` | re-shot | re-shot |  |
+| `ob-edge-accounts` | re-shot | re-shot |  |
+| `ob-edge-ai-missing` | re-shot | re-shot |  |
+| `ob-edge-whats-new` | re-shot | re-shot |  |

@@ -30,7 +30,7 @@ const NOTES = {
     'ob-sig-draw': 'the motion study has no app counterpart; the pair shows the same fake-agent frames as ob-first-draw',
   },
   '05': {
-    'es-home-local': 'Home with NO project registered ("No projects on this Mac yet.") — round 7 oboard',
+    'es-home-local': 'Home with NO project registered, signed out; the frame shows the first-run Home (the board\'s "No projects on this Mac yet." card does not appear in it)',
     'es-panels-canvas': 'four frames; the Comments panel is opened via ⌘K › Comments (s05f) and the one thread resolved for "All done."',
     'es-project-new': 'ONE "New canvas" row (round 7)',
     'es-timeline': 'empty comp keeps the timeline anatomy (round 7)',

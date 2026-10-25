@@ -140,3 +140,34 @@ Final re-shoot D3 of the IMPL side on the merged `feat/maude-v2` tip 63592219a (
 ## After (round 7, p8-c7-oboard @ 6f503db82 + p8-c7-oboard)
 IMPL re-shot light + dark with the newest harness (`_d-harness-g1-d3` repointed, stage D): the committed `<id>-<theme>.jpg` pairs of this canvas that the round's scenarios reach are overwritten. Changed on purpose: es-project-new (one New canvas row), es-timeline (ruler + drop track + Captions/Music lanes), es-filter (chip x, Clear filter x, no tree), es-offline-uncached (block centred on the free canvas), es-home-local (no registered project), es-landing.
 Harness notes: run.mjs dismisses `.maude-notice-close` before each shot; home2.mjs `es-home-local` registers no project; the What's new toast is still caught in some frames (fixture/notice timing, not product).
+
+
+## FINAL (D5, e37e7d82a)
+Final verification re-shoot of the IMPL side on the merged `feat/maude-v2` tip e37e7d82a (stage C rounds 1-7 merged, release client); no product code changed. Supersedes every earlier "after" / FINAL section. 19 of 20 artboards with pairs (light + dark). Evidence only — no match / mismatch judged here.
+
+- **IMPL.** `_d5-harness-g1/` (= _d-harness-g1-d4 + the round-7 / 7b scenario files, repo-relative), shot on the Mac mini through `scripts/remote-lane.sh` in Google Chrome (the mini has no Playwright chromium build; viewport 1600 × 1000), throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, release-built client. Harness deltas this round: es-home-local registers no project; s05f opens the Comments panel through ⌘K (the share-cluster icon no longer opened it); home thumbnails are committed flat JPEGs (no ImageMagick on the mini).
+- **SPEC.** reused — no board 01 / 02 / 05 file (.tsx / .css / .meta.json) changed since the D3 shoot (git log 63592219a..tip empty); the spec PNGs are the D3 set (02 re-rendered then).
+- **Full-size pairs.** `full-size-path.txt` (last line, "final (D5)"); committed `<id>-<theme>.jpg` overwritten (JPEG q55, <= 1100 px).
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `es-home-cloud` | re-shot | re-shot |  |
+| `es-home-local` | re-shot | re-shot | Home with NO project registered, signed out; the frame shows the first-run Home (the board's "No projects on this Mac yet." card does not appear in it) |
+| `es-home-shared` | re-shot | re-shot |  |
+| `es-project-new` | re-shot | re-shot | ONE "New canvas" row (round 7) |
+| `es-canvas-ai` | re-shot | re-shot |  |
+| `es-landing` | re-shot | re-shot |  |
+| `es-canvas-three` | re-shot | re-shot |  |
+| `es-artboard-new` | re-shot | re-shot |  |
+| `es-panels-canvas` | re-shot | re-shot | four frames; the Comments panel is opened via ⌘K › Comments (s05f) and the one thread resolved for "All done." |
+| `es-panels-make` | re-shot | re-shot |  |
+| `es-timeline` | re-shot | re-shot | empty comp keeps the timeline anatomy (round 7) |
+| `es-search-k` | re-shot | re-shot |  |
+| `es-search-more` | re-shot | re-shot |  |
+| `es-search-panel` | re-shot | re-shot |  |
+| `es-filter` | re-shot | re-shot | chip on keeps word + count + ×, "Clear filter" ghost button (round 7) |
+| `es-viewer` | unreachable | unreachable | unreachable: a view-only / comment-only member session needs a hub / workspace cell vouching a role; no local route |
+| `es-arriving` | re-shot | re-shot | card centred on the free canvas (round 7) |
+| `es-offline-uncached` | re-shot | re-shot | card centred on the free canvas (round 7) |
+| `es-all-trashed` | re-shot | re-shot | two frames: one artboard trashed, then every artboard trashed |
+| `es-edge-panels` | re-shot | re-shot |  |
