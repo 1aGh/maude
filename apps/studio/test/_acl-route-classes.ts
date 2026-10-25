@@ -277,6 +277,8 @@ const PROJECT = [
   '/_api/ds/make',
   // S10.13 — the project's default design system (config.json)
   '/_api/ds/default',
+  // P8 round 7 — Rename… a system (its config.json label)
+  '/_api/ds/rename',
   // S10.14 — move canvases to another design system
   '/_api/ds/switch',
   // S10.12 — convert system folders / Restore one (ds/convert.ts)

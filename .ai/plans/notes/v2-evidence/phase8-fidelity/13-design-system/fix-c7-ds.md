@@ -31,3 +31,26 @@ Nothing below is marked matched; the lead's critic judges. Re-shot (impl, light 
 6. **Advanced** (ds-advanced): used-by row, CSS | JSON toggle, token block, Files tree, check card — Advanced is collapsed in the shot; open it and run Check in the harness.
 7. **Hero outside the Brand frame**: the board's header is page chrome around the artboards; the product draws it inside Brand (a canvas artboard body clips, and a hero artboard would change every converted board).
 8. Review sub-lines "14 places — buttons, links, cards" and the left-out row with its update dot (data: the fixture's usage has few places).
+
+# Round 7 continuation — p8-c7-ds2 (Opus; budget-capped)
+
+## Done (product)
+
+| what | ids | proof (red → green) |
+|---|---|---|
+| **Rename… a system, end to end.** `POST /_api/ds/rename` (`routes/ds.ts` op + table row, main origin, `readOnly: refused`; Can edit on the whole project — viewer / commenter 403, a canvas-scoped grant gets the no-such-system 404) writes `config.json` `designSystems[].label` atomically (`ds/rename.ts`); canvases pin the system by its id, so nothing else moves. `ds.rename` registry row + agent path `maude design ds rename <ds> <new name>` (`--reset` = show the id again), writer-registry file-plane row, ACL / role classes, hub studio-manifest edit row, agent-parity case, regen (`gen-actions`, plugin `system.md`). | ds-multi-menu | `ds-rename.test.ts` (red: no route / unknown sub-verb → green), `ds-routes-roles`, `ds-agent-parity`, `access-*`, `studio-manifest.test.mjs` |
+| **A system's menu per the board** — Open · Use for new canvases · Switch… · (Preview in…) · Rename…; "Check the system" left the menu (Advanced button + ⌘K keep it). Rename… turns the pinned row's name into a field (↵ renames, esc keeps, empty / > 64 / a name another system shows is refused in place); the toast carries Undo (the previous label, same writer). | ds-multi-menu | `v2-ds-pinned-render.test.tsx` (red on HEAD's menu → green; revert-checked) |
+| **A swatch / master selected on the Design system canvas is itself** — `hoverTargetToSelection` named a board token (no `data-cd-id`) by its artboard's selector, so the eight artboard handles + size tag drew and Delete / ⌘C saw a whole-artboard pick. Now the selector is the section-scoped `data-ds-token` / `data-ds-master` and the selection carries no artboard: the selection ring sits on the swatch. | ds-edit-colour, ds-edge-contrast | `p8-c7-ds2-token-select.test.ts` (red → green) |
+
+## Harness
+
+- `s13.mjs` `frameColour()`: zoom to the Colour section (`view.zoom-to-artboard ds-colour`) and one step out before selecting the swatch (ds-edit-colour, ds-edge-contrast) — the board frames the swatch, not the 29 % / 9 % whole board.
+- `s13.mjs` ds-multi-menu: the menu is opened on the system that is NOT the default (the board's "Use for new canvases · now …"), not on the last row.
+- `chain-c7ds2.sh`: groups a, e, f light + dark; only the three ids above are copied into the pairs.
+
+## Open (by priority)
+
+1. **Preview in… in the multi-system menu** — the board's ds-multi-menu draws no Preview row, but it is the only door to the preview in a project with several systems (ds-many-switch draws the preview as the row's own menu in a one-system project). Kept; lead call needed (drop it / keep it).
+2. **Contrast line words** (ds-edit-colour): board "5.6:1 on white · 4.8:1 on the dark page"; product "Light 4.8:1 · Dark 4.7:1" (`client/v2/ds/contrast.js` pass line). Fail line (ds-edge-contrast) names every short surface in both modes; the board names the two surfaces in the mode being edited, plus a "Role · Text on green — hints" row.
+3. **Selection ring weight** — the generic halo is 1.5 px, tight; the board's ring is 2 px at a 4 px offset (polish).
+4. Reach view (ds-edit-reach), convert sheet section map + multi-folder sheet (ds-edge-migrate, ds-multi-migrate), "Falls short in N canvases · Show" (ds-edge-contrast), Advanced (used-by row, token block, Files tree, check card) — untouched this round; see the list above.

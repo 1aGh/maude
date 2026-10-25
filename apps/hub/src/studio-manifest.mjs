@@ -330,6 +330,7 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/ds/system-files': { safe: 'read', unsafe: null }, // S10.19 — Design system › Advanced (GET only)
   '/_api/ds/check-system': { safe: 'read', unsafe: 'edit' }, // S10.19 — the last check (GET) · run it (POST; writes _state/)
   '/_api/ds/default': { safe: null, unsafe: 'edit' }, // S10.13 — the project's default design system
+  '/_api/ds/rename': { safe: null, unsafe: 'edit' }, // P8 round 7 — Rename… a design system (its config label)
   '/_api/ds/switch': { safe: null, unsafe: 'edit' }, // S10.14 — move canvases to another design system
   '/_api/ds/convert': { safe: null, unsafe: 'edit' }, // S10.12 — system folders → Design system canvases; Restore
   // S10.18b — team libraries: link / check / update / unlink. REFUSED in a cell (gate-b-sec1 A5, decision

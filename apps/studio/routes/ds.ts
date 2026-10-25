@@ -33,6 +33,7 @@ import type { DsLibrary } from '../ds/library.ts';
 import type { DsOutsideWatcher } from '../ds/outside.ts';
 import { mapOverrides } from '../ds/override-map.ts';
 import { indexRegistry, loadRegistry } from '../ds/registry.ts';
+import { renameSystem } from '../ds/rename.ts';
 import { verifyRevision } from '../ds/revision.ts';
 import { diskFs, loadSystem } from '../ds/system.ts';
 import type { DsUsageIndex } from '../index/ds-usage.ts';
@@ -64,6 +65,7 @@ export type DsOp =
   | 'restore'
   | 'clear'
   | 'default'
+  | 'rename'
   | 'revision'
   | 'revisions'
   | 'usage'
@@ -579,6 +581,28 @@ export async function runDsOp(
           },
         };
       }
+      case 'rename': {
+        // P8 round 7 — "Rename…" (13 · ds-multi-menu): the label in the project's config, so Can edit on the whole
+        // project. Only the label moves — canvases pin the system by name (ds/rename.ts).
+        const ds = systemFor(c, input.ds);
+        if (!c.access.can('edit', null)) return forbidden();
+        if (input.label !== null && typeof input.label !== 'string')
+          bad('label is a string or null');
+        const r = renameSystem(c.engine.designRoot, ds, input.label as string | null);
+        if (r.changed) changed(c, ds);
+        return {
+          status: 200,
+          body: {
+            format: DS_FORMATS.result,
+            v: 1,
+            action: 'rename',
+            rev: null,
+            actionId: null,
+            label: r.label,
+            previous: r.previous,
+          },
+        };
+      }
       case 'canvas': {
         const canvas = normRel(input.canvas);
         if (!canvas) bad('canvas is a design-root-relative .tsx path');
@@ -703,6 +727,7 @@ const TABLE: ReadonlyArray<{ method: 'GET' | 'POST'; path: string; op: DsOp }> =
   { method: 'POST', path: '/_api/ds/clear', op: 'clear' },
   { method: 'POST', path: '/_api/ds/make', op: 'make' },
   { method: 'POST', path: '/_api/ds/default', op: 'default' },
+  { method: 'POST', path: '/_api/ds/rename', op: 'rename' },
   { method: 'POST', path: '/_api/ds/switch', op: 'switch' },
   { method: 'POST', path: '/_api/ds/convert', op: 'convert' },
   { method: 'GET', path: '/_api/ds/nearest', op: 'nearest' },

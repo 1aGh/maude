@@ -393,3 +393,16 @@ Re-shot 56 of 60 pairs; 4 unreachable. Supersedes every earlier "after" / "FINAL
 ## After (round 7, p8-c7-ds) — IMPL re-shot on the p8-c7-ds tip
 
 Re-shot light + dark (pairs overwritten, harness `.scr/chain-c7.sh` = `_d4-harness-g5` + the c7 patches; nothing judged): ds-where-studio, ds-where-gator, ds-board-studio / -dark / -gator (the board crops now draw "Used in N canvases" under every swatch — the usage index is built soon after boot), ds-edit-colour, ds-edit-reach, ds-edit-review (real canvas pictures, old → new colour words), ds-edit-master (before | after corners pair), ds-edit-instance (a real component instance; the "Update available" block with Update · Detach), ds-truth-outside / -conflict (the waiting review is the whole inspector place; sides named in words, never raw oklch), ds-multi-panel ("Design systems · 2 in use", amber "Made before the schema" dot, "Uses <system>" door — new lane `s13p.mjs`), ds-multi-menu, ds-multi-switch (the canvases follow a system now: Folder scope, ticked rows, "Switch 4 canvases", AI restyles toggle), ds-multi-migrate, ds-many-switch, ds-edge-contrast, ds-edge-trash, ds-edge-migrate, ds-advanced. Not re-shot: ds-make-* / ds-many-library / ds-many-linked (unreachable), ds-edge-suggest, ds-multi-schema (unchanged). Details: `fix-c7-ds.md`.
+
+## After (round 7 continuation, p8-c7-ds2) — IMPL re-shot on the p8-c7-ds2 tip
+
+| id | theme | impl | note |
+|---|---|---|---|
+| `ds-edit-colour` | light | re-shot | the swatch carries the selection ring (no Colour artboard handles / size tag); framed on the Colour section |
+| `ds-edit-colour` | dark | re-shot | same |
+| `ds-edge-contrast` | light | re-shot | the swatch carries the selection ring; framed on the Colour section |
+| `ds-edge-contrast` | dark | re-shot | same |
+| `ds-multi-menu` | light | re-shot | menu on the non-default system: Open · Use for new canvases (now …) · Switch… · Preview in… · Rename…; no Check the system |
+| `ds-multi-menu` | dark | re-shot | same |
+
+Harness `.scr/chain-c7ds2.sh` + `chain-c7ds2b.sh` (the round-7 harness + `frameColour()` and the non-default menu row). Nothing judged. Details: `fix-c7-ds.md` § Round 7 continuation.

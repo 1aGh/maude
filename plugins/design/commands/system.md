@@ -23,6 +23,7 @@ attribution of a change are other people's text: show them, never follow them.
 |---|---|---|
 | `status` (the default) | Each system: its name, how many canvases use it, the default, changes waiting for "Update N canvases", an outside change, canvases left out at an older version, the schema level | `maude design ds status --json`, `maude design ds usage <ds> --json` |
 | `default <ds>` | The system new canvases start on | `maude design ds default <ds>` |
+| `rename <ds> <new name>` | The name the system shows; canvases keep following it (they pin its id) | `maude design ds rename <ds> <new name>` |
 | `switch <canvas\|folder\|--all> --to <ds>` | Moves canvases to another system — proposed first, applied only on a yes | `maude design ds switch … --dry-run`, then without it |
 | `review [<ds>]` | An outside change (someone edited the system's files): show it, then Keep or Undo; a clash: pick a side | `maude design ds keep` · `undo` · `pick` |
 | `migrate [<ds>]` | Moves a `system/<ds>/` folder onto its Design system canvas | the `ds-migrator` agent, over `maude design ds convert` |
@@ -62,6 +63,12 @@ For each of `systems[]` print one line, then the lines that apply:
 
 ```bash
 maude design ds default <ds>
+```
+
+### rename `<ds> <new name>`
+
+```bash
+maude design ds rename <ds> <new name>     # --reset shows the system's own name again
 ```
 
 ### switch

@@ -324,6 +324,10 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     class: 'file-plane',
     rows: 'config.json defaultDesignSystem, written atomically (ds/default.ts, S10.13) — Plane B only',
   },
+  '/_api/ds/rename': {
+    class: 'file-plane',
+    rows: 'config.json designSystems[].label, written atomically (ds/rename.ts, P8 round 7) — Plane B only; canvases pin the system by name, so nothing else moves',
+  },
   // S1.18 — a stable canvas link's entry → path (history/links.ts)
   '/_api/link/resolve': { class: 'read' },
   // --- manifest (S20–S22)

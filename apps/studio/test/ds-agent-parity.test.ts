@@ -43,6 +43,7 @@ import {
 } from '../client/v2/ds/make-write.js';
 import { writeMaster } from '../client/v2/ds/master-write.js';
 import { loadReach } from '../client/v2/ds/reach-data.js';
+import { renameSystem } from '../client/v2/ds/rename-write.js';
 import { cancelReview, publishReview, pushOverride } from '../client/v2/ds/review-host.jsx';
 import { loadSwitchReview, runSwitch } from '../client/v2/ds/switch-host.jsx';
 import { switchRows } from '../client/v2/ds/switch-model.js';
@@ -463,6 +464,11 @@ const CASES: Record<string, Case> = {
     world: async () => ({ p: await switchProject() }),
     ui: (f) => setDefaultSystem('beta', { fetchImpl: f }),
     verb: ['default', 'beta'],
+  },
+  // P8 round 7 — Rename… (the system's config label)
+  'ds.rename': {
+    ui: (f) => renameSystem(DS, 'Studio site', { fetchImpl: f }),
+    verb: ['rename', DS, 'Studio', 'site'],
   },
   'ds.switch': {
     world: async () => ({ p: await switchProject() }),

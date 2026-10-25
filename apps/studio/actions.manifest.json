@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "59c9b8dbda34",
+  "manifestVersion": "93f9dbef4cc1",
   "actions": [
     {
       "id": "search.open",
@@ -6601,6 +6601,23 @@
       "agent": {
         "path": "cli",
         "verb": "maude design ds default <ds>"
+      }
+    },
+    {
+      "id": "ds.rename",
+      "label": "Rename…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "version",
+      "server": {
+        "route": "/_api/ds/rename",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds rename <ds> <new name>"
       }
     },
     {
