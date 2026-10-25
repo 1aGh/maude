@@ -38,6 +38,7 @@ import {
 
 import { AnnotationsLayer } from './annotations-layer.tsx';
 import { ArtboardRingsLayer } from './artboard-activity-overlay.tsx';
+import { AiCopyLinks } from './artboard-ai-copies.tsx';
 import { setConvertMarks } from './artboard-convert-marks.tsx';
 import { ArtboardMarqueeOverlay } from './artboard-marquee.tsx';
 import { canvasInsets, canvasModeStore } from './bridge/canvas-mode-store.ts';
@@ -3775,6 +3776,8 @@ function CanvasRouter({
       <ToolPalette />
       <ArtboardMarqueeOverlay />
       <ArtboardRingsLayer />
+      {/* V2-8.5 c7 (03 ai-copy) - "Copied from <name>" + the dashed link beside a copy "Run on a copy" made */}
+      <AiCopyLinks />
       <ElementMarqueeOverlay />
       <HoverHalo el={hoverEl} />
       <SelectionHalos />
