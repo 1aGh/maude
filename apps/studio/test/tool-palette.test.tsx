@@ -938,6 +938,13 @@ describe('P8 C5 — the toolbars are the kit dock', () => {
     expect(TOOLBAR_CSS).not.toContain('button[aria-pressed="true"]::after');
   });
 
+  test('P8 C7 an-marker: the Marker / Sticky options are ONE row (segment · inks · +N · widths), glyph-less tips', () => {
+    expect(TOOLBAR_CSS).toMatch(/\n\.dc-tp-opts-popover \{ flex-direction: row;/);
+    expect(TOOLBAR_CSS).not.toMatch(/\n\.dc-tp-opts-popover \{ flex-direction: column/);
+    expect(TOOLBAR_CSS).toMatch(/\.dc-tp-opts-popover \.dc-tp-div \{/);
+    expect(TOOLBAR_CSS).toMatch(/toolbar-tip-eraser"\]\) svg \{ display: none/);
+  });
+
   test('Edit: one separator, before More; no caret on any slot', () => {
     mountBar();
     const kids = [...(document.querySelector('.dc-tb-body') as HTMLElement).children];
