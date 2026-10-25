@@ -139,6 +139,78 @@ describe('an earlier reply keeps its result card', () => {
     expect(all('[data-testid="ai-canvas-unchanged"]')).toHaveLength(1);
   });
 
+  test('what an ask was sent with is drawn above its bubble (photo tile, PDF and folder cards)', async () => {
+    const React = await import('react');
+    const { createRoot } = await import('react-dom/client');
+    const { act } = await import('react');
+    const { AssistantRuntimeProvider, ThreadPrimitive, useLocalRuntime } = await import(
+      '@assistant-ui/react'
+    );
+    const { AssistantMessage, ChatMediaContext, UserMessage } = await import(
+      '../client/v2/ai/Feed.jsx'
+    );
+    const adapter = {
+      async *run() {
+        await new Promise(() => {});
+      },
+    };
+    function Host() {
+      const runtime = useLocalRuntime(adapter as never, {
+        initialMessages: [
+          {
+            role: 'user',
+            content: [{ type: 'text', text: 'Check the poster against the brief' }],
+            createdAt: new Date(T0),
+            metadata: {
+              custom: {
+                attachments: [
+                  {
+                    kind: 'image',
+                    name: 'a.jpg',
+                    meta: '',
+                    path: '/p/.design/_chat/attachments/0a1b2c3d.jpg',
+                  },
+                  {
+                    kind: 'file',
+                    name: 'Combine-brief-2026.pdf',
+                    meta: 'PDF · 12 pages',
+                    path: '/x/b.pdf',
+                  },
+                ],
+              },
+            },
+          },
+        ] as never,
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <ChatMediaContext.Provider value={{ designRel: '.design', chipName: () => '' }}>
+            <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
+          </ChatMediaContext.Provider>
+        </AssistantRuntimeProvider>
+      );
+    }
+    document.body.innerHTML = '';
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(<Host />);
+    });
+    const msg = document.querySelector('.chat-msg--user') as HTMLElement;
+    const strip = msg.querySelector('[data-testid="ai-sent"]') as HTMLElement;
+    expect(strip).not.toBeNull();
+    // above the bubble, not inside it
+    expect(strip.compareDocumentPosition(msg.querySelector('.chat-bubble') as Node)).toBe(
+      4 /* FOLLOWING */
+    );
+    expect(strip.querySelector('img')?.getAttribute('src')).toBe(
+      '/_api/acp/attachment?name=0a1b2c3d.jpg'
+    );
+    expect(strip.querySelector('[data-kind="file"]')?.textContent).toContain('PDF · 12 pages');
+    expect(msg.textContent).not.toContain('maude-attachments');
+  });
+
   test('no registry run, no card', async () => {
     const { all } = await mount([], null);
     expect(all('[data-testid="ai-turn-result"]')).toHaveLength(0);

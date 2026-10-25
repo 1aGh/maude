@@ -136,6 +136,10 @@ function toThreadMessages(msgs) {
         content: [{ type: 'text', text: (m.parts || []).map((p) => p.text || '').join('') }],
         // S5.19 — the day dividers read when the ask was sent
         ...(Number.isFinite(m.at) ? { createdAt: new Date(m.at) } : {}),
+        // P8 c10 — what the ask was sent with (acp/transcript.ts parses the attachments block back)
+        ...(Array.isArray(m.attachments) && m.attachments.length
+          ? { metadata: { custom: { attachments: m.attachments } } }
+          : {}),
       };
     }
     return {

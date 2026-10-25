@@ -63,9 +63,19 @@ export interface ChatMessagePart {
   toolName?: string;
   done?: boolean;
 }
+/** P8 c10 — one chip a send carried (the composer's attachments block, parsed back). */
+export interface SentAttachment {
+  kind: 'image' | 'video' | 'audio' | 'file' | 'folder';
+  name: string;
+  /** "PDF · 12 pages", "Footage · 0:31", "48 files" — what the chip said; '' for a photo */
+  meta: string;
+  path: string;
+}
 export interface ChatMessage {
   role: 'user' | 'assistant';
   parts: ChatMessagePart[];
+  /** P8 c10 (03 `ai-long`) — what the ask was sent with, drawn above its bubble. User turns only. */
+  attachments?: SentAttachment[];
   /** S5.19 — when the ask was sent (ms, the transcript line's `ts`): the feed's day dividers. User turns only. */
   at?: number;
 }
@@ -567,6 +577,49 @@ export function stripAttachmentBlock(text: string): string {
   return out.join('\n').replace(/\s+$/, '');
 }
 
+const SENT_KIND: Record<string, SentAttachment['kind']> = {
+  photo: 'image',
+  image: 'image',
+  footage: 'video',
+  sound: 'audio',
+  file: 'file',
+  folder: 'folder',
+};
+const SENT_LINE =
+  /^\s*-\s+(photo|image|footage|sound|file|folder) “([^”]+)”(?: \(([^)]*)\))?:\s+(\S.*)$/;
+
+/**
+ * The words of a sent ask, and the chips its attachments block names (P8 c10, 03 `ai-long`). The block stays in the
+ * transcript (it is what the agent was sent); the bubble shows the words and the chips above them — never the lines.
+ */
+export function parseAttachmentBlock(text: string): {
+  text: string;
+  attachments: SentAttachment[];
+} {
+  const attachments: SentAttachment[] = [];
+  let inBlock = false;
+  for (const l of text.split('\n')) {
+    if (/^\s*\[maude-attachments[\s\]]/.test(l)) {
+      inBlock = true;
+      continue;
+    }
+    if (!inBlock) continue;
+    if (!/^\s*-\s/.test(l)) {
+      inBlock = false;
+      continue;
+    }
+    const m = SENT_LINE.exec(l);
+    if (m)
+      attachments.push({
+        kind: SENT_KIND[m[1]],
+        name: m[2],
+        meta: (m[3] ?? '').split(';')[0].trim(),
+        path: m[4].trim(),
+      });
+  }
+  return { text: stripAttachmentBlock(text), attachments };
+}
+
 export function stripContextBlock(text: string): string {
   let out = text;
   if (out.startsWith('<maude-context')) {
@@ -631,9 +684,11 @@ export function readChatMessages(designRoot: string, chatId: string): ChatMessag
   for (const line of lines) {
     if (line.role === 'user' && typeof line.text === 'string') {
       flush();
+      const sent = parseAttachmentBlock(stripContextBlock(line.text));
       messages.push({
         role: 'user',
-        parts: [{ type: 'text', text: stripContextBlock(line.text) }],
+        parts: [{ type: 'text', text: sent.text }],
+        ...(sent.attachments.length ? { attachments: sent.attachments } : {}),
         ...(typeof line.ts === 'number' && Number.isFinite(line.ts) ? { at: line.ts } : {}),
       });
       continue;

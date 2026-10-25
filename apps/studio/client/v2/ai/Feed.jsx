@@ -15,6 +15,8 @@ import {
 import { stripOffer } from './ai-offer.js';
 import { alreadySaysUnchanged, CANVAS_UNCHANGED, canvasUnchanged } from './answer-note.js';
 import { OfferSlot } from './OfferCard.jsx';
+import { SentStrip } from './SentStrip.jsx';
+import { sentFromTranscript, useRecordedSent } from './sent-attachments.js';
 import { TurnResult, useTurnRun } from './TurnResult.jsx';
 import { changedSomething } from './run-model.js';
 import { dayDividerFor } from './run-model.js';
@@ -314,8 +316,17 @@ export function UserMessage() {
 }
 
 function UserMessageBody() {
+  const id = useMessage((m) => m.id);
+  const saved = useMessage((m) => m.metadata?.custom?.attachments);
+  const recorded = useRecordedSent(id);
+  const media = useContext(ChatMediaContext);
+  const sent = useMemo(
+    () => sentFromTranscript(recorded ?? saved, media?.designRel),
+    [recorded, saved, media?.designRel]
+  );
   return (
     <div className="chat-msg chat-msg--user">
+      <SentStrip chips={sent} onOpen={media?.openLightbox} />
       <MessagePrimitive.Parts components={{ Text: UserBubble }} />
       <div className="chat-msg-actions" data-testid="chat-msg-actions">
         <ActionBarPrimitive.Copy
