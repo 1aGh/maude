@@ -423,7 +423,9 @@ export function CanvasesPanel({
   // biome-ignore lint/correctness/useExhaustiveDependencies: `rowOps.startRename` is stable
   useEffect(() => {
     if (!pendingRename) return;
-    const i = rows.findIndex((r) => r.type === 'canvas' && r.path === pendingRename && !r.inPinned && !r.inRecent);
+    const i = rows.findIndex(
+      (r) => r.type === 'canvas' && r.path === pendingRename && !r.inPinned && !r.inRecent
+    );
     if (i < 0) {
       if (searching) setPendingRename(null); // the row is not in the search's answer: nothing to edit
       return;

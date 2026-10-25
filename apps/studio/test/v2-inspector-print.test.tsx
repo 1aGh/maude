@@ -298,7 +298,7 @@ describe('Advanced — every number, and the code', () => {
     expect(look.contains(q(host, 'insp-ab-theme'))).toBe(true);
     expect(after('insp-ab-theme', 'insp-pr-body-layout')).toBe(true);
   });
-  test('Look and layout ends with the board\'s two layout rows: Grid tracks · Edit tracks…, Layout · Convert to absolute…', async () => {
+  test("Look and layout ends with the board's two layout rows: Grid tracks · Edit tracks…, Layout · Convert to absolute…", async () => {
     const host = await frame(SHEET());
     await openAdvanced(host);
     const look = must(q(host, 'insp-pr-look'), 'look');

@@ -3,11 +3,7 @@
 // "+ 373 px" and name the section that arrived.
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
-import {
-  readGrowthMemory,
-  sectionSigs,
-  writeGrowthMemory,
-} from '../artboard-growth-memory.ts';
+import { readGrowthMemory, sectionSigs, writeGrowthMemory } from '../artboard-growth-memory.ts';
 import { freshChildren } from '../artboard-new-section.tsx';
 
 const store = new Map<string, string>();
@@ -88,6 +84,6 @@ describe('wiring', () => {
     expect(read('artboard-growth-tag.tsx')).toContain('readGrowthMemory(memoryKey)');
     expect(read('artboard-new-section.tsx')).toContain('readGrowthMemory(memoryKey)');
     const lib = read('canvas-lib.tsx');
-    expect(lib).toContain("measured.height, id);");
+    expect(lib).toContain('measured.height, id);');
   });
 });

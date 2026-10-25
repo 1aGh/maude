@@ -23,7 +23,10 @@ export function readGrowthMemory(id: string | undefined): GrowthMemory | null {
     if (!id || !key(id) || typeof sessionStorage === 'undefined') return null;
     const o = JSON.parse(sessionStorage.getItem(key(id)) || 'null');
     if (!o || !Number.isFinite(o.h) || !Array.isArray(o.sigs)) return null;
-    return { h: Number(o.h), sigs: o.sigs.filter((s: unknown) => typeof s === 'string').slice(0, 200) };
+    return {
+      h: Number(o.h),
+      sigs: o.sigs.filter((s: unknown) => typeof s === 'string').slice(0, 200),
+    };
   } catch {
     return null;
   }

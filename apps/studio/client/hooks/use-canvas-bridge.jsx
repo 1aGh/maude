@@ -523,8 +523,7 @@ export function useCanvasBridge({
                 reply(result);
                 // S7.21 — "Tablet and Mobile are beside Desktop." + Undo, when the inspector asked for the copies
                 const added = settleAddedWidths(body, result);
-                if (added)
-                  shellToast(added.message, true, added.action, DUPLICATE_TOAST);
+                if (added) shellToast(added.message, true, added.action, DUPLICATE_TOAST);
                 else {
                   // S6.16b (01 cf-duplicate-done) — the artboard menu's "Duplicate at another width ▸": the
                   // shell says it, off the request it forwarded and the server's answer, with its own ⌘Z.

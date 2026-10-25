@@ -701,7 +701,8 @@ export function navigate(rows, index, key) {
       return null;
     case 'ArrowLeft': {
       if (cur?.type === 'folder' && cur.open) return { toggle: index };
-      if (cur?.type === 'canvas' && cur.jumpOpen && !cur.inPinned && !cur.inRecent) return { toggleJump: index };
+      if (cur?.type === 'canvas' && cur.jumpOpen && !cur.inPinned && !cur.inRecent)
+        return { toggleJump: index };
       if (cur?.type === 'board') {
         for (let i = index - 1; i >= 0; i--) if (rows[i].type === 'canvas') return { focus: i };
       }

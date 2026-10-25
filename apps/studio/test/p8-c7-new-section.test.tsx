@@ -1,7 +1,8 @@
 // V2-8.5 c7 (08 ak-web-hug) — the page grew: the new section is framed and named beside "+ 373 px".
-import { GlobalRegistrator } from '@happy-dom/global-registrator';
+
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
+import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
   ArtboardNewSection,

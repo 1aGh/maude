@@ -61,7 +61,7 @@ describe('wiring', () => {
     expect(read('canvas-lib.tsx')).toContain('<ArtboardGapMark id={id}');
   });
 
-  test('the mark outlives the canvas reload the written copy causes (kept in the frame\'s sessionStorage)', () => {
+  test("the mark outlives the canvas reload the written copy causes (kept in the frame's sessionStorage)", () => {
     const src = read('artboard-gap-mark.tsx');
     expect(src).toContain('sessionStorage.setItem(storeKey()');
     expect(src).toContain('hydrate();');

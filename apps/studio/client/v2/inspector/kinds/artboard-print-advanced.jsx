@@ -186,7 +186,9 @@ export function PrintLookAndLayout({ el, ctx }) {
           data-testid="insp-pr-layout-convert-btn"
           disabled={!f.layout || ctx?.canEdit === false}
           title={f.layout ? undefined : 'Nothing is arranging the page yet'}
-          onClick={() => (ctx?.runAction ?? ((id) => menuRunner.run(id)))('layout.convert-to-absolute')}
+          onClick={() =>
+            (ctx?.runAction ?? ((id) => menuRunner.run(id)))('layout.convert-to-absolute')
+          }
         >
           Convert to absolute…
         </button>

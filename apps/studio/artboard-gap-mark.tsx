@@ -99,7 +99,9 @@ export function gapGeometry(source: MarkBox, copy: MarkBox) {
     gap,
     gapTop,
     // the guide stands near the right edge of the narrower board, so it never crosses a headline
-    guideX: Math.round(Math.min(source.x + source.w, copy.x + copy.w) - Math.min(source.w, copy.w) * 0.1),
+    guideX: Math.round(
+      Math.min(source.x + source.w, copy.x + copy.w) - Math.min(source.w, copy.w) * 0.1
+    ),
     left,
     shared,
     top: source.y,

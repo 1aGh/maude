@@ -18,7 +18,12 @@ const groups = [
     ],
     dirs: [],
   },
-  { fullPath: '.design/system/maude-v2', label: 'system', paths: ['.design/system/x.tsx'], dirs: [] },
+  {
+    fullPath: '.design/system/maude-v2',
+    label: 'system',
+    paths: ['.design/system/x.tsx'],
+    dirs: [],
+  },
 ];
 
 describe('lastOpenedPath', () => {
@@ -35,7 +40,9 @@ describe('lastOpenedPath', () => {
   });
 
   test('a design-system specimen and a non-canvas are never the "last canvas"', () => {
-    expect(lastOpenedPath({ 'system/x.tsx': 50, 'ui/data.json': 60 }, groups, '.design')).toBe(null);
+    expect(lastOpenedPath({ 'system/x.tsx': 50, 'ui/data.json': 60 }, groups, '.design')).toBe(
+      null
+    );
   });
 
   test('nothing opened here yet: no last canvas (the empty project stays the empty project)', () => {
@@ -46,7 +53,10 @@ describe('lastOpenedPath', () => {
 });
 
 describe('the Recent block (cf-big-tree)', () => {
-  const many = Array.from({ length: 12 }, (_, i) => `.design/ui/C${String(i).padStart(2, '0')}.tsx`);
+  const many = Array.from(
+    { length: 12 },
+    (_, i) => `.design/ui/C${String(i).padStart(2, '0')}.tsx`
+  );
   const g = [{ kind: 'canvas', fullPath: '.design/ui', label: 'ui', paths: many, dirs: [] }];
   const now = Date.now();
   const opened = {
@@ -80,7 +90,9 @@ describe('the Recent block (cf-big-tree)', () => {
   test('at most three; a small project has none; a search or a kind filter hides the block', () => {
     expect(rows({ activePath: '.design/ui/C07.tsx' }).filter((r) => r.inRecent)).toHaveLength(3);
     const small = buildTree({
-      groups: [{ kind: 'canvas', fullPath: '.design/ui', label: 'ui', paths: many.slice(0, 4), dirs: [] }],
+      groups: [
+        { kind: 'canvas', fullPath: '.design/ui', label: 'ui', paths: many.slice(0, 4), dirs: [] },
+      ],
       designRel: '.design',
       opened,
     });
