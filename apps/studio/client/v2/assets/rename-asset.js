@@ -12,6 +12,9 @@ export const ASSET_RENAME_WORDS = Object.freeze({
     `“${name}” is on a canvas, so its name stays. Rename a picture before you place it.`,
   keptByVersions: (name) => `“${name}” is in an older version, so its name stays.`,
   checking: 'Still checking older versions. Try again in a moment.',
+  // V2-8.9 attacker L4: another picture has the same name before its extension
+  sharesStem: (name) =>
+    `Another picture is also called “${name}”, so this one keeps its name. Rename the other one first.`,
   exists: (name) => `Another file is called “${name}”.`,
   badName: 'Use letters, numbers, spaces, dots, dashes or underscores.',
   gone: (name) => `“${name}” is not in the project any more.`,
@@ -65,14 +68,16 @@ export async function renameAssetRequest(rel, name, { fetchImpl = fetch } = {}) 
         ? ASSET_RENAME_WORDS.keptByVersions(old)
         : reason === 'checking'
           ? ASSET_RENAME_WORDS.checking
-          : reason === 'exists'
-            ? ASSET_RENAME_WORDS.exists(`${typed}${old.slice(stemOf(old).length)}`)
-            : reason === 'bad-name'
-              ? ASSET_RENAME_WORDS.badName
-              : reason === 'same'
-                ? ''
-                : reason === 'missing' || reason === 'invalid'
-                  ? ASSET_RENAME_WORDS.gone(old)
-                  : ASSET_RENAME_WORDS.failed;
+          : reason === 'shares-stem'
+            ? ASSET_RENAME_WORDS.sharesStem(stemOf(old))
+            : reason === 'exists'
+              ? ASSET_RENAME_WORDS.exists(`${typed}${old.slice(stemOf(old).length)}`)
+              : reason === 'bad-name'
+                ? ASSET_RENAME_WORDS.badName
+                : reason === 'same'
+                  ? ''
+                  : reason === 'missing' || reason === 'invalid'
+                    ? ASSET_RENAME_WORDS.gone(old)
+                    : ASSET_RENAME_WORDS.failed;
   return { ok: false, keep: reason === 'same', rel, message };
 }

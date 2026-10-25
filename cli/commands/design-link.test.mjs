@@ -62,11 +62,11 @@ beforeEach(() => {
   hubsConfigPath = join(workspace, 'hubs.json');
 });
 
-function runCli(args) {
+function runCli(args, extraEnv = {}) {
   return new Promise((resolveResult) => {
     const child = spawn(process.execPath, [BIN, ...args], {
       cwd: workspace,
-      env: { ...process.env, HUBS_CONFIG_PATH: hubsConfigPath },
+      env: { ...process.env, HUBS_CONFIG_PATH: hubsConfigPath, ...extraEnv },
     });
     let stdout = '';
     let stderr = '';
@@ -89,6 +89,24 @@ function runCli(args) {
 function cleanup() {
   if (workspace) rmSync(workspace, { recursive: true, force: true });
 }
+
+// V2-8.9 defender M1: linking hands this Mac's hub credential to a hub — the person's act at a
+// terminal, never an AI session's (the permission card would show a shell line, not the hub).
+test('link refuses inside an AI session and writes nothing', async () => {
+  for (const env of [
+    { MAUDE_AGENT_ACTOR: 'maude-chat' },
+    { MAUDE_CHAT_ID: 'chat_1' },
+    { MAUDE_HOOK_SESSION: 'sess-1' },
+  ]) {
+    const res = await runCli(['design', 'link', URL, '--token', 'mau_test', '--yes'], env);
+    assert.equal(res.status, 1, JSON.stringify(env));
+    assert.match(res.stderr, /in a terminal yourself/);
+    const cfg = JSON.parse(readFileSync(join(workspace, '.design/config.json'), 'utf8'));
+    assert.equal(cfg.linkedHub, undefined);
+    assert.equal(existsSync(hubsConfigPath), false);
+  }
+  cleanup();
+});
 
 test('link without --token exits 2', async () => {
   const res = await runCli(['design', 'link', URL]);

@@ -38,9 +38,20 @@ function flatten(obj, prefix = '') {
 
 const optionItem = ([path, value]) => `${ALIAS[path] ?? path}=${value}`;
 
-/** One word of a shell command line: bare when it is safe, else single-quoted. */
+// V2-8.9 attacker L1 — characters no line we print may carry: C0 / DEL / C1 controls (a terminal acts on
+// ESC, CR, …), line / paragraph separators, bidi overrides and isolates (the line would read in another
+// order than it runs) and tag characters (invisible text). Single quotes protect a shell, not a terminal
+// or a Claude Code prompt, so such a word is refused, never quoted.
+// biome-ignore lint/suspicious/noControlCharactersInRegex: matching control characters is the point
+const UNSAFE_IN_LINE =
+  /[\u0000-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069\u{e0000}-\u{e007f}]/u;
+
+/** One word of a shell command line: bare when it is safe, else single-quoted. Throws on a word that
+ *  carries a control, bidi or tag character (`UNSAFE_IN_LINE`). */
 export function shellQuote(word) {
   const w = String(word);
+  if (UNSAFE_IN_LINE.test(w))
+    throw new RangeError('a word of the command line holds an unsafe character');
   return /^[A-Za-z0-9_@%+=:,./-]+$/.test(w) ? w : `'${w.replace(/'/g, `'\\''`)}'`;
 }
 
@@ -69,9 +80,14 @@ export function specArgs(spec) {
 export const CLI_PREFIX = 'maude design export';
 export const CLAUDE_PREFIX = '/design:export';
 
-/** The two lines the Advanced fold prints: a terminal, and Claude Code. */
+/** The two lines the Advanced fold prints: a terminal, and Claude Code — none when a word is refused. */
 export function commandLines(spec) {
-  const words = specArgs(spec).map(shellQuote).join(' ');
+  let words;
+  try {
+    words = specArgs(spec).map(shellQuote).join(' ');
+  } catch {
+    return []; // a word the line refuses to carry: no line at all (V2-8.9 attacker L1)
+  }
   return [
     { id: 'cli', label: 'Terminal', text: `${CLI_PREFIX} ${words}` },
     { id: 'claude', label: 'Claude Code', text: `${CLAUDE_PREFIX} ${words}` },

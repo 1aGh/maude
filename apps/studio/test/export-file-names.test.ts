@@ -57,6 +57,8 @@ describe('sanitizeStem', () => {
   test('strips the unsafe set and control characters, collapses whitespace', () => {
     expect(sanitizeStem('a/b\\c:d*e?f"g<h>i|j')).toBe('abcdefghij');
     expect(sanitizeStem('x\u0000y\u001fz\u007f')).toBe('xyz');
+    // V2-8.9 defender L4 — one shared set (spoof-chars.ts): bidi overrides, isolates, tag characters
+    expect(sanitizeStem('a‮b⁦c⁩d\u{e0041}e\u{e007f}')).toBe('abcde');
     expect(sanitizeStem('  lots   of\t\nspace  ')).toBe('lots of space');
     // P8-C4 — an aspect ratio keeps both numbers (09 ex-social "DOMA · Post 4-5 — feed matchday.png")
     expect(sanitizeStem('DOMA · Post 4:5 — feed matchday')).toBe('DOMA · Post 4-5 — feed matchday');

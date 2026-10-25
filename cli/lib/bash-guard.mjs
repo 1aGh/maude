@@ -466,8 +466,8 @@ const MESSAGES = {
     `out-of-project: this command changes ${key}, which holds maude verbs to this session's project. Run the maude verb without it.`,
   'not-a-writer': (rel) =>
     `not-a-writer: files in .design/ (${rel}) are written with Edit/Write or a \`maude design\` verb, so every change is checked. Edit the file instead.`,
-  'human-only': (what) =>
-    `human-only: ${what} is the person's act in the Maude window (it uploads the project to their billed cloud account). Tell them to use ${what} in the Share sheet; reading its progress with a GET is fine.`,
+  'human-only': (what, why) =>
+    `human-only: ${what} is the person's act in the Maude window (${why}). Tell them to use ${what} in the Share sheet; reading its state with a GET is fine.`,
 };
 
 // ── human-only studio routes (S6.0c) ─────────────────────────────────────────────────────────
@@ -477,7 +477,19 @@ const MESSAGES = {
 // so `cl""oud/move` and `127.0.0.1:$PORT/_api/cloud/move` are seen. A GET (status) passes, and so
 // does any command that names the route without a write sign (`rg cloud/move`). RESIDUAL: a script
 // that builds the path from pieces is not seen — the server's gate is the boundary, not this.
-const HUMAN_ONLY_ROUTES = [{ re: /\/_api\/cloud\/move(?![\w-])/i, what: 'Move to cloud' }];
+const HUMAN_ONLY_ROUTES = [
+  {
+    re: /\/_api\/cloud\/move(?![\w-])/i,
+    what: 'Move to cloud',
+    why: 'it uploads the project to their billed cloud account',
+  },
+  // V2-8.9 defender M1 (decision maude/v2-8.9-sync-link-confirm-needs-fetch-metadata).
+  {
+    re: /\/_api\/sync\/link\/confirm(?![\w-])/i,
+    what: 'Connect to the hub',
+    why: "it sends this Mac's hub credential to the folder's hub",
+  },
+];
 const READ_METHODS = new Set(['GET', 'HEAD']);
 /** A write sign in a script / non-curl client's words (wget --post-data, fetch {method:'POST'}). */
 const SCRIPT_REQUEST_WRITE = /\bpost\b|--post|\bmethod\b|\bdata\s*=|--data|--body/i;
@@ -533,7 +545,8 @@ function humanOnlyRoute(cmds) {
         : texts.some((t) => SCRIPT_REQUEST_WRITE.test(t));
     } else if (e?.name === 'curl') writes = curlWrites(e.args);
     else writes = texts.some((t) => SCRIPT_REQUEST_WRITE.test(t));
-    if (writes) return { code: 'human-only', reason: MESSAGES['human-only'](route.what) };
+    if (writes)
+      return { code: 'human-only', reason: MESSAGES['human-only'](route.what, route.why) };
   }
   return null;
 }

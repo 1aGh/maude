@@ -30,6 +30,7 @@ import {
 } from '../v2/timeline/clip-verb.js';
 import { photoPreviewMessage } from '../v2/photo/photo-section.jsx';
 import { PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
+import { canvasTargetOrigin } from '../v2/kinds/kind-dim-relay.js';
 import {
   collectDirPaths,
   pruneDirs,
@@ -504,7 +505,10 @@ export function usePhotoAndTimeline({
       const el = activePath ? iframesRef.current.get(activePath) : null;
       if (el && el.contentWindow) {
         try {
-          el.contentWindow.postMessage({ dgn: 'view-annotations', visible: next }, '*');
+          // V2-8.9 defender L2 (C6): the frame's canvas origin, never '*'
+          const origin = canvasTargetOrigin(el);
+          if (origin)
+            el.contentWindow.postMessage({ dgn: 'view-annotations', visible: next }, origin);
         } catch {}
       }
       // S4.9: hiding says how to bring them back; the shell owns the toast because canvas notices
@@ -546,7 +550,9 @@ export function usePhotoAndTimeline({
   const broadcastChrome = useCallback((patch) => {
     for (const el of iframesRef.current.values()) {
       try {
-        el.contentWindow.postMessage({ dgn: 'view-chrome', ...patch }, '*');
+        // V2-8.9 defender L2 (C6): the frame's canvas origin, never '*'
+        const origin = canvasTargetOrigin(el);
+        if (origin) el.contentWindow.postMessage({ dgn: 'view-chrome', ...patch }, origin);
       } catch {}
     }
   }, []);
@@ -712,7 +718,9 @@ export function usePhotoAndTimeline({
     // iframe instead gets the current theme from the `dgn:'loaded'` handler.
     for (const el of iframesRef.current.values()) {
       try {
-        el.contentWindow.postMessage({ dgn: 'theme', theme }, '*');
+        // V2-8.9 defender L2 (C6): the frame's canvas origin, never '*'
+        const origin = canvasTargetOrigin(el);
+        if (origin) el.contentWindow.postMessage({ dgn: 'theme', theme }, origin);
       } catch {}
     }
   }, [theme]);

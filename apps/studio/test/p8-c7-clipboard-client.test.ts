@@ -10,6 +10,7 @@ import {
   heldClip,
   NOTHING_TO_PASTE,
   noteClipResult,
+  notePasteIntent,
   shapeClipRequest,
 } from '../client/clipboard-relay.ts';
 import type { MenuItem, MenuSection } from '../context-menu.tsx';
@@ -147,6 +148,7 @@ describe('the shell holds the clipboard', () => {
 
   test('a clip from another canvas is not run on the canvas’s word: queued + the shell asks', () => {
     _setHeldClip(handle);
+    notePasteIntent(); // V2-8.9 attacker L2: the ask follows a paste the shell saw
     const s = shapeClipRequest(paste('.design/ui/Other.tsx'));
     expect(s.kind).toBe('confirm');
     if (s.kind !== 'confirm') return;

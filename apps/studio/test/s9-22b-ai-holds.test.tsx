@@ -107,6 +107,8 @@ describe('the relay posts ai-holds to the open canvas (S9.22b)', () => {
     const sent: Array<Record<string, unknown>> = [];
     const el = document.createElement('iframe');
     el.setAttribute('data-testid', 'canvas-frame');
+    // V2-8.9 L2: the relay posts to the frame's origin (a property, so happy-dom loads nothing)
+    Object.defineProperty(el, 'src', { value: 'http://127.0.0.1:4401/_canvas-shell.html' });
     el.setAttribute('data-path', FILE);
     Object.defineProperty(el, 'contentWindow', {
       value: { postMessage: (m: Record<string, unknown>) => sent.push(m) },

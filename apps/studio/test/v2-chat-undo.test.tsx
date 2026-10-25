@@ -105,6 +105,8 @@ describe('Made by AI is derived from project:action (V2-1.5 decision 7)', () => 
     document.body.innerHTML = '';
     const iframe = document.createElement('iframe');
     iframe.setAttribute('data-testid', 'canvas-frame');
+    // V2-8.9 L2: the relay posts to the frame's origin (a property, so happy-dom loads nothing)
+    Object.defineProperty(iframe, 'src', { value: 'http://127.0.0.1:4401/_canvas-shell.html' });
     iframe.setAttribute('data-path', FILE);
     const sent: unknown[] = [];
     Object.defineProperty(iframe, 'contentWindow', {

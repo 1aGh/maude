@@ -59,6 +59,7 @@ import { textSet, textSetLanguage } from './text-copy.ts';
 import { textDetachStyle } from './text-detach.ts';
 import { textResetStyle, textSetCase, textUseStyle } from './text-style-ops.ts';
 import {
+  type ClipScope,
   EDIT_OP_STATUS,
   type EditCtx,
   type EditOp,
@@ -197,6 +198,8 @@ export interface DispatchDeps {
   ops?: readonly EditOp[];
   /** what the server knows about a canvas beyond its bytes (its meta); ops read it as `req.ctx` */
   ctx?(rel: string): EditCtx;
+  /** V2-8.9 L1 — this request's clipboard owner + sight (routes/edit.ts); ops read it as `req.clipScope` */
+  clipScope?: ClipScope;
 }
 
 /** What `land` is asked to make one action of. */
@@ -309,6 +312,8 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
         op: req.op,
         targets: refs,
         params: req.params ?? {},
+        // V2-8.9 L1: a copy keeps its text on the requester's own shelf
+        ...(deps.clipScope ? { clipScope: deps.clipScope } : {}),
       });
     } catch (e) {
       if (e instanceof CanvasEditError) return refuse('invalid', e.message);
@@ -386,6 +391,7 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
       params: req.params ?? {},
       ...(deps.exists ? { exists: deps.exists } : {}),
       ...(deps.ctx ? { ctx: deps.ctx(rel) } : {}),
+      ...(deps.clipScope ? { clipScope: deps.clipScope } : {}),
     });
   } catch (e) {
     if (e instanceof CanvasEditError) return refuse('invalid', e.message);

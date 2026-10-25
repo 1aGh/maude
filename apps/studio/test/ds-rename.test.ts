@@ -57,11 +57,27 @@ describe('renameSystem — the label, nothing else', () => {
     expect('label' in entry).toBe(false);
   });
 
+  // V2-8.9 defender L4: a label that reverses or hides the text around it spoofs the system's name
+  // in every list — the bidi overrides / isolates and the tag characters go (exporters' set).
+  test('strips bidi overrides, isolates and tag characters from the label', async () => {
+    const p = await makeProject();
+    const r = renameSystem(p.designRoot, DS, 'Brand‮⁧kit⁩\u{e0041}\u{e007f} 2026');
+    expect(r.label).toBe('Brandkit 2026');
+    const sys = cfgOf(p.designRoot).designSystems.find((s: { name: string }) => s.name === DS);
+    expect(sys.label).toBe('Brandkit 2026');
+  });
+
   test('refuses an empty, too long or control-character name, and one another system shows', async () => {
     const p = await makeProject();
     addSystem(p.designRoot, { name: 'combine', path: 'system/combine', label: 'Combine 2026' });
     const was = readFileSync(path.join(p.designRoot, 'config.json'), 'utf8');
     for (const bad of ['', '   ', 'x'.repeat(65), 'a\u0000b', 'line\nbreak']) {
+      expect(() => renameSystem(p.designRoot, DS, bad)).toThrow(
+        expect.objectContaining({ code: 'ds-bad-name', status: 400 })
+      );
+    }
+    // V2-8.9 defender L4: a name of nothing but bidi controls / tag characters is empty once they go
+    for (const bad of ['‮⁦', '\u{e0041}\u{e0042}']) {
       expect(() => renameSystem(p.designRoot, DS, bad)).toThrow(
         expect.objectContaining({ code: 'ds-bad-name', status: 400 })
       );

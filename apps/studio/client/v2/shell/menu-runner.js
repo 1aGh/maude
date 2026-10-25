@@ -16,6 +16,7 @@ import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { runActionMessage } from '../../actions/shell-key-handlers.js';
 import { startFirstDraft } from '../create/first-draft.js';
 import { voteStore } from '../annotations/vote-store.js';
+import { notePasteIntent } from '../../clipboard-relay.ts';
 import { createBlankCanvas, openBriefBoardComposer } from '../create/new-canvas.js';
 import { createAdvancedHandlers } from '../ai/advanced-handlers.js';
 import { aiPanelWantsFocus, requestFocusAI } from '../ai/panel-focus.js';
@@ -635,6 +636,8 @@ export const menuRunner = (() => {
         // sec-a C1(e) — the canvas answers "Start a vote…" with `vote-board {open}`; the shell opens
         // the sheet only because it asked here (a person's ⌘K / menu pick), never on the canvas's own say.
         if (id === 'annotations.start-vote') voteStore.expectSheet();
+        // V2-8.9 attacker L2 — a ⌘K Paste row is the person's paste: the shell's own ask may follow it
+        if (id === 'canvas.paste') notePasteIntent();
         post(runActionMessage(id));
         return true;
       }
@@ -654,6 +657,8 @@ export const menuRunner = (() => {
 export function cutCopyPaste(kind, target, { postToActiveCanvas, doc = document } = {}) {
   const el = target?.isConnected ? target : null;
   if (el?.tagName === 'IFRAME') {
+    // V2-8.9 attacker L2 — Edit › Paste / the shell's ⌘V into the canvas: the person's paste
+    if (kind === 'paste') notePasteIntent();
     postToActiveCanvas?.(runActionMessage(`edit.${kind}`));
     return;
   }

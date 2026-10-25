@@ -5,10 +5,21 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createShellPanelsLane, openPanel } from '../client/v2/shell/shell-panels-relay.js';
 
-function frame() {
+const CANVAS = 'http://127.0.0.1:4401';
+function frame(src: string | null = `${CANVAS}/_canvas-shell.html`) {
   const sent: unknown[] = [];
-  const contentWindow = { postMessage: (m: unknown) => sent.push(m) };
-  return { sent, f: { contentWindow } };
+  const targets: string[] = [];
+  const contentWindow = {
+    postMessage: (m: unknown, origin: string) => {
+      sent.push(m);
+      targets.push(origin);
+    },
+  };
+  return {
+    sent,
+    targets,
+    f: { contentWindow, getAttribute: (n: string) => (n === 'src' ? src : null) },
+  };
 }
 
 describe('shell-panels relay', () => {
@@ -42,6 +53,16 @@ describe('shell-panels relay', () => {
     lane.onMessage({ data: { dgn: 'loaded' }, source: a.f.contentWindow } as never);
     expect(a.sent.at(-1)).toEqual({ dgn: 'shell-panels', v: 1, open: 'assets' });
     expect(a.sent.length).toBe(2);
+  });
+
+  // V2-8.9 defender L2 (checklist C6): the frame's canvas origin, never '*'; no origin, no send
+  test('C6: every send names the frame’s canvas origin; a frame with no origin hears nothing', () => {
+    const a = frame();
+    const blank = frame(null);
+    const lane = createShellPanelsLane({ frames: () => [a.f as never, blank.f as never] });
+    lane.set('stickers');
+    expect(a.targets).toEqual([CANVAS]);
+    expect(blank.sent).toEqual([]);
   });
 
   test('app.jsx mounts it with the gallery request and the Assets panel state', () => {

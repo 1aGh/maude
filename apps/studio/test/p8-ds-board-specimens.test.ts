@@ -108,6 +108,25 @@ describe('the DS board and its own specimens are one unit', () => {
     expect(c.read.has('system/y/preview/secret.tsx')).toBe(false);
   });
 
+  // V2-8.9 defender L3: sys.path comes from the peer-writable config.json. A system whose path is
+  // the bare `system` folder would make `system/design-system.tsx` "its own board" and admit every
+  // OTHER system's specimens / UI kits to someone granted only that one file.
+  test('a system path that is not system/<one folder> admits no specimen by the board rule', () => {
+    const board = 'system/design-system.tsx';
+    const p = project(
+      files({
+        'config.json': JSON.stringify({
+          designSystems: [{ name: 'x', path: 'system' }],
+          defaultDesignSystem: 'x',
+        }),
+        [board]: `${designSystemCanvasSource('x', 'X')}\nconst _y = <Specimen src="y/preview/secret.tsx" />;\n`,
+        'system/design-system.meta.json': '{"designSystem":"x"}',
+      })
+    );
+    const c = closureFor(member(board), p);
+    expect(c.read.has('system/y/preview/secret.tsx')).toBe(false);
+  });
+
   test('a specimen the board draws that imports another canvas blocks the board (c4j holds)', () => {
     const p = project(
       files({

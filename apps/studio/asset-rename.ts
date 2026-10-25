@@ -13,7 +13,7 @@
 //
 // Leaf module (node:fs / node:path only; erasable TypeScript) — the route and the tests import it directly.
 
-import { existsSync, lstatSync, renameSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync, renameSync } from 'node:fs';
 import path from 'node:path';
 
 import { type AssetVerdictRow, sidecarsOf } from './asset-trash.ts';
@@ -32,7 +32,10 @@ export type RenameRefusal =
   | 'exists'
   | 'used'
   | 'kept-by-versions'
-  | 'checking';
+  | 'checking'
+  /** V2-8.9 attacker L4 — another picture has the same stem (`logo.png` + `logo.jpg`): a per-use edit
+   *  names its picture by stem only, so a rename could carry the other picture's edits away */
+  | 'shares-stem';
 
 export type RenamedAsset =
   | {
@@ -71,6 +74,22 @@ const isPlainFile = (abs: string) => {
     return false;
   }
 };
+
+/** Is there another picture in `assets/` whose stem (up to the first dot) is `stem`? */
+function sharesStem(assetsDir: string, name: string, stem: string): boolean {
+  let names: string[];
+  try {
+    names = readdirSync(assetsDir);
+  } catch {
+    return false;
+  }
+  return names.some(
+    (n) =>
+      n !== name &&
+      !!assetKindOf(n) &&
+      (n.indexOf('.') > 0 ? n.slice(0, n.indexOf('.')) : n) === stem
+  );
+}
 
 /** The new base name the person meant: trimmed, single spaces, the old extension dropped when typed. */
 export function cleanAssetName(typed: string, ext: string): string {
@@ -113,6 +132,10 @@ export function renameAsset(o: RenameAssetOptions): RenamedAsset {
 
   // the sidecars move with it: `<base><suffix>` → `<name><suffix>`, per-use `<stem>.<edit8>.photo.json` → new stem
   const oldStem = oldName.indexOf('.') > 0 ? oldName.slice(0, oldName.indexOf('.')) : oldName;
+  // V2-8.9 attacker L4: a per-use edit names its picture by stem only — while another picture shares
+  // the stem, whose edit is whose cannot be told, so the rename is refused (the smaller change than
+  // recording the source extension in every per-use edit).
+  if (sharesStem(assetsDir, oldName, oldStem)) return { ok: false, rel, reason: 'shares-stem' };
   const newStem = name.indexOf('.') > 0 ? name.slice(0, name.indexOf('.')) : name;
   const pairs: Array<[string, string]> = [[rel, to]];
   for (const s of sidecarsOf(o.designRoot, rel)) {

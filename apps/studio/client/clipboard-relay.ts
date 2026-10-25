@@ -66,14 +66,45 @@ export type ClipShape =
   | { kind: 'reply'; result: EditOpResult }
   | { kind: 'confirm'; body: EditOpRequest; line: string; reply: EditOpResult };
 
+// V2-8.9 attacker L2 — the ask below is trusted chrome, so it fires on the PERSON's schedule: only
+// within PASTE_INTENT_MS of a paste the shell itself saw — its own ⌘V / Edit › Paste / ⌘K row
+// (menu-runner), or a ⌘V the active frame relayed while it held the focus of a focused window (the
+// sec-a undo-key focus gate, use-canvas-bridge). One intent answers one ask. Planted canvas code that
+// sends `canvas.paste` on its own timing gets a refusal in the canvas's own words, never the shell's toast.
+export const PASTE_INTENT_MS = 1000;
+let pasteIntentAt = Number.NEGATIVE_INFINITY;
+
+/** A paste the shell saw (its own ⌘V / menu / ⌘K, or a focused frame's relayed ⌘V). */
+export function notePasteIntent(now: number = Date.now()): void {
+  pasteIntentAt = now;
+}
+
+/** Tests only. */
+export function _resetPasteIntent(): void {
+  pasteIntentAt = Number.NEGATIVE_INFINITY;
+}
+
 /** What the relay does with one canvas edit-op request. */
-export function shapeClipRequest(body: EditOpRequest): ClipShape {
+export function shapeClipRequest(
+  body: EditOpRequest,
+  { now = Date.now() }: { now?: number } = {}
+): ClipShape {
   if (body.op !== CLIP_PASTE_OP) return { kind: 'forward', body };
   const { clip: _theirs, ...params } = body.params ?? {};
   if (!held)
     return { kind: 'reply', result: { ok: false, code: 'invalid', message: NOTHING_TO_PASTE } };
   const out: EditOpRequest = { ...body, params: { ...params, clip: held.id } };
   if (canvasKey(held.from) === canvasKey(body.file)) return { kind: 'forward', body: out };
+  if (!(now - pasteIntentAt >= 0 && now - pasteIntentAt <= PASTE_INTENT_MS))
+    return {
+      kind: 'reply',
+      result: {
+        ok: false,
+        code: 'invalid',
+        message: `To paste ${what(held)} copied in ${canvasName(held.from)}, press ⌘V.`,
+      },
+    };
+  pasteIntentAt = Number.NEGATIVE_INFINITY;
   return {
     kind: 'confirm',
     body: out,
@@ -97,4 +128,17 @@ export function noteClipResult(body: EditOpRequest, result: EditOpResult): void 
   )
     return;
   held = { id: h.id, kind: h.kind, count: h.count, from: h.from };
+}
+
+/**
+ * V2-8.9 attacker L3 — what the CANVAS hears of an edit-op answer: a copy / cut's clip handle stays in
+ * the shell (the canvas draws only its kind + count — editing/clipboard.ts), so a sibling frame that
+ * reads this one's messages (the split-view origin gap) never learns a handle. Every other answer as is.
+ */
+export function frameClipResult(body: EditOpRequest, result: EditOpResult): EditOpResult {
+  if (!result.ok || !CLIP_COPY_OPS.has(body.op)) return result;
+  const detail = result.detail as Record<string, unknown> | undefined;
+  const clip = detail?.clip as Partial<ClipHandle> | undefined;
+  if (!detail || !clip || typeof clip !== 'object') return result;
+  return { ...result, detail: { ...detail, clip: { kind: clip.kind, count: clip.count } } };
 }

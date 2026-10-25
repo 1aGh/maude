@@ -218,16 +218,48 @@ describe('the waiting card (ai-same-artboard)', () => {
 });
 
 describe('the relay that tells the canvas (dgn ai-runs)', () => {
-  function fakeFrame(path: string) {
+  function fakeFrame(
+    path: string,
+    src: string | null = 'http://127.0.0.1:4401/_canvas-shell.html'
+  ) {
     const sent: unknown[] = [];
-    const win = { postMessage: (m: unknown) => sent.push(m) };
+    const targets: string[] = [];
+    const win = {
+      postMessage: (m: unknown, origin: string) => {
+        sent.push(m);
+        targets.push(origin);
+      },
+    };
     const el = document.createElement('iframe');
     el.setAttribute('data-testid', 'canvas-frame');
+    // V2-8.9 defender L2: the relay posts to the frame's own origin
+    // (a property, not the attribute: happy-dom would try to load it)
+    if (src) Object.defineProperty(el, 'src', { value: src });
     el.setAttribute('data-path', path);
     Object.defineProperty(el, 'contentWindow', { value: win });
     document.body.append(el);
-    return { sent, win, el };
+    return { sent, targets, win, el };
   }
+
+  // V2-8.9 defender L2 (checklist C6): never '*'; a frame with no origin hears nothing
+  test('C6: the rings go to the frame’s canvas origin; a frame without one hears nothing', async () => {
+    const { createRingsLane } = await import('../client/v2/ai/ring-relay.js');
+    const { createRunsStore } = await import('../client/v2/ai/runs-store.js');
+    const fetchImpl = (async () =>
+      new Response(JSON.stringify({ seq: 1, mine: [mine({})], others: [] }), {
+        status: 200,
+      })) as unknown as typeof fetch;
+    const store = createRunsStore({ fetchImpl, target: new EventTarget() as unknown as Window });
+    document.body.innerHTML = '';
+    const a = fakeFrame(FILE);
+    const blank = fakeFrame(FILE, null);
+    const stop = createRingsLane({ store, doc: document, win: window });
+    await store.refresh();
+    expect(a.sent.length).toBeGreaterThan(0);
+    expect(a.targets.every((t) => t === 'http://127.0.0.1:4401')).toBe(true);
+    expect(blank.sent).toEqual([]);
+    stop();
+  });
 
   test('posts the rings of the open canvas; the same answer is not sent twice; gone rings are sent as {}', async () => {
     const { createRingsLane } = await import('../client/v2/ai/ring-relay.js');

@@ -11,6 +11,8 @@
 
 import { useEffect, useRef } from 'react';
 
+import { canvasTargetOrigin } from '../kinds/kind-dim-relay.js';
+
 const FRAME = 'iframe[data-testid="canvas-frame"]';
 
 /** What the canvas is told for the two shell facts. */
@@ -28,12 +30,15 @@ export function createShellPanelsLane({
   const tell = (frame, force = false) => {
     const target = frame.contentWindow;
     if (!target) return;
+    // V2-8.9 defender L2 (checklist C6): the frame's own canvas origin, never '*'
+    const origin = canvasTargetOrigin(frame);
+    if (!origin) return;
     // a frame never spoken to, with nothing to say, stays quiet; one that was told 'stickers' hears the null
     if (!force && (spoken.has(target) ? spoken.get(target) === open : open === null)) return;
     spoken.set(target, open);
     try {
       // A literal `{ dgn }` (not postToCanvas) so the bridge inventory sees this send site.
-      target.postMessage({ dgn: 'shell-panels', v: 1, open }, '*');
+      target.postMessage({ dgn: 'shell-panels', v: 1, open }, origin);
     } catch {
       /* detached */
     }

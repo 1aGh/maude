@@ -11,9 +11,11 @@ import { commandLines } from './command.js';
 export function CommandPart({ spec }) {
   const lines = commandLines(spec);
   const [copied, setCopied] = useState(null);
-  const key = lines[0].text;
+  const key = lines[0]?.text ?? '';
   // biome-ignore lint/correctness/useExhaustiveDependencies: a changed export un-copies the line
   useEffect(() => setCopied(null), [key]);
+  // V2-8.9 attacker L1: a name the line refuses to carry (command.js `shellQuote`) prints no line
+  if (!lines.length) return null;
   const copy = (line) => {
     Promise.resolve(navigator.clipboard?.writeText(line.text)).catch(() => {});
     setCopied(line.id);

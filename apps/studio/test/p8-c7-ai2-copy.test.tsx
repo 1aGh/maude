@@ -148,7 +148,10 @@ describe('the caption makes room for the AI tag when that tag sits below the cop
       <div class="dc-ai-ring" data-artboard="copy" data-at="below" style="display: block"></div>`;
     const box = (left: number, top: number, w: number, h: number) =>
       ({ left, top, right: left + w, bottom: top + h, width: w, height: h }) as DOMRect;
-    const rects: Record<string, DOMRect> = { post: box(0, 0, 160, 160), copy: box(200, 0, 160, 160) };
+    const rects: Record<string, DOMRect> = {
+      post: box(0, 0, 160, 160),
+      copy: box(200, 0, 160, 160),
+    };
     for (const el of document.querySelectorAll('[data-dc-screen]'))
       (el as HTMLElement).getBoundingClientRect = () =>
         rects[el.getAttribute('data-dc-screen') ?? ''] as DOMRect;
@@ -200,6 +203,8 @@ describe('the relay posts ai-copies to the open canvas', () => {
     const sent: Array<Record<string, unknown>> = [];
     const el = document.createElement('iframe');
     el.setAttribute('data-testid', 'canvas-frame');
+    // V2-8.9 L2: the relay posts to the frame's origin (a property, so happy-dom loads nothing)
+    Object.defineProperty(el, 'src', { value: 'http://127.0.0.1:4401/_canvas-shell.html' });
     el.setAttribute('data-path', FILE);
     Object.defineProperty(el, 'contentWindow', {
       value: { postMessage: (m: Record<string, unknown>) => sent.push(m) },

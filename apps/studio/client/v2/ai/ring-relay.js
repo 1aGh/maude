@@ -17,6 +17,7 @@
 // not re-sent to a frame that already has it.
 
 import { useEffect } from 'react';
+import { canvasTargetOrigin } from '../kinds/kind-dim-relay.js';
 import { getMadeByAiStore, madeByAiRings } from './made-by-ai.js';
 import {
   copyExpiry,
@@ -47,6 +48,10 @@ export function createRingsLane({
   const tell = (frame, force = false) => {
     const target = frame.contentWindow;
     if (!target) return;
+    // V2-8.9 defender L2 (checklist C6): the frame's own canvas origin, never '*' — a frame that
+    // navigated elsewhere (or has no origin) hears nothing
+    const origin = canvasTargetOrigin(frame);
+    if (!origin) return;
     const { view, done } = store.getSnapshot();
     const file = frame.getAttribute('data-path') || frame.dataset?.path || '';
     const artboards = mergeRings(ringsFor(view, { activeCanvas: file }), {
@@ -60,7 +65,7 @@ export function createRingsLane({
       spoken.set(target, json);
       try {
         // A literal `{ dgn }` (not postToCanvas) so the bridge inventory sees this send site.
-        target.postMessage({ dgn: 'ai-runs', artboards }, '*');
+        target.postMessage({ dgn: 'ai-runs', artboards }, origin);
       } catch {
         /* detached */
       }
@@ -74,7 +79,7 @@ export function createRingsLane({
     ) {
       spokenCopies.set(target, copiesJson);
       try {
-        target.postMessage({ dgn: 'ai-copies', v: 1, copies }, '*');
+        target.postMessage({ dgn: 'ai-copies', v: 1, copies }, origin);
       } catch {
         /* detached */
       }
@@ -89,7 +94,7 @@ export function createRingsLane({
     if (holdsBefore === undefined && holdsJson === '[]') return;
     spokenHolds.set(target, holdsJson);
     try {
-      target.postMessage({ dgn: 'ai-holds', holds }, '*');
+      target.postMessage({ dgn: 'ai-holds', holds }, origin);
     } catch {
       /* detached */
     }
