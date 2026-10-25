@@ -256,6 +256,7 @@ import { useFitWhileAiDrafts } from './v2/shell/use-fit-while-ai-drafts.js';
 import { useAiRuns } from './v2/ai/runs-store.js';
 import { yoursCount } from './v2/ai/runs-model.js';
 import { useOccludedInsets } from './v2/shell/use-occluded-insets.js';
+import { useShellPanelsRelay } from './v2/shell/shell-panels-relay.js';
 import { useToolPanels } from './v2/shell/use-tool-panels.js';
 import { useAssetStateLane } from './v2/assets/asset-state-lane.js';
 import { useRelinkSheet } from './v2/assets/missing-frame.jsx';
@@ -2805,6 +2806,7 @@ function ShellTree() {
       activeArtboards,
       activeComps,
       activePath,
+      assetsOpen,
       assistantBusy,
       assistantOpen,
       bodyRef,
@@ -2998,6 +3000,8 @@ function ShellTree() {
       openPanelExclusive('assets');
     },
   });
+  // V2-8.5 c7 - the open panel reaches the canvas dock (Stickers · E, Image · I press while theirs is up)
+  useShellPanelsRelay({ stickersOpen: !!stickerPickerReq, assetsOpen });
   // S8.19 — "Waiting for Jonas's Mac" vs Missing: each open canvas hears its pictures' states
   // (dgn `asset-state`); a Missing frame's Relink… (and the Inspector's box) opens the relink sheet (S8.19c).
   const relink = useRelinkSheet({ canEdit: !viewerMode });
