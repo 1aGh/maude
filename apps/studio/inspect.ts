@@ -718,6 +718,12 @@ const INSPECTOR_SCRIPT = `
       if (tg && (tg.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName || ''))) return;
     }
     var chord = chordOf(e);
+    // V2-8.9 attacker L2: a ⌘V pressed in the canvas is told to the shell (never prevented — the
+    // paste event still fires here), so the shell's "Paste … copied in X?" ask follows a real key
+    if (chord === '⌘V') {
+      try { window.parent.postMessage({ dgn: 'key', v: 1, chord: chord }, '*'); } catch (err) {}
+      return;
+    }
     if (FORWARD.indexOf(chord) < 0) return;
     e.preventDefault();
     try { window.parent.postMessage({ dgn: 'key', v: 1, chord: chord }, '*'); } catch (err) {}
