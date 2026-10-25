@@ -259,3 +259,24 @@ Re-shot light + dark on the Mac mini (`_c8-harness-g3`: `t09b`, `vid`, `adv`) on
 | ex-offline | same footer rule; cloud card still the default tick (harness estimate suggests it) |
 | ex-batch | Folders set to **One per canvas** in the shot (select offers One folder / One per canvas; path hint "<canvas path> · <file>") |
 | ex-advanced | a visible heading over each part, JPG quality row, Bleed switch + "3 mm" field, Paper select, Text select inside its column |
+
+## FINAL (D6, 3d58f57df) — p8-d6-g3
+
+Final verification shoot after stage C round 8, on the merged tip feat/maude-v2 3d58f57df (release-built client, Google Chrome channel, Mac mini, light + dark), IMPL side only; spec frames reused unchanged (09 board unchanged since 2220acc81, before the D4 spec shots). Shot at 873574992 = tip + the D6 harness only. Harness `_d6-harness-g3/` (`chain.sh 09` = `t09` all ids, then `t09b` (round 8: ex-batch with Folders = One per canvas; ex-canvas, ex-huge, ex-batch-pick), `ho`, `vid` (round 8: footer follows the ticked Render card), `adv` (round 8: Image / Print PDF / Video / Where it renders headings, Bleed mm field, Paper select), `t09w`, `t09p`). Committed `<id>-<theme>.jpg` pairs overwritten. No watchdog kills this run.
+
+| artboard id | light | dark |
+|---|---|---|
+| ex-inspector, ex-social, ex-formats, ex-web, ex-print, ex-share-vs | re-shot (ex-share-vs: the Share panel only) | re-shot (same) |
+| ex-advanced | re-shot (`adv`: whole fold, mixed selection, round-8 part headings) | re-shot (same) |
+| ex-video | re-shot (`vid`: filmstrip, In the cloud / On this Mac cards, footer names the picked lane) | re-shot (same) |
+| ex-offline | re-shot (`vid`: faked linked project + browser offline, whole window) | re-shot (same) |
+| ex-print-warn | re-shot (`t09w`: LetakA6 — the real preflight warnings) | re-shot (same) |
+| ex-canvas, ex-batch-pick | re-shot | re-shot |
+| ex-batch | re-shot (`t09b`: folder scope, Folders set to One per canvas, cloud lane answered by the harness) | re-shot (same) |
+| ex-huge | re-shot (13 canvases, not 93 / 524 artboards) | re-shot (same) |
+| ex-progress, ex-states, ex-history | re-shot (`t09p`; job LIST seeded by a route intercept, no render runs; ex-history with the row menu open) | re-shot (same) |
+| ex-handoff, ex-handoff-edges | re-shot (`ho`; the signed-out path, offline / blockers not driven) | re-shot (same) |
+| ex-handoff-ready | unreachable — the Ready result with a copy command needs a finished AI handoff run (claude stubbed signed-out); spec-only frame stands | unreachable (same) |
+| ex-edges | unreachable — viewer-role export and "AI is changing this artboard" need a viewer session / a live AI edit; spec-only frame stands | unreachable (same) |
+
+Totals: 38 id×theme re-shot (19 ids), 4 unreachable (2 ids). Still open per `fix-c8-exshare.md`: ex-advanced Bleed amount / Paper are drawn read-only; ex-offline footer wording differs from the board's offline line.

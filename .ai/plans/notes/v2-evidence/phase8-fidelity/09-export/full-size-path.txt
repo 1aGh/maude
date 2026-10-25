@@ -23,3 +23,6 @@ final (D5, tip e37e7d82a; shot at 0ef942d45 = tip + the D5 harness only, Mac min
 (final spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a66e2f2427be6618d/.scr/spec/09/<id>-<theme>.png, reused unchanged from the D4 spec; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a66e2f2427be6618d/.scr/d5-g3/impl/09/)
 
 round 8: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a875aa11387588478/.scr/pairs/09 (p8-c8-exshare: ex-batch, ex-video, ex-offline, ex-advanced; Mac mini, Google Chrome, _c8-harness-g3; raw impl /Users/iagh/git/personal/maude/.claude/worktrees/agent-a875aa11387588478/.scr/c8-g3/impl/09; spec PNGs reused from the D5 worktree)
+
+final (D6, 3d58f57df; shot at 873574992 = tip + the D6 harness only, Mac mini): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad2725e89fee10d58/.scr/pairs/09
+(final spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad2725e89fee10d58/.scr/spec/09/<id>-<theme>.png, reused unchanged from the D5/D4 spec; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad2725e89fee10d58/.scr/d6-g3/impl/09/)
