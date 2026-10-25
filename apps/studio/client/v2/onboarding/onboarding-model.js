@@ -60,6 +60,12 @@ export const FIGMA_WORDS = {
   fine: (project) =>
     `Each frame arrives as an artboard on a new canvas in ${project} — Figma's exact picture of it. Make editable turns one artboard into layers; it needs Figma Dev Mode, on a paid seat.`,
   inNewProject: 'a new project',
+  linkLabel: 'Figma link',
+  linkPlaceholder: 'figma.com/design/…',
+  badLink: "That doesn't look like a Figma link.",
+  tokenFold: 'Access token',
+  tokenLine:
+    'Maude asks for the Figma access token in the project window, once, and keeps it on this Mac — this page never holds it.',
 };
 
 /** The rows of the maude-command sheet from `/_home/cli/status`: [{ id, state, word }]. */

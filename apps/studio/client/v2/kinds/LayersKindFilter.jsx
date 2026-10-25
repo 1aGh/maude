@@ -11,6 +11,7 @@
 // does not know yet — there is nothing to filter.
 
 import { useEffect, useMemo, useRef } from 'react';
+import { StIcon } from '../../shell/icons.jsx';
 import { Empty } from '../empty/empty.jsx';
 import { KindChips } from './KindChips.jsx';
 import { isFilterKind } from './kind-filter-model.js';
@@ -67,16 +68,17 @@ export function LayersKindFilter({ boards, canvasName = '' }) {
           actions={
             <button
               type="button"
-              className="cv-empty-action"
+              className="btn btn--ghost btn--sm"
               data-testid="layers-kind-clear"
               onClick={clearKindFilter}
             >
+              <StIcon name="x" size={12} />
               {words.action}
             </button>
           }
         />
       ) : null}
-      {foot ? (
+      {foot && !words ? (
         <p className="kf-foot" data-testid="layers-kind-foot">
           {foot}{' '}
           <button

@@ -37,7 +37,9 @@
     outline-offset: 1px;
   }
   .kf-chip[data-on] {
-    flex: 2 1 0;
+    /* the chip that is on keeps its whole word + count + × (05 es-filter: never "Pr… 0"); the others share the rest */
+    flex: 0 0 auto;
+    min-width: max-content;
     background: var(--accent-muted);
     color: var(--accent-text);
     box-shadow: inset 0 0 0 1px var(--accent);
@@ -52,6 +54,12 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  .kf-chip-x {
+    display: inline-grid;
+    flex: none;
+    color: inherit;
+    opacity: 0.8;
   }
   .kf-chip-n {
     font-size: var(--type-xs);

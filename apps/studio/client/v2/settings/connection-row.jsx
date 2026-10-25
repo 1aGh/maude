@@ -16,6 +16,7 @@ export function ConnectionRow({
   row,
   icon,
   title,
+  desc,
   status,
   tone,
   action,
@@ -37,6 +38,7 @@ export function ConnectionRow({
         </span>
         <span className="v2s-conn-t">
           <strong>{title}</strong>
+          {desc ? <span className="v2s-conn-d">{desc}</span> : null}
           <span
             className={tone === 'ok' ? 'v2s-conn-s v2s-conn-s--ok' : 'v2s-conn-s'}
             data-testid={`settings-conn-${row}-status`}

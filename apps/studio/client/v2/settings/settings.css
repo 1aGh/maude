@@ -450,6 +450,10 @@
     font-size: var(--type-sm);
     color: var(--fg-0);
   }
+  .v2s-conn-d {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
   .v2s-conn-s {
     font-size: var(--type-xs);
     color: var(--fg-2);

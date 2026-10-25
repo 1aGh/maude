@@ -164,6 +164,20 @@ describe('S6.3 runIntent', () => {
     }
   });
 
+  test('import-figma: a Figma link rides to the sheet once (never a sentence, never a token)', async () => {
+    const { runIntent } = await import('../client/v2/create/take-intent.js');
+    const { takeFigmaPrefill } = await import('../client/v2/import/figma-prefill.js');
+    const { d, log } = deps();
+    await runIntent({ kind: 'import-figma', prompt: 'figma.com/design/AbC/Uniformy' }, d);
+    expect(log).toEqual(['action:import.figma']);
+    expect(takeFigmaPrefill()).toBe('https://figma.com/design/AbC/Uniformy');
+    expect(takeFigmaPrefill()).toBe(''); // taken once
+    await runIntent({ kind: 'import-figma', prompt: 'the spring palette' }, d);
+    expect(takeFigmaPrefill()).toBe('');
+    await runIntent({ kind: 'import-figma', prompt: 'https://evil.example/design/x' }, d);
+    expect(takeFigmaPrefill()).toBe('');
+  });
+
   test('a Can view / Can comment project refuses with the role line and makes nothing', async () => {
     const { runIntent } = await import('../client/v2/create/take-intent.js');
     for (const kind of ['create-canvas', 'create-empty', 'import-brand', 'import-figma']) {

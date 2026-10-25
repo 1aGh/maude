@@ -701,7 +701,11 @@ export function HomeApp() {
     [startIn]
   );
   // S6.9 — Import from Figma lands in the same target the question does, as the `import-figma` intent (Q8)
-  const startFigma = useCallback(() => startIn({ kind: 'import-figma', prompt: '' }), [startIn]);
+  // 02 ob-adv-sheets: the sheet's Figma link rides along as the import's prompt (a link, never a token)
+  const startFigma = useCallback(
+    (link) => startIn({ kind: 'import-figma', prompt: typeof link === 'string' ? link : '' }),
+    [startIn]
+  );
   useMenuActions(data.native, { 'project.new': askNewProject, 'canvas.new': startEmpty });
 
   // A file link whose project IS here (its tab failed to open from the link) opens like a

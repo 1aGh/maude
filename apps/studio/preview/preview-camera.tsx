@@ -131,6 +131,9 @@ export interface PreviewEaseDeps {
   getArtboards(): readonly BoardRect[];
   /** The canvas host's size; null / zero when it is not showing (a background canvas). */
   getHostSize(): { w: number; h: number } | null;
+  /** 04 md-preview-combine: a canvas with several boards and NO links has nothing to step through, so Preview
+   *  keeps the overview ("pan across all 15") instead of zooming onto one board. Absent = never hold. */
+  holdOverview?(): boolean;
   /** The camera that lands `rect` in the visible area under the CURRENT insets. */
   fit(rect: BoardRect): Camera;
   raf(cb: (now: number) => void): number;
@@ -213,6 +216,7 @@ export function createPreviewEase(deps: PreviewEaseDeps): PreviewEase {
       saved = null;
       const host = deps.getHostSize();
       if (!host?.w || !host.h) return false;
+      if (deps.holdOverview?.()) return false;
       const cam = deps.getCamera();
       const board = inViewArtboard(cam, host, insetsBefore, deps.getArtboards());
       if (!board) return false;
@@ -372,6 +376,8 @@ export function usePreviewCamera<T extends BoardRect>(opts: UsePreviewCameraOpti
         return h ? { w: h.clientWidth, h: h.clientHeight } : null;
       },
       fit: (rect) => optsRef.current.fit(rect as T),
+      holdOverview: () =>
+        optsRef.current.artboards.length > 1 && !win.document.querySelector('[data-cd-link]'),
       raf: (cb) => win.requestAnimationFrame(cb),
       caf: (id) => win.cancelAnimationFrame(id),
       now: () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),

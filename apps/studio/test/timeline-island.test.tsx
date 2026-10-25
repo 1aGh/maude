@@ -16,6 +16,7 @@ import TimelineHost from '../client/v2/timeline/TimelineHost.jsx';
 import {
   cutPrompt,
   footageHint,
+  TimelineEmpty,
   timelineEmptyWords,
 } from '../client/v2/timeline/timeline-empty.jsx';
 import { timelineStore } from '../client/v2/timeline/timeline-store.js';
@@ -311,6 +312,20 @@ describe('the empty video artboard (05 · es-timeline)', () => {
     const w = timelineEmptyWords({ artboard: 'Reels', rows: [] });
     expect(w.next).toBe('Drag footage here from Assets or Finder.');
     expect(w.hint.count).toBe(0);
+  });
+
+  test('the empty comp keeps the timeline anatomy: ruler 0:00-0:30, one drop track, Captions and Music lanes', () => {
+    const html = renderToStaticMarkup(
+      createElement(TimelineEmpty, { artboard: 'Reels', canAsk: false })
+    );
+    const ticks = [...html.matchAll(/<i>([^<]+)<\/i>/g)].map((m) => m[1]);
+    expect(ticks).toEqual(['0:00', '0:05', '0:10', '0:15', '0:20', '0:25', '0:30']);
+    expect(html).toContain('data-testid="timeline-empty-drop"');
+    expect(html).toContain('No clips on Reels yet.');
+    expect(html.match(/tl-kit-lane/g)?.length).toBe(2);
+    expect(html).toMatch(/Captions/);
+    expect(html).toMatch(/Music/);
+    expect(html).not.toContain('timeline-empty-ask'); // no chip without the AI chat
   });
 
   test('the chip pre-fills a prompt that names the video and the folder', () => {

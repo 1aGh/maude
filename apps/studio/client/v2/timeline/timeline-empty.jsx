@@ -9,6 +9,7 @@ import { isNativeApp } from '../../github.js';
 import { useAssets } from '../assets/use-assets.js';
 import { AskButton, copy, Empty } from '../empty/index.js';
 import { getPaletteEnv } from '../search/search-env.js';
+import { TGlyph } from './glyphs.jsx';
 
 /**
  * The footage the project already has, in the words the line needs: how many clips and where from (the folder
@@ -62,24 +63,46 @@ export function cutPrompt({ artboard, source }) {
 export function TimelineEmpty({ artboard, canAsk = isNativeApp() }) {
   const { assets } = useAssets();
   const w = timelineEmptyWords({ artboard, rows: assets });
+  // 05 es-timeline: the empty comp keeps the timeline's anatomy — a ruler, ONE drop track holding the line and the
+  // chip, then the Captions and Music lanes the cut would fill. The ticks are the board's 0:00–0:30 axis.
   return (
-    <Empty
-      size="panel"
-      align="left"
-      className="tl-kit"
-      testid="timeline-empty-kit"
-      title={w.title}
-      next={w.next}
-      actions={
-        canAsk && w.hint.count > 0 ? (
+    <div className="tl-kit-wrap" data-testid="timeline-empty-comp">
+      <div className="tl-kit-ruler" aria-hidden="true" data-testid="timeline-empty-ruler">
+        {RULER_TICKS.map((t) => (
+          <i key={t}>{t}</i>
+        ))}
+      </div>
+      <div className="tl-kit-drop" data-testid="timeline-empty-drop">
+        <span className="tl-kit-drop-ic" aria-hidden="true">
+          <TGlyph name="video" size={18} />
+        </span>
+        <Empty
+          size="panel"
+          align="left"
+          className="tl-kit"
+          testid="timeline-empty-kit"
+          title={w.title}
+          next={w.next}
+        />
+        {canAsk && w.hint.count > 0 ? (
           <AskButton
             testid="timeline-empty-ask"
             onClick={() => getPaletteEnv().askAI(cutPrompt({ artboard, source: w.hint.source }))}
           >
             {w.action}
           </AskButton>
-        ) : undefined
-      }
-    />
+        ) : null}
+      </div>
+      <div className="tl-kit-lane" data-testid="timeline-empty-lane-captions">
+        <TGlyph name="type" size={12} />
+        Captions
+      </div>
+      <div className="tl-kit-lane" data-testid="timeline-empty-lane-music">
+        <TGlyph name="music" size={12} />
+        Music
+      </div>
+    </div>
   );
 }
+
+const RULER_TICKS = ['0:00', '0:05', '0:10', '0:15', '0:20', '0:25', '0:30'];

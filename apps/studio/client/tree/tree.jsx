@@ -1480,9 +1480,16 @@ export function Sidebar({
                   setCreating(true);
                 }}
               >
-                {newCanvasRow}
-                {/* The panel's last row — the Trash list (C10). A viewer has no trash to open. */}
-                {showTrashRow ? <TrashRow trash={trash} onOpen={() => setTrashOpen(true)} /> : null}
+                {({ emptyProject }) => (
+                  <>
+                    {/* an empty project has the panel's own "New canvas" (es-project-new draws exactly one row) */}
+                    {emptyProject ? null : newCanvasRow}
+                    {/* The panel's last row — the Trash list (C10). A viewer has no trash to open. */}
+                    {showTrashRow ? (
+                      <TrashRow trash={trash} onOpen={() => setTrashOpen(true)} />
+                    ) : null}
+                  </>
+                )}
               </CanvasesPanel>
               {/* While searching, the Design system's hits follow (never Project or Runtime files). */}
               {search ? (

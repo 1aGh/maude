@@ -185,7 +185,7 @@ import {
   isReadOnlyCanvas,
   persistsCanvasMeta,
 } from './read-only-mode.ts';
-import { AgentPresenceProvider, useAgentPresence } from './use-agent-presence.tsx';
+import { AgentPresenceProvider } from './use-agent-presence.tsx';
 import { type DragState, useArtboardDrag } from './use-artboard-drag.tsx';
 import {
   CanvasActivityProvider,
@@ -2701,9 +2701,6 @@ export function DCArtboard({
   // Phase 13 / DDR-029 — live "agent works here" overlay. Inert (present=false)
   // outside CanvasActivityProvider, so specimens / legacy mounts never show it.
   const activity = useCanvasActivity();
-  // Phase 13.2 / DDR-078 — when an agent is the editor, tint the overlay with
-  // its presence color + show its funny name instead of the generic file label.
-  const agent = useAgentPresence();
   const rect = ctx ? ctx.rectFor(id) : null;
   // T1/T2 — explicit `kind` wins; `subtreeHasVideoComp` is the fallback that
   // keeps existing unmigrated video canvases badged identically without
@@ -3116,7 +3113,8 @@ export function DCArtboard({
           rect={{ x: liveX, y: liveY, w: rect.w, h: rect.h }}
           label={label}
           active={activity.active}
-          color={agent?.color}
+          // 04 md-edge-ai: the AI is the spark token, whoever the agent is — the rim and its tag carry no
+          // per-agent presence colour (that hue read purple on a light canvas); `agent.color` stays for presence.
         />
       ) : null}
       {/* T4 — world-coord sibling, same reasoning as ArtboardActivityOverlay

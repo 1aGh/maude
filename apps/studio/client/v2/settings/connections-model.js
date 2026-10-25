@@ -105,6 +105,13 @@ export function githubRow({ native, state, login } = {}) {
   return { status: 'Not connected', tone: '', action: 'connect' };
 }
 
+/** The Claude account AI runs on (02 ob-settings): Pro or Max, signed in through the browser. */
+export function claudeRow(state) {
+  if (state === 'in') return { status: 'Connected', tone: 'ok', action: 'change' };
+  if (state === 'out') return { status: 'Not connected', tone: '', action: 'connect' };
+  return { status: 'Checking…', tone: '', action: null };
+}
+
 /** "2 keys · Gemini, ElevenLabs" from `/_api/generate/providers` — the names only, never a key. */
 export function providerSummary(providers) {
   if (!Array.isArray(providers)) return 'Checking…';
@@ -120,7 +127,7 @@ export function figmaRow(status) {
     return { status: 'Checking…', tone: '', configured: false };
   return status.configured
     ? { status: 'Connected · for imports', tone: 'ok', configured: true }
-    : { status: 'Not connected', tone: '', configured: false };
+    : { status: 'No token', tone: '', configured: false };
 }
 
 /** What a Figma Test answers, in words. */

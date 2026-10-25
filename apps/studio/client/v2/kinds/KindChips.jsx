@@ -8,6 +8,7 @@
 // and undoes in one click (the Empty block) — but is quieter. Pressing the chip that is on clears the filter.
 // It owns no state: `on` and `onPick(kind)` come from the caller (the shared store, kind-filter-store.js).
 
+import { StIcon } from '../../shell/icons.jsx';
 import { DigitalIcon, PrintIcon, VideoIcon, WebIcon } from '../canvases/canvas-icons.jsx';
 import { chipName, KIND_CHIPS, KIND_WORD } from './kind-filter-model.js';
 
@@ -45,6 +46,12 @@ export function KindChips({
             {Icon ? <Icon size={12} /> : null}
             {k === 'all' || active ? <span className="kf-chip-w">{word}</span> : null}
             <span className="kf-chip-n">{n}</span>
+            {/* 05 es-filter: the chip that is on says it can be turned off — a small ×, the click clears */}
+            {active && k !== 'all' ? (
+              <span className="kf-chip-x" aria-hidden="true" data-testid={`${chipPrefix}-${k}-x`}>
+                <StIcon name="x" size={9} />
+              </span>
+            ) : null}
           </button>
         );
       })}

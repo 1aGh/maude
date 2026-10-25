@@ -144,3 +144,7 @@ Final re-shoot D3 of the IMPL side on the merged `feat/maude-v2` tip 63592219a (
 | `ob-edge-accounts` | re-shot | re-shot |  |
 | `ob-edge-ai-missing` | re-shot | re-shot |  |
 | `ob-edge-whats-new` | re-shot | re-shot |  |
+
+## After (round 7, p8-c7-oboard @ 6f503db82 + p8-c7-oboard)
+IMPL re-shot light + dark with the newest harness (`_d-harness-g1-d3` repointed, stage D): the committed `<id>-<theme>.jpg` pairs of this canvas that the round's scenarios reach are overwritten. Changed on purpose: ob-adv-sheets (Figma link field + Advanced · Access token fold), ob-settings (Claude account row, Figma No token / Add token…).
+Harness notes: run.mjs dismisses `.maude-notice-close` before each shot; home2.mjs `es-home-local` registers no project; the What's new toast is still caught in some frames (fixture/notice timing, not product).

@@ -136,3 +136,7 @@ Final re-shoot D3 of the IMPL side on the merged `feat/maude-v2` tip 63592219a (
 | `es-offline-uncached` | re-shot | re-shot |  |
 | `es-all-trashed` | re-shot | re-shot | the pair shows the states the app reaches (one left, empty); the all-trashed card itself is not reached by a local route |
 | `es-edge-panels` | re-shot | re-shot |  |
+
+## After (round 7, p8-c7-oboard @ 6f503db82 + p8-c7-oboard)
+IMPL re-shot light + dark with the newest harness (`_d-harness-g1-d3` repointed, stage D): the committed `<id>-<theme>.jpg` pairs of this canvas that the round's scenarios reach are overwritten. Changed on purpose: es-project-new (one New canvas row), es-timeline (ruler + drop track + Captions/Music lanes), es-filter (chip x, Clear filter x, no tree), es-offline-uncached (block centred on the free canvas), es-home-local (no registered project), es-landing.
+Harness notes: run.mjs dismisses `.maude-notice-close` before each shot; home2.mjs `es-home-local` registers no project; the What's new toast is still caught in some frames (fixture/notice timing, not product).

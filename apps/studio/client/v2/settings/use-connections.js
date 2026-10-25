@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { connectClaude } from '../ai/connect-flow.js';
 import { CLOUD_CHANGED_EVENT, connectOutcomeNote, openExternal } from '../../panels/CloudBar.jsx';
 import { GITHUB_SIGNED_OUT_EVENT } from '../../panels/IdentityBar.jsx';
 import {
@@ -379,6 +380,53 @@ export function useProviderKeys() {
     load();
   }, [load]);
   return { providers, error, reload: load };
+}
+
+// ── AI — your Claude account (02 ob-settings): connected or not, and the browser sign-in ─────────
+
+export function useClaudeAccount() {
+  const [state, setState] = useState('loading'); // loading | in | out
+  const [phase, setPhase] = useState('idle'); // idle | installing | waiting
+  const [error, setError] = useState('');
+  const ctlRef = useRef(null);
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      ctlRef.current?.abort();
+    };
+  }, []);
+
+  const load = useCallback(async () => {
+    const r = await api('/_api/preflight');
+    if (!alive.current) return;
+    const item = r.ok ? r.json?.items?.find?.((i) => i.id === 'claude') : null;
+    setState(item?.status === 'present' ? 'in' : 'out');
+  }, []);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  /** Connect (or Change…): the one flow the AI panel's sheet runs — install if missing, then browser sign-in. */
+  async function connect({ force = false } = {}) {
+    if (ctlRef.current) return false;
+    const ctl = new AbortController();
+    ctlRef.current = ctl;
+    setError('');
+    const r = await connectClaude({ signal: ctl.signal, onPhase: setPhase, force });
+    ctlRef.current = null;
+    if (!alive.current) return false;
+    setPhase('idle');
+    if (r.ok) await load();
+    else if (r.reason !== 'cancelled') setError(r.reason || 'Could not connect.');
+    return r.ok;
+  }
+  function cancel() {
+    ctlRef.current?.abort();
+  }
+
+  return { state, phase, error, connect, cancel, setError };
 }
 
 // ── Figma: the personal access token, Test, Disconnect (D14) ────────────────────────────────────
