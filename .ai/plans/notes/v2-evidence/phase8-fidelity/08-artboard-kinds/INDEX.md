@@ -267,3 +267,15 @@ Totals: 36 id×theme re-shot (18 ids), 2 unreachable (1 id). Still open per `fix
 |---|---|
 | ak-print-view | re-shot (Menu > View > Advanced > Print guides on): every print artboard now draws the dashed print-area outline, the four crop marks and the legend "Bleed 3 mm · trim · safe margin 5 mm" under the sheet, on the un-clipped print layer (`artboard-guides-overlay.tsx` outside registry, `print-overlay-content.tsx`) |
 | ak-advanced | re-shot: Layout · "Convert to absolute…" is live (it was greyed while no body layout was read: a print sheet with no `layout` prop is the plain "Top to bottom" flow); an artboard selection now converts the artboard's body (`editing/layout-actions.ts`). Grid tracks · "Edit tracks…" stays disabled (no print-board track editor) |
+
+## FINAL (D7, 6d062a4d3)
+
+Final merged-tip re-shoot after stage C round 10 (p8-d7-g2), IMPL side only, Mac mini + Google Chrome, light + dark. Shot on `ccf36b5a0` + the harness commit `6d062a4d3` (the tip has since moved by merges outside the artboard-kind surfaces). Harness `_d7-harness-g2/g3` (`run.sh 08` = `t08` all ids, `t08m` the round-8 states, `t08p` the round-10 ak-print-view + ak-advanced). Spec reused unchanged. Committed `<id>-<theme>.jpg` pairs overwritten. No match judged here.
+
+| artboard id | light | dark |
+|---|---|---|
+| ak-picker, ak-picker-full, ak-web-hug, ak-social, ak-print-letak, ak-warnings, ak-video, ak-safe-zones, ak-advanced, ak-mixed-fit, ak-mixed-filter, ak-mixed-select, ak-real-print, ak-real-web, ak-print-view, ak-web-widths, ak-convert, ak-convert-after | re-shot | re-shot |
+| ak-real-about | unreachable (a note card on the board, not an app state; spec-only frame stands) | unreachable (same) |
+| ak-picker-custom (extra impl frame, no board artboard) | shot into impl only, no pair | same |
+
+Totals: 36 id×theme re-shot (18 ids), 2 unreachable (1 id).

@@ -30,3 +30,4 @@ final (D6, 3d58f57df; shot at 873574992 = tip + the D6 harness only, Mac mini): 
 (final spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad2725e89fee10d58/.scr/spec/08/<id>-<theme>.png, reused unchanged from the D5/D4 spec; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad2725e89fee10d58/.scr/d6-g3/impl/08/)
 
 round 10: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a911414b78223a6e5/.scr/pairs/08 (p8-c10-print: ak-print-view + ak-advanced re-shot on the p8-c10-print tip, both themes, Mac mini + Google Chrome; harness _c10-harness-g3 scenario t08p; raw impl frames /Users/iagh/git/personal/maude/.claude/worktrees/agent-a911414b78223a6e5/.scr/d6-g3/impl/08/)
+final (D7, 6d062a4d3): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a749e0875aad39b11/.scr/pairs/08/
