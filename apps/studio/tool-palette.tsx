@@ -346,6 +346,7 @@ function MarkerOptions(props: {
       </fieldset>
       {props.current === 'pen' ? (
         <>
+          <i className="dc-tp-div" aria-hidden="true" />
           <SwatchRow
             label="Ink"
             group="ink"
@@ -355,6 +356,7 @@ function MarkerOptions(props: {
             paint={(hex) => resolveInk(hex, themedInk)}
             onPick={(hex) => toolState().set({ ink: hex })}
           />
+          <i className="dc-tp-div" aria-hidden="true" />
           <fieldset className="dc-tp-row" aria-label="Thickness">
             {(
               [
@@ -380,6 +382,7 @@ function MarkerOptions(props: {
       ) : null}
       {props.current === 'highlighter' ? (
         <>
+          <i className="dc-tp-div" aria-hidden="true" />
           <SwatchRow
             label="Highlighter colour"
             group="highlighter"
@@ -388,6 +391,7 @@ function MarkerOptions(props: {
             value={ts.highlighterColor}
             onPick={(hex) => toolState().set({ highlighterColor: hex })}
           />
+          <i className="dc-tp-div" aria-hidden="true" />
           <fieldset className="dc-tp-row" aria-label="Highlighter width">
             {Object.entries(HIGHLIGHTER_WIDTH_NAMES).map(([w, name]) => {
               const width = Number(w);

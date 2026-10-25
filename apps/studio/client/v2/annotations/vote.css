@@ -94,6 +94,8 @@
     padding: var(--space-4);
     font-size: var(--type-sm);
     color: var(--fg-1);
+    /* 15 an-vote: a sheet is the popover/sheet surface — opaque, the inspector behind it never reads through */
+    background: var(--bg-2);
   }
   .an-vsheet-h {
     margin: 0;

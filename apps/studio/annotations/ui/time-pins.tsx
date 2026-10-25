@@ -24,7 +24,7 @@ export const TIME_PIN_CSS = `
 .dc-annot-pintag {
   position: absolute; bottom: 100%; margin-bottom: 4px; display: inline-flex; align-items: center; gap: 4px;
   font: 600 10px/1 var(--font-ui, system-ui, sans-serif); padding: 3px 7px; border-radius: 999px; white-space: nowrap;
-  pointer-events: none; color: var(--maude-hud-fg, #1a1a1a); background: var(--maude-hud-bg, #fff);
+  z-index: 2; pointer-events: none; color: var(--maude-hud-fg, #1a1a1a); background: var(--maude-hud-bg, #fff);
   box-shadow: 0 0 0 1px rgba(0,0,0,0.12);
 }
 .dc-annot-pintag[data-pin-tag="time"] { left: 4px; }

@@ -113,6 +113,11 @@
   .sg-cell .st-sp-thumb {
     max-height: 100%;
   }
+  /* the lit result (↵ puts it down): the board's .an-gal-c[data-on] */
+  .sg-cell[data-on] {
+    background: var(--accent-muted);
+    box-shadow: inset 0 0 0 1.5px var(--accent);
+  }
   .sg-cell--kw {
     gap: 2px;
     padding: var(--space-2) var(--space-1) var(--space-1);

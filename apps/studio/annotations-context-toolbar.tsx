@@ -68,6 +68,8 @@ import {
   IconDash,
   IconDistributeH,
   IconDistributeV,
+  IconDuplicate,
+  IconFlip,
   IconGroup,
   IconItalic,
   IconLineCurved,
@@ -86,6 +88,7 @@ import {
   IconObjAlignRight,
   IconObjAlignTop,
   IconObjAlignVCenter,
+  IconStampDisc,
   IconStrike,
   IconTrash,
   IconUnderline,
@@ -333,7 +336,7 @@ const TOOLBAR_CSS = `
 .dc-annot-ctx-menu--words { flex-direction: column; left: auto; right: 0; transform: none; min-width: 210px; gap: 0; }
 .dc-annot-ctx-menu--words .dc-annot-ctx-tbtn { width: 100%; height: 28px; justify-content: flex-start; }
 /* S4.12 - a word button (Resolve, Fold, Turn into a comment, Ask AI about it) */
-.dc-annot-ctx-tbtn { width: auto; padding: 0 9px; font-size: 12px; font-weight: 600; font-family: inherit; white-space: nowrap; }
+.dc-annot-ctx-tbtn { width: auto; padding: 0 9px; gap: 6px; font-size: 12px; font-weight: 600; font-family: inherit; white-space: nowrap; }
 .dc-annot-ctx-ibtn--danger { color: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 70%, transparent); }
 .dc-annot-ctx-ibtn--danger:hover {
   background: color-mix(in oklab, #ff5a4d 26%, transparent);
@@ -1049,6 +1052,7 @@ export function AnnotationContextToolbar({
             })
           }
         >
+          <IconStampDisc size={14} />
           Replace…
         </button>
         <button
@@ -1062,18 +1066,20 @@ export function AnnotationContextToolbar({
             if (patch) store.updateStroke(stk.id, patch);
           }}
         >
+          <IconFlip size={14} />
           Flip
         </button>
         <div className="dc-annot-ctx-sep" />
         {lockBtn}
         <button
           type="button"
-          className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+          className="dc-annot-ctx-ibtn"
           data-testid="annot-ctx-duplicate"
+          aria-label="Duplicate"
           title="Duplicate (⌘D)"
           onClick={() => store.runAction?.('annotation.duplicate')}
         >
-          Duplicate
+          <IconDuplicate size={14} />
         </button>
         <div className="dc-annot-ctx-sep" />
         <button

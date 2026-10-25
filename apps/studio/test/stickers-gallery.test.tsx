@@ -173,6 +173,27 @@ describe('search', () => {
     await done();
   });
 
+  test('P8 C7 an-stk-search: the first result is lit (data-on) and ↵ in the search puts it down', async () => {
+    const { host, picked, done } = await mount();
+    await type(host, 'done');
+    const cells = [...host.querySelectorAll('.sg-cell')];
+    expect(cells.length).toBe(6);
+    expect(cells[0]?.hasAttribute('data-on')).toBe(true);
+    expect(cells.filter((c) => c.hasAttribute('data-on')).length).toBe(1);
+    const input = host.querySelector('[data-testid="stickers-search"]') as HTMLInputElement;
+    const propsKey = Object.keys(input).find((k) => k.startsWith('__reactProps$')) as string;
+    const props = (input as unknown as Record<string, { onKeyDown: (e: unknown) => void }>)[
+      propsKey
+    ];
+    await act(async () => props.onKeyDown({ key: 'Enter', preventDefault() {} }));
+    expect(picked.length).toBe(1);
+    expect(picked[0].pack).toBe('project-status');
+    // a blank query lights nothing (browse mode)
+    await type(host, '');
+    expect(host.querySelector('.sg-cell[data-on]')).toBeNull();
+    await done();
+  });
+
   test('"hotovo": the verbatim empty line with English suggestions that run the search', async () => {
     const { host, done } = await mount();
     await type(host, 'hotovo');

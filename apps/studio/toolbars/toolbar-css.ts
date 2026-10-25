@@ -161,7 +161,10 @@ export const TOOLBAR_CSS = `
 /* S4.8 — the colour popovers: Sticky's papers, the Marker's tip + inks + thicknesses, the Highlighter's hues + nibs. */
 .dc-tp-opts-popover fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 /* the board's colour row (.k-ad-pop): an island pill, swatches 20 px, the current one ringed in accent */
-.dc-tp-opts-popover { flex-direction: column; gap: 8px; padding: 8px 12px; border-radius: var(--maude-hud-radius-lg, 14px); white-space: nowrap; }
+.dc-tp-opts-popover { flex-direction: row; align-items: center; gap: 10px; padding: 6px 12px; border-radius: var(--maude-hud-radius-lg, 14px); white-space: nowrap; }
+/* P8 C7 (15 an-marker): ONE row — segment · divider · inks · +N · divider · widths — the board's .an-mkpop pill */
+.dc-tp-opts-popover .dc-tp-div { align-self: stretch; width: 1px; margin: 4px 0; background: var(--maude-chrome-border, rgba(0,0,0,0.08)); flex: none; }
+.dc-tp-opts-popover .dc-tp-seg-row button.dc-tp-seg:not([data-testid="toolbar-tip-eraser"]) svg { display: none; }
 .dc-tp-opts-popover .dc-tp-row,
 .dc-tp-opts-popover .dc-tp-seg-row,
 .dc-tp-opts-popover .dc-tp-swatches { display: flex; align-items: center; gap: 4px; }

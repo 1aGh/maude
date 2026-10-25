@@ -775,6 +775,8 @@ const ANNOT_CSS = `
    beats use-tool-mode's blanket star-cursor rule (same fight as the editor +
    resize handles — DDR-067). */
 .dc-annot-conn-dot { cursor: crosshair !important; }
+.dc-annot-conn-vis { opacity: 0; transition: opacity 80ms linear; }
+.dc-annot-conn:hover .dc-annot-conn-vis { opacity: 1; }
 `.trim();
 
 function ensureAnnotStyles(): void {
@@ -5698,21 +5700,35 @@ function ConnectorDots({ stroke }: { stroke: Stroke }) {
         const dx = pt[0] - center[0];
         const dy = pt[1] - center[1];
         const len = Math.hypot(dx, dy) || 1;
+        const cx = pt[0] + (dx / len) * offset;
+        const cy = pt[1] + (dy / len) * offset;
+        // 15 an-stk-drop: the board draws no dots beside a selected sticker/shape until a connector is
+        // dragged. The magnet stays (a transparent hit circle carries the gesture) and its dot shows
+        // under the pointer only.
         return (
-          <circle
-            key={`${nx}-${ny}`}
-            className="dc-annot-conn-dot"
-            data-host={stroke.id}
-            data-nx={nx}
-            data-ny={ny}
-            cx={pt[0] + (dx / len) * offset}
-            cy={pt[1] + (dy / len) * offset}
-            r={5 / zoom}
-            fill="var(--maude-hud-accent, oklch(0.53 0.175 238))"
-            stroke="var(--maude-chrome-bg-0, #ffffff)"
-            strokeWidth={1.5 / zoom}
-            pointerEvents="all"
-          />
+          <g key={`${nx}-${ny}`} className="dc-annot-conn">
+            <circle
+              className="dc-annot-conn-dot"
+              data-host={stroke.id}
+              data-nx={nx}
+              data-ny={ny}
+              cx={cx}
+              cy={cy}
+              r={11 / zoom}
+              fill="transparent"
+              pointerEvents="all"
+            />
+            <circle
+              className="dc-annot-conn-vis"
+              cx={cx}
+              cy={cy}
+              r={5 / zoom}
+              fill="var(--maude-hud-accent, oklch(0.53 0.175 238))"
+              stroke="var(--maude-chrome-bg-0, #ffffff)"
+              strokeWidth={1.5 / zoom}
+              pointerEvents="none"
+            />
+          </g>
         );
       })}
     </g>
