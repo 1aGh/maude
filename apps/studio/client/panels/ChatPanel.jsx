@@ -44,7 +44,7 @@ import {
   UserMessage,
 } from '../v2/ai/Feed.jsx';
 import { RunSurface } from '../v2/ai/RunSurface.jsx';
-import { cleanChatTitle, runTitleFor } from '../v2/ai/chat-list-model.js';
+import { cleanChatTitle, runTitleFor, shownChatTitle } from '../v2/ai/chat-list-model.js';
 import { useAiRuns } from '../v2/ai/runs-store.js';
 import { fetchChatRuns, undoNote, undoRun } from '../v2/ai/run-api.js';
 import { RunsCount } from '../v2/ai/RunList.jsx';
@@ -895,7 +895,7 @@ export default function ChatPanel({
         runTitleFor(runsView, id) ||
         stored ||
         'New chat';
-      list.push({ id, title, open: true });
+      list.push({ id, title: shownChatTitle(title), open: true });
     }
     for (const c of chats) {
       if (seen.has(c.id)) continue;

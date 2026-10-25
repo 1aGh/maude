@@ -38,6 +38,17 @@ export function askTitle(text) {
   return first.length > 40 ? `${first.slice(0, 39).trimEnd()}…` : first;
 }
 
+/**
+ * P8 c7 (03 ai-working/ai-done "Make it greener"): a title that is only the start of what was typed (the transcript
+ * derives it from the first 60 characters of the ask) reads as the ask's first clause, like the board's panel title.
+ * "New chat" and a slash command stay as they are.
+ */
+export function shownChatTitle(title) {
+  const t = String(title || '');
+  if (!t || t === 'New chat') return t || 'New chat';
+  return askTitle(t) ?? t;
+}
+
 /** The title a chat's live run gives it (`view.mine` rows carry `chatId` + `label`, the prompt), or null. */
 export function runTitleFor(view, chatId) {
   const run = (view?.mine || []).find((r) => r?.chatId === chatId && r.label);
