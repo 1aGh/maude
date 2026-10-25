@@ -304,6 +304,37 @@ describe('the `may` field of a /_ws/acp frame reaches the bridge; the ask text d
     }
   }, 15000);
 
+  test('a read-only socket cannot loosen the switches (its warm frame `may` is ignored)', async () => {
+    useAgent('WebFetch', { url: 'https://example.test/' }, 'fetch');
+    let readOnly = false;
+    const acp = createAcp(ctxFor(), undefined, {
+      permissionTimeoutMs: 4000,
+      readOnly: () => readOnly,
+    });
+    const a = fakeWs('may-ro');
+    const outcomes = () => outcomeText(a.frames).split('outcome=').length - 1;
+    try {
+      acp.onOpen(a.ws);
+      acp.onMessage(
+        a.ws,
+        JSON.stringify({ t: 'prompt', text: 'go', chat: 'm3', may: { assets: true, web: false } })
+      );
+      await until(() => (outcomes() >= 1 ? true : undefined));
+      readOnly = true;
+      acp.onMessage(
+        a.ws,
+        JSON.stringify({ t: 'warm', chat: 'm3', may: { assets: true, web: true } })
+      );
+      await new Promise((r) => setTimeout(r, 300));
+      readOnly = false;
+      acp.onMessage(a.ws, JSON.stringify({ t: 'prompt', text: 'again', chat: 'm3' }));
+      await until(() => (outcomes() >= 2 ? true : undefined));
+      expect(a.frames.find((f) => f.t === 'permission-request')).toBeUndefined();
+    } finally {
+      acp.stopAll();
+    }
+  }, 20000);
+
   test('a [maude-may no-web] line in the ask text alone enforces nothing (it is only a hint)', async () => {
     useAgent('WebFetch', { url: 'https://example.test/' }, 'fetch');
     const acp = createAcp(ctxFor(), undefined, { permissionTimeoutMs: 4000 });

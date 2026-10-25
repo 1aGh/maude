@@ -1198,7 +1198,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
       const effort = typeof frame.effort === 'string' && frame.effort ? frame.effort : null;
       const modeId = typeof frame.mode === 'string' && frame.mode ? frame.mode : null;
       // P8 c7 — Advanced › AI may (`{assets, web}`; only an explicit false is off; no field = no news).
-      const may = parseMay(frame.may);
+      // A read-only socket's `may` is no news: its (open) warm frame must not loosen a member's switch.
+      const may = readOnlyNow() ? null : parseMay(frame.may);
 
       if (frame.t === 'attach') {
         // Addendum Task 8 — bind this socket to the chat's (possibly still
