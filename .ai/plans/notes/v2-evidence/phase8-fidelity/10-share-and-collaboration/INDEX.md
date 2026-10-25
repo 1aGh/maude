@@ -224,3 +224,24 @@ Re-shot light + dark on the Mac mini (Google Chrome), impl side only; spec reuse
 | `co-comment-video` | light | re-shot | Preview + Comment tool, a pin on the picture and its thread card over it (made through the product) |
 | `co-comment-print` | dark | re-shot | re-shot with the same chain (unchanged) |
 | `co-comment-print` | light | re-shot | re-shot with the same chain (unchanged) |
+
+## FINAL (D7, 0d2eab1d6)
+
+Every reachable id re-shot, light + dark, IMPL side only, on the merged tip `feat/maude-v2` @ `0d2eab1d6` (stage C round 10 merged, release-built client; run from harness commit `c9708768e` = that tip + `_d7-harness-g3/`) on the Mac mini (Google Chrome, `SHOT_CHANNEL=chrome`), harness `_d7-harness-g3/g4` (= `_c10m-harness-g4`, chain `chain10.sh`: s10 s10cm s10c s10d s10e s10m s10k s10v, later scenarios win). Spec frames reused from stage A (the boards `.design/ui/v2/10 Share and Collaboration.*` have not changed since 2026-10-19). Committed JPEG pairs overwritten. No match judged here.
+
+| artboard id | light | dark | note |
+|---|---|---|---|
+| co-share-sheet, co-share-roles | re-shot | re-shot |  |
+| co-browser-view, co-presence | re-shot | re-shot |  |
+| co-comment-thread | re-shot | re-shot | Preview, Comments panel open (`s10m`, round 10) |
+| co-comment-video | re-shot | re-shot | Preview, Comment tool armed, a pin on the trailer and its thread card open (`s10v`, round 10) |
+| co-comment-print | re-shot | re-shot | View > Print guides on via the command palette (`s10cm`, rounds 8 + 10) |
+| co-sync-offline, co-sync-back | re-shot | re-shot | per-row pending labels are still a data gap (`fix-c8-exshare.md`) |
+| co-conflict, co-trashed | re-shot | re-shot | Canvases panel folded (`s10k`) |
+| co-local-cloud, co-access-ends | re-shot | re-shot |  |
+| co-ask-edit | re-shot | re-shot | pair uses the `co-ask-edit-tip` frame (`s10d`); `-ask` and `-rel` frames are in the raw impl dir |
+| co-share-advanced | re-shot | re-shot | pair uses the tall 1040 px frame (`co-share-advanced-tall`, `s10e`) |
+| co-follow, co-bring, co-spotlight, co-twelve | unreachable | unreachable | need N live Yjs awareness peers (unchanged) |
+| co-mention-notify | unreachable | unreachable | OS banner + hub mention e-mail template are not in the lane (unchanged) |
+
+15 reachable ids x 2 themes = 30 pairs.
