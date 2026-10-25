@@ -69,7 +69,13 @@ export function ArtboardActivityOverlay({
       {/* 04 md-edge-ai: the AI's own pointer — an arrow and a "+ AI" label — where the change is landing */}
       <span className="dc-activity-ptr">
         <svg width="14" height="16" viewBox="0 0 14 16" aria-hidden="true">
-          <path d="M1 1l11 6.2-4.7 1.3L5.6 14z" fill="currentColor" stroke="var(--maude-hud-spark-fg, #1a1d24)" strokeWidth="1" strokeLinejoin="round" />
+          <path
+            d="M1 1l11 6.2-4.7 1.3L5.6 14z"
+            fill="currentColor"
+            stroke="var(--maude-hud-spark-fg, #1a1d24)"
+            strokeWidth="1"
+            strokeLinejoin="round"
+          />
         </svg>
         <span className="dc-activity-ptr-l">+ AI</span>
       </span>

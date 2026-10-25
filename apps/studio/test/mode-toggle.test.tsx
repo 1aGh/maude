@@ -291,7 +291,9 @@ describe('mode-toggle / the Share cluster switch', () => {
     ]);
     // Presenter view (p8-c7): drawn greyed for an editor with one display, not a menuitem press target
     expect(
-      list?.querySelector('[data-testid="mode-present-presenter-view"]')?.getAttribute('aria-disabled')
+      list
+        ?.querySelector('[data-testid="mode-present-presenter-view"]')
+        ?.getAttribute('aria-disabled')
     ).toBe('true');
     expect(list?.textContent).toContain('Artboards, one by one');
     // Copy presentation link: not until its slice (hidden).
