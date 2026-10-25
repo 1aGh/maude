@@ -14,6 +14,7 @@
 #           (the shell is what differs: v2's islands over a full-width canvas vs the pre-v2 docked
 #           panels — this is the M7 comparison)
 #   bare    Chromium on the bare canvas page, fit-all (the canvas engine alone)
+#   webkit  (local, visible unlocked screen) the studio lane on Safari/WKWebView — the desktop engine
 #   V2-8.14 lanes (--lanes "panel peers lod"):
 #   panel   the 93-canvas Canvases panel in the studio shell (scripts/v2-perf-panel.mjs): first row,
 #           rows mounted, list scroll frames, search latency, open-a-canvas
@@ -115,6 +116,14 @@ for arm in $ORDER; do
         [[ $lane == studio ]] && flags+=(--studio --window "$WINDOW")
         MAUDE_PERF_ENGINE_TAG="$arm-$lane" bash "$ROOT/apps/studio/bin/perf.sh" --root "$WORK/fx-$arm" \
           --canvas "$CANVAS" "${flags[@]}" > "$OUT/$arm-$lane.json" 2> "$OUT/$arm-$lane.log"
+        ;;
+      webkit)
+        # WebKit through safaridriver: the desktop shell's engine. LOCAL ONLY (needs a visible,
+        # unlocked screen — a locked one makes the probe refuse with exit 3) and the load of the
+        # machine goes into env.txt.
+        bash "$ROOT/apps/studio/bin/perf.sh" --root "$WORK/fx-$arm" --canvas "$CANVAS" --fit-all \
+          --repeat "$REPEAT" --json --engine safari --studio --window "$WINDOW" \
+          > "$OUT/$arm-webkit.json" 2> "$OUT/$arm-webkit.log"
         ;;
       panel)
         node "$ROOT/scripts/v2-perf-panel.mjs" --url "http://localhost:$PORT/" --runs 6 --window "$WINDOW" --json \

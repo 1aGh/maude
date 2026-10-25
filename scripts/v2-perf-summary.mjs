@@ -40,9 +40,10 @@ const verdicts = [];
 const LANE_TITLE = {
   studio: 'Chromium, studio shell, dpr 2',
   bare: 'Chromium, bare canvas page',
+  webkit: 'WebKit (Safari), studio shell',
   lod: 'Chromium, studio shell, dpr 2, mixed annotation board (1,500 elements, 64 boards) at a fit-all zoom below 25 %',
 };
-const lanes = ['studio', 'bare', 'lod'].filter((l) =>
+const lanes = ['studio', 'webkit', 'bare', 'lod'].filter((l) =>
   dirs.some((d) => existsSync(join(d, `v2-${l}.json`)))
 );
 for (const lane of lanes) {
