@@ -210,6 +210,36 @@ describe('Edit → Preview: the engine', () => {
     expect(rg.sets).toHaveLength(0);
   });
 
+  test('04 md-preview-combine: several boards and no links — Preview keeps the overview', () => {
+    const held = { v: true };
+    const r = rig();
+    // rebuild the engine with the hold on (the rig's deps are fixed, so drive a second engine on the same rig)
+    const e = createPreviewEase({
+      getCamera: () => ({ ...r.cam }),
+      setCamera: (c) => {
+        r.cam = { ...c };
+        r.sets.push({ ...c });
+      },
+      getArtboards: () => r.rects,
+      getHostSize: () => r.host,
+      fit: (rect) => fitInto(rect, r.insets),
+      holdOverview: () => held.v,
+      raf: () => 1,
+      caf: () => {},
+      now: () => 0,
+      reducedMotion: () => true,
+      durationMs: () => EASE_MS,
+      easing: () => (t) => t,
+    });
+    expect(e.enter(ZERO_INSETS)).toBe(false);
+    expect(r.sets).toHaveLength(0);
+    expect(e.leave()).toBe(false); // nothing to go back to
+    held.v = false;
+    expect(e.enter(ZERO_INSETS)).toBe(true);
+    e.dispose();
+    r.ease.dispose();
+  });
+
   test('already there: no move', () => {
     rg = rig();
     rg.cam = fitInto(BOARDS[0], rg.insets);
@@ -299,6 +329,7 @@ describe('usePreviewCamera: one camera move per Edit ⇄ Preview', () => {
   const sets: Camera[] = [];
   const camera = { current: { ...A } };
   const fakeParent = { postMessage: () => {} };
+  let linked: HTMLElement;
   const board = (id: string) => BOARDS.find((b) => b.id === id) as BoardRect;
 
   function Probe() {
@@ -367,9 +398,14 @@ describe('usePreviewCamera: one camera move per Edit ⇄ Preview', () => {
     Object.defineProperty(host, 'clientWidth', { value: HOST.w });
     Object.defineProperty(host, 'clientHeight', { value: HOST.h });
     document.body.appendChild(host);
+    // a canvas WITH links: Preview steps onto the board in view (04 md-preview); without any it keeps the overview
+    linked = document.createElement('div');
+    linked.setAttribute('data-cd-link', '#pricing');
+    document.body.appendChild(linked);
   });
   afterAll(() => {
     act(() => root?.unmount());
+    linked.remove();
     nowSpy?.mockRestore();
     window.requestAnimationFrame = realRaf;
     window.cancelAnimationFrame = realCaf;

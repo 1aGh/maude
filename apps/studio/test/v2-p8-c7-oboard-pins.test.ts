@@ -24,3 +24,24 @@ describe('05 es-filter: the kit block stands alone under the chips', () => {
     expect(p).toContain("effTab === 'layers' && layersKindNone ? null");
   });
 });
+
+describe('04 md-edge-ai: the AI wears the spark token and its tag sits above-right', () => {
+  test('canvas-lib hands the activity overlay no per-agent colour; the badge leaves the artboard corner', () => {
+    const lib = src('canvas-lib.tsx');
+    const at = lib.indexOf('<ArtboardActivityOverlay');
+    expect(at).toBeGreaterThan(0);
+    expect(lib.slice(at, at + 400)).not.toContain('color={');
+    const css = src('inspect.ts');
+    expect(css).toContain(
+      '.dc-activity-badge { position: absolute; bottom: calc(100% + 2px); right: -2px;'
+    );
+  });
+});
+
+describe('04 md-preview-combine: Preview keeps the overview of a canvas with no links', () => {
+  test('the camera engine holds when several boards carry no data-cd-link', () => {
+    const s = src('preview/preview-camera.tsx');
+    expect(s).toContain('holdOverview');
+    expect(s).toContain("querySelector('[data-cd-link]')");
+  });
+});
