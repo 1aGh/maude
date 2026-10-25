@@ -8,9 +8,8 @@
 //               locked elements, a hidden-ballot vote (ballots in _state/votes/)
 //   video       a Remotion video comp + an EDL (media files are NOT copied — frames render empty)
 //   multids     two systems (maude + maude-v2): four maude canvases in ui/panels/ + one maude-v2 canvas
-//   busy        a 5-artboard canvas where another person's AI holds one artboard, a person holds one
-//               element, and an own ask waits in line (V2-1.15 shapes, read by the eval's
-//               `maude design runs list` stub and the prototype hook)
+//   busy        a 5-artboard canvas with one locked element; a trial's studio makes another AI session
+//               hold one artboard through the real run registry (lib/trial.mjs)
 //
 // build(name, dest) writes a pristine copy, `git init`s it and commits the baseline, so a trial is
 // an APFS clone (`cp -cR`) of the cache and graders diff against HEAD.
@@ -304,54 +303,17 @@ function buildBusy(dest) {
     `${JSON.stringify(baseConfig('eval-busy', repoSystems(['maude']), 'maude'), null, 2)}\n`
   );
   copySystem(join(REPO_DESIGN, 'system', 'maude'), join(d, 'system', 'maude'));
+  // The "held" object is a person's lock (`data-cd-locked`): the one soft lock the shipped build
+  // enforces on an AI write (edit/check → `soft-locked`). A person's live hold (awareness
+  // `holding`) is advisory between people and never reaches the hook route (DDR-120, V2-1.15).
   const st = copyCanvas(join(REPO_DESIGN, 'ui'), 'Onboarding.tsx', d, 'ui/Onboarding.tsx', {
-    stamp: { max: 40, hold: ['Choose a folder…'] },
+    stamp: { max: 40, lock: ['Choose a folder…'] },
   });
   const held = st.ids.find((x) => x.text === 'Choose a folder…');
   if (!held) throw new Error('busy fixture: the held element (Choose a folder…) was not stamped');
-  const now = Date.parse('2026-10-09T10:00:00Z');
-  const state = {
-    v: 1,
-    note: "Eval stand-in for GET /_api/ai/runs (V2-1.15 §5.4) + people's holds (awareness `holding`, §5.12).",
-    others: [
-      {
-        runId: 'r_tereza0001',
-        askId: 'a_tereza0001',
-        actor: 'Tereza',
-        origin: 'maude-chat',
-        label: 'Make the hub door friendlier',
-        state: 'running',
-        artboards: [{ canvas: 'ui/Onboarding.tsx', artboard: 'hub' }],
-        waitingFor: [],
-        objects: [],
-        since: now,
-      },
-    ],
-    mine: [
-      {
-        runId: 'r_mine000001',
-        askId: 'a_mine000001',
-        actor: 'you',
-        origin: 'maude-chat',
-        label: 'Translate the hub door to Czech',
-        state: 'waiting',
-        artboards: [],
-        waitingFor: [{ canvas: 'ui/Onboarding.tsx', artboard: 'hub', position: 1 }],
-        objects: [],
-        since: now,
-      },
-    ],
-    holds: [
-      {
-        actor: 'Jonas',
-        canvas: 'ui/Onboarding.tsx',
-        artboard: 'local',
-        element: held.id,
-        since: now,
-      },
-    ],
-  };
-  write(join(d, '_state', 'eval-runs.json'), `${JSON.stringify(state, null, 2)}\n`);
+  // The busy artboard is NOT planted on disk: a trial boots its own studio and another AI session
+  // claims `hub` through the real run registry (lib/trial.mjs → holdArtboard). The manifest names
+  // the canvas and artboard; the replayable edit that claims it is derived at trial start.
   write(
     join(d, '_active.json'),
     `${JSON.stringify({ active: 'ui/Onboarding.tsx', open_tabs: ['ui/Onboarding.tsx'], selected: null }, null, 2)}\n`

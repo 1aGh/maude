@@ -1,6 +1,7 @@
 // agent-evals/lib/render.mjs — render-based grader: boot the trial's studio, screenshot artboards,
-// flag blank captures. Uses the worktree CLI directly (not the shim), so grading never feeds the
-// Stop-gate shot log of the run it grades.
+// flag blank captures. Uses the worktree CLI directly (not the shim) with the trial studio's env, so
+// grading reuses the studio the trial booted (lib/trial.mjs) and never feeds the Stop-gate shot log of
+// the run it grades. With no `env` (a re-grade of an old trial) it boots one, as before.
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
@@ -17,9 +18,9 @@ const ENV = (repo) => ({
   CLAUDE_PROJECT_DIR: repo,
 });
 
-export function serverUp(cli, project) {
+export function serverUp(cli, project, env = null) {
   const r = spawnSync('node', [cli, 'design', 'server-up', '--root', project, '--timeout', '30'], {
-    env: ENV(project),
+    env: env ? { ...env, CLAUDE_PROJECT_DIR: project } : ENV(project),
     encoding: 'utf8',
     timeout: 60_000,
   });
@@ -59,10 +60,10 @@ export function renderTargets(task, grade, project) {
   return out.slice(0, 8);
 }
 
-export function renderCheck({ cli, project, trialDir, targets }) {
+export function renderCheck({ cli, project, trialDir, targets, env = null }) {
   const shots = [];
   if (!targets.length) return { ran: false, shots };
-  const port = serverUp(cli, project);
+  const port = serverUp(cli, project, env);
   if (!port) return { ran: true, error: 'server did not start', shots };
   mkdirSync(join(trialDir, 'shots'), { recursive: true });
   for (const t of targets) {
@@ -91,7 +92,7 @@ export function renderCheck({ cli, project, trialDir, targets }) {
         '15',
       ],
       {
-        env: ENV(project),
+        env: env ? { ...env, CLAUDE_PROJECT_DIR: project } : ENV(project),
         encoding: 'utf8',
         timeout: 90_000,
       }
