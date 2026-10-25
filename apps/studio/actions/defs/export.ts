@@ -38,6 +38,19 @@ export const EXPORT_ACTIONS: ActionDef[] = [
     search: { keywords: ['clipboard', 'image', 'paste', 'png'] },
   },
   {
+    // 06 ad-search (P8 C10): Export › Advanced › "The same export from a terminal" prints the sheet's export as a
+    // `maude design export …` line with a Copy beside it; ⌘K "copy" lists the same door. Shell-side (the
+    // clipboard), no key, no menu row. With no sheet it copies the line for what is in view (the selection, else
+    // this canvas, as a PNG) — the sheet's own line is for the export it is showing.
+    id: 'export.copy-command',
+    label: 'Copy export command',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'comment' },
+    enabled: { facts: ['canvasOpen'] },
+    search: { where: 'Export › Advanced', keywords: ['terminal', 'cli', 'command line', 'script'] },
+  },
+  {
     id: 'handoff.open',
     label: 'Handoff to production',
     kind: 'command',

@@ -1281,6 +1281,11 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'none',
     agent: cli('maude design export png'),
   },
+  // 06 ad-search — the line it copies IS the agent's route: `maude design export …` with the same flags.
+  'export.copy-command': {
+    effect: 'none',
+    agent: cli('maude design export <format> --scope selection|canvas|folder|project'),
+  },
   // S8.10 — Handoff to production writes code into the project (one AI run, its target file only; the server
   // refuses below Can edit). An agent runs the same verb (`--target web`), or /design:to-rn and /design:to-lottie.
   // Opening the sheet changes nothing (fromCanvas ⇒ effect none, V2-1.3 inv. 3); the sheet's Hand off is the write (POST /_api/handoff, Can edit).

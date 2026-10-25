@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "692eecf7320c",
+  "manifestVersion": "c2a4cf12cdce",
   "actions": [
     {
       "id": "search.open",
@@ -3984,6 +3984,17 @@
       "agent": {
         "path": "cli",
         "verb": "maude design export png"
+      }
+    },
+    {
+      "id": "export.copy-command",
+      "label": "Copy export command",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design export <format> --scope selection|canvas|folder|project"
       }
     },
     {
