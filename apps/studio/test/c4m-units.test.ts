@@ -132,18 +132,19 @@ describe('defender M-B — a specimen’s stylesheet is DS styling, importable',
   const files: Record<string, string> = {
     ...DS,
     'ui/v2/01 Create Flow.tsx':
-      "import { DesignCanvas } from '@maude/canvas-lib';\nimport '../../system/x/preview/empty-state.css';\nimport '../../system/x/ui_kits/web/shell.css';\nexport default () => <DesignCanvas />;\n",
+      "import { DesignCanvas } from '@maude/canvas-lib';\nimport '../../system/x/preview/empty-state.css';\nexport default () => <DesignCanvas />;\n",
     'system/x/preview/empty-state.tsx':
       "import './empty-state.css';\nexport default () => <b>CANARY-SPECIMEN</b>;\n",
     'system/x/preview/empty-state.css': '.empty{}',
     'system/x/ui_kits/web/shell.tsx': 'export default () => <main>KIT</main>;\n',
     'system/x/ui_kits/web/shell.css': '.shell{}',
   };
-  test('the importer is not blocked and reads the stylesheets, never the specimen', () => {
+  // p8-c4 (attacker round 8, L): a UI kit's / showcase's own stylesheet is that canvas's, no longer
+  // DS styling — importing it is refused (test/p8-c4-closure-gaps.test.ts).
+  test('the importer is not blocked and reads the stylesheet, never the specimen', () => {
     const c = closureOf(files, 'ui/v2/01 Create Flow.tsx');
     expect(c.blocked.size).toBe(0);
     expect(c.read.has('system/x/preview/empty-state.css')).toBe(true);
-    expect(c.read.has('system/x/ui_kits/web/shell.css')).toBe(true);
     expect(c.read.has('system/x/preview/empty-state.tsx')).toBe(false);
     expect(c.read.has('system/x/ui_kits/web/shell.tsx')).toBe(false);
   });
