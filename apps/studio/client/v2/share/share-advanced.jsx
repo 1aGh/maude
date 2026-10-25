@@ -60,6 +60,9 @@ function CopyRow({ id, label, value, testid, copyTestid, children }) {
           readOnly
           value={value}
           title={value}
+          // 10 co-share-advanced: the whole address, right-aligned. An input is 20 characters wide until told otherwise,
+          // which cut every real address with an ellipsis; the width follows the text (the field is mono, so ch is exact)
+          style={{ width: `${value.length + 1}ch` }}
           onFocus={(e) => e.target.select()}
         />
         <button
@@ -256,7 +259,7 @@ export function ShareAdvanced({
             label="Role"
             value={rules.role}
             options={LINK_ROLES.map((r) => [r, roleWord(r)])}
-            disabled={busy || rules.who !== 'anyone'}
+            disabled={busy}
             onChange={(v) => onRule({ role: v })}
           />
           <Pick
@@ -301,9 +304,6 @@ export function ShareAdvanced({
           testid={`share-${kind}-url`}
           copyTestid={`share-copy-${kind}`}
         >
-          {kind === 'app' && links.appIsLocalOnly && (
-            <p className="v2sh-hint">Opens the folder on this Mac only.</p>
-          )}
           {kind === 'app' && shell !== 'native' && (
             <a className="v2sh-hint" href={links.app} data-testid="share-open-app">
               Open in the Mac app

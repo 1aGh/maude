@@ -280,6 +280,20 @@ describe('the link and its rules (co-share-advanced)', () => {
     expect(q('share-link-off')).toBeNull();
   });
 
+  test('P8 c8 (10 co-share-advanced): Role is a live select even on a Team only link; values are wide enough to read whole; no extra hint under App link', async () => {
+    const { q } = await mount({ posture: ROLES_V2 }, { links: { ...LINKS, appIsLocalOnly: true } });
+    await openAdvanced(q);
+    expect((q('share-link-who') as HTMLSelectElement).value).toBe('team');
+    // the board draws Role enabled in this state (the link row's sub-line already says the role of a team link)
+    expect((q('share-link-role') as HTMLSelectElement).disabled).toBe(false);
+    // a value is as wide as its text, so the ellipsis only ever appears when the sheet itself is too narrow
+    for (const id of ['share-app-url', 'share-local-url', 'share-syncs-hub']) {
+      const input = q(id) as HTMLInputElement;
+      expect(input.style.width, id).toBe(`${input.value.length + 1}ch`);
+    }
+    expect(q('share-other-ways')?.textContent).not.toContain('Opens the folder on this Mac only.');
+  });
+
   test('someone who may not invite: no rules, and Copy link copies the location only', async () => {
     const { q, calls } = await mount({ posture: ROLES_V2, me: MEMBER_ME });
     await openAdvanced(q);
