@@ -113,7 +113,7 @@ describe('sync words', () => {
       { me: 'Michal', now }
     );
     expect(c.mine.who).toBe('Yours · this Mac');
-    expect(c.theirs.who).toBe('Jonas · 7:55 · their Mac');
+    expect(c.theirs.who).toBe('Jonas · 07:55 · their Mac');
     const gone = conflictCard(
       {
         slug: 's',

@@ -51,7 +51,9 @@ describe('offline foot — the remembered "since"', () => {
     expect(localStorage.getItem(KEY)).toBe(String(since));
     // then the queue is read and the Mac is still offline with its 14 changes
     await rerender({ kind: 'offline', pending: 14 });
-    expect(slots.getRowSlots().foot?.text).toBe('14 changes since yesterday 18:20 — kept on this Mac');
+    expect(slots.getRowSlots().foot?.text).toBe(
+      '14 changes since yesterday 18:20 — kept on this Mac'
+    );
     slots.resetRowSlots();
   });
 

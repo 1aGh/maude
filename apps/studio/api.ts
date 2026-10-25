@@ -50,8 +50,8 @@ import { rewriteRelativeImports } from './canvas-imports.ts';
 import { canvasSlugFromRel } from './canvas-slug.ts';
 import { isAnnotationId, isWorldPoint } from './comment-anchor.ts';
 import { readAnchors, withSanitizedAnchors } from './comments/anchors.ts';
-import { localAuthor } from './comments/local-author.ts';
 import { type ImportedFrom, withSanitizedImportedFrom } from './comments/imported-from.ts';
+import { localAuthor } from './comments/local-author.ts';
 import { mentionsOf } from './comments/mentions.ts';
 import {
   applyCommentOp,
