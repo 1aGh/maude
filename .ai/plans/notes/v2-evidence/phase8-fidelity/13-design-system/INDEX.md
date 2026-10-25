@@ -425,3 +425,74 @@ Harness `.scr/chain-c7ds2.sh` + `chain-c7ds2b.sh` (the round-7 harness + `frameC
 | `ds-advanced` | dark | re-shot | same |
 
 Harness `.scr/chain-c7ds3.sh` (`_c7-harness-g5` + the `_c7ds3-harness-g5` deltas; s13 groups a f b g k). Nothing judged. Details: `fix-c7-ds3.md`.
+
+## FINAL (D5, e37e7d82a) — IMPL re-shot on the merged tip (stage C rounds 1–7)
+
+Re-shot 56 of 60 pairs; 4 unreachable. Supersedes every earlier "after" / "FINAL" / "Round" section above: every pair in this folder (`<id>-<theme>.jpg`, JPEG q55, max 1100 px wide) shows the merged product at e37e7d82a. The SPEC side is unchanged (no commit to the board since the stage-A shot), so the stage-A spec PNGs are reused. Full-size pairs: last line of `full-size-path.txt` ("final (D5):").
+
+Shot on the Mac mini (`scripts/remote-lane.sh`) with its installed Google Chrome (no Playwright browser there; `SHOT_CHANNEL=chrome`), harness `_d5-harness-g5/` = the newest layers per canvas flattened (see its README).
+- Scenarios: `s13.mjs` groups a–k (where, board, edit, truth, make, many-switch, multi-menu/-switch, edge-contrast/-trash, migrate, advanced), `s13p.mjs` (ds-multi-panel), `s13s.mjs` (ds-edge-suggest), `s13u.mjs` (ds-multi-schema), `dsboard.mjs` (the three whole-board crops through the capture origin, both themes). ds-multi-panel light re-run alone (a random port collided once).
+- Also shot (no spec pair, full-size only): `ds-edit-colour-pending`, `ds-make-entry`, `ds-make-sentence`, `ds-edge-trash-board`, `ds-multi-schema.row`.
+
+| id | theme | FINAL (D5) | spec |
+| --- | --- | --- | --- |
+| `ds-advanced` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-advanced` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-dark` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-dark` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-gator` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-gator` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-studio` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-studio` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-contrast` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-contrast` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-migrate` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-migrate` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-suggest` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-suggest` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-trash` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-trash` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-colour` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-colour` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-instance` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-instance` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-master` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-master` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-reach` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-reach` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-review` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-review` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-directions` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-directions` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-done` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-done` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-filling` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-filling` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-inputs` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-inputs` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-mix` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-mix` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-library` | dark | unreachable — a team library lives on a hub; no real hub is booted in this lane (safety rule), so the library rows cannot be drawn | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-library` | light | unreachable — a team library lives on a hub; no real hub is booted in this lane (safety rule), so the library rows cannot be drawn | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-linked` | dark | unreachable — a linked team library needs a hub; no real hub is booted in this lane | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-linked` | light | unreachable — a linked team library needs a hub; no real hub is booted in this lane | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-switch` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-switch` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-menu` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-menu` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-migrate` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-migrate` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-panel` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-panel` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-schema` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-schema` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-switch` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-switch` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-conflict` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-conflict` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-outside` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-outside` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-gator` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-gator` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-studio` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-studio` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
