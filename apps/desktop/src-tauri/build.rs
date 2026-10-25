@@ -79,6 +79,8 @@ fn main() {
                 "open_cell_tab",
                 // S9.17 (notify.rs): a project tab's unread mentions → Dock badge + notice.
                 "mention_notice",
+                // V2-8.9 M1 (windows.rs): a project tab's web switch → its navigation gate.
+                "set_tab_web",
                 // V2-3.7 the tab strip (tabs.rs; granted to `strip` only,
                 // capabilities/strip.json).
                 "tabs_state",

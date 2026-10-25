@@ -39,6 +39,7 @@
     "allow-open-search-result",
     "allow-open-cell-tab",
     "allow-mention-notice",
+    "allow-set-tab-web",
     "allow-take-pending-intent",
     "allow-take-tabs-restored",
     "allow-take-pending-navigate",

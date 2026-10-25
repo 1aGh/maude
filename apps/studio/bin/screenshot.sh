@@ -216,6 +216,8 @@ AB="${MAUDE_AGENT_BROWSER:-agent-browser}"
 if [ "$MODE" = "shell" ] && [ -z "$AGENT_BROWSER_SESSION" ]; then
   export AGENT_BROWSER_SESSION="maude-shell-shot"
 fi
+# V2-8.9 M1: AI may › Search the web off (MAUDE_NO_EGRESS=1) → this browser reaches loopback only.
+. "$(dirname "$0")/_no-egress.sh"
 if [ "$ENGINE" = "auto" ]; then
   if command -v "$AB" >/dev/null 2>&1; then
     ENGINE="agent-browser"

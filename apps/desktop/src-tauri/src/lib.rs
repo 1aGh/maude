@@ -542,6 +542,8 @@ pub fn run() {
             // S9.17: the browser door's cell tab + a project tab's mention notices.
             windows::open_cell_tab,
             notify::mention_notice,
+            // V2-8.9 M1: a project tab's "AI may › Search the web" → its navigation gate.
+            windows::set_tab_web,
             windows::e2e_open_root,
             // V2-3.7 the tab strip (strip-only, capabilities/strip.json).
             tabs::tabs_state,
