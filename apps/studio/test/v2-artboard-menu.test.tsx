@@ -21,6 +21,7 @@ import { type ArtboardMenuDeps, artboardMenuSections } from '../editing/artboard
 import {
   type Box,
   copyPlace,
+  copyPlacesBelow,
   DEFAULT_GAP,
   DUPLICATE_ON_DROP_EVENT,
   dropPlaces,
@@ -33,6 +34,25 @@ import { growCh, nextRenameId, renameOrder } from '../editing/rename-order.ts';
 import { SelectionSetProvider } from '../use-selection-set.tsx';
 
 const box = (id: string, x: number, y: number, w = 120, h = 131): Box => ({ id, x, y, w, h });
+
+describe('p8-c7-cf08 — Duplicate at another width lands under the source (01 cf-duplicate-done)', () => {
+  test('left edges aligned, one gutter below, the same top-left column', () => {
+    const all = [box('desktop', 300, 96, 806, 504), box('tablet', 1186, 96, 834, 504)];
+    expect(copyPlacesBelow([all[0] as Box], all, () => 1280)).toEqual([
+      { artboard: 'desktop', at: { x: 300, y: 96 + 504 + DEFAULT_GAP } },
+    ]);
+  });
+  test('a board already standing there pushes the copy past it', () => {
+    const all = [box('a', 0, 0, 100, 100), box('b', 0, 180, 100, 60)];
+    const [place] = copyPlacesBelow([all[0] as Box], all, () => 100);
+    expect(place?.at).toEqual({ x: 0, y: 240 + DEFAULT_GAP });
+  });
+  test('two sources stack: the second copy counts the first', () => {
+    const all = [box('a', 0, 0, 100, 100), box('b', 0, 0, 100, 100)];
+    const places = copyPlacesBelow(all, all, () => 100);
+    expect(places[1]?.at.y).toBeGreaterThan(places[0]?.at.y ?? 0);
+  });
+});
 
 describe('⌘D lands at the gap the row already uses', () => {
   test('a row with a 16 px gap: the copy goes right of the source at 16', () => {

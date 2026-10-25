@@ -20,7 +20,7 @@ import type { CommandRecord } from '../undo-stack.ts';
 import { type Selection, useSelectionSet } from '../use-selection-set.tsx';
 import { useUndoStackOptional } from '../use-undo-stack.tsx';
 import type { ArtboardMenuDeps } from './artboard-menu.tsx';
-import { type Box, copyPlaces, dropPlaces, pinsFor } from './duplicate-rhythm.ts';
+import { type Box, copyPlaces, copyPlacesBelow, dropPlaces, pinsFor } from './duplicate-rhythm.ts';
 import { type EditOpAsk, editOpRecord, runEditOp } from './edit-op.ts';
 import { requestRename } from './rename-order.ts';
 
@@ -183,7 +183,9 @@ export function useArtboardActions(): ArtboardActions {
     };
     const duplicateAtWidth: ArtboardActions['duplicateAtWidth'] = async (ids, width) => {
       const list = ids ?? selectedIds();
-      await writeCopies(duplicatePlaces(list, boards(), width), deps(), width);
+      // 01 cf-duplicate-done: the copy lands under the source, left edges aligned
+      const sources = list.map((id) => boards().find((b) => b.id === id)).filter((b): b is Box => !!b);
+      await writeCopies(copyPlacesBelow(sources, boards(), () => width), deps(), width);
     };
     const duplicateAtWidths: ArtboardActions['duplicateAtWidths'] = async (ids, widths) => {
       const list = ids ?? selectedIds();
