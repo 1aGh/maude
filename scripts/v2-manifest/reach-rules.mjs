@@ -237,6 +237,11 @@ export const HOOK_SHELLS = Object.freeze([
     "⌘K lists the person's other projects only in the desktop app (its tabs, its Home index — search-projects.js acrossProjects)",
   ],
   [
+    /^settings-update-restart$/,
+    ['desktop'],
+    "a staged update is the desktop shell's (`update-ready`, advanced-section UpdateRow): a browser tab has no updater to stage one",
+  ],
+  [
     /^switcher-open-(folder|team)$/,
     ['desktop'],
     "the pill's Switch project submenu is drawn only by the desktop shell (useProjectSwitcher: `node` is null outside the app)",
@@ -303,6 +308,20 @@ export const HOOK_PROOFS = Object.freeze({
     'apps/studio/test/v2-gate-proofs.test.tsx',
     'artboard-new-section is on the page, named for the section',
     ['artboard-new-section']
+  ),
+  // the scrub bar of a video board: it belongs to a clip that has PLAYED (07 ve-play), and a headless page cannot be asked to
+  // play a Remotion Player with sound. The chrome test renders the played state (a Player stub that says it is playing)
+  'video-scrub-bar': proof(
+    'apps/studio/test/video-play-chrome.test.tsx',
+    'the centre button gives way to the scrub bar with the time'
+  ),
+  'video-scrub-time': proof(
+    'apps/studio/test/video-play-chrome.test.tsx',
+    'the centre button gives way to the scrub bar with the time'
+  ),
+  'video-scrub-fill': proof(
+    'apps/studio/test/video-play-chrome.test.tsx',
+    'the fill follows the frame'
   ),
   // the local harness canvas `maude design photo-bg-remove` drives; nobody opens it
   '[data-photo-bgremove-status]': {

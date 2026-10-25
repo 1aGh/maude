@@ -248,6 +248,14 @@ export const ROUTE_ANSWERS = {
   // ── other connections ──────────────────────────────────────────────────────────────────────
   // ── the ACP chat (desktop): the bridge's availability probe and the readiness report behind it ────
   acpAvailable: { available: true },
+  sharePosture: {
+    linked: true,
+    reachable: true,
+    you: { invite: true },
+    hub: HUB,
+    capabilities: [],
+    access: null,
+  },
   acpChatSession: { sessionId: 'sess-probe-1' },
   acpMissing: { available: false, reason: 'Claude Code is not installed.' },
   preflightNoClaude: {
@@ -454,6 +462,11 @@ export const STATES = {
     routes: { '/_api/project/history*': 'projectLegacy', '/_api/cloud/history*': 'serverError' },
   },
   'git-clean-behind': { dropFrames: ['git-status'], routes: { '/_api/git/status*': 'gitClean' } },
+  // …and the hub answers the Share sheet's posture (linked, reachable, may invite): the sheet draws its full body
+  'share-linked': {
+    extends: 'linked-project',
+    routes: { '/_api/share/posture': 'sharePosture' },
+  },
   'trash-full': { routes: { '/_api/sync/trash': 'syncTrash' } },
   'git-on-draft': { extends: 'git-dirty', routes: { '/_api/git/status*': 'gitOnDraft' } },
   'cloud-in': {
@@ -576,6 +589,7 @@ export const STATES = {
   'acp-plan': { acp: 'chat-plan', routes: { '/_api/acp/status': 'acpAvailable' } },
   'acp-elicit': { acp: 'chat-elicit', routes: { '/_api/acp/status': 'acpAvailable' } },
   'acp-error': { acp: 'chat-error', routes: { '/_api/acp/status': 'acpAvailable' } },
+  'acp-done-tools': { acp: 'chat-done-tools', routes: { '/_api/acp/status': 'acpAvailable' } },
   'acp-done': { acp: 'chat-done', routes: { '/_api/acp/status': 'acpAvailable' } },
   'acp-limit': { acp: 'chat-limit', routes: { '/_api/acp/status': 'acpAvailable' } },
   // a Home canvas with an open comment (Tereza's own) and a resolved one: the panel, the pin, the thread
@@ -714,7 +728,7 @@ export const OPENERS = [
   // unlinked local project on the desktop is offered "Move to the cloud" instead.
   {
     id: 'share-linked',
-    state: 'linked-project',
+    state: 'share-linked',
     steps: [{ click: tid('share-cluster-share') }, { ensureOpen: tid('share-other-ways-toggle') }],
   },
   { id: 'settings-advanced-linked', state: 'linked-project', steps: settingsTab('advanced') },
@@ -1043,16 +1057,6 @@ export const OPENERS = [
     steps: [
       { frameClick: '[data-cd-id="home-hero-photo"]' },
       { click: tid('inspector-view-photo'), optional: true },
-    ],
-  },
-  // a video board: Play starts it, and the scrub bar (progress · time) only exists after that
-  {
-    id: 'video-play',
-    steps: [
-      { click: tid('canvas-row-ui-reel') },
-      { wait: 5000 },
-      { frameClick: tid('video-play-button'), optional: true },
-      { wait: 1200 },
     ],
   },
   // a web page's Inspector: the one Layout row (Top to bottom · …) — only a `web` board has it
@@ -1679,7 +1683,7 @@ export const OPENERS = [
   // "Show in chat › Everything" draws the tool-call cards (one card per run of calls) in the feed
   {
     id: 'acp-turn-verbose',
-    state: 'acp-chat',
+    state: 'acp-done-tools',
     steps: [
       { key: 'Meta+Slash' },
       { wait: 800 },

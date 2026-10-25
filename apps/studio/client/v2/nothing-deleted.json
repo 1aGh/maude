@@ -565,8 +565,8 @@
       "drawnAt": "ad-inspector",
       "v2": {
         "action": null,
-        "testid": "canvas-menu-item-theme",
-        "where": "Right-click an artboard’s label › Theme › DS default · Follow chrome · Light · Dark (until S2)"
+        "testid": "insp-ab-<name>",
+        "where": "Click an artboard’s label › Inspector › Advanced › Theme: DS default · Follow chrome · Light · Dark (P8 round 7 moved it out of the artboard’s right-click menu)"
       }
     },
     {
@@ -577,9 +577,9 @@
       "home": "insp",
       "drawnAt": "ad-inspector",
       "v2": {
-        "action": null,
-        "testid": "canvas-menu-item-fit-one",
-        "where": "Right-click an artboard’s label › Fit just this artboard (⌘K “Zoom to artboard”; until S2)"
+        "action": "view.zoom-to-artboard",
+        "testid": null,
+        "where": "⌘K “Zoom to artboard” fits just the selected artboard; ⌘K “Reset position” (artboard.reset-position) puts it back in its slot (P8 round 7 took both out of the artboard’s right-click menu)"
       }
     },
     {
