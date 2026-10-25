@@ -32743,6 +32743,38 @@
     "v2": "new"
   },
   {
+    "hook": "timeline-loop-in",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 C9: the \"I\" badge at the loop range's start on the ruler: a slider, drag it or ← → (⇧ = one second).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/loop-handle.jsx",
+      "symbol": "LoopHandle"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/p8-c9-video-timeline.test.tsx"
+    ],
+    "v2": "new in v2 (P8 C9)"
+  },
+  {
+    "hook": "timeline-loop-out",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 C9: the \"O\" badge at the loop range's end on the ruler: a slider, drag it or ← → (⇧ = one second).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/loop-handle.jsx",
+      "symbol": "LoopHandle"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/p8-c9-video-timeline.test.tsx"
+    ],
+    "v2": "new in v2 (P8 C9)"
+  },
+  {
     "hook": "timeline-poster-flag",
     "kind": "testid",
     "pattern": false,
@@ -38462,10 +38494,10 @@
     "v2": "new in v2 (S7.13)"
   },
   {
-    "hook": "reframe-scope-<scope>",
+    "hook": "reframe-count",
     "kind": "testid",
-    "pattern": true,
-    "meaning": "S7.13: This format / All formats: whose framing a drag writes (scope = format | all).",
+    "pattern": false,
+    "meaning": "S7.13: How many keyframes the picked format has (\"2 keyframes\"), or that the window is centred — read, not drawn (sr-only, P8 C9).",
     "producer": {
       "file": "apps/studio/client/v2/timeline/reframe-island.jsx",
       "symbol": "ReframeIsland"
@@ -38478,10 +38510,10 @@
     "v2": "new in v2 (S7.13)"
   },
   {
-    "hook": "reframe-count",
+    "hook": "reframe-picture",
     "kind": "testid",
     "pattern": false,
-    "meaning": "S7.13: How many keyframes this scope has (\"2 keyframes\"), or that the window is centred.",
+    "meaning": "P8 C9: the still under the Re-frame window when the clip is a photo (an <img>, not a video).",
     "producer": {
       "file": "apps/studio/client/v2/timeline/reframe-island.jsx",
       "symbol": "ReframeIsland"
@@ -38491,7 +38523,7 @@
     "sourceConsumers": [
       "apps/studio/test/formats-and-reframe-ui.test.tsx"
     ],
-    "v2": "new in v2 (S7.13)"
+    "v2": "new in v2 (P8 C9)"
   },
   {
     "hook": "reframe-reset",
