@@ -4,7 +4,9 @@
 import { useState } from 'react';
 import { DsIcon } from '../../canvas-ds-icons.tsx';
 import { CAP, Frame, More, type SectionProps, Swatch } from './parts.tsx';
-import type { BoardModel } from './types.ts';
+import type { BoardBrand, BoardModel } from './types.ts';
+
+const NO_BRAND: BoardBrand = { icons: [], voice: null, say: null, rules: [] };
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -43,6 +45,7 @@ function LogoTile({ file, src }: { file: string; src: string | null }) {
 export function BrandSection({ model, mode }: SectionProps) {
   const brand = model.tokens.filter((t) => t.section === 'brand');
   const shown = brand.slice(0, CAP.brand);
+  const brand_ = model.brand ?? NO_BRAND;
   return (
     <Frame kind="brand" model={model} mode={mode}>
       <div className="ds-pad ds-col">
@@ -66,6 +69,56 @@ export function BrandSection({ model, mode }: SectionProps) {
             ))}
           </div>
         )}
+        {brand_.icons.length ? (
+          <>
+            <p className="ds-k ds-k--gap">Icons</p>
+            <div className="ds-icons" data-testid="ds-brand-icons">
+              {brand_.icons.map((i) => (
+                <span key={i.name} title={i.name}>
+                  <i style={{ WebkitMaskImage: `url(${i.src})`, maskImage: `url(${i.src})` }} />
+                </span>
+              ))}
+            </div>
+          </>
+        ) : null}
+        {brand_.voice ? (
+          <>
+            <p className="ds-k ds-k--gap">Voice</p>
+            <p className="ds-voice ds-voice--line">{brand_.voice}</p>
+            {brand_.say ? (
+              <p className="ds-say">
+                <b>Say</b> {brand_.say.say} <b>not</b> {brand_.say.not}
+              </p>
+            ) : null}
+          </>
+        ) : null}
+        {brand_.rules.length ? (
+          <>
+            <p className="ds-k ds-k--gap">Rules for AI and code</p>
+            {brand_.rules.map((r) => (
+              <p key={r} className="ds-rule">
+                <svg
+                  className="ds-tick"
+                  viewBox="0 0 12 12"
+                  width="12"
+                  height="12"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M2.5 6.5l2.2 2.2 4.8-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  />
+                </svg>
+                {r}
+              </p>
+            ))}
+            <p className="ds-cap">
+              Written to SKILL.md — Claude Code and other agents follow them too.
+            </p>
+          </>
+        ) : null}
         {shown.length ? (
           <>
             <p className="ds-k ds-k--gap">Brand colours</p>

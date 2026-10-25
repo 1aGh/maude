@@ -36,6 +36,8 @@ export function __registerBoardModel(next: BoardModel, specs: Record<string, unk
 
 export const getBoardModel = (): BoardModel | null => model;
 export const getSpecimen = (src: string): unknown => specimens[src];
+/** The `preview/…tsx` pages this canvas kept as showcases, in the order the module registered them. */
+export const getSpecimenSrcs = (): string[] => Object.keys(specimens);
 export const getBoardMode = (): BoardMode => mode;
 
 export function setBoardMode(next: BoardMode): void {

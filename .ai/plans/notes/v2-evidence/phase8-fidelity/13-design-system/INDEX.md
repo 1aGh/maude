@@ -303,3 +303,13 @@ Re-shot 52 of 60 pairs; 8 unreachable. Supersedes every earlier "after" / "FINAL
 | `ds-where-gator` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ds-where-studio` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ds-where-studio` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+## Round 6 (p8-c6-dsboard2) — IMPL re-shot on the round-6 branch
+
+Re-shot (light + dark pairs overwritten, harness `_d3-harness-g5` copied over `_d2`/`_d` into `.scr/`, `REPO` repointed, nothing judged): only the three whole-board crops. The board's Brand section now draws the system's icons, voice and "Rules for AI and code" (from `assets/icons` + SKILL.md) and Patterns draws the kept showcases live and scaled. Every other pair keeps its D3 shot. See `fix-c6-dsboard2.md`.
+
+| id | theme | after (round 6) | spec |
+| --- | --- | --- | --- |
+| `ds-board-studio` | light, dark | re-shot (capture-origin crop) | spec reused |
+| `ds-board-dark` | light, dark | re-shot (capture-origin crop) | spec reused |
+| `ds-board-gator` | light, dark | re-shot (capture-origin crop) | spec reused |
