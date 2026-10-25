@@ -10,3 +10,8 @@ bugfix (p8-bug-aiundo — ⌘Z after an AI run undoes that run; pairs re-shot: c
 round 5: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a6978930be4932b00/.scr/pairs/01/ (p8-c5-panels @ 2e203e9e6; IMPL re-shot light + dark, SPEC reused; every id with a pair)
 bugs3: (undo toast "Undone — <label> · Redo"; ⌘Z while your own AI works is refused — pairs re-shot: cf-undo-ai): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad1e7b1fa8d504037/.scr/pairs/01
 final (D3, 63592219a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a81ec5fb665864bd9/.scr/pairs/01
+
+round 6 (p8-c6-aisurf, 8a9d2f0): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad6307ded82bdaa41/.scr/pairs/01-create-flow/
+(one PNG per artboard id and theme: <id>-<dark|light>.png, spec left | impl right, same height, label strip on top)
+round 6 IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad6307ded82bdaa41/.scr/impl-out/01/
+round 6 harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_c6-harness-g2/ (on top of _d3-harness-g2/ and _d2-harness-g2/)

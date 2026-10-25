@@ -218,3 +218,39 @@ Re-shoot of the IMPL side on the merged tip 63592219a (stage C rounds 1-5 + bugs
 | `ai-advanced` | re-shot | re-shot |
 | `ai-adv-edges` | re-shot | re-shot |
 | `ai-history` | re-shot (in the finish window) | re-shot (in the finish window) |
+
+
+## Round 6 (p8-c6-aisurf, 8a9d2f0)
+
+Re-shot on the p8-c6-aisurf worktree tip, both themes, committed pairs overwritten (spec left | impl right). The critic judges; this builder does not.
+
+- Harness: `_c6-harness-g2/` = D3 `_d3-harness-g2/` over `_d2-harness-g2/` with round-6 edits: the chat is opened BEFORE the artboard is picked (an artboard pick with the chat open is the ask scope, not an Inspector pick), `s03e` runs ai-done on ONE chat (no hung poster chat) and starts the poster chat only for ai-hero, ai-history is shot with the chat hidden (Version history alone), ai-panel-closed drives a real finish while the panel is hidden (the Done toast), `s03a` attaches photo + footage + PDF and shows the drop overlay (`dragenter` with Files), the left Canvases panel is folded at the start of `s03e`.
+- Product (p8-c6-aisurf): no Inspector on an artboard pick with the chat open + a re-announced selection after an AI reload is not a new pick; the file-write dashed rim + wash yield to the AI ring layer while a run of yours is live; ONE follow-up row under a finish ("Same on <artboard>" + a variation of the ask), the suggestion strip and its "Because you last asked …" line yield to it; "What AI did" only folds a run of 4+ steps; the permission question is the work ("Replace 4 team photos in Uniformy-2027?" + the button "Replace 4 team photos"); the needs-you toast reads one line and its x shows on hover/focus only; the chat is titled from the ask while it runs.
+- Still open (named in fix-c6-aisurf.md): suggestion strips of the other contexts, consent card, chip kinds column, run-list popover driven, copy caption frame, history row actions + Compare, chat-list groups / row menu, Advanced "AI may" switches (no capability behind them), 3-tab History (CONTRACT keeps Named).
+
+| id | dark | light |
+|---|---|---|
+| `ai-hero` | re-shot (round 6) | re-shot (round 6) |
+| `ai-open` | re-shot (round 6) | re-shot (round 6) |
+| `ai-suggest` | re-shot (round 6) | re-shot (round 6) |
+| `ai-scope` | re-shot (round 6) | re-shot (round 6) |
+| `ai-working` | re-shot (round 6) | re-shot (round 6) |
+| `ai-done` | re-shot (round 6) | re-shot (round 6) |
+| `ai-attach` | re-shot (round 6) | re-shot (round 6) |
+| `ai-attach-menu` | re-shot (round 6) | re-shot (round 6) |
+| `ai-question` | re-shot (round 6) | re-shot (round 6) |
+| `ai-long` | re-shot (round 6) | re-shot (round 6) |
+| `ai-long-pinned` | re-shot (round 6) | re-shot (round 6) |
+| `ai-two-artboards` | re-shot (round 6) | re-shot (round 6) |
+| `ai-same-artboard` | re-shot (round 6) | re-shot (round 6) |
+| `ai-copy` | re-shot (round 6) | re-shot (round 6) |
+| `ai-chat-list` | re-shot (round 6) | re-shot (round 6) |
+| `ai-panel-closed` | re-shot (round 6) | re-shot (round 6) |
+| `ai-quit` | re-shot (round 6) | re-shot (round 6) |
+| `ai-needs-hidden` | re-shot (round 6) | re-shot (round 6) |
+| `ai-permission` | re-shot (round 6) | re-shot (round 6) |
+| `ai-choice-fail` | re-shot (round 6) | re-shot (round 6) |
+| `ai-not-ready` | re-shot (round 6) | re-shot (round 6) |
+| `ai-advanced` | re-shot (round 6) | re-shot (round 6) |
+| `ai-adv-edges` | re-shot (round 6) | re-shot (round 6) |
+| `ai-history` | re-shot (round 6) | re-shot (round 6) |

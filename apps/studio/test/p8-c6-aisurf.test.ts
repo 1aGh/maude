@@ -1,15 +1,22 @@
 // P8 stage C round 6 (03 AI chat surfaces, 01 AI frames): pure rules the board draws.
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
-import { followUps, foldedSteps } from '../client/v2/ai/run-model.js';
+import { foldedSteps, followUps } from '../client/v2/ai/run-model.js';
 import { deriveSuggestions } from '../client/v2/ai/suggest-why.js';
 
 const run = (over: Record<string, unknown> = {}) => ({
   runId: 'r_aaaaaaaaaaaa',
+  chatId: 'c1',
+  origin: 'maude-chat',
   state: 'ended',
   outcome: 'done',
+  createdAt: 1000,
+  startedAt: 1000,
+  endedAt: 42_000,
   label: 'Make it greener, keep the logo white',
+  scope: { canvas: 'Combine.tsx', artboards: ['post'] },
   touched: { 'Combine.tsx': ['post'] },
+  objects: [],
   ...over,
 });
 const BOARDS = [
