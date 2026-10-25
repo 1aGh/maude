@@ -196,11 +196,29 @@ export function readRecentSearches(stateDir: string): RecentSearch[] {
   }
 }
 
-function writeHomeJson(stateDir: string, recentSearches: RecentSearch[]) {
+/** Everything home.json holds besides the recent searches (the app-owned, per-Mac Home state). */
+function readHomeFlags(stateDir: string): { firstRunSeen: boolean } {
+  try {
+    const raw = JSON.parse(readFileSync(homeJsonPath(stateDir), 'utf8')) as {
+      firstRunSeen?: unknown;
+    };
+    return { firstRunSeen: raw.firstRunSeen === true };
+  } catch {
+    return { firstRunSeen: false };
+  }
+}
+
+function writeHomeJson(
+  stateDir: string,
+  recentSearches: RecentSearch[],
+  flags: { firstRunSeen: boolean } = readHomeFlags(stateDir)
+) {
   mkdirSync(stateDir, { recursive: true, mode: 0o700 });
   const file = homeJsonPath(stateDir);
   const tmp = `${file}.tmp-${process.pid}-${Date.now().toString(36)}`;
-  writeFileSync(tmp, `${JSON.stringify({ v: 1, recentSearches }, null, 2)}\n`, { mode: 0o600 });
+  const doc: Record<string, unknown> = { v: 1, recentSearches };
+  if (flags.firstRunSeen) doc.firstRunSeen = true;
+  writeFileSync(tmp, `${JSON.stringify(doc, null, 2)}\n`, { mode: 0o600 });
   renameSync(tmp, file);
 }
 
@@ -335,6 +353,24 @@ export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
         ].slice(0, RECENT_SEARCHES_CAP);
         writeHomeJson(deps.stateDir, next);
         return json(200, { recentSearches: next });
+      },
+    },
+    {
+      // P8 C8 (05 es-home-local, decision v2-p8-c8-first-run-card-once): the first-run sign-in card (board 02) is for
+      // the very first launch of this Mac only. Whether it was shown is per-Mac runtime state in Home's own
+      // home.json (app-owned, never the project, never versioned).
+      method: 'GET',
+      path: '/_home/first-run',
+      kind: 'home',
+      handle: () => json(200, { seen: readHomeFlags(deps.stateDir).firstRunSeen }),
+    },
+    {
+      method: 'POST',
+      path: '/_home/first-run',
+      kind: 'home',
+      handle: () => {
+        writeHomeJson(deps.stateDir, readRecentSearches(deps.stateDir), { firstRunSeen: true });
+        return json(200, { seen: true });
       },
     },
     {

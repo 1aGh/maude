@@ -18,3 +18,36 @@ describe('01 cf-render-error — the AI repair is a chip in the AI panel', () =>
     expect(deriveSuggestions({ openComments: 2 })?.context).toBe('comments');
   });
 });
+
+// ── 05 es-home-local — the first-run card is for the first launch only (per-Mac flag in Home's own state) ──
+import { createHomeFetch } from '../home/routes.ts';
+import { freshIndexDir, homeDeps, homeReq } from './_home-fixtures.ts';
+
+describe('05 es-home-local — /_home/first-run', () => {
+  test('false on a fresh Mac, true once marked, and the recent searches survive the write', async () => {
+    freshIndexDir();
+    const deps = homeDeps();
+    const f = createHomeFetch(deps);
+    const get = async () => (await f(homeReq('/_home/first-run'))).json();
+    expect(await get()).toEqual({ seen: false });
+    const saved = await f(
+      homeReq('/_home/recent-searches', {
+        method: 'POST',
+        body: JSON.stringify({ q: 'plakat', results: 2 }),
+      })
+    );
+    expect(saved.status).toBe(200);
+    const r = await f(homeReq('/_home/first-run', { method: 'POST', body: '{}' }));
+    expect(r.status).toBe(200);
+    expect(await get()).toEqual({ seen: true });
+    const again = (await (await f(homeReq('/_home/recent-searches'))).json()) as {
+      recentSearches: Array<{ q: string }>;
+    };
+    expect(again.recentSearches.map((x) => x.q)).toEqual(['plakat']);
+    // a later recent-search write keeps the flag
+    await f(
+      homeReq('/_home/recent-searches', { method: 'POST', body: JSON.stringify({ q: 'cenik' }) })
+    );
+    expect(await get()).toEqual({ seen: true });
+  });
+});

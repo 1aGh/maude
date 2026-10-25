@@ -93,6 +93,9 @@ export const search = (q, pids) =>
   homeFetch(`/_home/search?q=${encodeURIComponent(q)}&pids=${pidParam(pids)}`);
 export const getRecentSearches = () => homeFetch('/_home/recent-searches');
 export const saveRecentSearch = (q, results) => post('/_home/recent-searches', { q, results });
+/** P8 C8: has this Mac already shown the first-run sign-in card? `{ seen }` (Home's own state, per Mac). */
+export const getFirstRunSeen = () => homeFetch('/_home/first-run');
+export const markFirstRunSeen = () => post('/_home/first-run', {});
 export const setPin = (pid, canvas, pinned) => post('/_home/pins', { pid, canvas, pinned });
 /** "Just a local project" (V2-1.1 §5.3): `~/Maude/<name>` scaffolded → `{ok, root, pid, name}`. */
 export const createLocal = (name) => post('/_home/projects/create-local', { name });

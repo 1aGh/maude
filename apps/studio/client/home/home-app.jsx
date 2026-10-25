@@ -17,9 +17,11 @@ import {
   createLocalFromPrompt,
   getCloud,
   getIndex,
+  getFirstRunSeen,
   getRecentSearches,
   inShell,
   managedProjectOpen,
+  markFirstRunSeen,
   openCellDoor,
   openCloudUrl,
   openProject,
@@ -441,14 +443,36 @@ export function HomeApp() {
     [model.recent]
   );
   // S6.8 — the card shows only on a first run (no project, no account, the lists have answered)
+  // P8 C8 (05 es-home-local, kg v2-p8-c8-first-run-card-once): the card is for the very first launch of this
+  // Mac. Once it has been shown (Home's own per-Mac flag, `/_home/first-run`), a signed-out Mac with no project
+  // shows 05's shelf — "No projects on this Mac yet." — and the quiet "Sign in to cloud.maude.sh" pill. The flag
+  // is read once; it is written the moment the card is up and the card stays for this visit (`cardLatched`).
+  const [firstRunSeen, setFirstRunSeen] = useState(null); // null = not answered yet
+  const [cardLatched, setCardLatched] = useState(false);
+  useEffect(() => {
+    let live = true;
+    getFirstRunSeen().then((r) => {
+      if (live) setFirstRunSeen(r.ok && r.json?.seen === true);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
   const firstRun =
     data.native &&
     data.cloudsReady &&
+    firstRunSeen !== null &&
     isFirstRun({ status: data.status, projectCount: model.projectCount, signedIn });
+  const firstCard = firstRun && (!firstRunSeen || cardLatched);
+  useEffect(() => {
+    if (!firstCard || cardLatched) return;
+    setCardLatched(true);
+    markFirstRunSeen();
+  }, [firstCard, cardLatched]);
   const signinLive = signin.state.phase !== 'idle';
-  const cardOn = data.native && !signedIn && (firstRun || signinLive);
+  const cardOn = data.native && !signedIn && (firstCard || signinLive);
   const whatsNew = useWhatsNewLine({
-    enabled: data.native && data.cloudsReady && data.status === 'ready' && !firstRun && !cardOn,
+    enabled: data.native && data.cloudsReady && data.status === 'ready' && !firstCard && !cardOn,
     native: data.native,
   });
   const cloudOnline = online && !data.clouds.some((c) => c?.offline);
@@ -821,7 +845,7 @@ export function HomeApp() {
           run={runMenu}
         />
         <div className="home-top-end">
-          {data.native && data.cloudsReady && !signedIn && !firstRun && !signinLive ? (
+          {data.native && data.cloudsReady && !signedIn && !firstCard && !signinLive ? (
             <SignInQuiet onClick={() => signin.begin()} disabled={!online} />
           ) : null}
           <HomeSearch
@@ -1148,7 +1172,7 @@ export function HomeApp() {
                 </div>
               </div>
             </section>
-          ) : data.status !== 'loading' && !cardOn ? (
+          ) : data.status !== 'loading' && !cardOn && (firstRunSeen !== null || !data.native) ? (
             <ProjectsEmpty signedIn={signedIn} native={data.native} onOpenFolder={openFolder} />
           ) : null}
         </div>
