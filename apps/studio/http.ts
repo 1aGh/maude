@@ -228,6 +228,7 @@ import {
 } from './index/extractors/attribution-cache.ts';
 import { historySourceFromRuntime } from './index/history-source.ts';
 import { kickWhenReady } from './index/scan-kick.ts';
+import { warmDsUsage } from './index/ds-usage.ts';
 import { createIndexService } from './index/service.ts';
 import { pidOf, projectDir } from './index/snapshot.ts';
 import { feedVersionsToIndex } from './index/version-feed.ts';
@@ -2548,6 +2549,8 @@ export function createHttp(
     projectIndex.update([rel]);
   });
   ctx.bus.on('config-updated', () => projectIndex.rebuild());
+  // V2-8.5 r7 — the first Design system board reads the persisted usage file: build it soon after boot
+  warmDsUsage(projectIndex.dsUsage(), () => (ctx.cfg.designSystems?.length ?? 0) > 0);
   projectIndex.on('changed', (e) => ctx.bus.emit('index-changed', e));
   // S8.11 — a version recorded after the history scan joins the asset index ("Not used" counts it).
   feedVersionsToIndex({

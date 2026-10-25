@@ -40,7 +40,11 @@ export function leftOutOf(path, cfg) {
   if (!ds?.name || cfg?.dsConverted?.[ds.name] !== true) return null;
   const head = cfg?.systemHeads?.[ds.name];
   const maps = cfg?.canvasDsRevs;
-  const dsRev = maps && typeof maps === 'object' ? (maps[rel] ?? maps[path]) : null;
+  // the real index keys a canvas by its TREE path (`.design/ui/Home.tsx`); the inspector knows it design-root-relative
+  const dsRev =
+    maps && typeof maps === 'object'
+      ? (maps[rel] ?? maps[path] ?? maps[`${designRelOf(cfg)}/${rel}`])
+      : null;
   if (typeof head !== 'string' || !REV_ID.test(head)) return null;
   if (typeof dsRev !== 'string' || !REV_ID.test(dsRev) || dsRev === head) return null;
   return {

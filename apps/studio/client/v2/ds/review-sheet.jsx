@@ -14,6 +14,7 @@ import { useMemo, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { useModalFocus } from '../shell/modal-focus.js';
 import {
+  cornersOf,
   defaultTicks,
   FOLDER_VIEW_FROM,
   finePrint,
@@ -98,6 +99,28 @@ function Delta({ change, view }) {
       <span className="dsr-shown" hidden data-testid="ds-review-shown">
         {shown.v ?? ''}
       </span>
+    </span>
+  );
+}
+
+/** The master as it was and as it is, side by side — a corner change is drawn, not only worded (13 · ds-edit-master). */
+function MasterPair({ name, corners, view }) {
+  if (!corners) return null;
+  const box = (r, which) => (
+    <span
+      className="dsr-mbox"
+      data-which={which}
+      data-testid={`ds-review-master-${which}`}
+      style={{ borderRadius: r }}
+    >
+      {name}
+    </span>
+  );
+  return (
+    <span className="dsr-sw-pair dsr-mpair" data-view={view} data-testid="ds-review-master-pair">
+      {box(corners.from, 'before')}
+      <StIcon name="chevron-right" size={12} />
+      {box(corners.to, 'after')}
     </span>
   );
 }
@@ -246,6 +269,7 @@ export function DsReviewSheet({
             ))}
             {components.map((c) => (
               <p key={`c-${c}`} className="dsr-sw-line" data-component={c}>
+                <MasterPair name={c} corners={cornersOf(componentLines[c])} view={view} />
                 <b>{c}</b>
                 {componentLines[c]?.length ? (
                   <span className="dsr-sw-name" data-testid="ds-review-master-lines">

@@ -323,6 +323,15 @@ const click = async (el: Element | null) => {
 };
 
 describe('the sheet', () => {
+  test('p8 c7: a row wears its canvas’s own picture when the host knows one, else the empty tile', async () => {
+    const { host } = await mount({
+      coverOf: (p: string) => (p.endsWith('Combine-kampan.tsx') ? '/_api/thumb/k1' : null),
+    });
+    const imgs = [...host.querySelectorAll<HTMLImageElement>('.dsr-row .dsr-thumb img')];
+    expect(imgs.map((i) => i.getAttribute('src'))).toEqual(['/_api/thumb/k1']);
+    expect(host.querySelectorAll('.dsr-row .dsr-thumb').length).toBe(6);
+  });
+
   test('canvas 23: title, scope, head count, six rows, the schema line, the AI row, version history', async () => {
     const { host } = await mount();
     expect(q(host, 'ds-switch-title')?.textContent).toBe('Switch canvases to Alligators brand?');

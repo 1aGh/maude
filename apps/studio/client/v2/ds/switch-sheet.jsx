@@ -51,7 +51,7 @@ function Tick({ state, disabled, label, testid, onToggle, path, folder }) {
   );
 }
 
-function Row({ row, fromLabel, onToggle }) {
+function Row({ row, fromLabel, onToggle, cover }) {
   return (
     <span
       className="dsr-row"
@@ -68,7 +68,9 @@ function Row({ row, fromLabel, onToggle }) {
         path={row.path}
         onToggle={() => onToggle(row.path)}
       />
-      <span className="dsr-thumb" aria-hidden="true" />
+      <span className="dsr-thumb" aria-hidden="true">
+        {cover ? <img src={cover} alt="" /> : null}
+      </span>
       <span className="dsr-name">
         <b>{row.name}</b>
         <em data-testid="ds-switch-note">{rowNote(row, { fromLabel })}</em>
@@ -84,6 +86,7 @@ function Row({ row, fromLabel, onToggle }) {
  *   targets: { name: string, label: string }[],
  *   scope: string, scopes: { id: string, label: string }[],
  *   labelOf: (name: string | null) => string,
+ *   coverOf?: (path: string) => string | null,
  *   fromOnly?: string | null,
  *   canAskAI?: boolean,
  *   onScope: (id: string) => void,
@@ -100,6 +103,7 @@ export function DsSwitchSheet({
   scope,
   scopes,
   labelOf,
+  coverOf,
   fromOnly = null,
   canAskAI = false,
   onScope,
@@ -166,7 +170,13 @@ export function DsSwitchSheet({
 
   const list = (items) =>
     items.map((r) => (
-      <Row key={r.path} row={r} fromLabel={r.from ? labelOf(r.from) : null} onToggle={toggle} />
+      <Row
+        key={r.path}
+        row={r}
+        fromLabel={r.from ? labelOf(r.from) : null}
+        onToggle={toggle}
+        cover={coverOf ? coverOf(r.path) : null}
+      />
     ));
 
   return (

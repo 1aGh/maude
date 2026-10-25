@@ -958,3 +958,26 @@ export function createDsUsage(o: DsUsageOptions): DsUsageIndex {
     },
   };
 }
+
+/**
+ * Build the usage index soon after a project with design systems boots (V2-8.5 round 7). The index
+ * is lazy, but the Design system canvas reads its persisted file when its module compiles — with
+ * nothing asking yet, the first board drew no "Used in N canvases" under any swatch. The file is a
+ * board dependency (`boardDeps`), so the board recompiles when it lands. A project with no system
+ * is never scanned. Returns a cancel.
+ */
+export function warmDsUsage(
+  usage: Pick<DsUsageIndex, 'file'> | null,
+  hasSystems: () => boolean,
+  schedule: (fn: () => void) => { unref?: () => void } = (fn) => setTimeout(fn, 1200)
+): void {
+  if (!usage) return;
+  const t = schedule(() => {
+    try {
+      if (hasSystems()) usage.file();
+    } catch {
+      /* the index is derived and rebuildable — a failed warm-up is the lazy path again */
+    }
+  });
+  t?.unref?.();
+}

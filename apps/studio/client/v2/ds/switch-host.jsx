@@ -10,6 +10,7 @@ import { getPaletteEnv } from '../search/search-env.js';
 import { DsPreviewBar } from './preview-bar.jsx';
 import { beginDsPreview, stopDsPreview, useDsPreview } from './preview-mode.js';
 import { DsSwitchSheet } from './switch-sheet.jsx';
+import { useCoverOf } from './use-covers.js';
 import { onDsSwitchRequest, requestDsSwitch } from './switch-bus.js';
 import { requestDsUpgrade } from './upgrade-bus.js';
 import {
@@ -102,6 +103,8 @@ export function canvasesIn(ds, cfg) {
  */
 export function DsSwitchHost({ cfg, activePath, toast, fetchImpl }) {
   const [sheet, setSheet] = useState(null);
+  // p8 c7 — the sheet's rows wear their canvas's own picture
+  const coverOf = useCoverOf({ active: !!sheet, fetchImpl });
   const session = useDsPreview();
   const live = useRef({ cfg, activePath, toast, fetchImpl, sheet: null, session: null });
   live.current = { cfg, activePath, toast, fetchImpl, sheet, session };
@@ -194,6 +197,7 @@ export function DsSwitchHost({ cfg, activePath, toast, fetchImpl }) {
           scope={sheet.kind}
           scopes={scopeOptions({ canvas: sheet.canvas, folder: sheet.folder })}
           labelOf={labelOf}
+          coverOf={coverOf}
           fromOnly={sheet.fromOnly}
           canAskAI={!!getPaletteEnv().canAskAI?.()}
           onScope={(kind) =>

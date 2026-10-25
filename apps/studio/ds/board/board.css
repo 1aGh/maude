@@ -138,9 +138,8 @@
   font-size: 10px;
   line-height: 1.25;
   color: var(--fg-3, color-mix(in srgb, currentColor 55%, transparent));
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* c7: "Used in 2 canvases" says all of it — it wraps under the swatch, never an ellipsis */
+  white-space: normal;
 }
 .ds-lock {
   display: inline-grid;
