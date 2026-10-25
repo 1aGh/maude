@@ -167,6 +167,33 @@ describe('ConflictCard (render)', () => {
     ]);
   });
 
+  test('round 7: the card has no × (the board draws none) — Escape closes it; it sits on the canvas, not as a top banner', async () => {
+    const { ConflictCard } = await import('../client/v2/sync-states/conflict-card.jsx');
+    let closed = 0;
+    const el = await mount(
+      <ConflictCard
+        conflicts={[row('a', 'b')]}
+        me="Michal"
+        onPick={() => {}}
+        onClose={() => closed++}
+      />
+    );
+    expect(el.querySelector('.sy-close')).toBeNull();
+    expect(el.querySelector('[aria-label="Close"]')).toBeNull();
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    });
+    expect(closed).toBe(1);
+    const { readFileSync } = await import('node:fs');
+    const css = readFileSync(
+      new URL('../client/v2/sync-states/sync-states.css', import.meta.url),
+      'utf8'
+    );
+    const at = css.indexOf('.sy-stage {', css.indexOf('round 7 (10 co-conflict)'));
+    const stage = css.slice(at, css.indexOf('}', at));
+    expect(stage).toContain('vh');
+  });
+
   test('a person who cannot edit sees both versions, every pick disabled', async () => {
     const { ConflictCard } = await import('../client/v2/sync-states/conflict-card.jsx');
     const el = await mount(

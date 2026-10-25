@@ -16,6 +16,18 @@
     top: calc(var(--float-gap, 16px) + var(--pill-h, 40px) + 64px);
     z-index: 8980;
   }
+  /* round 7 (10 co-conflict): the card is on the canvas, under the artboards, not a banner under the pill
+     row — the board's twin sits at about half the window's height; the clamp keeps the pair clear of
+     the dock on a short window. */
+  .sy-stage {
+    top: clamp(120px, 48vh, calc(100vh - 380px));
+    pointer-events: none;
+  }
+  .sy-stage .island,
+  .sy-stage .sy-one,
+  .sy-stage button {
+    pointer-events: auto;
+  }
 
   /* `.co-needs` — a pill on bg-2 with a 1 px warn ring: the thing that waits for a pick */
   .sy-mark {
@@ -57,7 +69,7 @@
     display: flex;
     align-items: flex-start;
     justify-content: center;
-    gap: var(--space-4);
+    gap: var(--space-8, 64px);
     width: max-content;
     max-width: calc(100vw - 2 * var(--float-gap, 16px));
   }
@@ -83,11 +95,6 @@
     font-size: var(--type-sm);
     line-height: var(--lh-sm);
     color: var(--fg-1);
-  }
-  .sy-close {
-    position: absolute;
-    right: var(--space-2);
-    top: var(--space-2);
   }
 
   .sy-pair {
