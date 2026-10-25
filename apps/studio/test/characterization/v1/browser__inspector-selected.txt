@@ -18,12 +18,10 @@ div
         div .island.st-share [data-testid="share-cluster"] [data-tour="status"]
           span .st-faces-host
             ul .st-faces [data-testid="share-cluster-faces"] [aria-label="People here"]
-              li .is-you.st-face [aria-label="You"] [title="You"] "YO"
+              li .is-you.st-face [aria-label="You"] [title="You"] "Y"
           span .st-saved [data-testid="share-cluster-status"] [role="status"]
             svg [aria-hidden="true"]
             span .st-saved-w "Local project"
-          button .st-share-ic [data-testid="share-cluster-comments"] [aria-label="Comments"] [aria-pressed="false"] [title="Comments ⇧⌘M"] [type="button"]
-            svg [aria-hidden="true"]
           div .st-modes [data-testid="share-cluster-mode"] [role="group"] [aria-label="Mode"]
             button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
               svg .st-mode-g [aria-hidden="true"]
@@ -38,18 +36,22 @@ div
             svg [aria-hidden="true"]
           button .btn.btn--primary.btn--sm.st-share-btn [data-testid="share-cluster-share"] [type="button"] "Share"
             svg [aria-hidden="true"]
+        div .island.st-zoomundo [data-testid="zoom-undo"]
+          button .icon-btn [data-testid="zoom-undo-undo"] [aria-label="Undo"] [title="Undo ⌘Z"] [type="button"]
+            svg [aria-hidden="true"]
+          button .icon-btn [data-testid="zoom-undo-redo"] [aria-label="Redo"] [title="Redo ⇧⌘Z"] [type="button"]
+            svg [aria-hidden="true"]
+          span .st-zoomundo-div [aria-hidden="true"]
+          button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
         div .main
           div .st-stage.viewport [data-tour="viewport"]
             iframe .active [data-testid="canvas-frame"] [data-path=".design/ui/Home.tsx"] [title="Canvas: .design/ui/Home.tsx"]
         div .st-grip.st-grip--r [data-testid="panel-grip-right"] [role="separator"] [aria-label="Resize right panel"] [tabindex="0"]
           svg .st-grip-dots [aria-hidden="true"]
+          span .st-grip-tip [aria-hidden="true"] "Drag · double-click resets · ← → move 8"
         div .st-dockslot.st-dockslot--right
           div .island.st-dockslot-inner [data-testid="dock-slot-right"]
-            aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
-              div .st-rp-tabs [data-tour="inspector-tabs"]
-                span .st-rp-title "Inspector"
-                button .st-iconbtn [aria-label="Close inspector"] [type="button"]
-                  svg [aria-hidden="true"]
+            aside .st-rpanel.st-rpanel--insp [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
               div .st-rp-body
                 div .insp [data-testid="inspector-frame"]
                   nav .insp-crumbs [data-testid="inspector-crumbs"] [aria-label="Where this is"]
@@ -58,16 +60,11 @@ div
                     span .insp-crumb-wrap
                       span .insp-crumb-ch [aria-hidden="true"]
                         svg [aria-hidden="true"]
-                      span .insp-crumb [data-testid="inspector-crumb-1"] [aria-current="location"] "main"
+                      span .insp-crumb [data-testid="inspector-crumb-1"] [aria-current="location"] "Frame"
                     kbd .insp-crumbs-esc [data-testid="inspector-crumbs-esc"] [title="esc steps out one level"] "esc"
                   div .insp-hd
-                    strong .insp-title [data-testid="inspector-title"] "main"
-                    span .insp-chip [data-testid="inspector-kind"] "Frame"
-                  p .insp-uses [data-testid="inspector-uses"]
-                    button .insp-uses-link [data-testid="inspector-uses-link"] [title="Open demo"] [type="button"]
-                      span "Uses"
-                        strong "demo"
-                      svg [aria-hidden="true"]
+                    strong .insp-title [data-testid="inspector-title"] "Page"
+                    span .chip.insp-kind [data-testid="inspector-kind"] "Frame"
                   fieldset .ed-insp-fields
                     section .insp-sec [data-testid="insp-sec-position"] [aria-label="Position"]
                       p .insp-sec-t
@@ -269,17 +266,26 @@ div
                             span .insp-export-chip [data-testid="insp-export-preset"] "PNG · 2×"
                             span .insp-export-chip [data-testid="insp-export-preset"] "SVG"
                       button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
+                        svg .lucide.lucide-download [aria-hidden="true"]
                       button .insp-export-line [data-testid="insp-export-copy-png"] [type="button"]
                         span "Copy as PNG"
                         kbd .insp-export-keys "⇧⌘C"
                       button .insp-export-line [data-testid="insp-export-more"] [type="button"]
                         span "Export… — every option"
                         kbd .insp-export-keys "⇧⌘E"
-                    div .v2-fold [data-testid="fold-inspector"]
-                      button .v2-fold-btn [data-testid="fold-inspector-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
-                        span .v2-fold-ch
+                    div .insp-uses-wrap
+                      p .insp-uses [data-testid="inspector-uses"]
+                        button .insp-uses-link [data-testid="inspector-uses-link"] [title="Open demo"] [type="button"]
+                          span .insp-uses-ic [aria-hidden="true"]
+                            svg [aria-hidden="true"]
+                          span .insp-uses-t "Uses"
+                            strong "demo"
                           svg [aria-hidden="true"]
-                        span .v2-fold-hint "Code, tokens, CSS"
+                    div .k-adv.v2-fold [data-testid="fold-inspector"]
+                      button .k-adv-btn.v2-fold-btn [data-testid="fold-inspector-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
+                        span .k-adv-ch.v2-fold-ch
+                          svg [aria-hidden="true"]
+                        span .k-adv-count.v2-fold-hint "Code, tokens, CSS"
         span .island.st-corner.st-corner--left
           button .st-iconbtn [data-testid="panel-icon-left"] [aria-label="Open Canvases"] [title="Canvases"] [type="button"]
             svg [aria-hidden="true"]

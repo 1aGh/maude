@@ -23,12 +23,10 @@ div
         div .island.st-share [data-testid="share-cluster"] [data-tour="status"]
           span .st-faces-host
             ul .st-faces [data-testid="share-cluster-faces"] [aria-label="People here"]
-              li .is-you.st-face [aria-label="You"] [title="You"] "YO"
+              li .is-you.st-face [aria-label="You"] [title="You"] "Y"
           span .st-saved [data-testid="share-cluster-status"] [role="status"]
             svg [aria-hidden="true"]
             span .st-saved-w "Saved"
-          button .st-share-ic [data-testid="share-cluster-comments"] [aria-label="Comments"] [aria-pressed="false"] [title="Comments ⇧⌘M"] [type="button"]
-            svg [aria-hidden="true"]
           div .st-modes [data-testid="share-cluster-mode"] [role="group"] [aria-label="Mode"]
             button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
               svg .st-mode-g [aria-hidden="true"]
@@ -43,6 +41,13 @@ div
             svg [aria-hidden="true"]
           button .btn.btn--primary.btn--sm.st-share-btn [data-testid="share-cluster-share"] [type="button"] "Share"
             svg [aria-hidden="true"]
+        div .island.st-zoomundo [data-testid="zoom-undo"]
+          button .icon-btn [data-testid="zoom-undo-undo"] [aria-label="Undo"] [title="Undo ⌘Z"] [type="button"]
+            svg [aria-hidden="true"]
+          button .icon-btn [data-testid="zoom-undo-redo"] [aria-label="Redo"] [title="Redo ⇧⌘Z"] [type="button"]
+            svg [aria-hidden="true"]
+          span .st-zoomundo-div [aria-hidden="true"]
+          button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 100%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "100%"
         div .st-dockslot.st-dockslot--left
           div .island.st-dockslot-inner [data-testid="dock-slot-left"]
             div .lp-head [data-testid="panel-head-left"]
@@ -55,16 +60,11 @@ div
             nav .st-sidebar [aria-label="Canvases"] [data-tour="sidebar"]
               div .st-sb-hd
                 span .st-sb-title "Canvases"
-                div .st-sb-hd-actions
-                  button .st-iconbtn [aria-label="New blank brief board"] [aria-expanded="false"] [type="button"]
-                    svg [aria-hidden="true"]
-                  button .st-iconbtn [data-testid="tree-new-folder"] [aria-label="New folder"] [aria-expanded="false"] [type="button"]
-                    svg [aria-hidden="true"]
               div .st-search
                 div .st-search-box
                   svg [aria-hidden="true"]
-                  input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"] [value]
-                  span .kbd "/"
+                  input [data-testid="canvas-search"] [aria-label="Search canvases"] [type="search"] [placeholder="Search"] [value]
+                  span .kbd "⌘K"
               div .lp-pinned [data-testid="canvases-pinned"]
                 div .lp-ds-wrap
                   button .lp-ds.lp-ds--two.lp-row [data-testid="canvases-ds-row"] [title="Design system — demo · 3 canvases"] [type="button"]
@@ -77,25 +77,9 @@ div
                   button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [aria-haspopup="menu"] [type="button"]
                     span [aria-hidden="true"] "⋯"
               div .cv-panel
-                div .kf-chips [data-testid="kind-chips"] [role="group"] [aria-label="Filter by kind"]
-                  button .kf-chip [data-testid="kind-chip-all"] [aria-label="All, 3"] [aria-pressed="true"] [title="All · 3"] [type="button"]
-                    span .kf-chip-w "All"
-                    span .kf-chip-n "3"
-                  button .kf-chip [data-testid="kind-chip-digital"] [aria-label="Fixed size, 0"] [aria-pressed="false"] [title="Fixed size · 0"] [type="button"]
-                    svg [aria-hidden="true"]
-                    span .kf-chip-n "0"
-                  button .kf-chip [data-testid="kind-chip-web"] [aria-label="Web page, 2"] [aria-pressed="false"] [title="Web page · 2"] [type="button"]
-                    svg [aria-hidden="true"]
-                    span .kf-chip-n "2"
-                  button .kf-chip [data-testid="kind-chip-print"] [aria-label="Print, 0"] [aria-pressed="false"] [title="Print · 0"] [type="button"]
-                    svg [aria-hidden="true"]
-                    span .kf-chip-n "0"
-                  button .kf-chip [data-testid="kind-chip-video"] [aria-label="Video, 0"] [aria-pressed="false"] [title="Video · 0"] [type="button"]
-                    svg [aria-hidden="true"]
-                    span .kf-chip-n "0"
                 div .cv-listwrap
                   div .cv-sort-lane
-                    button .cv-sort [data-testid="canvases-sort"] [aria-label="Sort canvases — Recently opened"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Recent"
+                    button .cv-sort.cv-sort--quiet [data-testid="canvases-sort"] [aria-label="3 canvases — sort canvases (Recently opened)"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "3 canvases"
                       svg [aria-hidden="true"]
                   div .cv-tree.st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="-1"]
                     div .cv-spacer
@@ -137,17 +121,20 @@ div
                               svg [aria-hidden="true"]
                             button .cv-act [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [aria-haspopup="menu"] [title="Actions for Home"] [type="button"]
                               svg [aria-hidden="true"]
-                button .lp-row.lp-trashrow [data-testid="canvases-trash-row"] [type="button"]
-                  span .lp-trash-ic
+                div .lp-newrow [data-testid="canvases-new-row"]
+                  button .lp-newrow-main.lp-row [aria-label="New canvas"] [aria-expanded="false"] [type="button"]
+                    span .lp-new-ic [aria-hidden="true"]
+                      svg [aria-hidden="true"]
+                    span .lp-name "New canvas"
+                  button .lp-newrow-folder.st-iconbtn [data-testid="tree-new-folder"] [aria-label="New folder"] [aria-expanded="false"] [type="button"]
                     svg [aria-hidden="true"]
-                  span .lp-name "Trash"
-                p .cv-foot [data-testid="canvases-foot"] "3 canvases · ⌘K searches every project"
-              div .lp-adv [data-testid="canvases-advanced-fold"]
-                button .lp-adv-btn [data-testid="canvases-advanced"] [aria-expanded="false"] [type="button"] "Advanced"
-                  span .lp-adv-ch
+              div .k-adv.lp-adv [data-testid="canvases-advanced-fold"]
+                button .k-adv-btn.lp-adv-btn [data-testid="canvases-advanced"] [aria-expanded="false"] [type="button"] "Advanced"
+                  span .k-adv-ch.lp-adv-ch
                     svg [aria-hidden="true"]
         div .st-grip.st-grip--l [data-testid="panel-grip-left"] [role="separator"] [aria-label="Resize left panel"] [tabindex="0"]
           svg .st-grip-dots [aria-hidden="true"]
+          span .st-grip-tip [aria-hidden="true"] "Drag · double-click resets · ← → move 8"
         div .main
           div .st-stage.viewport [data-tour="viewport"]
             iframe .active [data-testid="canvas-frame"] [data-path=".design/ui/Broken.tsx"] [title="Canvas: .design/ui/Broken.tsx"]
@@ -159,9 +146,9 @@ div
                   h2 .v2-err-t [data-testid="canvas-error-title"] "Broken can't be drawn right now."
                 p .v2-err-d [data-testid="canvas-error-body"] "Its code stops halfway on line 2. Other canvases are fine; the last good version is in Version history."
                 div .v2-err-acts
-                div .v2-fold [data-testid="fold-canvas-error"]
-                  button .v2-fold-btn [data-testid="fold-canvas-error-toggle"] [aria-expanded="false"] [type="button"] "Show details"
-                    span .v2-fold-ch
+                div .k-adv.v2-fold [data-testid="fold-canvas-error"]
+                  button .k-adv-btn.v2-fold-btn [data-testid="fold-canvas-error-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
+                    span .k-adv-ch.v2-fold-ch
                       svg [aria-hidden="true"]
         span .island.st-corner.st-corner--right
           button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
@@ -172,6 +159,7 @@ div
           p .v2s-title "Settings"
           div .v2s-tabs [role="tablist"] [aria-label="Settings sections"]
             button .v2s-tab [data-testid="settings-tab-general"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "General"
+              svg .v2s-tab-ic [aria-hidden="true"]
           span .v2s-rail-sp
           span .v2s-foot "Maude <ver>"
           button .v2s-close [data-testid="settings-close"] [type="button"] "Done"

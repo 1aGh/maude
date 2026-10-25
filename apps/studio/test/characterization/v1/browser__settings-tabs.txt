@@ -5,8 +5,11 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
     p .v2s-title "Settings"
     div .v2s-tabs [role="tablist"] [aria-label="Settings sections"]
       button .v2s-tab [data-testid="settings-tab-general"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "General"
+        svg .v2s-tab-ic [aria-hidden="true"]
       button .v2s-tab [data-testid="settings-tab-connections"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Connections"
+        svg .v2s-tab-ic [aria-hidden="true"]
       button .v2s-tab [data-testid="settings-tab-advanced"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Advanced"
+        svg .v2s-tab-ic [aria-hidden="true"]
     span .v2s-rail-sp
     span .v2s-foot "Maude <ver>"
     button .v2s-close [data-testid="settings-close"] [type="button"] "Done"
@@ -151,8 +154,11 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
     p .v2s-title "Settings"
     div .v2s-tabs [role="tablist"] [aria-label="Settings sections"]
       button .v2s-tab [data-testid="settings-tab-general"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "General"
+        svg .v2s-tab-ic [aria-hidden="true"]
       button .v2s-tab [data-testid="settings-tab-connections"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Connections"
+        svg .v2s-tab-ic [aria-hidden="true"]
       button .v2s-tab [data-testid="settings-tab-advanced"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Advanced"
+        svg .v2s-tab-ic [aria-hidden="true"]
     span .v2s-rail-sp
     span .v2s-foot "Maude <ver>"
     button .v2s-close [data-testid="settings-close"] [type="button"] "Done"
@@ -293,20 +299,20 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
     section .v2s-panel [data-testid="settings-panel-connections"] [role="tabpanel"]
       div .v2s-conns [data-testid="settings-connections"]
-        section .v2s-conn [data-testid="settings-cloud"] [aria-label="Maude Cloud"]
+        section .v2s-conn [data-testid="settings-cloud"] [aria-label="cloud.maude.sh"]
           div .v2s-conn-r
             span .v2s-conn-ic [aria-hidden="true"]
               svg [aria-hidden="true"]
             span .v2s-conn-t
-              strong "Maude Cloud"
+              strong "cloud.maude.sh"
               span .v2s-conn-s [data-testid="settings-conn-cloud-status"] "Where your projects live. Not signed in."
             span .v2s-conn-a
               button .btn.btn--sm [data-testid="cloud-signin"] [type="button"] "Sign in"
           div .v2s-conn-body [data-testid="cloud-bar"]
           div .v2s-conn-fold
-            div .v2-fold [data-testid="fold-connections.cloud"]
-              button .v2-fold-btn [data-testid="fold-connections.cloud-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
-                span .v2-fold-ch
+            div .k-adv.v2-fold [data-testid="fold-connections.cloud"]
+              button .k-adv-btn.v2-fold-btn [data-testid="fold-connections.cloud-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
+                span .k-adv-ch.v2-fold-ch
                   svg [aria-hidden="true"]
         section .v2s-conn [data-testid="settings-conn-hub"] [aria-label="Your team’s own server"]
           div .v2s-conn-r
@@ -334,9 +340,9 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             span .v2s-conn-a
               button .btn.btn--sm [data-testid="settings-ai-keys-toggle"] [aria-expanded="false"] [type="button"] "Manage"
           div .v2s-conn-fold
-            div .v2-fold [data-testid="fold-connections.ai"]
-              button .v2-fold-btn [data-testid="fold-connections.ai-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
-                span .v2-fold-ch
+            div .k-adv.v2-fold [data-testid="fold-connections.ai"]
+              button .k-adv-btn.v2-fold-btn [data-testid="fold-connections.ai-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
+                span .k-adv-ch.v2-fold-ch
                   svg [aria-hidden="true"]
         section .v2s-conn [data-testid="figma-connect-card"] [aria-label="Figma"]
           div .v2s-conn-r
@@ -357,8 +363,11 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
     p .v2s-title "Settings"
     div .v2s-tabs [role="tablist"] [aria-label="Settings sections"]
       button .v2s-tab [data-testid="settings-tab-general"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "General"
+        svg .v2s-tab-ic [aria-hidden="true"]
       button .v2s-tab [data-testid="settings-tab-connections"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Connections"
+        svg .v2s-tab-ic [aria-hidden="true"]
       button .v2s-tab [data-testid="settings-tab-advanced"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Advanced"
+        svg .v2s-tab-ic [aria-hidden="true"]
     span .v2s-rail-sp
     span .v2s-foot "Maude <ver>"
     button .v2s-close [data-testid="settings-close"] [type="button"] "Done"
@@ -499,20 +508,20 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
     section .v2s-panel [data-testid="settings-panel-connections"] [role="tabpanel"] [hidden]
       div .v2s-conns [data-testid="settings-connections"]
-        section .v2s-conn [data-testid="settings-cloud"] [aria-label="Maude Cloud"]
+        section .v2s-conn [data-testid="settings-cloud"] [aria-label="cloud.maude.sh"]
           div .v2s-conn-r
             span .v2s-conn-ic [aria-hidden="true"]
               svg [aria-hidden="true"]
             span .v2s-conn-t
-              strong "Maude Cloud"
+              strong "cloud.maude.sh"
               span .v2s-conn-s [data-testid="settings-conn-cloud-status"] "Where your projects live. Not signed in."
             span .v2s-conn-a
               button .btn.btn--sm [data-testid="cloud-signin"] [type="button"] "Sign in"
           div .v2s-conn-body [data-testid="cloud-bar"]
           div .v2s-conn-fold
-            div .v2-fold [data-testid="fold-connections.cloud"]
-              button .v2-fold-btn [data-testid="fold-connections.cloud-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
-                span .v2-fold-ch
+            div .k-adv.v2-fold [data-testid="fold-connections.cloud"]
+              button .k-adv-btn.v2-fold-btn [data-testid="fold-connections.cloud-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
+                span .k-adv-ch.v2-fold-ch
                   svg [aria-hidden="true"]
         section .v2s-conn [data-testid="settings-conn-hub"] [aria-label="Your team’s own server"]
           div .v2s-conn-r
@@ -540,9 +549,9 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             span .v2s-conn-a
               button .btn.btn--sm [data-testid="settings-ai-keys-toggle"] [aria-expanded="false"] [type="button"] "Manage"
           div .v2s-conn-fold
-            div .v2-fold [data-testid="fold-connections.ai"]
-              button .v2-fold-btn [data-testid="fold-connections.ai-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
-                span .v2-fold-ch
+            div .k-adv.v2-fold [data-testid="fold-connections.ai"]
+              button .k-adv-btn.v2-fold-btn [data-testid="fold-connections.ai-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
+                span .k-adv-ch.v2-fold-ch
                   svg [aria-hidden="true"]
         section .v2s-conn [data-testid="figma-connect-card"] [aria-label="Figma"]
           div .v2s-conn-r
@@ -558,380 +567,380 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             input .input [data-testid="figma-connect-input"] [aria-label="Figma personal access token"] [type="password"] [placeholder="figd_…"] [value]
             button .btn.btn--sm [data-testid="figma-connect-save"] [type="button"] [disabled] "Save"
     section .v2s-panel [data-testid="settings-panel-advanced"] [role="tabpanel"]
-      section .v2s-group [aria-label="This Mac"]
-        h3 .v2s-group-t "This Mac"
-        div .v2s-row [data-testid="settings-app-version"]
-          span .v2s-row-t
-            span .v2s-row-k "Version"
-          span .v2s-val.v2s-val--mono "<ver>"
-        div .v2s-row [data-testid="settings-update"]
-          span .v2s-row-t
-            span .v2s-row-k "Update"
-            span .v2s-hint "Maude checks in the background and stages a new build."
-          span .v2s-val
-            span .v2s-inline
-              span "Up to date"
-              button .btn.btn--sm [data-testid="settings-update-restart"] [type="button"] [disabled] "Restart now"
-        div .v2s-row [data-testid="settings-server-port"]
-          span .v2s-row-t
-            span .v2s-row-k "Local server port"
-          span .v2s-val.v2s-val--mono "<port>"
-        div .v2s-row [data-testid="settings-runtime"]
-          span .v2s-row-t
-            span .v2s-row-k "Runtime"
-          span .v2s-val.v2s-val--mono "Bun <ver> · built in"
-        div .v2s-row [data-testid="settings-server-build"]
-          span .v2s-row-t
-            span .v2s-row-k "Server build"
-          span .v2s-val.v2s-val--mono "MAUDE-DEV-SRV"
-        div .v2s-row [data-testid="settings-keys-store"]
-          span .v2s-row-t
-            span .v2s-row-k "Keys are kept in"
-            span .v2s-hint "Or ~/.config/maude/keys.json (private to you) when the Keychain is off. An update you skip installs when you next quit."
-          span .v2s-val.v2s-val--mono "macOS Keychain"
-      section .v2s-group [aria-label="Claude Code"]
-        h3 .v2s-group-t "Claude Code"
-        div .v2s-row [data-testid="settings-plugins"]
-          span .v2s-row-t
-            span .v2s-row-k "Plugins"
-          span .v2s-val.v2s-val--mono "design <ver> · flow <ver>"
-        label .v2s-row.v2s-row--switch [data-testid="settings-own-plugin-copy"]
-          span .v2s-row-t
-            span .v2s-row-k "Use my own plugin copy"
-            span .v2s-hint "Load the plugins you installed yourself instead of the ones Maude brings. Takes effect when the AI chat next starts."
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-claude-autosetup"]
-          span .v2s-row-t
-            span .v2s-row-k "Install and sign in automatically"
-            span .v2s-hint "Needs the Maude desktop app."
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
-        div .v2s-row
-          span .v2s-row-t
-            span .v2s-row-k "maude in the terminal"
-          span .v2s-val
-            span .rdy-cmd
-              code .rdy-cmd-tx "npm i -g @1agh/maude"
-              button .rdy-copy [aria-label="Copy the install command"] [type="button"] "Copy"
-        div .v2s-row [data-testid="settings-copy-draw"]
-          span .v2s-row-t
-            span .v2s-row-k "Draw a mark with the SVG agent"
-          span .v2s-val
-            span .rdy-cmd
-              code .rdy-cmd-tx "/design:draw"
-              button .rdy-copy [aria-label="Copy the draw command"] [type="button"] "Copy"
-        div .v2s-row [data-testid="settings-copy-brand"]
-          span .v2s-row-t
-            span .v2s-row-k "Import a brand from the terminal"
-          span .v2s-val
-            span .rdy-cmd
-              code .rdy-cmd-tx "/design:setup-ds --from-brand"
-              button .rdy-copy [aria-label="Copy the brand import command"] [type="button"] "Copy"
-      section .v2s-group [aria-label="Decision memory"]
-        h3 .v2s-group-t "Decision memory"
-        div .v2s-row [data-testid="settings-decision-memory"]
-          span .v2s-row-t
-            span .v2s-row-k "In this project"
-            span .v2s-hint "Design decisions are kept with the project, so the AI remembers why."
-          span .v2s-val.v2s-val--mono "Not set up"
-      section .v2s-group [aria-label="Engines — Auto picks for you"]
-        h3 .v2s-group-t "Engines — Auto picks for you"
-        div [data-testid="settings-transcription"]
-          div .st-provider-card
-            div .st-provider-hd
-              span .st-provider-name "Subtitles — transcription engine"
-            div .st-provider-notes "Which engine turns audio into subtitles. Maude never switches engines behind your back — pin one, or pick and it uses the best you're set up"
-              strong "Auto"
-            div .st-engine-radios [data-testid="settings-transcription-engine"] [role="radiogroup"] [aria-label="Transcription engine"]
-              label .st-engine-radio
-                input [type="radio"] [value="auto"] [name="transcription-engine"] {value="auto"} {off}
-                span .st-engine-radio-body
-                  span .st-engine-radio-label "Auto"
-                  span .st-engine-radio-note "Use the best engine this machine is set up for — the card says which."
-              label .is-selected.st-engine-radio
-                input [type="radio"] [value="whisper"] [name="transcription-engine"] {value="whisper"} {on}
-                span .st-engine-radio-body
-                  span .st-engine-radio-label "Local whisper.cpp"
-                  span .st-engine-radio-note "Free · offline · no key · runs on your hardware"
-              label .st-engine-radio
-                input [type="radio"] [value="elevenlabs"] [name="transcription-engine"] {value="elevenlabs"} {off}
-                span .st-engine-radio-body
-                  span .st-engine-radio-label "ElevenLabs Scribe"
-                  span .st-engine-radio-note "Cloud · accuracy · needs an ElevenLabs key"
-              label .st-engine-radio
-                input [type="radio"] [value="groq"] [name="transcription-engine"] {value="groq"} {off}
-                span .st-engine-radio-body
-                  span .st-engine-radio-label "Groq Whisper"
-                  span .st-engine-radio-note "Cloud · fast · needs a Groq key"
-          div .st-provider-card
-            div .st-provider-hd
-              span .st-provider-name "Local subtitle models (whisper.cpp)"
-            div .st-provider-notes "Local subtitles need two things: the whisper.cpp engine and one model. Models are stored on this machine only and never committed."
-            div .st-setup
-              div .is-done.st-step
-                span .st-step-n "✓"
-                div .st-step-body
-                  span .st-step-title "whisper.cpp engine is installed"
-              div .st-step
-                span .st-step-n "2"
-                div .st-step-body
-                  span .st-step-title "Download a model (below)"
-            div .st-model-list
-              div .st-model-row
-                div .st-model-info
-                  span .st-model-label "Tiny (multilingual)"
-                    span .st-pill "multilingual"
-                    span .st-model-size "~75 MB"
-                  span .st-engine-radio-note "Fastest, lowest accuracy. Good for a quick draft in any language."
-                div .st-model-actions
-                  button .st-btn [type="button"] "Download"
-              div .st-model-row
-                div .st-model-info
-                  span .st-model-label "Base (multilingual)"
-                    span .st-pill "multilingual"
-                    span .st-model-size "~142 MB"
-                  span .st-engine-radio-note "The recommended default — works in any language (incl. Czech). Modest accuracy."
-                div .st-model-actions
-                  button .st-btn [type="button"] "Download"
-              div .st-model-row
-                div .st-model-info
-                  span .st-model-label "Base (English-only)"
-                    span .is-local.st-pill "English-only"
-                    span .st-model-size "~142 MB"
-                  span .st-engine-radio-note "English audio only — do NOT use for other languages (it garbles them)."
-                div .st-model-actions
-                  button .st-btn [type="button"] "Download"
-              div .st-model-row
-                div .st-model-info
-                  span .st-model-label "Small (multilingual)"
-                    span .st-pill "multilingual"
-                    span .st-model-size "~466 MB"
-                  span .st-engine-radio-note "Noticeably more accurate than base, ~3× larger."
-                div .st-model-actions
-                  button .st-btn [type="button"] "Download"
-              div .st-model-row
-                div .st-model-info
-                  span .st-model-label "Large v3 Turbo (multilingual)"
-                    span .st-pill "multilingual"
-                    span .st-model-size "~1560 MB"
-                  span .st-engine-radio-note "Best accuracy, ~1.5 GB. Slower and disk-heavy, but close to cloud quality."
-                div .st-model-actions
-                  button .st-btn [type="button"] "Download"
-        div [data-testid="settings-keyframes"]
-          div .st-provider-card
-            div .st-provider-hd
-              span .st-provider-name "Scene-aware keyframes — analysis engine"
-            div .st-provider-notes "How Maude picks frames when it analyzes a video (`/design:video-analyze`, `/design:reel`). Scene-aware beats a blind frame rate. This is an "
-              strong "Auto"
-            div .st-engine-radios [data-testid="settings-keyframe-engine"] [role="radiogroup"] [aria-label="Keyframe engine"]
-              label .is-selected.st-engine-radio
-                input [type="radio"] [value="auto"] [name="keyframe-engine"] {value="auto"} {on}
-                span .st-engine-radio-body
-                  span .st-engine-radio-label "Auto"
-                  span .st-engine-radio-note "Use the best available: Gemma scout → ffmpeg → blind."
-              label .st-engine-radio
-                input [type="radio"] [value="gemma"] [name="keyframe-engine"] {value="gemma"} {off}
-                span .st-engine-radio-body
-                  span .st-engine-radio-label "Gemma scout"
-                  span .st-engine-radio-note "Semantic action beats. Needs Ollama (gemma3 vision) or mlx-vlm + a model."
-              label .st-engine-radio
-                input [type="radio"] [value="ffmpeg"] [name="keyframe-engine"] {value="ffmpeg"} {off}
-                span .st-engine-radio-body
-                  span .st-engine-radio-label "ffmpeg scene-detect"
-                  span .st-engine-radio-note "Scene cuts + endpoints. Needs ffmpeg. No model download."
-              label .st-engine-radio
-                input [type="radio"] [value="blind"] [name="keyframe-engine"] {value="blind"} {off}
-                span .st-engine-radio-body
-                  span .st-engine-radio-label "Blind (even-spaced)"
-                  span .st-engine-radio-note "Chromium fallback — works with neither ffmpeg nor Gemma."
-          div .st-provider-card
-            div .st-provider-hd
-              span .st-provider-name "Gemma scout model (optional)"
-            div .st-provider-notes "Adds semantic action-beat detection on top of scene cuts. Two short steps in a terminal — Maude picks the result up on its own."
-            div .st-setup
-              div .st-step
-                span .st-step-n "1"
-                div .st-step-body
-                  span .st-step-title "Start Ollama"
-                  span .rdy-cmd
-                    code .rdy-cmd-tx "ollama serve"
-                    button .rdy-copy [aria-label="Copy the install command"] [type="button"] "Copy"
-              div .st-step
-                span .st-step-n "2"
-                div .st-step-body
-                  span .st-step-title "Download the model"
-                  span .rdy-cmd
-                    code .rdy-cmd-tx "ollama pull gemma3:4b"
-                    button .rdy-copy [aria-label="Copy the model pull command"] [type="button"] "Copy"
-              details .st-setup-more
-                summary "Other ways to install"
-                div .st-setup-option
-                  span .st-setup-option-label "mlx-vlm instead of Ollama — faster, Apple Silicon only"
-                  span .rdy-cmd
-                    code .rdy-cmd-tx "python3 -m venv '<work>/home/.maude/mlx-venv' && '<work>/home/.maude/mlx-venv/bin/pip' install -U mlx-vlm"
-                    button .rdy-copy [aria-label="Copy the mlx-vlm install command"] [type="button"] "Copy"
-                  span .st-provider-notes "Then download a model below. Models live in your HuggingFace cache."
-            div .st-provider-notes "Active tier on this machine:"
-              strong "ffmpeg scene-detect"
-            div .st-model-list
-              div .st-model-row
-                div .st-model-info
-                  span .st-model-label "Gemma 4 E4B (4-bit)"
-                    span .st-model-size "~3.3 GB"
-                  span .st-engine-radio-note "The recommended scout — best semantic beats. ~3.3 GB. Needs an Apple-Silicon Mac + mlx-vlm."
-                div .st-model-actions
-                  span .st-model-action
-                    button .st-btn [type="button"] [disabled] "Download"
-                    span .st-model-action-note "needs mlx-vlm"
-              div .st-model-row
-                div .st-model-info
-                  span .st-model-label "Gemma 4 E2B (4-bit)"
-                    span .st-model-size "~1.9 GB"
-                  span .st-engine-radio-note "Smaller/faster, coarser beats. ~1.9 GB. Good for 16 GB Macs."
-                div .st-model-actions
-                  span .st-model-action
-                    button .st-btn [type="button"] [disabled] "Download"
-                    span .st-model-action-note "needs mlx-vlm"
-              div .st-model-row
-                div .st-model-info
-                  span .st-model-label "Gemma 3 4B (Ollama)"
-                    span .st-model-size "~3.3 GB"
-                  span .st-engine-radio-note "The recommended Ollama scout. ~3.3 GB. Pulled and managed by Ollama."
-                div .st-model-actions
-                  span .st-model-action
-                    button .st-btn [type="button"] [disabled] "Download"
-                    span .st-model-action-note "start Ollama first"
-              div .st-model-row
-                div .st-model-info
-                  span .st-model-label "Gemma 3 12B (Ollama)"
-                    span .st-model-size "~8.1 GB"
-                  span .st-engine-radio-note "Sharper beats, needs more RAM. ~8.1 GB."
-                div .st-model-actions
-                  span .st-model-action
-                    button .st-btn [type="button"] [disabled] "Download"
-                    span .st-model-action-note "start Ollama first"
-        p .v2s-hint "Without a model, Auto uses ElevenLabs or Groq for subtitles and ffmpeg scene cuts for keyframes."
-      section .v2s-group [aria-label="Privacy"]
-        h3 .v2s-group-t "Privacy"
-        label .v2s-row [data-testid="settings-report-logs"]
-          span .v2s-row-t
-            span .v2s-row-k "Logs in bug reports"
-            span .v2s-hint "Whether a report carries the last lines of Maude’s log. You see them before anything is sent."
-          select .v2s-select [data-testid="settings-report-logs-select"] {value="ask"}
-            option [value="ask"] "Ask each time"
-            option [value="always"] "Always"
-            option [value="never"] "Never"
-      section .v2s-group [data-testid="settings-this-project"] [aria-label="This project"]
-        h3 .v2s-group-t "This project"
-        p .v2s-hint [data-testid="settings-project-unlinked"] "Not linked to a workspace, so there is nothing to sync yet. Connect this project under Connections and its sync switches appear here."
-      section .v2s-group [aria-label="Experimental"]
-        h3 .v2s-group-t "Experimental"
-        label .v2s-row.v2s-row--switch [data-testid="settings-experimental-teams"]
-          span .v2s-row-t
-            span .v2s-row-k "AI reviews argue it out (teams)"
-            span .v2s-hint "Reviews are argued out by several AI seats that answer each other. Costs more. Takes effect when the AI chat next starts."
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-      section .v2s-group [data-testid="settings-reset"] [aria-label="Reset"]
-        h3 .v2s-group-t "Reset"
-        div .v2s-row [data-testid="settings-reset-panel-layout"]
-          span .v2s-row-t
-            span .v2s-row-k "Reset panel layout"
-            span .v2s-hint "Each panel back on its own side, Layers in its own panel, panels floating over the canvas."
-          span .v2s-val
-            button .btn.btn--sm [data-testid="settings-reset-panel-layout-btn"] [type="button"] "Reset panel layout"
-        div .v2s-row [data-testid="settings-reset-folds"]
-          span .v2s-row-t
-            span .v2s-row-k "Close all Advanced sections"
-            span .v2s-hint "Fold every panel’s Advanced section. ⌘K “advanced” opens them all again, once."
-          span .v2s-val
-            button .btn.btn--sm [data-testid="settings-reset-folds-btn"] [type="button"] "Close all"
-        p .v2s-sub [data-testid="settings-fold-list-t"] "Open now, on this Mac"
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-left.canvases"]
-          span .v2s-row-t
-            span .v2s-row-k "Canvases › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-left.layers"]
-          span .v2s-row-t
-            span .v2s-row-k "Layers › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-settings"]
-          span .v2s-row-t
-            span .v2s-row-k "Settings › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-diagnostics"]
-          span .v2s-row-t
-            span .v2s-row-k "Menu › Diagnostics › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-help"]
-          span .v2s-row-t
-            span .v2s-row-k "Keyboard shortcuts › Advanced"
-          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-inspector"]
-          span .v2s-row-t
-            span .v2s-row-k "Inspector › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-ai.chat"]
-          span .v2s-row-t
-            span .v2s-row-k "AI chat list › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-history"]
-          span .v2s-row-t
-            span .v2s-row-k "Version history › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-code"]
-          span .v2s-row-t
-            span .v2s-row-k "Code › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-connections"]
-          span .v2s-row-t
-            span .v2s-row-k "Connections › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-connections.cloud"]
-          span .v2s-row-t
-            span .v2s-row-k "Connections › Maude Cloud › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-connections.hub"]
-          span .v2s-row-t
-            span .v2s-row-k "Connections › Your team’s own server › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-connections.github"]
-          span .v2s-row-t
-            span .v2s-row-k "Connections › GitHub › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-connections.ai"]
-          span .v2s-row-t
-            span .v2s-row-k "Connections › AI images, video and voice › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-connections.figma"]
-          span .v2s-row-t
-            span .v2s-row-k "Connections › Figma › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-ai"]
-          span .v2s-row-t
-            span .v2s-row-k "AI chat panel › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-share"]
-          span .v2s-row-t
-            span .v2s-row-k "Share › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-timeline"]
-          span .v2s-row-t
-            span .v2s-row-k "Timeline › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-export"]
-          span .v2s-row-t
-            span .v2s-row-k "Export › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-ds"]
-          span .v2s-row-t
-            span .v2s-row-k "Design system › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        label .v2s-row.v2s-row--switch [data-testid="settings-fold-assets.details"]
-          span .v2s-row-t
-            span .v2s-row-k "Assets › Details › Advanced"
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-        div .v2s-row [data-testid="settings-reset-all"]
-          span .v2s-row-t
-            span .v2s-row-k "Reset all settings…"
-            span .v2s-hint "Your keys, sign-ins and each project’s sync choices are not touched."
-          span .v2s-val
-            button .btn.btn--sm.v2s-warn [data-testid="settings-reset-all-btn"] [aria-haspopup="dialog"] [type="button"] "Reset all settings…"
+      div .v2s-cols [data-testid="settings-advanced-cols"]
+        div .v2s-col
+          section .v2s-group [aria-label="This Mac"]
+            h3 .v2s-group-t "This Mac"
+            div .v2s-row [data-testid="settings-app-version"]
+              span .v2s-row-t
+                span .v2s-row-k "Version"
+              span .v2s-val.v2s-val--mono "<ver>"
+            div .v2s-row [data-testid="settings-update"]
+              span .v2s-row-t
+                span .v2s-row-k "Update"
+                span .v2s-hint "Checks in the background and stages a new build."
+              span .v2s-val
+                span .v2s-inline
+                  span "Up to date"
+            div .v2s-row [data-testid="settings-server-port"]
+              span .v2s-row-t
+                span .v2s-row-k "Local server port"
+              span .v2s-val.v2s-val--mono "<port>"
+            div .v2s-row [data-testid="settings-runtime"]
+              span .v2s-row-t
+                span .v2s-row-k "Runtime"
+              span .v2s-val.v2s-val--mono "Bun <ver> · built in"
+            div .v2s-row [data-testid="settings-server-build"]
+              span .v2s-row-t
+                span .v2s-row-k "Server build"
+              span .v2s-val.v2s-val--mono "maude-dev-srv"
+            div .v2s-row [data-testid="settings-keys-store"]
+              span .v2s-row-t
+                span .v2s-row-k "Keys are kept in"
+                span .v2s-hint "Or ~/.config/maude/keys.json (private to you) when the Keychain is off. An update you skip installs when you next quit."
+              span .v2s-val.v2s-val--mono "macOS Keychain"
+          section .v2s-group [aria-label="Claude Code"]
+            h3 .v2s-group-t "Claude Code"
+            div .v2s-row [data-testid="settings-plugins"]
+              span .v2s-row-t
+                span .v2s-row-k "Plugins"
+              span .v2s-val.v2s-val--mono "design <ver> · flow <ver>"
+            label .v2s-row.v2s-row--switch [data-testid="settings-own-plugin-copy"]
+              span .v2s-row-t
+                span .v2s-row-k "Use my own plugin copy"
+                span .v2s-hint "Load the plugins you installed yourself instead of the ones Maude brings. Takes effect when the AI chat next starts."
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-claude-autosetup"]
+              span .v2s-row-t
+                span .v2s-row-k "Install and sign in automatically"
+                span .v2s-hint "Needs the Maude desktop app."
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+            div .v2s-row
+              span .v2s-row-t
+                span .v2s-row-k "maude in the terminal"
+              span .v2s-val
+                button .btn.btn--ghost.btn--sm [aria-label="Copy install command, install command"] [title="npm i -g @1agh/maude"] [type="button"] "Copy install command"
+                  svg [aria-hidden="true"]
+            div .v2s-row [data-testid="settings-copy-draw"]
+              span .v2s-row-t
+                span .v2s-row-k "Draw a mark with the SVG agent"
+              span .v2s-val
+                button .btn.btn--ghost.btn--sm [aria-label="Copy command, draw command"] [title="/design:draw"] [type="button"] "Copy command"
+                  svg [aria-hidden="true"]
+            div .v2s-row [data-testid="settings-copy-brand"]
+              span .v2s-row-t
+                span .v2s-row-k "Import a brand from the terminal"
+              span .v2s-val
+                button .btn.btn--ghost.btn--sm [aria-label="Copy command, brand import command"] [title="/design:setup-ds --from-brand"] [type="button"] "Copy command"
+                  svg [aria-hidden="true"]
+          section .v2s-group [aria-label="Decision memory"]
+            h3 .v2s-group-t "Decision memory"
+            div .v2s-row [data-testid="settings-decision-memory"]
+              span .v2s-row-t
+                span .v2s-row-k "In this project"
+                span .v2s-hint "Design decisions are kept with the project, so AI remembers why."
+              span .v2s-val.v2s-val--mono "Not set up"
+        div .v2s-col
+          section .v2s-group [aria-label="Engines — Auto picks for you"]
+            h3 .v2s-group-t "Engines — Auto picks for you"
+            div [data-testid="settings-transcription"]
+              div .st-provider-card
+                div .st-provider-hd
+                  span .st-provider-name "Subtitles — transcription engine"
+                div .st-provider-notes "Which engine turns audio into subtitles. Maude never switches engines behind your back — pin one, or pick and it uses the best you're set up"
+                  strong "Auto"
+                div .st-engine-radios [data-testid="settings-transcription-engine"] [role="radiogroup"] [aria-label="Transcription engine"]
+                  label .st-engine-radio
+                    input [type="radio"] [value="auto"] [name="transcription-engine"] {value="auto"} {off}
+                    span .st-engine-radio-body
+                      span .st-engine-radio-label "Auto"
+                      span .st-engine-radio-note "Use the best engine this machine is set up for — the card says which."
+                  label .is-selected.st-engine-radio
+                    input [type="radio"] [value="whisper"] [name="transcription-engine"] {value="whisper"} {on}
+                    span .st-engine-radio-body
+                      span .st-engine-radio-label "Local whisper.cpp"
+                      span .st-engine-radio-note "Free · offline · no key · runs on your hardware"
+                  label .st-engine-radio
+                    input [type="radio"] [value="elevenlabs"] [name="transcription-engine"] {value="elevenlabs"} {off}
+                    span .st-engine-radio-body
+                      span .st-engine-radio-label "ElevenLabs Scribe"
+                      span .st-engine-radio-note "Cloud · accuracy · needs an ElevenLabs key"
+                  label .st-engine-radio
+                    input [type="radio"] [value="groq"] [name="transcription-engine"] {value="groq"} {off}
+                    span .st-engine-radio-body
+                      span .st-engine-radio-label "Groq Whisper"
+                      span .st-engine-radio-note "Cloud · fast · needs a Groq key"
+              div .st-provider-card
+                div .st-provider-hd
+                  span .st-provider-name "Local subtitle models (whisper.cpp)"
+                div .st-provider-notes "Local subtitles need two things: the whisper.cpp engine and one model. Models are stored on this machine only and never committed."
+                div .st-setup
+                  div .is-done.st-step
+                    span .st-step-n "✓"
+                    div .st-step-body
+                      span .st-step-title "whisper.cpp engine is installed"
+                  div .st-step
+                    span .st-step-n "2"
+                    div .st-step-body
+                      span .st-step-title "Download a model (below)"
+                div .st-model-list
+                  div .st-model-row
+                    div .st-model-info
+                      span .st-model-label "Tiny (multilingual)"
+                        span .st-pill "multilingual"
+                        span .st-model-size "~75 MB"
+                      span .st-engine-radio-note "Fastest, lowest accuracy. Good for a quick draft in any language."
+                    div .st-model-actions
+                      button .st-btn [type="button"] "Download"
+                  div .st-model-row
+                    div .st-model-info
+                      span .st-model-label "Base (multilingual)"
+                        span .st-pill "multilingual"
+                        span .st-model-size "~142 MB"
+                      span .st-engine-radio-note "The recommended default — works in any language (incl. Czech). Modest accuracy."
+                    div .st-model-actions
+                      button .st-btn [type="button"] "Download"
+                  div .st-model-row
+                    div .st-model-info
+                      span .st-model-label "Base (English-only)"
+                        span .is-local.st-pill "English-only"
+                        span .st-model-size "~142 MB"
+                      span .st-engine-radio-note "English audio only — do NOT use for other languages (it garbles them)."
+                    div .st-model-actions
+                      button .st-btn [type="button"] "Download"
+                  div .st-model-row
+                    div .st-model-info
+                      span .st-model-label "Small (multilingual)"
+                        span .st-pill "multilingual"
+                        span .st-model-size "~466 MB"
+                      span .st-engine-radio-note "Noticeably more accurate than base, ~3× larger."
+                    div .st-model-actions
+                      button .st-btn [type="button"] "Download"
+                  div .st-model-row
+                    div .st-model-info
+                      span .st-model-label "Large v3 Turbo (multilingual)"
+                        span .st-pill "multilingual"
+                        span .st-model-size "~1560 MB"
+                      span .st-engine-radio-note "Best accuracy, ~1.5 GB. Slower and disk-heavy, but close to cloud quality."
+                    div .st-model-actions
+                      button .st-btn [type="button"] "Download"
+            div [data-testid="settings-keyframes"]
+              div .st-provider-card
+                div .st-provider-hd
+                  span .st-provider-name "Scene-aware keyframes — analysis engine"
+                div .st-provider-notes "How Maude picks frames when it analyzes a video (`/design:video-analyze`, `/design:reel`). Scene-aware beats a blind frame rate. This is an "
+                  strong "Auto"
+                div .st-engine-radios [data-testid="settings-keyframe-engine"] [role="radiogroup"] [aria-label="Keyframe engine"]
+                  label .is-selected.st-engine-radio
+                    input [type="radio"] [value="auto"] [name="keyframe-engine"] {value="auto"} {on}
+                    span .st-engine-radio-body
+                      span .st-engine-radio-label "Auto"
+                      span .st-engine-radio-note "Use the best available: Gemma scout → ffmpeg → blind."
+                  label .st-engine-radio
+                    input [type="radio"] [value="gemma"] [name="keyframe-engine"] {value="gemma"} {off}
+                    span .st-engine-radio-body
+                      span .st-engine-radio-label "Gemma scout"
+                      span .st-engine-radio-note "Semantic action beats. Needs Ollama (gemma3 vision) or mlx-vlm + a model."
+                  label .st-engine-radio
+                    input [type="radio"] [value="ffmpeg"] [name="keyframe-engine"] {value="ffmpeg"} {off}
+                    span .st-engine-radio-body
+                      span .st-engine-radio-label "ffmpeg scene-detect"
+                      span .st-engine-radio-note "Scene cuts + endpoints. Needs ffmpeg. No model download."
+                  label .st-engine-radio
+                    input [type="radio"] [value="blind"] [name="keyframe-engine"] {value="blind"} {off}
+                    span .st-engine-radio-body
+                      span .st-engine-radio-label "Blind (even-spaced)"
+                      span .st-engine-radio-note "Chromium fallback — works with neither ffmpeg nor Gemma."
+              div .st-provider-card
+                div .st-provider-hd
+                  span .st-provider-name "Gemma scout model (optional)"
+                div .st-provider-notes "Adds semantic action-beat detection on top of scene cuts. Two short steps in a terminal — Maude picks the result up on its own."
+                div .st-setup
+                  div .st-step
+                    span .st-step-n "1"
+                    div .st-step-body
+                      span .st-step-title "Start Ollama"
+                      span .rdy-cmd
+                        code .rdy-cmd-tx "ollama serve"
+                        button .rdy-copy [aria-label="Copy the install command"] [type="button"] "Copy"
+                  div .st-step
+                    span .st-step-n "2"
+                    div .st-step-body
+                      span .st-step-title "Download the model"
+                      span .rdy-cmd
+                        code .rdy-cmd-tx "ollama pull gemma3:4b"
+                        button .rdy-copy [aria-label="Copy the model pull command"] [type="button"] "Copy"
+                  details .st-setup-more
+                    summary "Other ways to install"
+                    div .st-setup-option
+                      span .st-setup-option-label "mlx-vlm instead of Ollama — faster, Apple Silicon only"
+                      span .rdy-cmd
+                        code .rdy-cmd-tx "python3 -m venv '<work>/home/.maude/mlx-venv' && '<work>/home/.maude/mlx-venv/bin/pip' install -U mlx-vlm"
+                        button .rdy-copy [aria-label="Copy the mlx-vlm install command"] [type="button"] "Copy"
+                      span .st-provider-notes "Then download a model below. Models live in your HuggingFace cache."
+                div .st-provider-notes "Active tier on this machine:"
+                  strong "ffmpeg scene-detect"
+                div .st-model-list
+                  div .st-model-row
+                    div .st-model-info
+                      span .st-model-label "Gemma 4 E4B (4-bit)"
+                        span .st-model-size "~3.3 GB"
+                      span .st-engine-radio-note "The recommended scout — best semantic beats. ~3.3 GB. Needs an Apple-Silicon Mac + mlx-vlm."
+                    div .st-model-actions
+                      span .st-model-action
+                        button .st-btn [type="button"] [disabled] "Download"
+                        span .st-model-action-note "needs mlx-vlm"
+                  div .st-model-row
+                    div .st-model-info
+                      span .st-model-label "Gemma 4 E2B (4-bit)"
+                        span .st-model-size "~1.9 GB"
+                      span .st-engine-radio-note "Smaller/faster, coarser beats. ~1.9 GB. Good for 16 GB Macs."
+                    div .st-model-actions
+                      span .st-model-action
+                        button .st-btn [type="button"] [disabled] "Download"
+                        span .st-model-action-note "needs mlx-vlm"
+                  div .st-model-row
+                    div .st-model-info
+                      span .st-model-label "Gemma 3 4B (Ollama)"
+                        span .st-model-size "~3.3 GB"
+                      span .st-engine-radio-note "The recommended Ollama scout. ~3.3 GB. Pulled and managed by Ollama."
+                    div .st-model-actions
+                      span .st-model-action
+                        button .st-btn [type="button"] [disabled] "Download"
+                        span .st-model-action-note "start Ollama first"
+                  div .st-model-row
+                    div .st-model-info
+                      span .st-model-label "Gemma 3 12B (Ollama)"
+                        span .st-model-size "~8.1 GB"
+                      span .st-engine-radio-note "Sharper beats, needs more RAM. ~8.1 GB."
+                    div .st-model-actions
+                      span .st-model-action
+                        button .st-btn [type="button"] [disabled] "Download"
+                        span .st-model-action-note "start Ollama first"
+            p .v2s-hint "Without a model, Auto uses ElevenLabs or Groq for subtitles and ffmpeg scene cuts for keyframes."
+          section .v2s-group [aria-label="Privacy"]
+            h3 .v2s-group-t "Privacy"
+            label .v2s-row [data-testid="settings-report-logs"]
+              span .v2s-row-t
+                span .v2s-row-k "Logs in bug reports"
+                span .v2s-hint "Whether a report carries the last lines of Maude’s log. You see them before anything is sent."
+              select .v2s-select [data-testid="settings-report-logs-select"] {value="ask"}
+                option [value="ask"] "Ask each time"
+                option [value="always"] "Always"
+                option [value="never"] "Never"
+        div .v2s-col
+          section .v2s-group [data-testid="settings-this-project"] [aria-label="This project"]
+            h3 .v2s-group-t "This project"
+            p .v2s-hint [data-testid="settings-project-unlinked"] "Not linked to a workspace, so there is nothing to sync yet. Connect this project under Connections and its sync switches appear here."
+          section .v2s-group [aria-label="Experimental"]
+            h3 .v2s-group-t "Experimental"
+            label .v2s-row.v2s-row--switch [data-testid="settings-experimental-teams"]
+              span .v2s-row-t
+                span .v2s-row-k "AI reviews argue it out (teams)"
+                span .v2s-hint "Reviews are argued out by several AI seats that answer each other. Costs more. Takes effect when the AI chat next starts."
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+          section .v2s-group [data-testid="settings-reset"] [aria-label="Reset"]
+            h3 .v2s-group-t "Reset"
+            div .v2s-row [data-testid="settings-reset-panel-layout"]
+              span .v2s-row-t
+                span .v2s-row-k "Reset panel layout"
+                span .v2s-hint "Each panel back on its own side, Layers in its own panel, panels floating over the canvas."
+              span .v2s-val
+                button .btn.btn--sm [data-testid="settings-reset-panel-layout-btn"] [type="button"] "Reset panel layout"
+            div .v2s-row [data-testid="settings-reset-folds"]
+              span .v2s-row-t
+                span .v2s-row-k "Close all Advanced sections"
+                span .v2s-hint "Fold every panel’s Advanced section. ⌘K “advanced” opens them all again, once."
+              span .v2s-val
+                button .btn.btn--sm [data-testid="settings-reset-folds-btn"] [type="button"] "Close all"
+            p .v2s-sub [data-testid="settings-fold-list-t"] "Open now, on this Mac"
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-left.canvases"]
+              span .v2s-row-t
+                span .v2s-row-k "Canvases › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-left.layers"]
+              span .v2s-row-t
+                span .v2s-row-k "Layers › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-settings"]
+              span .v2s-row-t
+                span .v2s-row-k "Settings › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-diagnostics"]
+              span .v2s-row-t
+                span .v2s-row-k "Menu › Diagnostics › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-help"]
+              span .v2s-row-t
+                span .v2s-row-k "Keyboard shortcuts › Advanced"
+              input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-inspector"]
+              span .v2s-row-t
+                span .v2s-row-k "Inspector › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-ai.chat"]
+              span .v2s-row-t
+                span .v2s-row-k "AI chat list › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-history"]
+              span .v2s-row-t
+                span .v2s-row-k "Version history › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-code"]
+              span .v2s-row-t
+                span .v2s-row-k "Code › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-connections"]
+              span .v2s-row-t
+                span .v2s-row-k "Connections › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-connections.cloud"]
+              span .v2s-row-t
+                span .v2s-row-k "Connections › Maude Cloud › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-connections.hub"]
+              span .v2s-row-t
+                span .v2s-row-k "Connections › Your team’s own server › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-connections.github"]
+              span .v2s-row-t
+                span .v2s-row-k "Connections › GitHub › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-connections.ai"]
+              span .v2s-row-t
+                span .v2s-row-k "Connections › AI images, video and voice › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-connections.figma"]
+              span .v2s-row-t
+                span .v2s-row-k "Connections › Figma › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-ai"]
+              span .v2s-row-t
+                span .v2s-row-k "AI chat panel › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-share"]
+              span .v2s-row-t
+                span .v2s-row-k "Share › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-timeline"]
+              span .v2s-row-t
+                span .v2s-row-k "Timeline › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-export"]
+              span .v2s-row-t
+                span .v2s-row-k "Export › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-ds"]
+              span .v2s-row-t
+                span .v2s-row-k "Design system › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            label .v2s-row.v2s-row--switch [data-testid="settings-fold-assets.details"]
+              span .v2s-row-t
+                span .v2s-row-k "Assets › Details › Advanced"
+              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+            div .v2s-row [data-testid="settings-reset-all"]
+              span .v2s-row-t
+                span .v2s-row-k "Reset all settings…"
+                span .v2s-hint "Your keys, sign-ins and each project’s sync choices are not touched."
+              span .v2s-val
+                button .btn.btn--sm.v2s-warn [data-testid="settings-reset-all-btn"] [aria-haspopup="dialog"] [type="button"] "Reset all settings…"

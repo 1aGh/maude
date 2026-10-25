@@ -1,5 +1,5 @@
 # tauri/menu-file
-span .island.st-pill
+span .island.st-pill [data-testid="repo-switcher-trigger"]
   button .st-pill-btn [data-testid="project-pill"] [aria-label="characterization, project menu"] [aria-expanded="true"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
     span .st-pill-mark [data-tour="brand"]
       svg [aria-hidden="true"]
@@ -13,6 +13,12 @@ span .island.st-pill
           span .st-pm-ic [aria-hidden="true"]
           span .st-pm-lab "Back to Home"
       hr .st-pm-sep
+      div .st-pm-li [role="none"]
+        button .st-pm-row [data-testid="project-menu-row-sub-switch-project"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
+          span .st-pm-ic [aria-hidden="true"]
+          span .st-pm-lab "Switch project"
+          span .st-pm-ch [aria-hidden="true"]
+            svg [aria-hidden="true"]
       div .st-pm-li [role="none"]
         button .st-pm-row [data-testid="project-menu-row-sub-file"] [role="menuitem"] [aria-expanded="true"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
           span .st-pm-ic [aria-hidden="true"]

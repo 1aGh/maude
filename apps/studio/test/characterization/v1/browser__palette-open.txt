@@ -9,7 +9,7 @@ div .st-palette.st-palette--search [role="dialog"] [aria-label="Command palette"
   div .st-pal-search
     svg [aria-hidden="true"]
     input [data-testid="palette-input"] [role="combobox"] [aria-label="Command search"] [aria-expanded="true"] [aria-haspopup="listbox"] [placeholder="Search canvases, actions, or ask AI…"] [value]
-    span .kbd "⌘K"
+    span .kbd "esc"
   div .st-pal-list [data-testid="palette-list"] [role="listbox"] [aria-label="Results"]
     div [role="presentation"]
       div .st-pal-group [role="presentation"] "Recent"
@@ -22,7 +22,7 @@ div .st-palette.st-palette--search [role="dialog"] [aria-label="Command palette"
         span .st-pal-icon
           svg [aria-hidden="true"]
         span .st-pal-label
-          span .st-pal-ltxt "New canvas…"
+          span .st-pal-ltxt "New canvas"
       button .st-pal-item [data-testid="palette-row-start:project.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
         span .st-pal-icon
           svg [aria-hidden="true"]
@@ -61,7 +61,7 @@ div .st-pal-list [data-testid="palette-list"] [role="listbox"] [aria-label="Resu
       span .st-pal-icon
         svg [aria-hidden="true"]
       span .st-pal-label
-        span .st-pal-ltxt "New canvas…"
+        span .st-pal-ltxt "New canvas"
     button .st-pal-item [data-testid="palette-row-start:project.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
       span .st-pal-icon
         svg [aria-hidden="true"]
@@ -86,7 +86,7 @@ button .is-active.st-pal-item [data-testid="palette-row-start:canvas.new"] [role
   span .st-pal-icon
     svg [aria-hidden="true"]
   span .st-pal-label
-    span .st-pal-ltxt "New canvas…"
+    span .st-pal-ltxt "New canvas"
 button .st-pal-item [data-testid="palette-row-start:project.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
   span .st-pal-icon
     svg [aria-hidden="true"]
