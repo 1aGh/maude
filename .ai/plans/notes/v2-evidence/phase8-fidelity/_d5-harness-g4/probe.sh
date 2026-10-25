@@ -8,7 +8,7 @@ cd "$H" || exit 1
 node -e "
 import('./lib.mjs').then(async (m) => {
   console.log('REPO', m.REPO, typeof m.stubClaudeEnv);
-  const b = await m.playwright.chromium.launch();
+  const b = await m.playwright.chromium.launch(process.env.SHOT_CHANNEL ? { channel: process.env.SHOT_CHANNEL } : {});
   console.log('chromium', b.version());
   await b.close();
 }).catch((e) => { console.log('PROBE FAIL', e.message.split('\n')[0]); process.exit(1); });
