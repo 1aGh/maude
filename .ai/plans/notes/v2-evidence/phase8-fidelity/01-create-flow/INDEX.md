@@ -206,3 +206,34 @@ Harness `_c7b-harness-g1/` (s01b / s01c on top of `_c7-harness-g1/`). Re-shot li
 | `cf-ai-done`, `cf-undo-before`, `cf-undo-ai`, `cf-home-prompt` | re-shot on the merged tip, unchanged by this round |
 
 Fix list: `fix-c7-cf08b.md`.
+
+
+## FINAL (D5, e37e7d82a)
+Final verification re-shoot of the IMPL side on the merged `feat/maude-v2` tip e37e7d82a (stage C rounds 1-7 merged, release client); no product code changed. Supersedes every earlier "after" / FINAL section. 19 of 20 artboards with pairs (light + dark). Evidence only — no match / mismatch judged here.
+
+- **IMPL.** `_d5-harness-g1/` (= _d-harness-g1-d4 + the round-7 / 7b scenario files, repo-relative), shot on the Mac mini through `scripts/remote-lane.sh` in Google Chrome (the mini has no Playwright chromium build; viewport 1600 × 1000), throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, release-built client. Harness deltas this round: es-home-local registers no project; s05f opens the Comments panel through ⌘K (the share-cluster icon no longer opened it); home thumbnails are committed flat JPEGs (no ImageMagick on the mini).
+- **SPEC.** reused — no board 01 / 02 / 05 file (.tsx / .css / .meta.json) changed since the D3 shoot (git log 63592219a..tip empty); the spec PNGs are the D3 set (02 re-rendered then).
+- **Full-size pairs.** `full-size-path.txt` (last line, "final (D5)"); committed `<id>-<theme>.jpg` overwritten (JPEG q55, <= 1100 px).
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `cf-home-prompt` | re-shot | re-shot |  |
+| `cf-ai-drafting` | re-shot | re-shot |  |
+| `cf-ai-done` | re-shot | re-shot | IMPL = the finish moment (panel folded, result toast, shot when `[data-fresh]` appears) + the settled frame |
+| `cf-select-tweak` | re-shot | re-shot |  |
+| `cf-sticky-comment` | re-shot | re-shot |  |
+| `cf-undo-before` | re-shot | re-shot |  |
+| `cf-undo-ai` | re-shot | re-shot | shot after the run ended (⌘Z is refused while your own AI works), while the undo toast is up |
+| `cf-blank` | re-shot | re-shot |  |
+| `cf-add-artboard` | re-shot | re-shot | IMPL = the state AFTER the pick (F, then the Laptop tile — round 7b), picker frame kept as the first sub-frame |
+| `cf-duplicate-width` | re-shot | re-shot |  |
+| `cf-duplicate-done` | re-shot | re-shot |  |
+| `cf-frames-text` | re-shot | re-shot |  |
+| `cf-big-tree` | re-shot | re-shot | project opens its last canvas, Recent block in the Canvases panel (round 7b) |
+| `cf-panel-search` | re-shot | re-shot |  |
+| `cf-search-k` | re-shot | re-shot |  |
+| `cf-open-big` | re-shot | re-shot | IMPL = project opens its last canvas (Wide), ⌘0 after focusing the canvas, panels folded with ⌘\ (round 7 / 7b) |
+| `cf-busy` | unreachable | unreachable | unreachable: needs other people on the canvas (presence, two AI chats, a second person) — a hub / collab peers; no local route; no stage C round added one |
+| `cf-status-words` | re-shot | re-shot |  |
+| `cf-render-error` | re-shot | re-shot | second frame = the throwing-component variant (round 7: the Go back card) |
+| `cf-offline-create` | re-shot | re-shot |  |
