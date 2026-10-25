@@ -95,6 +95,8 @@ export function arrivingSlots(model, { indexed, carried = new Map(), localOnly: 
         done: model.done,
         total: model.total,
       }).foot,
+      // 05 es-arriving: the foot carries the board's 4 px bar ("41 of 93" as a share)
+      progress: Math.max(0, Math.min(1, Number(model.done) / Number(model.total) || 0)),
     };
   }
   return { ghosts, foot, carried: nextCarried };

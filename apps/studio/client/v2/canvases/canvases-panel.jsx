@@ -641,7 +641,18 @@ export function CanvasesPanel({
           data-slot={foot.source}
           data-tone={foot.tone || undefined}
         >
-          {emptyProject && foot.source === 'default' ? PANEL_NONE_FOOT : foot.text}
+          {emptyProject && foot.source === 'default' ? (
+            PANEL_NONE_FOOT
+          ) : typeof foot.progress === 'number' ? (
+            <span className="es-progress" data-testid="canvases-foot-progress">
+              <span>{foot.text}</span>
+              <span className="es-bar" aria-hidden="true">
+                <i style={{ width: `${Math.round(foot.progress * 100)}%` }} />
+              </span>
+            </span>
+          ) : (
+            foot.text
+          )}
         </p>
       )}
       {sortMenu ? (

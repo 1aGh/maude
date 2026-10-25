@@ -238,6 +238,25 @@
   .es-pulse {
     animation: v2-empty-pulse calc(var(--dur-panel) * 6) var(--ease-in-out) infinite alternate;
   }
+  /* 05 es-arriving: the panel foot's progress - "Getting <project> · 41 of 93 canvases" over a 4 px bar */
+  .es-progress {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .es-bar {
+    display: block;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-4);
+    overflow: hidden;
+  }
+  .es-bar i {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+  }
   .es-sk {
     display: block;
     flex: none;
