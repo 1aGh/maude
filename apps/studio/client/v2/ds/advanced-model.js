@@ -58,11 +58,12 @@ export function modesLine(themes) {
   return names.map(cap).join(' · ');
 }
 
-/** "5 canvases" · "1 canvas" · "No canvases yet"; null when the usage index has not said. */
-export function usedByLine(canvases) {
+/** "Studio site · 5 canvases" · "1 canvas" · "No canvases yet"; null when the usage index has not said. */
+export function usedByLine(canvases, project = '') {
   if (!Number.isFinite(canvases)) return null;
+  const who = typeof project === 'string' && project.trim() ? `${project.trim()} · ` : '';
   if (canvases === 0) return 'No canvases yet';
-  return `${canvases} ${canvases === 1 ? 'canvas' : 'canvases'}`;
+  return `${who}${canvases} ${canvases === 1 ? 'canvas' : 'canvases'}`;
 }
 
 /** "ran 1 min ago" — or the quiet word before the first run. */

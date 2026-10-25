@@ -119,6 +119,9 @@ describe('the words', () => {
     expect(usedByLine(1)).toBe('1 canvas');
     expect(usedByLine(0)).toBe('No canvases yet');
     expect(usedByLine(null)).toBeNull();
+    // the board's "Studio site · 5 canvases": the project says whose canvases they are
+    expect(usedByLine(5, 'Studio site')).toBe('Studio site · 5 canvases');
+    expect(usedByLine(0, 'Studio site')).toBe('No canvases yet');
     expect(modesLine({ light: 'light', dark: 'dark' })).toBe('Light · Dark');
     expect(modesLine({ light: 'light', dark: null })).toBe('Light');
     expect(ranWords(CHECK, NOW)).toBe('ran 1 min ago');
@@ -177,6 +180,14 @@ describe('the panel', () => {
     expect(html({ ...VALUE, note: ADVANCED_WORDS.refused })).toContain(
       'You can’t check this design system.'
     );
+  });
+
+  test('P8 c7: Advanced is open (the board draws it open); the check card closes the column after the history', () => {
+    const m = html({ ...VALUE, project: 'Studio site' });
+    expect(m).toMatch(/<details[^>]*data-testid="ds-advanced-fold"[^>]*open/);
+    expect(m).toContain('Studio site · 5 canvases');
+    expect(m.indexOf('data-testid="ds-history"')).toBeLessThan(m.indexOf('critic panel'));
+    expect(m.indexOf('data-testid="ds-flow"')).toBeLessThan(m.indexOf('data-testid="ds-history"'));
   });
 
   test('the card: a row a line, the one that is short offers Show, and the AI review is the last word', () => {

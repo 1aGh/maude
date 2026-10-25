@@ -163,6 +163,7 @@ export function DsAdvancedHost({ cfg, activePath, toast, fetchImpl, pollMs = ADV
       const { board: _b, ...rest } = got;
       setAdvanced((was) => ({
         ...rest,
+        project: live.current.cfg?.cloud?.projectName || live.current.cfg?.name || '',
         native,
         busy: was?.ds === ds ? was.busy : false,
         note: was?.ds === ds ? was.note : null,

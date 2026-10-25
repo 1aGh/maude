@@ -111,7 +111,7 @@ function History({ rows, onRestore, now }) {
 export function DsAdvanced({ value, actions, now }) {
   if (!value?.ds) return null;
   const { files, check, busy, note, native } = value;
-  const used = usedByLine(value.canvases);
+  const used = usedByLine(value.canvases, value.project);
   const modes = modesLine(value.modes);
   const a = actions ?? {};
   return (
@@ -141,8 +141,8 @@ export function DsAdvanced({ value, actions, now }) {
           {note}
         </p>
       ) : null}
-      <CheckCard check={check} now={now} onShow={a.show} onAskAi={a.askAi} />
-      <details className="dsa-adv" data-testid="ds-advanced-fold">
+      {/* the board draws Advanced open: the tokens, the folder and Hand off are what today's folder had */}
+      <details className="dsa-adv" data-testid="ds-advanced-fold" open>
         <summary>
           {ADVANCED_WORDS.advanced}
           <span>{ADVANCED_WORDS.advancedHint}</span>
@@ -189,6 +189,8 @@ export function DsAdvanced({ value, actions, now }) {
         ))}
       </section>
       <History rows={files?.history ?? []} onRestore={() => a.history?.()} now={now} />
+      {/* the card closes the column, after the history (the board) */}
+      <CheckCard check={check} now={now} onShow={a.show} onAskAi={a.askAi} />
     </div>
   );
 }
