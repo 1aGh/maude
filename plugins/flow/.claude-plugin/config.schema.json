@@ -322,21 +322,12 @@
               "properties": {
                 "tier": {
                   "type": "string",
-                  "enum": [
-                    "fast",
-                    "deep",
-                    "inherit"
-                  ],
+                  "enum": ["fast", "deep", "inherit"],
                   "description": "`fast` = the Sonnet-class model, `deep` = the Opus-class model, `inherit` = the lead's model. A tier, never a dated model id — the plugin maps it to the host alias."
                 },
                 "effort": {
                   "type": "string",
-                  "enum": [
-                    "low",
-                    "medium",
-                    "high",
-                    "xhigh"
-                  ]
+                  "enum": ["low", "medium", "high", "xhigh"]
                 }
               }
             },
@@ -347,21 +338,12 @@
               "properties": {
                 "tier": {
                   "type": "string",
-                  "enum": [
-                    "fast",
-                    "deep",
-                    "inherit"
-                  ],
+                  "enum": ["fast", "deep", "inherit"],
                   "description": "`fast` = the Sonnet-class model, `deep` = the Opus-class model, `inherit` = the lead's model. A tier, never a dated model id — the plugin maps it to the host alias."
                 },
                 "effort": {
                   "type": "string",
-                  "enum": [
-                    "low",
-                    "medium",
-                    "high",
-                    "xhigh"
-                  ]
+                  "enum": ["low", "medium", "high", "xhigh"]
                 }
               }
             },
@@ -372,21 +354,12 @@
               "properties": {
                 "tier": {
                   "type": "string",
-                  "enum": [
-                    "fast",
-                    "deep",
-                    "inherit"
-                  ],
+                  "enum": ["fast", "deep", "inherit"],
                   "description": "`fast` = the Sonnet-class model, `deep` = the Opus-class model, `inherit` = the lead's model. A tier, never a dated model id — the plugin maps it to the host alias."
                 },
                 "effort": {
                   "type": "string",
-                  "enum": [
-                    "low",
-                    "medium",
-                    "high",
-                    "xhigh"
-                  ]
+                  "enum": ["low", "medium", "high", "xhigh"]
                 }
               }
             },
@@ -397,21 +370,12 @@
               "properties": {
                 "tier": {
                   "type": "string",
-                  "enum": [
-                    "fast",
-                    "deep",
-                    "inherit"
-                  ],
+                  "enum": ["fast", "deep", "inherit"],
                   "description": "`fast` = the Sonnet-class model, `deep` = the Opus-class model, `inherit` = the lead's model. A tier, never a dated model id — the plugin maps it to the host alias."
                 },
                 "effort": {
                   "type": "string",
-                  "enum": [
-                    "low",
-                    "medium",
-                    "high",
-                    "xhigh"
-                  ]
+                  "enum": ["low", "medium", "high", "xhigh"]
                 }
               }
             }
@@ -432,11 +396,7 @@
           "properties": {
             "preset": {
               "type": "string",
-              "enum": [
-                "small",
-                "default",
-                "monorepo"
-              ],
+              "enum": ["small", "default", "monorepo"],
               "default": "default"
             },
             "agentTurns": {
@@ -471,10 +431,7 @@
         },
         "gates": {
           "type": "string",
-          "enum": [
-            "per-batch",
-            "per-task"
-          ],
+          "enum": ["per-batch", "per-task"],
           "default": "per-batch",
           "description": "When /flow:execute runs the full `quality` gates: after each batch of related tasks (default) or after every task. Workers always run their focused tests."
         },

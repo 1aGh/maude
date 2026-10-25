@@ -280,6 +280,7 @@ Default (no `--quick`):
   DDRs recorded: <N>
   Plan archived: .ai/plans/archive/<x>.plan.md
   Time in execution: <approx>
+  Spend: <lead peak · agents share · flagged agents>   (only when a run marker or session id is known — `maude flow usage`)
 ```
 
 With `--quick`, replace the `Validate` line and add a skip note so the trade-off is never silent:

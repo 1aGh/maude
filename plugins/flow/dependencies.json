@@ -37,6 +37,23 @@
       "docsUrl": "https://git-scm.com"
     },
     {
+      "id": "claude",
+      "type": "cli",
+      "hardness": "soft",
+      "check": {
+        "command": "claude --version",
+        "expectExit": 0,
+        "minVersion": "2.1.280"
+      },
+      "install": {
+        "preferred": "https://docs.anthropic.com/en/docs/claude-code"
+      },
+      "autoInstall": false,
+      "fallbackBehavior": "/flow:run hooks need Claude Code 2.1.280+ (SubagentStart/SubagentStop/Stop plugin hooks, agent model/effort frontmatter). Older versions and Codex run every flow command without them.",
+      "usedBy": ["commands/run.md", "hooks/hooks.json"],
+      "docsUrl": "https://docs.anthropic.com/en/docs/claude-code"
+    },
+    {
       "id": "maude",
       "type": "cli",
       "hardness": "soft",

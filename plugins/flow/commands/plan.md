@@ -374,9 +374,12 @@ Execute in order. Each task is atomic and testable.
 
 Keywords: CREATE, UPDATE, ADD, REMOVE, REFACTOR, MIRROR
 
+Each task section is a **self-contained slice**: `/flow:execute` pastes it verbatim into a `flow:worker` brief (`flow:context-budget`), and the worker never sees the rest of the plan. So a task names its own files and verify command, and repeats any constraint from the shared sections it depends on. Size a task to fit one fresh agent context (`run.budget`); split a larger one. Tag a risky task (`**Risk**: auth`) when it matches `run.riskClasses`.
+
 ### Task 1: {ACTION} {target}
 
 - **Do**: [specific implementation detail]
+- **Files**: [files this task owns]
 - **Pattern**: [reference to existing code]
 - **Gotcha**: [known constraint]
 - **Validate**: `[command]`

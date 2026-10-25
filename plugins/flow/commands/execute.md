@@ -58,7 +58,9 @@ Independent of the pre-flight above — it runs whether or not the knowledge gra
 
 ### 1. Read and Understand
 
-- Read the ENTIRE plan carefully
+Load the **`flow:context-budget`** skill — it holds the brief template, the hand-back format and the `run.budget` values used below.
+
+- Read the plan's outline and shared sections (Description, Context References, Validation, the task headings); read a task's own section when you brief or do it. In a long plan read by range — never re-read the whole plan per task.
 - Understand all tasks and their dependencies
 - Note the validation commands to run
 - Review the testing strategy
@@ -78,6 +80,25 @@ Independent of the pre-flight above — it runs whether or not the knowledge gra
 For EACH task in "Tasks":
 
 **CRITICAL — COMPLETE ALL ITEMS**: If a task says "for each component" or "repeat for [list]", you MUST execute it for EVERY item in that list. Do NOT stop after one example. Do NOT skip items.
+
+#### 0. Who does the task
+
+Delegate each task to a fresh agent instead of growing your own context (measured: in an inline `/flow:execute` the lead was 84–100 % of spend, with peaks near 1M context):
+
+| Task | Agent | Model |
+| --- | --- | --- |
+| Implement a task of the plan | `flow:worker` | `run.routing.worker` (default fast tier, high effort) |
+| Same, but it matches `run.riskClasses` (a glob over its files or a plan tag), or a worker hand-back failed review on a non-trivial point | `flow:worker` | deep tier |
+| An open question the plan leaves undecided, or a contract several tasks depend on | `flow:spike` | `run.routing.spike` (default deep) |
+| An inventory or "where is X used" sweep | `flow:scout` | `run.routing.scout` (default fast, medium effort) |
+
+Tiers map to the host's model aliases: `fast` → `sonnet`, `deep` → `opus`, `inherit` → no override (Codex: always inherit; see HARNESS). Pass the alias as the Agent tool's `model` only when the config overrides the agent's own default.
+
+- **Brief = the slice.** Use the `flow:context-budget` brief template: the task's section verbatim, owned files, the focused verify command, a short prior-decision digest. Never paste or point the agent at the whole plan.
+- **Do it yourself** only when the task is a few lines in one file you already hold in context — spawning would cost more than it saves.
+- **Independent tasks** (no shared files, no dependency) may run as parallel workers, each in its own worktree; merge their commits in plan order.
+- **On hand-back:** review the diff (not the agent's narrative), merge, then continue at the verify step below. A `## Continue` section → spawn a fresh worker with it as the next brief. Two hand-backs on one task asking the same open question → hand it to `flow:spike`.
+- **Lead checkpoint:** at a plan phase boundary, or when your context passes `run.budget.leadCheckpointPct`, checkpoint (step e) and continue in a fresh session (`/flow:pause` → `/flow:resume`).
 
 #### a. Navigate to the task
 
@@ -104,7 +125,7 @@ After implementing the task, run `/flow:utils-verify` to confirm correctness. `/
 
 **Loop:**
 
-1. **Verify:** run `/flow:utils-verify`.
+1. **Verify:** run `/flow:utils-verify` (a worker already ran its focused tests — this is the lead's check of the merged result). When the project sets `run.gates`, the repo-wide `quality.*` gates also run at those boundaries — `per-batch` after a group of related tasks, `per-task` after each; without it they stay deferred to `/flow:validate` as below. With `run.lane` set, run every suite as `<lane> -- <command>`.
 2. **If pass:** Continue to the next task.
 3. **If fail:**
    a. Read error output carefully — identify the **root cause**, not just the symptom.

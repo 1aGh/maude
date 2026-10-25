@@ -77,6 +77,11 @@ COMMANDS
         Plugin bin scripts + hooks call this via PATH instead of a relative
         cli/lib path that the marketplace never copies beside a plugin (DDR-061).
 
+  flow usage [sessionId] [--top N] [--json] [--root <dir>]
+        Token spend per agent of one Claude Code session: model, turns, peak
+        context, cache read/write. sessionId defaults to the /flow:run marker;
+        agents over run.budget.agentContextK are flagged.
+
   doctor [--plugin <name>] [--fix] [--json]
         Unified workspace health check. Reports missing dependencies, config
         schema errors, stack drift, and missing quality-gate declarations in
