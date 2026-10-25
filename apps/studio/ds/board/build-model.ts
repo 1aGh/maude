@@ -2,7 +2,7 @@
 // + the usage cache → a `BoardModel`. Read-only; called by the per-canvas generated module
 // (`ds/ds-resolver.ts`) and by tests. Never writes, never reaches the network.
 
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { classifyName } from '../emit.ts';
 import { type ModelToken, parseSystem } from '../generate.ts';
@@ -10,9 +10,11 @@ import { readHead } from '../head.ts';
 import { indexRegistry, loadRegistry, type RegistryIndex } from '../registry.ts';
 import { diskFs, loadSystem, type SystemConfig } from '../system.ts';
 import { formsOf } from '../value-types.ts';
+import { parseBrandNotes } from './brand-notes.ts';
 import { lookOf, type StateRule, stateRulesOf, statesOf } from './component-states.ts';
 import { directionsOf } from './directions-model.ts';
 import {
+  type BoardBrand,
   type BoardComponent,
   type BoardLogo,
   type BoardModel,
@@ -29,6 +31,8 @@ import {
 } from './types.ts';
 
 const MAX_LOGO_BYTES = 24 * 1024;
+const MAX_ICON_BYTES = 4 * 1024;
+const MAX_NOTES_BYTES = 128 * 1024;
 const COLOUR_GROUPS = new Set([
   'surfaces',
   'text',
@@ -198,6 +202,44 @@ function logosOf(designRoot: string, sys: SystemConfig, names: string[]): BoardL
   return out;
 }
 
+const ICONS_MAX = 12;
+
+/** The system's icon set + the words SKILL.md carries (board 13 Brand: icons, voice, Say / not, rules for AI). */
+function brandOf(designRoot: string, sys: SystemConfig): BoardBrand {
+  const icons: BoardBrand['icons'] = [];
+  const dir = path.join(designRoot, sys.path, 'assets', 'icons');
+  let names: string[] = [];
+  try {
+    names = readdirSync(dir)
+      .filter((n) => /^[A-Za-z0-9][\w.-]*\.svg$/.test(n))
+      .sort();
+  } catch {
+    names = [];
+  }
+  for (const n of names) {
+    if (icons.length >= ICONS_MAX) break;
+    try {
+      const abs = path.join(dir, n);
+      if (statSync(abs).size > MAX_ICON_BYTES) continue;
+      icons.push({
+        name: n.replace(/\.svg$/i, ''),
+        src: `data:image/svg+xml;base64,${readFileSync(abs).toString('base64')}`,
+      });
+    } catch {
+      /* a file that vanished is not an icon */
+    }
+  }
+  const read = (f: string) => {
+    try {
+      const abs = path.join(designRoot, sys.path, f);
+      return statSync(abs).size <= MAX_NOTES_BYTES ? readFileSync(abs, 'utf8') : '';
+    } catch {
+      return '';
+    }
+  };
+  return { icons, ...parseBrandNotes(read('SKILL.md'), read('README.md')) };
+}
+
 export function buildBoardModel(
   designRoot: string,
   sys: SystemConfig,
@@ -336,6 +378,7 @@ export function buildBoardModel(
     components: comps,
     stateRules,
     logos: logosOf(designRoot, sys, loaded.logos),
+    brand: brandOf(designRoot, sys),
     pendingCount: Object.keys(pendingTokens).length + Object.keys(pendingComponents).length,
     canvases: usage ? usage.canvases : null,
     making: made.making,

@@ -124,6 +124,16 @@ export interface BoardLogo {
   src: string | null;
 }
 
+/** The Brand section's words and glyphs beyond the logo (board 13): from `assets/icons` and SKILL.md. */
+export interface BoardBrand {
+  /** icon files (name = file stem), each an `image/svg+xml` data URI drawn as a mask so it takes the ink colour */
+  icons: { name: string; src: string }[];
+  voice: string | null;
+  say: { say: string; not: string } | null;
+  /** "Rules for AI and code" */
+  rules: string[];
+}
+
 export interface BoardTypeRole {
   role: string;
   class: string;
@@ -159,6 +169,8 @@ export interface BoardModel {
   /** S10.10: every state rule of every master, ready to draw (component-states.ts) */
   stateRules: StateRule[];
   logos: BoardLogo[];
+  /** icons, voice, Say / not and the rules for AI — absent in a model built before C6 */
+  brand?: BoardBrand;
   /** `dsPending` entries: tokens + component patches */
   pendingCount: number;
   /** canvases that follow the system; null when the usage index has not run */

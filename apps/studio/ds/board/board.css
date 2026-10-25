@@ -568,3 +568,97 @@
 [data-ds-master] > * {
   pointer-events: none;
 }
+
+/* ─── Brand: icons, voice, Say / not, Rules for AI and code (board 13) ─── */
+.ds-icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ds-icons span {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--bg-0, Canvas);
+  color: var(--fg-0, CanvasText);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 14%, transparent);
+}
+.ds-icons i {
+  display: block;
+  width: 18px;
+  height: 18px;
+  background: currentColor;
+  -webkit-mask: center / contain no-repeat;
+  mask: center / contain no-repeat;
+}
+.ds-voice--line {
+  font-size: var(--type-lg, 18px);
+}
+.ds-say {
+  margin: 0 0 4px;
+  font-size: var(--type-sm, 13px);
+  line-height: 1.35;
+  color: var(--fg-2, inherit);
+}
+.ds-say b {
+  margin-right: 4px;
+  font-size: var(--type-xs, 11px);
+  font-weight: var(--weight-semibold, 600);
+  color: var(--fg-3, color-mix(in srgb, currentColor 55%, transparent));
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.ds-say b:not(:first-child) {
+  margin-left: 4px;
+}
+.ds-rule {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 4px;
+  font-size: var(--type-sm, 13px);
+  line-height: 1.35;
+  color: var(--fg-0, CanvasText);
+}
+.ds-rule .ds-tick {
+  flex: none;
+  color: var(--status-ok, currentColor);
+}
+
+/* ─── Patterns: the kept showcases, drawn live and scaled (board 13) ─── */
+.ds-pats-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.ds-pat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: none;
+}
+.ds-pat-screen {
+  position: relative;
+  width: 380px;
+  height: 238px;
+  overflow: hidden;
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-0, Canvas);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 14%, transparent);
+  pointer-events: none;
+}
+.ds-pat-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1440px;
+  height: 900px;
+  transform: scale(0.2639);
+  transform-origin: 0 0;
+}
+.ds-pat b {
+  font-size: var(--type-sm, 13px);
+  font-weight: var(--weight-semibold, 600);
+}
