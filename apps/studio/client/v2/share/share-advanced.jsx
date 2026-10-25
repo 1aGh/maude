@@ -61,8 +61,8 @@ function CopyRow({ id, label, value, testid, copyTestid, children }) {
           value={value}
           title={value}
           // 10 co-share-advanced: the whole address, right-aligned. An input is 20 characters wide until told otherwise,
-          // which cut every real address with an ellipsis; the width follows the text (the field is mono, so ch is exact)
-          style={{ width: `${value.length + 1}ch` }}
+          // which cut every real address with an ellipsis; the width follows the text (the field is mono, so ch is exact; +2 is its padding)
+          style={{ width: `${value.length + 2}ch` }}
           onFocus={(e) => e.target.select()}
         />
         <button

@@ -289,7 +289,7 @@ describe('the link and its rules (co-share-advanced)', () => {
     // a value is as wide as its text, so the ellipsis only ever appears when the sheet itself is too narrow
     for (const id of ['share-app-url', 'share-local-url', 'share-syncs-hub']) {
       const input = q(id) as HTMLInputElement;
-      expect(input.style.width, id).toBe(`${input.value.length + 1}ch`);
+      expect(input.style.width, id).toBe(`${input.value.length + 2}ch`);
     }
     expect(q('share-other-ways')?.textContent).not.toContain('Opens the folder on this Mac only.');
   });
