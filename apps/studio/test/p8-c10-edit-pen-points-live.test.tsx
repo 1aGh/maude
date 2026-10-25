@@ -63,7 +63,9 @@ describe('14 ed-pen: point editing on the page', () => {
     const pt = q('edit-pen-point-0-1');
     expect(pt).not.toBeNull();
     await act(async () => {
-      pt?.dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }));
+      pt?.dispatchEvent(
+        new window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 })
+      );
     });
     await act(async () => {
       document.dispatchEvent(new window.MouseEvent('pointerup', { bubbles: true }));

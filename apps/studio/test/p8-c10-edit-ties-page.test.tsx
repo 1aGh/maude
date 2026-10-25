@@ -26,7 +26,16 @@ const stubRects = () => {
   const saved = proto.getBoundingClientRect;
   proto.getBoundingClientRect = function (this: Range) {
     const left = this.startOffset * 10;
-    return { left, top: 100, width: 10, height: 20, right: left + 10, bottom: 120, x: left, y: 100 } as DOMRect;
+    return {
+      left,
+      top: 100,
+      width: 10,
+      height: 20,
+      right: left + 10,
+      bottom: 120,
+      x: left,
+      y: 100,
+    } as DOMRect;
   };
   return () => {
     proto.getBoundingClientRect = saved;

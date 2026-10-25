@@ -618,7 +618,8 @@ export function hoverTargetToSelection(target: HoverTarget, file?: string): Sele
 
 /** The children of a flex frame, summarised (count, shared kind, one width sizing word); nothing for anything else. */
 function kidsFor(el: Element | null): { kids?: KidsSummary } {
-  if (!el || typeof window === 'undefined' || !window.getComputedStyle || !el.children?.length) return {};
+  if (!el || typeof window === 'undefined' || !window.getComputedStyle || !el.children?.length)
+    return {};
   try {
     const cs = window.getComputedStyle(el as HTMLElement);
     const display = cs.display;

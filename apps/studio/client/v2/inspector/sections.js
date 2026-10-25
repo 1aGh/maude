@@ -193,7 +193,17 @@ export const KIND_SECTIONS = Object.freeze({
   text: ['type', 'fill', 'position', 'size', 'interaction', 'export'],
   shape: ['size', 'corners', 'fill', 'border', 'effects', 'position', 'interaction', 'export'],
   // 14 ed-pen: a Pen path opens on its point, then its Stroke; Combine shapes follows; where it sits stays one click away
-  path: ['point', 'border', 'fill', 'combine', 'position', 'size', 'effects', 'interaction', 'export'],
+  path: [
+    'point',
+    'border',
+    'fill',
+    'combine',
+    'position',
+    'size',
+    'effects',
+    'interaction',
+    'export',
+  ],
   image: ['image', 'adjust', 'position', 'size', 'interaction', 'export'],
   instance: [],
   'multi-artboard': ['size', 'fill', 'safe-zones', 'export'],

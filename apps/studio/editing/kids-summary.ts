@@ -38,7 +38,8 @@ export function kidWidth(parent: FlexParent, k: KidFacts): KidWidth {
   if (HUG.has(w)) return 'hug';
   if (/^-?\d/.test(w)) return 'fixed';
   // nothing authored: the frame's layout decides
-  if (isMainAxis('width', parent)) return Number.parseFloat(k.flexGrow || '0') >= 1 ? 'fill' : 'hug';
+  if (isMainAxis('width', parent))
+    return Number.parseFloat(k.flexGrow || '0') >= 1 ? 'fill' : 'hug';
   const self = k.alignSelf.trim() || 'auto';
   const items = (parent.alignItems || 'normal').trim();
   return self === 'stretch' || (self === 'auto' && (items === 'normal' || items === 'stretch'))

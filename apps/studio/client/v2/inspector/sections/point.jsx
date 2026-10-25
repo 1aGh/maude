@@ -27,7 +27,14 @@ const Glyph = ({ name }) => (
     aria-hidden="true"
   >
     {GLYPH[name]}
-    <rect x="6.6" y={name === 'smooth' ? 4.6 : 2.6} width="2.8" height="2.8" fill="currentColor" stroke="none" />
+    <rect
+      x="6.6"
+      y={name === 'smooth' ? 4.6 : 2.6}
+      width="2.8"
+      height="2.8"
+      fill="currentColor"
+      stroke="none"
+    />
   </svg>
 );
 

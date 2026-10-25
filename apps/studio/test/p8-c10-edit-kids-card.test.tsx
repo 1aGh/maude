@@ -97,7 +97,11 @@ describe('14 ed-lay-auto: the Layout card names what the frame lays out', () => 
     await frame();
     expect(q('insp-layout-kids')).toBeNull();
     document.body.innerHTML = '';
-    await frame({ authored: {}, computed: { display: 'block' }, kids: { count: 3, tag: 'div', width: 'fill' } });
+    await frame({
+      authored: {},
+      computed: { display: 'block' },
+      kids: { count: 3, tag: 'div', width: 'fill' },
+    });
     expect(q('insp-layout-kids')).toBeNull();
   });
 });

@@ -16,7 +16,11 @@ const kid = (o: Record<string, string> = {}) => ({
 
 describe('summarizeKids / kidsLine', () => {
   test('three cards that grow in a row each Fill the width', () => {
-    const s = summarizeKids(row, [kid({ flexGrow: '1' }), kid({ flexGrow: '1' }), kid({ flexGrow: '1' })]);
+    const s = summarizeKids(row, [
+      kid({ flexGrow: '1' }),
+      kid({ flexGrow: '1' }),
+      kid({ flexGrow: '1' }),
+    ]);
     expect(s).toEqual({ count: 3, tag: 'div', width: 'fill' });
     expect(kidsLine(s)).toBe('3 frames, each Fills the width.');
   });
@@ -30,9 +34,9 @@ describe('summarizeKids / kidsLine', () => {
     );
   });
   test('mixed kinds are "items"; a button row is buttons', () => {
-    expect(kidsLine(summarizeKids(row, [kid({ flexGrow: '1' }), kid({ tag: 'p', flexGrow: '1' })]))).toBe(
-      '2 items, each Fills the width.'
-    );
+    expect(
+      kidsLine(summarizeKids(row, [kid({ flexGrow: '1' }), kid({ tag: 'p', flexGrow: '1' })]))
+    ).toBe('2 items, each Fills the width.');
     expect(kidsLine(summarizeKids(row, [kid({ tag: 'button' }), kid({ tag: 'button' })]))).toBe(
       '2 buttons, each Hugs its content.'
     );

@@ -31,7 +31,6 @@ import { type EditOpAsk, editOpRecord, runEditOp } from '../edit-op.ts';
 import { refOfElement, selectionOf } from '../object-actions.ts';
 import { isLockedDom } from '../selection.tsx';
 import { EDIT_HINTS, PEN_CSS, PenChip, PenHints, useFrameTick } from './overlay.tsx';
-import { penPointInfo, setPenPoint } from './point-store.ts';
 import {
   addedAt,
   dragged,
@@ -46,6 +45,7 @@ import {
   toScreen,
   typeChip,
 } from './pen-geometry.ts';
+import { penPointInfo, setPenPoint } from './point-store.ts';
 
 export const PATH_SELECTOR = 'svg[data-shape="path"][data-cd-id]';
 
@@ -181,12 +181,11 @@ export function PointEdit({ readOnly = false }: { readOnly?: boolean }) {
   // The selected point is said to the shell (the inspector's Point card: Corner, X · Y): the selection is re-posted with
   // it on the path's payload when the point or its numbers change — not while a drag is in flight.
   const where = edit?.sel ? `${edit.sel.sub}:${edit.sel.i}` : '';
-  const info =
-    edit && edit.sel ? penPointInfo(edit.model, edit.sel, svgOrigin(edit.svg)) : null;
+  const info = edit?.sel ? penPointInfo(edit.model, edit.sel, svgOrigin(edit.svg)) : null;
   const infoKey = info ? `${where}:${info.kind}:${info.x}:${info.y}` : '';
   const dragging = !!drag;
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `infoKey` stands for `info`
   const told = useRef('');
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `infoKey` stands for `info`
   useEffect(() => {
     const e = editRef.current;
     if (!e) {

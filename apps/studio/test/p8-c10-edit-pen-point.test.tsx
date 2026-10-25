@@ -7,7 +7,13 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
 import { parsePathD, pointType } from '../edit-ops/path-model.ts';
-import { getPenPoint, parsePenPointAttr, penPointAttr, penPointInfo, setPenPoint } from '../editing/pen/point-store.ts';
+import {
+  getPenPoint,
+  parsePenPointAttr,
+  penPointAttr,
+  penPointInfo,
+  setPenPoint,
+} from '../editing/pen/point-store.ts';
 
 const realFetch = globalThis.fetch;
 const asked: Array<Record<string, unknown>> = [];
@@ -17,7 +23,9 @@ beforeAll(() => {
   globalThis.fetch = (async (url: string, init?: RequestInit) => {
     if (String(url) === '/_api/edit-op') {
       asked.push(JSON.parse(String(init?.body)));
-      return new Response(JSON.stringify({ ok: true, writeId: 'w9', actionId: null }), { status: 200 });
+      return new Response(JSON.stringify({ ok: true, writeId: 'w9', actionId: null }), {
+        status: 200,
+      });
     }
     return String(url).endsWith('.css')
       ? new Response(':root{--space-5:24px;}', { status: 200 })
@@ -61,7 +69,10 @@ const PATH = {
   worldW: 800,
   worldH: 170,
   dom_path: ['div', 'svg'],
-  authored: { stroke: 'var(--accent)', 'stroke-width': '4px', position: 'absolute' } as Record<string, string>,
+  authored: { stroke: 'var(--accent)', 'stroke-width': '4px', position: 'absolute' } as Record<
+    string,
+    string
+  >,
   computed: { position: 'absolute' } as Record<string, string>,
   customStyles: {},
   attrs: { 'data-shape': 'path', 'data-dc-pen-points': '3' } as Record<string, string>,
@@ -155,9 +166,16 @@ describe('14 ed-pen: the Point card', () => {
 
   test('Sharp on a smooth point: ONE path.edit with that point’s handles gone, one undo step', async () => {
     await card('0,1,smooth,380,570');
-    await click(document.querySelector('[data-testid="insp-point-corner"] button[aria-label="Sharp"]'));
+    await click(
+      document.querySelector('[data-testid="insp-point-corner"] button[aria-label="Sharp"]')
+    );
     expect(asked).toHaveLength(1);
-    const ask = asked[0] as { op: string; file: string; targets: unknown[]; params: { path: unknown } };
+    const ask = asked[0] as {
+      op: string;
+      file: string;
+      targets: unknown[];
+      params: { path: unknown };
+    };
     expect(ask.op).toBe('path.edit');
     expect(ask.file).toBe(FILE);
     expect(ask.targets).toEqual([{ artboard: 'post', element: 'swoosh' }]);
@@ -172,7 +190,9 @@ describe('14 ed-pen: the Point card', () => {
 
   test('already Smooth: clicking Smooth asks nothing', async () => {
     await card('0,1,smooth,380,570');
-    await click(document.querySelector('[data-testid="insp-point-corner"] button[aria-label="Smooth"]'));
+    await click(
+      document.querySelector('[data-testid="insp-point-corner"] button[aria-label="Smooth"]')
+    );
     expect(asked).toHaveLength(0);
   });
 
