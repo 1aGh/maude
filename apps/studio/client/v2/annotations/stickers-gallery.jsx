@@ -55,10 +55,13 @@ function anchoredStyle(a) {
   return st;
 }
 
-/** The folded row keeps the gallery's spot but not its width. */
+/**
+ * The folded row sits over the Stickers slot (15 an-stamps): the gallery panel was centred on the button, so the
+ * panel's centre IS the slot's. The row is centred on it; the CSS clamp keeps it on screen.
+ */
 function rowStyle(a) {
-  const { width: _w, maxHeight: _h, ...pos } = anchoredStyle(a);
-  return pos;
+  const { width, maxHeight: _h, left, ...pos } = anchoredStyle(a);
+  return { ...pos, '--sg-slot-x': `${Math.round(left + width / 2)}px` };
 }
 
 function Cell({ sticker, label, onPick, on = false }) {
@@ -172,7 +175,6 @@ export default function StickersGallery({
         active={stampArmed}
         onPickStamp={armStamp}
         onExpand={() => setStampArmed(null)}
-        onClose={onClose}
         style={anchor ? rowStyle(anchor) : undefined}
         placement={anchor?.placement}
       />

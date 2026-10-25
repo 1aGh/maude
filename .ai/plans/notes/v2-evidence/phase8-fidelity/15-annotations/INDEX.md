@@ -409,3 +409,19 @@ Shot on the Mac mini (`scripts/remote-lane.sh`) with its installed Google Chrome
 | artboard id | after (round 10) |
 |---|---|
 | an-print | re-shot with View > Print guides on: the dashed print-area outline, the four crop marks and the bleed/trim/margin guides draw round each print sheet (un-clipped print layer); the note over the sheet keeps its .88 ghosting and the "Not printed" pill |
+
+## Round 10 (p8-c10-ann, f44cbca82) — IMPL re-shot, both themes
+
+Harness `_c10ann-harness-g5` (copy of `_d6f-harness-g5`; s15 groups a–f + the new clean plan group `p`, then s15g g1–g5), shot on the Mac mini with its Google Chrome. The 62 `<id>-<theme>.jpg` pairs in this folder show the round-10 product (SPEC side unchanged). Full-size pairs: last line of `full-size-path.txt` ("round 10:"). Three impl-only side shots were added: `an-today-size-*`, `an-today-shape-*`, `an-today-marker-*` (the catalogue's other cells, one state each).
+
+| id | what the pair now shows |
+| --- | --- |
+| an-stk-drop | after the drop Stickers (E) stays pressed with the placed sticker selected; Hand is not |
+| an-stamps | the folded Stamps tray is centred over the Stickers slot, no "Done" button |
+| an-convert | the converted thread card sits beside its pin: caption line, messages, Resolve + "…" only; the upper note's menu no longer overlaps it |
+| an-layers | the locked sticky and its "Locked · Unlock ⇧⌘L" bar are out from behind the Layers panel; the drag tip "Locked — unlock to move it" is up |
+| an-dangling | the dashed outline of the trashed button is drawn where it was |
+| an-crowd | the section count chips ("Nápady 84") have room for their text |
+| an-today | the whole catalogue in one frame (text sizes, shapes, picture, link card, video + audio chips, dashed arrow, lists) with two notes selected: the group bar |
+| an-plan | the plan alone: toned columns, count chips, channel-coloured cards, the Done cards pointing at the Tablet and Mobile artboards, whole board in frame |
+| an-follow | a loose note beside Mobile; Tereza's bound sticky on the far side, its elbow routed around Tablet and Mobile |

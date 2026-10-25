@@ -77,3 +77,42 @@ Re-shot: an-print (light + dark).
 
 Open:
 - The print-area outline and crop marks only show while View > Print guides is on (the harness switches it on); the note ghost (.88) was already in the product (`time-pins.tsx` `data-unprinted`), the shot shows it subtly.
+
+---
+
+# Round 10 · p8-c10-ann — 15 Annotations (done vs open)
+
+Branch `p8-c10-ann` (from feat/maude-v2 55850113d). Checklist: `critic-bar4.md` MUST rows. Harness `_c10ann-harness-g5` (copy of `_d6f`, s15 / s15g edited); both themes re-shot on the Mac mini at the branch tip.
+
+## Done — product (each with a fail-first test; reverted once where noted)
+
+| change | ids | files | test |
+| --- | --- | --- | --- |
+| Stickers (E) stays pressed while a dropped gallery sticker is selected (Hand lets go); the layer reports the selection through `toolbars/shell-panels.ts` | an-stk-drop | `annotations-layer.tsx`, `tool-palette.tsx`, `toolbars/shell-panels.ts` | `p8-c10-ann-dock.test.tsx` (reverted once: red) |
+| The folded Stamps tray has no "Done" (Esc lets go, as the board draws it) and is centred over the Stickers slot; the E key now anchors the panel to that slot's box like a click does | an-stamps | `client/v2/annotations/stamp-row.jsx`, `stickers-gallery.{jsx,css}`, `input-router.tsx` | `stickers-recent-stamps.test.tsx`, `p8-c10-ann-dock.test.tsx` |
+| A converted thread card opens BESIDE its pin (the anchor now knows a note's world point; it fell to the top-left corner) and draws the board's words only: caption line · messages · Resolve + "…" — Reply…, Edit, Turn back into a sticky, Delete comment moved into the "…" | an-convert | `comments-overlay.tsx`, `client/comments-overlay.css` | `p8-c10-ann-convert-thread.test.tsx` (reverted once: 4 red) |
+| A dangling arrow outlines its trashed target with a dashed box (the bind's remembered box) | an-dangling | `annotations/hosts.ts`, `annotations/ui/arrow-cards.tsx`, `annotations-layer.tsx` | `p8-c10-ann-dangling.test.tsx` (reverted once: red), `annotations-hosts.test.ts` |
+| The zoomed-out section count chip has 4 px of padding and a 1.3 line (its text filled the 20 px chip edge to edge) | an-crowd | `annotations/ui/lod.tsx` | `p8-c10-ann-lod-chip.test.ts` |
+
+Testids added: `annot-dangling-ghost`, `comment-menu-reply-<id>`, `comment-foot-<id>`; removed: `stamps-row-done` (testids.json + TESTIDS.md).
+
+## Done — harness
+
+- an-layers: the work is panned out from behind the Layers panel and the locked sticky is dragged and held ("Locked · Unlock ⇧⌘L" bar + "Locked — unlock to move it" tip).
+- an-today: a picture (an `assets/trenink-03.jpg` the `prepare` hook writes) joins the seeded catalogue; one 100 % frame shows text sizes, shapes, picture, link card, video + audio chips, dashed arrow, lists with two notes selected (the group bar). Side shots `an-today-size` (size menu), `an-today-shape` (shape bar), `an-today-marker` (marker + highlighter rows).
+- an-plan: its own clean group (`G=p`), the Done cards connected to the Tablet and Mobile artboards, the frame zoomed on those and the board.
+- an-follow: a loose note "Homepage review · 6 Oct — stays where it is" beside Mobile, the sticky bound to the button on the far side of Tablet and Mobile (the elbow routes around them), Desktop dragged a little.
+- an-convert: the lower note moved left so the thread card and the upper note's menu no longer overlap.
+- `viewWorld` helper (closed loop over the wheel) puts a world rectangle on screen.
+
+## Open
+
+- an-follow: the "Let go — the shortest clean path" bubble is still not drawn by the product (transient route tag while dragging).
+- an-today: the board's cells are separate states; a selection has one small toolbar, so shape / size / marker rows are side shots, not one frame.
+- an-plan: the Done arrows are straight lines (the board's curve around); column chips can overlap when the columns are narrower than their titles.
+- an-video timeline marks (no footage), an-print print area (p8-c10-print), an-vote / an-stamps count popover (second person), an-ai-*, an-rebind, an-viewer, an-figjam unchanged.
+
+## Decisions
+- `decision:maude/v2-p8-c10-ann-sticker-pressed-follows-selection`: the Stickers slot presses while exactly one gallery sticker is selected (a small external store beside the shell-panels one) — rejected: keeping the shell panel open after a pick (it would cover the drop), a sticky "last tool" in the tool state.
+- `decision:maude/v2-p8-c10-ann-converted-card-foot-menu`: a converted thread card ends in Resolve + "…" and keeps Reply / Edit / Turn back / Delete behind the "…" — rejected: dropping them (nothing-deleted), a second card design for every thread.
+- `decision:maude/v2-p8-c10-ann-dangling-ghost-from-bind-box`: the dashed outline of a lost target comes from the bind's own last-resolved box — rejected: caching a second box on the arrow, drawing nothing when none was stored.

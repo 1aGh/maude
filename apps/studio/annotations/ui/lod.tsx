@@ -126,8 +126,8 @@ export const LOD_CSS = `
 .dc-annot-lod button[data-lod="section"] { padding: 0; border: 0; font: inherit; }
 .dc-annot-lod [data-lod="section"] { border-radius: 10px; }
 .dc-annot-lod [data-lod="section"][data-hover] { box-shadow: inset 0 0 0 2px var(--maude-hud-accent, oklch(0.53 0.175 238)) !important; }
-.dc-annot-lod [data-lod="count"] { color: var(--maude-hud-object-ink, #1a1a1a); font: 600 14px/1.2 system-ui, sans-serif;
-  padding: 2px 8px; border-radius: 6px; white-space: nowrap; transform-origin: 0 100%; font-variant-numeric: tabular-nums; }
+.dc-annot-lod [data-lod="count"] { color: var(--maude-hud-object-ink, #1a1a1a); font: 600 14px/1.3 system-ui, sans-serif;
+  padding: 4px 9px; border-radius: 6px; white-space: nowrap; transform-origin: 0 100%; font-variant-numeric: tabular-nums; }
 .dc-annot-lod [data-lod="card"] { z-index: 15; width: 220px; padding: 10px 12px; border-radius: 10px;
   background: var(--maude-chrome-bg-0, #fff); color: var(--maude-chrome-fg-0, #1a1a1a);
   box-shadow: 0 8px 24px rgba(0,0,0,0.22), inset 0 0 0 0.5px rgba(0,0,0,0.12);

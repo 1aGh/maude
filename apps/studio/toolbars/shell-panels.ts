@@ -31,7 +31,25 @@ export function subscribeShellPanel(f: () => void): () => void {
   };
 }
 
+// P8 c10 (15 an-stk-drop): a gallery sticker is selected in the annotation layer. After a drop the board keeps
+// Stickers (E) pressed with the placed sticker selected, so the slot follows the selection, not only the panel.
+let stickerSelected = false;
+
+export function getStickerSelected(): boolean {
+  return stickerSelected;
+}
+
+export function setStickerSelected(next: boolean): void {
+  if (next === stickerSelected) return;
+  stickerSelected = next;
+  for (const f of [...subs]) f();
+}
+
 /** Is `panel` (a slot's panel) the one the shell has open? Stickers, Assets and the Component picker are reported. */
-export function isShellPanelOpen(panel: SlotPanel | undefined, open: ShellPanelOpen): boolean {
-  return !!panel && open !== null && panel === open;
+export function isShellPanelOpen(
+  panel: SlotPanel | undefined,
+  open: ShellPanelOpen,
+  stickerSel = false
+): boolean {
+  return !!panel && ((open !== null && panel === open) || (panel === 'stickers' && stickerSel));
 }

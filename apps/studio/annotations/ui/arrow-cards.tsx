@@ -38,6 +38,8 @@ export interface DanglingCardModel {
   lead: string;
   cause: DanglingCause;
   at: [number, number];
+  /** Where the lost target last was (world box): drawn as a dashed outline. */
+  box?: HostBox;
 }
 
 /** An `ab:` host that cannot be found means the artboard left the canvas (the trash). */
@@ -67,6 +69,7 @@ export function danglingCard(
     lead: `Pointed at “${d.label}” — ${what}`,
     cause,
     at: d.at,
+    ...(d.box ? { box: d.box } : {}),
   };
 }
 
@@ -240,6 +243,26 @@ export function HostMarks({
 }: HostMarksProps) {
   return (
     <>
+      {dangling.map((d) =>
+        d.box ? (
+          // 15 an-dangling (the board's `.an-gone`): the trashed target keeps its place as a dashed outline
+          <span
+            key={`ghost:${d.arrowId}:${d.end}`}
+            className="dc-annot-gone"
+            data-testid="annot-dangling-ghost"
+            aria-hidden="true"
+            data-cause={d.cause}
+            style={{
+              left: d.box.x,
+              top: d.box.y,
+              width: d.box.w,
+              height: d.box.h,
+              borderRadius: Math.min(d.box.h / 2, 12),
+              borderWidth: PX(zoom, 1.5),
+            }}
+          />
+        ) : null
+      )}
       {dangling.map((d) => (
         <span
           key={`${d.arrowId}:${d.end}`}

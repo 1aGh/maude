@@ -117,6 +117,7 @@ import { TIME_PIN_CSS } from './annotations/ui/time-pins.tsx';
 import { VoteDots } from './annotations/ui/vote-dots.tsx';
 import { projectStrokes, type StrokeCache } from './annotations/ui/world.ts';
 import { elementsToStrokes, strokesToElementMap } from './annotations/v1-adapter.ts';
+import { setStickerSelected } from './toolbars/shell-panels.ts';
 /**
  * @file       annotations-layer.tsx — FigJam-style annotation overlay
  * @scope      apps/studio/annotations-layer.tsx
@@ -701,6 +702,7 @@ const ANNOT_CSS = `
   color: var(--maude-hud-accent-fg, #fff); background: var(--maude-hud-accent, oklch(0.53 0.175 238));
 }
 .dc-annot-snap-tag b { font-weight: 600; }
+.dc-annot-gone { position: absolute; box-sizing: border-box; border-style: dashed; border-color: var(--maude-chrome-fg-2, #6e6660); pointer-events: none; }
 .dc-annot-open { position: absolute; box-sizing: border-box; transform: translate(-50%, -50%); border-style: solid; border-radius: 50%; border-color: var(--maude-hud-accent, oklch(0.53 0.175 238)); background: var(--maude-hud-bg, #fff); pointer-events: none; }
 .dc-annot-dg {
   position: absolute; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; width: 228px; transform-origin: 0 0;
@@ -4889,6 +4891,15 @@ export function AnnotationsLayer() {
       /* detached / cross-origin teardown */
     }
   }, [singleSelectedImageId, strokesById]);
+
+  // 15 an-stk-drop - the dock keeps Stickers (E) pressed while exactly one gallery sticker is selected (the drop
+  // selects what it placed); the palette reads this through toolbars/shell-panels.ts.
+  const oneStickerSelected =
+    selCount === 1 && isGallerySticker(strokesById.get(annotSel?.selectedIds[0] as string));
+  useEffect(() => {
+    setStickerSelected(oneStickerSelected);
+    return () => setStickerSelected(false);
+  }, [oneStickerSelected]);
 
   // Selected stroke halos — bboxes in world coords, vector-effect non-scaling-stroke.
   const selectedStrokes = useMemo(() => {

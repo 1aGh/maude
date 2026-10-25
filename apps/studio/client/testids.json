@@ -26909,6 +26909,51 @@
     "v2": "new"
   },
   {
+    "hook": "annot-dangling-ghost",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 c10 (15 an-dangling): the dashed outline where a trashed target last was (the bind's last box); one per lost end that remembered one.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "HostMarks"
+    },
+    "region": "canvas iframe chrome",
+    "sourceConsumers": [
+      "apps/studio/test/p8-c10-ann-dangling.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-menu-reply-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "P8 c10 (15 an-convert): \"Reply…\" in a converted thread’s ⋯ menu - the card draws no reply field at rest; this opens it.",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentThread"
+    },
+    "region": "canvas iframe chrome",
+    "sourceConsumers": [
+      "apps/studio/test/p8-c10-ann-convert-thread.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-foot-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "P8 c10 (15 an-convert): a converted thread's one foot - Resolve / Reopen at the left, ⋯ at the right.",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentThread"
+    },
+    "region": "canvas iframe chrome",
+    "sourceConsumers": [
+      "apps/studio/test/p8-c10-ann-convert-thread.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "annot-dangling-card",
     "kind": "testid",
     "pattern": false,
@@ -27488,21 +27533,6 @@
     "kind": "testid",
     "pattern": false,
     "meaning": "S4.13: the chevron on the folded Stamps row that opens the whole gallery again.",
-    "producer": {
-      "file": "apps/studio/client/v2/annotations/stamp-row.jsx",
-      "symbol": "StampRow"
-    },
-    "region": "other",
-    "sourceConsumers": [
-      "apps/studio/test/stickers-recent-stamps.test.tsx"
-    ],
-    "v2": "new"
-  },
-  {
-    "hook": "stamps-row-done",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "S4.13: Done on the folded Stamps row (closes the gallery).",
     "producer": {
       "file": "apps/studio/client/v2/annotations/stamp-row.jsx",
       "symbol": "StampRow"

@@ -1773,6 +1773,13 @@ export function CommentThread({
     : null;
   const canTurnBack = !!from && !isReadOnlyCanvas();
   const [menuOpen, setMenuOpen] = useState(false);
+  // 15 an-convert: a converted card draws the board's words only (caption, messages, Resolve, "..."); the rest lives
+  // behind the "..." - Reply... opens the field, Edit / Delete / Turn back are its rows.
+  const converted = !!from;
+  const [replyOpen, setReplyOpen] = useState(false);
+  useEffect(() => {
+    if (replyOpen) replyRef.current?.focus();
+  }, [replyOpen]);
   const [convertLine, setConvertLine] = useState<string | null>(null);
   const [undoable, setUndoable] = useState(false);
   useEffect(() => {
@@ -1809,110 +1816,80 @@ export function CommentThread({
       onPointerDown={(e) => e.stopPropagation()}
     >
       <div className="cm-thread__head" id={headId}>
-        <div className="cm-thread__head-row">
-          {/* P8 C5: no sequence badge — the board's card opens with its words ("Pricing · Desktop"), and a
+        {converted ? null : (
+          <div className="cm-thread__head-row">
+            {/* P8 C5: no sequence badge — the board's card opens with its words ("Pricing · Desktop"), and a
               pin wears its author's initial, not a number (the number stays on `data-seq`). */}
-          {/* S9.22 (10 · co-comment-thread) — WHERE the thread is: the artboard it sits on, else the
+            {/* S9.22 (10 · co-comment-thread) — WHERE the thread is: the artboard it sits on, else the
               element it names. Resolve / Reopen live here, beside it. */}
-          <span className="cm-thread__where" data-testid={`comment-where-${comment.id}`}>
-            {whereLabel}
-          </span>
-          <span className="cm-thread__head-end">
-            {canAct ? (
-              <span className="cm-thread__actions">
-                {mine && draft === null && !imported ? (
-                  <button
-                    type="button"
-                    className="cm-btn"
-                    data-testid="comment-edit"
-                    onClick={() => setDraft(comment.text)}
-                  >
-                    Edit
-                  </button>
-                ) : null}
-                {comment.status === 'resolved' ? (
-                  <button
-                    type="button"
-                    className="cm-btn cm-btn--ghost"
-                    data-testid={`comment-reopen-${comment.id}`}
-                    onClick={() => onPatch({ status: 'open' })}
-                  >
-                    <Glyph d="M3.5 8a4.5 4.5 0 1 0 1.4-3.3M3.5 2.5v2.6h2.6" />
-                    Reopen
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="cm-btn cm-btn--ghost"
-                    data-testid={`comment-resolve-${comment.id}`}
-                    onClick={() => {
-                      onPatch({ status: 'resolved' });
-                      onClose();
-                    }}
-                  >
-                    <Glyph d="M3 8.4 6.4 11.8 13 4.6" />
-                    Resolve
-                  </button>
-                )}
-                {mine ? (
-                  <button
-                    type="button"
-                    className="cm-btn cm-btn--danger"
-                    data-testid={`comment-delete-${comment.id}`}
-                    onClick={() => {
-                      onDelete();
-                      onClose();
-                    }}
-                  >
-                    Delete comment
-                  </button>
-                ) : null}
-                {canTurnBack ? (
-                  <span className="cm-thread__more">
+            <span className="cm-thread__where" data-testid={`comment-where-${comment.id}`}>
+              {whereLabel}
+            </span>
+            <span className="cm-thread__head-end">
+              {canAct ? (
+                <span className="cm-thread__actions">
+                  {mine && draft === null && !imported ? (
                     <button
                       type="button"
-                      className="cm-btn cm-btn--icon"
-                      aria-label="More"
-                      aria-haspopup="menu"
-                      aria-expanded={menuOpen}
-                      data-testid={`comment-menu-${comment.id}`}
-                      onClick={() => setMenuOpen((v) => !v)}
+                      className="cm-btn"
+                      data-testid="comment-edit"
+                      onClick={() => setDraft(comment.text)}
                     >
-                      ⋯
+                      Edit
                     </button>
-                    {menuOpen ? (
-                      <span className="cm-thread__menu" role="menu">
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="cm-thread__menu-item"
-                          data-testid={`comment-menu-to-sticky-${comment.id}`}
-                          disabled={!!repliedLine}
-                          onClick={() => void runConvert('to-sticky')}
-                        >
-                          Turn back into a sticky
-                        </button>
-                        {repliedLine ? (
-                          <span className="cm-thread__menu-note">{repliedLine}</span>
-                        ) : null}
-                      </span>
-                    ) : null}
-                  </span>
-                ) : null}
-              </span>
-            ) : null}
-            <button
-              type="button"
-              className="cm-thread__close"
-              aria-label="Close thread"
-              title="Close · esc"
-              onClick={onClose}
-            >
-              ×
-            </button>
-          </span>
-        </div>
-        {where.chip ? (
+                  ) : null}
+                  {comment.status === 'resolved' ? (
+                    <button
+                      type="button"
+                      className="cm-btn cm-btn--ghost"
+                      data-testid={`comment-reopen-${comment.id}`}
+                      onClick={() => onPatch({ status: 'open' })}
+                    >
+                      <Glyph d="M3.5 8a4.5 4.5 0 1 0 1.4-3.3M3.5 2.5v2.6h2.6" />
+                      Reopen
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="cm-btn cm-btn--ghost"
+                      data-testid={`comment-resolve-${comment.id}`}
+                      onClick={() => {
+                        onPatch({ status: 'resolved' });
+                        onClose();
+                      }}
+                    >
+                      <Glyph d="M3 8.4 6.4 11.8 13 4.6" />
+                      Resolve
+                    </button>
+                  )}
+                  {mine ? (
+                    <button
+                      type="button"
+                      className="cm-btn cm-btn--danger"
+                      data-testid={`comment-delete-${comment.id}`}
+                      onClick={() => {
+                        onDelete();
+                        onClose();
+                      }}
+                    >
+                      Delete comment
+                    </button>
+                  ) : null}
+                </span>
+              ) : null}
+              <button
+                type="button"
+                className="cm-thread__close"
+                aria-label="Close thread"
+                title="Close · esc"
+                onClick={onClose}
+              >
+                ×
+              </button>
+            </span>
+          </div>
+        )}
+        {!converted && where.chip ? (
           where.kind === 'video' && typeof comment.t === 'number' && comment.artboard ? (
             <button
               type="button"
@@ -1931,21 +1908,38 @@ export function CommentThread({
         ) : null}
         {comment.from ? (
           <div className="cm-thread__from" data-testid={`comment-from-${comment.id}`}>
-            {fromHeadline(comment.from)} · turned into a comment by{' '}
-            {byYou ? 'You' : firstName(comment.from.convertedBy || comment.author || '')}
-            {byYou && undoable && !repliedLine ? (
-              <>
-                {' · '}
-                <button
-                  type="button"
-                  className="cm-link"
-                  data-testid={`comment-from-undo-${comment.id}`}
-                  onClick={() => void runConvert('convert-undo')}
-                >
-                  Undo
-                </button>
-              </>
-            ) : null}
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              aria-hidden="true"
+              className="cm-thread__from-ic"
+            >
+              <path
+                d="M3 2.5h10v8l-3 3H3zM10 13.5v-3h3"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span>
+              {fromHeadline(comment.from)} · turned into a comment by{' '}
+              {byYou ? 'You' : firstName(comment.from.convertedBy || comment.author || '')}
+              {byYou && undoable && !repliedLine ? (
+                <>
+                  {' · '}
+                  <button
+                    type="button"
+                    className="cm-link"
+                    data-testid={`comment-from-undo-${comment.id}`}
+                    onClick={() => void runConvert('convert-undo')}
+                  >
+                    Undo
+                  </button>
+                </>
+              ) : null}
+            </span>
           </div>
         ) : null}
         {convertLine ? (
@@ -2043,7 +2037,106 @@ export function CommentThread({
       {/* A session that cannot comment (Can view, or an old shell that hid them from every
           read-only role) VIEWS threads; reply / resolve / delete are absent. The server decides
           either way — this only stops offering what it would refuse. */}
-      {canAct && (
+      {converted && canAct ? (
+        <div className="cm-thread__foot" data-testid={`comment-foot-${comment.id}`}>
+          {comment.status === 'resolved' ? (
+            <button
+              type="button"
+              className="cm-btn cm-btn--ghost"
+              data-testid={`comment-reopen-${comment.id}`}
+              onClick={() => onPatch({ status: 'open' })}
+            >
+              <Glyph d="M3.5 8a4.5 4.5 0 1 0 1.4-3.3M3.5 2.5v2.6h2.6" />
+              Reopen
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="cm-btn cm-btn--ghost"
+              data-testid={`comment-resolve-${comment.id}`}
+              onClick={() => {
+                onPatch({ status: 'resolved' });
+                onClose();
+              }}
+            >
+              <Glyph d="M3 8.4 6.4 11.8 13 4.6" />
+              Resolve
+            </button>
+          )}
+          <span className="cm-thread__more">
+            <button
+              type="button"
+              className="cm-btn cm-btn--icon"
+              aria-label="More"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              data-testid={`comment-menu-${comment.id}`}
+              onClick={() => setMenuOpen((v) => !v)}
+            >
+              ⋯
+            </button>
+            {menuOpen ? (
+              <span className="cm-thread__menu" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="cm-thread__menu-item"
+                  data-testid={`comment-menu-reply-${comment.id}`}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setReplyOpen(true);
+                  }}
+                >
+                  Reply…
+                </button>
+                {mine && draft === null && !imported ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="cm-thread__menu-item"
+                    data-testid="comment-edit"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setDraft(comment.text);
+                    }}
+                  >
+                    Edit
+                  </button>
+                ) : null}
+                {canTurnBack ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="cm-thread__menu-item"
+                    data-testid={`comment-menu-to-sticky-${comment.id}`}
+                    disabled={!!repliedLine}
+                    onClick={() => void runConvert('to-sticky')}
+                  >
+                    Turn back into a sticky
+                  </button>
+                ) : null}
+                {mine ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="cm-thread__menu-item cm-thread__menu-item--danger"
+                    data-testid={`comment-delete-${comment.id}`}
+                    onClick={() => {
+                      onDelete();
+                      onClose();
+                    }}
+                  >
+                    Delete comment
+                  </button>
+                ) : null}
+                {repliedLine ? <span className="cm-thread__menu-note">{repliedLine}</span> : null}
+              </span>
+            ) : null}
+          </span>
+        </div>
+      ) : null}
+
+      {canAct && (!converted || replyOpen || focusReply > 0) && (
         <div className="cm-thread__reply-form cm-thread__reply-form--field">
           <MentionAwareTextarea
             textareaRef={replyRef}
@@ -2178,18 +2271,18 @@ function formatRelativeTime(iso: string): string {
   return `${Math.round(diffSec / 86_400)}d ago`;
 }
 
-function computeThreadAnchor(comment: OverlayComment): { x: number; y: number } {
-  // Resolve target's live screen rect; popover drops below the pin with small
-  // breathing room. Stored bounds (capture-time screen coords) are the
-  // last-resort fallback for orphaned pins.
-  const rect = comment.selector ? screenRectFor(comment) : null;
-  if (rect) {
-    // Pin sits at (rect.right - 12, rect.top - 12). Place popover at the same
-    // x for visual continuity, 16px below the top so it clears the pin.
-    return { x: rect.x + rect.w - 12, y: rect.y + 16 };
-  }
-  if (comment.bounds) {
-    return { x: comment.bounds.x + comment.bounds.w - 12, y: comment.bounds.y + 16 };
+export function computeThreadAnchor(comment: OverlayComment): { x: number; y: number } {
+  // The thread opens where its pin is: the pin and the card share `locateComment` (live element rect, else the
+  // world point a converted note was anchored by, else the stored bounds). Before P8 c10 the card only knew the
+  // element rect and the stored bounds, so a world-anchored note's card fell to the top-left corner.
+  const { pos } = locateComment(comment);
+  if (pos) {
+    // 15 an-convert: a converted note's card sits BESIDE its pin - the pin (28 px) fills [end - 28, end] x
+    // [top - 28, top], so the card starts 8 px past its far edge, level with its top.
+    if (comment.from) return { x: pos.x + pos.w + 8, y: pos.y - 28 };
+    // Pin sits at (rect.right - 12, rect.top - 12). Place popover at the same x for visual continuity, 16px
+    // below the top so it clears the pin.
+    return { x: pos.x + pos.w - 12, y: pos.y + 16 };
   }
   return { x: 16, y: 16 };
 }

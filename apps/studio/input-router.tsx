@@ -52,6 +52,7 @@ import { escOwnerOpen } from './bridge/esc-ladder.ts';
 import { modeShows } from './bridge/mode-shows.ts';
 import { isEmbedCanvas, isHistoricalCanvas } from './read-only-mode.ts';
 import { lastMarkerTip } from './toolbars/marker-tip.ts';
+import { toolPanelOpenMessage } from './toolbars/tool-panel.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Drag-vs-click threshold (T25)
@@ -797,10 +798,13 @@ export function postModeRequest(r: {
 }
 
 /** V2-4.5b — the shell renders the tool panels (V2-1.2 §5.5); it anchors them to `toolbar-rect`. */
-function postPanelOpen(panel: SlotPanel): void {
+export function postPanelOpen(panel: SlotPanel): void {
   if (typeof window === 'undefined' || window.parent === window) return;
   try {
-    window.parent.postMessage({ dgn: 'tool-panel-open', panel, anchor: null }, '*');
+    // 15 an-stamps: a key opens the panel the way a click on its slot would - anchored to that slot's box, so the Stamps
+    // row folds over the Stickers button, not over the middle of the dock (no slot drawn = no anchor, as before)
+    const slot = document.querySelector<HTMLElement>(`[data-testid="toolbar-slot-${panel}"]`);
+    window.parent.postMessage(toolPanelOpenMessage(panel, slot), '*');
   } catch {
     /* detached */
   }

@@ -171,6 +171,8 @@ export interface DanglingEnd {
   label: string;
   /** Where the end is drawn: the cached point. */
   at: [number, number];
+  /** The host's last resolved WORLD box (the bind's own `box`) - where the trashed target is outlined. */
+  box?: HostBox;
 }
 
 /** Every arrow end whose canvas host the resolver cannot find right now. Derived, never stored. */
@@ -186,6 +188,7 @@ export function danglingEnds(strokes: readonly Stroke[], resolve: HostResolver):
         ref: startHost.ref,
         label: startHost.label,
         at: [s.x1, s.y1],
+        ...(startHost.box ? { box: startHost.box } : {}),
       });
     if (endHost && !resolveHost(resolve, endHost.ref))
       out.push({
@@ -194,6 +197,7 @@ export function danglingEnds(strokes: readonly Stroke[], resolve: HostResolver):
         ref: endHost.ref,
         label: endHost.label,
         at: [s.x2, s.y2],
+        ...(endHost.box ? { box: endHost.box } : {}),
       });
   }
   return out;
