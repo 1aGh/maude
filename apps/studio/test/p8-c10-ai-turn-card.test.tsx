@@ -4,6 +4,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
+const roots: Array<{ unmount(): void }> = [];
 const T0 = new Date('2026-10-20T10:00:00Z').getTime();
 const MIN = 60_000;
 
@@ -50,7 +51,11 @@ describe('an earlier reply keeps its result card', () => {
       return Response.json({ ok: true });
     }) as unknown as typeof fetch;
   });
-  afterAll(() => {
+  afterAll(async () => {
+    // a root left mounted stays subscribed to the process-wide result-shown store: the next file in the same
+    // bun process that flips a flag there would make React reach for a `window` this file has unregistered
+    const { act } = await import('react');
+    for (const r of roots.splice(0)) await act(async () => r.unmount());
     globalThis.fetch = realFetch;
     GlobalRegistrator.unregister();
   });
@@ -105,6 +110,7 @@ describe('an earlier reply keeps its result card', () => {
     const host = document.createElement('div');
     document.body.append(host);
     const root = createRoot(host);
+    roots.push(root);
     await act(async () => {
       root.render(<Host />);
     });
@@ -191,6 +197,7 @@ describe('an earlier reply keeps its result card', () => {
     const host = document.createElement('div');
     document.body.append(host);
     const root = createRoot(host);
+    roots.push(root);
     await act(async () => {
       root.render(<Host />);
     });
@@ -261,6 +268,7 @@ describe('an earlier reply keeps its result card', () => {
     const host = document.createElement('div');
     document.body.append(host);
     const root = createRoot(host);
+    roots.push(root);
     await act(async () => {
       root.render(<Host />);
     });
@@ -321,6 +329,7 @@ describe('an earlier reply keeps its result card', () => {
     const host = document.createElement('div');
     document.body.append(host);
     const root = createRoot(host);
+    roots.push(root);
     await act(async () => {
       root.render(<Host />);
     });

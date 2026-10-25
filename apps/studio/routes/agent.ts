@@ -64,7 +64,7 @@ export interface AgentRouteDeps {
    * V2-1.15 §4 #13 — the people holding an element right now (awareness `holding`, S2.18). An
    * AI write on one is denied `soft-locked`. Absent = nobody holds anything.
    */
-  personHolds?: () => PersonHold[];
+  personHolds?: (canvas?: string) => PersonHold[];
   /** A member's display name for a lease home `actor` (the project's members), else null. */
   memberName?: (actor: string) => string | null;
 }
@@ -762,7 +762,7 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
       if (before !== null) {
         let holds: PersonHold[] = [];
         try {
-          holds = (deps.personHolds?.() ?? []).filter((h) => h?.canvas === rel);
+          holds = (deps.personHolds?.(rel) ?? []).filter((h) => h?.canvas === rel);
         } catch {
           holds = [];
         }

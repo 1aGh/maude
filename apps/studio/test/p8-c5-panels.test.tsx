@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { CANVASES_FOLD } from '../client/v2/left-panel/canvas-file-menu.js';
 
 const realFetch = globalThis.fetch;
 function installFetch(handlers: Record<string, unknown> = {}) {
@@ -32,7 +33,13 @@ beforeAll(() => {
   GlobalRegistrator.register();
   (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 });
-afterAll(() => {
+/** The Advanced fold is one process-wide store: this file puts it back how a fresh Mac shows it. */
+async function resetFold() {
+  const { foldStore } = await import('../client/v2/fold/use-fold.js');
+  foldStore.set(CANVASES_FOLD, false);
+}
+afterAll(async () => {
+  await resetFold();
   globalThis.fetch = realFetch;
   GlobalRegistrator.unregister();
 });

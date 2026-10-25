@@ -242,6 +242,7 @@ import { isUnderOrEqual, resolveUrlPathUnder } from './path-containment.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
 import { createPhotoStore, EDIT8_RE, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
+import type { AgentRouteDeps } from './routes/agent.ts';
 import {
   allSpecs,
   announceAction,
@@ -1417,6 +1418,8 @@ export function createHttp(
     runs?: RunRegistry;
     /** S8.5 — the cloud render door for this Mac; absent/null = no cloud (videos render here) */
     cloudRenderDoor?: () => CloudRenderDoor | null;
+    /** V2-1.15 §4 #13 — the people holding an element of a canvas now (collab/holds.ts) */
+    personHolds?: AgentRouteDeps['personHolds'];
   } = {}
 ): Http {
   /** The current request's inspector state (Cloud Phase 27 D3). Resolved per
@@ -2232,6 +2235,7 @@ export function createHttp(
       designRel: ctx.paths.designRel,
       shells: () => opts.shellCount?.() ?? 0,
       emit: (e, p) => ctx.bus.emit(e, p),
+      personHolds: opts.personHolds,
       // §5.4 `read-only`: the agent routes are non-browser, so only the format gate applies here
       // (a hub role is a browser-session property).
       readOnly: () => gateNow() !== null,
