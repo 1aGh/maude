@@ -6,6 +6,7 @@ import { V1_PALETTE } from '../../actions/legacy.ts';
 import { copyShareLink } from '../v2/share/link-dialog.js';
 import { normalizeOpenPath } from '../share-link.js';
 import { copyPresentationLink } from '../v2/present/copy-link.js';
+import { copyExportCommand } from '../v2/export/copy-command.js';
 import { bindCopyPng, runCopyPng } from '../v2/export/copy-png.js';
 import {
   folderOfCanvas,
@@ -335,6 +336,8 @@ export function usePaletteAndPanels({
       'canvas.new-video': () => createVideo(),
       'export.open': () => setExportDialog({ mode: 'export' }),
       'export.copy-png': () => runCopyPng().then((r) => shellToast(r.message, r.ok)),
+      // 06 ad-search — Export › Advanced › the same export from a terminal, as a ⌘K row
+      'export.copy-command': () => copyExportCommand().then((r) => shellToast(r.message, r.ok)),
       'share.copy-link': () => {
         const links = shareLinksFor(sharePath);
         const link = links.web ?? links.app ?? links.local;
