@@ -13,7 +13,23 @@
 // switch, a reconnect, the persisted `_active.json` on boot — none of which carry
 // these fields) silently drops the Inspector's Photo tab until the next fresh
 // click re-derives it live — the "tab is there, then it's gone" flicker.
+// P8 C7 (14 ed-ab-tidy): a SET of selected things (several artboards by a marquee) is merged member by member —
+// the echo of a set lacks the same client-only fields (world size, geometry, attrs), and the multi-artboard card
+// compares them. A member pairs with the previous member of the same identity (id + index, or an id-less
+// artboard's selector), in any order.
+const sameMember = (a, b) =>
+  a?.file === b?.file &&
+  (a?.id || b?.id
+    ? a?.id === b?.id && (a?.index ?? 0) === (b?.index ?? 0)
+    : a?.selector === b?.selector);
+
 export function mergeSelClientFields(incoming, prev) {
+  if (Array.isArray(incoming) && Array.isArray(prev)) {
+    return incoming.map((inc) => {
+      const p = prev.find((x) => sameMember(inc, x));
+      return p ? mergeSelClientFields(inc, p) : inc;
+    });
+  }
   if (!incoming || Array.isArray(incoming) || Array.isArray(prev) || !prev) return incoming;
   // Dogfood follow-up (print artboards) — a whole-ARTBOARD selection has NO
   // data-cd-id (the frame chrome carries only data-dc-screen), so the id
@@ -48,6 +64,7 @@ export function mergeSelClientFields(incoming, prev) {
         artboardId: incoming.artboardId ?? prev.artboardId,
         worldW: incoming.worldW ?? prev.worldW,
         worldH: incoming.worldH ?? prev.worldH,
+        geometry: incoming.geometry ?? prev.geometry,
       };
     }
     return incoming;
