@@ -117,6 +117,8 @@ export function PointEdit({ readOnly = false }: { readOnly?: boolean }) {
   const editRef = useRef(edit);
   editRef.current = edit;
   const [drag, setDrag] = useState<Drag | null>(null);
+  // 14 ed-pen: a point under the pointer says what it is (Smooth / Sharp), in a quiet tag; the selected one has the loud one
+  const [hover, setHover] = useState<PointRef | null>(null);
   const dragRef = useRef(drag);
   dragRef.current = drag;
   const latest = useRef<PathModel | null>(null);
@@ -381,6 +383,8 @@ export function PointEdit({ readOnly = false }: { readOnly?: boolean }) {
                     y={p.y - 5}
                     width={10}
                     height={10}
+                    onPointerEnter={() => setHover({ sub: si, i })}
+                    onPointerLeave={() => setHover((h) => (h?.sub === si && h.i === i ? null : h))}
                     onPointerDown={(ev) => press(ev, { kind: 'anchor', sub: si, i })}
                     onDoubleClick={(ev) => {
                       ev.stopPropagation();
@@ -393,6 +397,16 @@ export function PointEdit({ readOnly = false }: { readOnly?: boolean }) {
           )}
         </svg>
       }
+      {hover && !drag && !(edit.sel && edit.sel.sub === hover.sub && edit.sel.i === hover.i)
+        ? (() => {
+            const at = screen.subs[hover.sub]?.points[hover.i];
+            return at ? (
+              <PenChip x={at.x + 14} y={at.y + 14} tone="quiet" testid="edit-pen-chip-hover">
+                {typeChip(edit.model, hover)}
+              </PenChip>
+            ) : null;
+          })()
+        : null}
       {sel && edit.sel ? (
         <PenChip x={sel.x + 14} y={sel.y + 14} testid="edit-pen-chip-type">
           {typeChip(edit.model, edit.sel)}
