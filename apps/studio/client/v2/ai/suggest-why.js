@@ -68,6 +68,7 @@ const chip = (id, label, prompt, extra = {}) => ({ id, label, prompt: prompt ?? 
  * @param {{ text: string } | null} [i.lastAsk] — this person's last ask in this chat
  * @param {boolean} [i.lastFailed=false] — S5.19: the last ask FAILED; "Try a variation / Explain what changed" would follow up on nothing
  * @param {boolean} [i.resultShown=false] — P8 c6: the result card under the last reply already carries the follow-up chips (03 `ai-done`)
+ * @param {boolean} [i.answered=false] — P8 c8: the last turn answered and changed nothing (03 `ai-question`)
  * @param {number} [i.now]
  * @returns {{ context: string, icon: string, chips: Array<{id:string,label:string,prompt:string,testid?:string}>, why: string } | null}
  */
@@ -79,6 +80,7 @@ export function deriveSuggestions({
   lastAsk = null,
   lastFailed = false,
   resultShown = false,
+  answered = false,
   now = Date.now(),
 } = {}) {
   if (!enabled) return null;
@@ -139,6 +141,15 @@ export function deriveSuggestions({
     String(lastAsk.text).trim() &&
     !String(lastAsk.text).trim().startsWith('/')
   ) {
+    if (answered) {
+      // an answer, not a change: the way on is the change itself, or the same look at the rest
+      return {
+        context: 'answered',
+        icon: 'history',
+        chips: [chip('make', 'Make that change'), chip('others', 'Check the other artboards too')],
+        why: '',
+      };
+    }
     const topic = askTopic(lastAsk.text);
     const chips =
       topic === 'colour'

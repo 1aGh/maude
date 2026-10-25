@@ -230,10 +230,34 @@ export function useSlashCommands(conn) {
 // being typed. Keyboard-driven from the composer (see Composer); mouse hover +
 // click supported. onMouseDown (not onClick) so picking beats the textarea blur.
 // S5.18 G8 (03 `ai-adv-edges`): a "Slash commands" group, one-line notes, no argument hints; "More…" opens the rest.
-function CommandPopover({ items, activeIndex, onPick, onHover }) {
+export function CommandPopover({ items, activeIndex, onPick, onHover }) {
+  const ref = useRef(null);
+  const [place, setPlace] = useState(null);
+  // Fixed, from the composer's own rectangle: the dock slot clips whatever hangs above a short (new) chat, and
+  // the menu was cut to one row there (03 `ai-adv-edges` draws all three).
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const anchor = el?.parentElement;
+    if (!el || !anchor) return;
+    const a = anchor.getBoundingClientRect();
+    if (!a.width) return;
+    setPlace({
+      position: 'fixed',
+      left: Math.round(a.left),
+      width: Math.round(a.width),
+      right: 'auto',
+      bottom: Math.round(window.innerHeight - a.top + 4),
+    });
+  }, [items]);
   if (!items.length) return null;
   return (
-    <div className="chat-cmd-menu" role="listbox" data-testid="chat-cmd-menu">
+    <div
+      ref={ref}
+      className="chat-cmd-menu"
+      role="listbox"
+      data-testid="chat-cmd-menu"
+      style={place ?? undefined}
+    >
       <div className="chat-cmd-group" role="presentation">
         Slash commands
       </div>

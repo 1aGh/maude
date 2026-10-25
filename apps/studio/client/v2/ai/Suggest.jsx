@@ -5,7 +5,7 @@ import { ThreadPrimitive, useThread } from '@assistant-ui/react';
 import { StIcon } from '../../shell/icons.jsx';
 import { lastUserText } from '../../panels/acp-runtime.js';
 import { deriveSuggestions } from './suggest-why.js';
-import { useResultShown } from './result-shown.js';
+import { useAnswered, useResultShown } from './result-shown.js';
 
 // Persistent quick-action verbs (prefill the composer; never fire blind). The
 // one-time `/design:setup-ds` is offered contextually in the empty state, not here.
@@ -75,6 +75,7 @@ const STRIP_ICON = {
   clips: 'presentation',
   shared: 'share',
   'last-ask': 'reload',
+  answered: 'reload',
 };
 
 /**
@@ -92,6 +93,7 @@ export function SuggestStrip({
 }) {
   const lastAsk = useThread((t) => lastUserText(t.messages) || '');
   const resultShown = useResultShown(chatId);
+  const answered = useAnswered(chatId);
   const sug = deriveSuggestions({
     enabled,
     openComments,
@@ -100,6 +102,7 @@ export function SuggestStrip({
     lastAsk: lastAsk ? { text: lastAsk } : null,
     lastFailed,
     resultShown,
+    answered,
   });
   if (!sug) return null;
   return (
@@ -119,9 +122,11 @@ export function SuggestStrip({
           </ThreadPrimitive.Suggestion>
         ))}
       </div>
-      <p className="ai-suggest-why" data-testid="ai-suggest-why">
-        {sug.why}
-      </p>
+      {sug.why ? (
+        <p className="ai-suggest-why" data-testid="ai-suggest-why">
+          {sug.why}
+        </p>
+      ) : null}
     </div>
   );
 }
