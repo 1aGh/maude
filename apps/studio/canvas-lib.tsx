@@ -105,16 +105,16 @@ import {
 
 import { canvasKeyIndex, resolveCanvasKey } from './actions/canvas-keys.ts';
 import { ArtboardActivityOverlay } from './artboard-activity-overlay.tsx';
-import { ArtboardGhostsLayer } from './artboard-ghosts-overlay.tsx';
 import { ArtboardConvertMarks } from './artboard-convert-marks.tsx';
 import { ArtboardGapMark } from './artboard-gap-mark.tsx';
-import { ArtboardNewSection, useNewSection } from './artboard-new-section.tsx';
+import { ArtboardGhostsLayer } from './artboard-ghosts-overlay.tsx';
 import { ArtboardGrowthTag, useGrowthDelta } from './artboard-growth-tag.tsx';
 import {
   ArtboardGuidesOverlay,
   type GuideDefinitions,
   type OverlayVisibility,
 } from './artboard-guides-overlay.tsx';
+import { ArtboardNewSection, useNewSection } from './artboard-new-section.tsx';
 import {
   ArtboardWarnMark,
   ArtboardWarnOutlines,
