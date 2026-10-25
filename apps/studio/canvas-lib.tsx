@@ -132,6 +132,7 @@ import { previewWheelPassthrough } from './preview/wheel-scroll.ts';
 import type { ArtboardPrintProp } from './print/units.ts';
 import { useGovernedMode } from './use-governed-mode.ts';
 import { VideoLinksLayer } from './video-links-overlay.tsx';
+import { viewportAtFit } from './viewport-fit.ts';
 // feature-2-print-artboards T3 — side-effect import: registers the print
 // kind's overlay content (bleed/trim/margin) into artboard-guides-overlay's
 // registry at module load, per that file's own "call registerKindOverlay at
@@ -1171,6 +1172,8 @@ export function fitRectIntoHost(rect: ArtboardRect, hostEl: HTMLElement, pad = 2
 // outlives the subtree. A full page load clears it — correct, view.json seeds
 // then. Written on every applyViewport (exact — no settle/publish lag).
 let liveViewport: ViewportState | null = null;
+// V2-8.5 c7 — where the last Zoom to fit put the camera (viewport-fit.ts); the reporter tells the shell while it still sits there.
+let fitMark: ViewportState | null = null;
 
 /**
  * The current pan/zoom, read from OUTSIDE the React tree — the
@@ -1477,6 +1480,9 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
   const PROGRAMMATIC_EASE_MS = 200;
   const fit = useCallback(() => {
     const next = computeFitRef.current();
+    fitMark = { ...next, zoom: clampZoom(next.zoom) };
+    // already on the target: nothing moves, so republish the same camera and let the reporter say "fit"
+    if (viewportAtFit(vpRef.current, fitMark)) setViewportPublished({ ...vpRef.current });
     const a = animateToRef.current;
     if (a) a(next, PROGRAMMATIC_EASE_MS);
     else applyViewport(next);
@@ -4476,15 +4482,21 @@ function ViewportZoomReporter() {
   const lastKey = useRef('');
   useEffect(() => {
     if (typeof window === 'undefined' || window.parent === window) return;
-    const key = `${Math.round(vp.zoom * 100)}|${modeSeq}`;
+    const fitted = viewportAtFit(vp, fitMark);
+    const key = `${Math.round(vp.zoom * 100)}|${modeSeq}|${fitted ? 'fit' : ''}`;
     if (key === lastKey.current) return;
     lastKey.current = key;
     try {
-      window.parent.postMessage({ dgn: 'viewport-zoom', zoom: vp.zoom }, '*');
+      window.parent.postMessage(
+        fitted
+          ? { dgn: 'viewport-zoom', zoom: vp.zoom, fit: true }
+          : { dgn: 'viewport-zoom', zoom: vp.zoom },
+        '*'
+      );
     } catch {
       /* detached */
     }
-  }, [vp.zoom, modeSeq]);
+  }, [vp, modeSeq]);
   return null;
 }
 ViewportZoomReporter.displayName = 'ViewportZoomReporter';
