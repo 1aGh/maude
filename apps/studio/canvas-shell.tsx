@@ -120,6 +120,7 @@ import { clampsEngineScroll } from './preview/wheel-scroll.ts';
 import { installEmbedEscapeRelay, isEmbedCanvas, isReadOnlyCanvas } from './read-only-mode.ts';
 import { mountCaret, placeCaretAt } from './text-caret.ts';
 import { ToolPalette } from './tool-palette.tsx';
+import { setShellPanelOpen } from './toolbars/shell-panels.ts';
 import { UndoHud } from './undo-hud.tsx';
 import {
   AnnotationSelectionProvider,
@@ -3108,6 +3109,14 @@ function CanvasRouter({
       // S1.3 L1 (A6c) — the jump list's / Compare's camera move: glide (or cut, under reduced motion or
       // `glide: false`) to one artboard and flash it. Parent-only like select-by-id: a sibling canvas
       // frame must not move this camera. An unknown id moves nothing.
+      // V2-8.5 c7 (15 an-stk-gallery, 04 md-edit-image) - which shell panel is open, so the dock's Stickers / Image slot
+      // presses. Parent-only; two words or null, anything else is ignored.
+      if (m.dgn === 'shell-panels') {
+        if (e.source !== window.parent) return;
+        const open = (m as { open?: unknown }).open;
+        setShellPanelOpen(open === 'stickers' || open === 'assets' ? open : null);
+        return;
+      }
       // V2-8.5 c7 (08 ak-convert-after) — the two marks after "Make A6 print". Parent-only, like the rest of this block:
       // a sibling canvas frame must not paint marks on this canvas. The strings are built here from the facts.
       if (m.dgn === 'convert-marks') {

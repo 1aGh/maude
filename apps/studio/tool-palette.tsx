@@ -58,6 +58,11 @@ import { IconLineThick, IconLineThin, SHAPE_KIND_ICONS, TOOL_ICONS } from './can
 import { TOOLBAR_INSERT_EVENT, type Tool } from './input-router.tsx';
 import { isReadOnlyCanvas } from './read-only-mode.ts';
 import { isMarkerTip, lastMarkerTip } from './toolbars/marker-tip.ts';
+import {
+  getShellPanelOpen,
+  isShellPanelOpen,
+  subscribeShellPanel,
+} from './toolbars/shell-panels.ts';
 import { openToolPanel } from './toolbars/tool-panel.ts';
 import { ensureToolbarStyles } from './toolbars/toolbar-css.ts';
 import { SLOT_ICONS } from './toolbars/toolbar-icons.tsx';
@@ -438,6 +443,8 @@ export function ToolPalette() {
   const theme = useCanvasChromeTheme();
   const prefs = useToolState();
   const governed = useGoverned();
+  // V2-8.5 c7 - which shell panel (Stickers gallery / Assets) is open: its panel-only slot presses
+  const shellPanel = useSyncExternalStore(subscribeShellPanel, getShellPanelOpen, () => null);
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState<Popover>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -647,6 +654,8 @@ export function ToolPalette() {
           data-testid={`toolbar-slot-${id}`}
           aria-label={`${s.label}${keyHint}`}
           title={`${s.label}${keyHint} — ${s.panel === 'components' ? 'place from the design system' : s.panel === 'assets' ? 'the pictures in this project' : 'searchable sticker picker'}`}
+          // pressed while the shell's panel for this slot is up (shell-panels dgn); a closed panel carries no attribute
+          aria-pressed={isShellPanelOpen(s.panel, shellPanel) ? true : undefined}
           onClick={(e) => openToolPanel(s.panel ?? 'stickers', e.currentTarget)}
         >
           {Icon ? <Icon /> : null}
