@@ -108,6 +108,7 @@ import { ArtboardActivityOverlay } from './artboard-activity-overlay.tsx';
 import { ArtboardGhostsLayer } from './artboard-ghosts-overlay.tsx';
 import { ArtboardConvertMarks } from './artboard-convert-marks.tsx';
 import { ArtboardGapMark } from './artboard-gap-mark.tsx';
+import { ArtboardNewSection, useNewSection } from './artboard-new-section.tsx';
 import { ArtboardGrowthTag, useGrowthDelta } from './artboard-growth-tag.tsx';
 import {
   ArtboardGuidesOverlay,
@@ -2830,6 +2831,8 @@ export function DCArtboard({
   // Guides (print bleed/trim/margins, layout grids) describe the DESIGN, so
   // they are drawn over it, not over the frame with its label strip.
   const bodyRef = useRef<HTMLDivElement | null>(null);
+  // ... and the section that arrived, framed and named beside it (08 ak-web-hug "Rozpis zápasů · new section")
+  const newSection = useNewSection(bodyRef, resolvedKind === 'web' && !fixed, measured.height);
   // S7.25 — the one warning style: this artboard checks itself (print · web · video) and marks its label
   const warnings = useArtboardWarnings({
     id,
@@ -3160,6 +3163,11 @@ export function DCArtboard({
         x={liveX + rect.w}
         bottom={liveY + rect.h}
         delta={artboardEditChrome ? growth : null}
+      />
+      <ArtboardNewSection
+        x={liveX + (surface?.dx ?? 0)}
+        y={liveY + (surface?.dy ?? 0)}
+        section={artboardEditChrome ? newSection : null}
       />
       {/* V2-8.5 c7 (08 ak-convert-after) — "✓ Unchanged" / "+ 13 % height · Ink fill" after Make A6 print */}
       <ArtboardConvertMarks
