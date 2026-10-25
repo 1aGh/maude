@@ -101,6 +101,26 @@ export function tieArcs(el: HTMLElement): TieArc[] {
   return out;
 }
 
+/**
+ * P8 c10 (14 ed-text-edit): while a Czech text is typed, the page's other Czech copy shows its ties too — the board draws
+ * the arcs under "v" and "s" of the body line while the headline is edited. The text-only leaves of the SAME artboard
+ * whose language is Czech (capped — a page of hundreds of lines draws none past the cap).
+ */
+const PEER_CAP = 40;
+export function czechPeers(el: HTMLElement): HTMLElement[] {
+  const board = el.closest('[data-dc-screen]');
+  if (!board) return [];
+  const out: HTMLElement[] = [];
+  for (const n of board.querySelectorAll<HTMLElement>('*')) {
+    if (n === el || n.contains(el) || el.contains(n) || n.children.length > 0) continue;
+    if (!(n.textContent ?? '').trim() || !isCzech(langIn(n))) continue;
+    if (tiePositions(n.textContent ?? '').length === 0) continue;
+    out.push(n);
+    if (out.length >= PEER_CAP) break;
+  }
+  return out;
+}
+
 const sig = (arcs: TieArc[]): string =>
   arcs.map((a) => `${a.at}:${Math.round(a.x)},${Math.round(a.y)},${Math.round(a.w)}`).join('|');
 
@@ -113,9 +133,16 @@ export function TextInPlace({ readOnly }: { readOnly?: boolean }) {
     ensureTextRingStyle(document);
     let raf = 0;
     let last = '';
-    const measure = () => {
+    // the page's other Czech lines are found when the text or the focus changes, not on every frame
+    let peers: HTMLElement[] = [];
+    let peersOf: HTMLElement | null = null;
+    const measure = (refind = false) => {
       const el = document.querySelector(EDITING) as HTMLElement | null;
-      const next = el && isCzech(langIn(el)) ? tieArcs(el) : [];
+      const czech = !!el && isCzech(langIn(el));
+      if (!el || !czech) peers = [];
+      else if (refind || peersOf !== el) peers = czechPeers(el);
+      peersOf = el;
+      const next = czech && el ? [...tieArcs(el), ...peers.flatMap((p) => tieArcs(p))] : [];
       const s = sig(next);
       if (s !== last) {
         last = s;
@@ -129,7 +156,7 @@ export function TextInPlace({ readOnly }: { readOnly?: boolean }) {
       raf = measure() ? requestAnimationFrame(loop) : 0;
     };
     const kick = () => {
-      measure();
+      measure(true);
       if (!raf && document.querySelector(EDITING)) raf = requestAnimationFrame(loop);
     };
     const events = ['input', 'keyup', 'focusin', 'focusout', 'selectionchange'] as const;
@@ -143,9 +170,9 @@ export function TextInPlace({ readOnly }: { readOnly?: boolean }) {
   if (arcs.length === 0) return null;
   return (
     <>
-      {arcs.map((a) => (
+      {arcs.map((a, i) => (
         <svg
-          key={a.at}
+          key={`${i}:${a.at}`}
           className="dc-tie-arc"
           data-testid="edit-tie-arc"
           aria-hidden="true"
