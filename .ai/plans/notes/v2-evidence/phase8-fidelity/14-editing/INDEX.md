@@ -660,3 +660,42 @@ Shot on the Mac mini (`scripts/remote-lane.sh`) with its installed Google Chrome
 | `ed-text-edit` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ed-text-style` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ed-text-style` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+## After (round 10, p8-c10-edit) — IMPL re-shot on the p8-c10-edit tip, both themes
+Re-shot (MUST rows of critic-bar4: ed-lay-auto "3 frames, each Fills the width.", ed-lay-free the free-placement line, ed-text-edit ties on the body copy, ed-pen Point card / Smooth·Sharp tags / Stroke Ends / point click keeps the path, ed-edge-paste no "Image · new section" over a placed picture) plus the rest of the c8e chain. Side shot `ed-pen-draw` (the "Click here to close" ring and chip) in `side/`. Harness: `_c10-harness-g5` on `_c8e-harness-g5` on `_d5-harness-g5`. Fixes: `fix-c10-edit.md`.
+
+| id | theme | state | spec |
+| --- | --- | --- | --- |
+| `ed-lay-auto` | dark | re-shot | spec reused (board unchanged) |
+| `ed-lay-auto` | light | re-shot | spec reused (board unchanged) |
+| `ed-lay-free` | dark | re-shot | spec reused (board unchanged) |
+| `ed-lay-free` | light | re-shot | spec reused (board unchanged) |
+| `ed-text-edit` | dark | re-shot | spec reused (board unchanged) |
+| `ed-text-edit` | light | re-shot | spec reused (board unchanged) |
+| `ed-pen` | dark | re-shot | spec reused (board unchanged) |
+| `ed-pen` | light | re-shot | spec reused (board unchanged) |
+| `ed-edge-paste` | dark | re-shot | spec reused (board unchanged) |
+| `ed-edge-paste` | light | re-shot | spec reused (board unchanged) |
+| `ed-obj-multi` | dark | re-shot | spec reused (board unchanged) |
+| `ed-obj-multi` | light | re-shot | spec reused (board unchanged) |
+| `ed-obj-order` | dark | re-shot | spec reused (board unchanged) |
+| `ed-obj-order` | light | re-shot | spec reused (board unchanged) |
+| `ed-lay-reorder` | dark | re-shot | spec reused (board unchanged) |
+| `ed-lay-reorder` | light | re-shot | spec reused (board unchanged) |
+| `ed-comp-pick` | dark | re-shot | spec reused (board unchanged) |
+| `ed-comp-pick` | light | re-shot | spec reused (board unchanged) |
+| `ed-comp-instance` | dark | re-shot | spec reused (board unchanged) |
+| `ed-comp-instance` | light | re-shot | spec reused (board unchanged) |
+| `ed-img` | dark | re-shot | spec reused (board unchanged) |
+| `ed-img` | light | re-shot | spec reused (board unchanged) |
+| `ed-shape` | dark | re-shot | spec reused (board unchanged) |
+| `ed-shape` | light | re-shot | spec reused (board unchanged) |
+| `ed-text-style` | dark | re-shot | spec reused (board unchanged) |
+| `ed-text-style` | light | re-shot | spec reused (board unchanged) |
+| `ed-edge-huge` | dark | re-shot | spec reused (board unchanged) |
+| `ed-edge-huge` | light | re-shot | spec reused (board unchanged) |
+| `ed-edge-keys` | dark | re-shot | spec reused (board unchanged) |
+| `ed-edge-keys` | light | re-shot | spec reused (board unchanged) |
+| `ed-inspector` | dark | re-shot | spec reused (board unchanged) |
+| `ed-inspector` | light | re-shot | spec reused (board unchanged) |
+
