@@ -231,14 +231,18 @@ async function harvest(page) {
       const out = [];
       for (const el of [...document.querySelectorAll('[data-dc-screen]')].slice(0, 2000)) {
         const label = el.querySelector(':scope > .dc-artboard-label')?.textContent ?? null;
+        // P8 C6 (09 ex-social): an artboard's size is its DESIGN SURFACE (`.dc-artboard-body`, the box that
+        // exports), not the frame with its border — the frame read 436 x 544 for a 432 x 540 post, and the
+        // Export sheet's size chip and size line said so (canvas-lib's `__maudeCanvasRects` measures the body)
+        const body = [...el.children].find((c) => c.classList.contains('dc-artboard-body'));
         out.push({
           id: el.getAttribute('data-dc-screen'),
           label: label ? label.trim().slice(0, 200) : null,
           kind: el.getAttribute('data-dc-kind'),
           x: el.offsetLeft,
           y: el.offsetTop,
-          w: el.offsetWidth,
-          h: el.offsetHeight,
+          w: body?.offsetWidth || el.offsetWidth,
+          h: body?.offsetHeight || el.offsetHeight,
         });
       }
       return out;

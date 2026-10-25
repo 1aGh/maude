@@ -313,3 +313,8 @@ Re-shot (light + dark pairs overwritten, harness `_d3-harness-g5` copied over `_
 | `ds-board-studio` | light, dark | re-shot (capture-origin crop) | spec reused |
 | `ds-board-dark` | light, dark | re-shot (capture-origin crop) | spec reused |
 | `ds-board-gator` | light, dark | re-shot (capture-origin crop) | spec reused |
+## Round 6 (p8-c6-bugs4) — after
+
+| id | after | notes |
+|---|---|---|
+| ds-truth-outside | re-shot, light + dark | `s13` group c: the inspector is opened (nothing selected) and the 6 s poll awaited — the "2 tokens changed outside the app" card (file, accent / bg-1 old → new, Undo / Keep) draws. The earlier "never surfaces" was the probe reading the FIRST system of `ds status` (maude, no change) instead of `ds status maude-v2`; the detection itself works |

@@ -108,6 +108,7 @@ import { CanvasBuildError, canvasSourceSig, recordCanvasBuild } from './canvas-s
 import { rememberCanvasBuild } from './canvas-source-memo.ts';
 import { createCloudEndpoints } from './cloud/endpoints.ts';
 import type { AiActivity } from './collab/ai-activity.ts';
+import { localAuthor } from './comments/local-author.ts';
 import type { Context } from './context.ts';
 import { reloadConfig } from './context.ts';
 import { buildDebugBundle } from './debug-bundle.ts';
@@ -2285,7 +2286,7 @@ export function createHttp(
       actor: async (req) => ({
         name:
           (isWorkspaceMode() ? req.headers.get('x-maude-user') : null)?.slice(0, 120) ||
-          (await api.gitCurrentUser()),
+          localAuthor(await api.gitCurrentUser()),
       }),
       fileOf: (id) => api.commentFileOf(id),
       apply: (file, op, actor) => api.commentOp(file, op, actor),

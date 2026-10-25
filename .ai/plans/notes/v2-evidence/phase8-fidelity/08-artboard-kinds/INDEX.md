@@ -148,3 +148,9 @@ Every reachable id re-shot again on the merged tip after stage C round 5 + bugs3
 Totals: 36 id×theme re-shot, 2 unreachable (spec-only frames kept).
 
 Harness notes (D3): the D2 harness (`_d2-harness-g3/`) plus the bugs3 deltas, repointed; no scenario changes were needed for the round-5 product. Observed in the frames: the View › Advanced submenu now draws its rows inside its panel (nested submenus are position:fixed — the empty-panel observation of D2 no longer shows); ak-convert-after shows the "The A6 copy is beside the artboard. The artboard is unchanged." toast with Undo. `ak-picker-custom` is an extra impl frame with no board artboard (no pair).
+
+## Round 6 (p8-c6-bugs4) — after
+
+| id | after | notes |
+|---|---|---|
+| ak-convert-after | re-shot, light + dark | mini scenario `t08c` (the post → A6 convert only). The toast now says "The A6 copy is beside the post. The post is unchanged." (an artboard labelled "post" is a post, not only a catalogue size); the A6 copy is selected in both themes. Still open: the "+ 13 % height · Ink fill" chip and the "Unchanged" mark under the post (a transient canvas overlay that needs a new dgn message — see `10-share-and-collaboration/fix-c6-bugs4.md`) |

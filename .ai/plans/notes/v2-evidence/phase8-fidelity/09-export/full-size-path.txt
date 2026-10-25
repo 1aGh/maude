@@ -11,3 +11,4 @@ bugs3: (Export sheet for one element names and sizes it (the harness selects the
 
 final (D3, 63592219a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae9248c4b37445c3a/.scr/pairs/09
 (final spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae9248c4b37445c3a/.scr/spec/09/<id>-<theme>.png; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae9248c4b37445c3a/.scr/impl/09/)
+round 6: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa6b69031abb5eb4d/.scr/pairs/09 (p8-c6-bugs4: ex-social only; raw impl /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa6b69031abb5eb4d/.scr/impl/09)
