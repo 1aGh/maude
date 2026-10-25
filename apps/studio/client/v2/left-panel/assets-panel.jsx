@@ -217,6 +217,25 @@ export function AssetsPanel({
     },
     [toast, placeLabel]
   );
+  // 12 · ia-placed — what a place made is selected as one group ("6 photos" on its box), so it can be moved or asked about
+  // at once; the write lands and the canvas re-renders first, then the first replaces the selection and the rest join it
+  const selectPlaced = useCallback(
+    (created) => {
+      if (!postToActiveCanvas || !Array.isArray(created) || created.length === 0) return;
+      for (const ms of [300, 900])
+        setTimeout(() => {
+          created.forEach((c, i) =>
+            postToActiveCanvas({
+              dgn: 'select-by-id',
+              id: c.element,
+              artboardId: c.artboard,
+              ...(i > 0 ? { add: true } : {}),
+            })
+          );
+        }, ms);
+    },
+    [postToActiveCanvas]
+  );
   // S8.14 — Image (I) shows this tab; "From this Mac…" there does what a drop on the artboard does: the photos chosen are
   // imported AND placed on the selected artboard (empty frames in order, else a tidy grid, else loose), in one write.
   // With no artboard selected it is the plain import it always was.
@@ -229,7 +248,10 @@ export function AssetsPanel({
       { record: onRecord }
     );
     if (!r.ok && alive.current) setErr(r.message);
-    else announcePlaced(Math.min(paths.length, MAX_PLACE));
+    else {
+      announcePlaced(Math.min(paths.length, MAX_PLACE));
+      selectPlaced(r.created);
+    }
   };
 
   const byPath = useMemo(() => new Map((assets || []).map((a) => [a.path, a])), [assets]);
@@ -389,9 +411,12 @@ export function AssetsPanel({
         { record: onRecord }
       );
       if (!r.ok && alive.current) setErr(r.message);
-      else announcePlaced(list.length);
+      else {
+        announcePlaced(list.length);
+        selectPlaced(r.created);
+      }
     },
-    [readOnly, byPath, place, placeTarget, onRecord, announcePlaced]
+    [readOnly, byPath, place, placeTarget, onRecord, announcePlaced, selectPlaced]
   );
 
   // ── S8.13: Move to the trash — one request, the studio decides; Undo puts the bundles back ──────────────────────

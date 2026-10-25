@@ -2,6 +2,8 @@
 // Place in … ↵ · Show details ⌘I · Rename… · Copy ⌘C · — · Move to trash. The field names what it renames; Enter asks
 // the studio (`POST /_api/assets/rename`), the line under the head says the answer, with Undo.
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -145,5 +147,39 @@ describe('the panel (render)', () => {
     expect(posts.at(-1)?.body).toEqual({ asset: `assets/${old}.jpg`, name: 'Kick off' });
     expect(q(host, 'assets-renamed')?.textContent).toContain('Renamed to “Kick off.jpg”.');
     expect(q(host, 'assets-renamed-undo')?.textContent).toBe('Undo');
+  });
+});
+
+describe('12 · ia-placed — what a place made is selected as one group, "6 photos" on its box', () => {
+  test('the select message may add to the selection', async () => {
+    const { DGN_TABLE } = await import('../bridge/dgn-protocol.ts');
+    const spec = (DGN_TABLE.s2c as Record<string, { parse: (v: unknown) => unknown }>)[
+      'select-by-id'
+    ];
+    expect(spec?.parse({ id: 'p1', artboardId: 'ab', add: true })).toEqual({
+      id: 'p1',
+      artboardId: 'ab',
+      add: true,
+    });
+    expect(spec?.parse({ id: 'p1', add: 'yes' })).toBeNull();
+  });
+
+  test('two or more pictures and nothing else are "N photos"; a mixed group says nothing', async () => {
+    const { groupPhotoCount } = await import('../canvas-shell.tsx');
+    const img = { tagName: 'IMG' } as Element;
+    const div = { tagName: 'DIV' } as Element;
+    expect(groupPhotoCount([img, img, img, img, img, img])).toBe(6);
+    expect(groupPhotoCount([img, div])).toBe(0);
+    expect(groupPhotoCount([img])).toBe(0);
+    expect(groupPhotoCount([img, null])).toBe(0);
+  });
+
+  test('both place paths (From this Mac… and ↵ on several) select what they placed', () => {
+    const src = readFileSync(
+      join(import.meta.dir, '../client/v2/left-panel/assets-panel.jsx'),
+      'utf8'
+    );
+    expect(src.match(/selectPlaced\(r\.created\)/g)?.length).toBe(2);
+    expect(src.includes('...(i > 0 ? { add: true } : {})')).toBe(true);
   });
 });
