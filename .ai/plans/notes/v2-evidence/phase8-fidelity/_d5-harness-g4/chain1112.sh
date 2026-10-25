@@ -4,7 +4,7 @@
 cd "$(dirname "$0")/../../../../../.." || exit 1
 ROOT=$PWD
 H=$ROOT/.ai/plans/notes/v2-evidence/phase8-fidelity/_d5-harness-g4
-unset SHOT_CHANNEL
+export SHOT_CHANNEL=${SHOT_CHANNEL-chrome}  # the mini has no Playwright Chromium download, only Google Chrome.app; set SHOT_CHANNEL= (empty) locally for the bundled Chromium
 export NO_OPEN=1 MAUDE_NO_AUTOBUILD=1
 T=${THEMES:-dark,light}
 rm -rf "$ROOT/.scr/impl/11-projects-and-navigation" "$ROOT/.scr/impl/12-import-and-assets" "$ROOT/.scr/logs1112"

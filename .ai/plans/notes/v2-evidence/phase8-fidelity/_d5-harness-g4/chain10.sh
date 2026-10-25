@@ -6,7 +6,7 @@ ROOT=$PWD
 H=$ROOT/.ai/plans/notes/v2-evidence/phase8-fidelity/_d5-harness-g4
 IMPL=$ROOT/.scr/impl/10-share-and-collaboration
 TMPO=$ROOT/.scr/impl10/10-share-and-collaboration
-unset SHOT_CHANNEL
+export SHOT_CHANNEL=${SHOT_CHANNEL-chrome}  # the mini has no Playwright Chromium download, only Google Chrome.app; set SHOT_CHANNEL= (empty) locally for the bundled Chromium
 export NO_OPEN=1 MAUDE_NO_AUTOBUILD=1
 rm -rf "$ROOT/.scr/impl10" "$IMPL"
 mkdir -p "$TMPO" "$IMPL"

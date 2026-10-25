@@ -1,11 +1,16 @@
-Round-7 harness (p8-c7-g1112b), canvases 11 + 12. = _d2-harness-g4 plus:
-- s11c7  pn-move (a canvas held over a folder: "Move here") and pn-jump (artboard selected, list opened and scrolled)
-- s11dl  pn-deeplink (waits for the toast; the toast names the artboard, the artboard is selected)
-- s11ds7 pn-ds / pn-ds-search with ONE design system, the system open
-- s12c7  ia-assets-keys (artboard selected, tile menu open), ia-assets-browse (click + shift-click six), ia-assets-tidy, ia-photo-inspector,
-         ia-photo-steps (Placement > Crop, double-click = crop mode), ia-missing-gone (picture selected: the Missing box)
-chain7.sh = the whole run (later scripts overwrite earlier frames of the same id); chain7b.sh = the retakes after the last product change.
-REPO in lib.mjs points at the shooting worktree: copy into a worktree .scr, repoint it, symlink node_modules (root + apps/studio), release-build apps/studio, then
-`node .scr/mkpairs.mjs <NN-dir>`. Needs ImageMagick (convert, magick). home11 needs `MAUDE_INDEX_DIR=.scr/home-idx bun .scr/seed-home.ts > .scr/home-seed.json`.
-s11ds7 needs .scr/design-copy1/.design = system/maude-v2 + ui/v2 + a config.json copied from this tree with designSystems filtered to maude-v2.
-Never run a chain that waits on `pgrep -f run.mjs`. macOS has no `timeout`.
+D5 final re-shoot harness (p8-d5-g4), canvases 10 + 11 + 12.
+
+= the newest committed harness per canvas, merged into one repo-relative directory:
+  10: _c7c-harness-g4  (scenarios s10 s10cm s10c s10d s10e s10m s10k s10v; mkpairs table for 10 as in c7c)
+  11/12: _c7-harness-g1112b  (round 7: s11c7 pn-move/pn-jump, s11dl pn-deeplink, s11ds7 one-system pn-ds, s12c7 keys/browse/tidy/inspector/steps/missing-gone)
+  fx3.mjs / Matchday.tsx / LetakA6.tsx from _c7c-harness-g3 (the "alli" fixture s10v uses)
+
+Changes against those (harness/fixture only, no product code):
+- lib.mjs derives REPO from its own location (<repo>/.ai/plans/notes/v2-evidence/phase8-fidelity/_d5-harness-g4), so it runs from any checkout — the Mac mini slot included.
+- No ImageMagick on the runner: fx.mjs photos + seed-home.ts cover pictures are made in Chromium (img.mjs, mkhomepics.mjs; seeded blob "plasma" and gradients in the same sizes). The
+  photo fixtures therefore differ in look (not in size/name) from the stage-A `convert plasma:fractal` ones.
+- The runner has no Playwright Chromium download; shoot with SHOT_CHANNEL=chrome (Google Chrome.app). chain scripts honour an exported SHOT_CHANNEL.
+- fx3.mjs: cp -Rc (APFS clone) -> cpSync. s10v: fx3 import local. s11ds7 fixture: mkdesigncopy.mjs builds .scr/design-copy1 (maude-v2 system + ui/v2 + a one-system config) from the checkout.
+- chain10.sh / chain1112.sh = the whole run per group; each starts with the release build of apps/studio and writes frames under .scr/impl/<NN-dir>/ (fetched back); pairs are built locally:
+  `node .scr/mkpairs.mjs <NN-dir>` after copying this directory's lib/pair/mkpairs next to a populated .scr/impl and .scr/spec (REPO derives from the harness dir, so run it from the harness dir).
+Needs ImageMagick (magick) for pair.mjs, local only. Never run a chain that waits on `pgrep -f run.mjs`.
