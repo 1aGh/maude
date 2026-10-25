@@ -312,6 +312,8 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
         op: req.op,
         targets: refs,
         params: req.params ?? {},
+        // V2-8.9 L1: a copy keeps its text on the requester's own shelf
+        ...(deps.clipScope ? { clipScope: deps.clipScope } : {}),
       });
     } catch (e) {
       if (e instanceof CanvasEditError) return refuse('invalid', e.message);
