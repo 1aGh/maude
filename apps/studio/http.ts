@@ -63,6 +63,7 @@ import {
   accessFromProxy,
   COMMENT_WRITE_PATTERNS,
   COMMENT_WRITES,
+  canvasOnlyRefused,
   canvasScopeRefusal,
   diskProjectReader,
   EXPORT_WRITES,
@@ -7773,6 +7774,9 @@ export function createHttp(
     }
     const scope = await canvasScopeRefusal(req, g);
     if (scope) return scope;
+    // p8-c4 (403 sweep) — desktop-only project routes with no scope check of their own (U3).
+    if (access.canvasOnly && canvasOnlyRefused(new URL(req.url).pathname))
+      return notInScopeResponse();
     if (READ_ONLY_SAFE_METHODS.has(req.method)) return null;
     const gate = gateNow();
     let pathname: string;

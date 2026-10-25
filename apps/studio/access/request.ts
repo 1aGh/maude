@@ -142,6 +142,35 @@ export const FRAME_UPLOAD_WRITES: ReadonlySet<string> = new Set([
   '/_api/asset/chunk-finish',
 ]);
 
+/**
+ * p8-c4 (403 sweep) — `project`-class routes (test/_acl-route-classes.ts, U3: a canvas-only session
+ * never gets a 2xx) whose handlers carry no scope check of their own, because they exist only on a
+ * desktop (a cell contains them, DDR-193 §2): the AI chat's state and transcripts, the diagnostics
+ * and debug bundle, the cloud / GitHub project lists. On a hub-linked desktop whose stored claim is
+ * canvas-only they answered 200. The gate refuses them for such a session, every method, with the
+ * plain 403. `/_api/acp/chats` (+ `/search`) are `filtered` (narrowed by their handler) and stay out.
+ */
+const CANVAS_ONLY_REFUSED = new Set([
+  '/_api/acp/status',
+  '/_api/acp/focus',
+  '/_api/acp/running',
+  '/_api/acp/activity',
+  '/_api/acp/chat',
+  '/_api/acp/chat/session',
+  '/_api/acp/attachment',
+  '/_api/diagnostics',
+  '/_api/diagnostics/report',
+  '/_api/debug-bundle',
+  '/_api/cloud/move',
+  '/_api/cloud/projects',
+  '/_api/github/repos',
+]);
+
+/** Is `pathname` a project-level route a canvas-only session is refused outright (p8-c4)? */
+export function canvasOnlyRefused(pathname: string): boolean {
+  return CANVAS_ONLY_REFUSED.has(pathname);
+}
+
 export interface SessionAllowlist {
   exact: ReadonlySet<string>;
   patterns: readonly RegExp[];
