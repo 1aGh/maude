@@ -346,7 +346,7 @@ export async function run(h) {
       { title: 'Nápady', tone: 'grey', cards: [{ text: 'Reel: 40 yd sprint ve zpomaleném záběru', color: '#cfc4ec' }, { text: 'Story: odpočet 7 dní do Combine', color: '#bcd2f0' }, { text: 'Plakát do škol v Brně a Blansku', color: '#f7c5c0' }, { text: 'Rozhovor s trenérem O-line', color: '#cfc4ec' }] },
       { title: 'Rozpracované', tone: 'yellow', cards: [{ text: 'Leták A6 — registrace s QR kódem', color: '#f7c5c0' }, { text: 'Web: stránka STAŇ SE GATOREM', color: '#bfe3c0' }, { text: 'Post 1:1 — datum tučně', color: '#bcd2f0' }] },
       { title: 'Hotovo', tone: 'green', cards: [{ text: 'Pozvánka pro partnery', color: '#bfe3c0' }, { text: 'Combine v číslech 2025', color: '#bcd2f0' }] },
-    ], connections: [{ from: '@sec2card0', to: 'ab:desktop' }, { from: '@sec2card1', to: 'ab:tablet' }] }));
+    ], connections: [{ from: '@sec2card0', to: 'ab:mobile' }, { from: '@sec2card1', to: 'ab:tablet' }] }));
     const r = spawnSync('node', [join(REPO, 'cli/bin/maude.mjs'), 'design', 'annotate', REL, '--board', bf, '--rects', rf, '--root', h.project], { encoding: 'utf8' });
     console.log('kanban', r.status, (r.stderr || '').slice(0, 300));
     await sleep(2800); await page.keyboard.press('Escape'); await sleep(300); await page.mouse.click(700, 120); await sleep(400);
@@ -354,9 +354,9 @@ export async function run(h) {
     await h.step(`${D}/an-plan`, 'The plan sits next to the work', 'annotate --board kanban with Done cards connected to their artboards; the whole plan in frame', async () => {
       // the board and the artboards it points at, in one frame: from the artboards' left edge to the board's right edge
       const bb = await f.evaluate(() => { const els = [...document.querySelectorAll('.dc-annot-el, [data-dc-screen]')]; const vp = window.__maudeViewport(); const cv = document.querySelector('.dc-canvas').getBoundingClientRect(); let l = 1e9, t = 1e9, r = -1e9, b = -1e9; for (const e of els) { const q = e.getBoundingClientRect(); if (!q.width) continue; l = Math.min(l, q.left); t = Math.min(t, q.top); r = Math.max(r, q.right); b = Math.max(b, q.bottom); } return { x: (l - cv.left - vp.x) / vp.zoom, y: (t - cv.top - vp.y) / vp.zoom, w: (r - l) / vp.zoom, h: (b - t) / vp.zoom }; });
-      console.log('PLANBB', JSON.stringify(bb), JSON.stringify(await camera()));
-      const cam = await viewWorld({ x: bb.x - 40, y: bb.y - 40, w: bb.w + 80, h: bb.h + 80 }, { fill: 0.92, up: 80 });
-      console.log('PLANCAM', JSON.stringify(cam));
+      // the Done cards point at the artboards they became (Tablet, Mobile): frame those and the board, not the whole canvas
+      const tab = rects.artboards.find((a) => a.id === 'tablet') || rects.artboards[1];
+      await viewWorld({ x: tab.x - 60, y: bb.y - 40, w: bb.x + bb.w - tab.x + 120, h: bb.h + 80 }, { fill: 0.92, up: 80 });
     });
   }
   if (G === 'f') {
