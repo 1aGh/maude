@@ -272,6 +272,17 @@ export function barPlacement(
   return { left, top: CHROME };
 }
 
+/** An artboard's name label sits above its body (≈ 24 px at any zoom, it is chrome); the bar clears it (14 ed-ab-tidy). */
+export const ARTBOARD_LABEL_H = 24;
+
+/** The box the bar sits above: an artboard group is measured with its name labels, an object group is not. */
+export function clearLabels(
+  box: { l: number; t: number; r: number; b: number },
+  kind: 'artboards' | 'objects'
+): { l: number; t: number; r: number; b: number } {
+  return kind === 'artboards' ? { ...box, t: box.t - ARTBOARD_LABEL_H } : box;
+}
+
 function boxOf(els: Element[]): { l: number; t: number; r: number; b: number } | null {
   let l = Number.POSITIVE_INFINITY;
   let t = Number.POSITIVE_INFINITY;
@@ -421,7 +432,7 @@ export function AlignBar({ readOnly = false }: { readOnly?: boolean }) {
       if (!box) return hide();
       div.style.display = 'flex';
       const at = barPlacement(
-        box,
+        clearLabels(box, kind),
         { w: div.offsetWidth || 0, h: div.offsetHeight },
         { w: window.innerWidth, h: window.innerHeight }
       );

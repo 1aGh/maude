@@ -4033,7 +4033,7 @@ export function SnapGuideOverlay() {
       {s.snap.guides.map((g, i) => {
         const kindClass = g.kind === 'grid' ? 'dc-snap-guide--grid' : 'dc-snap-guide--sibling';
         const delta = g.delta ?? 0;
-        const showPill = g.kind !== 'grid' && Math.abs(delta) > 0;
+        const showPill = g.kind !== 'grid' && Math.round(Math.abs(delta)) > 0; // "Δ0" says nothing (14 ed-ab-arrange)
         if (g.axis === 'x') {
           const sx = vp.x + g.pos * vp.zoom;
           const sFrom = vp.y + g.from * vp.zoom;

@@ -255,6 +255,31 @@ describe('the focus ring is not the selection', () => {
     expect(isNavigationKey('Tab')).toBe(true);
     expect(isNavigationKey('Shift')).toBe(false);
   });
+
+  // 14 R3: the order pills + focus ring belong to a person WALKING with the keyboard. A tool letter, Esc or
+  // a chord (⌘Z, ⌘/) is a key press on a POINTER selection: it must not flip the modality.
+  test('only Tab and F6 walk the keyboard; letters, arrows, Esc and chords do not', () => {
+    for (const k of ['Tab', 'F6']) expect(isNavigationKey(k)).toBe(true);
+    // an arrow nudges the object the pointer selected; it does not walk
+    for (const k of [
+      'ArrowDown',
+      'ArrowLeft',
+      'Enter',
+      ' ',
+      'v',
+      'z',
+      'Escape',
+      'Backspace',
+      '/',
+      'Shift',
+      'Meta',
+    ])
+      expect(isNavigationKey(k)).toBe(false);
+    expect(isNavigationKey('Tab', { shiftKey: true })).toBe(true);
+    expect(isNavigationKey('z', { metaKey: true })).toBe(false);
+    expect(isNavigationKey('Tab', { ctrlKey: true })).toBe(false);
+    expect(isNavigationKey('Enter', { altKey: true })).toBe(false);
+  });
 });
 
 describe('the registry rows', () => {

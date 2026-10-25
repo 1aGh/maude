@@ -242,6 +242,33 @@ interface Drag {
   last: ResizeResult | null;
 }
 
+type LiveSize =
+  | { dgn: 'artboard-live-size'; id: string; w: number; h: number; preset: string | null }
+  | { dgn: 'artboard-live-size'; id: null };
+
+/** What the canvas tells the shell while an edge is dragged (the inspector's Preset / Size follow it); null = over. */
+export function liveSizeMessage(
+  id: string,
+  r: Pick<ResizeResult, 'box' | 'preset'> | null
+): LiveSize {
+  if (!r) return { dgn: 'artboard-live-size', id: null };
+  return {
+    dgn: 'artboard-live-size',
+    id,
+    w: Math.round(r.box.w),
+    h: Math.round(r.box.h),
+    preset: r.preset?.label ?? null,
+  };
+}
+
+function postLiveSize(m: LiveSize): void {
+  try {
+    window.parent.postMessage(m, '*');
+  } catch {
+    /* detached */
+  }
+}
+
 function artboardIdOf(sel: { id?: string | null; artboardId?: string | null } | undefined) {
   return sel && !sel.id && typeof sel.artboardId === 'string' ? sel.artboardId : null;
 }
@@ -334,6 +361,7 @@ export function ArtboardHandles(): React.ReactNode {
     async (d: Drag, commit: boolean) => {
       dragRef.current = null;
       setHud(null);
+      if (id) postLiveSize(liveSizeMessage(id, null));
       const r = d.last;
       if (!commit || !r || !id) return restorePreview(d.m, d.saved);
       const params = resizeParams(id, d.m.box, r);
@@ -389,6 +417,7 @@ export function ArtboardHandles(): React.ReactNode {
       const r = computeArtboardResize(d.m.box, d.handle, dx, dy, mods, d.m.zoom);
       d.last = r;
       applyPreview(d.m, r.box, r.heightChanged);
+      postLiveSize(liveSizeMessage(id, d.last));
       const scr = {
         left: d.m.rect.left + (r.box.x - d.m.box.x) * d.m.zoom,
         top: d.m.rect.top + (r.box.y - d.m.box.y) * d.m.zoom,

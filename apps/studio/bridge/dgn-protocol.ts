@@ -314,6 +314,12 @@ export interface CanvasToShell {
    */
   'artboard-anchor': { artboardId: Id | null; kind?: string; label?: string; rect?: Rect | null };
   /**
+   * P8 c6 (14 ed-ab-resize) — while an artboard EDGE is being dragged the canvas says the size the drag asks for, so the
+   * inspector's Preset / Size rows follow the pointer ("Laptop · 1280" the moment the width clicks onto it). `id: null`
+   * (or the drag ending) = back to the real size. World px; `preset` is the snap's name. Untrusted numbers, clamped.
+   */
+  'artboard-live-size': { id: Id | null; w?: number; h?: number; preset?: string | null };
+  /**
    * S7.8 — Space went down and up inside 200 ms with no drag between: a TAP, not the Hand. The shell plays / pauses
    * the video the timeline follows (07 · ve-play). Carries nothing; a hold or a pan sends nothing at all.
    */
@@ -1641,6 +1647,13 @@ const c2s: C2S = {
     status: 'live',
     owner: 'v2/timeline (S7.7)',
     parse: p({ artboardId: nul(str), kind: opt(str), label: opt(str), rect: opt(nul(rect)) }),
+  },
+  // P8 c6 — the artboard resize drag, live: the inspector's Preset / Size follow the pointer (client/v2/inspector/live-size.js).
+  'artboard-live-size': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/inspector live size (P8 c6)',
+    parse: p({ id: nul(str), w: opt(num), h: opt(num), preset: opt(nul(str)) }),
   },
   // S7.8 — tap Space = play, hold = Hand; the canvas decides on key-up (editing/space-tap.ts), the shell plays.
   'space-tap': {

@@ -121,6 +121,41 @@ export function slotRect(floating: RectLike, transform: string, zoom: number): R
   };
 }
 
+/**
+ * The lifted card (14 ed-lay-reorder: "the card lifts and follows the pointer"): tilted and a touch larger, with the
+ * accent ring and a deep shadow. Set with the INDIVIDUAL `rotate` / `scale` properties so the drag's own
+ * `transform: translate(…)` (which `translateOf` reads and `slotRect` takes off) stays the only thing in `transform`.
+ */
+export const LIFT = Object.freeze({
+  rotate: '-2deg',
+  scale: '1.03',
+  boxShadow: '0 10px 28px rgba(0, 0, 0, 0.28), 0 0 0 1.5px var(--maude-hud-accent, #0d99ff)',
+});
+
+/** Lift `el` (inline style; the drag restores its own `prevStyle` on drop, so nothing to undo here). */
+export function liftCard(el: HTMLElement): void {
+  el.style.rotate = LIFT.rotate;
+  el.style.scale = LIFT.scale;
+  el.style.boxShadow = LIFT.boxShadow;
+  el.style.opacity = '1';
+}
+
+/**
+ * The card's own (unrotated, unscaled) box on screen. The lift tilts and scales it about its centre, so its
+ * bounding rect is bigger than the card; the slot is the CARD's size (not the tilted bounds) and the tag sits at the
+ * card's corner. `zoom` is the world's screen scale.
+ */
+export function cardBox(rect: RectLike, offsetW: number, offsetH: number, zoom: number): RectLike {
+  const w = offsetW * zoom;
+  const h = offsetH * zoom;
+  return {
+    left: rect.left + rect.width / 2 - w / 2,
+    top: rect.top + rect.height / 2 - h / 2,
+    width: w,
+    height: h,
+  };
+}
+
 /** Is the point outside `frame` by more than `slop` px (a drag out of the frame, not a wobble)? */
 export function outsideFrame(x: number, y: number, frame: RectLike, slop = 12): boolean {
   return (
@@ -325,8 +360,11 @@ interface Paint {
 function paintOf(s: SlotState): Paint | null {
   const el = s.el;
   if (!el.isConnected) return null;
-  const rect = rectOf(el);
-  const zoom = el.offsetWidth ? rect.width / el.offsetWidth : 1;
+  const bounds = rectOf(el);
+  // the world's scale from the (unlifted) parent, the card's own bounds are tilted + scaled by the lift
+  const par = el.parentElement;
+  const zoom = par?.offsetWidth ? par.getBoundingClientRect().width / par.offsetWidth : 1;
+  const rect = cardBox(bounds, el.offsetWidth, el.offsetHeight, zoom);
   const slot = slotRect(rect, el.style.transform, zoom);
   const { index, total } = placeAmong(el);
   return {

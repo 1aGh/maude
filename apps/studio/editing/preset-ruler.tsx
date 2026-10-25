@@ -104,15 +104,21 @@ export const RULER_CSS = `
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.ed-ab-hint {
+.ed-ab-hints {
   position: fixed;
   pointer-events: none;
   z-index: 7;
-  padding: 2px 8px;
-  border-radius: 4px;
+  display: flex;
+  gap: 6px;
+}
+/* 14 ed-resize: each key is its own pill (the board's .ed-hint), not one box */
+.ed-ab-hint {
+  padding: 2px 10px;
+  border-radius: 999px;
   background: var(--maude-chrome-bg-1);
   color: var(--maude-chrome-fg-1);
   border: 1px solid var(--maude-chrome-border);
+  box-shadow: 0 1px 3px var(--maude-chrome-shadow, rgba(0, 0, 0, 0.18));
   font: 500 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   white-space: nowrap;
 }
@@ -189,16 +195,21 @@ export function PresetRuler({ hud }: { hud: RulerHud }): ReactNode {
         {bubbleText(hud.box, hud.preset)}
       </span>
       <span
-        className="ed-ab-hint"
+        className="ed-ab-hints"
         data-testid="ed-ab-hint"
         aria-hidden="true"
         style={{ left: px(pointer.x + 16), top: px(pointer.y + 44) }}
       >
         {hud.presetsOff ? (
-          'Presets are off'
+          <span className="ed-ab-hint">Presets are off</span>
         ) : (
           <>
-            <kbd>⌘</kbd> ignores presets · <kbd>⌥</kbd> from the centre
+            <span className="ed-ab-hint">
+              <kbd>⌘</kbd> ignores presets
+            </span>
+            <span className="ed-ab-hint">
+              <kbd>⌥</kbd> from the centre
+            </span>
           </>
         )}
       </span>
