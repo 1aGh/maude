@@ -1,0 +1,5 @@
+{"format":"maude.ds-result","v":1,"action":"restore","rev":null,"actionId":null,"system":"maude-v2","trash":"_trash/ds-convert/maude-v2-20261025T220405Z","moved":["revisions/head.json","design-system.tsx","design-system.meta.json"]}
+
+--stderr--
+
+--exit 0

@@ -1,0 +1,31 @@
+{
+  "base": "6a17cc7193faf582554d5ebd9c2926924e1508bbe3af484f709efb8f5143fdf9",
+  "drafts": [],
+  "format": "maude.ds-head",
+  "head": "6a17cc7193faf582554d5ebd9c2926924e1508bbe3af484f709efb8f5143fdf9",
+  "library": null,
+  "log": [
+    {
+      "action": "convert",
+      "actionId": null,
+      "at": "2026-10-25T22:02:53.157Z",
+      "by": {
+        "kind": "agent",
+        "name": "Claude Code"
+      },
+      "is": {
+        "base": "6a17cc7193faf582554d5ebd9c2926924e1508bbe3af484f709efb8f5143fdf9",
+        "head": "6a17cc7193faf582554d5ebd9c2926924e1508bbe3af484f709efb8f5143fdf9"
+      },
+      "parent": null,
+      "rev": "6a17cc7193faf582554d5ebd9c2926924e1508bbe3af484f709efb8f5143fdf9",
+      "summary": "Converted from system/maude",
+      "was": {
+        "base": null,
+        "head": null
+      }
+    }
+  ],
+  "system": "maude",
+  "v": 1
+}

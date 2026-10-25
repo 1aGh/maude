@@ -1,0 +1,71 @@
+{
+  "title": "maude",
+  "designSystem": "maude",
+  "layout": {
+    "artboards": [
+      {
+        "id": "ds-brand",
+        "x": 0,
+        "y": 0,
+        "w": 560,
+        "h": 620
+      },
+      {
+        "id": "ds-colour",
+        "x": 608,
+        "y": 0,
+        "w": 1000,
+        "h": 620
+      },
+      {
+        "id": "ds-type",
+        "x": 1656,
+        "y": 0,
+        "w": 600,
+        "h": 620
+      },
+      {
+        "id": "ds-space",
+        "x": 0,
+        "y": 700,
+        "w": 680,
+        "h": 560
+      },
+      {
+        "id": "ds-motion",
+        "x": 728,
+        "y": 700,
+        "w": 440,
+        "h": 560
+      },
+      {
+        "id": "ds-components",
+        "x": 1216,
+        "y": 700,
+        "w": 1040,
+        "h": 560
+      },
+      {
+        "id": "ds-patterns",
+        "x": 0,
+        "y": 1340,
+        "w": 2256,
+        "h": 440
+      },
+      {
+        "id": "ds-own-ui-kits-desktop-index",
+        "x": 0,
+        "y": 1860,
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "ds-own-ui-kits-desktop-showcase",
+        "x": 1488,
+        "y": 1860,
+        "w": 1440,
+        "h": 900
+      }
+    ]
+  }
+}
