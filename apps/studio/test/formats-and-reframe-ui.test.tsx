@@ -538,6 +538,13 @@ describe('the island on the selected clip (the Timeline’s wiring)', () => {
     expect(runs).toHaveLength(1);
   });
 
+  test('a photo clip is drawn as the picture under the window (an image, not a video that never loads)', async () => {
+    await open({ seq: { ...SEQ, mediaTag: 'Img', mediaSrc: 'assets/pic.png' }, url: 'assets/pic.png' });
+    const src = must(q(document.body, 'reframe-source'), 'source');
+    expect(src.querySelector('video')).toBeNull();
+    expect(q(src, 'reframe-picture')?.getAttribute('src')).toBe('assets/pic.png');
+  });
+
   test('a video with no linked formats frames its one shared window (no format in the write)', async () => {
     media.formats.formats = [];
     const { runs } = await open();

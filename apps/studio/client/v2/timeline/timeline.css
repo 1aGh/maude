@@ -441,6 +441,10 @@
   /* an open Advanced grows the island, never past the window: the cards scroll inside it */
   .tl-island .tl-panel[data-size="full"] {
     max-height: calc(100vh - 80px - 72px);
+    /* never shorter than its own parts: padding 12 + head 28 + gap 8 + the body (168) + gap 8 + the Advanced foot 30 +
+       padding 12. The shell's default timeline height (216) is shorter than that, so the foot used to hang out of the
+       island once the body kept its ruler and four lanes (P8 C9) */
+    min-height: 266px;
   }
   .tl-tracks {
     display: flex;

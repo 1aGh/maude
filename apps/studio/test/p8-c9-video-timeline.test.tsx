@@ -130,6 +130,31 @@ describe('the loop range wears "I" and "O" badges (07 · .ve-inout)', () => {
   });
 });
 
+describe('the gutter buttons take their own clicks (the lane press captured the pointer and ate them)', () => {
+  test('a press on the eye / the speaker neither scrubs nor captures the pointer', () => {
+    const seeks = mount();
+    let captured = 0;
+    const proto = window.HTMLElement.prototype as unknown as { setPointerCapture?: () => void };
+    const before = proto.setPointerCapture;
+    proto.setPointerCapture = () => {
+      captured += 1;
+    };
+    try {
+      for (const id of ['timeline-track-view-text', 'timeline-track-volume-video']) {
+        act(() => {
+          q(`[data-testid="${id}"]`)?.dispatchEvent(
+            new window.MouseEvent('pointerdown', { bubbles: true, clientX: 40, button: 0 })
+          );
+        });
+      }
+    } finally {
+      proto.setPointerCapture = before;
+    }
+    expect(seeks).toEqual([]);
+    expect(captured).toBe(0);
+  });
+});
+
 describe('what P8 C9 pinned in CSS', () => {
   const css = readFileSync(
     join(import.meta.dir, '../client/v2/timeline/timeline.css'),
@@ -150,6 +175,13 @@ describe('what P8 C9 pinned in CSS', () => {
     const h = Number(/min-height:\s*(\d+)px/.exec(rule('.tl-panel[data-size="full"] .tl-scroll'))?.[1]);
     // ruler 16 + 4, Text 24, Graphics 24, Video 52, Music 30, three 4 px gaps, the 3 px under the lanes
     expect(h).toBeGreaterThanOrEqual(20 + 24 + 4 + 24 + 4 + 52 + 4 + 30 + 3);
+  });
+
+  test('the Full panel is never shorter than head + body + foot (the shell default of 216 hung the foot out)', () => {
+    const at = css.indexOf('max-height: calc(100vh - 80px - 72px)');
+    expect(at).toBeGreaterThan(-1);
+    const h = Number(/min-height:\s*(\d+)px/.exec(css.slice(at, css.indexOf('}', at)))?.[1]);
+    expect(h).toBeGreaterThanOrEqual(12 + 28 + 8 + 168 + 8 + 30 + 12);
   });
 
   test('the badges are the board’s accent chip', () => {

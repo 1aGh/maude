@@ -559,6 +559,9 @@ export default function TimelinePanel({
     // A click on a sequence block SELECTS it (handled there); a press on the
     // bare track deselects, scrubs, and starts a scrub drag.
     if (retimeDrag) return; // a resize is in flight — don't scrub
+    // P8 C9 — the gutter's own buttons (fold a track, the eye, the speaker) take their click: a press that starts a scrub
+    // here captures the pointer on the lanes, and the click then lands on the lanes, never on the button
+    if (e.target?.closest?.('.tl-track-cap')) return;
     if (commentMode) {
       e.preventDefault();
       placeCommentAt(e, null, null);

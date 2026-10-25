@@ -76,6 +76,8 @@ export function useReframeUi() {
   return reframeUi.get();
 }
 
+/** A still (a photo clip) — the island draws it as an image; footage is a video held on one frame. */
+const IMAGE_URL = /\.(png|jpe?g|webp|gif|avif|svg)(\?|#|$)/i;
 const MAX_W = 560;
 const MAX_H = 340;
 const NUDGE = 0.01;
@@ -262,7 +264,17 @@ export function ReframeIsland({
         data-testid="reframe-source"
         style={{ width: box.w, height: box.h }}
       >
-        {url ? (
+        {url && IMAGE_URL.test(url) ? (
+          // a photo clip frames the same way (07 draws the picture under the window); there is no frame to seek to
+          <img
+            className="ve-src-media"
+            src={url}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            data-testid="reframe-picture"
+          />
+        ) : url ? (
           <video
             ref={videoRef}
             className="ve-src-media"
