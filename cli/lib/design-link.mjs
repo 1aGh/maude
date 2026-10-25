@@ -15,6 +15,7 @@ import { dirname, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 
 import { parseArgs } from './argv.mjs';
+import { isAiSession } from './confine-root.mjs';
 import { adoptToHub, detachToRepo, ownershipState } from './design-ownership.mjs';
 import { BEGIN_MARKER, writeGitignoreBlock } from './gitignore-block.mjs';
 import {
@@ -35,6 +36,15 @@ const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 // ---------------------------------------------------------------- link
 
 export async function runLink({ args, cwd = process.cwd(), forceAdopt = false }) {
+  // V2-8.9 defender M1 (decision maude/v2-8.9-sync-link-confirm-needs-fetch-metadata): linking
+  // records that this folder's hub may receive this Mac's credential — the person's consent. In
+  // an AI session the permission card would show a shell line, not the hub, so the verb refuses.
+  if (isAiSession()) {
+    process.stderr.write(
+      `maude design ${forceAdopt ? 'adopt' : 'link'}: linking to a hub is your decision — run it in a terminal yourself, or Connect from the Share sheet in the Maude window.\n`
+    );
+    process.exit(1);
+  }
   const tail = args.slice(args.indexOf(forceAdopt ? 'adopt' : 'link') + 1);
   const { flags, positional } = parseArgs(tail, {
     booleans: ['adopt', 'force', 'yes', 'sync-tsx', 'no-sync-tsx'],

@@ -104,7 +104,20 @@ export function createSyncRoutes(deps: SyncRouteDeps): RouteSpec[] {
               : "Connect from the Maude app or this machine's own browser tab.",
         });
       },
-      async handle() {
+      async handle(req) {
+        // V2-8.9 defender M1 (decision maude/v2-8.9-sync-link-confirm-needs-fetch-metadata): Connect
+        // hands this Mac's hub credential to the folder's hub, so it is the person's act in the
+        // Maude window — the cloud/move gate (routes/cloud-move.ts). Only a browser's own
+        // same-origin fetch carries `Sec-Fetch-Site: same-origin` (a page cannot set it); the
+        // loopback helper an AI session reaches does not (cli/lib/bash-guard.mjs `human-only`).
+        // Checked before access, the gate or the hub.
+        if (req.headers.get('sec-fetch-site') !== 'same-origin') {
+          return json(403, {
+            ok: false,
+            reason: 'window-only',
+            detail: 'Connect from the Share sheet in the Maude window.',
+          });
+        }
         if (!access().can('edit', null)) {
           return json(403, {
             error: 'read-only',

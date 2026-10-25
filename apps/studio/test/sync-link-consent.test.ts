@@ -214,12 +214,38 @@ describe('a committed linkedHub this Mac never linked', () => {
       access: () => resolveAccess(legacyClaim('viewer')),
     });
     const confirm = viewer.find((r) => r.path === '/_api/sync/link/confirm');
-    const res = await confirm?.handle(new Request('http://x/'), {});
+    const res = await confirm?.handle(
+      new Request('http://x/', { method: 'POST', headers: { 'sec-fetch-site': 'same-origin' } }),
+      {}
+    );
     expect(res?.status).toBe(403);
+    expect(((await (res as Response).json()) as { reason?: string }).reason).toBe('not-allowed');
     expect(ctx.unconfirmedHub?.url).toBe(HUB);
     const get = viewer.find((r) => r.path === '/_api/sync/link');
     const body = await (await get?.handle(new Request('http://x/'), {}))?.json();
     expect(body).toEqual({ pending: { host: `127.0.0.1:${hub.port}` } });
+  });
+
+  // V2-8.9 defender M1 (decision maude/v2-8.9-sync-link-confirm-needs-fetch-metadata): Connect hands
+  // this Mac's hub credential to the folder's hub — the person's act in the Maude window. Only a
+  // browser's own same-origin fetch carries Sec-Fetch-Site: same-origin; a loopback curl from an AI
+  // session does not, so the route refuses it before the access check, the gate or the hub.
+  test('Connect is refused without the window’s Sec-Fetch-Site, even for the owner', async () => {
+    const ctx = boot(folder('clone'));
+    const owner = createSyncRoutes({
+      control: () => null,
+      trace: {} as never,
+      link: createLinkGate(ctx),
+      access: () => resolveAccess(legacyClaim('owner')),
+    });
+    const confirm = owner.find((r) => r.path === '/_api/sync/link/confirm');
+    for (const site of [null, 'none', 'cross-site', 'same-site']) {
+      const headers: Record<string, string> = site ? { 'sec-fetch-site': site } : {};
+      const res = await confirm?.handle(new Request('http://x/', { method: 'POST', headers }), {});
+      expect(res?.status).toBe(403);
+      expect(((await (res as Response).json()) as { reason?: string }).reason).toBe('window-only');
+      expect(ctx.unconfirmedHub?.url).toBe(HUB);
+    }
   });
 });
 

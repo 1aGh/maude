@@ -415,6 +415,29 @@ test('S6.0c: a write to /_api/cloud/move is denied (human-only); a status read i
   assert.doesNotMatch(r.reason, /"(ask|allow)"/);
 });
 
+// V2-8.9 defender M1 (decision maude/v2-8.9-sync-link-confirm-needs-fetch-metadata): Connect sends
+// this Mac's hub credential to the folder's hub — the person's consent in the Maude window, like
+// Move to cloud. The studio refuses a POST without the window's Sec-Fetch-Site; this net names it.
+const LINK = 'http://127.0.0.1:4399/_api/sync/link/confirm';
+test('V2-8.9 M1: a write to /_api/sync/link/confirm is denied (human-only); a read of the link is not', () => {
+  for (const cmd of [
+    `maude design curl-local --method POST ${LINK}`,
+    `curl -X POST ${LINK}`,
+    `curl -H 'Sec-Fetch-Site: same-origin' -d '{}' ${LINK}`,
+    `node -e "fetch('${LINK}',{method:'POST'})"`,
+  ])
+    assert.equal(code(cmd), 'human-only', cmd);
+  for (const cmd of [
+    'maude design curl-local http://127.0.0.1:4399/_api/sync/link',
+    'curl -s http://127.0.0.1:4399/_api/sync/link',
+    'curl -X POST http://127.0.0.1:4399/_api/sync/linked',
+    "rg -n 'sync/link/confirm' apps/studio",
+  ])
+    assert.equal(code(cmd), null, cmd);
+  const r = classifyBash(`curl -X POST ${LINK}`, { cwd: ROOT, designRoot: DR });
+  assert.match(r.reason, /Connect to the hub/);
+});
+
 // gate-b-sec2 finding 1 — defence in depth behind the dispatcher: a maude verb's --root /
 // --design-root / cwd names the session's project, and a call never steers the session env.
 test('other project: --root, --design-root, cd and the session env are denied; the project passes', () => {
