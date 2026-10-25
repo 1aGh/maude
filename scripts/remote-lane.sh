@@ -99,11 +99,23 @@ echo "remote-lane: slot$got · ${SHA:0:9} · log $R/runs/$ID.log" >&2
 cd "$D" || exit 2
 git fetch -q origin "refs/runner/$SHA" </dev/null && git checkout -q --force --detach "$SHA" </dev/null || { echo "remote-lane: checkout failed" >&2; exit 2; }
 git clean -qfd -e node_modules -e .scr -e .runner-deps </dev/null >/dev/null 2>&1 || true
-h="$(cat pnpm-lock.yaml apps/studio/bun.lock apps/hub/bun.lock 2>/dev/null | shasum | cut -d' ' -f1)"
+# pnpm 11 is a standalone binary that builds native addons for the mini's brew node (26, ABI 141),
+# but the suite and the hub run on Node 24.13 (ABI 137): rebuild each better-sqlite3 copy with it.
+native_for_node24() {
+  local d
+  for d in node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3 apps/*/node_modules/better-sqlite3; do
+    [[ -f "$d/package.json" ]] || continue
+    (cd "$d" && rm -rf build && npm run install </dev/null >/dev/null 2>&1) || return 1
+    node -e "require('./$d')" </dev/null >/dev/null 2>&1 || { echo "remote-lane: better-sqlite3 still fails under $(node -v) in $d" >&2; return 1; }
+  done
+}
+# "deps-v2": bump to force every slot to reinstall after a change to the steps below.
+h="$( (echo deps-v2; cat pnpm-lock.yaml apps/studio/bun.lock apps/hub/bun.lock 2>/dev/null) | shasum | cut -d' ' -f1)"
 if [[ "$(cat .runner-deps 2>/dev/null)" != "$h" ]]; then
   echo "remote-lane: lockfiles changed — reinstalling deps in slot$got" >&2
   pnpm install --frozen-lockfile </dev/null >/dev/null 2>&1 && (cd apps/studio && bun install --frozen-lockfile </dev/null >/dev/null 2>&1) \
-    && (cd apps/hub && bun install --frozen-lockfile </dev/null >/dev/null 2>&1) && echo "$h" >.runner-deps
+    && (cd apps/hub && bun install --frozen-lockfile </dev/null >/dev/null 2>&1) \
+    && native_for_node24 && echo "$h" >.runner-deps
 fi
 
 # Run in its own process group (so --max can stop the whole tree), stdin closed: the remote
