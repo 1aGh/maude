@@ -96,8 +96,10 @@ describe('the probes: Advanced things found by name, each with where it lives', 
 
   test('every Settings row is found by its own name, and says its section', () => {
     const rows = LOCAL.filter((r) => r.group === 'settings');
-    // one result per control (the two Sync project files rows are one)
-    expect(rows.length).toBe(SETTINGS_ROWS.length - 1);
+    // one result per control (the two Sync project files rows are one; a `searchTwin` row — kg
+    // v2-p8-c8-adv-search-twin — is listed once, as its registry action)
+    const twins = SETTINGS_ROWS.filter((r) => (r as { searchTwin?: unknown }).searchTwin).length;
+    expect(rows.length).toBe(SETTINGS_ROWS.length - 1 - twins);
     for (const r of rows) {
       const found = rowsOf(find(r.name));
       const hit = found.find((x) => x.id === r.id);

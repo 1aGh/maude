@@ -281,10 +281,11 @@ const rowsOf = (host: HTMLElement, section: string) =>
   );
 
 describe('the Title inspector’s Font and Colour rows', () => {
-  test('Text · Font · Colour · Motion · Length, in the canvas’s words', async () => {
+  // P8 c8 (07 ve-text, kg v2-p8-c8-video-title-text-in-advanced): the card is Font · Colour · Motion · Length; the
+  // title's words are edited under the card's Advanced
+  test('Font · Colour · Motion · Length, in the canvas’s words', async () => {
     const host = await frame(selection({ font: null, color: null }));
     expect(rowsOf(host, 'title-motion')).toEqual([
-      'clip-text = Text',
       'title-font = Font',
       'title-colour = Colour',
       'title-motion = Motion',
