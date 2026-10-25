@@ -566,6 +566,32 @@ export function listTokenLabels(dataDir) {
 }
 
 /**
+ * p8-c4b — every canvas a stored token's access claim grants (expired and
+ * revoked-by-expiry rows included: a canvas once granted stays a canvas). The
+ * closure's canvas test reads it (`known-canvases.mjs`); never a token value.
+ *
+ * @param {string} dataDir
+ * @returns {string[]}
+ */
+export function tokenGrantCanvases(dataDir) {
+  const out = new Set();
+  try {
+    const rows = db(dataDir).prepare('SELECT access FROM tokens WHERE access IS NOT NULL').all();
+    for (const { access } of rows) {
+      try {
+        for (const g of JSON.parse(access)?.grants ?? [])
+          if (typeof g?.c === 'string') out.add(g.c);
+      } catch {
+        /* an unreadable claim names nothing */
+      }
+    }
+  } catch {
+    /* no store yet */
+  }
+  return [...out];
+}
+
+/**
  * Update the `last_used_at` field for the matching token. Best-effort — auth
  * must not depend on this.
  *

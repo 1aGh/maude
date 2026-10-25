@@ -32,7 +32,11 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { closureFor, createClosureCache } from '../../studio/access/closure.ts';
+import {
+  closureFor,
+  createClosureCache,
+  projectClosureConfig,
+} from '../../studio/access/closure.ts';
 import {
   mayCreatePerUse,
   resolveAccess,
@@ -67,6 +71,30 @@ const cacheFor = (designRoot) => {
 /** Tests: forget every computed closure. */
 export function resetFileAccessCaches() {
   caches.clear();
+}
+
+// p8-c4b — the canvases this hub's stores name (a stored grant, `known-canvases.mjs`), per design
+// root: server.mjs registers its source once, so every door (some pass no dataDir) judges alike.
+// A canvas listed here is a canvas for the closure whatever its file says (an old meta-less one),
+// so another canvas's import of it is refused (c4j). Read per closure: a new grant counts at once.
+/** @type {Map<string, () => Iterable<string>>} */
+const knownSources = new Map();
+
+/** Register (or, with null, drop) the known-canvas source of `designRoot`. */
+export function registerKnownCanvases(designRoot, source) {
+  if (typeof designRoot !== 'string' || !designRoot) return;
+  if (typeof source === 'function') knownSources.set(designRoot, source);
+  else knownSources.delete(designRoot);
+}
+
+function knownCanvasesOf(designRoot, explicit) {
+  const source = explicit ?? knownSources.get(designRoot);
+  if (!source) return [];
+  try {
+    return [...(typeof source === 'function' ? source() : source)];
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -156,12 +184,12 @@ export function projectReader({ designRoot, journal }) {
  * The file-plane answer for one ACCESS CLAIM (V2-1.7 §5.3).
  *
  * @param {object | null} claim the claim (`claimForMatch`); null holds nothing
- * @param {{ scope?: string, designRoot?: string | null, journal?: object | null, dataDir?: string | null }} deps
+ * @param {{ scope?: string, designRoot?: string | null, journal?: object | null, dataDir?: string | null, knownCanvases?: Iterable<string> | (() => Iterable<string>) | null }} deps
  *   `scope` is the token's DDR-053 scope (project sessions only).
  */
 export function fileAccessForClaim(
   claim,
-  { scope = '*', designRoot = null, journal = null, dataDir = null } = {}
+  { scope = '*', designRoot = null, journal = null, dataDir = null, knownCanvases = null } = {}
 ) {
   const access = resolveAccess(claim);
   const mode = access.role !== null ? 'project' : access.canvasOnly ? 'canvas' : 'none';
@@ -171,7 +199,16 @@ export function fileAccessForClaim(
     if (!reader) reader = projectReader({ designRoot, journal: journalHandle });
     return reader;
   };
-  const closureOf = (a) => (designRoot ? closureFor(a, project(), cacheFor(designRoot)) : null);
+  // p8-c4b — judged with the project's config.json plus the canvases a stored grant names.
+  const closureOf = (a) =>
+    designRoot
+      ? closureFor(
+          a,
+          project(),
+          cacheFor(designRoot),
+          projectClosureConfig(project(), knownCanvasesOf(designRoot, knownCanvases))
+        )
+      : null;
   let main;
   const closure = () => {
     if (mode !== 'canvas') return null;
