@@ -67,7 +67,7 @@ import {
   peerAccess,
   stripSummon,
 } from './access-docs.mjs';
-import { createPokeVisibility } from './access-files.mjs';
+import { createPokeVisibility, registerKnownCanvases } from './access-files.mjs';
 import { claimForMatch, planPausedFromEnv } from './access-gate.mjs';
 import { ADMIN_CSS, ADMIN_HTML, ADMIN_JS, adminAssetsLoaded } from './admin-assets.mjs';
 import {
@@ -175,6 +175,7 @@ import {
   walkImport,
   walkIntervalFromEnv,
 } from './journal.mjs';
+import { createKnownCanvasesFile, storedGrantCanvases } from './known-canvases.mjs';
 import { LOOPBACK_HOSTS, sanitizeForLog } from './log-safety.mjs';
 import {
   cacheBudgetFor,
@@ -609,6 +610,9 @@ export function createHub(config = {}) {
   // durability half has to have soaked before anything depends on the seqs.
   const journalDesignRoot = workspaceMode && repoDir ? designRootFor() : null;
   const journal = journalDesignRoot ? openJournal(dataDir) : null;
+  // p8-c4b — a canvas any stored grant names is a canvas for the file plane's closure.
+  if (journalDesignRoot)
+    registerKnownCanvases(journalDesignRoot, () => storedGrantCanvases(dataDir));
   // CELL MATERIALIZER (Phase 1). On a cell with object storage the disk is a
   // cache: the journal says what exists, the bucket holds the bytes, and inert
   // media is materialized into `<designRoot>/_cache/` on demand. Off — exactly
@@ -755,10 +759,17 @@ export function createHub(config = {}) {
     Object.keys(studioEnvExtra).length > 0 ? { ...process.env, ...studioEnvExtra } : undefined;
   /** The project format, handed to the studio child (hub-owned path). */
   const studioFormatFile = studioEnabled ? join(dataDir, 'project-format.json') : null;
+  // p8-c4b — the canvases the stored grants name, handed to the child the same way; rewritten
+  // (only on a change) before every forward below, so a new grant counts on the next request.
+  const knownCanvasesFile = studioEnabled
+    ? createKnownCanvasesFile({ dataDir, file: join(dataDir, 'known-canvases.json') })
+    : null;
+  knownCanvasesFile?.refresh();
   const studio = studioEnabled
     ? createStudioChild({
         ...(studioEnv ? { env: studioEnv } : {}),
         formatFile: studioFormatFile,
+        knownCanvasesFile: knownCanvasesFile?.file ?? null,
       })
     : null;
   const studioProxy = studioEnabled
@@ -1488,6 +1499,7 @@ export function createHub(config = {}) {
       // widely enough to cover it would be readable by the untrusted canvas
       // origin. The capability lives in the URL and the lane is read-only.
       if (studioProxy && isCanvasHost(request)) {
+        knownCanvasesFile?.refresh();
         const handled = await studioProxy.handleCanvas({
           request,
           response,
@@ -2179,6 +2191,7 @@ export function createHub(config = {}) {
           }
           bailFromOnRequest();
         }
+        knownCanvasesFile?.refresh();
         const handled = await studioProxy.handle({
           request,
           response,
@@ -2641,6 +2654,7 @@ export function createHub(config = {}) {
         // these through the session gate is exactly the 401 that kept cloud
         // collaboration dead (RCA issue-cloud-live-collaboration-dead). Checked
         // before the `/_ws` prefix test because the HMR socket's path IS `/_ws`.
+        knownCanvasesFile?.refresh();
         if (isCanvasHost(request)) {
           studioProxy.handleCanvasUpgrade({
             request,
