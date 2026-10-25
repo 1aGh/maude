@@ -1617,6 +1617,8 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-permission-option` | testid | One button of a multi-way permission set (ExitPlanMode and the like); repeats. | `client/v2/ai/PermissionCard.jsx` · `PermissionCard` | — | new |
 | `ai-choice-question` | testid | The choice card's question line. | `client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | — | new |
 | `ai-copy-divider` | testid | "Ran on a copy — <artboard> was busy": the rule above a run that ran on a copy (03 `ai-copy`). | `client/v2/ai/RunSurface.jsx` · `RunSurface` | — | new |
+| `ai-copy-link` | testid | Inside the canvas iframe: the dashed link between a copy "Run on a copy" made and the artboard it was copied from (03 `ai-copy`). | `artboard-ai-copies.tsx` · `AiCopyLinks` | — | new |
+| `ai-copy-caption` | testid | Inside the canvas iframe: "Copied from <original's name>" under the copy (03 `ai-copy`); decoration, aria-hidden. | `artboard-ai-copies.tsx` · `AiCopyLinks` | — | new |
 | `ai-choice-settled` | testid | An answered question: the choice card read only, the picked row marked (03 `picked`). | `client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | — | new |
 | `ai-offer` | testid | The AI offer card: it read the stickies and offers one change (15 `an-ai-read`). Nothing has changed yet. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
 | `ai-offer-says` | testid | The plan in one line, as the agent wrote it, rendered as text. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |

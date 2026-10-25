@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
+import { askForCovers } from '../canvases/covers.js';
 import { useCanvasIndex } from '../canvases/use-canvas-index.js';
 import { AskButton, copy, Empty } from '../empty/index.js';
 import { sendToAskAI } from '../search/search-env.js';
@@ -19,6 +20,7 @@ import {
   buildChatList,
   buildSearchList,
   chatsWord,
+  coversByRel,
   queuedPromptsOf,
   rowMenu,
   trashDialog,
@@ -190,6 +192,25 @@ function TrashDialog({ dialog, busy, error, onConfirm, onCancel }) {
  * @param {(id: string, dropped: number) => void} p.onTrashed   the chat is in the trash — close its connection
  * @param {typeof fetch} [p.fetchImpl]
  */
+/** 03 `ai-chat-list`: the canvas's own picture beside its name (the Canvases panel's cover); an empty box until it exists. */
+function CanvasThumb({ cover }) {
+  return (
+    <span className="ai-cl-thumb" aria-hidden="true" data-testid="ai-cl-thumb">
+      {cover ? (
+        <img
+          src={`/_api/thumb/${cover}`}
+          alt=""
+          loading="lazy"
+          draggable={false}
+          onError={(e) => {
+            e.currentTarget.style.visibility = 'hidden';
+          }}
+        />
+      ) : null}
+    </span>
+  );
+}
+
 export function ChatList({
   projectName = '',
   busy = {},
@@ -258,14 +279,29 @@ export function ChatList({
   // S5.18 G5: the artboard names under each title come from the canvases index
   const index = useCanvasIndex({ stamp: refreshKey, fetchImpl });
   const boards = useMemo(() => boardsByRel(index), [index]);
+  const covers = useMemo(() => coversByRel(index), [index]);
+  // the group pictures: ask the thumbnail service once per page load (the Canvases panel may not be open)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once per page load; the request is the same whatever the list holds
+  useEffect(() => {
+    askForCovers(fetchImpl);
+  }, []);
   const browse = useMemo(
-    () => buildChatList({ groups: groups ?? [], busy, needs: needsSet, titles, expanded, boards }),
-    [groups, busy, needsSet, titles, expanded, boards]
+    () =>
+      buildChatList({
+        groups: groups ?? [],
+        busy,
+        needs: needsSet,
+        titles,
+        expanded,
+        boards,
+        covers,
+      }),
+    [groups, busy, needsSet, titles, expanded, boards, covers]
   );
   const searching = query.trim() !== '';
   const found = useMemo(
-    () => (searching && hits ? buildSearchList(hits, query.trim()) : null),
-    [searching, hits, query]
+    () => (searching && hits ? buildSearchList(hits, query.trim(), Date.now(), covers) : null),
+    [searching, hits, query, covers]
   );
 
   // "Start a chat about it" (05 · es-edge-panels): a new chat with the search words in its composer. The host
@@ -454,7 +490,10 @@ export function ChatList({
       }
       return found.groups.map((g) => (
         <section key={g.canvas ?? ''} className="ai-cl-grp" aria-label={g.name}>
-          <p className="ai-cl-canvas">{g.name}</p>
+          <p className="ai-cl-canvas">
+            <CanvasThumb cover={g.cover} />
+            <span className="ai-cl-canvas-n">{g.name}</span>
+          </p>
           {g.rows.map(renderRow)}
         </section>
       ));
@@ -473,6 +512,7 @@ export function ChatList({
         {browse.groups.map((g) => (
           <section key={g.canvas ?? ''} className="ai-cl-grp" aria-label={g.name}>
             <p className="ai-cl-canvas">
+              <CanvasThumb cover={g.cover} />
               <span className="ai-cl-canvas-n">{g.name}</span>
               <span className="ai-cl-gc">
                 {g.count} {g.count === 1 ? 'chat' : 'chats'}

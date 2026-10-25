@@ -267,6 +267,52 @@ export function ringsFor(view, { activeCanvas, entryOf } = {}) {
   return out;
 }
 
+/** How long after a run on a copy ends well its "Copied from <name>" note and dashed link stay on the canvas. */
+export const COPY_NOTE_MS = 10 * 60 * 1000;
+/** The canvas parser's cap (bridge/dgn-protocol.ts AI_COPIES_MAX): more would make it drop the whole message. */
+const COPIES_MAX = 20;
+
+/**
+ * V2-8.5 c7 (03 `ai-copy`) — the copies "Run on a copy" made on the open canvas, as `{ from, to }` ids: `to` is the
+ * artboard the run was re-scoped to, `from` the one it was copied from. Live runs and the ones that ended well in
+ * the last `COPY_NOTE_MS` count. Ids only: the canvas reads the original's name off its own artboard, and nothing
+ * the person asked (nor the busy chat's title) goes with it (DDR-054, v2-S5.11-neutral-ring-tags).
+ */
+export function copyLinksFor(view, { activeCanvas, entryOf, now = Date.now() } = {}) {
+  const out = [];
+  const seen = new Set();
+  for (const r of view?.mine || []) {
+    if (!r?.copyOf || !onCanvas(r.copyOf, activeCanvas, entryOf)) continue;
+    const live = isLiveRun(r);
+    const recent =
+      r.state === 'ended' &&
+      r.outcome === 'done' &&
+      Number.isFinite(r.endedAt) &&
+      now - r.endedAt <= COPY_NOTE_MS &&
+      r.endedAt <= now + COPY_NOTE_MS;
+    if (!live && !recent) continue;
+    const to = Array.isArray(r.scope?.artboards) ? r.scope.artboards[0] : null;
+    const from = r.copyOf.artboard;
+    if (typeof to !== 'string' || typeof from !== 'string' || !to || !from || to === from) continue;
+    if (seen.has(to) || out.length >= COPIES_MAX) continue;
+    seen.add(to);
+    out.push({ from, to });
+  }
+  return out;
+}
+
+/** When the next "Copied from" note lets go (ms epoch), for the relay's timer; null = nothing to expire. */
+export function copyExpiry(view, now = Date.now()) {
+  let at = null;
+  for (const r of view?.mine || []) {
+    if (!r?.copyOf || r.state !== 'ended' || r.outcome !== 'done' || !Number.isFinite(r.endedAt))
+      continue;
+    const end = r.endedAt + COPY_NOTE_MS;
+    if (end > now && (at === null || end < at)) at = end;
+  }
+  return at;
+}
+
 /** A settled ring for `ids` — S5.5 hands over the artboards a finished run changed. */
 export function doneRings(ids) {
   const out = {};

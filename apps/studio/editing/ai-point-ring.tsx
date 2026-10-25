@@ -37,6 +37,28 @@ function elementOf(doc: Document, r: PointRow): Element | null {
   }
 }
 
+/**
+ * 03 `ai-question` — the chip on the ring says what the spot IS, not its id: a text spot on a print artboard reads
+ * its own size in points ("9 pt", 1 pt = 4/3 px), the unit print speaks. Anything else (a digital artboard, a spot
+ * with no text of its own, an element not on screen) keeps the shell's tag — the spot's NAME. Read from the
+ * element itself on this side; nothing the person asked or the agent answered is involved (DDR-054).
+ */
+export function pointChipText(el: Element | null, name: string): string {
+  try {
+    if (!el) return name;
+    const kind = el.closest('[data-dc-kind]')?.getAttribute('data-dc-kind');
+    const hasText = Array.from(el.childNodes).some(
+      (n) => n.nodeType === 3 && (n.textContent ?? '').trim() !== ''
+    );
+    if (kind !== 'print' || !hasText) return name;
+    const px = Number.parseFloat(el.ownerDocument.defaultView?.getComputedStyle(el).fontSize ?? '');
+    if (!Number.isFinite(px) || px <= 0) return name;
+    return `${Math.round(px * 0.75)} pt`;
+  } catch {
+    return name;
+  }
+}
+
 const PAD = 3;
 
 const CSS_TEXT = `
@@ -112,12 +134,13 @@ export function AiPointRings(): null | React.JSX.Element {
   }, [visible, rows]);
 
   if (!visible) return null;
+  const chips = rows.map((r) => (r.tag ? pointChipText(elementOf(document, r), r.tag) : ''));
   return (
     <div ref={rootRef} className="ed-ai-point-layer" aria-hidden="true">
       <style>{CSS_TEXT}</style>
-      {rows.map((r) => (
+      {rows.map((r, i) => (
         <div key={rowKey(r)} className="ed-ai-point" data-testid="edit-ai-point">
-          {r.tag ? (
+          {chips[i] ? (
             <span className="ed-ai-point-tag">
               <svg width="9" height="9" viewBox="0 0 16 16" aria-hidden="true">
                 <path
@@ -125,7 +148,7 @@ export function AiPointRings(): null | React.JSX.Element {
                   fill="currentColor"
                 />
               </svg>
-              {r.tag}
+              {chips[i]}
             </span>
           ) : null}
         </div>
