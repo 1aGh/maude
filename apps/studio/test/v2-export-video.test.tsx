@@ -47,9 +47,9 @@ const ROW = {
   cap: 3600,
   over: false,
   clips: [
-    { track: 'video', from: 0, frames: 300 },
-    { track: 'video', from: 300, frames: 600 },
-    { track: 'music', from: 0, frames: 900 },
+    { track: 'video', from: 0, frames: 300, name: 'Tunel', src: 'assets/a.mp4', title: 'DŘINA' },
+    { track: 'video', from: 300, frames: 600, name: 'Tackle', src: 'assets/b.mp4' },
+    { track: 'music', from: 0, frames: 900, name: 'Hype instrumental', src: 'assets/m.mp3' },
   ],
 };
 const WIDE = { ...ROW, artboard: 'wide', label: 'Recap 16:9', w: 1920, h: 1080 };
@@ -355,6 +355,14 @@ describe('the sheet: a video artboard', () => {
     expect(text('[data-testid="export-row-formats"]')).toContain('1 artboard selected, 1 video.');
     expect($('[data-testid="export-film"]') !== null).toBe(true);
     expect($('[data-testid="export-video-length"]')).toBeNull(); // 900 frames: nothing to warn about
+  });
+
+  test('P8 c7 ex-video: the filmstrip names its clips, carries the title lane and the music bed', async () => {
+    await mountSheet();
+    const names = [...document.querySelectorAll('[data-testid="export-film-clip"] em')].map((e) => e.textContent);
+    expect(names).toEqual(['Tunel', 'Tackle']);
+    expect(text('[data-testid="export-film-titles"]')).toBe('DŘINA');
+    expect(text('[data-testid="export-film-music"]')).toContain('Hype instrumental');
   });
 
   test('P8-C4: Sound is a switch that says what is true; Captions has four choices; the ticks are seconds', async () => {

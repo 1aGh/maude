@@ -5,8 +5,10 @@
 // frame. A video past 3 600 frames warns (C22) with one way out, "Allow longer"; the SERVER holds the
 // cap, so this only says what the estimate says. v1 re-emit: `export-format-mp4` / `-gif` / `-webm`.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { getStillsAt } from '../../../panels/timeline-media-cache.js';
 import { StIcon } from '../../../shell/icons.jsx';
+import { TGlyph } from '../../timeline/glyphs.jsx';
 import { Hint, Row, Seg } from '../parts.jsx';
 import { Switch } from '../advanced/fields.jsx';
 import {
@@ -44,12 +46,57 @@ import { lengthState, qualityReaches, scaleOf, sizeWords } from './video-model.j
 
 const labelOf = (format) => (format === 'webm' ? 'WebM' : String(format).toUpperCase());
 
-/** The cut as lanes — the pictures, then the music — with a playhead. Numbers come from the estimate. */
-function Film({ row, at, onAt }) {
+/** The URL a clip's file is read from: a designRoot-relative path under the design root, never another host. */
+function stillUrl(src, designRel) {
+  if (!src || src.startsWith('//') || /^(https?:|data:|blob:)/i.test(src)) return null;
+  if (src.startsWith('/')) return src;
+  return `/${String(designRel).replace(/^\/+|\/+$/g, '')}/${src}`;
+}
+
+/** One small picture per clip of the cut (the frame the clip starts on); the tile stays flat until it arrives. */
+function useStills(pics, designRel) {
+  const [stills, setStills] = useState({});
+  const sig = pics.map((c) => `${c.src}@${c.at ?? 0}`).join('|');
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `sig` is the clips' identity
+  useEffect(() => {
+    let live = true;
+    const byUrl = new Map();
+    pics.forEach((c, i) => {
+      const url = stillUrl(c.src, designRel);
+      if (!url) return;
+      if (!byUrl.has(url)) byUrl.set(url, []);
+      byUrl.get(url).push([i, c.at ?? 0]);
+    });
+    for (const [url, list] of byUrl) {
+      getStillsAt(
+        url,
+        list.map(([, t]) => t)
+      ).then((got) => {
+        if (!live) return;
+        setStills((old) => {
+          const next = { ...old };
+          list.forEach(([i], k) => {
+            if (got[k]) next[i] = got[k];
+          });
+          return next;
+        });
+      });
+    }
+    return () => {
+      live = false;
+    };
+  }, [sig, designRel]);
+  return stills;
+}
+
+/** The cut as lanes — its titles, the pictures with their names, then the music — with a playhead. Numbers come from the estimate. */
+function Film({ row, at, onAt, designRel }) {
   const total = Math.max(1, row.frames ?? Math.max(1, ...row.clips.map((c) => c.from + c.frames)));
   const pct = (f) => `${(f / total) * 100}%`;
   const pics = row.clips.filter((c) => c.track === 'video' || c.track === 'video2');
   const beds = row.clips.filter((c) => c.track === 'music' || c.track === 'music2');
+  const titles = pics.filter((c) => c.title);
+  const stills = useStills(pics, designRel);
   const here = Math.min(total, Math.max(0, at));
   return (
     <div
@@ -59,18 +106,39 @@ function Film({ row, at, onAt }) {
       aria-label={`${row.label} — ${FILM_LABEL}`}
     >
       <div className="ex-film-lanes">
+        {titles.length > 0 ? (
+          <div className="ex-film-lane ex-film-lane--t" data-testid="export-film-titles">
+            {titles.map((c, i) => (
+              <span
+                // biome-ignore lint/suspicious/noArrayIndexKey: titles are positional and never reorder here
+                key={i}
+                className="ex-film-ti"
+                style={{ left: pct(c.from), width: pct(c.frames) }}
+              >
+                {c.title}
+              </span>
+            ))}
+          </div>
+        ) : null}
         <div className="ex-film-lane ex-film-lane--v">
           {pics.map((c, i) => (
             <span
               // biome-ignore lint/suspicious/noArrayIndexKey: clips are positional and never reorder here
               key={i}
               className={`ex-film-clip${c.track === 'video2' ? ' ex-film-clip--2' : ''}`}
-              style={{ left: pct(c.from), width: pct(c.frames) }}
-            />
+              data-testid="export-film-clip"
+              style={{
+                left: pct(c.from),
+                width: pct(c.frames),
+                ...(stills[i] ? { backgroundImage: `url(${stills[i]})` } : {}),
+              }}
+            >
+              {c.name ? <em>{c.name}</em> : null}
+            </span>
           ))}
         </div>
         {beds.length > 0 ? (
-          <div className="ex-film-lane ex-film-lane--m">
+          <div className="ex-film-lane ex-film-lane--m" data-testid="export-film-music">
             {beds.map((c, i) => (
               <span
                 // biome-ignore lint/suspicious/noArrayIndexKey: beds are positional and never reorder here
@@ -79,6 +147,10 @@ function Film({ row, at, onAt }) {
                 style={{ left: pct(c.from), width: pct(c.frames) }}
               />
             ))}
+            <span className="ex-film-bed-t">
+              <TGlyph name="music" size={11} />
+              {beds[0]?.name ?? ''}
+            </span>
           </div>
         ) : null}
         <span className="ex-film-head" style={{ left: pct(here) }} data-testid="export-film-head">
@@ -111,8 +183,14 @@ function Film({ row, at, onAt }) {
  * @param video { formats, ticked, overrides, onTick, rows (reached), lengths }
  * @param other the "Other…" button node, drawn after the formats
  */
-export function VideoSection({ state, set, setFormat, other, video }) {
+/** The whole edit under the sheet's rows (09 ex-video: full width, above the summary), with its own playhead. */
+export function VideoFilm({ video, designRel = '.design' }) {
   const [at, setAt] = useState(0);
+  const first = video?.rows?.[0] ?? null;
+  return first ? <Film row={first} at={at} onAt={setAt} designRel={designRel} /> : null;
+}
+
+export function VideoSection({ state, set, setFormat, other, video }) {
   const format = state.format;
   const picture = format !== 'audio';
   const gif = format === 'gif';
@@ -314,7 +392,6 @@ export function VideoSection({ state, set, setFormat, other, video }) {
         </Hint>
       ) : null}
 
-      {first ? <Film row={first} at={at} onAt={setAt} /> : null}
     </>
   );
 }

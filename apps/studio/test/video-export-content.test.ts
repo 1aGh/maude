@@ -3,7 +3,7 @@
 // starts the sheet with Allow longer on. The numbers come from the server's estimate rows (`videoInfo`); the sheet's
 // module (`videoExportContent`) only reads them. S8.6's rule is untouched: stored is a ceiling, not a switch.
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -96,6 +96,27 @@ describe('the estimate rows carry the formats, the speech and the stored ceiling
     const row = videoInfo([unit('wide', 1920, 1080)], defaultVideoFacts(designRoot))[0];
     expect(row.speech).toBe(false);
     expect(row.stored).toBeNull();
+  });
+
+  test('the strip clips say which clip they are: its name, its file and the title it carries (09 ex-video filmstrip)', () => {
+    const designRoot = sandbox();
+    const row = videoInfo([unit('wide', 1920, 1080)], defaultVideoFacts(designRoot))[0];
+    expect(row.clips).toHaveLength(1);
+    expect(row.clips[0]).toMatchObject({ track: 'video2', from: 0, frames: 90, name: 'a', src: CLIP });
+  });
+
+  test('a title on a clip names the clip as its title lane text', () => {
+    const designRoot = sandbox();
+    const file = join(designRoot, 'ui/Recap.tsx');
+    writeFileSync(
+      file,
+      readFileSync(file, 'utf8').replace(
+        /const Recap = .*\n/,
+        `const Recap = () => (<Sequence name="a" durationInFrames={90}><OffthreadVideo src="${CLIP}" /><KineticTitle text="RYCHLOST" /></Sequence>);\n`
+      )
+    );
+    const row = videoInfo([unit('wide', 1920, 1080)], defaultVideoFacts(designRoot))[0];
+    expect(row.clips[0]?.title).toBe('RYCHLOST');
   });
 
   test('stored is a ceiling, not a switch (S8.6): the server rule is unchanged', () => {

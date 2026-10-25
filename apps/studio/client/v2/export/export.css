@@ -268,7 +268,8 @@
     height: 30px;
     padding: 0 var(--space-3, 12px);
   }
-  .ex-row-n--in {
+  /* .ex-row-n comes later in this file and sets flex-basis: 100%; the in-line note must beat it (09 ex-video: the note sits beside the switch) */
+  .ex-row-n.ex-row-n--in {
     flex: 1;
     flex-basis: auto;
     min-width: 0;
