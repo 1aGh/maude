@@ -162,9 +162,13 @@
   .ho-connect {
     display: grid;
   }
+  /* the connect step is its own card: the sheet's title block (display: grid in the export sheet's CSS) steps aside */
+  .ho-sheet .ex-sheet-hd[hidden] {
+    display: none !important;
+  }
   /* the AI island's inline sheet floats (position: absolute); here it is the sheet's own body, in flow */
   .ho-connect .ai-conn-sheet--inline {
-    position: static;
+    position: static !important;
     padding: 0;
     background: transparent;
     box-shadow: none;

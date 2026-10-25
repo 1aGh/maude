@@ -115,18 +115,20 @@ interface TargetRow extends HandoffTarget {
 
 function targetRows(deps: HandoffRouteDeps, subject: Subject): TargetRow[] {
   const source = subject.canvas ? (deps.readCanvas(subject.canvas) ?? '') : '';
-  return targetsFromConfig(deps.config(), deps.designRel)
-    // P8 c7 (09 ex-handoff): a canvas hands off to code (Web, App, Lottie); the tokens row is the design system's own
-    .filter((t) => (subject.canvas ? t.kind !== 'tokens' : t.kind === 'tokens'))
-    .map((t) => {
-      const outRel = outPathFor(t, { canvas: subject.canvas, ds: subject.ds }, deps.designRel);
-      let off: string | null = null;
-      if (t.kind === 'lottie' && subject.canvas && !hasAnimatedFrame(source))
-        off = NO_ANIMATED_FRAME(subject.name);
-      else if (t.kind === 'tokens' && !subject.ds) off = 'Needs a design system';
-      else if (!outRel) off = 'Its file path in the settings is not one this project can write';
-      return { ...t, outRel, off };
-    });
+  return (
+    targetsFromConfig(deps.config(), deps.designRel)
+      // P8 c7 (09 ex-handoff): a canvas hands off to code (Web, App, Lottie); the tokens row is the design system's own
+      .filter((t) => (subject.canvas ? t.kind !== 'tokens' : t.kind === 'tokens'))
+      .map((t) => {
+        const outRel = outPathFor(t, { canvas: subject.canvas, ds: subject.ds }, deps.designRel);
+        let off: string | null = null;
+        if (t.kind === 'lottie' && subject.canvas && !hasAnimatedFrame(source))
+          off = NO_ANIMATED_FRAME(subject.name);
+        else if (t.kind === 'tokens' && !subject.ds) off = 'Needs a design system';
+        else if (!outRel) off = 'Its file path in the settings is not one this project can write';
+        return { ...t, outRel, off };
+      })
+  );
 }
 
 function readyOf(deps: HandoffRouteDeps, t: HandoffTarget, s: Subject, outRel: string) {

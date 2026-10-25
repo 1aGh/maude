@@ -235,7 +235,10 @@ describe('P8 c7 (10 co-comment-print): the size tag is AA, not white on a hard-c
   test('the tag draws from the HUD tokens; its fallback is a blue that white text reads on', async () => {
     const { readFileSync } = await import('node:fs');
     const src = readFileSync(new URL('../inspect-overlay.tsx', import.meta.url), 'utf8');
-    const css = src.slice(src.indexOf('.dc-cv-inspect-tag {'), src.indexOf('.dc-cv-inspect-tag[data-on'));
+    const css = src.slice(
+      src.indexOf('.dc-cv-inspect-tag {'),
+      src.indexOf('.dc-cv-inspect-tag[data-on')
+    );
     expect(css).not.toContain('#0d99ff');
     expect(css).toContain('var(--maude-hud-accent-fg');
   });

@@ -391,7 +391,6 @@ export function VideoSection({ state, set, setFormat, other, video }) {
           })}
         </Hint>
       ) : null}
-
     </>
   );
 }

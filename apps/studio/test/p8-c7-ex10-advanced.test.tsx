@@ -2,10 +2,9 @@
 // Paper, GIF colours (a real spec field, only live for a GIF) and Long videos (the cap, as words).
 import { describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
-
+import { applyAdvanced } from '../client/v2/export/advanced/model.js';
 import { PrintPart } from '../client/v2/export/advanced/print.jsx';
 import { VideoPart } from '../client/v2/export/advanced/video.jsx';
-import { applyAdvanced } from '../client/v2/export/advanced/model.js';
 
 const spec = { v: 2, scope: 'canvas', format: 'gif', options: {} };
 

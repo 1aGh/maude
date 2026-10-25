@@ -126,3 +126,14 @@ Harness: `_d4-harness-g4/` (= `_d3-harness-g4` + round-6 `s10m`). Playwright Chr
 | co-mention-notify | unreachable | OS banner / e-mail, native only |
 
 Spec-only JPEGs of the five unreachable ids unchanged (`spec-only/`). Still not reachable in the lane: the @ picker (no peers), the existing Jonas/Tereza thread with Resolve, the video timeline strip, print guides, the "Invites send when this Mac is online." tooltip and per-row "not sent" tags.
+
+## Round 7 (p8-c7-ex10) — after
+
+All reachable ids re-shot on the round-7 tip (release-built client, default Chromium, light + dark), IMPL side only; spec frames reused. No match judged here. Harness: `_c7-harness-g4` (`chain2.sh`; `co-browser-view` now shot in the plain-browser context, no `__TAURI__` stub; `co-comment-print` with View › Print guides on; `co-share-advanced` on a 1200 px window so the footer line is in frame).
+
+| artboard id | after (round 7) |
+|---|---|
+| co-share-advanced | values are plain mono text (no UA border), footer line in frame |
+| co-browser-view | plain browser: the "Open in the Mac app" island is drawn |
+| co-comment-print | print guides on; size tag on the HUD tokens |
+| co-trashed | ghost row's "In the trash · open here" read in full |

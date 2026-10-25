@@ -194,3 +194,15 @@ Harness notes (D4): the D3 harness (`_d3-harness-g3/`) plus the round-6 mini sce
 | id | after | notes |
 |---|---|---|
 | ex-social | re-shot, light + dark | mini scenario `t09c`. The size chip / size line read 432 × 540 in both themes (the render worker's artboard harvest measured the bordered frame: 436 × 544 in dark); the preview tile fills ~0.8 s after the sheet opens in both themes (the earlier empty dark tile was a 1.1 s shot) |
+
+## Round 7 (p8-c7-ex10) — after
+
+Every reachable id re-shot on the round-7 tip (release-built client, Google Chrome channel, light + dark), IMPL side only; spec frames reused from stage D. No match judged here. Harness: `_c7-harness-g3` (t09 + `ho` / `vid` / `adv` scenarios; the fixture's Hype trailer is now a six-clip cut with titles and a music bed, the canvas has a design system, a planted last review and a remembered last target; the video / advanced shots answer the estimate with a cloud door).
+
+| artboard id | after (round 7) |
+|---|---|
+| ex-video, ex-offline | filmstrip with clip stills, names, title lane and music bed, full width under the rows; In the cloud / On this Mac cards |
+| ex-advanced | whole fold in a tall window, mixed selection: image + print + video + render parts, file-name card, terminal commands; exact scale 2.5; GIF colours, Long videos, Paper rows |
+| ex-handoff | no Design tokens row; Last used tag; Use the design system + sub line; review hint pill |
+| ex-handoff-edges | the connect step as its own card with a body |
+| every other reachable id | re-shot unchanged |

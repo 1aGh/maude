@@ -359,7 +359,9 @@ describe('the sheet: a video artboard', () => {
 
   test('P8 c7 ex-video: the filmstrip names its clips, carries the title lane and the music bed', async () => {
     await mountSheet();
-    const names = [...document.querySelectorAll('[data-testid="export-film-clip"] em')].map((e) => e.textContent);
+    const names = [...document.querySelectorAll('[data-testid="export-film-clip"] em')].map(
+      (e) => e.textContent
+    );
     expect(names).toEqual(['Tunel', 'Tackle']);
     expect(text('[data-testid="export-film-titles"]')).toBe('DŘINA');
     expect(text('[data-testid="export-film-music"]')).toContain('Hype instrumental');

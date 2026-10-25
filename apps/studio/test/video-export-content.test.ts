@@ -102,7 +102,13 @@ describe('the estimate rows carry the formats, the speech and the stored ceiling
     const designRoot = sandbox();
     const row = videoInfo([unit('wide', 1920, 1080)], defaultVideoFacts(designRoot))[0];
     expect(row.clips).toHaveLength(1);
-    expect(row.clips[0]).toMatchObject({ track: 'video2', from: 0, frames: 90, name: 'a', src: CLIP });
+    expect(row.clips[0]).toMatchObject({
+      track: 'video2',
+      from: 0,
+      frames: 90,
+      name: 'a',
+      src: CLIP,
+    });
   });
 
   test('a title on a clip names the clip as its title lane text', () => {

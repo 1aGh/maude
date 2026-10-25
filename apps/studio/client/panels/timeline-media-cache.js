@@ -321,7 +321,8 @@ const stillMemory = new Map();
  */
 export function getStillsAt(url, seconds) {
   const keys = seconds.map((t) => `${url}@${t}`);
-  if (keys.every((k) => stillMemory.has(k))) return Promise.resolve(keys.map((k) => stillMemory.get(k)));
+  if (keys.every((k) => stillMemory.has(k)))
+    return Promise.resolve(keys.map((k) => stillMemory.get(k)));
   return enqueue(async () => {
     let video;
     try {
@@ -355,7 +356,10 @@ export function getStillsAt(url, seconds) {
             },
             { once: true }
           );
-          video.currentTime = Math.min(Number.isFinite(dur) ? dur - 0.01 : seconds[i], Math.max(0, seconds[i]));
+          video.currentTime = Math.min(
+            Number.isFinite(dur) ? dur - 0.01 : seconds[i],
+            Math.max(0, seconds[i])
+          );
         });
         g.drawImage(video, 0, 0, canvas.width, canvas.height);
         still = canvas.toDataURL('image/jpeg', 0.55);

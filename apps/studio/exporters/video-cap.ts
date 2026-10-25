@@ -14,9 +14,8 @@
 
 import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
-
-import { DEFAULT_MAX_FRAMES, MAX_FRAMES_CEILING, readArtboardVideoMeta } from '../kinds/meta.ts';
 import { enumerateClips } from '../canvas-edit.ts';
+import { DEFAULT_MAX_FRAMES, MAX_FRAMES_CEILING, readArtboardVideoMeta } from '../kinds/meta.ts';
 import { compClips } from '../video/derive.ts';
 import { linkedFormats } from '../video/linked-formats.ts';
 import { readTranscript, sidecarRelFor, TRANSCRIPT_MAX_BYTES } from '../video/schema.ts';
