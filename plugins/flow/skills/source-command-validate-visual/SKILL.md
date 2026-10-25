@@ -1,6 +1,6 @@
 ---
 name: source-command-validate-visual
-description: "Check visual regressions with screenshots."
+description: "Retired — use /flow:validate --visual."
 user-invocable: false
 ---
 

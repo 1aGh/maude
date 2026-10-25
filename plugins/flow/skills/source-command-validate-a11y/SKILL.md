@@ -1,6 +1,6 @@
 ---
 name: source-command-validate-a11y
-description: "Audit project UI accessibility and report evidence."
+description: "Retired — use /flow:validate --a11y."
 user-invocable: false
 ---
 

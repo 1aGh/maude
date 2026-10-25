@@ -1,6 +1,6 @@
 # HANDOFF
 
-> Transient file. Created on `/flow:pause`, removed on `/flow:resume`. Do not commit standalone.
+> Transient file. Created on `/flow:run --pause`, removed on `/flow:run --resume`. Do not commit standalone.
 
 **Created:** YYYY-MM-DD HH:MM
 **Reason:** <why paused — end of session, context switch, blocker>

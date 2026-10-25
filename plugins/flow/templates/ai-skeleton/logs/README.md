@@ -1,6 +1,6 @@
 # Logs
 
-System-level audit logs. Output of `/flow:validate`, `/flow:maintain-ai-health`, and other diagnostic commands.
+System-level audit logs. Output of `/flow:validate`, `maude doctor`, and other diagnostic commands.
 
 ## Subfolders
 

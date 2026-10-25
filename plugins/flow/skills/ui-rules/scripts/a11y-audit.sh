@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # A11y Checker — Generic Accessibility Audit
-# Run from project root: bash .claude/skills/a11y-checker/scripts/a11y-audit.sh
+# Run from project root: bash .claude/skills/ui-rules/scripts/a11y-audit.sh
 #
 # Options:
 #   --static   Run only ESLint jsx-a11y static analysis

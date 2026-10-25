@@ -11,7 +11,7 @@
     },
     "flow": {
       "commands": 32,
-      "skills": 55,
+      "skills": 56,
       "agents": 15
     },
     "maude": {
@@ -68,6 +68,7 @@
     "commands-flow/release.mdx": "2026-09-13",
     "commands-flow/resume.mdx": "2026-09-13",
     "commands-flow/review-code.mdx": "2026-09-13",
+    "commands-flow/run.mdx": "2026-10-25",
     "commands-flow/scenario.mdx": "2026-09-13",
     "commands-flow/setup-codebase-map.mdx": "2026-09-13",
     "commands-flow/setup-context.mdx": "2026-09-13",
@@ -78,7 +79,7 @@
     "commands-flow/validate-security.mdx": "2026-09-13",
     "commands-flow/validate-visual.mdx": "2026-09-13",
     "commands-flow/validate.mdx": "2026-09-13",
-    "config-schema.mdx": "2026-09-18",
+    "config-schema.mdx": "2026-10-25",
     "config.mdx": "2026-05-20",
     "design/bootstrap.mdx": "2026-07-03",
     "design/categories.mdx": "2026-07-28",

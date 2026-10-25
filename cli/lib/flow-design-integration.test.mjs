@@ -142,9 +142,8 @@ const withLinked = (p) => {
     });
   return [text, ...linked].join('\n');
 };
-const MAP_CMD = withLinked('plugins/flow/commands/setup-codebase-map.md');
-const CI_SKILL = withLinked('plugins/flow/skills/codebase-intelligence/SKILL.md');
-const DDR_SKILL = read('plugins/flow/skills/ddr-keeper/SKILL.md');
+// setup-codebase-map + codebase-intelligence merged into `/flow:init --map` (flow refactor).
+const MAP_CMD = withLinked('plugins/flow/commands/init.md');
 const RECORD_DDR = read('plugins/flow/commands/record-ddr.md');
 
 test('wiring: /flow:plan has Design Canvas Detection', () => {
@@ -161,17 +160,14 @@ test('wiring: /flow:done has the handoff sweep + soft-gate DDR-066 reference', (
   assert.match(DONE, /DDR-066/);
 });
 
-test('wiring: codebase map command + skill have the Design artifacts section', () => {
-  assert.match(MAP_CMD, /Map Design Artifacts/);
-  assert.match(MAP_CMD, /## Design artifacts/);
-  assert.match(CI_SKILL, /Design Artifact Scanning/);
-  assert.match(CI_SKILL, /### Design artifacts/);
+test('wiring: the codebase map (/flow:init --map) has the Design artifacts section', () => {
+  assert.match(MAP_CMD, /--map/);
+  assert.match(MAP_CMD, /Design artifacts/);
 });
 
-test('wiring: ddr-keeper + record-ddr have the canvas-reference prompt', () => {
-  assert.match(DDR_SKILL, /Canvas reference for UI-affecting decisions/);
-  assert.match(DDR_SKILL, /Related canvas/);
+test('wiring: record-ddr (which absorbed ddr-keeper) has the canvas-reference prompt', () => {
   assert.match(RECORD_DDR, /Related canvas/);
+  assert.match(RECORD_DDR, /UI-affecting/);
 });
 
 test('wiring: DDR-066 exists and is indexed', () => {

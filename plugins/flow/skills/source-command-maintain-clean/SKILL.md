@@ -1,6 +1,6 @@
 ---
 name: source-command-maintain-clean
-description: "Clean stale workflow artifacts, logs and temporary files."
+description: "Retired — ask Claude directly to clean stale artifacts."
 user-invocable: false
 ---
 

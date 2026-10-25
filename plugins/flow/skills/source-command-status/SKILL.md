@@ -1,6 +1,6 @@
 ---
 name: source-command-status
-description: "Summarize current workflow progress, blockers and the next action."
+description: "Retired — use /flow:run --status."
 user-invocable: false
 ---
 

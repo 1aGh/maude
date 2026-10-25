@@ -1,6 +1,6 @@
 ---
 name: source-command-resume
-description: "Resume a paused workflow from its handoff and saved state."
+description: "Retired — use /flow:run --resume."
 user-invocable: false
 ---
 

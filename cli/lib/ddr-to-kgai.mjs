@@ -488,7 +488,7 @@ function archiveMigratedSources(projectRoot, { dryRun = false, today } = {}) {
   };
 
   // A — decisions + their index. Under an active graph the README index has no
-  // job left: `maude kg search` answers what it answered, and ddr-keeper no
+  // job left: `maude kg search` answers what it answered, and /flow:record-ddr no
   // longer appends to it.
   moveInto(join(ai, 'decisions'), join(arch, 'decisions'));
   // A — log verdicts (gitignored, so the graph is now their only inheritable copy).
@@ -519,7 +519,7 @@ function archiveMigratedSources(projectRoot, { dryRun = false, today } = {}) {
       }
     }
   }
-  // A stale HANDOFF.md would be read by `/flow:resume` as if it were current,
+  // A stale HANDOFF.md would be read by `/flow:run --resume` as if it were current,
   // and under the graph it never gets refreshed again — the worst kind of stale.
   const handoff = join(ai, 'state', 'HANDOFF.md');
   if (existsSync(handoff)) {

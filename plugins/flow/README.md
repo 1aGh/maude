@@ -6,33 +6,34 @@ Generic agentic workflow loop with a second-brain `.ai/` workspace. Project-agno
 
 ## Commands at a glance
 
-29 slash commands across 9 categories. Type **`/flow:help`** inside Claude Code for the live, auto-generated grouped index — it parses every command's `category:` frontmatter and prints the table fresh each time.
+10 slash commands. Type **`/help`** inside Claude Code for the live list. Variants are flags (`/flow:plan --prd`, `/flow:execute --quick`, `/flow:validate --security`), not separate commands. Coming from the older surface? See [Flow migration](https://maude.sh/docs/flow-migration).
 
-| Group | Count | What it does |
-| ----- | ----- | ------------ |
-| **daily** | 11 | Every-cycle workflow: `plan`, `execute`, `done`, `validate`, `release`, `status`, `pause`, `resume`, `scenario`, `quick`, `help`. |
-| **setup-*** | 4 | One-shot bootstrapping: `init`, `setup-prd`, `setup-codebase-map`, `setup-context`. |
-| **validate-*** | 2 | Specialized validators: `validate-a11y`, `validate-visual`. |
-| **bug-*** | 2 | Incident workflow: `bug-rca`, `bug-fix`. |
-| **record-*** | 3 | Knowledge capture: `record-ddr`, `record-retro`, `record-execution`. |
-| **maintain-*** | 4 | Hygiene: `maintain-clean`, `maintain-docs`, `maintain-ai-health`, `maintain-discover`. |
-| **review-*** | 1 | `review-code` (pre-commit self-review). |
-| **release-*** | 1 | `release-changelog` (sibling of daily `release`). |
-| **utils-*** | 1 | `utils-verify` (sub-step of `execute`). |
+| Command | What it does |
+| ------- | ------------ |
+| `plan` | Feature plan; `--prd` drafts a PRD with phase plans. |
+| `execute` | Run a plan task by task; `--quick` for trivial changes. |
+| `validate` | Quality pipeline; `--fast`, `--security`, `--a11y`, `--visual`, `--review`, `--scenario` run one lane. |
+| `done` | Validate, commit, PR, execution report, retro, archive. |
+| `bug-rca`, `bug-fix` | Incident workflow. |
+| `release` | Walk the release runbook; `--changelog` authors the entry. |
+| `record-ddr` | Record a Design Decision Record. |
+| `init` | Scaffold `.ai/`; `--context`, `--map`, `--kgai`. |
+| `run` | Drive a plan as a goal (opt-in capped Stop hook); `--pause`, `--resume`, `--status`, `--stop`. |
 
 ## Naming convention
 
 | Type | Pattern | Examples |
 | ---- | ------- | -------- |
-| **Daily** (called every feature cycle) | terse verb, no prefix | `plan`, `execute`, `done`, `validate`, `release` |
-| **Everything else** | `<group>-<verb>` | `bug-fix`, `setup-prd`, `record-ddr`, `maintain-clean` |
+| **Daily** (called every feature cycle) | terse verb, no prefix | `plan`, `execute`, `done`, `validate`, `release`, `run` |
+| **Everything else** | `<group>-<verb>` | `bug-fix`, `bug-rca`, `record-ddr` |
 
-The prefix is **load-bearing**: Claude Code does not support subdirectory namespacing for slash commands ([issue #2422](https://github.com/anthropics/claude-code/issues/2422)), so the `<group>-` prefix is what makes `/flow:bug-` autocomplete to only the bug-* commands. Every non-daily command carries a `category:` frontmatter field that matches its prefix — `/flow:help` reads those fields to render the grouped index.
+The prefix is **load-bearing**: Claude Code does not support subdirectory namespacing for slash commands ([issue #2422](https://github.com/anthropics/claude-code/issues/2422)), so the `<group>-` prefix is what makes `/flow:bug-` autocomplete to only the bug-* commands. Every non-daily command carries a `category:` frontmatter field that matches its prefix — the catalog is built from those fields.
 
 For the full catalog (group definitions, member descriptions, rename history), see [`CATEGORIES.md`](./CATEGORIES.md).
 
 ## Subagents
 
+- `worker` / `spike` / `scout` — role agents `/flow:execute` and `/flow:run` delegate to (implement a slice / answer one question / read-only inventory).
 - `scenario-runner` — orchestrates cross-platform scenarios.
 - `a11y-auditor` — WCAG 2.1 AA pass over changed UI.
 - `design-system-guard` — compares rendered UI to the project's design system doc.
@@ -40,6 +41,6 @@ For the full catalog (group definitions, member descriptions, rename history), s
 
 ## Skills
 
-`workflow-state`, `ddr-keeper`, `scenario`, `agent-browser`, `agent-device`, `codebase-intelligence`, `a11y-checker`, `question-protocol`, `make-skill-template`, `claude-md-keeper`, `debugging-rules`, `a11y-rules`, `motion-rules`, `responsive-rules`, `testing-rules`, `skill-loader`, `orbit-backend` (the `orbit` tracker provider's contract).
+`workflow-state`, `context-budget`, `scenario`, `agent-browser`, `agent-device`, `question-protocol`, `debugging-rules`, `ui-rules`, `testing-rules`, `orbit-backend` (the `orbit` tracker provider's contract).
 
 See [`skills/`](./skills/) for the full list and per-skill SKILL.md files.

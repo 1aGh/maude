@@ -2,78 +2,11 @@
 name: record-execution
 category: record
 type: command
-description: "Write an implementation report for system review."
-keywords: [report, reflection, implementation, analysis, retrospective]
+description: "Retired — use /flow:done."
 ---
 
-# Execution Report
+# /flow:record-execution — retired
 
-Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
+Retired in the flow refactor (v1.10): use **`/flow:done`** instead. Follow [host conventions](../HARNESS.md).
 
-Review and deeply analyze the implementation you just completed.
-
-## Context
-
-You have just finished implementing a feature. Reflect on what happened.
-
-## Generate Report
-
-Save to: `.ai/logs/execution-reports/<feature-name>.md`
-> **Artifact store.** Where this artifact lives is `integrations.tracker.artifacts.store` in `.ai/workflows.config.json` — contract in **`flow:orbit-backend`**, [guide 06](../skills/orbit-backend/_guide-06-artifact-store.md). Absent or `local` → the path above, unchanged. `orbit` → author it exactly the same, then `orbit_artifact_push` it as kind `execution-report` the moment it is written; with `local: scratch` the only copy on disk is a spool file, deleted once orbit confirms the push. `both` → the path above **and** the push. Warn-only in every case: a failed push keeps the file, prints one line and never blocks the report.
-
-
-### Meta Information
-
-- Plan file: [path to plan that guided this implementation]
-- Ticket: <id> (if linked; provider per `integrations.tracker.provider`)
-- Files added: [list with paths]
-- Files modified: [list with paths]
-- Lines changed: +X -Y
-
-### Validation Results
-
-- Lint: ✓/✗
-- Types: ✓/✗
-- Tests: ✓/✗ (X passed, Y failed)
-- Build: ✓/✗
-- A11y: ✓/✗/skipped
-- Visual: ✓/✗/skipped
-
-### What Went Well
-
-- [concrete examples]
-
-### Challenges Encountered
-
-- [what was difficult and why]
-
-### Divergences from Plan
-
-For each divergence:
-
-- Planned: [what plan specified]
-- Actual: [what was implemented]
-- Reason: [why]
-
-### Skipped Items
-
-- [what was skipped and why]
-
-### Recommendations
-
-- Plan improvements
-- Execute improvements
-- Rules updates
-
-## Record it in the graph (kgai — when active)
-
-`.ai/logs/**` is **gitignored**, so when the knowledge graph is active it is the only copy of this report that outlives this machine. Immediately after writing the file:
-
-```bash
-maude kg record-log --file ".ai/logs/execution-reports/<feature-name>.md"
-```
-
-> **With `artifacts.store: orbit`** the canonical path above does not exist — the artifact is a scratch file that is deleted once orbit confirms the push. Point `--file` at the path you actually wrote and pass the kind explicitly (`--kind execution-report`), and run this **before** the push, not after: `kg record-log` reads the file off disk, and directory-based kind inference does not work for a spool file. Full ordering: **`flow:orbit-backend`** [guide 06 §2b](../skills/orbit-backend/_guide-06-artifact-store.md).
-
-
-The verb gates itself and is a **silent no-op when the graph is inactive** — run it unconditionally; the classic `.ai/` path is unchanged. It lands an `execution-report:<slug>` node with the full body and an `EVIDENCE_FOR` edge to every `DDR-NNN` cited, matching the shape `maude kg import` produced. Contract: **`flow:kgai-backend`**.
+Run `/flow:done` now with the same arguments (`$ARGUMENTS`) by reading [the done procedure](done.md) and following its implementation-report step (Step 7).

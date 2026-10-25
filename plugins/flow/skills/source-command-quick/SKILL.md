@@ -1,6 +1,6 @@
 ---
 name: source-command-quick
-description: "Implement a trivial change with focused verification and an authorized commit."
+description: "Retired — use /flow:execute --quick."
 user-invocable: false
 ---
 

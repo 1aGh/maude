@@ -1,6 +1,6 @@
 ---
 name: source-command-maintain-docs
-description: "Check documentation freshness and stale references."
+description: "Retired — ask Claude directly to check docs freshness."
 user-invocable: false
 ---
 

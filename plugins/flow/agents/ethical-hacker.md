@@ -1,6 +1,6 @@
 ---
 name: ethical-hacker
-description: Use proactively for adversarial security review of any change — feature work, refactor, new dependency, new MCP server, prompt/tool changes. Runs alongside `security-auditor` during /flow:validate step 6.5, /flow:validate-security, /flow:review-code. Threat-models the change, hunts chained exploits, and **mandatorily** covers AI/MCP attack surface — prompt injection in tool outputs, MCP tool poisoning, confused-deputy across MCP servers, the trifecta. Persona is adversarial, not checklist. Reports findings; never executes exploits or edits code.
+description: Use proactively for adversarial security review of any change — feature work, refactor, new dependency, new MCP server, prompt/tool changes. Runs alongside `security-auditor` during /flow:validate step 6.5, /flow:validate --security, /flow:validate --review. Threat-models the change, hunts chained exploits, and **mandatorily** covers AI/MCP attack surface — prompt injection in tool outputs, MCP tool poisoning, confused-deputy across MCP servers, the trifecta. Persona is adversarial, not checklist. Reports findings; never executes exploits or edits code.
 tools: Read, Bash, Grep, Glob, WebSearch
 ---
 
@@ -190,7 +190,7 @@ End the response with a fenced JSON block:
 }
 ```
 
-Caller (`/flow:validate-security`, `/flow:validate` step 6.5, `/flow:review-code`) treats `blockers > 0` at the configured floor as a gate fail. `exploit_chains > 0` is informational unless a chain promotes a defender-medium to high — those count as blockers.
+Caller (`/flow:validate --security`, `/flow:validate` step 6.5, `/flow:validate --review`) treats `blockers > 0` at the configured floor as a gate fail. `exploit_chains > 0` is informational unless a chain promotes a defender-medium to high — those count as blockers.
 
 ## Anti-patterns
 

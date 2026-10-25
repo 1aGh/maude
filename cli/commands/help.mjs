@@ -58,7 +58,7 @@ COMMANDS
         Deterministically generate the mechanical sections of a cross-platform
         scenario report.md (TL;DR, counter-delta parity, per-step pivot, path
         listing) from a scenario run directory. The LLM authors only the prose
-        sections. Used by /flow:scenario + the scenario-runner agent (DDR-061).
+        sections. Used by /flow:validate --scenario + the scenario-runner agent (DDR-061).
 
   hub serve [--port N] [--data PATH] [--secret HEX] [--insecure-http] [--dev]
         Start the self-hostable Yjs sync hub (Phase 9). Defaults to port 1234,

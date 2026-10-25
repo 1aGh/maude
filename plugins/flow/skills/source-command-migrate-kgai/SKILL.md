@@ -1,6 +1,6 @@
 ---
 name: source-command-migrate-kgai
-description: "Import project decisions into kgai with idempotence and archive preservation."
+description: "Retired — use /flow:init --kgai."
 user-invocable: false
 ---
 

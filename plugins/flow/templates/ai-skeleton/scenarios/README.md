@@ -2,7 +2,7 @@
 
 Cross-platform UI scenarios. One folder per scenario; per-run reports inside.
 
-> This file documents the **directory layout** convention for individual scenarios. For *behavioral* deltas from `flow:scenario`'s generic protocol (device lifecycle, selector conventions, infra-error classification, platform gotchas), see `../scenario-guide.md` instead — the two files have distinct scopes and shouldn't be merged.
+> This file documents the **directory layout** convention for individual scenarios. For *behavioral* deltas from `/flow:validate --scenario`'s generic protocol (device lifecycle, selector conventions, infra-error classification, platform gotchas), see `../scenario-guide.md` instead — the two files have distinct scopes and shouldn't be merged.
 
 ## Layout
 
@@ -27,4 +27,4 @@ scenarios/
 - **Report format:** owned by the `scenario` skill — `maude scenario-report <run-dir>` generates the mechanical tables; the LLM authors only the prose sections.
 - **`covers.json`** (optional): declares the source globs the scenario exercises, split into `web` / `native` / `shared` git pathspecs. Enables the route-aware skip (re-run only when covered files changed) and the web-only scope skip (no sim boot for web-only diffs). Example: `{"web":["app/(video)/**"],"native":["expo-app/**"],"shared":["packages/api-client/**"]}`. Absent → the scenario always runs the full platform matrix.
 
-Run with `/flow:scenario <slug>` (registered scenarios) or `/flow:scenario <ad-hoc description>` (one-off).
+Run with `/flow:validate --scenario <slug>` (registered scenarios) or `/flow:validate --scenario <ad-hoc description>` (one-off).

@@ -332,14 +332,18 @@ No UI, so no scenario-runner, design-system-guard or a11y-auditor.
 
 ## Acceptance Criteria
 
-- [ ] T0 capability note recorded; plan amended if hooks or block JSON are unsupported
+- [x] T0 capability note recorded; plan amended if hooks or block JSON are unsupported
 - [ ] P1: monorepo task tokens drop versus baseline with an equal pass rate; small repo is not worse; nothing removed
-- [ ] P2: `/flow:run` stops only on green, honours the waiting file, auto-pauses after `maxStopBlocks`, honours `expires`/`maxRunTokens`, names the kill switch in every block, and is a no-op when `run.hooks` is off
-- [ ] P3: 10 commands plus stubs; every reference resolves (ratchet); the Codex mirrors are regenerated; the migration doc is published
+- [x] P2: `/flow:run` stops only on green, honours the waiting file, auto-pauses after `maxStopBlocks`, honours `expires`/`maxRunTokens`, names the kill switch in every block, and is a no-op when `run.hooks` is off
+- [x] P3: 10 commands plus stubs; every reference resolves (ratchet); the Codex mirrors are regenerated; the migration doc is published
 - [ ] P4: stubs deleted only after measured non-use or Michal's go
-- [ ] Guardrails 1–5 each have a test or a check that fails without them
-- [ ] No hook or harness touched the real HOME/prefs or spawned the real `claude`
-- [ ] Decisions recorded in kg; `site/lib/roadmap.json` regenerated in the commit that adds this plan
+- [x] Guardrails 1–5 each have a test or a check that fails without them
+- [x] No hook or harness touched the real HOME/prefs or spawned the real `claude`
+- [x] Decisions recorded in kg; `site/lib/roadmap.json` regenerated in the commit that adds this plan
+
+## Progress log
+
+- 2026-10-25 P0 (55d7d9387): T0 capabilities + T0b baseline notes. P1 (41083dfc3): context-budget, worker/spike/scout, run.* config, execute/plan slices, critic tiers, `maude flow usage`. P2 (218c9c6f9): /flow:run + run-hook.mjs (24 tests, dogfood note). P3: 10 commands + stubs, ui-rules, refs ratchet, migration doc. Deviations: no `gen-plugin-surfaces` on main (mirrors by hand, ratchet checks parity); `quality.lane` → `run.lane`; Stop hook timeout 300 s; P1 cost A/B deferred to the first real runs after release (`P1-ab.md`). P4 open (stub deletion after a census or Michal's go).
 
 ## Key risks
 

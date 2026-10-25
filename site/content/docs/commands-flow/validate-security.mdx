@@ -1,31 +1,31 @@
 ---
 title: /flow:validate-security
-description: "Run security and adversarial reviews, consolidate findings and apply the configured severity gate."
+description: "Retired — use /flow:validate --security."
 ---
 
 | Property | Value |
 | -------- | ----- |
 | **Command** | `/flow:validate-security` |
 | **Category** | `validate` |
-| **Argument hint** | `[--since <ref>] [--include-ai \| --no-ai]` |
+| **Argument hint** | _(none)_ |
 | **Source** | [`plugins/flow/commands/validate-security.md`](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/validate-security.md) |
 
 ## Description
 
-Run security and adversarial reviews, consolidate findings and apply the configured severity gate.
+Retired — use /flow:validate --security.
 
 ## Invocation
 
 **Claude Code**
 
 ```text
-/flow:validate-security [--since <ref>] [--include-ai | --no-ai]
+/flow:validate-security
 ```
 
 **Codex**
 
 ```text
-$flow:source-command-validate-security [--since <ref>] [--include-ai | --no-ai]
+$flow:source-command-validate-security
 ```
 
 Use the same arguments and flags. See [native Codex setup](/docs/codex) for

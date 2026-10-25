@@ -77,7 +77,7 @@ Root of the design plugin's canvas workspace, relative to repo root. Where flow 
 
 **Type:** `string` · **Default:** `".ai/scenario-guide.md"`
 
-Repo-owned scenario-testing knowledge/deltas file that flow:scenario reads for overrides — device/platform lifecycle, selector conventions, infra-error classification, platform-specific gotchas. Mirrors `integrations.changelog.releaseGuide`'s generic-skill-plus-repo-knowledge-file shape, but optional: unlike the release guide, flow:scenario runs its documented defaults when this file is absent — no project is required to author one. Scaffolded by `maude init`. Default: `.ai/scenario-guide.md`.
+Repo-owned scenario-testing knowledge/deltas file that /flow:validate --scenario reads for overrides — device/platform lifecycle, selector conventions, infra-error classification, platform-specific gotchas. Mirrors `integrations.changelog.releaseGuide`'s generic-skill-plus-repo-knowledge-file shape, but optional: unlike the release guide, flow:scenario runs its documented defaults when this file is absent — no project is required to author one. Scaffolded by `maude init`. Default: `.ai/scenario-guide.md`.
 
 ## `platforms`
 
@@ -89,13 +89,13 @@ Platform variants the project ships to. Drives scenario-runner matrix and respon
 
 **Type:** `string`
 
-Native app bundle ID prefix (e.g. `com.acme.myapp`). Used by `/flow:utils-verify` and `/flow:scenario` when launching native builds. Omit for web-only projects.
+Native app bundle ID prefix (e.g. `com.acme.myapp`). Used by `/flow:validate --fast` and `/flow:validate --scenario` when launching native builds. Omit for web-only projects.
 
 ## `stack`
 
 **Type:** `object`
 
-Auto-detected technology stack snapshot. Populated by /flow:init, refreshed by /flow:setup-codebase-map. Flow commands read this for routing decisions (e.g. which test runner to invoke, whether to gate on monorepo workspace builds). Use `unknown` when detection fails — never invent a value.
+Auto-detected technology stack snapshot. Populated by /flow:init, refreshed by /flow:init --map. Flow commands read this for routing decisions (e.g. which test runner to invoke, whether to gate on monorepo workspace builds). Use `unknown` when detection fails — never invent a value.
 
 ### `stack.language`
 
@@ -278,7 +278,7 @@ Responsive layout knobs. responsive-rules reads this to enforce density-per-plat
 
 **Type:** `object` · **Default:** `{}`
 
-Maps each entry in `platforms` to a density preset (`command-center` | `sideline-tool` | `palm-friendly` | `cozy` | `compact` | custom). responsive-rules uses this to flag wrong density per platform.
+Maps each entry in `platforms` to a density preset (`command-center` | `sideline-tool` | `palm-friendly` | `cozy` | `compact` | custom). flow:ui-rules uses this to flag wrong density per platform.
 
 ### `responsive.breakpoints`
 
@@ -689,7 +689,7 @@ Security review knobs. security-auditor + ethical-hacker subagents read these. S
 
 **Type:** enum: `"low"` │ `"medium"` │ `"high"` │ `"critical"` · **Default:** `"medium"`
 
-Lowest severity that blocks /flow:validate step 6.5 and /flow:validate-security. Findings below this rate as warnings, not blockers.
+Lowest severity that blocks /flow:validate step 6.5 and /flow:validate --security. Findings below this rate as warnings, not blockers.
 
 **Allowed values:**
 
@@ -796,7 +796,7 @@ Map of gate name → shell command string. Gate names are free-form (conventiona
 
 **Type:** `object`
 
-Scoped (changed-files / changed-packages-only) gate variants for the IMPLEMENTATION inner loop (`/flow:utils-verify`, per-task `/flow:execute`, `/flow:bug-fix`). Same flat shape as `quality` — gate name → shell command string, keys mirror `quality` (conventionally `lint`, `format`, `typecheck`, `tests`). During implementation these run INSTEAD of the repo-wide `quality.*` commands; a missing key means the inner loop defers that gate to `/flow:validate` (it never falls back to the repo-wide command). `/flow:validate` and `/flow:done` ignore this block entirely — the full `quality.*` pipeline remains the single outer gate. Monorepo example: `"lint": "turbo run lint --filter='[origin/main]'"` — note changed-only `[base]`, NOT dependents-inclusive `...[base]`, which selects nearly the whole monorepo whenever a shared package is touched; dependent breakage is `/flow:validate`'s job.
+Scoped (changed-files / changed-packages-only) gate variants for the IMPLEMENTATION inner loop (`/flow:validate --fast`, per-task `/flow:execute`, `/flow:bug-fix`). Same flat shape as `quality` — gate name → shell command string, keys mirror `quality` (conventionally `lint`, `format`, `typecheck`, `tests`). During implementation these run INSTEAD of the repo-wide `quality.*` commands; a missing key means the inner loop defers that gate to `/flow:validate` (it never falls back to the repo-wide command). `/flow:validate` and `/flow:done` ignore this block entirely — the full `quality.*` pipeline remains the single outer gate. Monorepo example: `"lint": "turbo run lint --filter='[origin/main]'"` — note changed-only `[base]`, NOT dependents-inclusive `...[base]`, which selects nearly the whole monorepo whenever a shared package is touched; dependent breakage is `/flow:validate`'s job.
 
 ## `integrations`
 
@@ -808,7 +808,7 @@ Lightweight pointers to external services the project plugs into. Generic comman
 
 **Type:** `object`
 
-Issue / task tracker. Used by /flow:done, /flow:bug-rca, /flow:bug-fix and /flow:status to optionally read, create or update tickets. `orbit` additionally routes /flow:plan (find or create the task), /flow:execute (working-state reports) and /flow:done (close-time artifact push, warn-only) through the `orbit-backend` skill.
+Issue / task tracker. Used by /flow:done, /flow:bug-rca, /flow:bug-fix and /flow:run --status to optionally read, create or update tickets. `orbit` additionally routes /flow:plan (find or create the task), /flow:execute (working-state reports) and /flow:done (close-time artifact push, warn-only) through the `orbit-backend` skill.
 
 #### `integrations.tracker.provider`
 
@@ -949,7 +949,7 @@ Design source-of-truth (Figma, Penpot, Sketch, …). Used by /flow:plan when the
 
 **Type:** `object`
 
-Release-note / changelog tooling. Used by /flow:validate and /flow:done to remind (soft warning) about missing release notes, by /flow:release-changelog to author entries, and by /flow:release to walk the project-owned release runbook. Phase 3 implements the `changesets` provider; other enum values are accepted but treated as no-op until their providers land.
+Release-note / changelog tooling. Used by /flow:validate and /flow:done to remind (soft warning) about missing release notes, by /flow:release --changelog to author entries, and by /flow:release to walk the project-owned release runbook. Phase 3 implements the `changesets` provider; other enum values are accepted but treated as no-op until their providers land.
 
 #### `integrations.changelog.provider`
 

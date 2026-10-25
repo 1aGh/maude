@@ -1,6 +1,6 @@
 ---
 name: source-command-run
-description: "Run a plan unattended as a goal with a capped Stop gate; pause, resume, stop or report the run."
+description: "Run a plan unattended as a goal with a capped Stop gate; also where you are (--status), pause and resume work, with or without a run."
 user-invocable: false
 ---
 

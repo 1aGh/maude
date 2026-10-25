@@ -1,6 +1,6 @@
 ---
 name: source-command-setup-prd
-description: "Create a product requirements document with phase plans and an execution index."
+description: "Retired — use /flow:plan --prd."
 user-invocable: false
 ---
 

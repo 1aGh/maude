@@ -1,6 +1,6 @@
 ---
 name: source-command-record-execution
-description: "Write an implementation report for system review."
+description: "Retired — use /flow:done."
 user-invocable: false
 ---
 

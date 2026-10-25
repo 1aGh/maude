@@ -1,6 +1,6 @@
 ---
 name: source-command-setup-codebase-map
-description: "Create a persistent project architecture map for later sessions."
+description: "Retired — use /flow:init --map."
 user-invocable: false
 ---
 

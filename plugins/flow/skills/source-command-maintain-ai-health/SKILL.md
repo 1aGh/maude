@@ -1,6 +1,6 @@
 ---
 name: source-command-maintain-ai-health
-description: "Check project skills, agents, commands, workflow state and codebase-map health."
+description: "Retired — ask Claude directly, or run maude doctor."
 user-invocable: false
 ---
 

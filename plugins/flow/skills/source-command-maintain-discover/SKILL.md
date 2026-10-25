@@ -1,6 +1,6 @@
 ---
 name: source-command-maintain-discover
-description: "Find skills, agents and other capabilities for a task description."
+description: "Retired — Claude Code discovers installed skills natively."
 user-invocable: false
 ---
 

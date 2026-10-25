@@ -1,6 +1,6 @@
 ---
 name: source-command-record-retro
-description: "Compare implementation with its plan and record process improvements."
+description: "Retired — use /flow:done."
 user-invocable: false
 ---
 

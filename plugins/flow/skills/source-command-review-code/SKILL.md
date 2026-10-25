@@ -1,6 +1,6 @@
 ---
 name: source-command-review-code
-description: "Review uncommitted code changes before commit."
+description: "Retired — use /flow:validate --review."
 user-invocable: false
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: source-command-help
-description: "List available flow workflows and their invocation names."
+description: "Retired — Claude Code's native /help lists every /flow:* command."
 user-invocable: false
 ---
 

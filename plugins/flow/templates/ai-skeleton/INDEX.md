@@ -1,6 +1,6 @@
 # `.ai/` — Index
 
-> Second-brain map. Auto-maintained by `/flow:status` and `/flow:setup-context`. Hand-edit additions are welcome.
+> Second-brain map. Auto-maintained by `/flow:run --status` and `/flow:init --context`. Hand-edit additions are welcome.
 
 ## Identity
 
@@ -12,7 +12,7 @@
 
 ## Active work
 
-> Updated by `/flow:status`. The single most useful screen for "where am I?".
+> Updated by `/flow:run --status`. The single most useful screen for "where am I?".
 
 - current phase: see `state/STATE.md`
 - active plan: see `state/STATE.md` → Active plan
@@ -34,7 +34,7 @@
 
 > Most recent run per scenario. Drill into `scenarios/<id>/` for the full history.
 
-- (none yet — run with `/flow:scenario <flow>`)
+- (none yet — run with `/flow:validate --scenario <flow>`)
 
 ## Where to find things
 

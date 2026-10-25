@@ -1,6 +1,6 @@
 ---
 name: source-command-setup-context
-description: "Load relevant codebase context for the current project and task."
+description: "Retired — use /flow:init --context."
 user-invocable: false
 ---
 

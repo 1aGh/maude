@@ -1,6 +1,6 @@
 ---
 name: source-command-pause
-description: "Save workflow state and a handoff for a later session."
+description: "Retired — use /flow:run --pause."
 user-invocable: false
 ---
 

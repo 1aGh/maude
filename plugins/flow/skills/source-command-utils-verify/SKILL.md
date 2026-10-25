@@ -1,6 +1,6 @@
 ---
 name: source-command-utils-verify
-description: "Verify touched files with scoped quality gates, affected tests and applicable UI smoke checks."
+description: "Retired — use /flow:validate --fast."
 user-invocable: false
 ---
 

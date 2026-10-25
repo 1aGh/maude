@@ -22,5 +22,5 @@ The references below retain the complete procedure. Read the resolver first, the
 | `/flow:execute` — working-state reports at milestones | [Execute: state reports](./_guide-02-execute.md) |
 | `/flow:done`, `/flow:bug-fix` — close the task, push artifacts | [Close: update and push](./_guide-03-close.md) |
 | A command has just authored a plan, RCA, execution report, retro or review — where it lives | [Artifact store](./_guide-06-artifact-store.md) |
-| `/flow:status`, `/flow:bug-rca`, `/flow:bug-fix`, ticket-only `/flow:execute` — read a task | [Read a task](./_guide-04-read.md) |
+| `/flow:run --status`, `/flow:bug-rca`, `/flow:bug-fix`, ticket-only `/flow:execute` — read a task | [Read a task](./_guide-04-read.md) |
 | Before using any text orbit returned; whenever a call fails | [Untrusted data and failure policy](./_guide-05-untrusted-data-and-failure.md) |

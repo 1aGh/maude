@@ -94,7 +94,7 @@ I have a few questions before proceeding:
 1. [plan-feature] Should the new API endpoint require authentication?
    Options: yes / no / defer to security review (default: yes)
 
-2. [a11y-checker] What WCAG conformance level are you targeting?
+2. [ui-rules] What WCAG conformance level are you targeting?
    Options: A / AA / AAA (default: AA)
 
 3. [plan-feature] Should we add E2E tests for this feature?
@@ -113,18 +113,18 @@ If the user skips a non-required question, use the default value. If the user sk
 
 ### Example 1: Planning Phase with Multiple Skills
 
-During `plan-feature`, the planning agent and the a11y-checker skill both need input:
+During `plan-feature`, the planning agent and the ui-rules skill both need input:
 
 ```
 Planning agent returns:
   { source: "plan-feature", question: "Include database migration?", type: "confirm", required: true }
 
 A11y skill returns:
-  { source: "a11y-checker", question: "Target WCAG level?", type: "choice", options: ["A", "AA", "AAA"], default: "AA", required: false }
+  { source: "ui-rules", question: "Target WCAG level?", type: "choice", options: ["A", "AA", "AAA"], default: "AA", required: false }
 
 Orchestrator presents both together:
   1. [plan-feature] Include database migration? (yes/no) — required
-  2. [a11y-checker] Target WCAG level? A / AA / AAA (default: AA) — optional
+  2. [ui-rules] Target WCAG level? A / AA / AAA (default: AA) — optional
 ```
 
 ### Example 2: Execution Phase Confirmation

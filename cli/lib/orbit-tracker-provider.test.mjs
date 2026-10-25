@@ -112,7 +112,7 @@ test('skill: names the exact orbit MCP tools and keeps the warn-only + untrusted
 
 // ── 3. command routing ──────────────────────────────────────────────────────
 
-for (const command of ['plan', 'execute', 'done', 'status', 'bug-rca', 'bug-fix']) {
+for (const command of ['plan', 'execute', 'done', 'run', 'bug-rca', 'bug-fix']) {
   test(`routing: /flow:${command} sends provider "orbit" to flow:orbit-backend`, () => {
     const text = read(`plugins/flow/commands/${command}.md`);
     assert.match(text, /orbit/);
@@ -204,11 +204,11 @@ test('guide 06: carries the push-before-delete rule and the five kinds', () => {
 for (const [command, kind] of [
   ['plan', 'plan'],
   ['bug-rca', 'rca'],
-  ['record-execution', 'execution-report'],
-  ['record-retro', 'retro'],
-  ['review-code', 'review'],
+  ['done', 'execution-report'], // record-execution merged into /flow:done (flow refactor)
+  ['done', 'retro'], // record-retro merged into /flow:done
+  ['validate', 'review'], // review-code became /flow:validate --review
 ]) {
-  test(`routing: /flow:${command} routes its artifact through guide 06 as kind ${kind}`, () => {
+  test(`routing: /flow:${command} routes its ${kind} artifact through guide 06`, () => {
     const text = read(`plugins/flow/commands/${command}.md`);
     assert.ok(
       text.includes('_guide-06-artifact-store.md'),
@@ -223,9 +223,10 @@ for (const [command, kind] of [
 }
 
 test('routing: the spool is never cleaned as a temp file', () => {
-  const text = read('plugins/flow/commands/maintain-clean.md');
-  assert.ok(text.includes('spoolDir'), 'maintain-clean.md never mentions the spool');
-  assert.match(text, /never offer its contents for deletion|Never Touch the orbit Spool/);
+  // maintain-clean is retired (flow refactor); /flow:init owns the spool rule now.
+  const text = read('plugins/flow/commands/init.md');
+  assert.ok(text.includes('spoolDir'), 'init.md never mentions the spool');
+  assert.match(text, /never committed, never cleaned/);
 });
 
 // ── 5. orbit must not starve kgai ───────────────────────────────────────────
@@ -254,11 +255,11 @@ test('guide 06: records into kgai before the push, with an explicit kind', () =>
 
 for (const [command, kk] of [
   ['bug-rca', 'rca'],
-  ['record-execution', 'execution-report'],
-  ['record-retro', 'system-review'],
-  ['review-code', 'code-review'],
+  ['done', 'execution-report'],
+  ['done', 'system-review'],
+  ['validate', 'code-review'],
 ]) {
-  test(`kgai: /flow:${command} still feeds the graph under store: orbit`, () => {
+  test(`kgai: /flow:${command} still feeds the graph as ${kk} under store: orbit`, () => {
     const text = read(`plugins/flow/commands/${command}.md`);
     assert.ok(text.includes('kg record-log'), `${command}.md lost its record-log step`);
     assert.ok(

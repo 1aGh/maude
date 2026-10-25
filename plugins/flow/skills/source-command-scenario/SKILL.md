@@ -1,6 +1,6 @@
 ---
 name: source-command-scenario
-description: "Run cross-platform web and native UI scenarios with screenshot evidence and a report."
+description: "Retired — use /flow:validate --scenario."
 user-invocable: false
 ---
 

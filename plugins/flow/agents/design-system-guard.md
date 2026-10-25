@@ -1,6 +1,6 @@
 ---
 name: design-system-guard
-description: Use during /flow:utils-verify and /flow:validate on UI changes to check compliance with the project's design system doc (e.g. `.ai/<project>-design-system.md`). Compares rendered screenshots from scenario reports (when available) plus static grep. Catches gradient/glass/pastel violations, wrong icons, hardcoded colors, typography drift. Reports only — does not edit.
+description: Use during /flow:validate --fast and /flow:validate on UI changes to check compliance with the project's design system doc (e.g. `.ai/<project>-design-system.md`). Compares rendered screenshots from scenario reports (when available) plus static grep. Catches gradient/glass/pastel violations, wrong icons, hardcoded colors, typography drift. Reports only — does not edit.
 tools: Read, Bash, Grep, Glob
 model: sonnet
 ---
@@ -35,9 +35,9 @@ agent-browser snapshot -c   # element tree for grepping semantic tokens
 3. Load that DS's `colors_and_type.css` (tokens) + `README.md` (philosophy + hard rules) + `SKILL.md`. **Tokens from one DS do not blend with another** — a canvas declared against `marketing` MUST NOT use admin's accent.
 4. In **multi-DS projects**, audit each changed file against its DECLARED DS only. Cross-DS contamination (a canvas with `designSystem: marketing` referencing admin's tokens) is itself a blocker.
 
-`motion-rules` skill (bundled in flow plugin) — animation hard-stops (compositor-only, prefers-reduced-motion, motion tokens). Reads `motion` from `.ai/workflows.config.json`.
+The `flow:ui-rules` skill, section Motion — animation hard-stops (compositor-only, prefers-reduced-motion, motion tokens). Reads `motion` from `.ai/workflows.config.json`.
 
-`responsive-rules` skill (bundled in flow plugin) — mobile-first, container queries, fluid typography, density-per-platform. Reads `platforms` + `responsive` from `.ai/workflows.config.json`.
+The `flow:ui-rules` skill, section Responsive — mobile-first, container queries, fluid typography, density-per-platform. Reads `platforms` + `responsive` from `.ai/workflows.config.json`.
 
 ## Hard rules (must catch)
 

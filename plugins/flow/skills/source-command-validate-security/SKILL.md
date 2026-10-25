@@ -1,6 +1,6 @@
 ---
 name: source-command-validate-security
-description: "Run security and adversarial reviews, consolidate findings and apply the configured severity gate."
+description: "Retired — use /flow:validate --security."
 user-invocable: false
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: source-command-release-changelog
-description: "Write a changelog entry using the project changelog conventions."
+description: "Retired — use /flow:release --changelog."
 user-invocable: false
 ---
 

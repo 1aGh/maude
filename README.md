@@ -12,7 +12,7 @@ A personal marketplace of Claude Code and Codex plugins. Two plugins today, plus
 | Plugin | What it does |
 | ------ | ------------ |
 | **`design`** | Canvas-first iteration on TSX/JSX mocks under `.design/` — element selection via Cmd+Click, auto-managed dev server, chained UX/DS critique. Canvases can also be **video-comps** (Remotion compositions previewed in-app, exported to MP4/GIF through Maude's own capture engine — no extra install). |
-| **`flow`** | Generic agentic workflow loop with a second-brain `.ai/` workspace. `/flow:plan`, `/flow:execute`, `/flow:utils-verify`, `/flow:validate`, `/flow:done`, `/flow:init`, `/flow:record-ddr`, `/flow:scenario`, …. Project-agnostic via `<project>` placeholders + per-repo `.ai/workflows.config.json`. |
+| **`flow`** | Generic agentic workflow loop with a second-brain `.ai/` workspace. `/flow:plan`, `/flow:execute`, `/flow:validate`, `/flow:done`, `/flow:bug-rca`, `/flow:bug-fix`, `/flow:release`, `/flow:record-ddr`, `/flow:init`, `/flow:run` (10 commands; variants are flags — see [Flow migration](https://maude.sh/docs/flow-migration)). Project-agnostic via `<project>` placeholders + per-repo `.ai/workflows.config.json`. |
 
 Plus the **`maude`** CLI — `maude init` scaffolds a fresh `.ai/` workspace from the flow plugin skeleton; `maude design serve` boots the design dev server. The legacy `mdcc` alias still works (prints a deprecation warning) and will be removed in v0.17.x.
 
@@ -65,7 +65,7 @@ Then inside Claude Code (with `flow@maude` installed):
 ```
 /init                  # Anthropic's built-in — generates CLAUDE.md tailored to your codebase
 /flow:init    # populates .ai/workflows.config.json with detected stack
-/flow:status           # confirm everything wired up
+/flow:run --status     # confirm everything wired up
 ```
 
 `/init` writes the `CLAUDE.md` Claude auto-loads every session (conventions, build commands, gotchas). `/flow:init` handles the structured workspace config — they're complementary, not duplicates.
@@ -80,11 +80,11 @@ maude doctor --fix    # install missing deps (per-item prompt) + apply safe conf
 maude doctor --json   # machine-readable envelope
 ```
 
-**Quality gates** are declared in `.ai/workflows.config.json` under the top-level `quality` map — a flat `gate → shell command` mapping (e.g. `{ "lint": "pnpm lint", "tests": "pnpm test" }`). Flow commands (`/flow:validate`, `/flow:utils-verify`, `/flow:quick`) read it directly and run each via `eval`. There is **no `maude quality run` wrapper** — `pnpm <script>` is already the runner. Hook it into your own pre-commit tool with a one-liner: `eval $(jq -r '.quality.lint' .ai/workflows.config.json)`. Populate the block by running `maude doctor --fix` once your `package.json` scripts exist (additive — it never overwrites a command you tuned).
+**Quality gates** are declared in `.ai/workflows.config.json` under the top-level `quality` map — a flat `gate → shell command` mapping (e.g. `{ "lint": "pnpm lint", "tests": "pnpm test" }`). Flow commands (`/flow:validate`, `/flow:validate --fast`, `/flow:execute --quick`) read it directly and run each via `eval`. There is **no `maude quality run` wrapper** — `pnpm <script>` is already the runner. Hook it into your own pre-commit tool with a one-liner: `eval $(jq -r '.quality.lint' .ai/workflows.config.json)`. Populate the block by running `maude doctor --fix` once your `package.json` scripts exist (additive — it never overwrites a command you tuned).
 
 ### Sidecar cache — `maude cache`
 
-Flow + design commands reuse expensive cross-session work through a small sidecar cache at `.ai/cache/` ([DDR-061](.ai/archive/decisions/DDR-061-sidecar-cache-monitor-background-orchestration.md)): domain research (skips 30–90 s of WebSearch on a same-domain brief), codebase-intelligence scans (skips rescan when the tree is unchanged), parsed design-system vocabulary, and security-review reuse (one shared 1-hour window across `/flow:validate`, `/flow:done`, `/flow:validate-security`). Correctness comes first — most layers are content-addressed (a changed input changes the key → guaranteed miss), and a stale entry is never served speculatively.
+Flow + design commands reuse expensive cross-session work through a small sidecar cache at `.ai/cache/` ([DDR-061](.ai/archive/decisions/DDR-061-sidecar-cache-monitor-background-orchestration.md)): domain research (skips 30–90 s of WebSearch on a same-domain brief), codebase-intelligence scans (skips rescan when the tree is unchanged), parsed design-system vocabulary, and security-review reuse (one shared 1-hour window across `/flow:validate`, `/flow:done`, `/flow:validate --security`). Correctness comes first — most layers are content-addressed (a changed input changes the key → guaranteed miss), and a stale entry is never served speculatively.
 
 ```sh
 maude cache list              # layers, entry counts, sizes, last-write time

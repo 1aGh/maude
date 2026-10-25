@@ -1,11 +1,11 @@
 ---
 title: Flow lifecycle
-description: All 30 /flow:* slash commands, grouped by lifecycle. Daily verbs stay terse, everything else uses a group-verb prefix.
+description: The 10 /flow:* slash commands, grouped by lifecycle. Flags select the lane, so one verb covers what used to be several commands.
 ---
 
-Thirty commands. Eleven run every feature cycle and stay one-word terse (`plan`, `execute`, `done`, `validate`). The rest belong to a group and wear the group as a prefix (`setup-prd`, `bug-rca`, `record-ddr`, `maintain-clean`). No subdirectory namespacing. Claude Code doesn't support it; the prefix is the working substitute.
+Ten commands. The daily verbs stay one-word terse (`plan`, `execute`, `validate`, `done`); the rest wear a group prefix (`bug-rca`, `bug-fix`, `record-ddr`). Variants are flags, not separate commands: `/flow:validate --security`, `/flow:plan --prd`, `/flow:execute --quick`. Coming from the older 30-command surface? See [Flow migration](/docs/flow-migration).
 
-The canonical catalog: [`plugins/flow/CATEGORIES.md`](https://github.com/1aGh/maude/blob/main/plugins/flow/CATEGORIES.md). Live grouped index, one slash command away: `/flow:help`.
+The canonical catalog: [`plugins/flow/CATEGORIES.md`](https://github.com/1aGh/maude/blob/main/plugins/flow/CATEGORIES.md). Live command list: Claude Code's native `/help`.
 
 <FlowLoop />
 
@@ -16,35 +16,35 @@ Run once per project (or once per major restructure).
 | Command | What it does |
 | ------- | ------------ |
 | `/flow:init` | Scaffold `.ai/`, auto-detect stack, populate `workflows.config.json`, defer to `/init` for `CLAUDE.md`. |
-| `/flow:setup-prd` | Draft a PRD + auto-generate phase plans + execution README. |
-| `/flow:setup-codebase-map` | Snapshot architecture into `.ai/context/` for cross-session reuse. |
-| `/flow:setup-context` | Prime the agent with the codebase map + `CLAUDE.md`. |
+| `/flow:init --context` | Prime the agent with the codebase map + `CLAUDE.md`. |
+| `/flow:init --map` | Snapshot architecture into `.ai/context/` for cross-session reuse. |
+| `/flow:init --kgai` | Import existing decisions into the kgai knowledge graph. |
+| `/flow:plan --prd` | Draft a PRD + auto-generate phase plans + execution README. |
 
 ## Daily. Every-cycle workflow
 
 | Command | What it does |
 | ------- | ------------ |
 | `/flow:plan "<feature>"` | Context-rich feature plan grounded in PRD + design system. |
-| `/flow:execute [plan-path]` | Execute an implementation plan task-by-task with an Edit-Verify loop. |
-| `/flow:done` | `/validate` gate → DDR sweep → commit → push → PR → retro → archive. |
+| `/flow:execute [plan-path]` | Execute an implementation plan task-by-task with an Edit-Verify loop. Slices are delegated to the `flow:worker` role agent. |
+| `/flow:execute --quick` | Trivial-change fast-path. Skip plan cycle, go edit, verify, commit. |
+| `/flow:run <plan>` | Drive a plan to completion as a goal. Opt-in capped Stop hook; `--pause`, `--resume`, `--status`, `--stop`. |
 | `/flow:validate` | Full pipeline: static + tests + build + scenario + a11y + design. |
-| `/flow:status` | Where you are, what's next. Safe to run anywhere. |
-| `/flow:pause` | Snapshot state, write `HANDOFF.md`, ready for context switch. |
-| `/flow:resume` | Resume from a previous `/flow:pause`. |
-| `/flow:scenario` | Cross-platform UI scenario across 5 platforms. |
-| `/flow:quick` | Trivial-change fast-path. Skip plan cycle, go edit, verify, commit. |
-| `/flow:release` | Walk the project's release runbook step-by-step with explicit confirmation. |
-| `/flow:help` | Auto-generated grouped index (built from frontmatter). |
+| `/flow:done` | `/validate` gate, DDR sweep, commit, push, PR, execution report, retro, archive. |
+| `/flow:release` | Walk the project's release runbook step-by-step with explicit confirmation. `--changelog` authors the changelog entry. |
 
-## Validate. Specialized validators
+## Validate. One command, several lanes
 
-Called by the `/flow:validate` parent or directly when you want only one check.
+`/flow:validate` runs the pipeline; flags run a single lane.
 
 | Command | What it does |
 | ------- | ------------ |
-| `/flow:validate-a11y` | Accessibility audit (WCAG 2.1 AA). |
-| `/flow:validate-visual` | Visual regression check with screenshots. |
-| `/flow:validate-security` | Security review (`security-auditor` + `ethical-hacker` subagents), aggregated report, gates on `severityFloor`. |
+| `/flow:validate --fast` | Light scoped per-file check (what the Edit-Verify loop runs). |
+| `/flow:validate --security` | Security review (`security-auditor` + `ethical-hacker` subagents), aggregated report, gates on `severityFloor`. |
+| `/flow:validate --a11y` | Accessibility audit (WCAG 2.1 AA). |
+| `/flow:validate --visual` | Visual regression check with screenshots. |
+| `/flow:validate --review` | Pre-commit self-review of uncommitted changes. |
+| `/flow:validate --scenario` | Cross-platform UI scenario with screenshot evidence. |
 
 ## Bug. Incident workflow
 
@@ -55,49 +55,14 @@ Called by the `/flow:validate` parent or directly when you want only one check.
 
 ## Record. Knowledge capture
 
-Append-only artifacts future sessions read.
-
 | Command | What it does |
 | ------- | ------------ |
 | `/flow:record-ddr "<title>"` | Record a Design Decision Record. |
-| `/flow:record-retro` | Implementation-vs-plan retrospective after `/flow:done`. |
-| `/flow:record-execution` | Generate an implementation report for system review. |
 
-## Maintain. Hygiene
+The execution report and the retrospective are now steps of `/flow:done`.
 
-Cleanup, freshness, infrastructure health.
+## Role agents
 
-| Command | What it does |
-| ------- | ------------ |
-| `/flow:maintain-clean` | Clean stale artifacts, logs, temp files. |
-| `/flow:maintain-docs` | Scan for stale references across docs and content. |
-| `/flow:maintain-ai-health` | Diagnose health of the AI infrastructure (commands, skills, agents, state). |
-| `/flow:maintain-discover "<task>"` | Search AI capabilities by natural-language task description. |
+`/flow:execute` and `/flow:run` hand bounded work to three role agents: `flow:worker` (implements one self-contained task slice), `flow:spike` (answers one open question with a throwaway prototype) and `flow:scout` (read-only inventory). The `flow:context-budget` skill holds the rules for what each may read and return.
 
-## Review. Pre-commit / pre-PR
-
-| Command | What it does |
-| ------- | ------------ |
-| `/flow:review-code` | Pre-commit self-review of uncommitted changes. |
-
-## Release. Release-time
-
-Sibling of daily `/flow:release` (the runbook walker).
-
-| Command | What it does |
-| ------- | ------------ |
-| `/flow:release-changelog` | Author a changelog entry using the configured provider (Changesets, git-cliff, etc). |
-
-## Utils. Sub-commands
-
-Internal verbs called from inside other commands. Not primary user actions, but exposed as slash commands so they can be invoked standalone when debugging.
-
-| Command | What it does |
-| ------- | ------------ |
-| `/flow:utils-verify` | Light per-file check during `/flow:execute`'s Edit-Verify Loop. |
-
-## Naming history
-
-The `<group>-<verb>` prefix landed in **v0.6.0** (Phase 13). Eleven commands were renamed; the backwards-compat stubs lived for ~24h and were removed in **v0.6.1**. See [DDR-004](https://github.com/1aGh/maude/blob/main/.ai/archive/decisions/DDR-004-flow-command-naming-prefix-convention.md) for the rationale.
-
-<CommandTree plugin="flow" caption="All 30 flow commands by group — each leaf links to its reference page" />
+<CommandTree plugin="flow" caption="Flow commands by group — each leaf links to its reference page" />
