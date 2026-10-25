@@ -68,6 +68,6 @@ describe('06 ad-search: a fold action carries the glyph of what it does, never a
   });
   test('other groups keep their own default; an unknown action keeps the chevron', () => {
     expect(glyphFor({ name: 'Copy code' }, 'canvases', 'file')).toBe('file');
-    expect(g('Open all Advanced sections')).toBe('chevron');
+    expect(g('Frobnicate the widgets')).toBe('chevron');
   });
 });
