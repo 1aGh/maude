@@ -22,13 +22,15 @@ export async function run(h) {
   await page.keyboard.press('Meta+Enter');
   await sleep(1500);
   await h.step(`${D}/es-panels-canvas.comment-sent`, 'One comment sent', 'Preview, C, click, type, Enter', async () => {});
-  await h.esc(2);
-  await page.keyboard.press('Meta+k');
-  await sleep(500);
-  await page.keyboard.type('comments');
-  await sleep(800);
-  await page.locator('[data-testid="palette-row-action:view.comments"]').first().click().catch((e) => console.log('comments palette fail'));
-  await sleep(1200);
+  // the panel opens by itself after a send; only when it did not, open it through ⌘K › Comments
+  if (!(await page.locator('[data-testid^="comment-resolve-"]').count())) {
+    await page.keyboard.press('Meta+k');
+    await sleep(500);
+    await page.keyboard.type('comments');
+    await sleep(800);
+    await page.locator('[data-testid="palette-row-action:view.comments"]').first().click().catch(() => console.log('comments palette fail'));
+    await sleep(1200);
+  }
   await sleep(1000);
   await h.step(`${D}/es-panels-canvas.comments-open`, 'Comments panel with one thread', 'share cluster › Comments', async () => {});
   await page.locator('[data-testid^="comment-resolve-"]').first().click({ timeout: 3000 }).catch((e) => console.log('resolve fail'));
