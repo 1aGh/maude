@@ -34790,6 +34790,22 @@
     "v2": "new"
   },
   {
+    "hook": "ds-off-system-canvas",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 c8: the chat card's header — the canvas the question is about (the board's \"Pricing\").",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/off-system.jsx",
+      "symbol": "OffSystemQuestion"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "ds-off-system-chip",
     "kind": "testid",
     "pattern": false,

@@ -209,6 +209,7 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `ds-trash-go` | testid | S10.17: The primary, "Move to trash": the engine's trash, one ⌘Z. | `client/v2/ds/trash-token-sheet.jsx` · `TrashTokenSheet` | test:v2-ds-edges.test | new |
 | `ds-off-system` | testid | S10.17: The quiet question about a hand-picked colour that is not in the system (role=status); data-literal names it. | `client/v2/ds/off-system.jsx` · `OffSystemQuestion` | test:v2-ds-edges.test | new |
 | `ds-off-system-text` | testid | S10.17: "A colour picked by hand isn't in <System>. The closest is <Accent>." | `client/v2/ds/off-system.jsx` · `OffSystemQuestion` | test:v2-ds-edges.test | new |
+| `ds-off-system-canvas` | testid | P8 c8: the chat card's header — the canvas the question is about (the board's "Pricing"). | `client/v2/ds/off-system.jsx` · `OffSystemQuestion` | test:v2-ds-edges.test | new |
 | `ds-off-system-chip` | testid | S10.17: The swatch of the hand-picked colour. | `client/v2/ds/off-system.jsx` · `OffSystemQuestion` | test:v2-ds-edges.test | new |
 | `ds-off-system-use` | testid | S10.17: "Use <closest>": puts var(--token) in place of the literal (ds.use-nearest, one ⌘Z). | `client/v2/ds/off-system.jsx` · `OffSystemQuestion` | test:v2-ds-edges.test | new |
 | `ds-off-system-add` | testid | S10.17: "Add it to the system": a waiting new colour (ds.add-colour). | `client/v2/ds/off-system.jsx` · `OffSystemQuestion` | test:v2-ds-edges.test | new |
