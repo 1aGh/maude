@@ -45,6 +45,7 @@ import { createCanvasListWatch } from './canvas-list-watch.ts';
 import { canvasTopLevelRefusal, topLevelGuardedRoutes } from './canvas-top-level.ts';
 import { type AiActivityEntry, createAiActivity } from './collab/ai-activity.ts';
 import { createGitLifecycle } from './collab/git-lifecycle.ts';
+import { personHoldsOf } from './collab/holds.ts';
 import { createCollab } from './collab/index.ts';
 import { createContext, reloadConfig } from './context.ts';
 import { installLogRing } from './debug-bundle.ts';
@@ -394,6 +395,8 @@ const generateJobs = createGenerationJobQueue(ctx.bus, ctx.paths.designRoot);
 const http = createHttp(ctx, api, inspects, aiActivity, exportJobs, generateJobs, {
   shellCount: () => ws.shellCount(),
   runs: runRegistry,
+  // V2-1.15 §4 #13 — a person's live hold (awareness `holding`) denies the AI's write
+  personHolds: collab ? personHoldsOf(collab.registry, (rel) => api.fileSlug(rel)) : undefined,
 });
 askQueue = http.askQueue;
 // S9.9 — `currentAccess()` outside a request (timers, boot): this process's own answer.
