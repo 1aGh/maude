@@ -138,13 +138,21 @@ describe('06 · ad-inspector — closed and open', () => {
     expect(rowIds(host)).toEqual([]);
   });
 
-  test('open, the groups come in the golden order: Element · Used in · Tokens it uses · CSS · actions', async () => {
+  test('open, an object reads in 14 Editing order: CSS · Tokens it uses · Element id · actions, then 06 underneath', async () => {
     const host = await fold();
-    expect(rowIds(host)).toEqual(['element', 'used-in', 'tokens', 'css', 'in-code']);
+    expect(rowIds(host)).toEqual([
+      'css',
+      'tokens',
+      'identity',
+      'in-code',
+      'element',
+      'used-in',
+      'raw',
+    ]);
     const titles = [...host.querySelectorAll('.insp-sub')].map(
       (p) => p.firstElementChild?.textContent
     );
-    expect(titles).toEqual(['Element', 'Used in', 'Tokens it uses', 'CSS']);
+    expect(titles).toEqual(['CSS', 'Tokens it uses', 'Element id', 'Element', 'Used in']);
   });
 
   test('every registered row of an element, in draw order (the registry golden)', async () => {
@@ -161,18 +169,22 @@ describe('06 · ad-inspector — closed and open', () => {
       'css.declarations',
       'css.add',
       'css.raw-editor',
+      'code.copy-css',
       'code.copy-style',
       'code.paste-style',
-      'code.copy-css',
       'code.copy-code',
     ]);
   });
 
-  test('Element: Tag · Classes · Selector · Element id, with the id copyable', async () => {
+  test('Element: Tag · Classes · Selector, and the Element id under its own title, copyable', async () => {
     const host = await fold();
     const group = q(host, 'adv-group-element') as HTMLElement;
     const labels = [...group.querySelectorAll('.insp-arow > .insp-ak')].map((s) => s.textContent);
-    expect(labels).toEqual(['Tag', 'Classes', 'Selector', 'Element id']);
+    expect(labels).toEqual(['Tag', 'Classes', 'Selector']);
+    // 14: the id is its own block (no label / value row) in the third place of the fold
+    const id = q(host, 'adv-group-identity') as HTMLElement;
+    expect(id.querySelector('.insp-arow')).toBeNull();
+    expect(id.querySelector('.insp-sub')?.textContent).toBe('Element id');
     expect(q(host, 'adv-tag')?.textContent).toContain('a');
     expect(q(host, 'adv-classes')?.textContent).toContain('btn btn--primary');
     expect(q(host, 'inspector-selection')?.textContent).toContain('nav > a.btn');
@@ -196,16 +208,15 @@ describe('06 · ad-inspector — closed and open', () => {
     expect(q(local, 'adv-detach')).toBeNull();
   });
 
-  test('Tokens it uses: the property in plain words, the variable beside it, once per binding', async () => {
-    const host = await fold();
-    const rows = [...(q(host, 'inspector-tokens-used')?.querySelectorAll('li') ?? [])].map((li) => [
-      li.querySelector('.insp-ak')?.textContent,
-      li.querySelector('code')?.textContent,
-    ]);
-    expect(rows).toEqual([
-      ['Fill', '--ink'],
-      ['Text colour', '--paper'],
-    ]);
+  test('Tokens it uses: chips, the name the system gives each token, once per token (14 · ed-inspector)', async () => {
+    const host = await fold({
+      el: { ...BUTTON, authored: { ...BUTTON.authored, 'border-color': 'var(--ink)' } },
+    });
+    const chips = [...(q(host, 'inspector-tokens-used')?.querySelectorAll('li') ?? [])];
+    expect(chips.map((li) => li.textContent)).toEqual(['Ink', 'Paper']);
+    expect(chips.map((li) => li.getAttribute('title'))).toEqual(['--ink', '--paper']);
+    // a chip is not a label / value row any more
+    expect(q(host, 'inspector-tokens-used')?.querySelector('.insp-arow')).toBeNull();
   });
 
   test('CSS lists the declarations and the attribute; Property and Attribute add one', async () => {
@@ -267,7 +278,7 @@ describe('06 · ad-inspector — closed and open', () => {
 
   test('the v1 raw editor is still there under CSS (nothing deleted)', async () => {
     const host = await fold();
-    const css = q(host, 'adv-group-css') as HTMLElement;
+    const css = q(host, 'adv-group-raw') as HTMLElement;
     expect(css.querySelector('[data-tour="css-panel"]')).not.toBeNull();
   });
 

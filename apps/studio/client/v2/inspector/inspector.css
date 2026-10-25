@@ -296,6 +296,42 @@
     padding: 0;
     list-style: none;
   }
+  /* 14 Editing (ed-inspector): "Tokens it uses" are chips — the name the system gives it, a swatch for a colour */
+  .insp-toks--chips {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 0 2px;
+  }
+  .insp-tokchip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 26px;
+    padding: 0 var(--space-2) 0 6px;
+    border-radius: var(--radius-md);
+    background: var(--accent-muted);
+    color: var(--accent-text);
+    font-size: var(--type-sm);
+    white-space: nowrap;
+  }
+  .insp-tokchip b {
+    font-weight: var(--w-semibold);
+  }
+  .insp-tokchip-sw,
+  .insp-tokchip-dot {
+    display: block;
+    flex: none;
+    width: 12px;
+    height: 12px;
+    border-radius: var(--radius-xs);
+    box-shadow: inset 0 0 0 0.5px var(--border-strong);
+  }
+  .insp-tokchip-dot {
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    box-shadow: none;
+    transform: scale(0.5);
+  }
   .insp-facts {
     display: flex;
     flex-direction: column;
@@ -313,6 +349,13 @@
     justify-content: flex-end;
     align-items: center;
     gap: var(--space-2);
+  }
+  /* an object's actions start at the left edge, under its id (14 · ed-inspector) */
+  .insp-group--object.insp-group--in-code {
+    justify-content: flex-start;
+  }
+  .insp-group--in-code .insp-quiet {
+    flex: 1 1 100%;
   }
   .insp-sub {
     display: flex;
@@ -366,20 +409,24 @@
     gap: var(--space-2);
     flex-wrap: wrap;
   }
+  /* 14's CSS block: one soft row per declaration, the property left, its value right */
   .insp-csslist {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    padding: var(--space-1) var(--space-2);
-    border-radius: var(--radius-sm);
-    background: var(--bg-2);
     font-family: var(--font-mono);
     font-size: var(--type-xs);
   }
   .insp-css {
-    display: grid;
-    grid-template-columns: minmax(0, 9rem) minmax(0, 1fr);
+    display: flex;
+    justify-content: space-between;
     gap: var(--space-2);
+    padding: 2px var(--space-1);
+    border-radius: var(--radius-xs);
+    background: var(--bg-3);
+  }
+  .insp-css-v {
+    text-align: right;
   }
   .insp-css-k {
     color: var(--fg-2);

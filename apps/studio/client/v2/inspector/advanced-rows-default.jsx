@@ -13,6 +13,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { CssKnobs } from '../../inspector/css-knobs.jsx';
 import { InspectComputed } from '../../inspector/inspect-computed.jsx';
+import { tokenLabel } from '../../../edit-ops/words-css.ts';
+import { systemName } from '../../../edit-ops/words-paint.ts';
 import { registerAdvancedRow } from './advanced-rows.js';
 import { applyAttr, applyCssPatch, currentDecls, patchFromText } from './css-text.js';
 import { readElementCode } from './element-code.js';
@@ -24,6 +26,7 @@ import {
   tokensUsed,
   validateElementId,
 } from './model.js';
+import { useDsFamilies } from './token-chip.jsx';
 
 /** Copy to the clipboard; resolves true when it worked (a browser tab without the permission says no). */
 export async function copyText(text) {
@@ -268,17 +271,45 @@ export function boundTokens(el) {
   return out;
 }
 
-function TokensBound({ el }) {
-  const bound = boundTokens(el);
-  if (!bound.length) return null;
+/** A token's length in px when the system gives one (`--space-5` = 24px → "Space 24"). */
+function tokenPx(value) {
+  const m = /^(-?\d*\.?\d+)(px|rem)?$/i.exec(String(value ?? '').trim());
+  if (!m) return null;
+  const n = Number.parseFloat(m[1]);
+  return (m[2] || 'px').toLowerCase() === 'rem' ? n * 16 : n;
+}
+
+/** The system's own name for a token: Space 24 · Round · Resting; anything else reads by its name. */
+function chipWord(name, raw) {
+  if (/^--radius-/.test(name)) return systemName(name, 'radius');
+  if (/^--shadow-/.test(name)) return systemName(name, 'shadow');
+  return tokenLabel(name, tokenPx(raw));
+}
+
+/**
+ * 14 Editing (ed-inspector): "Tokens it uses" are chips, each said the way the system names it — Space 24, Round,
+ * Resting; a colour carries its swatch. Once per token, in the order the element first uses them.
+ */
+function TokensBound({ el, ctx }) {
+  const fam = useDsFamilies(ctx);
+  const used = tokensUsed(el);
+  if (!used.length) return null;
   return (
-    <ul className="insp-toks" data-testid="inspector-tokens-used">
-      {bound.map((b) => (
-        <li key={`${b.property}|${b.token}`} className="insp-arow" title={b.token}>
-          <span className="insp-ak">{b.word}</span>
-          <code className="insp-av insp-mono">{b.token}</code>
-        </li>
-      ))}
+    <ul className="insp-toks insp-toks--chips" data-testid="inspector-tokens-used">
+      {used.map((t) => {
+        const raw = fam.vals?.[t.name];
+        const isColor = fam.color.includes(t.name) && !!raw;
+        return (
+          <li key={t.name} className="insp-tokchip" title={t.name}>
+            {isColor ? (
+              <i className="insp-tokchip-sw" style={{ background: raw }} aria-hidden="true" />
+            ) : (
+              <i className="insp-tokchip-dot" aria-hidden="true" />
+            )}
+            <b>{chipWord(t.name, raw)}</b>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -570,16 +601,24 @@ registerAdvancedRow('element', {
   id: 'element.id',
   order: 40,
   kinds: ELEMENT,
-  Body: ({ el, ctx }) => (
-    <Row k="Element id" mono>
+  Body: ({ el, ctx }) => {
+    const field = (
       <ElementId
         el={el}
         layersTree={ctx.layersTree}
         canvasFile={ctx.canvasFile}
         onRename={ctx.canEdit ? ctx.onRenameElementId : undefined}
       />
-    </Row>
-  ),
+    );
+    // 14 draws the id as its own block under its own small title, not as a label / value row
+    return ctx.idBlock ? (
+      field
+    ) : (
+      <Row k="Element id" mono>
+        {field}
+      </Row>
+    );
+  },
 });
 registerAdvancedRow('element', {
   id: 'element.facts',
@@ -628,7 +667,7 @@ registerAdvancedRow('tokens', {
   order: 10,
   kinds: ELEMENT,
   when: ({ el }) => tokensUsed(el).length > 0,
-  Body: ({ el }) => <TokensBound el={el} />,
+  Body: ({ el, ctx }) => <TokensBound el={el} ctx={ctx} />,
 });
 
 registerAdvancedRow('css', {
@@ -670,7 +709,7 @@ registerAdvancedRow('css', {
 // keeps Copy CSS and Copy code; Can view keeps Copy CSS (the server refuses it the source, so it is not offered).
 registerAdvancedRow('in-code', {
   id: 'code.copy-style',
-  order: 10,
+  order: 20,
   kinds: ELEMENT,
   when: ({ ctx }) => ctx.canEdit,
   Body: ({ ctx }) => (
@@ -683,7 +722,7 @@ registerAdvancedRow('in-code', {
 });
 registerAdvancedRow('in-code', {
   id: 'code.paste-style',
-  order: 20,
+  order: 30,
   kinds: ELEMENT,
   when: ({ ctx }) => ctx.canEdit,
   Body: ({ ctx }) => (
@@ -696,7 +735,7 @@ registerAdvancedRow('in-code', {
 });
 registerAdvancedRow('in-code', {
   id: 'code.copy-css',
-  order: 30,
+  order: 10,
   kinds: ELEMENT,
   Body: ({ el }) => (
     <CopyButton testid="inspector-copy-css" label="Copy CSS" text={() => cssTextOf(el)} />

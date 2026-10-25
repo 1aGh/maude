@@ -155,7 +155,8 @@ describe('Advanced › Convert layout to absolute', () => {
     await frame(FRAME);
     const btn = q('insp-layout-convert');
     expect(btn?.textContent).toContain('Convert layout to absolute');
-    expect(btn?.closest('[data-testid="adv-group-css"]')).not.toBeNull();
+    // 14 (ed-inspector): with Copy CSS at the foot of Advanced
+    expect(btn?.closest('[data-testid="adv-group-in-code"]')).not.toBeNull();
     expect(btn?.closest('[data-testid="insp-sec-layout"]')).toBeNull();
     expect(q('insp-layout-convert-note')?.textContent).toContain('⌘Z brings the layout back');
     await click(btn);
