@@ -235,3 +235,38 @@ Harness `_c8adv-harness-g2/` (chain `06c8` = s06f s06g s06h s06j, Mac mini, Goog
 | `ad-open-all` | unchanged state, re-shot on the new tip | re-shot | re-shot |
 | `ad-code` | code panel open with its Advanced fold open (From the terminal / In Claude Code) | re-shot | re-shot |
 | `ad-edge-syntax` | last-good boards as dashed ghosts behind the card, no Reload canvas | re-shot | re-shot |
+
+
+## FINAL (D6, 3d58f57df)
+
+Final verification shoot on the merged tip after stage C round 8 (harness `_d6-harness-g2/`, a flattened copy of the newest per-canvas layers; shot on the Mac mini with Google Chrome, not the Playwright headless shell). Spec side reused (the boards `.design/ui/v2/03|04|06` are unchanged since 2026-10-19). Committed JPEG pairs overwritten (spec left | impl right). The critic judges; this builder does not.
+
+- Shot on feat/maude-v2 tip 3d58f57df (stage C round 8 merged); harness _d6-harness-g2 = _d5 + the round-8 edits (_c8adv-harness-g2: s06h, s06j, pairs-map). Full chain 06 (not only the c8 subset).
+
+| id | dark | light |
+|---|---|---|
+| `ad-map` | unreachable (A reference map of where every old control went; documentation, not an app surface.) | unreachable (A reference map of where every old control went; documentation, not an app surface.) |
+| `ad-why` | unreachable (An explanation board (why there is no switch).) | unreachable (An explanation board (why there is no switch).) |
+| `ad-trace` | unreachable (An explanation board (one thing traced end to end).) | unreachable (An explanation board (one thing traced end to end).) |
+| `ad-inspector` | re-shot | re-shot |
+| `ad-left` | re-shot | re-shot |
+| `ad-ai` | re-shot | re-shot |
+| `ad-share` | re-shot | re-shot |
+| `ad-timeline` | re-shot | re-shot |
+| `ad-export` | re-shot | re-shot |
+| `ad-history` | re-shot | re-shot |
+| `ad-ds` | re-shot | re-shot |
+| `ad-menus` | unreachable (File / View / Help menu-bar menus are the desktop shell menu bar (native menus); not in the browser lane.) | unreachable (File / View / Help menu-bar menus are the desktop shell menu bar (native menus); not in the browser lane.) |
+| `ad-diag` | re-shot | re-shot |
+| `ad-logs` | re-shot | re-shot |
+| `ad-syncd` | re-shot | re-shot |
+| `ad-settings` | re-shot | re-shot |
+| `ad-pinned` | re-shot | re-shot |
+| `ad-search` | re-shot | re-shot |
+| `ad-open-all` | re-shot | re-shot |
+| `ad-code` | re-shot | re-shot |
+| `ad-edge-sync` | unreachable (A sync problem needs a cloud project in trouble (hub).) | unreachable (A sync problem needs a cloud project in trouble (hub).) |
+| `ad-edge-syntax` | re-shot | re-shot |
+| `ad-edge-hub` | unreachable (A self-hosted hub project (hub).) | unreachable (A self-hosted hub project (hub).) |
+| `ad-edge-where` | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) |
+| `ad-edge-remember` | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) |
