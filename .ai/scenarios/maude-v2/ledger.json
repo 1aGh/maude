@@ -137,7 +137,7 @@
     {"id":"00/rule/ai-under-your-pointer","kind":"rule","canvas":"00","title":"AI under your pointer","src":"A8","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"00/rule/two-toolbars-one-per-mode","kind":"rule","canvas":"00","title":"Two toolbars, one per mode","src":"§2","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"00/rule/keys-for-the-modes","kind":"rule","canvas":"00","title":"Keys for the modes","src":"Q","status":"open","evidence":null,"evidenceHash":null,"commit":null},
-    {"id":"00/rule/the-design-system-lives-on-a-board","kind":"rule","canvas":"00","title":"The design system lives on a board","src":"§7","status":"built","evidence":".ai/plans/notes/v2-evidence/S10.21-evidence-audit.md","evidenceHash":null,"commit":"7b1c26b5"},
+    {"id":"00/rule/the-design-system-lives-on-a-board","kind":"rule","canvas":"00","title":"The design system lives on a board","src":"§7","status":"verified","evidence":".ai/plans/notes/v2-evidence/ds-convert.md","evidenceHash":null,"commit":"88d671dee"},
     {"id":"00/rule/system-changes-arrive-as-a-review","kind":"rule","canvas":"00","title":"System changes arrive as a review","src":"§7","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"00/rule/lower-elevation","kind":"rule","canvas":"00","title":"Lower elevation","src":"§7","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"00/rule/scope-is-always-visible","kind":"rule","canvas":"00","title":"Scope is always visible","src":"§7","status":"open","evidence":null,"evidenceHash":null,"commit":null},
