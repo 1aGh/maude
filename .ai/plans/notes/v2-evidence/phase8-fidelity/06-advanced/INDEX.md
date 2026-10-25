@@ -215,3 +215,23 @@ Final verification shoot on the merged tip after stage C round 7 (harness `_d5-h
 | `ad-edge-hub` | unreachable (A self-hosted hub project (hub).) | unreachable (A self-hosted hub project (hub).) |
 | `ad-edge-where` | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) |
 | `ad-edge-remember` | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) |
+
+
+## Round 8 re-shoot (p8-c8-adv, light + dark, impl at 86a865e14)
+
+Harness `_c8adv-harness-g2/` (chain `06c8` = s06f s06g s06h s06j, Mac mini, Google Chrome). Committed JPEG pairs overwritten (spec left | impl right). ad-timeline is p8-c8-video's; the other 06 ids are untouched. The critic judges; this builder does not.
+
+| id | what the frame shows now | dark | light |
+|---|---|---|---|
+| `ad-inspector` | a tall window (1760 px): the whole Advanced fold of a text element in frame | re-shot | re-shot |
+| `ad-left` | Show file names ON + Show hidden files ON (the file tree the board draws) | re-shot | re-shot |
+| `ad-export` | a tall window (1500 px): the whole Advanced body, File names + "The same export from a terminal" | re-shot | re-shot |
+| `ad-history` | a version SELECTED (git-backed copy), fold open: Changed in this version | re-shot | re-shot |
+| `ad-diag` | Menu > Diagnostics with its Advanced row open (Resync now / Download all are hidden for a local project) | re-shot | re-shot |
+| `ad-logs` | no Refresh icon (live tail) | re-shot | re-shot |
+| `ad-settings` | Engines as selects + one model box, Reset as one button row incl. red Reset all settings…, no per-fold list | re-shot | re-shot |
+| `ad-pinned` | Fixed size Advanced = Exact size / Look and layout / In code | re-shot | re-shot |
+| `ad-search` | the board query "copy"; one Close all result; chip "Canvases › Advanced" | re-shot | re-shot |
+| `ad-open-all` | unchanged state, re-shot on the new tip | re-shot | re-shot |
+| `ad-code` | code panel open with its Advanced fold open (From the terminal / In Claude Code) | re-shot | re-shot |
+| `ad-edge-syntax` | last-good boards as dashed ghosts behind the card, no Reload canvas | re-shot | re-shot |
