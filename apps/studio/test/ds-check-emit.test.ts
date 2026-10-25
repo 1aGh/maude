@@ -66,18 +66,27 @@ describe('the migrator ds.tokens step runs (V2-2.14 seam)', () => {
     const designRoot = join(import.meta.dir, '../../../.design');
     const cfg = JSON.parse(readFileSync(join(designRoot, 'config.json'), 'utf8'));
     const fs = diskFs(designRoot);
-    const read = (rel: string) => {
-      const t = fs.read(rel);
-      return t === null ? null : new TextEncoder().encode(t);
-    };
+    const bytesOf = (t: string | null) => (t === null ? null : new TextEncoder().encode(t));
+    // this repo's systems live on boards since P8 (ds convert): as they are, the migrator refuses them;
+    // seen without their revisions (a pre-convert project), it writes ds-check --emit's bytes
+    const preConvert = (rel: string) => (/\/revisions\//.test(rel) ? null : fs.read(rel));
     for (const s of systemConfigsFrom(cfg)) {
+      const system = { name: s.name, path: s.path, tokensCssRel: s.tokensCssRel };
+      const asIs = dsTokensEmitter.emitTokens({
+        designRoot,
+        system,
+        read: (rel) => bytesOf(fs.read(rel)),
+      });
+      expect('refused' in asIs).toBe(true);
       const r = dsTokensEmitter.emitTokens({
         designRoot,
-        system: { name: s.name, path: s.path, tokensCssRel: s.tokensCssRel },
-        read,
+        system,
+        read: (rel) => bytesOf(preConvert(rel)),
       });
       if (!('bytes' in r)) throw new Error(r.refused);
-      expect(new TextDecoder().decode(r.bytes)).toBe(emitTokensJson(loadSystem(fs, s), idx));
+      expect(new TextDecoder().decode(r.bytes)).toBe(
+        emitTokensJson(loadSystem({ ...fs, read: preConvert }, s), idx)
+      );
     }
     const files = conformantFiles();
     files['system/fx/revisions/head.json'] = '{}';
