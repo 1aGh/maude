@@ -1,4 +1,5 @@
 import { base } from './fx.mjs';
+import { snap } from './lib.mjs';
 import { prepare as prep, page as pg } from './s11.mjs';
 export const fixture = base;
 export const prepare = prep;
@@ -32,8 +33,10 @@ export async function run(h) {
         fire(folder, 'dragover');
         window.__dnd = { row, folder, fire };
       });
-      await sleep(250); // under the 600 ms spring-load: the folder stays shut, the dragged row stays in view
-      await h.step('pn-move', D, 'drag the canvas "Smoke" from the list onto the folder club-web and HOLD (drop tag "Move here" on the folder; the native drag ghost is not in the DOM)', async () => {});
+      await sleep(150);
+      // shot straight away (h.step waits ~2 s for notices): the folder's 600 ms spring-load has not opened it yet, and the dragged row is still in view
+      await snap(page, `${D}/pn-move-${h.theme}`, '', 'drag Smoke onto club-web and hold');
+      console.log('ROW', JSON.stringify({ id: 'pn-move', theme: h.theme }));
       await page.evaluate(() => window.__dnd.fire(window.__dnd.row, 'dragend'));
       await sleep(900);
     }

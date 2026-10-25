@@ -229,3 +229,12 @@ Final verification shoot after stage C round 7, on the merged tip (release-built
 | ak-picker-custom (extra impl frame, no board artboard) | shot into impl only, no spec, no pair | shot into impl only, no pair |
 
 Totals: 36 id×theme re-shot (18 ids), 2 unreachable (1 id). The committed `ak-convert-light-spec-only.jpg` / `ak-convert-after-light-spec-only.jpg` are stale (both ids are pairs since D2).
+
+## Round 8 (p8-c8-misc2) — re-shot, light + dark (harness `_c8m2-harness-g3`, scenario `t08m`)
+
+| artboard id | after (round 8) |
+| --- | --- |
+| ak-web-widths | re-shot: the tallest of the three widths selected; the Height note reads "N now — the longest of the three." (`webLongestOf`, dom-selection.ts: the sibling web pages in the same section at distinct widths) |
+| ak-safe-zones | re-shot: the zone is APPLIED (the Safe zones row is a select-shaped button opening a checked menu — `insp-safe-zones` / `insp-safe-zones-instagram-reels`; the D5 harness drove a native `<select>` that no longer exists): bands + tags on the artboard, the Show on canvas row in the inspector. The menu itself is not shot (a side state: it is cut off at the card's foot) |
+| ak-mixed-fit | re-shot: Print chip on, the list names only the two print artboards under the canvas name, the dimmed line is the foot of the panel |
+| ak-mixed-filter | re-shot: the kind filter is ONE store shared by Layers and Canvases — the D5 harness pressed Print in Layers and again in Canvases, which toggled it off; the chip is cleared first now, so the Canvases panel shows the filtered list, hit counts and the foot "N of M canvases have print" |

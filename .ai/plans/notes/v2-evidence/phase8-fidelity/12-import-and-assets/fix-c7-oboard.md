@@ -31,3 +31,11 @@ Checklist: critic-bar2.md MUST rows. Branch p8-c7-g1112.
 - ia-photo-steps — only the crop step is a real state; "Remove background" in progress / done and the Apply-to-every-use sheet are the other three columns of the board (reachable but not shot: need the model).
 - ia-gen-ask stays inline (v2-p8-c9-ask-stays-inline).
 - ia-more-ways, ia-gen-placed, ia-figma-arrived, ia-figjam, ia-brand, ia-missing, ia-edges — unreachable here (fixtures / providers / peers).
+
+## Round 8 (p8-c8-misc2) — done
+
+- **ia-brand-steps** — `brand-sheet.jsx`: the chosen logo draws itself (an `img` over a blob URL, revoked on change) on the checker tile in the drop well, not a ✓. Harness: a logo is chosen for the opener pair; the website read is held by a route stub so "Reading…" (two rows, progress bar, "Usually under 10 seconds…") is caught (-2), then released to the failed-site column (-3).
+
+## Open
+
+- ia-gen-ask island (v2-p8-c9-ask-stays-inline), ia-more-ways / ia-brand / ia-missing / ia-edges — unreachable or decided.

@@ -133,7 +133,9 @@ describe('11 tab strip — a tab at rest keeps ~7 characters for its name', () =
 
   test('the resting padding is the board dense space-2, the × room only on the active tab', () => {
     expect(rule('      .tab')).toMatch(/padding:\s*0 var\(--space-2, 8px\)/);
-    expect(rule('      .tab[aria-selected="true"]')).toMatch(/padding:\s*0 var\(--space-2, 8px\) 0 28px/);
+    expect(rule('      .tab[aria-selected="true"]')).toMatch(
+      /padding:\s*0 var\(--space-2, 8px\) 0 28px/
+    );
     // the × takes the square's place on hover/focus instead of padding every tab
     expect(html).toMatch(/\.tab:not\(\[aria-selected="true"\]\):hover \.sq/);
   });

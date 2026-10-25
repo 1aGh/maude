@@ -146,3 +146,11 @@ Every reachable id re-shot on the merged tip `feat/maude-v2` @ `e37e7d82a` (rele
 | pn-tab-menu, pn-windows | unreachable | unreachable | native NSMenu / multi-window, not drawable in a browser |
 | pn-accounts | unreachable | unreachable | the account card is not built (S1.21-accounts GAP) |
 | pn-cant-open | unreachable | unreachable | needs a moved project root / removed access in the Rust shell + hub |
+
+## Round 8 (p8-c8-misc2) — re-shot, light + dark (harness `_c8m2-harness-g4`, `chain-c8m2.sh`)
+
+| artboard id | after (round 8) |
+| --- | --- |
+| pn-tab-b, pn-tab-b20, pn-switch-ai-strip, pn-relaunch-strip | re-shot from `strip.html`: a tab at rest keeps the board's dense padding (space-2), so the name gets ~8 characters beside the state mark; the × takes the square's place on hover, the active tab keeps its × room on the left only |
+| pn-move | re-shot: the HTML5 drag events are dispatched by hand on one DataTransfer (Chrome's drag interception never delivered dragover to the panel): "Move here" on the folder, the dragged row dimmed and dashed, shot before the 600 ms spring-load opens the folder |
+| pn-deeplink | re-shot after the canvas is up and the centring pan settled (D5 light caught the selection ring mid-pan; ring and artboard are aligned — not a product bug) |
