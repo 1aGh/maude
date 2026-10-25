@@ -238,3 +238,25 @@ Totals: 36 id×theme re-shot (18 ids), 2 unreachable (1 id). The committed `ak-c
 | ak-safe-zones | re-shot: the zone is APPLIED (the Safe zones row is a select-shaped button opening a checked menu — `insp-safe-zones` / `insp-safe-zones-instagram-reels`; the D5 harness drove a native `<select>` that no longer exists): bands + tags on the artboard, the Show on canvas row in the inspector. The menu itself is not shot (a side state: it is cut off at the card's foot) |
 | ak-mixed-fit | re-shot: Print chip on, the list names only the two print artboards under the canvas name, the dimmed line is the foot of the panel |
 | ak-mixed-filter | re-shot: the kind filter is ONE store shared by Layers and Canvases — the D5 harness pressed Print in Layers and again in Canvases, which toggled it off; the chip is cleared first now, so the Canvases panel shows the filtered list, hit counts and the foot "N of M canvases have print" |
+
+## FINAL (D6, 3d58f57df) — p8-d6-g3
+
+Final verification shoot after stage C round 8, on the merged tip feat/maude-v2 3d58f57df (release-built client, Google Chrome channel, Mac mini, light + dark), IMPL side only; spec frames reused unchanged (08 board unchanged since 2220acc81, before the D4 spec shots). Shot at 873574992 = tip + the D6 harness only. Harness `_d6-harness-g3/` (`chain.sh 08` = `t08` the full id set from `_c8m2-harness-g3`, then `t08m` which re-shoots the four round-8 ids with their round-8 states: ak-safe-zones (select-shaped Safe zones button + checked menu), ak-mixed-fit (Layers names only the pressed kind; "N other artboards are dimmed. Show all" foot), ak-mixed-filter (kind filter cleared before the Canvases chip), ak-web-widths (Height note "N now — the longest of the three")). Committed `<id>-<theme>.jpg` pairs overwritten.
+
+| artboard id | light | dark |
+|---|---|---|
+| ak-picker, ak-picker-full | re-shot | re-shot |
+| ak-web-hug | re-shot (a section is added to Matchday.tsx so the growth tag shows) | re-shot (same) |
+| ak-social, ak-print-letak, ak-warnings, ak-video | re-shot | re-shot |
+| ak-safe-zones | re-shot (t08m, round-8 state) | re-shot (same) |
+| ak-advanced | re-shot (card + fold scrolled to the end) | re-shot (same) |
+| ak-mixed-fit, ak-mixed-filter | re-shot (t08m, round-8 states) | re-shot (same) |
+| ak-mixed-select | re-shot | re-shot |
+| ak-real-print, ak-real-web | re-shot | re-shot |
+| ak-print-view | re-shot (Menu › View › Advanced, Print guides on) | re-shot (same) |
+| ak-web-widths | re-shot (t08m: Other widths › Add a width, the added widths beside Desktop; the tallest board selected) | re-shot (same) |
+| ak-convert, ak-convert-after | re-shot (the convert runs last) | re-shot (same) |
+| ak-real-about | unreachable — a note card on the board, not an app state; spec-only frame stands | unreachable (same) |
+| ak-picker-custom (extra impl frame, no board artboard) | shot into impl only, no spec, no pair | shot into impl only, no pair |
+
+Totals: 36 id×theme re-shot (18 ids), 2 unreachable (1 id). Still open per `fix-c8-misc2.md`: ak-advanced Grid tracks / Convert to absolute drawn disabled; the Safe zones menu is cut off at the card foot when the card has little under the row.
