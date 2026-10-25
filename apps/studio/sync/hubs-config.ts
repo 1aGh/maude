@@ -88,6 +88,11 @@ export function hubsConfigPath(): string {
   if (process.env.HUBS_CONFIG_PATH) return process.env.HUBS_CONFIG_PATH;
   const xdg = process.env.XDG_CONFIG_HOME;
   const base = xdg && xdg.length > 0 ? xdg : join(homedir(), '.config');
+  // V2-8.9 M2 — the profile id alone names a non-default profile's file (profiles.rs `paths_in`),
+  // the same rule as the CLI's resolver; the shell always sets HUBS_CONFIG_PATH for the server.
+  const id = process.env.MAUDE_PROFILE_ID;
+  if (id && id !== 'default' && /^[a-z0-9-]{1,32}$/.test(id))
+    return join(base, 'maude', 'profiles', id, 'hubs.json');
   return join(base, 'maude', 'hubs.json');
 }
 

@@ -98,7 +98,8 @@ describe('scrubAgentEnv — subscription guardrail', () => {
   // V2-3.4 — a tab's AI session runs as that tab's account profile (so `maude design link` lands
   // there), but the shell's probe token is the studio's alone: an agent holding it could answer
   // the shell's "is AI running?" for the server it was spawned by.
-  test('keeps the profile env, scrubs the shell probe token', () => {
+  // V2-8.9 M2 — the id + label stay; the credential-file pointers go (acp-credential-deny.test.ts).
+  test('keeps the profile id + label, scrubs the pointers and the shell probe token', () => {
     const out = scrubAgentEnv({
       MAUDE_PROFILE_ID: 'work',
       MAUDE_PROFILE_LABEL: 'Work',
@@ -109,8 +110,8 @@ describe('scrubAgentEnv — subscription guardrail', () => {
     });
     expect(out.MAUDE_PROFILE_ID).toBe('work');
     expect(out.MAUDE_PROFILE_LABEL).toBe('Work');
-    expect(out.MAUDE_CLOUD_CONFIG).toContain('/profiles/work/');
-    expect(out.HUBS_CONFIG_PATH).toContain('/profiles/work/');
+    expect('MAUDE_CLOUD_CONFIG' in out).toBe(false);
+    expect('HUBS_CONFIG_PATH' in out).toBe(false);
     expect('MAUDE_SHELL_TOKEN' in out).toBe(false);
     expect('MAUDE_SHELL_INFO_FILE' in out).toBe(false);
   });
@@ -137,8 +138,7 @@ describe('scrubAgentEnv — subscription guardrail', () => {
     const KEPT = {
       PATH: '/usr/bin',
       MAUDE_PROFILE_ID: 'work',
-      MAUDE_CLOUD_CONFIG: '/x/cloud.json',
-      HUBS_CONFIG_PATH: '/x/hubs.json',
+      // V2-8.9 M2 — MAUDE_CLOUD_CONFIG / HUBS_CONFIG_PATH no longer pass (acp-credential-deny.test.ts)
       MAUDE_INDEX_DIR: '/x/index',
       MAUDE_TOKENISER: 'not-a-prefix-match', // MAUDE_TOKEN_ needs the underscore
     };

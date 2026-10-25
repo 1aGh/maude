@@ -33,6 +33,12 @@ export function hubsConfigPath() {
   if (process.env.HUBS_CONFIG_PATH) return process.env.HUBS_CONFIG_PATH;
   const xdg = process.env.XDG_CONFIG_HOME;
   const base = xdg && xdg.length > 0 ? xdg : join(homedir(), '.config');
+  // V2-8.9 M2 — an AI session's env carries the profile id but not the pointer (acp/env.ts
+  // scrubs it): a non-default id resolves to its own file, the layout profiles.rs `paths_in`
+  // writes. Anything that is not a plain id is the default profile (shell/profile.ts).
+  const id = process.env.MAUDE_PROFILE_ID;
+  if (id && id !== 'default' && /^[a-z0-9-]{1,32}$/.test(id))
+    return join(base, 'maude', 'profiles', id, 'hubs.json');
   return join(base, 'maude', 'hubs.json');
 }
 

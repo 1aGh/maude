@@ -243,12 +243,15 @@ describe('a switch changed between asks reaches the running chat', () => {
   });
 });
 
-describe('newSessionParams — both switches on is byte-for-byte what it was', () => {
-  test('no disallowedTools key at all when everything is on', () => {
+describe('newSessionParams — both switches on denies nothing the switches name', () => {
+  // V2-8.9 M2: only the credential-store Read rules remain (acp-credential-deny.test.ts).
+  test('only Read rules for credential stores when everything is on', () => {
     const meta = newSessionParams(repo, undefined, undefined, { may: ALL, assetsRoots: [] })
       ._meta as { claudeCode: { options: Record<string, unknown> } };
     const opts = meta.claudeCode.options;
-    expect('disallowedTools' in opts).toBe(false);
+    const deny = (opts.disallowedTools ?? []) as string[];
+    expect(deny.every((r) => r.startsWith('Read(/'))).toBe(true);
+    expect(deny.some((r) => r.includes('/.design/'))).toBe(false);
     expect(opts.allowedTools).toContain('WebFetch');
   });
 });
