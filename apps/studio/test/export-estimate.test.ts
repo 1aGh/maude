@@ -101,7 +101,14 @@ describe('POST /_api/export-estimate — numbers from the index', () => {
       { canvas: 'ui/a.tsx', id: 'hero', label: 'hero', kind: 'digital', w: 1080, h: 1350 },
     ]);
     const all = await estimate(OWNER, { v: 2, scope: 'project', format: 'png' });
-    expect(all.body.canvasCounts).toEqual({ folder: 3, project: 4, folders: 2, loose: 0 });
+    expect(all.body.canvasCounts).toEqual({
+      folder: 3,
+      project: 4,
+      folders: 2,
+      loose: 0,
+      folderNames: ['ui', 'brand'],
+      looseNames: [],
+    });
     expect((all.body.boards as unknown[]).length).toBe(7);
   });
 

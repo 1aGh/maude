@@ -547,7 +547,12 @@ describe('the sheet: many at once', () => {
     expect(
       row.querySelector('.ex-grp-v [data-testid="export-group-digital-format"]')
     ).not.toBeNull();
-    expect($('[data-testid="export-row-folders"] [data-testid="export-folders"]')).not.toBeNull();
+    // P8 c7 (09 ex-batch-pick): picked artboards name their files ("File names"); the Folders row is for a canvas or more
+    expect($('[data-testid="export-row-folders"]')).toBeNull();
+    expect(text('[data-testid="export-row-file-names"]')).toContain('File names');
+    expect(($('[data-testid="export-file-names"]') as HTMLSelectElement).value).toBe(
+      'canvas-artboard'
+    );
     await click('[data-testid="export-submit"]');
     expect(posted()).toMatchObject({
       v: 2,
@@ -558,6 +563,13 @@ describe('the sheet: many at once', () => {
         print: { format: 'pdf', options: { print: { bleed: true, marks: 'crop' } } },
       },
     });
+  });
+
+  test('P8 c7 (09 ex-batch-pick): the File names pick is the spec’s nameTemplate', async () => {
+    await mountSheet();
+    await choose('[data-testid="export-file-names"]', 'artboard');
+    await click('[data-testid="export-submit"]');
+    expect(posted().options.nameTemplate).toBe('{artboard}');
   });
 
   test('changing one group leaves the other alone — in the select and in the posted spec', async () => {
@@ -620,6 +632,40 @@ describe('the sheet: many at once', () => {
     await click('[data-testid="export-project-zip"] button');
     await click('[data-testid="export-submit"]');
     expect(posted()).toMatchObject({ scope: 'project', format: 'zip' });
+  });
+
+  test('P8 c7 (09 ex-huge): Whole project has an Include row — unticking a part reaches the spec as exclude', async () => {
+    estimate = {
+      counts: { selection: null, canvas: 21, folder: 38, project: 524 },
+      files: 524,
+      bytes: 5_900_000_000,
+      seconds: 720,
+      lane: 'cloud',
+      byKind: { digital: { artboards: 424, files: 424, format: 'png' } },
+      skipped: [],
+      canvasCounts: {
+        folder: 38,
+        project: 97,
+        folders: 2,
+        loose: 4,
+        folderNames: ['social', 'print'],
+        looseNames: ['test', 'Test2', 'ahoj', 'ahoj2'],
+      },
+    };
+    await mountSheet({ hasSelection: false, selectedArtboards: [] });
+    // not on a folder or a selection
+    expect($('[data-testid="export-row-include"]')).toBeNull();
+    await click('[data-testid="export-scope-project"]');
+    expect(text('[data-testid="export-row-include"]')).toContain('Include');
+    expect(text('[data-testid="export-row-include"]')).toContain('All 2 folders');
+    expect(text('[data-testid="export-row-include"]')).toContain('test, Test2, ahoj, ahoj2');
+    await click('[data-testid="export-include-folders"]');
+    await click('[data-testid="export-submit"]');
+    expect(posted()).toMatchObject({
+      scope: 'project',
+      exclude: { folders: ['social', 'print'] },
+    });
+    expect(posted().exclude.loose).toBeUndefined();
   });
 
   test('Other… in a batch puts the format on every kind that can take it', async () => {

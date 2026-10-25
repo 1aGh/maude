@@ -112,8 +112,11 @@ export function sheetSub({ scope, canvas, folder, nothingSelected, where, kind, 
       .join(', ');
   }
   const parts = [];
-  if (folder) parts.push(folderLabel(folder) || folder);
-  else if (canvas && scope !== 'canvas') parts.push(canvas);
+  // 09 ex-batch: the title already names a folder; the sub adds a path only (never the design root's own `ui`)
+  if (folder) {
+    const shown = folderLabel(folder);
+    if (shown.includes('/')) parts.push(shown);
+  } else if (canvas && scope !== 'canvas') parts.push(canvas);
   if (scope === 'canvas' && where) parts.push(where);
   else if (scope === 'selection' && (where || kind)) parts.push(kind || where);
   if (nothingSelected) parts.push('nothing was selected');

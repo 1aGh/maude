@@ -7,8 +7,15 @@ export const HANDOFF_VERB = 'Hand off';
 /** "Hand off “Pricing” to production" — the title verb is the button's (CONTRACT §3). */
 export const handoffTitle = (name) => `${HANDOFF_VERB} “${name || 'this canvas'}” to production`;
 
-/** The sheet's line under the title: the design system, when there is one. */
-export const handoffSub = (ds) => (ds ? `${ds} design system` : '');
+/**
+ * The sheet's line under the title: the canvas's artboards, then its design system when there is one
+ * ("Desktop, Tablet, Mobile · Studio design system", 09 ex-handoff).
+ */
+export function handoffSub(ds, boards = []) {
+  const names = (boards ?? []).filter(Boolean);
+  const shown = names.length > 3 ? `${names.slice(0, 3).join(', ')}…` : names.join(', ');
+  return [shown, ds ? `${ds} design system` : ''].filter(Boolean).join(' · ');
+}
 
 export const USE_DS_LABEL = 'Use the design system';
 export const dsTokensSub = (ds) => `colours, type and spacing come from ${ds}’s tokens`;

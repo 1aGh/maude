@@ -60,6 +60,11 @@ export interface ExportSpecV2 {
   scope: ExportScopeV2;
   canvas?: string;
   folder?: string;
+  /**
+   * P8 c7 (09 ex-huge) — the Include row on Whole project: top-level folders (design-root-relative) and/or the
+   * loose canvases at the top level that the expansion leaves out. Whole project only.
+   */
+  exclude?: { folders?: string[]; loose?: boolean };
   selection?: { artboards?: string[]; elements?: string[] };
   region?: { rect: { x: number; y: number; w: number; h: number } };
   unit?: 'each' | 'one';
@@ -91,6 +96,7 @@ export const PROJECT_CLASS_SCOPES: ReadonlySet<ExportScopeV2> = new Set(['folder
 
 /** Caps (contract §5.1): selection ids, region side, name template. */
 export const MAX_SELECTION_IDS = 256;
+export const MAX_EXCLUDE_FOLDERS = 64;
 export const MAX_REGION_SIDE = 32768;
 export const MAX_NAME_TEMPLATE = 400;
 const ID_RE = /^[A-Za-z0-9_.:-]{1,128}$/;
@@ -274,6 +280,7 @@ function validate(raw: unknown): ExportSpecV2 {
       'scope',
       'canvas',
       'folder',
+      'exclude',
       'selection',
       'region',
       'unit',
@@ -298,6 +305,27 @@ function validate(raw: unknown): ExportSpecV2 {
     throw new Bad('folder', 'folder is required for the Folder scope');
   if (spec.scope !== 'folder' && spec.folder !== undefined)
     throw new Bad('folder', 'folder is only for the Folder scope');
+  if (raw.exclude !== undefined) {
+    const x = raw.exclude;
+    if (spec.scope !== 'project')
+      throw new Bad('exclude', 'exclude is only for the Whole project scope');
+    if (!isObj(x)) throw new Bad('exclude', 'exclude must be an object');
+    keysOnly(x, ['folders', 'loose'], 'exclude');
+    spec.exclude = {};
+    if (x.folders !== undefined) {
+      if (!Array.isArray(x.folders) || x.folders.length > MAX_EXCLUDE_FOLDERS)
+        throw new Bad(
+          'exclude.folders',
+          `exclude.folders must be a list of at most ${MAX_EXCLUDE_FOLDERS} folders`
+        );
+      spec.exclude.folders = x.folders.map((f, i) => cleanDesignRel(f, `exclude.folders[${i}]`));
+    }
+    if (x.loose !== undefined) {
+      if (typeof x.loose !== 'boolean')
+        throw new Bad('exclude.loose', 'exclude.loose must be true or false');
+      spec.exclude.loose = x.loose;
+    }
+  }
   if (PROJECT_CLASS_SCOPES.has(spec.scope) && spec.canvas !== undefined)
     throw new Bad('canvas', 'canvas is only for the Selection and This canvas scopes');
   if (raw.selection !== undefined) {

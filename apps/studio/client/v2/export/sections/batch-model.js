@@ -205,5 +205,20 @@ export const PROJECT_ZIP_LINE =
   'Moving or backing up the project? A ZIP keeps the canvases, assets and the design system.';
 export const PROJECT_ZIP_ACTION = 'Project ZIP instead';
 export const OTHER_ROW = 'Other format';
+/** 09 ex-huge: the row that lets a Whole project leave a folder, or the loose canvases, out. */
+export const INCLUDE_ROW = 'Include';
+export const allFoldersLabel = (n) => (n === 1 ? '1 folder' : `All ${n} folders`);
+/** "test, Test2, ahoj, ahoj2" — the loose canvases' names, the first few. */
+export const looseLabel = (names, total, max = 4) => {
+  const head = names.slice(0, max).join(', ');
+  return total > max ? `${head}…` : head;
+};
+/** The spec's `exclude` for the Include row's state (`{ folders, loose }`), or null when nothing is left out. */
+export function excludeSpec(exclude) {
+  const folders = (exclude?.folders ?? []).slice(0, 64);
+  const loose = exclude?.loose === true;
+  if (!folders.length && !loose) return null;
+  return { ...(folders.length ? { folders } : {}), ...(loose ? { loose: true } : {}) };
+}
 export const WHERE_THIS_MAC = 'On this Mac';
 export const WHERE_CLOUD = 'In the cloud';

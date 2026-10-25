@@ -51,7 +51,15 @@ export interface EstimateResult {
    * "93 canvases in 5 folders, plus 4 at the top level"). `folders` = distinct top-level folders; `loose` =
    * canvases at the top level. null where the scope is not this session's to count.
    */
-  canvasCounts: { folder: number | null; project: number | null; folders: number; loose: number };
+  canvasCounts: {
+    folder: number | null;
+    project: number | null;
+    folders: number;
+    loose: number;
+    /** P8 c7 (09 ex-huge) — what the Include row ticks: the top-level folders and the loose canvases' names */
+    folderNames: string[];
+    looseNames: string[];
+  };
   basis: { bytes: 'history' | 'table'; seconds: 'history' | 'table' };
   /**
    * S8.5 — the cloud-or-this-Mac question (09 ex-offline). Additive: `cloud` = the cloud is on offer
@@ -276,6 +284,9 @@ export function estimateSpec(
     seconds: videoSeconds,
   });
 
+  const topFolders = [
+    ...new Set(facts.canvases.filter((c) => c.rel.includes('/')).map((c) => c.rel.split('/')[0])),
+  ] as string[];
   return {
     counts,
     files,
@@ -289,10 +300,13 @@ export function estimateSpec(
     canvasCounts: {
       folder: facts.canvasOnly || folder === null ? null : nonEmpty(inFolder.length),
       project: facts.canvasOnly ? null : nonEmpty(facts.canvases.length),
-      folders: new Set(
-        facts.canvases.filter((c) => c.rel.includes('/')).map((c) => c.rel.split('/')[0])
-      ).size,
+      folders: topFolders.length,
       loose: facts.canvases.filter((c) => !c.rel.includes('/')).length,
+      folderNames: topFolders.slice(0, 64),
+      looseNames: facts.canvases
+        .filter((c) => !c.rel.includes('/'))
+        .map((c) => c.rel.replace(/\.tsx$/, ''))
+        .slice(0, 16),
     },
     basis: { bytes: 'table', seconds: secondsBasis },
     render,

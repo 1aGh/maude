@@ -14,6 +14,7 @@ import path from 'node:path';
 import { resolveAccess } from '../access/scope.ts';
 import { pinScopeRoot, writeTargetsInsideProject } from '../acp/write-scope.ts';
 import type { RunRegistry } from '../ai/runs.ts';
+import { handoffSub } from '../client/v2/handoff/targets.js';
 import { lastReview } from '../handoff/blockers.ts';
 import { createHandoffs, handoffPrompt, runIdsFor } from '../handoff/run.ts';
 import { DEFAULT_TARGETS, outPathFor, readyFacts, targetsFromConfig } from '../handoff/targets.ts';
@@ -266,6 +267,35 @@ describe('S8.10 targets come from settings', () => {
     expect(outPathFor(lottie, s)).toBe('.design/assets/pricing.json');
     expect(outPathFor(tokens, { ds: 'studio' })).toBe('src/styles/studio-tokens.css');
     expect(outPathFor(tokens, { canvas: 'ui/Pricing.tsx' })).toBeNull();
+  });
+
+  test('P8 c7 (09 ex-handoff): the sheet names the canvas’s artboards — the sub line under the title', async () => {
+    const h = harness();
+    writeFileSync(
+      path.join(h.design, 'ui', 'Tiers.tsx'),
+      `export default () => <DesignCanvas>
+        <DCArtboard id="d" label="Desktop" width={1} height={1} />
+        <DCArtboard id="t" label='Tablet' width={1} height={1} />
+        <DCArtboard id="m" label={"Mobile"} width={1} height={1} />
+        <DCArtboard id="w" label="Watch" width={1} height={1} />
+        <DCArtboard id="x" width={1} height={1} />
+      </DesignCanvas>;`
+    );
+    const r = await h.call('GET', '/_api/handoff/targets?canvas=ui/Tiers.tsx');
+    expect((r.body.subject as { boards: string[] }).boards).toEqual([
+      'Desktop',
+      'Tablet',
+      'Mobile',
+      'Watch',
+    ]);
+    expect(handoffSub('Studio', ['Desktop', 'Tablet', 'Mobile'])).toBe(
+      'Desktop, Tablet, Mobile · Studio design system'
+    );
+    expect(handoffSub('Studio', ['A', 'B', 'C', 'D'])).toBe('A, B, C… · Studio design system');
+    expect(handoffSub(null, [])).toBe('');
+    expect(handoffSub('Studio')).toBe('Studio design system');
+    const ds = await h.call('GET', '/_api/handoff/targets?ds=studio');
+    expect((ds.body.subject as { boards?: string[] }).boards ?? []).toEqual([]);
   });
 
   test('Lottie is off with its reason when nothing moves; on for a canvas that animates', async () => {
