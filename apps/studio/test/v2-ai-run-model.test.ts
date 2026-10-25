@@ -109,6 +109,21 @@ describe('the result card’s verb set, per variant', () => {
     expect(changedSomething(answered)).toBe(false);
     expect(resultVerbs(answered)).toEqual([]);
   });
+  test('a ⌘/ ask on a picked element holds it from the start — an answer that edits nothing is still an answer', () => {
+    const el = { canvas: 'Combine.tsx', artboard: 'poster', element: 'e12' };
+    const asked = run({
+      scope: { canvas: 'Combine.tsx', artboards: ['poster'], elements: [el] },
+      touched: {},
+      objects: [el],
+    });
+    expect(changedSomething(asked)).toBe(false);
+    expect(resultVerbs(asked)).toEqual([]);
+    // an element the AI changed beyond the picked one is a change
+    const more = { canvas: 'Combine.tsx', artboard: 'poster', element: 'e13' };
+    expect(changedSomething({ ...asked, objects: [el, more] })).toBe(true);
+    // and so is any touched artboard
+    expect(changedSomething({ ...asked, touched: { 'Combine.tsx': ['poster'] } })).toBe(true);
+  });
   test('a run cut short offers Keep going, and Undo only if it changed anything', () => {
     expect(resultVerbs(run({ outcome: 'stopped' }))).toEqual(['Undo', 'Keep going']);
     expect(resultVerbs(run({ outcome: 'interrupted', touched: {} }))).toEqual(['Keep going']);

@@ -94,7 +94,11 @@ export function changedSomething(run) {
   if (!run) return false;
   if (Object.values(run.touched || {}).some((ids) => Array.isArray(ids) && ids.length > 0))
     return true;
-  return Array.isArray(run.objects) && run.objects.length > 0;
+  // A ⌘/ ask on a picked element holds it from the moment the run exists (S2.19): that is the ask, not a change. Only an
+  // element beyond the picked ones is something the AI edited.
+  const key = (o) => `${o?.canvas}#${o?.artboard}#${o?.element}`;
+  const held = new Set((run.scope?.elements ?? []).map(key));
+  return Array.isArray(run.objects) && run.objects.some((o) => !held.has(key(o)));
 }
 
 /** The artboard ids the run changed on its own canvas (empty = the whole canvas or unknown). */
