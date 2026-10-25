@@ -233,7 +233,8 @@ describe('the relay that tells the canvas (dgn ai-runs)', () => {
     const el = document.createElement('iframe');
     el.setAttribute('data-testid', 'canvas-frame');
     // V2-8.9 defender L2: the relay posts to the frame's own origin
-    if (src) el.setAttribute('src', src);
+    // (a property, not the attribute: happy-dom would try to load it)
+    if (src) Object.defineProperty(el, 'src', { value: src });
     el.setAttribute('data-path', path);
     Object.defineProperty(el, 'contentWindow', { value: win });
     document.body.append(el);
