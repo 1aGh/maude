@@ -17,7 +17,11 @@ import {
   writeCopies,
 } from '../editing/artboard-actions.ts';
 import { ArtboardCommands, parseWidth, resolveArtboardKey } from '../editing/artboard-commands.tsx';
-import { type ArtboardMenuDeps, artboardMenuSections } from '../editing/artboard-menu.tsx';
+import {
+  type ArtboardMenuDeps,
+  artboardMenuAdvanced,
+  artboardMenuSections,
+} from '../editing/artboard-menu.tsx';
 import {
   type Box,
   copyPlace,
@@ -367,10 +371,9 @@ describe('the artboard menu', () => {
     expect(sections.map(ids)).toEqual([
       ['ask-ai'],
       ['duplicate-artboard', 'duplicate-at-width', 'rename-artboard'],
-      ['add-comment'],
-      ['start-vote'], // S4.14
+      // P8 round 7 (14 ed-ab-menu, the settled set): Copy / Paste are the artboard clipboard; Add comment,
+      // Start a vote… and Advanced ▸ left the menu (reachable by C, ⌘K, the zoom keys, the align bar, the inspector)
       ['export-artboard'],
-      ['advanced'],
       ['delete-artboard'],
     ]);
   });
@@ -411,8 +414,8 @@ describe('the artboard menu', () => {
     ]);
   });
 
-  test('Advanced ▸ keeps every v1 row that left the main list: nothing deleted', () => {
-    const adv = (find('advanced').submenu as MenuItem[]).map((i) => i.id);
+  test('the rows the menu leaves out are still listed by artboardMenuAdvanced (reachable elsewhere)', () => {
+    const adv = artboardMenuAdvanced(v1, deps).map((i) => i.id);
     expect(adv).toEqual([
       'fit-one',
       'reset-position',
@@ -434,7 +437,9 @@ describe('the artboard menu', () => {
 
   test('Reset position runs the reset', () => {
     calls.length = 0;
-    find('reset-position').onSelect(target);
+    (artboardMenuAdvanced(v1, deps).find((i) => i.id === 'reset-position') as MenuItem).onSelect(
+      target
+    );
     expect(calls).toEqual(['reset']);
   });
 });

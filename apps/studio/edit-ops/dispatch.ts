@@ -17,6 +17,7 @@ import { artboardResize } from './artboard-resize.ts';
 import { artboardTrash } from './artboard-trash.ts';
 import { CLEAR_LINK_OP } from './clear-link.ts';
 import { CLIP_OPS } from './clip/index.ts';
+import { CLIPBOARD_OPS } from './clipboard.ts';
 import { shapeCombineOps } from './combine.ts';
 import { objectConstrain } from './constraints.ts';
 import { artboardConvertKind } from './convert-kind.ts';
@@ -157,6 +158,8 @@ export const EDIT_OPS: readonly EditOp[] = [
   dsUseNearest,
   // S7.20 — the F size picker's tile: a whole artboard of a preset's kind, in one write
   artboardInsertPreset,
+  // V2-clipboard-objects — Cut / Copy / Paste of objects and artboards (copy is a read; the bytes stay here)
+  ...CLIPBOARD_OPS,
 ];
 
 export interface AiHoldHit {
@@ -295,6 +298,30 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
     const el = walk.elements.find((x) => x.id === r.element);
     if (!el || (el.artboard !== null && el.artboard !== r.artboard))
       return refuse('invalid', 'One of the objects is not on this canvas.');
+  }
+  // V2-clipboard-objects — a read (copy) writes nothing: no hold, lock or lease can refuse it, and the
+  // stamps above stay in memory (the copy drops every id anyway).
+  if ((op as EditOp).read) {
+    let out: EditOpOutput;
+    try {
+      out = (op as EditOp).apply(source, {
+        file: rel,
+        op: req.op,
+        targets: refs,
+        params: req.params ?? {},
+      });
+    } catch (e) {
+      if (e instanceof CanvasEditError) return refuse('invalid', e.message);
+      throw e;
+    }
+    return {
+      ok: true,
+      actionId: null,
+      writeId: '',
+      rev: revOf(current),
+      refs: [],
+      ...(out.detail && Object.keys(out.detail).length ? { detail: out.detail } : {}),
+    };
   }
   // AI holds are enforced; a person's hold is advisory and never checked here (Q10, DDR-120).
   for (const r of refs) {

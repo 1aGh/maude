@@ -27,6 +27,8 @@ import { ARTBOARD_ACTIONS, ArtboardCommands } from './artboard-commands.tsx';
 import { ArtboardGuides } from './artboard-guides.tsx';
 import { ArtboardHandles } from './artboard-handles.tsx';
 import { ASK_SELECTION_ACTION, AskBubble } from './ask-bubble.tsx';
+import { CLIP_ACTIONS, clipActionForEdit, isClipAction, isClipMarker } from './clipboard.ts';
+import { clipCtxOf, useClipboard } from './clipboard-actions.ts';
 import { CornerDots } from './corner-dots.tsx';
 import { CROP_ACTION, CropMode } from './crop-mode.tsx';
 import { DrawTools } from './draw-tools.tsx';
@@ -63,7 +65,7 @@ import { LockBadge } from './lock-badge.tsx';
 import { MinimapContext } from './minimap-context.tsx';
 import { NudgeReadout } from './nudge.tsx';
 import { useObjectOps } from './object-actions.ts';
-import { resolveObjectKey } from './object-keys.ts';
+import { resolveClipKey, resolveObjectKey } from './object-keys.ts';
 import { isObjectOpAction, layerParams, OBJECT_OP_ACTIONS, refsOf } from './object-ops.ts';
 import { PasteBar } from './paste-bar.tsx';
 import { PEN_ACTIONS, PenLayer } from './pen/index.tsx';
@@ -118,6 +120,8 @@ export const EDITING_ACTIONS = [
   ASK_SELECTION_ACTION,
   // S7.20 — a size-picker pick, ⌘K / Edit › Advanced ▸ New artboard › Video (run by size-ghost.tsx)
   INSERT_PRESET_ACTION,
+  // V2-clipboard-objects — Cut / Copy / Paste of objects and artboards (editing/clipboard.ts)
+  ...CLIP_ACTIONS,
 ] as const;
 
 /** The reading-order badges, drawn while the keyboard is the last thing used. */
@@ -130,6 +134,9 @@ export function EditingLayer() {
   const ops = useObjectOps();
   const opsRef = useRef(ops);
   opsRef.current = ops;
+  const clipboard = useClipboard();
+  const clipRef = useRef(clipboard);
+  clipRef.current = clipboard;
   const tool = useToolModeOptional()?.tool;
   const toolRef = useRef(tool);
   toolRef.current = tool;
@@ -169,7 +176,16 @@ export function EditingLayer() {
         return;
       const m = acceptFromShell(e, window);
       if (m?.dgn !== 'run-action') return;
-      if (isObjectOpAction(m.id)) {
+      if (isClipAction(m.id)) {
+        // V2-clipboard-objects — ⌘K / a shell row; the selection is the subject
+        if (!isReadOnlyCanvas()) void clipRef.current.run(m.id);
+      } else if (m.id === 'edit.copy' || m.id === 'edit.cut' || m.id === 'edit.paste') {
+        // the project menu's Edit › Cut / Copy / Paste: in Edit, objects and artboards are the clipboard's
+        // (in Preview the annotation layer answers the same ids)
+        if (isReadOnlyCanvas() || canvasModeStore(window).get().mode === 'preview') return;
+        const action = clipActionForEdit(m.id, clipCtxOf(selRef.current));
+        if (action) void clipRef.current.run(action);
+      } else if (isObjectOpAction(m.id)) {
         // a Layers row names its own target (and the value) in `params`; a chord / menu / ⌘K uses the selection
         if (!isReadOnlyCanvas()) {
           const { refs, params } = layerParams(m.params);
@@ -234,6 +250,45 @@ export function EditingLayer() {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  // V2-clipboard-objects — ⌘C / ⌘X on objects, ⌘C on artboards (registry chords), and ⌘V: WebKit's own paste
+  // event, taken only when the system clipboard still holds the marker our copy left (a picture, a Figma
+  // frame or text copied since is somebody else's paste — paste-bar.tsx and the media intake claim those).
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || isReadOnlyCanvas() || toolRef.current === 'browse') return;
+      const ctx = clipCtxOf(selRef.current);
+      const action = resolveClipKey(e, {
+        typing: isEditableTarget(e.target),
+        mode: canvasModeStore(window).get().mode ?? 'edit',
+        selection: ctx.objects.length ? 'object' : ctx.artboards.length ? 'artboard' : 'none',
+        singleKeys: canvasSingleKeys(),
+      });
+      if (!action) return;
+      e.preventDefault();
+      void clipRef.current.run(action);
+    };
+    const onPaste = (e: ClipboardEvent) => {
+      if (e.defaultPrevented || isReadOnlyCanvas() || isEditableTarget(e.target)) return;
+      if (canvasModeStore(window).get().mode === 'preview') return;
+      let text = '';
+      try {
+        text = e.clipboardData?.getData('text/plain') ?? '';
+      } catch {
+        return;
+      }
+      if (!isClipMarker(text)) return;
+      e.preventDefault();
+      void clipRef.current.run('canvas.paste');
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('paste', onPaste);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('paste', onPaste);
+    };
   }, []);
 
   // S2.11 — ← → (↑ ↓ in a column) move an object earlier / later in its auto layout. A bare arrow

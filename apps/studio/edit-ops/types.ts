@@ -101,6 +101,12 @@ export interface EditOp {
    * `artboards` check above — declare `artboards` too (v2-lead-artboard-hold-one-check). Default 'targets'.
    */
   scope?: 'targets' | 'artboard';
+  /**
+   * V2-clipboard-objects (additive): a READ (`object.copy`, `artboard.copy`). The dispatcher resolves and
+   * stamps the targets in memory, runs `apply` for its `detail`, and writes NOTHING — no source, no
+   * layout, no history row, no undo record (`writeId` is ''). An AI hold does not refuse a read.
+   */
+  read?: boolean;
   apply(source: string, req: ResolvedEditOp): EditOpOutput;
 }
 

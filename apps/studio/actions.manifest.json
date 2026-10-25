@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "a7972f5369d6",
+  "manifestVersion": "59c9b8dbda34",
   "actions": [
     {
       "id": "search.open",
@@ -585,6 +585,58 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Copy the element’s JSX next to it; give the copy a new element id"
+      }
+    },
+    {
+      "id": "object.copy",
+      "label": "Copy",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Read the element’s JSX in the source (the clipboard is the person’s)"
+      }
+    },
+    {
+      "id": "object.cut",
+      "label": "Cut",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Move the element’s JSX in the source (the clipboard is the user’s)"
+      }
+    },
+    {
+      "id": "artboard.copy",
+      "label": "Copy artboard",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Read the artboard’s JSX in the source (the clipboard is the person’s)"
+      }
+    },
+    {
+      "id": "canvas.paste",
+      "label": "Paste objects",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Write the JSX into the source; a copy gets new element ids (the clipboard is the user’s)"
       }
     },
     {

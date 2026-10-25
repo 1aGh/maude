@@ -490,6 +490,27 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'select.none': NAV('<canvas> --select none'),
   'select.all-annotations': NAV('<canvas> --select annotations'),
   'object.duplicate': TSX('Copy the element’s JSX next to it; give the copy a new element id'),
+  // V2-clipboard-objects — the agent writes the source itself; the clipboard is the person's
+  'object.copy': {
+    effect: 'none',
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Read the element’s JSX in the source (the clipboard is the person’s)'
+    ),
+  },
+  'object.cut': TSX('Move the element’s JSX in the source (the clipboard is the user’s)'),
+  'artboard.copy': {
+    effect: 'none',
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Read the artboard’s JSX in the source (the clipboard is the person’s)'
+    ),
+  },
+  'canvas.paste': TSX(
+    'Write the JSX into the source; a copy gets new element ids (the clipboard is the user’s)'
+  ),
   // S2.2 — Inspector › Advanced. The copies read what is already in the file; the id is the
   // `data-cd-id` literal (V2-1.4 §5.5), renamed together with every reference to it.
   'inspector.copy-css': {

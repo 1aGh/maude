@@ -15,6 +15,7 @@ import { hasStyleToMatch, matchSignature } from '../edit-ops/select-matching.ts'
 import type { ElementRef } from '../edit-ops/types.ts';
 import { type Selection, useSelectionSet } from '../use-selection-set.tsx';
 import { useUndoStackOptional } from '../use-undo-stack.tsx';
+import type { Clipboard } from './clipboard-actions.ts';
 import type { ObjectMenuDeps } from './object-menu.tsx';
 import { type ObjectOpAction, type ObjectOpDeps, refsOf, runObjectOp } from './object-ops.ts';
 
@@ -93,11 +94,11 @@ export interface ObjectOps {
   menuDeps: ObjectMenuDeps;
 }
 
-export function useObjectOps(): ObjectOps {
+export function useObjectOps(clipboard?: Clipboard): ObjectOps {
   const selSet = useSelectionSet();
   const undo = useUndoStackOptional();
-  const live = useRef({ selSet, undo });
-  live.current = { selSet, undo };
+  const live = useRef({ selSet, undo, clipboard });
+  live.current = { selSet, undo, clipboard };
   return useMemo<ObjectOps>(() => {
     const deps: ObjectOpDeps = {
       toast: (m, kind) => showCanvasToast(m, kind === 'error' ? 'error' : 'info'),
@@ -124,6 +125,17 @@ export function useObjectOps(): ObjectOps {
           .filter((r): r is ElementRef => !!r);
         void run(action, refs);
       },
+      // V2-clipboard-objects — the rows exist only where a clipboard is wired (canvas-shell's menus)
+      ...(live.current.clipboard
+        ? {
+            clip: (action, t) => {
+              const objects = elementsFor(t)
+                .map(refOfElement)
+                .filter((r): r is ElementRef => !!r);
+              void live.current.clipboard?.run(action, { objects, artboards: [] });
+            },
+          }
+        : {}),
       selectMatching: (t) => {
         const found = t.el ? matchingElements(t.el) : [];
         if (found.length > 1) live.current.selSet.replace(found.map(selectionOf));

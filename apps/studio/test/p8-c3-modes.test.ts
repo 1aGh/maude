@@ -121,6 +121,9 @@ const abDeps = {
   customWidth: noop,
   rename: noop,
   resetPosition: noop,
+  // V2-clipboard-objects — the drawn Copy ⌘C / Paste ⌘V rows (text-only)
+  copy: noop,
+  paste: noop,
 };
 const v1AB = [
   [{ id: 'add-comment', label: 'Add comment', onSelect: noop }],
