@@ -92,7 +92,21 @@ export async function runLayoutAction(
         `[data-dc-screen="${CSS.escape(refs[0].artboard)}"] [data-cd-id="${CSS.escape(refs[0].element)}"]`
       ) as HTMLElement | null)
     : oneElement(selected, doc);
-  if (!el) return void deps.toast?.(NEEDS_ONE_LINE, 'info');
+  if (!el) {
+    // an ARTBOARD is selected (an artboard, no element): Convert acts on its body, as the kind switch does -
+    // 08 ak-advanced's Layout · Convert to absolute… (P8 c10-print)
+    const only = refs ? null : selected.length === 1 ? selected[0] : null;
+    const convertArtboard = (
+      window as unknown as {
+        __maudeConvertArtboard?: (artboardId: string) => Promise<void>;
+      }
+    ).__maudeConvertArtboard;
+    if (id === 'layout.convert-to-absolute' && only?.artboardId && !only.id && convertArtboard) {
+      await convertArtboard(only.artboardId);
+      return;
+    }
+    return void deps.toast?.(NEEDS_ONE_LINE, 'info');
+  }
   if (id === 'object.place-freely') {
     await placeFreely(el, deps);
     return;

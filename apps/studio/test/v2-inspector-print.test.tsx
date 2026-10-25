@@ -312,6 +312,15 @@ describe('Advanced — every number, and the code', () => {
     expect(after('insp-pr-body-layout', 'insp-pr-grid-tracks')).toBe(true);
     expect(after('insp-pr-layout-convert', 'insp-pr-code')).toBe(true);
   });
+  // P8 c10-print (08 ak-advanced): the board draws "Layout · Convert to absolute…" as a working verb on a print
+  // sheet whose body is the plain page flow (no `layout` prop) — a sheet's elements are what Convert frees
+  test('Convert to absolute is live on a print sheet with no body layout set', async () => {
+    const host = await frame(SHEET());
+    await openAdvanced(host);
+    const btn = must(q(host, 'insp-pr-layout-convert-btn'), 'convert') as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+    expect(btn.getAttribute('title')).toBeNull();
+  });
   test('Kind and Clip content keep their rows under Advanced (nothing deleted)', async () => {
     const host = await frame(SHEET());
     await openAdvanced(host);
