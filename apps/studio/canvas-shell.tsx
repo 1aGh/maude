@@ -109,7 +109,7 @@ import {
 } from './input-router.tsx';
 import { inspectedSelection, shouldFlipToMove } from './inspect-canvas.ts';
 import { InspectOverlay, measureNeighbour } from './inspect-overlay.tsx';
-import { plainLayerName } from './layer-name.ts';
+import { displayLayerName, isPictureTag, saysItsText } from './layer-name.ts';
 import { LinkChipOverlay } from './link-chip-overlay.tsx';
 import { ElementMarqueeOverlay } from './marquee-overlay.tsx';
 import { MeasureOverlay } from './measure-overlay.tsx';
@@ -445,14 +445,22 @@ function kebabToTitle(s: string): string {
     .join(' ');
 }
 
-// Human label: data-dc-element (Title Case) → aria-label → the plain word for its role / tag ("Heading",
-// "Text", "Frame" — P8 C5: never the code's own `div` / `h1` / `div.hero`).
+// Human label: data-dc-element (Title Case) → aria-label → what the element says (its words, a picture's alt or
+// file — P8 C7) → the plain word for its role / tag ("Heading", "Text", "Frame" — P8 C5: never the code's own
+// `div` / `h1` / `div.hero`).
 function layerLabel(el: Element): string {
   const dc = el.getAttribute('data-dc-element');
   if (dc) return kebabToTitle(dc);
   const aria = el.getAttribute('aria-label');
   if (aria) return aria.slice(0, 40);
-  return plainLayerName(el.tagName, el.getAttribute('role'));
+  const picture = isPictureTag(el.tagName);
+  return displayLayerName({
+    tag: el.tagName,
+    role: el.getAttribute('role'),
+    text: saysItsText(el.tagName) ? el.textContent : null,
+    alt: picture ? (el.getAttribute('alt') ?? el.querySelector('img')?.getAttribute('alt')) : null,
+    src: picture ? (el.getAttribute('src') ?? el.querySelector('img')?.getAttribute('src')) : null,
+  });
 }
 
 function layerType(el: Element): string {
