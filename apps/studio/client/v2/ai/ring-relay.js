@@ -9,13 +9,25 @@
 // the OBJECTS running / needs-you runs hold, for the canvas's spark outline + tag and the inspector's hold
 // line (editing/hold-rings.tsx). Same rule: a fixed tag from the state and a name, never a prompt.
 //
+// V2-8.5 c7 (03 `ai-copy`) - and `{dgn:'ai-copies', v:1, copies:[{from, to}]}` (`copyLinksFor`): the copies a
+// "Run on a copy" made, for the dashed link and "Copied from <name>" (artboard-ai-copies.tsx). Ids only.
+//
 // Which frames: the ACTIVE canvas iframe (`canvas-frame`, `data-path` = its file). A frame that has just
 // loaded does not listen yet, so it is told again on `loaded` / `canvas-rendered`; an unchanged answer is
 // not re-sent to a frame that already has it.
 
 import { useEffect } from 'react';
 import { getMadeByAiStore, madeByAiRings } from './made-by-ai.js';
-import { doneRings, holdsFor, mergeRings, pointExpiry, pointsFor, ringsFor } from './runs-model.js';
+import {
+  copyExpiry,
+  copyLinksFor,
+  doneRings,
+  holdsFor,
+  mergeRings,
+  pointExpiry,
+  pointsFor,
+  ringsFor,
+} from './runs-model.js';
 import { getRunsStore } from './runs-store.js';
 
 const FRAME = 'iframe[data-testid="canvas-frame"]';
@@ -29,6 +41,7 @@ export function createRingsLane({
 } = {}) {
   const spoken = new WeakMap(); // Window → the JSON last sent to it
   const spokenHolds = new WeakMap(); // Window → the `ai-holds` JSON last sent to it
+  const spokenCopies = new WeakMap(); // Window → the `ai-copies` JSON last sent to it
   const frames = () => [...(doc?.querySelectorAll?.(FRAME) ?? [])];
 
   const tell = (frame, force = false) => {
@@ -48,6 +61,20 @@ export function createRingsLane({
       try {
         // A literal `{ dgn }` (not postToCanvas) so the bridge inventory sees this send site.
         target.postMessage({ dgn: 'ai-runs', artboards }, '*');
+      } catch {
+        /* detached */
+      }
+    }
+    const copies = copyLinksFor(view, { activeCanvas: file });
+    const copiesJson = JSON.stringify(copies);
+    const copiesBefore = spokenCopies.get(target);
+    if (
+      (force || copiesBefore !== copiesJson) &&
+      !(copiesBefore === undefined && copiesJson === '[]')
+    ) {
+      spokenCopies.set(target, copiesJson);
+      try {
+        target.postMessage({ dgn: 'ai-copies', v: 1, copies }, '*');
       } catch {
         /* detached */
       }
@@ -76,7 +103,9 @@ export function createRingsLane({
   let expiryTimer = null;
   function onTick() {
     tellAll();
-    const at = pointExpiry(store.getSnapshot().view);
+    const view = store.getSnapshot().view;
+    const ends = [pointExpiry(view), copyExpiry(view)].filter((t) => t !== null);
+    const at = ends.length ? Math.min(...ends) : null;
     clearTimeout(expiryTimer);
     expiryTimer = at === null ? null : setTimeout(onTick, Math.max(0, at - Date.now()) + 50);
   }
@@ -89,6 +118,7 @@ export function createRingsLane({
     if (frame) {
       spoken.delete(frame.contentWindow);
       spokenHolds.delete(frame.contentWindow);
+      spokenCopies.delete(frame.contentWindow);
       tell(frame, true);
     }
   };
