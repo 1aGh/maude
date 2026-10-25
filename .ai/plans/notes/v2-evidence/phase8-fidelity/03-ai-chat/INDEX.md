@@ -408,3 +408,42 @@ Final verification shoot on the merged tip after stage C round 7 (harness `_d5-h
 | `ai-advanced` | re-shot | re-shot |
 | `ai-adv-edges` | re-shot | re-shot |
 | `ai-history` | re-shot | re-shot |
+
+
+## FINAL (D6, 3d58f57df)
+
+Final verification shoot on the merged tip after stage C round 8 (harness `_d6-harness-g2/`, a flattened copy of the newest per-canvas layers; shot on the Mac mini with Google Chrome, not the Playwright headless shell). Spec side reused (the boards `.design/ui/v2/03|04|06` are unchanged since 2026-10-19). Committed JPEG pairs overwritten (spec left | impl right). The critic judges; this builder does not.
+
+- Shot on feat/maude-v2 tip 3d58f57df (stage C round 8 merged); harness _d6-harness-g2 = _d5 + the round-8 edits (_c8-ai-harness s03a/s03c/s03e/s03g/fake-agent).
+
+| id | dark | light |
+|---|---|---|
+| `ai-hero` | re-shot | re-shot |
+| `ai-open` | re-shot | re-shot |
+| `ai-suggest` | re-shot | re-shot |
+| `ai-scope` | re-shot | re-shot |
+| `ai-working` | re-shot | re-shot |
+| `ai-done` | re-shot | re-shot |
+| `ai-attach` | re-shot | re-shot |
+| `ai-attach-menu` | re-shot | re-shot |
+| `ai-question` | re-shot | re-shot |
+| `ai-long` | re-shot | re-shot |
+| `ai-long-pinned` | re-shot | re-shot |
+| `ai-two-artboards` | re-shot | re-shot |
+| `ai-same-artboard` | re-shot | re-shot |
+| `ai-copy` | re-shot | re-shot |
+| `ai-queue-rule` | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) |
+| `ai-other-tab` | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) |
+| `ai-tereza` | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) |
+| `ai-chat-list` | re-shot | re-shot |
+| `ai-panel-closed` | re-shot | re-shot |
+| `ai-quit` | re-shot | re-shot |
+| `ai-needs-hidden` | re-shot | re-shot |
+| `ai-needs-tab` | unreachable (Needs a second project tab (desktop shell tabs).) | unreachable (Needs a second project tab (desktop shell tabs).) |
+| `ai-needs-away` | unreachable (The app in the background: an OS notification and Dock badge, native only.) | unreachable (The app in the background: an OS notification and Dock badge, native only.) |
+| `ai-permission` | re-shot | re-shot |
+| `ai-choice-fail` | re-shot | re-shot |
+| `ai-not-ready` | re-shot | re-shot |
+| `ai-advanced` | re-shot | re-shot |
+| `ai-adv-edges` | re-shot | re-shot |
+| `ai-history` | re-shot | re-shot |
