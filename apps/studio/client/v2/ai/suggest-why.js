@@ -69,6 +69,7 @@ const chip = (id, label, prompt, extra = {}) => ({ id, label, prompt: prompt ?? 
  * @param {boolean} [i.lastFailed=false] — S5.19: the last ask FAILED; "Try a variation / Explain what changed" would follow up on nothing
  * @param {string|null} [i.repair=null] — P8 c8 (01 `cf-render-error`): the canvas cannot draw; the composer text of "Ask AI to fix it" (the card keeps ONE verb, the repair is this chip)
  * @param {boolean} [i.resultShown=false] — P8 c6: the result card under the last reply already carries the follow-up chips (03 `ai-done`)
+ * @param {boolean} [i.answered=false] — P8 c8: the last turn answered and changed nothing (03 `ai-question`)
  * @param {number} [i.now]
  * @returns {{ context: string, icon: string, chips: Array<{id:string,label:string,prompt:string,testid?:string}>, why: string } | null}
  */
@@ -81,6 +82,7 @@ export function deriveSuggestions({
   lastFailed = false,
   resultShown = false,
   repair = null,
+  answered = false,
   now = Date.now(),
 } = {}) {
   // A broken canvas is not a suggestion the person can switch off: it is the card's other half (01 cf-render-error).
@@ -149,6 +151,15 @@ export function deriveSuggestions({
     String(lastAsk.text).trim() &&
     !String(lastAsk.text).trim().startsWith('/')
   ) {
+    if (answered) {
+      // an answer, not a change: the way on is the change itself, or the same look at the rest
+      return {
+        context: 'answered',
+        icon: 'history',
+        chips: [chip('make', 'Make that change'), chip('others', 'Check the other artboards too')],
+        why: '',
+      };
+    }
     const topic = askTopic(lastAsk.text);
     const chips =
       topic === 'colour'

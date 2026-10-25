@@ -188,6 +188,7 @@ function TrashDialog({ dialog, busy, error, onConfirm, onCancel }) {
  * @param {() => void} p.onBack               "‹ Chats" — back to the chat
  * @param {(id: string, title: string) => void} p.onRename
  * @param {(id: string) => void} p.onCopyTranscript
+ * @param {() => void} [p.onNewChat]               the header's "+" — start a new chat (03 `ai-chat-list`)
  * @param {(id: string) => void} p.onArchive
  * @param {(id: string, dropped: number) => void} p.onTrashed   the chat is in the trash — close its connection
  * @param {typeof fetch} [p.fetchImpl]
@@ -226,6 +227,7 @@ export function ChatList({
   onArchive,
   onTrashed,
   onStartChat,
+  onNewChat,
   fetchImpl = fetch,
 }) {
   const [groups, setGroups] = useState(null); // null = loading
@@ -559,6 +561,19 @@ export function ChatList({
         </button>
         <strong>Chats</strong>
         {projectName ? <span className="ai-cl-chip">{projectName}</span> : null}
+        {/* 03 `ai-chat-list`: the header's "+" — a new chat, from the list */}
+        {onNewChat ? (
+          <button
+            type="button"
+            className="st-iconbtn ai-cl-new"
+            aria-label="New chat"
+            title="New chat"
+            data-testid="ai-chat-list-new"
+            onClick={onNewChat}
+          >
+            <StIcon name="plus" size={14} />
+          </button>
+        ) : null}
       </div>
       <label className={`ai-cl-find${searching ? ' is-on' : ''}`}>
         <StIcon name="search" size={14} />

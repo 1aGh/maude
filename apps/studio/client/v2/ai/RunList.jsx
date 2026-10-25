@@ -14,7 +14,9 @@ import { indexMeta } from '../canvases/tree-model.js';
 import { dispatchArtboardJump } from '../left-panel/left-panel-bus.js';
 import { Check, Spark } from './icons.jsx';
 import { canvasRows, fitRunListWidth, RUN_WORD, yoursCount, yoursRows } from './runs-model.js';
+import { fetchChats } from './chat-store-api.js';
 import { useAiRuns } from './runs-store.js';
+import { StIcon } from '../../shell/icons.jsx';
 
 export const Clock = ({ size = 12 }) => (
   <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -119,6 +121,8 @@ export function RunList({
   id,
   width,
   listRef,
+  allChats,
+  place,
 }) {
   const yours = yoursRows(view, { designRel, labels, currentChatId });
   const others = canvasRows(view, { activeCanvas, labels });
@@ -126,7 +130,7 @@ export function RunList({
     <div
       ref={listRef}
       className="ai-runs"
-      style={width ? { width } : undefined}
+      style={width || place ? { ...(width ? { width } : null), ...place } : undefined}
       role="menu"
       id={id}
       aria-label="Running chats"
@@ -146,6 +150,25 @@ export function RunList({
           ))}
         </>
       ) : null}
+      {/* 03 `ai-two-artboards`: the list ends with every chat of the project (opens the chat list) */}
+      {allChats ? (
+        <>
+          <span className="ai-runs-sep" aria-hidden="true" />
+          <button
+            type="button"
+            role="menuitem"
+            className="ai-run ai-run-all"
+            data-testid="ai-runs-all"
+            onClick={allChats.onOpen}
+          >
+            <StIcon name="comment" size={14} />
+            <span className="ai-run-txt">
+              <span className="ai-run-title">All chats</span>
+            </span>
+            {allChats.count != null ? <span className="ai-run-word">{allChats.count}</span> : null}
+          </button>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -154,7 +177,14 @@ export function RunList({
  * "✦ N" plus its list. Renders nothing at zero (03: the chip appears with the first run).
  * `onOpenChat(chatId)` switches the panel to that chat; the jump to the artboard is the shell's bus.
  */
-export function RunsCount({ activeCanvas, designRel, currentChatId, onOpenChat, store }) {
+export function RunsCount({
+  activeCanvas,
+  designRel,
+  currentChatId,
+  onOpenChat,
+  onOpenList,
+  store,
+}) {
   const { view } = useAiRuns(store);
   const n = yoursCount(view);
   const [open, setOpen] = useState(false);
@@ -238,6 +268,14 @@ export function RunsCount({ activeCanvas, designRel, currentChatId, onOpenChat, 
           designRel={designRel}
           currentChatId={currentChatId}
           onKeyDown={onMenuKey}
+          onOpenList={
+            onOpenList
+              ? () => {
+                  close(false);
+                  onOpenList();
+                }
+              : undefined
+          }
           onPick={(row) => {
             if (row.file && row.artboard) dispatchArtboardJump(row.file, row.artboard);
             if (row.chatId && onOpenChat) onOpenChat(row.chatId);
@@ -250,17 +288,44 @@ export function RunsCount({ activeCanvas, designRel, currentChatId, onOpenChat, 
 }
 
 // The labels come from the project index, which is read only while the list is open.
-function RunListOpen({ view, designRel, ...rest }) {
+function RunListOpen({ view, designRel, onOpenList, ...rest }) {
   const labels = useBoardLabels(designRel, view.seq);
   // S5.18 G1: in a narrow dock column the list narrows to what fits (it hangs from the button's right edge).
   const listRef = useRef(null);
   const [width, setWidth] = useState(null);
+  const [place, setPlace] = useState(null);
+  // "All chats  N": the project's chat count, read once while the list is open
+  const [total, setTotal] = useState(null);
+  useEffect(() => {
+    if (!onOpenList) return undefined;
+    let live = true;
+    fetchChats({ group: 'canvas' }).then((r) => {
+      if (!live) return;
+      const groups = Array.isArray(r?.groups) ? r.groups : [];
+      setTotal(groups.reduce((n, g) => n + (g.chats ?? []).filter((c) => !c.trashedAt).length, 0));
+    });
+    return () => {
+      live = false;
+    };
+  }, [onOpenList]);
   useLayoutEffect(() => {
     const fit = () => {
       const el = listRef.current;
-      const anchor = el?.offsetParent; // the ✦ N wrapper the list hangs from
+      const anchor = el?.parentElement; // the ✦ N wrapper the list hangs from
       if (!el || !anchor) return;
       const column = el.closest('.ai-island, .st-rpanel');
+      // 03 `ai-two-artboards`: the list opens UP over the canvas when there is room, so it never covers the chat
+      // (fixed, from the button's rectangle: the dock slot clips everything that hangs outside it)
+      const a = anchor.getBoundingClientRect();
+      const up = a.top >= el.offsetHeight + 16;
+      el.toggleAttribute('data-up', up);
+      setPlace({
+        position: 'fixed',
+        right: Math.max(8, Math.round(window.innerWidth - a.right)),
+        ...(up
+          ? { bottom: Math.round(window.innerHeight - a.top + 8), top: 'auto' }
+          : { top: Math.round(a.bottom + 8) }),
+      });
       setWidth(
         fitRunListWidth({
           anchorRight: anchor.getBoundingClientRect().right,
@@ -278,7 +343,9 @@ function RunListOpen({ view, designRel, ...rest }) {
       designRel={designRel}
       labels={labels}
       width={width}
+      place={place}
       listRef={listRef}
+      allChats={onOpenList ? { count: total, onOpen: onOpenList } : undefined}
       {...rest}
     />
   );

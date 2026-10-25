@@ -5,7 +5,7 @@
 // A dropped FOLDER can't be attached this way — a drop hands over files, never a folder's path — so
 // it says to use Choose a folder… instead of guessing.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ImageGlyph } from './AChip.jsx';
 
 const hasFiles = (e) => Array.from(e.dataTransfer?.types ?? []).includes('Files');
@@ -34,8 +34,23 @@ export function splitDrop(dt) {
 export function DropOverlay({ attach, disabled = false }) {
   const anchor = useRef(null);
   const [over, setOver] = useState(false);
+  // 03 `ai-attach`: the veil covers the thread only — the composer and the chips under it stay visible
+  const [foot, setFoot] = useState(0);
   const attachRef = useRef(attach);
   attachRef.current = attach;
+
+  useLayoutEffect(() => {
+    if (!over) return;
+    const host = anchor.current?.parentElement;
+    const composer = host?.querySelector('[data-testid="chat-composer"]');
+    if (!host || !composer) return setFoot(0);
+    setFoot(
+      Math.max(
+        0,
+        Math.round(host.getBoundingClientRect().bottom - composer.getBoundingClientRect().top)
+      )
+    );
+  }, [over]);
 
   useEffect(() => {
     const host = anchor.current?.parentElement;
@@ -82,7 +97,12 @@ export function DropOverlay({ attach, disabled = false }) {
     <>
       <span ref={anchor} hidden />
       {over ? (
-        <span className="ai-drop" data-testid="ai-attach-drop" aria-hidden="true">
+        <span
+          className="ai-drop"
+          data-testid="ai-attach-drop"
+          aria-hidden="true"
+          style={foot ? { bottom: foot + 8 } : undefined}
+        >
           <ImageGlyph />
           <strong>Drop to attach</strong>
           <span>AI can use it in this chat</span>

@@ -17,6 +17,7 @@ import { focusComposer } from './panel-focus.js';
 import { ResultCard } from './Result.jsx';
 import { keepGoingRun, redoRun, stopRun, undoNote, undoRun } from './run-api.js';
 import {
+  changedSomething,
   copyDividerText,
   createAnnouncer,
   describeResult,
@@ -42,7 +43,7 @@ import { runCardFor } from './run-cards.js';
 import './video/cards.jsx';
 import { RunLiveRegion, useRunClock, WorkingLine } from './Working.jsx';
 import { useChatRuns } from './use-chat-runs.js';
-import { setResultShown } from './result-shown.js';
+import { setAnswered, setResultShown } from './result-shown.js';
 
 const IDLE = { runId: null, status: 'idle', note: '' };
 const PICTURE_RETRY_MS = 1500;
@@ -103,6 +104,12 @@ export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel
     setResultShown(chatId, chipsShown);
     return () => setResultShown(chatId, false);
   }, [chatId, chipsShown]);
+  // 03 `ai-question`: a turn that ended well and changed nothing was an answer — the strip follows it
+  const answeredOnly = ended && !live && run?.outcome === 'done' && !changedSomething(run);
+  useEffect(() => {
+    setAnswered(chatId, answeredOnly);
+    return () => setAnswered(chatId, false);
+  }, [chatId, answeredOnly]);
   const elapsed = useRunClock(run?.startedAt, showWorking);
   // S5.18 G2: a run that ran on a copy says so, with the artboard that was busy
   const boardLabels = useBoardLabels(designRel, 0);

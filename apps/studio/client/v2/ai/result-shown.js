@@ -16,6 +16,24 @@ export function setResultShown(chatId, value) {
   for (const fn of listeners) fn();
 }
 
+// P8 c8 (03 `ai-question`): the last turn ENDED with an answer and changed nothing — the strip then follows the answer
+const answered = new Map(); // chatId → boolean
+export function setAnswered(chatId, value) {
+  const next = !!value;
+  if ((answered.get(chatId) ?? false) === next) return;
+  if (next) answered.set(chatId, true);
+  else answered.delete(chatId);
+  for (const fn of listeners) fn();
+}
+export const isAnswered = (chatId) => answered.get(chatId) ?? false;
+export function useAnswered(chatId) {
+  return useSyncExternalStore(
+    subscribe,
+    () => isAnswered(chatId),
+    () => false
+  );
+}
+
 export const isResultShown = (chatId) => shown.get(chatId) ?? false;
 
 function subscribe(fn) {
