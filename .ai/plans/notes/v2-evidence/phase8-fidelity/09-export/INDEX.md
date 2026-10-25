@@ -228,3 +228,23 @@ Re-shot the touched ids on the round-7b tip (release-built client, Google Chrome
 | ex-print-warn | LetakA6 fixture: the REAL preflight says the QR code is 2 mm from the cut and the headline face can't be embedded; the ringed QR carries the "2 mm to the cut" tag |
 | ex-history | six rows with the cloud row hovered and its More menu open (Show in Finder · Export again · Export again with other settings… · Copy file names · Remove from list) |
 | ex-offline | faked linked project + offline browser, whole window: the top bar says "Offline — kept on this Mac" |
+
+## FINAL (D5, e37e7d82a) — p8-d5-g3
+
+Final verification shoot after stage C round 7, on the merged tip (release-built client, Google Chrome channel, Mac mini, light + dark), IMPL side only; spec frames reused unchanged from D4 (the 09 board's last change, 2220acc81, predates the D4 spec shots). Harness `_d5-harness-g3/` (`chain.sh 09`: `t09` all ids, then in this order `ho` = ex-handoff + ex-handoff-edges, `vid` = ex-video + ex-offline on a faked linked project with the browser offline, `adv` = ex-advanced, `t09w` = ex-print-warn on the LetakA6 fixture, `t09p` = ex-progress / ex-states / ex-history with the row menu open). Shot at `0ef942d45` (= tip + the D5 harness only). No match judged here.
+
+| artboard id | light | dark |
+|---|---|---|
+| ex-inspector, ex-social, ex-formats, ex-web, ex-print, ex-share-vs | re-shot (ex-share-vs: the Share panel only) | re-shot (same) |
+| ex-advanced | re-shot (`adv`: whole fold, mixed selection) | re-shot (same) |
+| ex-video | re-shot (`vid`: filmstrip, In the cloud / On this Mac cards) | re-shot (same) |
+| ex-offline | re-shot (`vid`: faked linked project + browser offline, whole window) | re-shot (same) |
+| ex-print-warn | re-shot (`t09w`: LetakA6 — the real preflight warns QR 2 mm from the cut + a font that can't be embedded) | re-shot (same) |
+| ex-canvas, ex-batch-pick, ex-batch | re-shot (This canvas; label-chip multi-select; folder scope with the cloud lane answered by the harness) | re-shot (same) |
+| ex-huge | re-shot (13 canvases, not 93 / 524 artboards) | re-shot (same) |
+| ex-progress, ex-states, ex-history | re-shot (`t09p`; job LIST seeded by a route intercept, no render runs; ex-history with the row menu open) | re-shot (same) |
+| ex-handoff, ex-handoff-edges | re-shot (`ho`; the signed-out path, offline / blockers not driven) | re-shot (same) |
+| ex-handoff-ready | unreachable — the Ready result with a copy command needs a finished AI handoff run (claude is stubbed signed-out); spec-only frame stands | unreachable (same) |
+| ex-edges | unreachable — viewer-role export and "AI is changing this artboard" need a viewer session / a live AI edit; spec-only frame stands | unreachable (same) |
+
+Totals: 38 id×theme re-shot (19 ids), 4 unreachable (2 ids). Watchdog notes (harness): `t09 dark` and `ho light` hung after their last shot and were killed by the idle watchdog; all frames of those runs were already written.

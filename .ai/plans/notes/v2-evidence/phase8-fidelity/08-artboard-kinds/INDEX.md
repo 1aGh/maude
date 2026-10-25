@@ -209,3 +209,23 @@ Harness `_c7b-harness-g3/` (t08 on top of `_c7-harness-g3/`). Re-shot light + da
 | ak-advanced | the print fold's Look and layout block is in view: Theme · Body layout · Grid tracks (Edit tracks…) · Layout (Convert to absolute…) |
 | ak-mixed-fit | the Print chip is really on (Layers' own chip): the canvas dims, "N other artboards are dimmed. Show all" foot; unnamed Frame / Image rows of the video artboard stay (the fixture's picture is a hash file name; text rows read their words, see 01 cf-duplicate-done) |
 | others | re-shot, unchanged by this round |
+
+## FINAL (D5, e37e7d82a) — p8-d5-g3
+
+Final verification shoot after stage C round 7, on the merged tip (release-built client, Google Chrome channel, Mac mini, light + dark), IMPL side only; spec frames reused unchanged from D4. Harness `_d5-harness-g3/` (`chain.sh 08` = `t08`, the round-7b version: label-chip selection, ak-web-hug pans before the page grows, ak-mixed-fit presses the Layers panel's own chip, ak-advanced scrolls the card and the fold to their ends). Shot at `0ef942d45` (= tip + the D5 harness only). No match judged here.
+
+| artboard id | light | dark |
+|---|---|---|
+| ak-picker, ak-picker-full | re-shot | re-shot |
+| ak-web-hug | re-shot (a section is added to Matchday.tsx so the growth tag shows) | re-shot (same) |
+| ak-social, ak-safe-zones, ak-print-letak, ak-warnings, ak-video | re-shot | re-shot |
+| ak-advanced | re-shot (card + fold scrolled to the end) | re-shot (same) |
+| ak-mixed-fit, ak-mixed-filter, ak-mixed-select | re-shot | re-shot |
+| ak-real-print, ak-real-web | re-shot | re-shot |
+| ak-print-view | re-shot (Menu › View › Advanced, Print guides on) | re-shot (same) |
+| ak-web-widths | re-shot (Other widths › Add a width, Desktop + Mobile) | re-shot (same) |
+| ak-convert, ak-convert-after | re-shot (the convert runs last) | re-shot (same) |
+| ak-real-about | unreachable — a note card on the board, not an app state; spec-only frame stands | unreachable (same) |
+| ak-picker-custom (extra impl frame, no board artboard) | shot into impl only, no spec, no pair | shot into impl only, no pair |
+
+Totals: 36 id×theme re-shot (18 ids), 2 unreachable (1 id). The committed `ak-convert-light-spec-only.jpg` / `ak-convert-after-light-spec-only.jpg` are stale (both ids are pairs since D2).
