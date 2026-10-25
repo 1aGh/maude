@@ -2163,6 +2163,9 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ds-reach-more` | testid | S10.9: "Onboarding and Landing page are in the review too" — the canvases past the frames. | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
 | `ds-reach-capped` | testid | S10.9: "The first 500 places are ringed." — shown only past the ring cap. | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
 | `ds-reach-note` | testid | S10.9: the quiet line under the view ("The review is the same list…"). | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-key` | testid | P8 c7: the token card's key line ("Colour › Accent"). | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-contrast` | testid | P8 c7: the contrast line the inspector said, repeated on the token card ("5.6:1 on white · 4.8:1 on the dark page"). | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-token-role` | testid | P8 c7: the token's role ("Text on surfaces — hints"), on its own row above a contrast warning. | `client/v2/ds/kinds/token.jsx` · `TokenPanel` | test:v2-ds-edges.test | new |
 | `ds-reach-review` | testid | S10.9: the review list that opens once the rings are drawn — the same decision as "Update N canvases". | `client/v2/ds/reach-view.jsx` · `ReachReview` | test:v2-ds-reach-view.test | new |
 | `ds-reach-review-title` | testid | S10.9: "Update canvases with the new Accent?". | `client/v2/ds/reach-view.jsx` · `ReachReview` | test:v2-ds-reach-view.test | new |
 | `ds-reach-head-tick` | testid | S10.9: the checkbox of "Update every canvas". | `client/v2/ds/reach-view.jsx` · `ReachReview` | test:v2-ds-reach-view.test | new |

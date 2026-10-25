@@ -220,6 +220,12 @@ const HALO_CSS = `
 .dc-cv-halo--selected .tick {
   display: none;
 }
+/* P8 C7 (13 · ds-edit-colour): a Design system swatch / master is a thing drawn on the board, not a frame — its
+   ring is the board's own: 2 px, 4 px clear of the swatch. */
+.dc-cv-halo--selected[data-ring] {
+  border-width: 2px;
+  border-radius: 6px;
+}
 .dc-cv-halo--selected .tick-tl { top: -3px; left: -3px; }
 .dc-cv-halo--selected .tick-tr { top: -3px; right: -3px; }
 .dc-cv-halo--selected .tick-bl { bottom: -3px; left: -3px; }
@@ -3959,14 +3965,18 @@ function SelectionHalos() {
         // `left/top` in real-time), so the halo can follow via
         // getBoundingClientRect — no special drag suppression needed.
         const r = (el as HTMLElement).getBoundingClientRect();
+        // a swatch / master of the Design system board rings 4 px clear of itself (see HALO_CSS `[data-ring]`)
+        const gap = el.hasAttribute('data-ds-token') || el.hasAttribute('data-ds-master') ? 4 : 0;
+        if (gap) child.setAttribute('data-ring', 'true');
+        else child.removeAttribute('data-ring');
         if (r.width === 0 && r.height === 0) {
           child.style.display = 'none';
         } else {
           child.style.display = 'block';
-          child.style.left = `${Math.round(r.left)}px`;
-          child.style.top = `${Math.round(r.top)}px`;
-          child.style.width = `${Math.round(r.width)}px`;
-          child.style.height = `${Math.round(r.height)}px`;
+          child.style.left = `${Math.round(r.left) - gap}px`;
+          child.style.top = `${Math.round(r.top) - gap}px`;
+          child.style.width = `${Math.round(r.width) + gap * 2}px`;
+          child.style.height = `${Math.round(r.height) + gap * 2}px`;
         }
       }
       rafRef.current = requestAnimationFrame(tick);

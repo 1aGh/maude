@@ -8,7 +8,7 @@
 //   Dark     ■ Follows Light
 //   [ picker ]  [ oklch(0.50 0.190 255) ]  [ name ]
 //   Dark follows automatically  ◯    on: Dark moves with Light, keeping the pair's relation; off: Dark is yours
-//   ✓ Light 5.6:1 · Dark 4.8:1        contrast, both modes, live while the picker is dragged
+//   ✓ 5.6:1 on white · 4.8:1 on the dark page   contrast, both modes, live while the picker is dragged
 //   Used in 5 canvases · was Azure
 //
 // Nothing here writes a token file and nothing opens a dialog: a finished drag becomes ONE waiting edit
@@ -30,7 +30,7 @@ import { registerBlock } from '../../inspector/blocks.js';
 import { registerKind, singleOf } from '../../inspector/kinds/index.js';
 import { Quiet, Row } from '../../inspector/sections/row.jsx';
 import { ColourPicker } from '../colour-picker.jsx';
-import { contrastLine } from '../contrast.js';
+import { contrastLine, roleWords } from '../contrast.js';
 import { ContrastWarning } from '../contrast-warning.jsx';
 import { EDGE_WORDS, fixOffer } from '../edge-model.js';
 import { fetchTrashQuestion, fixContrastNow, trashTokenNow } from '../edge-write.js';
@@ -174,7 +174,7 @@ export function TokenPanel({
   const valueName = (t) => token.pending?.valueNames?.[t] ?? token.valueNames?.[t] ?? '';
   const was = waiting ? (token.valueNames?.[themes.light] ?? null) : null;
   const used = usedWords(token.used);
-  const line = isColour ? contrastLine(model, css, live ?? {}) : null;
+  const line = isColour ? contrastLine(model, css, live ?? {}, theme) : null;
 
   const drag = (hex) => {
     const next = formatLike(
@@ -224,6 +224,9 @@ export function TokenPanel({
         after: lightV,
         beforeName: was,
         afterName: valueName(themes.light) || null,
+        kind: isColour ? 'Colour' : null,
+        contrast: line?.line ?? null,
+        contrastOk: line?.ok === true,
       },
     });
   // S10.17 — "Move to trash…": ask the server what the canvases would follow, then show the sheet
@@ -233,6 +236,67 @@ export function TokenPanel({
     if (r.ok) setTrashQ(r.question);
     else setNote(r.message);
   };
+
+  const lightRow = (
+    <Row k="Light" name="ds-light">
+      {isColour ? <Chip model={model} theme={themes.light} value={lightV} /> : null}
+      <span className="ds-tk-name" data-testid="ds-token-light">
+        {valueName(themes.light) || (isColour ? token.label : lightV)}
+      </span>
+    </Row>
+  );
+  const darkRow = hasDark ? (
+    <Row k="Dark" name="ds-dark">
+      {isColour ? <Chip model={model} theme={themes.dark} value={darkV} /> : null}
+      <span className="ds-tk-name" data-testid="ds-token-dark">
+        {follows && isColour
+          ? 'Follows Light'
+          : valueName(themes.dark) || (isColour ? token.label : darkV)}
+      </span>
+    </Row>
+  ) : null;
+  const valueBlock = locked ? (
+    <Quiet testid="ds-token-locked-line">{TOKEN_WORDS.locked}</Quiet>
+  ) : isColour ? (
+    <>
+      <ColourPicker
+        value={valueIn(theme)}
+        label={token.label}
+        onChange={drag}
+        onEnd={() => {
+          const p = liveRef.current;
+          if (p) commit(p.edit);
+        }}
+      />
+      {/* the native control stays for the keyboard and a screen reader (an exact colour), out of sight */}
+      <input
+        ref={setColourEl}
+        type="color"
+        className="ds-tk-picker ds-tk-picker--native"
+        data-testid="ds-token-picker"
+        aria-label={`${token.label} — pick an exact colour`}
+        value={swatchHex(valueIn(theme))}
+        onChange={(e) => drag(e.target.value)}
+      />
+    </>
+  ) : (
+    <Row k="Value" name="ds-value">
+      <input
+        type="text"
+        className="ds-tk-text"
+        data-testid="ds-token-value"
+        aria-label={`${token.label} — value`}
+        spellCheck={false}
+        value={shown}
+        onChange={(e) => setTyped(e.target.value)}
+        onBlur={submitText}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') setTyped(null);
+        }}
+      />
+    </Row>
+  );
 
   return (
     <section
@@ -266,64 +330,10 @@ export function TokenPanel({
           />
         </Row>
       ) : null}
-      <Row k="Light" name="ds-light">
-        {isColour ? <Chip model={model} theme={themes.light} value={lightV} /> : null}
-        <span className="ds-tk-name" data-testid="ds-token-light">
-          {valueName(themes.light) || (isColour ? token.label : lightV)}
-        </span>
-      </Row>
-      {hasDark ? (
-        <Row k="Dark" name="ds-dark">
-          {isColour ? <Chip model={model} theme={themes.dark} value={darkV} /> : null}
-          <span className="ds-tk-name" data-testid="ds-token-dark">
-            {follows && isColour
-              ? 'Follows Light'
-              : valueName(themes.dark) || (isColour ? token.label : darkV)}
-          </span>
-        </Row>
-      ) : null}
-      {locked ? (
-        <Quiet testid="ds-token-locked-line">{TOKEN_WORDS.locked}</Quiet>
-      ) : isColour ? (
-        <>
-          <ColourPicker
-            value={valueIn(theme)}
-            label={token.label}
-            onChange={drag}
-            onEnd={() => {
-              const p = liveRef.current;
-              if (p) commit(p.edit);
-            }}
-          />
-          {/* the native control stays for the keyboard and a screen reader (an exact colour), out of sight */}
-          <input
-            ref={setColourEl}
-            type="color"
-            className="ds-tk-picker ds-tk-picker--native"
-            data-testid="ds-token-picker"
-            aria-label={`${token.label} — pick an exact colour`}
-            value={swatchHex(valueIn(theme))}
-            onChange={(e) => drag(e.target.value)}
-          />
-        </>
-      ) : (
-        <Row k="Value" name="ds-value">
-          <input
-            type="text"
-            className="ds-tk-text"
-            data-testid="ds-token-value"
-            aria-label={`${token.label} — value`}
-            spellCheck={false}
-            value={shown}
-            onChange={(e) => setTyped(e.target.value)}
-            onBlur={submitText}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur();
-              if (e.key === 'Escape') setTyped(null);
-            }}
-          />
-        </Row>
-      )}
+      {/* the board draws the row of the mode being edited, the picker under it, then the other mode */}
+      {hasDark && theme === themes.dark ? darkRow : lightRow}
+      {valueBlock}
+      {hasDark && theme === themes.dark ? lightRow : darkRow}
       {hasDark && isColour ? (
         <Row k="Dark follows automatically" name="ds-follows">
           <Toggle
@@ -337,6 +347,13 @@ export function TokenPanel({
         <p className="insp-quiet ds-tk-line" data-testid="ds-token-contrast" data-tone="ok">
           <StIcon name="check" size={12} /> {line.line}
         </p>
+      ) : null}
+      {line && !line.ok && roleWords(css) ? (
+        <Row k="Role" name="ds-role">
+          <span className="ds-tk-role" data-testid="ds-token-role">
+            {roleWords(css)}
+          </span>
+        </Row>
       ) : null}
       {line && !line.ok ? (
         <ContrastWarning

@@ -60,11 +60,25 @@ export function abbreviateCss(css: string, perBlock = PER_BLOCK, maxLines = MAX_
   let kept = 0;
   let skipped = 0;
   let inComment = false;
+  // a long file header (a block comment of more than a few lines at the top level) is one line here: the view is
+  // for the tokens, which is where the board's drawing starts (P8 c7)
+  let head: string[] = [];
+  const flushHead = () => {
+    if (head.length > 3) {
+      const first = head.map((l) => l.replace(/^\s*\/?\*+\/?\s?/, '').trim()).find(Boolean) ?? '';
+      out.push(`/* ${first} … */`);
+    } else out.push(...head);
+    head = [];
+  };
   for (const line of css.replace(/\r\n?/g, '\n').split('\n')) {
     const t = line.trim();
     if (inComment || t.startsWith('/*')) {
       inComment = !(t.includes('*/') && (inComment || t.indexOf('/*') <= t.indexOf('*/')));
-      if (depth === 0) out.push(line);
+      if (depth === 0) {
+        if (inComment || head.length) head.push(line);
+        else out.push(line);
+        if (!inComment && head.length) flushHead();
+      }
       continue;
     }
     const opens = (line.match(/{/g) ?? []).length;

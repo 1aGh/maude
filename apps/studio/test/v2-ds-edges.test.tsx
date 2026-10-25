@@ -361,7 +361,9 @@ describe('canvas 26 — the contrast warning in the token inspector', () => {
     const { host, calls } = await panel();
     const line = q('ds-token-contrast', host);
     expect(line?.getAttribute('data-tone')).toBe('warn');
-    expect(line?.textContent).toMatch(/on Text on accent in Light/);
+    expect(line?.textContent).toMatch(/^\s*\d+(\.\d)?:1 on Text on accent\s*$/);
+    // the role of the token rides on its own row, above the warning (the board's "Role" row)
+    expect(q('ds-token-role', host)?.textContent).toBe('Fill behind accent text');
     expect(q('ds-contrast-fix', host)?.textContent).toBe('Darken to 4.5:1');
     expect(q('ds-contrast-short', host)?.textContent).toContain('Falls short in 3 canvases');
     await click(q('ds-contrast-show', host));

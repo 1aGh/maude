@@ -28965,6 +28965,54 @@
     "v2": "new"
   },
   {
+    "hook": "ds-reach-key",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 c7: the token card's key line (\"Colour › Accent\").",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-contrast",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 c7: the contrast line the inspector said, repeated on the token card (\"5.6:1 on white · 4.8:1 on the dark page\").",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-token-role",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 c7: the token's role (\"Text on surfaces — hints\"), on its own row above a contrast warning.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/kinds/token.jsx",
+      "symbol": "TokenPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "ds-reach-review",
     "kind": "testid",
     "pattern": false,

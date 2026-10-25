@@ -20,6 +20,11 @@
     font-size: var(--type-sm);
     color: var(--fg-1);
   }
+  .ds-tk-role {
+    min-width: 0;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
   .ds-tk-picker {
     flex: none;
     width: 28px;

@@ -175,6 +175,10 @@ function reachSwatch(raw) {
     after: t(raw.after),
     beforeName: t(raw.beforeName),
     afterName: t(raw.afterName),
+    // the key line ("Colour › Accent") and the contrast line the inspector already said (text only)
+    kind: t(raw.kind),
+    contrast: t(raw.contrast),
+    contrastOk: raw.contrastOk === true,
   };
 }
 
@@ -274,7 +278,13 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
         fetchImpl={fetchImpl}
       />
       <DsConvertHost toast={toast} fetchImpl={fetchImpl} />
-      <DsAdvancedHost cfg={cfg} activePath={activePath} toast={toast} fetchImpl={fetchImpl} />
+      <DsAdvancedHost
+        cfg={cfg}
+        activePath={activePath}
+        toast={toast}
+        project={scope}
+        fetchImpl={fetchImpl}
+      />
       {/* S10.18c — a linked team library: its card, "Update from …?", the banner and the 30-min check */}
       <DsLibraryHost
         cfg={cfg}

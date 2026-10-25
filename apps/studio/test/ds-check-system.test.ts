@@ -276,6 +276,28 @@ describe('Advanced — the files view', () => {
     expect(abbreviateCss(':root {\n  --a: 1;\n}\n')).toBe(':root {\n  --a: 1;\n}');
   });
 
+  test('a long file header is one line: the view starts at the tokens (the board draws :root first)', () => {
+    const head = [
+      '/*',
+      ' * maude-v2 — design tokens',
+      ' * Authoritative token file.',
+      ' * More notes.',
+      ' * Even more.',
+      ' */',
+    ].join('\n');
+    const out = abbreviateCss(`${head}\n:root {\n  --a: 1;\n}\n`);
+    expect(out.split('\n')).toEqual([
+      '/* maude-v2 — design tokens … */',
+      ':root {',
+      '  --a: 1;',
+      '}',
+    ]);
+    // a short header stays whole
+    expect(abbreviateCss('/* a */\n:root {\n  --a: 1;\n}\n')).toBe(
+      '/* a */\n:root {\n  --a: 1;\n}'
+    );
+  });
+
   test('a long file stops after the line cap and says how many lines it left', () => {
     const many = Array.from({ length: 80 }, (_, i) => `/* c${i} */`).join('\n');
     const out = abbreviateCss(many, 6, 10);
