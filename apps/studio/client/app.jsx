@@ -93,6 +93,7 @@ import TemplatesPanel from './v2/annotations/templates-panel.jsx';
 import VoteHost from './v2/annotations/vote-bar.jsx';
 import ComponentPicker from './v2/inspector/component-picker.jsx';
 import SizePickerHost from './v2/kinds/SizePickerHost.jsx';
+import { canvasTargetOrigin } from './v2/kinds/kind-dim-relay.js';
 import { getPaletteEnv } from './v2/search/search-env.js';
 import {
   AlignPad,
@@ -2977,7 +2978,10 @@ function ShellTree() {
   useEffect(() => {
     for (const el of iframesRef.current.values()) {
       try {
-        el.contentWindow.postMessage({ dgn: 'view-chrome', zen: panelsUserHidden }, '*');
+        // V2-8.9 defender L2 (C6): the frame's canvas origin, never '*'
+        const origin = canvasTargetOrigin(el);
+        if (origin)
+          el.contentWindow.postMessage({ dgn: 'view-chrome', zen: panelsUserHidden }, origin);
       } catch {}
     }
   }, [panelsUserHidden, iframesRef]);
