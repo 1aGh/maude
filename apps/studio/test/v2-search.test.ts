@@ -184,9 +184,11 @@ describe('the list', () => {
     });
     const res = assemble({ query: 'size', local: LOCAL, remote, canAskAI: true });
     const ids = res.groups.map((g) => g.id);
-    const order = ['canvases', 'artboards', 'actions', 'also', 'tools', 'settings'];
+    // P8 r7 (11 pn-k-close, kg v2-p8-c7-one-canvases-artboards-list): canvases and artboards are ONE group
+    const order = ['canvases', 'actions', 'also', 'tools', 'settings'];
     expect(ids).toEqual(order.filter((g) => ids.includes(g)));
-    expect(ids.slice(0, 2)).toEqual(['canvases', 'artboards']);
+    expect(ids[0]).toBe('canvases');
+    expect(ids).not.toContain('artboards');
   });
 
   test('canvas and artboard hits open by designRoot-relative path; artboards say "artboard in …"', () => {

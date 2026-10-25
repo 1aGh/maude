@@ -178,6 +178,10 @@ export const KEY_CLASS: Readonly<Record<string, KeyRule>> = {
     class: 'home-origin',
     note: 'Home origin (S6): "Shared with you" rows already opened on this Mac; a per-Mac convenience, never a 1.x key.',
   },
+  'maude-exports-hidden': {
+    class: 'v2-new',
+    note: 'v2 (P8 r7, 09 ex-history): export rows the person removed from the list on this Mac; new in v2, nothing to migrate.',
+  },
   'maude-export-video-lane': {
     class: 'v2-new',
     note: 'v2 (S8.5b): Advanced › Where it renders › Video, per Mac; new in v2, nothing to migrate.',
