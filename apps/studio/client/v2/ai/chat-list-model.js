@@ -106,6 +106,19 @@ export function boardsByRel(snapshot) {
 }
 
 /**
+ * P8 c7 (03 `ai-chat-list`) - canvas path -> the key of its cover picture (`/_api/thumb/<key>`), from the canvases
+ * index. A canvas the thumbnail service has not rendered yet has none: its group keeps an empty box.
+ */
+export function coversByRel(snapshot) {
+  const out = new Map();
+  for (const c of Array.isArray(snapshot?.canvases) ? snapshot.canvases : []) {
+    if (c && typeof c.rel === 'string' && typeof c.cover?.key === 'string' && c.cover.key)
+      out.set(c.rel, c.cover.key);
+  }
+  return out;
+}
+
+/**
  * S5.18 G5 — the artboard half of a chat row's second line (03 `ai-chat-list`: "A4 · plakát", "Helma z boku"):
  * the names of the artboards its latest ask named — two, then "+N". Empty when it asked about the whole canvas.
  */
@@ -160,6 +173,7 @@ export function buildChatList({
   expanded = new Set(),
   now = Date.now(),
   boards = new Map(),
+  covers = new Map(),
 } = {}) {
   const known = new Map();
   for (const g of groups)
@@ -190,6 +204,7 @@ export function buildChatList({
     out.push({
       canvas: g.canvas ?? null,
       name: canvasName(g.canvas),
+      cover: covers.get(g.canvas ?? '') ?? null,
       count: chats.length,
       more: chats.length - shown.length,
       rows: shown.map((c) => ({
@@ -216,7 +231,7 @@ export function footLine(n) {
 }
 
 /** The search view: hits grouped by canvas, the title and the snippet carrying their marked words. */
-export function buildSearchList(hits = [], _query = '', now = Date.now()) {
+export function buildSearchList(hits = [], _query = '', now = Date.now(), covers = new Map()) {
   const by = new Map();
   for (const h of hits) {
     const key = h.canvas ?? '';
@@ -234,6 +249,7 @@ export function buildSearchList(hits = [], _query = '', now = Date.now()) {
   const groups = [...by.entries()].map(([canvas, rows]) => ({
     canvas: canvas || null,
     name: canvasName(canvas),
+    cover: covers.get(canvas) ?? null,
     rows,
   }));
   const n = hits.length;
