@@ -27499,21 +27499,6 @@
     "v2": "new"
   },
   {
-    "hook": "stamps-row-done",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "S4.13: Done on the folded Stamps row (closes the gallery).",
-    "producer": {
-      "file": "apps/studio/client/v2/annotations/stamp-row.jsx",
-      "symbol": "StampRow"
-    },
-    "region": "other",
-    "sourceConsumers": [
-      "apps/studio/test/stickers-recent-stamps.test.tsx"
-    ],
-    "v2": "new"
-  },
-  {
     "hook": "vote-sheet",
     "kind": "testid",
     "pattern": false,

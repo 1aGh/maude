@@ -60,6 +60,7 @@ import { isReadOnlyCanvas } from './read-only-mode.ts';
 import { isMarkerTip, lastMarkerTip } from './toolbars/marker-tip.ts';
 import {
   getShellPanelOpen,
+  getStickerSelected,
   isShellPanelOpen,
   subscribeShellPanel,
 } from './toolbars/shell-panels.ts';
@@ -445,6 +446,8 @@ export function ToolPalette() {
   const governed = useGoverned();
   // V2-8.5 c7 - which shell panel (Stickers gallery / Assets) is open: its panel-only slot presses
   const shellPanel = useSyncExternalStore(subscribeShellPanel, getShellPanelOpen, () => null);
+  // 15 an-stk-drop: a dropped sticker stays selected and Stickers (E) stays pressed
+  const stickerSel = useSyncExternalStore(subscribeShellPanel, getStickerSelected, () => false);
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState<Popover>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -655,7 +658,7 @@ export function ToolPalette() {
           aria-label={`${s.label}${keyHint}`}
           title={`${s.label}${keyHint} — ${s.panel === 'components' ? 'place from the design system' : s.panel === 'assets' ? 'the pictures in this project' : 'searchable sticker picker'}`}
           // pressed while the shell's panel for this slot is up (shell-panels dgn); a closed panel carries no attribute
-          aria-pressed={isShellPanelOpen(s.panel, shellPanel) ? true : undefined}
+          aria-pressed={isShellPanelOpen(s.panel, shellPanel, stickerSel) ? true : undefined}
           onClick={(e) => openToolPanel(s.panel ?? 'stickers', e.currentTarget)}
         >
           {Icon ? <Icon /> : null}
@@ -673,7 +676,7 @@ export function ToolPalette() {
     const lit = isTips
       ? (s.tips as readonly ToolId[]).includes(tool as ToolId)
       : // Preview's resting Browse tool lights Hand; while the Stickers gallery is up the board (15 an-stk-gallery) presses E alone
-        (tool === target && !(tool === 'browse' && shellPanel !== null)) ||
+        (tool === target && !(tool === 'browse' && (shellPanel !== null || stickerSel))) ||
         (s.lights ?? []).includes(tool as ToolId);
     const lockable = STICKY_LOCKABLE.has(current);
     const isSticky = lockable && sticky.locked && sticky.tool === current;

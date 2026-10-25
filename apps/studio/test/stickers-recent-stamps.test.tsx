@@ -187,14 +187,28 @@ describe('after one stamp the gallery folds to the Stamps row', () => {
     expect(q(host, 'stamps-row-star')?.dataset.on).toBe('true');
     expect(q(host, 'stamps-row-yes')?.dataset.on).toBeUndefined();
   });
-  test('the chevron opens the whole gallery again; Done closes', async () => {
+  test('the chevron opens the whole gallery again; Esc lets go (the board draws no Done button)', async () => {
     const { host, closed } = await mount({});
     await act(async () => q(host, 'stickers-stamp-yes')?.click());
     await act(async () => q(host, 'stamps-row-more')?.click());
     expect(q(host, 'stickers-search')).not.toBeNull();
     await act(async () => q(host, 'stickers-stamp-heart')?.click());
-    await act(async () => q(host, 'stamps-row-done')?.click());
+    expect(q(host, 'stamps-row-done')).toBeNull();
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
     expect(closed()).toBe(1);
+  });
+  test('15 an-stamps: the row sits over the Stickers slot (the anchor centre), not at the gallery panel left edge', async () => {
+    // the gallery panel is 640 wide, centred on the slot at x = 700: left 380 -> the slot centre is 700
+    const { host } = await mount({
+      anchor: { left: 380, width: 640, bottom: 84, maxHeight: 400, placement: 'above' },
+    });
+    await act(async () => q(host, 'stickers-stamp-yes')?.click());
+    const row = q(host, 'tool-panel-stickers') as HTMLElement;
+    expect(row.getAttribute('style') ?? '').toContain('--sg-slot-x: 700px');
+    expect(row.getAttribute('style') ?? '').toContain('bottom: 84px');
+    expect(row.dataset.anchor).toBe('slot');
   });
   test('with no handler the Stamps row stays inert and the gallery does not fold', async () => {
     const { host } = await mount({ onPickStamp: undefined });

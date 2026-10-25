@@ -117,6 +117,7 @@ import { TIME_PIN_CSS } from './annotations/ui/time-pins.tsx';
 import { VoteDots } from './annotations/ui/vote-dots.tsx';
 import { projectStrokes, type StrokeCache } from './annotations/ui/world.ts';
 import { elementsToStrokes, strokesToElementMap } from './annotations/v1-adapter.ts';
+import { setStickerSelected } from './toolbars/shell-panels.ts';
 /**
  * @file       annotations-layer.tsx — FigJam-style annotation overlay
  * @scope      apps/studio/annotations-layer.tsx
@@ -4889,6 +4890,15 @@ export function AnnotationsLayer() {
       /* detached / cross-origin teardown */
     }
   }, [singleSelectedImageId, strokesById]);
+
+  // 15 an-stk-drop - the dock keeps Stickers (E) pressed while exactly one gallery sticker is selected (the drop
+  // selects what it placed); the palette reads this through toolbars/shell-panels.ts.
+  const oneStickerSelected =
+    selCount === 1 && isGallerySticker(strokesById.get(annotSel?.selectedIds[0] as string));
+  useEffect(() => {
+    setStickerSelected(oneStickerSelected);
+    return () => setStickerSelected(false);
+  }, [oneStickerSelected]);
 
   // Selected stroke halos — bboxes in world coords, vector-effect non-scaling-stroke.
   const selectedStrokes = useMemo(() => {
