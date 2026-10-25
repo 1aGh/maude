@@ -566,12 +566,6 @@
     display: none;
   }
 
-  /* P8 C8 (01 cf-open-big, board ShareCluster zen): the panels are hidden - the cluster steps back to the one button
-     that brings them back. The access word stays too (a viewer's "Can view" is not a status). */
-  .st-share[data-zen="true"] > :not([data-testid="share-cluster-panels"]):not([data-status="access"]) {
-    display: none;
-  }
-
   /* Pinned: the right column leaves room for the cluster above its panel (06 Advanced `ad-dock-r`). */
   .st-body:not(.st-body--float) > .st-dockslot--right {
     padding-top: calc(var(--pill-h, 40px) + var(--space-2, 8px) * 2);
@@ -596,5 +590,12 @@
   .st-share .btn.st-share-btn {
     width: auto;
     min-width: max-content;
+  }
+  /* P8 C9 (01 cf-open-big, board ShareCluster zen): the panels are hidden - the cluster steps back to the one button
+     that brings them back. The access word stays too (a viewer's "Can view" is not a status). This rule lives in
+     @layer components: the Share button is a `.maude .btn` whose display is set in that layer, which outranks any
+     @layer shell rule whatever its specificity (the C8 rule sat in shell and the Share button stayed). */
+  .st-share[data-zen="true"] > :not([data-testid="share-cluster-panels"]):not([data-status="access"]) {
+    display: none;
   }
 }
