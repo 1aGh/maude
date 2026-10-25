@@ -23,7 +23,7 @@ export function trashedWhileOpen(items, rel) {
 }
 
 /** Every open tab whose canvas is in the trash → the panel's ghost rows. `open` = designRoot-relative paths. */
-export function trashGhosts(items, open, onOpen) {
+export function trashGhosts(items, open, onOpen, activeRel = null) {
   const out = [];
   for (const rel of open || []) {
     const item = trashedWhileOpen(items, rel);
@@ -32,6 +32,8 @@ export function trashGhosts(items, open, onOpen) {
       path: rel,
       name: canvasName(rel),
       slot: { sub: { text: 'In the trash · open here', icon: 'trash' }, dim: true },
+      // the tab you are on is the selected row (10 co-trashed draws it so)
+      current: rel === activeRel,
       onOpen: () => onOpen?.(rel),
     });
   }
@@ -49,10 +51,13 @@ export function trashedTitle(item, now = Date.now()) {
 /**
  * Publish the ghost rows for the open tabs (the `trash` source); cleared on unmount. `items` from `useTrash()`.
  */
-export function useTrashGhosts(items, open, onOpen) {
+export function useTrashGhosts(items, open, onOpen, activeRel = null) {
   const key = (open || []).join('\n');
   // biome-ignore lint/correctness/useExhaustiveDependencies: `key` stands for `open`
-  const ghosts = useMemo(() => trashGhosts(items, open, onOpen), [items, key, onOpen]);
+  const ghosts = useMemo(
+    () => trashGhosts(items, open, onOpen, activeRel),
+    [items, key, onOpen, activeRel]
+  );
   useEffect(() => {
     setGhostRows('trash', ghosts);
   }, [ghosts]);
