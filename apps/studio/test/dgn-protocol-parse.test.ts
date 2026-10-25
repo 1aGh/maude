@@ -192,3 +192,19 @@ describe('dgn validators (T2)', () => {
     expect(c2s['comment-submit'].parse({ payload: top })).toBeNull();
   });
 });
+
+describe('view-only-gesture position (round 7, 10 co-ask-edit)', () => {
+  const parse = (DGN_TABLE.c2s as unknown as Record<string, { parse: (v: unknown) => unknown }>)[
+    'view-only-gesture'
+  ]?.parse;
+  test('x / y are whole numbers 0..16384, both optional; text and junk are refused', () => {
+    expect(parse?.({ v: 1 })).toEqual({ v: 1 });
+    expect(parse?.({ v: 1, x: 240, y: 196 })).toEqual({ v: 1, x: 240, y: 196 });
+    expect(parse?.({ v: 1, x: 240.5, y: 1 })).toBeNull();
+    expect(parse?.({ v: 1, x: -1, y: 1 })).toBeNull();
+    expect(parse?.({ v: 1, x: 99999, y: 1 })).toBeNull();
+    expect(parse?.({ v: 1, x: '240', y: 1 })).toBeNull();
+    expect(parse?.({ v: 1, x: 1, y: Number.NaN })).toBeNull();
+    expect(parse?.({ v: 1, x: 1, y: 2, label: '<b>hi</b>' })).toEqual({ v: 1, x: 1, y: 2 });
+  });
+});

@@ -137,3 +137,15 @@ All reachable ids re-shot on the round-7 tip (release-built client, default Chro
 | co-browser-view | plain browser: the "Open in the Mac app" island is drawn |
 | co-comment-print | print guides on; size tag on the HUD tokens |
 | co-trashed | ghost row's "In the trash · open here" read in full |
+
+## Round 7c (p8-c7-ex10c) — after
+
+All of 10 re-shot on the round-7c tip (release-built client, Chromium, light + dark), IMPL side only; spec frames reused. No match judged here. Harness: `_c7c-harness-g4` (`chain10c.sh`, plus `s10v` and `s10k`).
+
+| artboard id | after (round 7c) |
+|---|---|
+| co-ask-edit | the dark tip sits beside the pointer (80 right, 18 down), from the dgn x/y |
+| co-conflict | the card is on the canvas at mid-height, no x (Escape closes), Canvases panel folded as the board has it |
+| co-trashed | the ghost row is two lines (name, "In the trash · open here"), selected; the shell stays in Viewing (open question in `fix-c7-ex10c.md`) |
+| co-comment-video | shot in Edit with the trailer selected: two timed threads are face markers on the timeline strip, header "2 comments on this video" (Preview shows no timeline) |
+| the rest | re-shot, no product change this round |

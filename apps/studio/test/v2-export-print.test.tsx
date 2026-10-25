@@ -88,9 +88,9 @@ describe('the warnings, in words — they inform, never block', () => {
       mm: 2,
       marginMm: 5,
     };
-    expect(elementName(qr)).toBe('The qr code');
+    expect(elementName(qr)).toBe('The QR code');
     expect(safeMarginLine([qr])).toBe(
-      'The qr code is 2 mm from the cut — past the 5 mm safe margin. The trim may clip it.'
+      'The QR code is 2 mm from the cut — past the 5 mm safe margin. The trim may clip it.'
     );
     const text = { ...qr, element: 'x', label: 'Kraví hora' };
     expect(safeMarginLine([text, qr])).toContain('“Kraví hora” is 2 mm from the cut');
@@ -446,9 +446,11 @@ describe('the sheet: a print artboard', () => {
     window.addEventListener('maude:canvas-op', on);
     const sheet = await mountSheet({ printGuidesVisible: true });
     expect(text('[data-testid="export-print-safe-warn"]')).toContain(
-      'The qr code is 2 mm from the cut — past the 5 mm safe margin. The trim may clip it.'
+      'The QR code is 2 mm from the cut — past the 5 mm safe margin. The trim may clip it.'
     );
     expect(all('[data-testid="export-paper-flag"]')).toHaveLength(1);
+    // the ring is tagged with its distance to the cut (09 ex-print-warn)
+    expect(text('[data-testid="export-paper-flag-tag"]')).toBe('2 mm to the cut');
     expect(($('[data-testid="export-submit"]') as HTMLButtonElement).disabled).toBe(false);
     const show = $('[data-testid="export-print-safe-warn"] button') as HTMLElement;
     expect(show.textContent).toBe('Show on canvas');

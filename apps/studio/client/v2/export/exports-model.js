@@ -18,6 +18,10 @@ export const OPEN_FOLDER = 'Open the Downloads folder';
 export const SHOW_IN_FINDER = 'Show in Finder';
 export const DOWNLOAD = 'Download';
 export const EXPORT_AGAIN = 'Export again';
+export const MORE = 'More';
+export const EXPORT_AGAIN_WITH = 'Export again with other settings…';
+export const COPY_FILE_NAMES = 'Copy file names';
+export const REMOVE_FROM_LIST = 'Remove from list';
 export const FOLD_LABEL = 'Fold into the Exports icon';
 
 /** The most rows the panel lists (the server keeps this many, exporters/jobs.ts `HISTORY_DEPTH`). */
@@ -338,4 +342,42 @@ export function toastWords(job, { native = false, folder = null } = {}) {
     text: folder ? `${what} to ${folder}.` : `${what}.`,
     ...door,
   };
+}
+
+/** The file names a finished export wrote: a group job's items' files, else its one file. */
+export function jobFileNames(job) {
+  const out = [];
+  for (const it of Array.isArray(job?.items) ? job.items : [])
+    for (const f of Array.isArray(it?.files) ? it.files : [])
+      if (typeof f === 'string' && f) out.push(f);
+  if (!out.length && typeof job?.filename === 'string' && job.filename) out.push(job.filename);
+  return out;
+}
+
+/**
+ * 09 ex-history — the row's "More" menu. A running or queued export has none. `reveal` is Show in Finder on
+ * the Mac app and Download in a browser, and only when a file is there to show; "with other settings" needs the
+ * spec the job ran (a v1 job kept none); Copy file names needs a name to copy.
+ */
+export function jobMenuItems(job, { native = false } = {}) {
+  if (!job || job.status === 'queued' || job.status === 'running') return [];
+  const hasFile = job.status === 'done' && !job.deliveredInBrowser && !!job.filename;
+  const items = [];
+  if (hasFile)
+    items.push({
+      id: 'reveal',
+      label: native ? SHOW_IN_FINDER : DOWNLOAD,
+      icon: native ? 'folder' : 'download',
+    });
+  items.push({ id: 'again', label: EXPORT_AGAIN, icon: 'sync' });
+  items.push({
+    id: 'again-with',
+    label: EXPORT_AGAIN_WITH,
+    icon: 'export',
+    disabled: !(job.spec && typeof job.spec === 'object' && job.spec.v === 2),
+  });
+  items.push({ id: 'sep', separator: true });
+  if (jobFileNames(job).length) items.push({ id: 'copy-names', label: COPY_FILE_NAMES });
+  items.push({ id: 'remove', label: REMOVE_FROM_LIST });
+  return items;
 }

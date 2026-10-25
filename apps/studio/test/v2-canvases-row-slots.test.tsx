@@ -430,6 +430,7 @@ describe('the Canvases panel reads the slots', () => {
         {
           path: 'ui/Gone.tsx',
           name: 'Gone',
+          current: true,
           slot: { sub: { text: 'In the trash · open here', icon: 'trash' }, dim: true },
           onOpen: () => {
             opened++;
@@ -443,6 +444,12 @@ describe('the Canvases panel reads the slots', () => {
     expect(ghost?.textContent).toContain('Gone');
     expect(ghost?.textContent).toContain('In the trash · open here');
     expect(ghost?.closest('.cv-row')?.classList.contains('is-dim')).toBe(true);
+    // round 7 (10 co-trashed): a two-line row — the name, then the words under it — and it is the OPEN tab's row
+    expect(ghost?.querySelector('.cv-names > .cv-name')?.textContent).toBe('Gone');
+    expect(ghost?.querySelector('.cv-names > .cv-sub--slot')?.textContent).toContain('open here');
+    expect(ghost?.closest('.cv-row')?.classList.contains('is-sel')).toBe(true);
+    expect(ghost?.closest('[role="treeitem"]')?.getAttribute('aria-selected')).toBe('true');
+    expect((ghost?.closest('[role="treeitem"]') as HTMLElement).style.height).toBe('42px');
     expect(q(host, 'canvases-foot')).toBeNull(); // not counted: and no foot at rest to count it in
     await act(async () => {
       ghost?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));

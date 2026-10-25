@@ -175,6 +175,7 @@ function placeGhosts(roots, byPath, ghosts, designRel) {
       name: g.name || stripExt(basename(path)),
       cover: g.cover || null,
       slot: g.slot || null,
+      current: g.current === true,
       onOpen: typeof g.onOpen === 'function' ? g.onOpen : null,
       dir: folder.path,
     });
@@ -494,6 +495,7 @@ export function visibleRows(
           name: n.name,
           cover: n.cover,
           slot: n.slot,
+          current: n.current === true,
           onOpen: n.onOpen,
           dir: n.dir,
           ...place,
@@ -613,12 +615,16 @@ export function layoutRows(rows) {
   return { tops, height: y };
 }
 
+/** Round 7 (10 co-trashed): a ghost row that carries words (the trash line) is two lines, like a file-name row. */
+const twoLineGhost = (row) =>
+  row.type === 'ghost' && !!row.slot?.sub && !row.slot.arriving && !row.slot.notLocal;
+
 export const rowHeight = (row) =>
   row.type === 'empty'
     ? EMPTY_H
     : row.type === 'board'
       ? BOARD_H
-      : row.fileName
+      : row.fileName || twoLineGhost(row)
         ? ROW_H_FILE
         : ROW_H;
 

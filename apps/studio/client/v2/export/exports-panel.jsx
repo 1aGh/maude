@@ -13,11 +13,13 @@ import { StIcon } from '../../shell/icons.jsx';
 import { copy, Empty } from '../empty/index.js';
 import { isNativeApp } from '../../github.js';
 import { openExport } from './use-export-spec.js';
+import { shellToast } from '../../shell/util.js';
 import { JobRow } from './job-row.jsx';
 import { useCoverOf } from '../ds/use-covers.js';
 import {
   FOLD_LABEL,
   jobCanvasRel,
+  jobFileNames,
   OPEN_FOLDER,
   PANEL_FOOT,
   PANEL_TITLE,
@@ -61,6 +63,22 @@ export function ExportsPanel({
     again: center.again,
     retry: center.retry,
     renderHere: center.renderHere,
+    // 09 ex-history — the row menu: the same settings in the sheet, the names on the clipboard, off the list
+    againWith: (job) => {
+      if (!job?.spec) return;
+      center.closePanel();
+      onNewExport?.(job.spec);
+    },
+    copyNames: (job) => {
+      const names = jobFileNames(job);
+      if (!names.length) return;
+      Promise.resolve(globalThis.navigator?.clipboard?.writeText?.(names.join('\n')))
+        .then(() =>
+          shellToast(names.length === 1 ? 'Copied the file name.' : 'Copied the file names.')
+        )
+        .catch(() => {});
+    },
+    remove: (job) => center.removeFromList?.(job),
   };
   return (
     <div

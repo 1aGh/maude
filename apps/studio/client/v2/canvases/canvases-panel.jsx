@@ -901,11 +901,14 @@ function PanelGhostRow({ row, index, style, tabStop }) {
       aria-posinset={row.posinset}
       aria-setsize={row.setsize}
       aria-label={row.name}
+      aria-selected={row.current === true}
       data-index={index}
       tabIndex={tabStop ? 0 : -1}
       style={style}
     >
-      <div className={`cv-row cv-row--canvas cv-row--ghost${slot.dim ? ' is-dim' : ''}`}>
+      <div
+        className={`cv-row cv-row--canvas cv-row--ghost${row.current ? ' is-sel' : ''}${slot.dim ? ' is-dim' : ''}`}
+      >
         <button
           type="button"
           className="cv-main"
@@ -929,10 +932,14 @@ function PanelGhostRow({ row, index, style, tabStop }) {
               />
             ) : null}
           </span>
-          <span className="cv-name">{row.name}</span>
           {slot.sub ? (
-            <SlotSub sub={slot.sub} source="trash" id={`canvas-row-sub-${slug}`} />
-          ) : null}
+            <span className="cv-names">
+              <span className="cv-name">{row.name}</span>
+              <SlotSub sub={slot.sub} source="trash" id={`canvas-row-sub-${slug}`} />
+            </span>
+          ) : (
+            <span className="cv-name">{row.name}</span>
+          )}
           {slot.meta ? (
             <span
               className="cv-meta"

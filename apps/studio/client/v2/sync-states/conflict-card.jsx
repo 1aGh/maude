@@ -112,6 +112,14 @@ export function ConflictCard({
   onClose,
 }) {
   const c = conflicts[0];
+  // the board's card has no ×: Escape puts it away (the "2 versions" mark stays, one click brings it back)
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
   if (!c) return null;
   const card = conflictCard(c, { me });
   const btn = (actionId, label, testid, extra = '', glyph = null) =>
@@ -143,14 +151,6 @@ export function ConflictCard({
         <header className="island sy-card">
           <strong>{card.title}</strong>
           <span>{card.sub}</span>
-          <button
-            type="button"
-            className="icon-btn k-icon-sm sy-close"
-            aria-label="Close"
-            onClick={onClose}
-          >
-            <Glyph name="close" size={14} />
-          </button>
         </header>
         <div className="sy-pair">
           <Version side={card.mine} who="mine" testid="sync-conflict-mine">

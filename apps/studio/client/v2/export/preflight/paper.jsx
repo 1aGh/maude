@@ -89,6 +89,8 @@ export function Paper({
     y: g.trim.y + f.box.y * g.s - 3,
     w: f.box.w * g.s + 6,
     h: f.box.h * g.s + 6,
+    // 09 ex-print-warn: the ring says how far it is from the cut ("2 mm to the cut")
+    tag: `${Math.round(f.mm * 10) / 10} mm to the cut`,
   }));
   return (
     <span
@@ -154,12 +156,20 @@ export function Paper({
           }}
         />
         {rings.map((r) => (
-          <span
-            key={r.key}
-            className="ex-flag"
-            data-testid="export-paper-flag"
-            style={{ left: px(r.x), top: px(r.y), width: px(r.w), height: px(r.h) }}
-          />
+          <span key={r.key}>
+            <span
+              className="ex-flag"
+              data-testid="export-paper-flag"
+              style={{ left: px(r.x), top: px(r.y), width: px(r.w), height: px(r.h) }}
+            />
+            <span
+              className="ex-flag-tag"
+              data-testid="export-paper-flag-tag"
+              style={{ left: px(r.x), top: px(Math.max(0, r.y - 19)) }}
+            >
+              {r.tag}
+            </span>
+          </span>
         ))}
       </span>
     </span>

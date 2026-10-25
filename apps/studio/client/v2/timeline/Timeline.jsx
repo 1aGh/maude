@@ -45,6 +45,7 @@ import { MusicLaneOverlay, musicSelection, useMusicLane } from './lanes/music-la
 import { MusicHint, MusicTool } from './music-hint.jsx';
 import { TGlyph } from './glyphs.jsx';
 import { CaptionLane, CaptionsTool } from './lanes/caption-lane.jsx';
+import { Person } from '../share/person.jsx';
 import { RulerMarks } from './marks.jsx';
 import { PeerHeads } from './peers.jsx';
 import { timelineSelection } from './selection.js';
@@ -242,6 +243,16 @@ export default function TimelinePanel({
   const scopedArtboard = comp?.artboardLabel || comp?.artboardId || null;
   const totalFrames = Math.max(1, total || comp?.durationInFrames || 1);
   const fps = comp?.fps ?? 30;
+  // the threads this video's strip draws: the frame-anchored ones (`timeline`) and the timed pins on THIS video
+  // (`t` seconds + the video's artboard id — comments/where.ts); another video's pins are not ours
+  const stripComments = (comments || []).filter(
+    (c) =>
+      c &&
+      (c.timeline ||
+        (typeof c.t === 'number' &&
+          Number.isFinite(c.t) &&
+          (!comp?.artboardId || c.artboard === comp.artboardId)))
+  );
   const clamped = clamp(Math.round(frame), 0, totalFrames - 1);
   const trackRef = useRef(null);
   const scrollRef = useRef(null);
@@ -1978,6 +1989,15 @@ export default function TimelinePanel({
                 {scopedArtboard ?? 'This video'}
               </span>
             ) : null}
+            {stripComments.length ? (
+              // 10 · co-comment-video — what the markers below add up to
+              <span className="tl-comments-n" data-testid="timeline-comments-count">
+                <TGlyph name="comment" size={12} />
+                {stripComments.length === 1
+                  ? '1 comment on this video'
+                  : `${stripComments.length} comments on this video`}
+              </span>
+            ) : null}
             <AiCutStatus cut={aiCut} />
             {cap.warn ? (
               // C22 — past 3 600 frames the video warns, here as everywhere (the Export sheet, the server). The
@@ -2122,7 +2142,7 @@ export default function TimelinePanel({
       ) : (
         <div className="tl-scroll" ref={setScrollRef}>
           <div
-            className="tl-tracks"
+            className={`tl-tracks${stripComments.length ? ' has-comment-row' : ''}`}
             ref={trackRef}
             data-testid="timeline-track"
             style={{ width: gutter + axisPx }}
@@ -2130,16 +2150,20 @@ export default function TimelinePanel({
             onDragOver={onLaneDragOver('overlay', 'tracks')}
             onDrop={onLaneDrop({ lane: 'overlay' })}
           >
-            {comments.length ? (
+            {stripComments.length ? (
               // Task 23 — 💬 marker strip. Preferred anchor: clipStableId +
               // frameOffset (survives reorder/ripple); a comment whose clip is
               // gone degrades to its absolute frame with a "detached" badge.
               <div className="tl-comments-strip" data-testid="timeline-comments-strip">
-                {comments.map((c) => {
+                {stripComments.map((c) => {
                   const tl = c.timeline || {};
+                  const faced = !c.timeline && typeof c.t === 'number';
                   let frame = null;
                   let detached = false;
-                  if (tl.clipStableId) {
+                  if (faced) {
+                    // 10 · co-comment-video: a pin on the video keeps its second ("at 0:12"), not a clip
+                    frame = Math.round(c.t * fps);
+                  } else if (tl.clipStableId) {
                     const row = sequences.find((r2) => r2.stableId === tl.clipStableId);
                     if (row)
                       frame =
@@ -2156,22 +2180,26 @@ export default function TimelinePanel({
                     <button
                       key={c.id}
                       type="button"
-                      className={`tl-comment-pin${c.status === 'resolved' ? ' is-resolved' : ''}${detached ? ' is-detached' : ''}`}
+                      className={`tl-comment-pin${faced ? ' tl-comment-pin--face' : ''}${c.status === 'resolved' ? ' is-resolved' : ''}${detached ? ' is-detached' : ''}`}
                       data-testid={`timeline-comment-${c.id}`}
                       title={`${c.author || 'comment'}${detached ? ' (detached — clip removed)' : ''}: ${c.text}`}
-                      style={{ left: gutter + x(clamp(frame, 0, totalFrames - 1)) - 8 }}
+                      style={{
+                        left: gutter + x(clamp(frame, 0, totalFrames - 1)) - (faced ? 10 : 8),
+                      }}
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => {
                         e.stopPropagation();
                         onSeek?.(clamp(frame, 0, totalFrames - 1));
-                        setCommentPopover({
-                          id: c.id,
-                          x: e.clientX - 130,
-                          y: Math.max(60, e.clientY - 180),
-                        });
+                        // a video pin's thread is the canvas's own (the pin on the picture): the click only moves the playhead
+                        if (!faced)
+                          setCommentPopover({
+                            id: c.id,
+                            x: e.clientX - 130,
+                            y: Math.max(60, e.clientY - 180),
+                          });
                       }}
                     >
-                      💬
+                      {faced ? <Person name={c.author || ''} size="sm" /> : '💬'}
                     </button>
                   );
                 })}
