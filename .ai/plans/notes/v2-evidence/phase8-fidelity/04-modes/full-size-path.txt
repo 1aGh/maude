@@ -30,3 +30,9 @@ round 7 (p8-c7-modes, feat/maude-v2 297ed9a35 + p8-c7-modes): /Users/iagh/git/pe
 round 7 IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a6255adf6e5f08985/.scr/impl-out/04-modes/
 round 7 harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_c7-modes-harness/ (s04a/s04c/s04d/s04k over the _d3-harness-g2 layers; chain7.sh, pairs04.sh)
 round 7 (g15b): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a50e509d6d9909846/.scr/pairs/04-modes/md-edit-image-{light,dark}.png (md-edit-image only; Image slot pressed beside the Assets panel; harness _c7g15b-harness-g5/s04i.mjs)
+
+final (D5, e37e7d82a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa5f4fe6c7d7fccbe/.scr/pairs/04-modes/
+(one PNG per artboard id and theme: <id>-<dark|light>.png, spec left | impl right, same height, label strip on top)
+final (D5) IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa5f4fe6c7d7fccbe/.scr/d5/04-modes/
+final (D5) SPEC images (reused from stage A): /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa5f4fe6c7d7fccbe/.scr/spec/04/
+final (D5) harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_d5-harness-g2/ (chain.sh 04 on the remote lane, then mkpairs.sh 04-modes)

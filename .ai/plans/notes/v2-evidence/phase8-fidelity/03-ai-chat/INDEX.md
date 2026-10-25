@@ -369,3 +369,42 @@ Re-shot on the p8-c7-ai worktree tip, both themes, committed pairs overwritten (
 | `ai-advanced` | re-shot (round 7b) | re-shot (round 7b) |
 | `ai-adv-edges` | re-shot (round 7b) | re-shot (round 7b) |
 | `ai-history` | re-shot (round 7b) | re-shot (round 7b) |
+
+
+## FINAL (D5, e37e7d82a)
+
+Final verification shoot on the merged tip after stage C round 7 (harness `_d5-harness-g2/`, a flattened copy of the newest per-canvas layers; shot on the Mac mini with Google Chrome, not the Playwright headless shell). Spec side reused (the boards `.design/ui/v2/03|04|06` are unchanged since 2026-10-19). Committed JPEG pairs overwritten (spec left | impl right). The critic judges; this builder does not.
+
+- Impl frames: scenarios s03a s03e s03d s03c s03n s03g s03h s03i s03k (later wins) both themes in one chain on the mini; ai-attach-drop and the extra-impl frames (ai-open-cmdslash, ai-choice-q, ai-not-ready-after) were shot too.
+
+| id | dark | light |
+|---|---|---|
+| `ai-hero` | re-shot | re-shot |
+| `ai-open` | re-shot | re-shot |
+| `ai-suggest` | re-shot | re-shot |
+| `ai-scope` | re-shot | re-shot |
+| `ai-working` | re-shot | re-shot |
+| `ai-done` | re-shot | re-shot |
+| `ai-attach` | re-shot | re-shot |
+| `ai-attach-menu` | re-shot | re-shot |
+| `ai-question` | re-shot | re-shot |
+| `ai-long` | re-shot | re-shot |
+| `ai-long-pinned` | re-shot | re-shot |
+| `ai-two-artboards` | re-shot | re-shot |
+| `ai-same-artboard` | re-shot | re-shot |
+| `ai-copy` | re-shot | re-shot |
+| `ai-queue-rule` | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) |
+| `ai-other-tab` | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) |
+| `ai-tereza` | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) |
+| `ai-chat-list` | re-shot | re-shot |
+| `ai-panel-closed` | re-shot | re-shot |
+| `ai-quit` | re-shot | re-shot |
+| `ai-needs-hidden` | re-shot | re-shot |
+| `ai-needs-tab` | unreachable (Needs a second project tab (desktop shell tabs).) | unreachable (Needs a second project tab (desktop shell tabs).) |
+| `ai-needs-away` | unreachable (The app in the background: an OS notification and Dock badge, native only.) | unreachable (The app in the background: an OS notification and Dock badge, native only.) |
+| `ai-permission` | re-shot | re-shot |
+| `ai-choice-fail` | re-shot | re-shot |
+| `ai-not-ready` | re-shot | re-shot |
+| `ai-advanced` | re-shot | re-shot |
+| `ai-adv-edges` | re-shot | re-shot |
+| `ai-history` | re-shot | re-shot |

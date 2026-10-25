@@ -180,3 +180,38 @@ palette glyphs from round 7a. Harness changes (`_c7o-harness-g2/`):
 - **ad-edge-syntax** runs with the desktop stub ON (`isNativeApp()` gates the "Ask AI to fix it" button; the earlier walk had deleted `__TAURI__` for ad-share), opens the card's Advanced fold and closes the left panel (the board draws the card alone).
 - **ad-history** runs on a throwaway copy that is a real git repo (3 commits, a draft branch, an origin remote), so the fold shows Branch / Drafts / Remote and the git actions; the app's history list itself is 11's (the seg + Now row are 11 · pn-vh), the board's Compare / Restore row under the list is 11's `pn-vh-acts`.
 - ad-diag = Menu › Diagnostics submenu; ad-settings = the Advanced tab; ad-logs with the desktop stub on (from round 7a).
+
+
+## FINAL (D5, e37e7d82a)
+
+Final verification shoot on the merged tip after stage C round 7 (harness `_d5-harness-g2/`, a flattened copy of the newest per-canvas layers; shot on the Mac mini with Google Chrome, not the Playwright headless shell). Spec side reused (the boards `.design/ui/v2/03|04|06` are unchanged since 2026-10-19). Committed JPEG pairs overwritten (spec left | impl right). The critic judges; this builder does not.
+
+- Impl frames: scenarios mk-dsconv (the converted-DS fixture for ad-ds) then s06b s06f s06d s06e s06g s06h s06i (later wins), both themes in one chain on the mini; s06i = ad-history on a throwaway git-backed copy (three commits, a draft branch, a remote); the extra-impl frame ad-left-layers was refreshed too.
+
+| id | dark | light |
+|---|---|---|
+| `ad-map` | unreachable (A reference map of where every old control went; documentation, not an app surface.) | unreachable (A reference map of where every old control went; documentation, not an app surface.) |
+| `ad-why` | unreachable (An explanation board (why there is no switch).) | unreachable (An explanation board (why there is no switch).) |
+| `ad-trace` | unreachable (An explanation board (one thing traced end to end).) | unreachable (An explanation board (one thing traced end to end).) |
+| `ad-inspector` | re-shot | re-shot |
+| `ad-left` | re-shot | re-shot |
+| `ad-ai` | re-shot | re-shot |
+| `ad-share` | re-shot | re-shot |
+| `ad-timeline` | re-shot | re-shot |
+| `ad-export` | re-shot | re-shot |
+| `ad-history` | re-shot | re-shot |
+| `ad-ds` | re-shot | re-shot |
+| `ad-menus` | unreachable (File / View / Help menu-bar menus are the desktop shell menu bar (native menus); not in the browser lane.) | unreachable (File / View / Help menu-bar menus are the desktop shell menu bar (native menus); not in the browser lane.) |
+| `ad-diag` | re-shot | re-shot |
+| `ad-logs` | re-shot | re-shot |
+| `ad-syncd` | re-shot | re-shot |
+| `ad-settings` | re-shot | re-shot |
+| `ad-pinned` | re-shot | re-shot |
+| `ad-search` | re-shot | re-shot |
+| `ad-open-all` | re-shot | re-shot |
+| `ad-code` | re-shot | re-shot |
+| `ad-edge-sync` | unreachable (A sync problem needs a cloud project in trouble (hub).) | unreachable (A sync problem needs a cloud project in trouble (hub).) |
+| `ad-edge-syntax` | re-shot | re-shot |
+| `ad-edge-hub` | unreachable (A self-hosted hub project (hub).) | unreachable (A self-hosted hub project (hub).) |
+| `ad-edge-where` | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) |
+| `ad-edge-remember` | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) |
