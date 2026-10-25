@@ -150,3 +150,15 @@ describe('the Full timeline draws the button', () => {
     expect(q('[data-testid="timeline-track-volume-video"]')).toBeNull();
   });
 });
+
+describe('the gutter names a lane once', () => {
+  test('a clip’s own name never prints in the gutter beside the track chip; only a layer row names itself', async () => {
+    const css = await Bun.file(
+      new URL('../client/v2/timeline/timeline.css', import.meta.url)
+    ).text();
+    const shown = css.match(/[^{}]*\.tl-row-label-text\s*\{[^}]*display:\s*block/g) ?? [];
+    expect(shown.length).toBe(1);
+    expect(shown[0]).toContain('.tl-row--layer .tl-row-label-text');
+    expect(shown[0]).not.toMatch(/\.tl-row \.tl-row-label-text/);
+  });
+});

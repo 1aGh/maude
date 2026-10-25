@@ -520,8 +520,9 @@
   .tl-row-label-text {
     display: none;
   }
-  .tl-panel[data-size="full"] .tl-row--layer .tl-row-label-text,
-  .tl-panel[data-size="full"] .tl-row .tl-row-label-text {
+  /* P8 C8 (07 · ve-trim-split) — only a LAYER row names itself in the gutter. A lane's name is its track chip ("Video"):
+     a clip's own name printed beside it overprinted the chip (the last beat's name over "Video"). */
+  .tl-panel[data-size="full"] .tl-row--layer .tl-row-label-text {
     display: block;
     margin-left: 26px;
     overflow: hidden;
