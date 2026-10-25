@@ -52,14 +52,25 @@ export const PANELS_HINT_ID = 'panels-hidden';
  * fold (Inspect on ⌘-click, Comments) shows by itself (`rightInFold`), without the others.
  *
  * `prev` / `next`: `{ l, r, ai }` = left panel id, right panel id, AI chat open.
+ * `aiInFold` (P8 C8) is the same exception for the AI chat island: opened during the fold it shows alone.
  */
-export function panelOpenDecision({ prev, next, userHidden, folded, rightInFold = false }) {
+export function panelOpenDecision({
+  prev,
+  next,
+  userHidden,
+  folded,
+  rightInFold = false,
+  aiInFold = false,
+}) {
   const opened =
     (!!next.l && next.l !== prev.l) || (!!next.r && next.r !== prev.r) || (!!next.ai && !prev.ai);
-  if (userHidden) return { show: opened, rightInFold: false };
-  if (!folded) return { show: false, rightInFold: false };
-  if (!next.r) return { show: false, rightInFold: false };
-  return { show: false, rightInFold: rightInFold || next.r !== prev.r };
+  if (userHidden) return { show: opened, rightInFold: false, aiInFold: false };
+  if (!folded) return { show: false, rightInFold: false, aiInFold: false };
+  // P8 C8 (04 md-draw): the AI chat opened DURING the fold (its corner icon, ⌘/, a prompt) shows by itself — the
+  // board draws Preview + AI chat with the Canvases panel still folded. One carried in from Edit stays folded.
+  const aiShows = next.ai ? aiInFold || !prev.ai : false;
+  if (!next.r) return { show: false, rightInFold: false, aiInFold: aiShows };
+  return { show: false, rightInFold: rightInFold || next.r !== prev.r, aiInFold: aiShows };
 }
 
 export function createPanelLayout({ persist = () => {}, say = () => {}, unsay = () => {} } = {}) {

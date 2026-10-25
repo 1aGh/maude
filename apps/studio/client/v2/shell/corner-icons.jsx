@@ -63,7 +63,8 @@ function Corner({ at, edge, icon, label, title, working, needs = 0, onClick, tes
  * @param folded Preview's fold alone (not ⌘\): a design only being looked at has no Inspector to come back to
  * @param leftActive / rightActive the panel showing in each slot (null = none)
  * @param leftIds / rightIds the panels assigned to each slot
- * @param assistant null (no AI chat here) or { side, shown, busy }
+ * @param assistant null (no AI chat here) or { side, shown, busy, inFold } — `inFold`: it shows by itself in Preview's fold
+ * @param onShowAi () => void — Preview's fold: let the (already open) AI chat show by itself
  * @param onOpen (id) => void — brings the panel up (the caller also un-hides)
  * @param onShow () => void — un-hide only
  */
@@ -77,6 +78,7 @@ export function CornerIcons({
   assistant,
   onOpen,
   onShow,
+  onShowAi,
 }) {
   const out = [];
   useNeedsYouFeed();
@@ -122,7 +124,7 @@ export function CornerIcons({
         onClick={reveal(rightActive, rightTarget)}
       />
     );
-  if (assistant && (hidden || !assistant.shown))
+  if (assistant && (hidden || !assistant.shown) && !assistant.inFold)
     out.push(
       <Corner
         key="ai"
@@ -139,8 +141,11 @@ export function CornerIcons({
         working={assistant.busy}
         needs={needsYou}
         onClick={() => {
-          if (hidden) onShow();
+          // P8 C8 (04 md-draw): under Preview's fold alone the spark opens the chat by itself — the Canvases
+          // panel stays folded (the shell lets the chat show, panelOpenDecision `aiInFold`).
+          if (hidden && !folded) onShow();
           if (!assistant.shown) onOpen('assistant');
+          else if (folded && !assistant.inFold) onShowAi?.();
         }}
       />
     );

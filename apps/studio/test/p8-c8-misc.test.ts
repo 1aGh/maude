@@ -51,3 +51,44 @@ describe('05 es-home-local — /_home/first-run', () => {
     expect(await get()).toEqual({ seen: true });
   });
 });
+
+// ── 04 md-draw — the AI chat opened in Preview's fold shows alone (Canvases stay folded) ──
+import { panelOpenDecision } from '../client/v2/shell/panel-layout.js';
+
+describe('04 md-draw — panelOpenDecision aiInFold', () => {
+  const none = { l: null, r: null, ai: false };
+  const dec = (a: Parameters<typeof panelOpenDecision>[0]) => panelOpenDecision(a);
+  test('the chat opened DURING the fold shows by itself and does not unfold the rest', () => {
+    const d = dec({ prev: none, next: { ...none, ai: true }, userHidden: false, folded: true });
+    expect(d.aiInFold).toBe(true);
+    expect(d.show).toBe(false);
+  });
+  test('a chat carried in from Edit stays folded; it is kept while open and ends with the fold or the chat', () => {
+    const open = { ...none, ai: true };
+    expect(dec({ prev: open, next: open, userHidden: false, folded: true }).aiInFold).toBe(false);
+    expect(
+      dec({ prev: open, next: open, userHidden: false, folded: true, aiInFold: true }).aiInFold
+    ).toBe(true);
+    expect(
+      dec({ prev: open, next: none, userHidden: false, folded: true, aiInFold: true }).aiInFold
+    ).toBe(false);
+    expect(
+      dec({ prev: open, next: open, userHidden: false, folded: false, aiInFold: true }).aiInFold
+    ).toBe(false);
+    expect(
+      dec({ prev: none, next: open, userHidden: true, folded: false, aiInFold: true }).aiInFold
+    ).toBe(false);
+  });
+});
+
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+describe('04 md-draw — the spark does not unfold both panels', () => {
+  const corner = readFileSync(
+    join(import.meta.dir, '../client/v2/shell/corner-icons.jsx'),
+    'utf8'
+  );
+  test('under Preview fold alone the AI corner icon does not call onShow', () => {
+    expect(corner).toContain('if (hidden && !folded) onShow();');
+  });
+});
