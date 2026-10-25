@@ -4689,6 +4689,20 @@
     "notes": "S8.18: re-emitted by the v2 Import a brand sheet; BrandUploadPanel.jsx is a shim that mounts it."
   },
   {
+    "hook": "brand-up-logo-preview",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import a brand: the chosen logo drawn on the checker tile in the drop well.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-sheet.jsx",
+      "symbol": "BrandSheet"
+    },
+    "region": "onboarding",
+    "consumers": [],
+    "v2": "new",
+    "notes": "P8 C8 (12 ia-brand-steps)."
+  },
+  {
     "hook": "brand-up-palette",
     "kind": "testid",
     "pattern": false,

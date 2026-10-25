@@ -1159,6 +1159,7 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` emits
 | `brand-up-pick-file` | testid | Brand upload: pick a file. | `client/panels/BrandUploadPanel.jsx` · `BrandUploadPanel` | — | stable — re-emit |
 | `brand-up-error` | testid | Brand upload: error line. | `client/panels/BrandUploadPanel.jsx` · `BrandUploadPanel` | — | stable — re-emit |
 | `brand-up-result` | testid | Brand upload: extracted result. | `client/panels/BrandUploadPanel.jsx` · `BrandUploadPanel` | — | stable — re-emit |
+| `brand-up-logo-preview` | testid | Import a brand: the chosen logo on the checker tile. | `client/v2/import/brand-sheet.jsx` · `BrandSheet` | — | new |
 | `brand-up-palette` | testid | Brand upload: extracted palette swatches. | `client/panels/BrandUploadPanel.jsx` · `PaletteSwatches` | — | stable — re-emit |
 | `brand-up-fonts` | testid | Brand upload: extracted fonts. | `client/panels/BrandUploadPanel.jsx` · `FontList` | — | stable — re-emit |
 | `brand-up-copy-command` | testid | Brand upload: copy the follow-up command. | `client/panels/BrandUploadPanel.jsx` · `BrandUploadPanel` | — | stable — re-emit |
