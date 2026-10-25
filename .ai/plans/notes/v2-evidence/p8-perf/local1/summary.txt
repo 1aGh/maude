@@ -1,0 +1,32 @@
+
+## studio lane — Chromium, studio shell, dpr 2, fit-all
+| batch | arm | p50 | p95 | p95 spread | zoom p95 | long frames (range) | jank ≥25 | artboard renders | boards | kept |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| local1 | base | 16.7 | 33.3 | 16.2 | 33.4 | 0 (0) | 10 | 966 | 21 | [object Object],[object Object],[object Object],[object Object],[object Object],[object Object], scale 0.12 |
+| local1 | v2 | 16.7 | 18.4 | 0.3 | 18.5 | 0 (0) | 0 | 1785 | 21 | [object Object],[object Object],[object Object],[object Object],[object Object],[object Object], scale 0.113 |
+
+pooled (1 batch): p95 v2 18.4 vs pre-v2 33.3 + spread 16.2 → PASS; long frames v2 0 vs 0 + range 0 → PASS
+
+## bare lane — Chromium, bare canvas page, fit-all
+| batch | arm | p50 | p95 | p95 spread | zoom p95 | long frames (range) | jank ≥25 | artboard renders | boards | kept |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| local1 | base | 16.7 | 16.8 | 16.6 | 16.8 | 0 (0) | 0 | 1008 | 21 | [object Object],[object Object],[object Object],[object Object],[object Object],[object Object] |
+| local1 | v2 | 16.7 | 16.8 | 0.1 | 16.8 | 0 (0) | 0 | 1869 | 21 | [object Object],[object Object],[object Object],[object Object],[object Object],[object Object] |
+
+pooled (1 batch): p95 v2 16.8 vs pre-v2 16.8 + spread 16.6 → PASS; long frames v2 0 vs 0 + range 0 → PASS
+
+## lod lane — Chromium, studio shell, dpr 2, mixed annotation board (1,500 elements, 64 boards) at a fit-all zoom below 25 %, fit-all
+| batch | arm | p50 | p95 | p95 spread | zoom p95 | long frames (range) | jank ≥25 | artboard renders | boards | kept |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| local1 | base | 17.6 | 66.6 | 0.6 | 67.6 | 30 (5) | 40 | 2944 | 64 | [object Object],[object Object],[object Object],[object Object],[object Object],[object Object], scale 0.12 |
+| local1 | v2 | 33.4 | 67.6 | 16.7 | 83.4 | 31 (6) | 90 | 5440 | 64 | [object Object],[object Object],[object Object],[object Object],[object Object],[object Object], scale 0.113 |
+
+pooled (1 batch): p95 v2 67.6 vs pre-v2 66.6 + spread 0.6 → FAIL; long frames v2 31 vs 30 + range 5 → PASS
+
+## peers lane — v2 studio shell, 12 people (11 simulated at 15 Hz) against none, fit-all
+| batch | peers | p50 | p95 | p95 spread | zoom p95 | long frames (range) | jank ≥25 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| local1 | 0 | 16.7 | 18.4 | 0.3 | 18.5 | 0 (0) | 0 |
+| local1 | 12 | 16.7 | 18.2 | 0.6 | 18.3 | 0 (0) | 0 |
+
+pooled: p95 with people 18.2 vs alone 18.4 + spread 0.3 → PASS; long frames 0 vs 0 + range 0 → PASS

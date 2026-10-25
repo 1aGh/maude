@@ -1,0 +1,105 @@
+{
+  "root": "/private/tmp/p8perf-link/alli",
+  "at": "2026-10-25T22:04:17.831Z",
+  "index": {
+    "canvases": 95,
+    "staticArtboards": 225,
+    "buildMs": {
+      "p50": 126,
+      "p95": 133,
+      "budgetP95": 250
+    },
+    "stampMs": {
+      "p50": 2,
+      "p95": 3,
+      "budget": 10
+    },
+    "homeMerge20Ms": {
+      "p50": 22,
+      "p95": 24,
+      "budget": 150,
+      "note": "20 × (read + stamp) of this snapshot"
+    }
+  },
+  "coversCold": {
+    "totalMs": 205740,
+    "first12Ms": 3497,
+    "budget": {
+      "totalMs": 45000,
+      "first12Ms": 3000
+    },
+    "perCanvasMs": {
+      "p50": 583,
+      "p95": 825
+    },
+    "tally": {
+      "ready": 87,
+      "unavailable:failed": 8
+    },
+    "avgBytes": 20986,
+    "artboardsAfterHarvest": 345
+  },
+  "coversWarm": {
+    "totalMs": 197848,
+    "first12Ms": 2671,
+    "perCanvasMs": {
+      "p50": 485,
+      "p95": 710
+    }
+  },
+  "chromiumLaunchMs": {
+    "cold": 151,
+    "warm": 169,
+    "budgetWarm": 500
+  },
+  "everyArtboard": {
+    "requested": 345,
+    "shots": 317,
+    "missing": 0,
+    "totalMs": 49546,
+    "perShotMs": {
+      "p50": 34,
+      "p95": 84,
+      "budgetP95": 120
+    }
+  },
+  "assetTiles": {
+    "pictures": 194,
+    "failed": [],
+    "ok": 1,
+    "glyph": 189,
+    "totalMs": 772,
+    "perTileMs": {
+      "p50": 2,
+      "p95": 4
+    },
+    "avgBytes": 17016,
+    "budget": {
+      "totalMsFor250": 30000
+    },
+    "contentHashColdMs": 324
+  },
+  "versionPictures": {
+    "canvases": 12,
+    "coldBuild": {
+      "totalMs": 20057,
+      "jobs": 11,
+      "perPictureMs": {
+        "p50": 1092,
+        "p95": 1593
+      }
+    },
+    "warmBuild": {
+      "totalMs": 20071,
+      "jobs": 11,
+      "perPictureMs": {
+        "p50": 754,
+        "p95": 1477
+      }
+    },
+    "budget": {
+      "p50": 300,
+      "p95": 800
+    }
+  }
+}
