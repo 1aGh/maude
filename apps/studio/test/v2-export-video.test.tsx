@@ -250,6 +250,7 @@ interface Call {
 let calls: Call[] = [];
 const realFetch = globalThis.fetch;
 let longVideo = false;
+let cloudAsk = false;
 
 function est(spec: Call['body']): unknown {
   const allow = (spec?.spec?.options?.video as { allowLonger?: boolean } | undefined)?.allowLonger;
@@ -264,6 +265,8 @@ function est(spec: Call['body']): unknown {
     byKind: { video: { artboards: 1, files: 1, format: spec?.spec?.format ?? 'mp4' } },
     skipped: [],
     video: [{ ...ROW, frames, cap, over: frames > cap }],
+    // a Render row only exists when the server says the cloud is an option (the numbers stay the this-Mac answer)
+    ...(cloudAsk ? { render: { cloud: true, suggest: 'cloud', why: '4k' } } : {}),
   };
 }
 
@@ -287,6 +290,7 @@ let root: Root | null = null;
 let host: HTMLElement | null = null;
 beforeEach(() => {
   longVideo = false;
+  cloudAsk = false;
   try {
     localStorage.clear();
   } catch {}
@@ -342,6 +346,18 @@ async function mountSheet() {
 }
 
 describe('the sheet: a video artboard', () => {
+  test("P8 c8 ex-video: the footer says the lane of the PICKED Render card, not the estimate's lane", async () => {
+    cloudAsk = true;
+    await mountSheet();
+    // "Suggest each time" ticks the cloud for 4K; the server's numbers still say this-mac
+    expect($('[data-testid="export-render-cloud"]')?.getAttribute('aria-checked')).toBe('true');
+    expect(text('[data-testid="export-summary"]')).toMatch(/ in the cloud$/);
+    await click('[data-testid="export-render-this-mac"]');
+    expect(text('[data-testid="export-summary"]')).toMatch(/ on this Mac$/);
+    await click('[data-testid="export-render-cloud"]');
+    expect(text('[data-testid="export-summary"]')).toMatch(/ in the cloud$/);
+  });
+
   test('opens on MP4 at 1080p with the picture size, captions Off and the filmstrip', async () => {
     await mountSheet();
     expect($('[data-testid="export-rows"]')?.getAttribute('data-section')).toBe('video');
