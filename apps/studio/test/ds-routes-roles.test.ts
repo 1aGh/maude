@@ -73,6 +73,8 @@ const WRITES: Array<[string, Record<string, unknown>]> = [
   ['/_api/ds/make', { ds: 'forge', action: 'make', label: 'Forge' }],
   // S10.13 — the project's default system (config.json)
   ['/_api/ds/default', { ds: DS }],
+  // P8 round 7 — Rename… (the system's label in config.json)
+  ['/_api/ds/rename', { ds: DS, label: 'Renamed' }],
   // S10.14 — move canvases to another system (Can edit on the whole project)
   ['/_api/ds/switch', { to: DS, all: true }],
   // S10.12 — convert system folders (the dry run is refused too: it lists every system)

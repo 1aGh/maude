@@ -1908,6 +1908,14 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     server: { route: '/_api/ds/default', method: 'POST' },
     agent: cli('maude design ds default <ds>'),
   },
+  // P8 round 7 — "Rename…": the system's label in config.json (ds/rename.ts); canvases pin it by id, so only the label moves
+  'ds.rename': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'version',
+    server: { route: '/_api/ds/rename', method: 'POST' },
+    agent: cli('maude design ds rename <ds> <new name>'),
+  },
   // S10.14 — the switch is one review and one kernel action (ds/switch.ts); the preview is a session-only URL
   // override of the canvas URL's `tokens=` / `components=` (canvas-url.js `dsPreview`), so an agent looks at another
   // system by screenshotting the canvas URL with that system's files.
