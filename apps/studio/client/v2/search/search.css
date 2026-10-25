@@ -221,10 +221,13 @@
   /* Ask AI is always the last row AND always in view: pinned to the foot of a long list (01 cf-search-k) */
   .st-pal-ask {
     position: sticky;
-    bottom: 0;
+    /* the list keeps a --space-1 padding all round and sticky measures inside it: -padding reaches the scrollport
+       edge, else the next group's header scrolls through the 4 px strip under the row (cf-search-k critic bar3) */
+    bottom: calc(var(--space-1) * -1);
     z-index: 1;
     margin-top: var(--space-1);
     padding-top: var(--space-1);
+    padding-bottom: var(--space-1);
     background: var(--bg-2);
     border-top: 1px solid var(--border-subtle);
   }

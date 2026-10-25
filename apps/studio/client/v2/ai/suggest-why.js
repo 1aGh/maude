@@ -67,6 +67,7 @@ const chip = (id, label, prompt, extra = {}) => ({ id, label, prompt: prompt ?? 
  * @param {{ name?: string, at: number } | null} [i.justShared] — a canvas shared by this person
  * @param {{ text: string } | null} [i.lastAsk] — this person's last ask in this chat
  * @param {boolean} [i.lastFailed=false] — S5.19: the last ask FAILED; "Try a variation / Explain what changed" would follow up on nothing
+ * @param {string|null} [i.repair=null] — P8 c8 (01 `cf-render-error`): the canvas cannot draw; the composer text of "Ask AI to fix it" (the card keeps ONE verb, the repair is this chip)
  * @param {boolean} [i.resultShown=false] — P8 c6: the result card under the last reply already carries the follow-up chips (03 `ai-done`)
  * @param {number} [i.now]
  * @returns {{ context: string, icon: string, chips: Array<{id:string,label:string,prompt:string,testid?:string}>, why: string } | null}
@@ -79,8 +80,17 @@ export function deriveSuggestions({
   lastAsk = null,
   lastFailed = false,
   resultShown = false,
+  repair = null,
   now = Date.now(),
 } = {}) {
+  // A broken canvas is not a suggestion the person can switch off: it is the card's other half (01 cf-render-error).
+  if (repair)
+    return {
+      context: 'repair',
+      icon: 'sparkle',
+      chips: [chip('repair', 'Ask AI to fix it', repair, { testid: 'ai-repair-chip' })],
+      why: "Because this canvas can't be drawn right now",
+    };
   if (!enabled) return null;
 
   if (openComments > 0) {

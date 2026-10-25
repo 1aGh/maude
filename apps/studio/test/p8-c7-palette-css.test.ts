@@ -31,7 +31,10 @@ describe('⌘K canvas rows (01 cf-search-k)', () => {
   test('Ask AI is pinned to the foot of the scrolling list, on the palette surface', () => {
     const b = block('.st-pal-ask');
     expect(b).toContain('position: sticky');
-    expect(b).toContain('bottom: 0');
+    // p8-c8: the list's own padding is inside the sticky box — reach past it, or the next group's header
+    // scrolls through the strip under the row (cf-search-k)
+    expect(b).toContain('bottom: calc(var(--space-1) * -1)');
+    expect(b).toContain('padding-bottom: var(--space-1)');
     expect(b).toContain('background: var(--bg-2)');
   });
 });

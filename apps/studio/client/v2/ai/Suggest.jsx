@@ -6,6 +6,8 @@ import { StIcon } from '../../shell/icons.jsx';
 import { lastUserText } from '../../panels/acp-runtime.js';
 import { deriveSuggestions } from './suggest-why.js';
 import { useResultShown } from './result-shown.js';
+import { useSyncExternalStore } from 'react';
+import { repairOfferFor, subscribeRepairOffer } from '../create/repair-offer.js';
 
 // Persistent quick-action verbs (prefill the composer; never fire blind). The
 // one-time `/design:setup-ds` is offered contextually in the empty state, not here.
@@ -72,6 +74,7 @@ export function QuickActions({ openComments = 0 }) {
 
 const STRIP_ICON = {
   comments: 'comment',
+  repair: 'sparkle',
   clips: 'presentation',
   shared: 'share',
   'last-ask': 'reload',
@@ -89,7 +92,14 @@ export function SuggestStrip({
   enabled = true,
   lastFailed = false,
   chatId = null,
+  canvas = null,
 }) {
+  // P8 C8 (01 cf-render-error): the card keeps one verb; "Ask AI to fix it" is this chip while the card shows.
+  const repair = useSyncExternalStore(
+    subscribeRepairOffer,
+    () => repairOfferFor(canvas),
+    () => null
+  );
   const lastAsk = useThread((t) => lastUserText(t.messages) || '');
   const resultShown = useResultShown(chatId);
   const sug = deriveSuggestions({
@@ -100,6 +110,7 @@ export function SuggestStrip({
     lastAsk: lastAsk ? { text: lastAsk } : null,
     lastFailed,
     resultShown,
+    repair,
   });
   if (!sug) return null;
   return (
