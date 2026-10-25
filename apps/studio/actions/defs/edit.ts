@@ -180,7 +180,7 @@ export const EDIT_ACTIONS: ActionDef[] = [
     keys: [kb('⌘C', 'selection', { when: OBJECT_EDIT })],
     search: { hidden: true },
     // kept out of ⌘K (Edit › Copy / Cut are the menu's) but on the "?" sheet: a key a person can press
-    help: { group: 'objects' },
+    help: { group: 'objects', order: 901 },
   },
   {
     id: 'object.cut',
@@ -191,7 +191,7 @@ export const EDIT_ACTIONS: ActionDef[] = [
     keys: [kb('⌘X', 'selection', { when: OBJECT_EDIT })],
     search: { hidden: true },
     // kept out of ⌘K (Edit › Copy / Cut are the menu's) but on the "?" sheet: a key a person can press
-    help: { group: 'objects' },
+    help: { group: 'objects', order: 902 },
   },
   {
     id: 'artboard.copy',
@@ -201,7 +201,7 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: { ...EDITS, selection: ['artboard'] },
     keys: [kb('⌘C', 'selection', { when: { ...OBJ, mode: ['edit'], selection: ['artboard'] } })],
     search: { hidden: true },
-    help: { group: 'objects' },
+    help: { group: 'objects', order: 903 },
   },
   {
     id: 'canvas.paste',
