@@ -205,7 +205,8 @@ describe('the Inspector box', () => {
   async function box(
     items: unknown[],
     src: string,
-    canEdit: boolean
+    canEdit: boolean,
+    onReplace?: (el: unknown) => void
   ): Promise<{ stop: () => void; opened: Array<[string, string]> }> {
     const lane = await seedAnswer(items);
     const { AssetAbsentBox, useRelinkSheet } = await import(
@@ -216,7 +217,7 @@ describe('the Inspector box', () => {
       const r = useRelinkSheet({ canEdit });
       return (
         <div>
-          <AssetAbsentBox el={{ attrs: { src } }} canvas={CANVAS} />
+          <AssetAbsentBox el={{ attrs: { src } }} canvas={CANVAS} onReplace={onReplace} />
           {r.sheet}
         </div>
       );
@@ -249,6 +250,33 @@ describe('the Inspector box', () => {
     h = await box([{ rel: FROM, state: 'missing' }], '/assets/c1658844.png', false);
     expect(q('asset-absent-box')).not.toBeNull();
     expect(q('asset-absent-relink')).toBeNull();
+    h.stop();
+  });
+
+  // 12 · ia-missing-gone: Relink… points at a copy, Replace… beside it picks another picture
+  test('a Missing picture offers Replace… for an editor; Waiting and viewers do not', async () => {
+    const picked: unknown[] = [];
+    let h = await box([{ rel: FROM, state: 'missing' }], '/assets/c1658844.png', true, (e) =>
+      picked.push(e)
+    );
+    expect(q('asset-absent-replace')?.textContent).toBe('Replace…');
+    await act(async () => q('asset-absent-replace')?.click());
+    expect(picked).toHaveLength(1);
+    h.stop();
+    document.body.innerHTML = '';
+    clearAssetAnswers();
+    h = await box(
+      [{ rel: FROM, state: 'waiting', who: JONAS }],
+      '/assets/c1658844.png',
+      true,
+      () => {}
+    );
+    expect(q('asset-absent-replace')).toBeNull();
+    h.stop();
+    document.body.innerHTML = '';
+    clearAssetAnswers();
+    h = await box([{ rel: FROM, state: 'missing' }], '/assets/c1658844.png', false, () => {});
+    expect(q('asset-absent-replace')).toBeNull();
     h.stop();
   });
 });

@@ -19,7 +19,7 @@ import { getPaletteEnv } from '../search/search-env.js';
 import { menuRunner } from '../shell/menu-runner.js';
 import { useModalFocus } from '../shell/modal-focus.js';
 import BrandResult from './brand-result.jsx';
-import { handOff, mergeBrand, siteReason, typedHost } from './brand-model.js';
+import { coloursWords, handOff, mergeBrand, siteReason, typedHost } from './brand-model.js';
 
 async function postJSON(path, body) {
   const res = await fetch(path, {
@@ -287,10 +287,13 @@ export default function BrandSheet({ open, onClose }) {
             {logoFile ? (
               <Row state={logo.state} testid="brand-read-logo">
                 <strong>{logoFile.name}</strong>
-                {logo.state === 'read' ? ` — ${logo.result?.palette?.length ?? 0} colours` : ''}
+                {logo.state === 'read'
+                  ? ` — ${coloursWords(logo.result?.palette?.length ?? 0)}`
+                  : ''}
               </Row>
             ) : null}
-            {wantsSite ? (
+            {/* a failed site is the callout below, said once (ia-brand-steps step 3: the logo row + the callout) */}
+            {wantsSite && !siteFailed ? (
               <Row state={site.state} testid="brand-read-site">
                 <strong>{site.result?.host ?? host}</strong> — fonts and colours
               </Row>

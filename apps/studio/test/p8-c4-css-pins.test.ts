@@ -14,9 +14,11 @@ const rule = (css: string, sel: string): string => {
 };
 
 describe('pure-CSS fixes', () => {
-  test('the Not used foot wraps its button under the numbers instead of running past the panel edge', () => {
-    expect(rule(lp, '.lp-tidy-foot')).toContain('flex-wrap: wrap');
-    expect(rule(lp, '.lp-tidy-foot')).not.toContain('white-space: nowrap');
+  // C7 supersedes C4's wrap: the board's foot is ONE line inside the panel (12 · ia-assets-tidy); the numbers give way
+  test('the Not used foot is one line: the button never wraps, the numbers truncate', () => {
+    expect(rule(lp, '.lp-tidy-foot')).toContain('flex-wrap: nowrap');
+    expect(rule(lp, '.lp-tidy-foot > span')).toContain('text-overflow: ellipsis');
+    expect(rule(lp, '.lp-tidy-foot .btn')).toContain('white-space: nowrap');
   });
 
   test('the list is as tall as its rows, so "+ New canvas" ends it; Trash rides the panel bottom', () => {

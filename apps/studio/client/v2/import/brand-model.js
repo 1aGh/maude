@@ -20,6 +20,12 @@ export const SITE_REASON = Object.freeze({
   redirect: 'It sends you on too many times.',
 });
 
+/** "1 colour" · "4 colours" — a logo can read as one. */
+export function coloursWords(n) {
+  const k = Number(n) || 0;
+  return `${k} ${k === 1 ? 'colour' : 'colours'}`;
+}
+
 export function siteReason(reason) {
   return SITE_REASON[reason] ?? SITE_REASON.unreachable;
 }

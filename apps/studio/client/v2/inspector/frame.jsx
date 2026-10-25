@@ -241,7 +241,7 @@ export function InspectorFrame({
         </div>
       ) : null}
       {/* S8.19c — a picture that is Waiting for someone's Mac or Missing says so, and offers Relink… */}
-      <AssetAbsentBox el={el1} canvas={canvasFile} />
+      <AssetAbsentBox el={el1} canvas={canvasFile} onReplace={onReplaceMedia} />
       <HoldLine line={hold.line} />
       {/* view mode: every value stays readable, no field opens (a disabled fieldset is the one switch) */}
       <fieldset className="ed-insp-fields" disabled={hold.view}>

@@ -313,3 +313,40 @@ describe('wiring', () => {
     ).toBe(false);
   });
 });
+
+// P8 round 7 (12 · ia-photo-inspector): the board's photo inspector draws Placement · Fill · Fit · Crop under the file's name,
+// and Light / Colour as a track with its value as words — no number box beside it.
+describe('the board’s photo inspector', () => {
+  test('Placement is Fill · Fit · Crop, asked as image.crop', async () => {
+    const asks: unknown[] = [];
+    await mount({
+      onRunAction: (m: unknown) => asks.push(m),
+      el: { ...el(), refs: [{ artboard: 'mvp', element: 'photo' }] },
+    });
+    const row = $('photo-placement');
+    expect(row?.textContent).toContain('Placement');
+    const buttons = [...(row?.querySelectorAll('button') ?? [])];
+    expect(buttons.map((b) => b.textContent)).toEqual(['Fill', 'Fit', 'Crop']);
+    await act(async () => {
+      buttons.find((b) => b.textContent === 'Crop')?.click();
+    });
+    expect(asks).toEqual([
+      {
+        dgn: 'run-action',
+        v: 1,
+        id: 'image.crop',
+        params: { targets: [{ artboard: 'mvp', element: 'photo' }], fit: 'crop' },
+      },
+    ]);
+    // the segment shows the ask at once, and Crop says what it does to the photo
+    expect($('photo-crop-line')?.textContent).toBe('The whole photo stays — only the frame moves.');
+  });
+
+  test('Light and Colour have a track and a value, not a number field', async () => {
+    await mount();
+    for (const id of ['photo-light', 'photo-colour']) {
+      expect($(id)?.querySelector('input')).toBeNull();
+      expect($(id)?.querySelector('.ph-sl-v')?.textContent).toMatch(/^[+−-]?\d+$/);
+    }
+  });
+});

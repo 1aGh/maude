@@ -93,7 +93,8 @@ describe('Import a brand sheet', () => {
 
     await until(() => tid('brand-site-failed'));
     expect(tid('brand-sheet')?.dataset.step).toBe('site-failed');
-    expect(tid('brand-read-site')?.textContent).toContain('studio-brno.cz');
+    // said once, by the callout (ia-brand-steps step 3 draws the logo row and the callout, no second amber row)
+    expect(tid('brand-read-site')).toBeNull();
     expect(tid('brand-site-failed')?.textContent).toContain("Couldn't read studio-brno.cz.");
     expect(tid('brand-site-failed')?.textContent).toContain("It didn't answer in 20 s.");
     // no logo was dropped: no "Continue with the logo" — Try again is the one action

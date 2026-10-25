@@ -703,6 +703,7 @@ export function InspectorPanel({
             onRemoveBackground={onPhotoRemoveBackground}
             onReplaceMedia={onReplaceMedia}
             onRecordEdit={onRecordEdit}
+            onRunAction={onRunAction}
           />
         ) : effTab === 'photo' && photoTarget ? (
           <div onKeyDown={onPhotoKnobKeyDown}>
