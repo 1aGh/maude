@@ -232,3 +232,7 @@ Re-shot 60 of 62 pairs; 2 unreachable. Supersedes the per-round "after" sections
 | `an-vote` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `an-vs` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `an-vs` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+## After (round 7, c7-g15) — IMPL re-shot on the p8-c7-g15 tip, both themes
+
+All 62 pairs `<id>-<theme>.jpg` overwritten in place (SPEC unchanged). Harness `_c7g15-harness-g5`: Desktop framed at ~60 %, an-place with the Sticky tool armed, an-sticky zoomed, an-marker with the one-row pill, an-section selected in Preview, an-vote through ⌘K. Done / open per row: `fix-c7-oboard.md`. Full-size pairs: last line of `full-size-path.txt` ("round 7:").
