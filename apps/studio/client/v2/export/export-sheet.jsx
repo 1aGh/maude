@@ -56,7 +56,7 @@ import { ImageSection } from './sections/image.jsx';
 import { PrintSection, printChoices } from './sections/print.jsx';
 import { AiHint, aiOnTarget, HANDOFF_NEEDS_EDIT, VersionRow } from './sections/version.jsx';
 import { videoButtonLabel } from './sections/video-copy.js';
-import { VideoSection } from './sections/video.jsx';
+import { VideoFilm, VideoSection } from './sections/video.jsx';
 import { VISIBLE_HEIGHT, WebCodeLine, WebSection } from './sections/web.jsx';
 import { Select } from './advanced/fields.jsx';
 import { Row } from './parts.jsx';
@@ -614,6 +614,7 @@ export function ExportSheet({
               </div>
             )}
           </div>
+          {section === 'video' ? <VideoFilm video={video} designRel={designRel} /> : null}
           <AdvancedSection
             open={advOpen}
             state={state}

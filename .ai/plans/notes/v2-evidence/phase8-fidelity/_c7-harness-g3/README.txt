@@ -1,2 +1,5 @@
 Round 7 (p8-c7-cf08), G3 (08 only): only t08.mjs changed. Setup = the D4 harness (_d4-harness-g3/) copied to <repo>/.scr/h3, paths repointed to your worktree, node_modules symlinked, spec frames copied from the D4 .scr/spec, release build of the client. Then go.sh t08 <dark|light>; node pairs.mjs (ONLY=… to limit).
 What changed: the artboard is selected by its label chip (pick), ak-web-hug adds a section to Matchday.tsx so the growth tag shows, ak-mixed-fit presses the Print chip in Layers, ak-advanced scrolls the fold to the top.
+
+--- (p8-c7-ex10, 09 lanes) ---
+Round-7 harness (p8-c7-ex10). g3 (this folder) = canvas 09: t09 (all ids) + ho / vid / adv (handoff, video + offline, advanced), driven by chain3.sh. _c7-harness-g4 = canvas 10 (chain2.sh / one.sh). Copy into a worktree .scr, repoint REPO in lib.mjs, symlink node_modules (root + apps/studio), release-build apps/studio first. Fixture: Matchday.tsx (a six-clip Hype cut with titles and a music bed; the canvas gets a design system via fx3.mjs). macOS has no `timeout`.

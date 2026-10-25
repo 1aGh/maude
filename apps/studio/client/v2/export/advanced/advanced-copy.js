@@ -42,6 +42,11 @@ export const FRAME_RATE_MADE = 'As made';
 export const BITRATE = 'Bitrate';
 export const BITRATE_AUTO = 'Automatic';
 export const CODEC = 'Codec';
+export const GIF_COLOURS = 'GIF colours';
+export const LONG_VIDEOS = 'Long videos';
+export const LONG_VIDEOS_WORDS = (cap) => `Up to ${Number(cap).toLocaleString('en-US')} frames`;
+export const PAPER = 'Paper';
+export const PAPER_WORDS = 'Same as artboard';
 export const CODEC_WORDS = { mp4: 'H.264 (MP4)', webm: 'VP9 (WebM)', gif: 'GIF' };
 export const VIDEO_NOTE = 'Size is the sheet’s Quality. WebM uses VP9.';
 

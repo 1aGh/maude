@@ -46,6 +46,8 @@ export interface ExportOptionsV2 {
     captions?: boolean;
     linked?: boolean;
     allowLonger?: boolean;
+    /** P8 c7 (09 ex-advanced) — how many colours a GIF keeps, 2–256 (the engine's `gifColors`) */
+    gifColors?: number;
   };
   audio?: { codec: 'm4a' | 'wav' };
   nameTemplate?: string;
@@ -227,11 +229,17 @@ function options(v: unknown, at: string): ExportOptionsV2 {
   if (v.video !== undefined) {
     const p = v.video;
     if (!isObj(p)) throw new Bad(`${at}.video`, 'video must be an object');
-    keysOnly(p, ['fps', 'quality', 'captions', 'linked', 'allowLonger'], `${at}.video`);
+    keysOnly(
+      p,
+      ['fps', 'quality', 'captions', 'linked', 'allowLonger', 'gifColors'],
+      `${at}.video`
+    );
     out.video = {};
     if (p.fps !== undefined) out.video.fps = num(p.fps, `${at}.video.fps`, 1, 120, true);
     if (p.quality !== undefined)
       out.video.quality = oneOf(p.quality, `${at}.video.quality`, ['draft', 'standard', 'high']);
+    if (p.gifColors !== undefined)
+      out.video.gifColors = num(p.gifColors, `${at}.video.gifColors`, 2, 256, true);
     if (p.captions !== undefined) out.video.captions = bool(p.captions, `${at}.video.captions`);
     if (p.linked !== undefined) out.video.linked = bool(p.linked, `${at}.video.linked`);
     if (p.allowLonger !== undefined)

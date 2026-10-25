@@ -281,6 +281,18 @@ describe('resolveSpecV2 — the §5.2 mapping', () => {
     });
     expect(r.units[0]?.options).toMatchObject({ scaleExact: 0.5, quality: 70 });
   });
+
+  test('P8 c7 ex-advanced: GIF colours is a spec field in 2..256 and reaches the engine as gifColors', () => {
+    const base = { v: 2, scope: 'canvas', format: 'gif' };
+    expect(field({ ...base, options: { video: { gifColors: 1 } } })).toBe(
+      'options.video.gifColors'
+    );
+    expect(field({ ...base, options: { video: { gifColors: 300 } } })).toBe(
+      'options.video.gifColors'
+    );
+    const r = resolve({ ...base, canvas: 'ui/b.tsx', options: { video: { gifColors: 64 } } });
+    expect(r.units[0]?.options).toMatchObject({ gifColors: 64 });
+  });
 });
 
 describe('resolveScope — the engine half', () => {

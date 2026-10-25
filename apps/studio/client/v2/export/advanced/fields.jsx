@@ -5,12 +5,13 @@
 import { useEffect, useId, useState } from 'react';
 
 /** A native select. `options` = [[value, label], …]; the value is compared as text. */
-export function Select({ value, options, onChange, label, testid }) {
+export function Select({ value, options, onChange, label, testid, disabled = false }) {
   return (
     <select
       className="ex-select"
       aria-label={label}
       data-testid={testid}
+      disabled={disabled || undefined}
       value={String(value ?? '')}
       onChange={(e) => onChange(e.target.value)}
     >

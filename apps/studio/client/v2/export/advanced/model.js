@@ -18,6 +18,7 @@ export const DPI_PRESETS = [150, 300, 600];
 export const JPG_RANGE = [1, 100];
 export const JPG_DEFAULT = 85;
 export const FPS_CHOICES = [24, 25, 30, 50, 60];
+export const GIF_COLOURS = [256, 128, 64, 32, 16];
 export const VIDEO_QUALITY = [
   ['draft', 'Draft'],
   ['standard', 'Standard'],
@@ -103,6 +104,7 @@ export function overridesFor(format, adv) {
     const video = {};
     if (adv.fps != null) video.fps = adv.fps;
     if (adv.vquality != null) video.quality = adv.vquality;
+    if (adv.gifColors != null) video.gifColors = adv.gifColors;
     if (Object.keys(video).length) o.video = video;
   }
   return o;

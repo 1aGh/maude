@@ -37,8 +37,8 @@ body[data-maude-inspect="true"] .dc-cv-halo--selected .tick { display: none; }
   padding: 2px 5px;
   border-radius: 2px;
   white-space: nowrap;
-  background: var(--maude-hud-accent, #0d99ff);
-  color: #ffffff;
+  background: var(--maude-hud-accent, oklch(0.530 0.175 238));
+  color: var(--maude-hud-accent-fg, #fff);
   opacity: 0;
   transition: opacity 120ms cubic-bezier(0.4, 0, 0.2, 1);
 }

@@ -14,7 +14,7 @@
 
 import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
-
+import { enumerateClips } from '../canvas-edit.ts';
 import { DEFAULT_MAX_FRAMES, MAX_FRAMES_CEILING, readArtboardVideoMeta } from '../kinds/meta.ts';
 import { compClips } from '../video/derive.ts';
 import { linkedFormats } from '../video/linked-formats.ts';
@@ -30,7 +30,20 @@ export interface StripClip {
   track: string;
   from: number;
   frames: number;
+  /** the clip's own name (its Sequence's `name`, else its file's name) — the filmstrip's label */
+  name?: string;
+  /** the media file (designRoot-relative or as the source says it) — the sheet draws a still from it */
+  src?: string;
+  /** the source second the clip starts playing at (its trim), so the still is the frame the clip shows first */
+  at?: number;
+  /** the title the clip carries, for the filmstrip's title lane */
+  title?: string;
 }
+
+const TITLE_PROP = /\btext\s*=\s*(?:"([^"]{1,60})"|\{\s*"([^"]{1,60})"\s*\})/;
+
+/** `assets/74678a8e.mp4` → `74678a8e`; the name a clip with no Sequence name is shown under. */
+const stemOf = (src: string) => (src.split('/').pop() ?? src).replace(/\.[a-z0-9]{2,4}$/i, '');
 
 /**
  * S7.19 — one format the Export sheet can tick for a video artboard: the artboard itself, the artboards that share
@@ -128,11 +141,34 @@ export function defaultVideoFacts(designRoot: string): VideoFactsReader {
         /* no sidecar, or a malformed one: the artboard never allowed longer */
       }
       const source = readFileSync(abs, 'utf8');
+      // the titles a clip carries: its own text literal, else a `text="…"` prop in its source span
+      const titles = new Map<string, string>();
+      try {
+        for (const c of enumerateClips(abs, source, artboardId).clips) {
+          const t =
+            c.text?.trim() || TITLE_PROP.exec(source.slice(c.start, c.end))?.slice(1).find(Boolean);
+          if (t) titles.set(c.stableId, t.slice(0, 60));
+        }
+      } catch {
+        /* no titles: the lane stays empty */
+      }
       return {
         frames: cc.total > 0 ? cc.total : null,
         fps: cc.fps,
         stored: readArtboardVideoMeta(meta, artboardId).maxFrames ?? null,
-        clips: cc.clips.map((c) => ({ track: c.track, from: c.from, frames: c.durationInFrames })),
+        clips: cc.clips.map((c) => {
+          const named = c.stableId.startsWith('name:') ? c.stableId.slice(5) : null;
+          const title = titles.get(c.stableId);
+          return {
+            track: c.track,
+            from: c.from,
+            frames: c.durationInFrames,
+            name: named || stemOf(c.src),
+            src: c.src,
+            at: Math.round((c.trimBefore / cc.fps) * 100) / 100,
+            ...(title ? { title } : {}),
+          };
+        }),
         speech: hasSpeech(
           root,
           cc.clips.map((c) => c.src)

@@ -9,6 +9,8 @@ import {
   BLEED,
   CROP_MARKS,
   IMAGES_INSIDE,
+  PAPER,
+  PAPER_WORDS,
   PRINT_COLOUR_NOTE,
   PRINT_TITLE,
   REGISTRATION_MARKS,
@@ -74,6 +76,11 @@ export function PrintPart({ spec, setAdv }) {
           checked={print.registration === true}
           onChange={(registration) => setAdv({ registration })}
         />
+      </Row>
+      <Row k={PAPER}>
+        <span className="ex-val" data-testid="export-adv-paper">
+          {PAPER_WORDS}
+        </span>
       </Row>
       <Note>{PRINT_COLOUR_NOTE}</Note>
     </section>
