@@ -323,6 +323,22 @@ export const HOOK_PROOFS = Object.freeze({
     'apps/studio/test/video-play-chrome.test.tsx',
     'the fill follows the frame'
   ),
+  // P8 c10 (15 an-dangling / an-convert): a dangling arrow's ghost box needs a trashed bind target, and the converted
+  // thread's foot + menu need a sticky turned into a comment by a second person - neither is in the probe fixture
+  'annot-dangling-ghost': proof(
+    'apps/studio/test/p8-c10-ann-dangling.test.tsx',
+    'HostMarks outlines that place, once per lost end, from the world box'
+  ),
+  'comment-foot-<id>': proof(
+    'apps/studio/test/p8-c10-ann-convert-thread.test.tsx',
+    'no Edit, no Delete comment, no ✕ header, no Reply field; Resolve and ⋯ remain',
+    ['comment-foot-']
+  ),
+  'comment-menu-reply-<id>': proof(
+    'apps/studio/test/p8-c10-ann-convert-thread.test.tsx',
+    'the ⋯ keeps every dropped function: Reply…, Edit, Turn back into a sticky, Delete comment',
+    ['comment-menu-reply-']
+  ),
   // the local harness canvas `maude design photo-bg-remove` drives; nobody opens it
   '[data-photo-bgremove-status]': {
     container: 'canvas-frame',

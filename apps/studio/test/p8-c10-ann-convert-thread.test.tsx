@@ -82,6 +82,8 @@ describe('15 an-convert: the converted card carries only the board controls at r
     expect(t.host.querySelector('[aria-label="Reply"]')).toBeNull();
     expect(t.q('comment-resolve-c_1')).not.toBeNull();
     expect(t.q('comment-menu-c_1')).not.toBeNull();
+    // both sit in the card's one foot
+    expect(t.q('comment-foot-c_1')?.contains(t.q('comment-menu-c_1'))).toBe(true);
     // the caption line is first, the words follow
     const root = t.host.querySelector('.cm-thread') as HTMLElement;
     expect(
