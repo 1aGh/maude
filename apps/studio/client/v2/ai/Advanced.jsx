@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { flattenSelectOptions } from '../../panels/acp-capabilities.js';
 import { TRANSCRIPT_VIEWS } from '../../panels/transcript-view.js';
+import { StIcon } from '../../shell/icons.jsx';
 import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import { useFold } from '../fold/use-fold.js';
 import { ADVANCED_ROW_EVENT, takeParkedRow } from './advanced-handlers.js';
@@ -593,6 +594,7 @@ export function ChatAdvanced({
               aria-expanded={rawOpen}
               onClick={() => setRawOpen((v) => !v)}
             >
+              <StIcon name="file" size={12} />
               Raw log
             </button>
             <button
@@ -601,6 +603,7 @@ export function ChatAdvanced({
               data-testid="ai-adv-copy-transcript"
               onClick={copy}
             >
+              <StIcon name="duplicate" size={12} />
               {copied ? 'Copied' : 'Copy transcript'}
             </button>
             {terminalHere ? (
@@ -612,6 +615,7 @@ export function ChatAdvanced({
                 data-testid="ai-adv-open-terminal"
                 onClick={doTerminal}
               >
+                <StIcon name="tab" size={12} />
                 Open in terminal
               </button>
             ) : null}

@@ -2721,7 +2721,10 @@ export function DCArtboard({
   // keeps existing unmigrated video canvases badged identically without
   // requiring a JSX edit (Design Decision 1).
   const hasVideoContent = useMemo(() => subtreeHasVideoComp(children), [children]);
-  const resolvedKind: ArtboardKind = kind ?? (hasVideoContent ? 'video' : 'digital');
+  // a kind the four do not know (an old `kind="social"`) resolves like no kind: the inspector's rows, the Layers
+  // filter and the label all match on digital · web · print · video
+  const resolvedKind: ArtboardKind =
+    kind && ARTBOARD_KINDS.has(kind) ? kind : hasVideoContent ? 'video' : 'digital';
   // DDR-148 — badge video artboards in the header; clicking the badge opens
   // the timeline panel via the same postMessage the context-menu "Open
   // Timeline" entry already sends (canvas-shell.tsx artboardHasVideo/handler).

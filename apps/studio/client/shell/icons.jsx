@@ -53,6 +53,8 @@ export const STICONS = {
   redo: <path d="M10 3.5l3 3-3 3M13 6.5H6.75a3.75 3.75 0 0 0 0 7.5H8.5" />,
   history: <path d="M2.75 8A5.25 5.25 0 1 0 4.3 4.3M4.3 1.8v2.5h2.5M8 5.25V8l2 1.5" />,
   pin: <path d="M6 2.5h4l-.5 4 2.5 2.5H4l2.5-2.5zM8 9v4.5" />,
+  // the kit's `tab` (06 ad-ai: Open in terminal)
+  tab: <path d="M1.5 13.5h2v-7A2.5 2.5 0 0 1 6 4h4a2.5 2.5 0 0 1 2.5 2.5v7h2" />,
   duplicate: (
     <>
       <rect x="5.5" y="5.5" width="8" height="8" rx="1.75" />

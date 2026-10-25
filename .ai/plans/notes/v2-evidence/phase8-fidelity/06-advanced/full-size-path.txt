@@ -16,3 +16,5 @@ final (D2, d3881fe41): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a9
 final (D2) IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a948527cf7721a4d9/.scr/impl-out/06-advanced/
 final (D2) SPEC images (reused from stage A): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a948527cf7721a4d9/.scr/spec/06/
 final (D2) harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_d-harness-g2/ (D2 changes under _d2-harness-g2/)
+round 7: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a1af84c21309d604f/.scr/pairs/06-advanced/ (spec | impl, one PNG per id and theme); IMPL frames alone: .../.scr/impl-out/06-advanced/; SPEC images: .../.scr/spec/06/
+round 7 harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_c7o-harness-g2/ (s06f, s06g ad-pinned, s06h ad-edge-syntax, s06i ad-history on a git-backed copy, chain6.sh; run over the layered g2 harness)
