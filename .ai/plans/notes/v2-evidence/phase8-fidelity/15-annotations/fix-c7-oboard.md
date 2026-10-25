@@ -67,3 +67,13 @@ an-section (lilac section, framed whole) · an-today (the whole catalogue seeded
 - `decision:maude/v2-p8-c8-ann-toolbar-more-menu`: one `ToolbarMore` "…" word menu ends every selection toolbar; an arrow's widths / Two-way / Dashed live in it (the board draws none of them on the bar) while shapes keep Dashed and widths — rejected: dropping them (nothing-deleted), a separate arrow-options popover.
 - `decision:maude/v2-p8-c8-ann-hidden-toast-follows-layer`: the shell dismisses the toast whenever the layer is visible again — rejected: a harness-only fix (a real person sees the stale sentence for 10 s).
 - `decision:maude/v2-p8-c8-ann-lod-section-tone`: the crowd's section block and count chip use the section's own colour — rejected: neutral rgba blocks (invisible on dark).
+
+## Round 10 (p8-c10-print) — done / open
+
+Done (fail-first tests `p8-c10-print-outside.test.tsx`, `v2-inspector-print.test.tsx`, `edit-layout-client.test.tsx`):
+- One un-clipped print layer: `registerKindOutsideOverlay` in `artboard-guides-overlay.tsx` mounts a second `.dc-artboard-guides.dc-artboard-guides--outside` layer (same rect, no clip, hidden by every exporter through the shared class); `print-overlay-content.tsx` registers the dashed print-area outline, four crop marks and the legend "Bleed N mm · trim · safe margin M mm" (the artboard's own numbers) — shown with the print guides, screen-sized at any zoom.
+- 08 ak-advanced: Layout · Convert to absolute… is enabled whenever the sheet is editable and an artboard selection converts the artboard body (`layout-actions.ts` -> `__maudeConvertArtboard`).
+Re-shot: an-print (light + dark).
+
+Open:
+- The print-area outline and crop marks only show while View > Print guides is on (the harness switches it on); the note ghost (.88) was already in the product (`time-pins.tsx` `data-unprinted`), the shot shows it subtly.

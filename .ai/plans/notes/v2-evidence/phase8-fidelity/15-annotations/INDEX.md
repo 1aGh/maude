@@ -403,3 +403,9 @@ Shot on the Mac mini (`scripts/remote-lane.sh`) with its installed Google Chrome
 | `an-vote` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `an-vs` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `an-vs` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+## Round 10 (p8-c10-print) — after
+
+| artboard id | after (round 10) |
+|---|---|
+| an-print | re-shot with View > Print guides on: the dashed print-area outline, the four crop marks and the bleed/trim/margin guides draw round each print sheet (un-clipped print layer); the note over the sheet keeps its .88 ghosting and the "Not printed" pill |

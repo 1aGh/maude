@@ -206,3 +206,9 @@ Every reachable id re-shot, light + dark, IMPL side only, on the merged tip `fea
 | co-share-advanced | re-shot | re-shot | pair uses the tall 1040 px frame (`co-share-advanced-tall`, `s10e`) |
 | co-follow, co-bring, co-spotlight, co-twelve | unreachable | unreachable | need N live Yjs awareness peers (unchanged) |
 | co-mention-notify | unreachable | unreachable | OS banner + hub mention e-mail template are not in the lane (unchanged) |
+
+## Round 10 (p8-c10-print) — after
+
+| artboard id | after (round 10) |
+|---|---|
+| co-comment-print | re-shot (View > Print guides on): the legend "Bleed 3 mm · trim · safe margin 5 mm" under each print sheet, the dashed print-area outline and the crop marks now draw on the un-clipped print layer |
