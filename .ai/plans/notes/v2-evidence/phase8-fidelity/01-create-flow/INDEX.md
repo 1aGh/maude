@@ -191,3 +191,18 @@ Final re-shoot D4 of the IMPL side on the merged `feat/maude-v2` tip 21c9714cf (
 
 Harness `_c7-harness-g1/` (s01b / s01c / s01d on top of `_d-harness-g1-d4/`). Re-shot light + dark: cf-select-tweak (the Desktop ARTBOARD selected, AI panel open), cf-frames-text (Layers open), cf-sticky-comment (the Sticky tool armed: colour row), cf-duplicate-width / cf-duplicate-done (the menu's copy lands under the source), cf-add-artboard, cf-big-tree, cf-panel-search (flat list, one line per canvas), cf-search-k (picture tiles, Ask AI pinned), cf-open-big (⌘0 then ⌘\: panels hidden + the toast), cf-render-error (the throwing-component variant: Go back to <time>, the dimmed last good version, details folded; the cold Broken.tsx frame is not part of the pair this round), cf-status-words, cf-offline-create, cf-blank. NOT re-shot (unchanged by this round): cf-home-prompt, cf-ai-drafting, cf-ai-done, cf-undo-before, cf-undo-ai.
 Open: cf-big-tree (opens its last canvas + Recent block), the "Zoom to fit · N %" read-out, the add-artboard picker placement, the duplicate gap pill — see `fix-c7-cf08.md`.
+
+## Round 7b (p8-c7-cf08b) — after
+
+Harness `_c7b-harness-g1/` (s01b / s01c on top of `_c7-harness-g1/`). Re-shot light + dark: **every 01 id with a frame** (cf-home-prompt, cf-ai-drafting, cf-ai-done, cf-undo-*, cf-big-tree, cf-open-big, cf-add-artboard, cf-duplicate-*, plus the rest of the chain); cf-busy stays unreachable (presence + a second person).
+
+| id | after (round 7b) |
+|---|---|
+| `cf-big-tree` | the project OPENS its last canvas (Combine campaign) — a Recent block (the last three opened here: Campaign01 · 1 h ago, Brand03 · 2 h ago, …) sits above the project head; the stray What's-new toast is closed |
+| `cf-open-big` | ⌘0 on the canvas: the readout says "Zoom to fit · 44%" (the shell is told the camera sits on the last fit); panels folded with the "Panels hidden" toast |
+| `cf-add-artboard` | shot after the pick: the new artboard is drawn and selected with its size tag; the picker is not over it; no leftover toast |
+| `cf-duplicate-done` | the copy lands under the source with the dashed shared left edge and the measured gap pill ("80"); the toast wears the copy glyph, no success tick; Layers rows read their words ("Calm software, ma…", "Book a call") |
+| `cf-ai-drafting` | an artboard prints ONE AI tag (the held objects keep their dashed outlines); Tablet wears "AI is drawing Tablet"; the readout says "Zoom to fit · 39%" (the camera fitted when Tablet landed). Not drawn: the faint Mobile ghost (the canvas cannot know what the AI draws next) |
+| `cf-ai-done`, `cf-undo-before`, `cf-undo-ai`, `cf-home-prompt` | re-shot on the merged tip, unchanged by this round |
+
+Fix list: `fix-c7-cf08b.md`.

@@ -198,3 +198,14 @@ Re-shot light + dark with the round-7 harness (`_c7-harness-g3/t08.mjs`: the art
 | ak-mixed-select | one flat card: Kinds · Fill (swatches + Mixed) · Horizontal · Vertical (Top pressed) · note · Export; no floating align bar |
 | ak-convert-after | the canvas draws "✓ Unchanged" under the post and "+ N % height · Ink fill" on the copy (convert-marks) |
 | others | re-shot, unchanged by this round |
+
+## Round 7b (p8-c7-cf08b) — after
+
+Harness `_c7b-harness-g3/` (t08 on top of `_c7-harness-g3/`). Re-shot light + dark. Fix list: `01-create-flow/fix-c7-cf08b.md`.
+
+| id | after (round 7b) |
+|---|---|
+| ak-web-hug | the board is panned left first; "Rozpis zápasů · new section" frames the section that arrived and "+ 156 px" sits right of the page (both screen-sized at any zoom, not under the inspector) |
+| ak-advanced | the print fold's Look and layout block is in view: Theme · Body layout · Grid tracks (Edit tracks…) · Layout (Convert to absolute…) |
+| ak-mixed-fit | the Print chip is really on (Layers' own chip): the canvas dims, "N other artboards are dimmed. Show all" foot; unnamed Frame / Image rows of the video artboard stay (the fixture's picture is a hash file name; text rows read their words, see 01 cf-duplicate-done) |
+| others | re-shot, unchanged by this round |

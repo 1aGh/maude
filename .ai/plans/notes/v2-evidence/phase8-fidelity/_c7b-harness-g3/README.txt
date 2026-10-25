@@ -1,0 +1,2 @@
+Round 7b (p8-c7-cf08b), G3 (08 only): t08.mjs on top of _c7-harness-g3/. Setup = _c7-harness-g3/README.txt.
+ak-web-hug pans the board left before the page grows (the "+ N px" tag and the new-section frame are not under the inspector); ak-mixed-fit presses the Layers panel's own chip (layers-kind-chip-print); ak-advanced waits 2 s and scrolls both the card and the fold body (max-height 40vh, its own scroll) to their ends, so Look and layout (Theme · Body layout · Grid tracks · Convert to absolute) shows.

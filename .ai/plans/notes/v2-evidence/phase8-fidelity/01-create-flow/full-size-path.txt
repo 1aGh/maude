@@ -17,3 +17,4 @@ round 6 IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agen
 round 6 harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_c6-harness-g2/ (on top of _d3-harness-g2/ and _d2-harness-g2/)
 final (D4, 21c9714cf): /Users/iagh/git/personal/maude/.claude/worktrees/wf_74ac1088-f6f-9/.scr/pairs/01
 round 7 (p8-c7-cf08): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a83dd4e69dad79c1e/.scr/pairs/01 (raw impl frames: .../agent-a83dd4e69dad79c1e/.scr/impl-raw/01/; harness _c7-harness-g1/ on top of _d-harness-g1-d4/; cf-ai-*, cf-undo-*, cf-home-prompt, cf-busy NOT re-shot this round)
+round 7b (p8-c7-cf08b): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae7f6a5e804968df1/.scr/pairs/01 (raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae7f6a5e804968df1/.scr/impl-raw/01/; harness _c7b-harness-g1/ on top of _c7-harness-g1/)
