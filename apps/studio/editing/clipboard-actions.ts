@@ -33,9 +33,16 @@ export function pasteSpot(
   gap = 80
 ): { x: number; y: number } | undefined {
   if (boards.length === 0) return undefined;
+  const picked = boards.find((b) => b.id === anchor);
+  if (!picked) {
+    // nothing selected: beside the LAST artboard — on its row, right of the row's last board (P8 C7, 14 ed-ab-menu)
+    const last = boards[boards.length - 1] as { y: number };
+    const row = boards.filter((b) => Math.abs(b.y - last.y) < 40);
+    const edge = Math.max(...row.map((b) => b.x + b.w));
+    return { x: Math.round(edge + gap), y: Math.round(last.y) };
+  }
   const right = Math.max(...boards.map((b) => b.x + b.w));
-  const line = boards.find((b) => b.id === anchor) ?? boards[0];
-  return { x: Math.round(right + gap), y: Math.round(line?.y ?? 0) };
+  return { x: Math.round(right + gap), y: Math.round(picked.y) };
 }
 
 export interface Clipboard {
