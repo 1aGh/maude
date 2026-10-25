@@ -66,7 +66,11 @@ export async function run(h) {
     const pct = Number.parseInt(t.replace(/[^0-9]/g, ''), 10);
     console.log('zoom readout', JSON.stringify(t), pct);
     if (Number.isFinite(pct) && pct <= 69) break;
-    await page.keyboard.press('Meta+Minus');
+    // ⌘− did not move the Preview camera on the mini: the trackpad pinch (ctrl + wheel) does, zooming about the pointer
+    await page.mouse.move(520, 520);
+    await page.keyboard.down('Control');
+    await page.mouse.wheel(0, 160);
+    await page.keyboard.up('Control');
     await sleep(900);
   }
   await h.step(`${D}/md-inspect`, 'Inspect "Book a call"', '⌘-click in Preview, Advanced open', async () => {
