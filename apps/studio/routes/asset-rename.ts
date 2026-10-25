@@ -2,7 +2,7 @@
 //
 //   body  { asset: 'assets/<name>.<ext>', name: string }   `name` is the new base name; the extension is kept
 //   200   { ok: true, rel, to, moved: [[from, to], …] }
-//   409   { ok: false, reason }   invalid | bad-name | missing | same | exists | used | kept-by-versions | checking
+//   409   { ok: false, reason }   invalid | bad-name | missing | same | exists | used | kept-by-versions | checking | shares-stem
 //   403   { ok: false, reason: 'forbidden' }      a canvas-only session, or a role below Can edit
 //   400 / 413                                      a body that is not that
 //

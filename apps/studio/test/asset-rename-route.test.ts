@@ -107,6 +107,22 @@ describe('POST /_api/assets/rename', () => {
     expect(has(designRoot, 'assets/IMG_2231.jpg')).toBe(true);
   });
 
+  // V2-8.9 attacker L4: a per-use edit (`<stem>.<edit8>.photo.json`) names its picture by stem only, so
+  // renaming logo.png would carry logo.jpg's per-use edits away and break every use of logo.jpg
+  test('a picture that shares its stem with another picture is refused; nothing moves', async () => {
+    const { post, designRoot } = setup(role('owner'), [{ rel: 'assets/logo.png', ...free }]);
+    writeFileSync(path.join(designRoot, 'assets/logo.png'), 'x');
+    writeFileSync(path.join(designRoot, 'assets/logo.jpg'), 'x');
+    writeFileSync(path.join(designRoot, 'assets/logo.89abcdef.photo.json'), '{}');
+    const res = await post({ asset: 'assets/logo.png', name: 'Mark' });
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as { reason: string }).reason).toBe('shares-stem');
+    expect(has(designRoot, 'assets/logo.png')).toBe(true);
+    expect(has(designRoot, 'assets/logo.89abcdef.photo.json')).toBe(true);
+    expect(has(designRoot, 'assets/Mark.png')).toBe(false);
+    expect(has(designRoot, 'assets/Mark.89abcdef.photo.json')).toBe(false);
+  });
+
   test('a path outside assets/, into runtime state or up the tree is refused before any file is touched', async () => {
     const { post, designRoot } = setup(role('owner'));
     mkdirSync(path.join(designRoot, '_state'), { recursive: true });

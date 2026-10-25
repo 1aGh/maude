@@ -51,6 +51,13 @@ describe('the writer', () => {
     });
     expect(used.ok).toBe(false);
     expect(used.message).toContain('is on a canvas, so its name stays');
+    // V2-8.9 attacker L4: another picture with the same stem
+    const twin = await renameAssetRequest('assets/logo.png', 'Mark', {
+      fetchImpl: answer(409, { ok: false, reason: 'shares-stem' }),
+    });
+    expect(twin.message).toBe(
+      'Another picture is also called “logo”, so this one keeps its name. Rename the other one first.'
+    );
     const same = await renameAssetRequest('assets/p1.jpg', ' p1 ', { fetchImpl: answer(500, {}) });
     expect(same).toMatchObject({ ok: false, keep: true });
     expect(
