@@ -472,7 +472,7 @@ const offTextSlots = [
   registerSlot('type', {
     id: 'type.style',
     order: 5,
-    kinds: ['text', 'frame'],
+    kinds: ['text', 'frame', 'button'],
     aside: '',
     // 14 ed-inspector: a button or frame that holds text of its own wears a style too ("Aa Link")
     when: ({ selection, kind }) =>

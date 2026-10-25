@@ -19,6 +19,10 @@ describe('14 ed-inspector: the Style row of a frame that holds text', () => {
     expect(ids('frame', { tag: 'div' })).not.toContain('type.style');
     expect(ids('frame', [{ textInfo: {} }, { textInfo: {} }])).not.toContain('type.style');
   });
+  test('a button that holds text gets it too', () => {
+    expect(ids('button', { textInfo: { role: null, differs: [] } })).toContain('type.style');
+    expect(ids('button', { tag: 'button' })).not.toContain('type.style');
+  });
   test('a text object keeps it', () => {
     expect(ids('text', { tag: 'p' })).toContain('type.style');
   });
