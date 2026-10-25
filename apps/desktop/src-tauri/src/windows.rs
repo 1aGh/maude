@@ -128,6 +128,12 @@ pub struct WindowEntry {
     /// The strip's AI dot (V2-3.7 §6): set on a background tab, cleared when
     /// it becomes the active tab. Live only.
     pub dot: Option<crate::tabs::Dot>,
+    /// V2-8.9 M1: this tab's "AI may › Search the web" switch, as its studio
+    /// page last told the shell (`set_tab_web`). `true` until told — the
+    /// switch's default (client ai-may.js `MAY_DEFAULT`). While `false`,
+    /// `navigation_allowed_for` keeps every frame of the tab on loopback.
+    /// Live only, never on disk.
+    pub web: bool,
 }
 
 /// Every live window the shell created, keyed by label, plus which one has
@@ -181,6 +187,7 @@ impl WindowBook {
                 resting: false,
                 closing: false,
                 dot: None,
+                web: true,
             },
         );
     }
@@ -262,6 +269,24 @@ impl WindowBook {
         let label = self.label_for_root(root)?;
         self.clear_origin(&label);
         Some(label)
+    }
+
+    /// V2-8.9 M1: record a project tab's web switch (`set_tab_web`). Only a
+    /// project tab has an AI chat; anything else stores nothing (false).
+    pub fn set_web(&mut self, label: &str, on: bool) -> bool {
+        match self.entries.get_mut(label) {
+            Some(e) if matches!(e.role, Role::Project { .. }) => {
+                e.web = on;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Whether `label`'s frames may leave loopback: its switch as last told,
+    /// the switch's default (on) for a tab never told or a label not in the book.
+    pub fn web_allowed(&self, label: &str) -> bool {
+        self.entries.get(label).is_none_or(|e| e.web)
     }
 
     /// What `label`'s navigations are judged against (N-M2): its role and the
@@ -742,11 +767,33 @@ fn loopbackish(url: &tauri::Url) -> bool {
 ///   and remote https (subframe content — a remote origin gets no IPC, the
 ///   capability lists loopback only); NEVER another loopback origin;
 /// - Home: nothing else; a cell tab: https inside the cloud zone.
+///
+/// The live check (`nav_check`) calls `navigation_allowed_for` with the tab's
+/// web flag; this four-argument form (the switch's default, on) is what the
+/// tests pin the base rule with.
+#[cfg(test)]
 pub fn navigation_allowed(
     role: NavRole,
     url: &tauri::Url,
     origin: Option<&str>,
     canvas: Option<&str>,
+) -> bool {
+    navigation_allowed_for(role, url, origin, canvas, true)
+}
+
+/// `navigation_allowed` for a tab whose "AI may › Search the web" switch is
+/// `web` (V2-8.9 M1, decision maude/v2-8.9-lead-m1-canvas-navigation-gate).
+/// Off: a project tab's frames never reach a remote origin — agent-written
+/// canvas code that sets `location.href = 'https://…?d=…'` (or an embed it
+/// adds) is refused here, the one check every WKWebView frame meets. No embed
+/// host is excepted: the switch promises "no web", and an allow-listed host
+/// would still carry a query string out.
+pub fn navigation_allowed_for(
+    role: NavRole,
+    url: &tauri::Url,
+    origin: Option<&str>,
+    canvas: Option<&str>,
+    web: bool,
 ) -> bool {
     if role == NavRole::Audience {
         // Judged only by `present::audience_nav_check`, against its entry.
@@ -782,7 +829,7 @@ pub fn navigation_allowed(
     match role {
         NavRole::Home => false,
         NavRole::Project if loopbackish(&target) => canvas == Some(o.as_str()),
-        NavRole::Project => target.scheme() == "https",
+        NavRole::Project => web && target.scheme() == "https",
         // S9.17: the pinned cell origin matched above; besides it only the cell's
         // canvas origin (the iframe) and the control plane (the cell's browser
         // sign-in hands off there and back) — never another tenant's host.
@@ -1131,16 +1178,17 @@ pub(crate) fn nav_check<R: Runtime>(app: &AppHandle<R>, label: &str, url: &tauri
     if crate::present::is_audience_label(label) {
         return crate::present::audience_nav_check(app, label, url, top);
     }
-    let view = app
-        .try_state::<SidecarState>()
-        .and_then(|s| s.windows.lock().unwrap_or_else(|e| e.into_inner()).nav_view(label));
-    let Some((role, origin, canvas)) = view else {
+    let view = app.try_state::<SidecarState>().and_then(|s| {
+        let book = s.windows.lock().unwrap_or_else(|e| e.into_inner());
+        book.nav_view(label).map(|v| (v, book.web_allowed(label)))
+    });
+    let Some(((role, origin, canvas), web)) = view else {
         return is_app_local(url);
     };
     if top {
         top_level_allowed(role, url, origin.as_deref())
     } else {
-        navigation_allowed(role, url, origin.as_deref(), canvas.as_deref())
+        navigation_allowed_for(role, url, origin.as_deref(), canvas.as_deref(), web)
     }
 }
 
@@ -1983,6 +2031,28 @@ pub fn label_for_root(app: &AppHandle, root: &str) -> Option<String> {
 }
 
 // ── Commands ────────────────────────────────────────────────────────────────
+
+/// `set_tab_web({on})` — a project tab's studio page tells the shell its
+/// "AI may › Search the web" switch, on load and on every change (V2-8.9 M1,
+/// decision maude/v2-8.9-m1-tab-web-flag-tauri-command). The tab is the
+/// caller's own — label AND its own server origin, never app-local, never an
+/// argument — so a page can only ever narrow or widen ITS frames. Off ⇒
+/// `nav_check` refuses every non-loopback frame of that tab. The canvas
+/// iframe cannot call this (no invoke key, see capabilities/default.json).
+#[tauri::command]
+pub fn set_tab_web(webview: tauri::Webview, on: bool) -> Result<(), String> {
+    let caller = caller_project(&webview, false)?;
+    let state = webview
+        .app_handle()
+        .try_state::<SidecarState>()
+        .ok_or_else(|| "Maude is still starting.".to_string())?;
+    let mut book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
+    if book.set_web(&caller.label, on) {
+        Ok(())
+    } else {
+        Err("This window isn't showing a project.".to_string())
+    }
+}
 
 #[derive(Serialize)]
 pub struct OpenedProject {
@@ -3888,6 +3958,102 @@ mod tests {
         assert!(!navigation_allowed(Cell, &u("https://other.cloud.maude.sh/"), c, None));
         assert!(!top_level_allowed(Cell, &u("https://other.cloud.maude.sh/"), c));
         assert!(!top_level_allowed(Cell, &u("https://acme.cloud.maude.sh/x"), None));
+    }
+
+    /// V2-8.9 M1 (decision maude/v2-8.9-lead-m1-canvas-navigation-gate): while
+    /// a project tab's "AI may › Search the web" is off, no frame of it leaves
+    /// loopback — the canvas iframe (agent-written code) cannot carry data to a
+    /// website by navigating. Its own origins, the canvas origin, the splash,
+    /// `data:` and `about:` stay; the main frame's rule is unchanged.
+    #[test]
+    fn web_off_keeps_a_project_tabs_frames_on_loopback() {
+        use NavRole::*;
+        let u = |s: &str| s.parse::<tauri::Url>().unwrap();
+        let (o, c) = (Some("http://localhost:4399"), Some("http://localhost:4400"));
+        let off = |s: &str| navigation_allowed_for(Project, &u(s), o, c, false);
+        let on = |s: &str| navigation_allowed_for(Project, &u(s), o, c, true);
+        for s in [
+            "https://x.example/?d=secret",
+            "https://www.youtube.com/embed/x",
+            "https://acme.cloud.maude.sh/",
+        ] {
+            assert!(!off(s), "web off: {s}");
+            assert!(on(s), "web on: {s}");
+        }
+        for s in [
+            "http://localhost:4399/?open=ui%2Fa.tsx",
+            "http://localhost:4400/_canvas-shell.html",
+            "tauri://localhost/index.html",
+            "blob:http://localhost:4399/0f1e",
+            "data:text/html,x",
+            "about:blank",
+            "about:srcdoc",
+        ] {
+            assert!(off(s), "web off still admits {s}");
+        }
+        assert!(!off("http://localhost:5555/"), "another loopback listener stays refused");
+        // The flag narrows a project tab only; Home and cells keep their rules.
+        let h = Some("http://127.0.0.1:4500");
+        assert!(!navigation_allowed_for(Home, &u("https://x.example/"), h, None, true));
+        let cell = Some("https://acme.cloud.maude.sh");
+        assert!(navigation_allowed_for(Cell, &u("https://acme.cloud.maude.sh/x"), cell, None, false));
+        // The four-argument rule is the switch's default (on).
+        assert_eq!(
+            navigation_allowed(Project, &u("https://x.example/"), o, c),
+            navigation_allowed_for(Project, &u("https://x.example/"), o, c, true)
+        );
+    }
+
+    /// The book holds the flag per tab: unknown or never told = on (the
+    /// switch's default, ai-may.js `MAY_DEFAULT`); only a project tab takes it.
+    #[test]
+    fn the_book_holds_each_tabs_web_flag() {
+        let mut book = WindowBook::default();
+        let a = label_for_pid(&pid_for_root("/tmp/m1-a"));
+        let b = label_for_pid(&pid_for_root("/tmp/m1-b"));
+        for (l, r) in [(&a, "/tmp/m1-a"), (&b, "/tmp/m1-b")] {
+            book.insert(
+                l,
+                Role::Project {
+                    pid: l.trim_start_matches("p-").to_string(),
+                    root: r.to_string(),
+                },
+                1,
+            );
+        }
+        assert!(book.web_allowed(&a), "a fresh tab: the switch's default");
+        assert!(book.web_allowed("p-unknown"));
+        assert!(book.set_web(&a, false));
+        assert!(!book.web_allowed(&a));
+        assert!(book.web_allowed(&b), "per tab, not per app");
+        assert!(book.set_web(&a, true));
+        assert!(book.web_allowed(&a));
+        assert!(!book.set_web("p-unknown", false), "no entry, nothing stored");
+        book.insert(HOME_LABEL, Role::Home, 1);
+        assert!(!book.set_web(HOME_LABEL, false), "Home has no AI chat");
+        assert!(book.web_allowed(HOME_LABEL));
+    }
+
+    /// `set_tab_web` takes the tab from its caller (label + its own server
+    /// origin, never app-local), never an argument.
+    #[test]
+    fn set_tab_web_answers_for_its_caller_only() {
+        let src = include_str!("windows.rs");
+        let i = src.find("pub fn set_tab_web(").unwrap();
+        let sig = &src[i..i + src[i..].find('{').unwrap()];
+        assert!(!sig.contains("label") && !sig.contains("root"), "{sig}");
+        let body = &src[i..i + src[i..].find("\n}").unwrap()];
+        assert!(body.contains("caller_project(&webview, false)?"));
+        assert!(body.find("caller_project(").unwrap() < body.find("set_web(").unwrap());
+        let caps = include_str!("../capabilities/default.json");
+        assert!(caps.contains("\"allow-set-tab-web\""));
+        for other in [
+            include_str!("../capabilities/strip.json"),
+            include_str!("../capabilities/home-splash.json"),
+        ] {
+            assert!(!other.contains("set-tab-web"));
+        }
+        assert!(!crate::home::HOME_PERMISSIONS.contains(&"allow-set-tab-web"));
     }
 
     /// N-M3 (audit 2): a dead server's port vouches for nothing — the window's
