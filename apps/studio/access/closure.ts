@@ -354,6 +354,13 @@ interface DsSystem {
 export interface ClosureConfig {
   readonly designSystems: readonly DsSystem[];
   readonly defaultDesignSystem: string | null;
+  /**
+   * p8-c4b — canvases the project's AUTHORITY knows of (a stored grant names each), sorted. An old
+   * meta-less canvas that does not render DesignCanvas is still a canvas when it is listed here, so
+   * a frame never inlines it (c4j). It only ever adds canvases (errs to "canvas"): the hub reads its
+   * own grant stores, a cell child the file its hub hands it, a desktop its stored claim's grants.
+   */
+  readonly knownCanvases?: readonly string[];
 }
 
 const relDir = (v: unknown): string | null => {
@@ -362,7 +369,21 @@ const relDir = (v: unknown): string | null => {
   return p && !p.split('/').includes('..') ? p : null;
 };
 
-export function closureConfigOf(raw: unknown): ClosureConfig {
+/** p8-c4b — the canvases a known-canvas list names: designRoot-relative `.tsx` / `.html`, sorted. */
+function knownCanvasList(known: Iterable<unknown>): string[] {
+  const out = new Set<string>();
+  for (const v of known) {
+    const p = relDir(v);
+    if (p && /\.(tsx|html)$/i.test(p) && !p.split('/').some((s) => s === '' || s === '.'))
+      out.add(p);
+  }
+  return [...out].sort();
+}
+
+export function closureConfigOf(
+  raw: unknown,
+  knownCanvases: Iterable<unknown> = []
+): ClosureConfig {
   const cfg = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
   const designSystems: DsSystem[] = [];
   if (Array.isArray(cfg.designSystems)) {
@@ -375,7 +396,16 @@ export function closureConfigOf(raw: unknown): ClosureConfig {
     designSystems,
     defaultDesignSystem:
       typeof cfg.defaultDesignSystem === 'string' ? cfg.defaultDesignSystem : null,
+    knownCanvases: Object.freeze(knownCanvasList(knownCanvases)),
   });
+}
+
+/** p8-c4b — the project's own `config.json` (the hub's reader) plus the authority's known canvases. */
+export function projectClosureConfig(
+  project: ProjectReader,
+  knownCanvases: Iterable<unknown> = []
+): ClosureConfig {
+  return closureConfigOf(readJsonObject(project, 'config.json'), knownCanvases);
 }
 
 function readJsonObject(project: ProjectReader, rel: string): Record<string, unknown> | null {
@@ -647,11 +677,15 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
     }
     return carriedFinal.get(rel) ?? NONE;
   };
+  // p8-c4b — a canvas the authority knows of (a stored grant) is one, whatever its file says.
+  const known: ReadonlySet<string> = new Set(cfg.knownCanvases ?? []);
   const isCanvas = (rel: string): boolean => {
     // gate-b-c4m — an `.html` canvas carries no marker: the index's own path predicate decides, and
     // every DS surface errs to canvas (an `.html` specimen is one). Only a file that exists.
-    if (/\.html$/i.test(rel)) return files.has(rel) && (isCanvasFile(rel) || isDsSurfaceRel(rel));
+    if (/\.html$/i.test(rel))
+      return files.has(rel) && (known.has(rel) || isCanvasFile(rel) || isDsSurfaceRel(rel));
     if (!/\.tsx$/i.test(rel)) return false;
+    if (known.has(rel)) return true;
     if (files.has(rel)) {
       if (isDsSurfaceRel(rel) || isCanvasSource(textOf(rel))) return true;
       const links = linksOf(rel);
