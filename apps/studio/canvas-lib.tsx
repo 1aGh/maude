@@ -106,6 +106,7 @@ import {
 import { canvasKeyIndex, resolveCanvasKey } from './actions/canvas-keys.ts';
 import { ArtboardActivityOverlay } from './artboard-activity-overlay.tsx';
 import { ArtboardGhostsLayer } from './artboard-ghosts-overlay.tsx';
+import { ArtboardConvertMarks } from './artboard-convert-marks.tsx';
 import { ArtboardGrowthTag, useGrowthDelta } from './artboard-growth-tag.tsx';
 import {
   ArtboardGuidesOverlay,
@@ -3154,6 +3155,15 @@ export function DCArtboard({
         x={liveX + rect.w}
         bottom={liveY + rect.h}
         delta={artboardEditChrome ? growth : null}
+      />
+      {/* V2-8.5 c7 (08 ak-convert-after) — "✓ Unchanged" / "+ 13 % height · Ink fill" after Make A6 print */}
+      <ArtboardConvertMarks
+        id={id}
+        x={liveX}
+        y={liveY}
+        w={rect.w}
+        h={rect.h}
+        show={artboardEditChrome}
       />
     </>
   );
