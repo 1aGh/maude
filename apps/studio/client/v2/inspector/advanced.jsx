@@ -16,7 +16,6 @@ import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import { useFold } from '../fold/use-fold.js';
 import { menuRunner } from '../shell/menu-runner.js';
 import {
-  ADVANCED_GROUPS,
   advancedRowsFor,
   advancedRowsVersion,
   GROUP_TITLES,
@@ -70,6 +69,52 @@ function Groups({ groups, kind, el, ctx }) {
         <GroupTitle group={group} rows={rows} ctx={ctx} el={el} kind={kind} />
         {rows.map(({ id, Body }) => (
           <Body key={id} el={el} kind={kind} ctx={ctx} />
+        ))}
+      </div>
+    );
+  });
+}
+
+/**
+ * An object's fold, in 14 Editing's order (ed-inspector: 14 owns the object inspector, so its Advanced wins over
+ * 06's for an object selection): the CSS it writes, the tokens it uses (chips), its element id, the actions —
+ * then what 06 adds underneath (Tag · Classes · Selector · where it is, Used in) and the v1 raw editor last.
+ * One registry, three views of it: a slot names a group and may take only some rows or leave some out.
+ */
+const OBJECT_SLOTS = [
+  { key: 'css', group: 'css', not: ['css.raw-editor'] },
+  { key: 'tokens', group: 'tokens' },
+  { key: 'identity', group: 'element', only: ['element.id'], title: 'Element id', idBlock: true },
+  { key: 'in-code', group: 'in-code' },
+  { key: 'element', group: 'element', not: ['element.id'] },
+  { key: 'used-in', group: 'used-in' },
+  { key: 'raw', group: 'css', only: ['css.raw-editor'], title: null },
+];
+
+function ObjectGroups({ el, ctx }) {
+  return OBJECT_SLOTS.map((slot) => {
+    const rows = advancedRowsFor(slot.group, { el, kind: 'element', ctx }).filter(
+      (r) => (!slot.only || slot.only.includes(r.id)) && !slot.not?.includes(r.id)
+    );
+    if (!rows.length) return null;
+    const title = slot.title === undefined ? GROUP_TITLES[slot.group] : slot.title;
+    const aside = slot.title === undefined ? rows.map((r) => r.aside).find((a) => a != null) : null;
+    const node = typeof aside === 'function' ? aside({ el, kind: 'element', ctx }) : aside;
+    const rowCtx = slot.idBlock ? { ...ctx, idBlock: true } : ctx;
+    return (
+      <div
+        className={`insp-group insp-group--object insp-group--${slot.group} insp-group--${slot.key}`}
+        key={slot.key}
+        data-testid={`adv-group-${slot.key}`}
+      >
+        {title ? (
+          <p className="insp-adv-h insp-sub">
+            <span>{title}</span>
+            {node ? <span className="insp-sub-a">{node}</span> : null}
+          </p>
+        ) : null}
+        {rows.map(({ id, Body }) => (
+          <Body key={id} el={el} kind="element" ctx={rowCtx} />
         ))}
       </div>
     );
@@ -200,7 +245,7 @@ export function InspectorAdvanced({
         </div>
       ) : (
         <div className="insp-adv">
-          {many ? null : <Groups groups={ADVANCED_GROUPS} kind="element" el={el} ctx={ctx} />}
+          {many ? null : <ObjectGroups el={el} ctx={ctx} />}
           {/* several objects: the raw editor alone, as before (a writer's) */}
           {many && access.canEdit && el?.id ? (
             <CssKnobs el={el} cfg={cfg} mode="advanced" {...edit} />

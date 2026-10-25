@@ -16,6 +16,7 @@
 import { useEffect, useRef } from 'react';
 
 import { resolveSelectionEl } from '../dom-selection.ts';
+import { pageRootOf } from '../input-router.tsx';
 import { type Selection, useSelectionSet } from '../use-selection-set.tsx';
 import { selectionForElement, stampedParent } from './selection.tsx';
 
@@ -52,6 +53,23 @@ export function readsBefore(
 /** The artboard body an element sits in. */
 const bodyOf = (el: Element): Element | null => el.closest('.dc-artboard-body');
 
+/**
+ * The object `el` hangs under on the tab level (null = straight under the artboard). An artboard's page is ONE stamped
+ * root that fills it — the artboard itself, not an object (V2-8.5 c7, 14 ed-edge-keys; the same rule the click and
+ * the double-click ladder use): the sections under it are the top level 1…6, and the page is never "1".
+ */
+export function levelParent(el: Element, measure: Measure = domMeasure): Element | null {
+  const p = stampedParent(el);
+  if (!p) return null;
+  const body = bodyOf(el);
+  return body && pageRootOf(body, measure.rectOf) === p ? null : p;
+}
+
+const isPageRoot = (el: Element, measure: Measure): boolean => {
+  const body = bodyOf(el);
+  return !!body && stampedParent(el) === null && pageRootOf(body, measure.rectOf) === el;
+};
+
 /** The stamped objects whose parent object is `parent` (null = straight in the artboard body `body`), in reading order. */
 export function levelIn(
   body: Element,
@@ -59,7 +77,7 @@ export function levelIn(
   measure: Measure = domMeasure
 ): Element[] {
   const all = Array.from(body.querySelectorAll(STAMPED)).filter(
-    (el) => stampedParent(el) === parent && measure.shown(el)
+    (el) => levelParent(el, measure) === parent && !isPageRoot(el, measure) && measure.shown(el)
   );
   return all
     .map((el) => ({ el, rect: measure.rectOf(el) }))
@@ -70,13 +88,13 @@ export function levelIn(
 /** The level `el` belongs to, in reading order (el included). */
 export function siblingsOf(el: Element, measure: Measure = domMeasure): Element[] {
   const body = bodyOf(el);
-  return body ? levelIn(body, stampedParent(el), measure) : [el];
+  return body ? levelIn(body, levelParent(el, measure), measure) : [el];
 }
 
 /** "4" for the fourth object of the top level, "4.2" for the second inside it. */
 export function orderBadge(el: Element, measure: Measure = domMeasure): string {
   const parts: number[] = [];
-  for (let at: Element | null = el; at; at = stampedParent(at)) {
+  for (let at: Element | null = el; at; at = levelParent(at, measure)) {
     const i = siblingsOf(at, measure).indexOf(at);
     parts.unshift(i < 0 ? 1 : i + 1);
   }
@@ -180,6 +198,8 @@ interface BadgeSpec {
   text: string;
   on: boolean;
   inside: boolean;
+  /** a top-level section: its disc sits in the page's left margin (14 · ed-edge-keys), clear of its children's */
+  edge: boolean;
 }
 
 /** The badges for the focused object's level and, dashed, its children. Pure over the DOM + measurements. */
@@ -187,9 +207,10 @@ export function badgesFor(focused: Element, measure: Measure = domMeasure): Badg
   const out: BadgeSpec[] = [];
   const level = siblingsOf(focused, measure);
   const prefix = (() => {
-    const p = stampedParent(focused);
+    const p = levelParent(focused, measure);
     return p ? `${orderBadge(p, measure)}.` : '';
   })();
+  const top = levelParent(focused, measure) === null;
   for (const [i, el] of level.entries())
     out.push({
       key: `l${i}`,
@@ -197,12 +218,20 @@ export function badgesFor(focused: Element, measure: Measure = domMeasure): Badg
       text: `${prefix}${i + 1}`,
       on: el === focused,
       inside: false,
+      edge: top,
     });
   const body = bodyOf(focused);
   if (body) {
     const here = orderBadge(focused, measure);
     for (const [i, el] of levelIn(body, focused, measure).entries())
-      out.push({ key: `c${i}`, el, text: `${here}.${i + 1}`, on: false, inside: true });
+      out.push({
+        key: `c${i}`,
+        el,
+        text: `${here}.${i + 1}`,
+        on: false,
+        inside: true,
+        edge: false,
+      });
   }
   return out;
 }
@@ -246,8 +275,9 @@ export function OrderBadges({ active }: { active: boolean }) {
         const n = nodes.get(s.key);
         if (!n || !s.el.isConnected) continue;
         const r = s.el.getBoundingClientRect();
-        n.style.left = `${Math.round(r.left) + 5}px`;
-        n.style.top = `${Math.round(r.top) + 5}px`;
+        const edge = s.edge ? bodyOf(s.el)?.getBoundingClientRect() : null;
+        n.style.left = `${Math.round(edge ? edge.left : r.left) + 5}px`;
+        n.style.top = `${Math.round(r.top) + (edge ? 2 : 5)}px`;
       }
       raf = requestAnimationFrame(tick);
     };

@@ -1135,7 +1135,10 @@ export interface HoverTarget {
  * body; return it, or null when the body has several top-level objects or the lone one is a card smaller than the
  * artboard (then it is an object like any other and stays selectable by a plain click).
  */
-export function pageRootOf(bodyEl: Element): Element | null {
+export function pageRootOf(
+  bodyEl: Element,
+  rectOf: (el: Element) => { width: number; height: number } = (el) => el.getBoundingClientRect()
+): Element | null {
   // The first stamped element in document order cannot sit under another stamped one (an ancestor comes first), so
   // it is a top-level object; the body has a single page when nothing after it, on the way up to the body, holds
   // another. Walks the path and its later siblings only — cheap enough for a hover frame on a long page.
@@ -1146,8 +1149,8 @@ export function pageRootOf(bodyEl: Element): Element | null {
       if (sib.hasAttribute('data-cd-id') || sib.querySelector('[data-cd-id]')) return null;
     }
   }
-  const b = bodyEl.getBoundingClientRect();
-  const r = root.getBoundingClientRect();
+  const b = rectOf(bodyEl);
+  const r = rectOf(root);
   // a hair of slack: scrollbars, sub-pixel scale. Both boxes share one transform, so the ratio is zoom-proof.
   if (!(b.width > 0 && b.height > 0)) return null;
   if (r.width < b.width * 0.98 || r.height < b.height * 0.98) return null;

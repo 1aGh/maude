@@ -481,3 +481,18 @@ Re-shot: every 14 id except ed-edge-tereza (needs a second browser; kept from D4
 | `ed-text-edit` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ed-text-style` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ed-text-style` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+## After (stage D, round 7 · p8-c7-edit3)
+
+Re-shot, both themes: ed-inspector, ed-edge-keys, ed-edge-paste, ed-obj-order (the other 14 ids keep their round-7 edit2 pairs). Harness `_c7e3-harness-g5/` (flat fixture; s14e keys + paste; s14f obj-order; s14g inspector). Changed in the product: an object's Advanced fold reads CSS · Tokens it uses (chips) · Element id · Copy CSS · Convert layout (06's rows below, the v1 editor last); Tab walks the sections under the page (the page root is the artboard) with discs 1…6 in the page margin; a Figma-pasted picture opens on its Image card named by its frame. Side shots (not pairs): `side/ed-obj-order-nudge-{light,dark}.jpg`, `side/ed-obj-order-locked-{light,dark}.jpg`.
+
+| id | theme | status | spec |
+| --- | --- | --- | --- |
+| `ed-edge-keys` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-keys` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-paste` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-paste` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-inspector` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-inspector` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-order` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-order` | light | re-shot | spec reused (board unchanged since the stage-A shot) |

@@ -45,3 +45,24 @@ Branch `p8-c7-edit2` (from feat/maude-v2 e5833ffc4). Commits: 22cfd8527 (Uses ro
 3. ed-inspector Advanced is 06's (Element / POS / SIZE rows, "Tokens it uses" as `--token` rows) — not 14's Tokens chips / CSS block / Constraints diagram.
 4. ed-edge-keys: focus does not land on the "Services" row in the fixture (the walk stops on the page frame, discs 1.1–1.4 are drawn); ed-edge-paste shows no paste bar ("Pasted from Figma as an image…") — the synthetic ClipboardEvent is not taken in this state.
 5. Fixture content (cards 111 px high, "Ink" is "Black", no Alligators "Plakát" style, Datum is a Text) differs from the board's story.
+
+# Continuation — p8-c7-edit3 (round 7, third builder)
+
+Branch `p8-c7-edit3` (from feat/maude-v2 2f43303f4). Commits: b35a71bcd (Advanced), e38faf885 (keys, paste), + the stage-D/docs commit.
+
+## Done
+| item | change | test (red → green, reverted once) |
+| --- | --- | --- |
+| (1) ed-inspector Advanced | an OBJECT's fold now reads in board 14's order — CSS (one soft row per declaration, property left / value right) · **Tokens it uses as chips** (Space 24 · Round · Resting; a colour carries its swatch; the system's own names) · Element id (its own block under its own title) · Copy CSS · Convert layout to absolute · Copy style / Paste style / Copy code — then 06's rows (Element Tag · Classes · Selector · facts, Used in), and the v1 raw editor LAST. One registry, a second view of it (`advanced.jsx ObjectGroups`: slots naming a group + only/not row ids): row ids, groups and the artboard fold are unchanged; Convert moved from group `css` to `in-code` (order 15). Constraints stays in Position (that is where 14 draws it) | `v2-inspector-advanced` (order, golden, chips, id block), `v2-inspector-render`, `v2-inspector-layout-frame` |
+| (2) ed-edge-keys | the page root is the artboard, not an object, for Tab too (`tab-order.tsx levelParent`; `pageRootOf` takes an optional rect reader so the walk stays pure over `Measure`): Tab from the artboard lands on Nav · Hero · What we do · **Services**; discs 1…6 are numbered under the page (no 1.x) and sit in the page's left margin (`edge`), the cards carry 4.1…4.3 | `v2-edit-keyboard` (5 new) |
+| (3) ed-edge-paste | the paste WAS taken — the old harness dispatched the synthetic event on the shell document, the listener lives in the canvas frame. Dispatched inside the frame with Figma's html + a picture it draws the bar ("Pasted from Figma as an image of “Hero / v3”.") under the placed picture. Product: a Figma-pasted picture opens on its **Image** card (From Figma · Hero / v3 · W · H · Fit), not on 12's Photo card (`opensOnPhotoCard`), and is named by its frame in title and crumb (`titleOf`, `crumbNodeOf`) | `p8-c7-edit3-paste-image` (3), `v2-inspector-model` |
+| (4) ed-obj-order | harness: Layers rows for a locked object (Sub) and a hidden one (Headline), the Frame selection result (a Frame around the two buttons), the object menu fully open on "See the work" (the menu on Book a call is clipped by the right edge); side shots `ed-obj-order-nudge` (Y tag + distance chip) and `ed-obj-order-locked` ("Sub is locked · ⇧⌘L unlocks") | — |
+
+Harness: `_c7e3-harness-g5/` (fixture flattened to board 14's top level; s14e = keys + paste; s14f = obj-order + side shots; s14g = ed-inspector alone with Advanced open — the reorder drag of s14b leaves the Services row moved in the flat fixture).
+
+## Open
+1. Patterns group in the picker stays hidden (nothing placeable backs it).
+2. ed-obj-order: Frame selection is shown as its AFTER state only; the nudge chip and the lock tip are in the side shots (a menu and a hover tip, or a nudge and a right-click on its handles, cannot coexist).
+3. ed-edge-paste: the picture is placed loose BELOW the page (`image.place` `mode: loose`), the board draws it over the hero; "Make editable" stays unoffered until S8.17 (standing decision). The Photo seg + Adjust rows are 12's.
+4. A `background: var(--token)` SHORTHAND never reaches Tokens it uses / the CSS list in Chromium (the CSSOM keeps no longhand values for a var() shorthand; `dom-selection.ts` reads longhands) — the fixture uses `background-color`. Worth a follow-up.
+5. ed-inspector: the CSS block lists every authored declaration (the fixture's position / top / right / aria-label rows too) where the board draws six; Layers lists the page root as a row once an edit makes the page shorter than its artboard.

@@ -94,9 +94,10 @@ export function registerFrameSlots() {
       kinds: ['frame', 'button', 'text', 'image', 'instance'],
       Body: PlaceFreelyBody,
     }),
-    registerAdvancedRow('css', {
-      id: 'css.convert-to-absolute',
-      order: 5,
+    // 14 Editing (ed-inspector): it sits with Copy CSS at the foot of Advanced, not above the declarations
+    registerAdvancedRow('in-code', {
+      id: 'code.convert-to-absolute',
+      order: 15,
       kinds: ['element'],
       when: ({ ctx }) => ctx?.canEdit !== false,
       Body: ConvertBody,

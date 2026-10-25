@@ -16339,7 +16339,7 @@
     "hook": "inspector-tokens-used",
     "kind": "testid",
     "pattern": false,
-    "meaning": "› Advanced › Tokens it uses (14 ed-inspector): one `li` per (property, token) the element's CSS binds — the property in plain words (Fill · Text colour · Corners) and the variable in `code`; `title` = the variable.",
+    "meaning": "› Advanced › Tokens it uses (14 ed-inspector): one chip `li` per token the element's CSS binds (14 draws chips: Space 24 · Round · Resting; a colour carries its swatch), in first-use order; `title` = the variable.",
     "producer": {
       "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
       "symbol": "TokensBound"
@@ -19418,10 +19418,10 @@
     "hook": "adv-group-<id>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One group of › Advanced; `<id>` ∈ element, used-in, tokens, css, artboard, in-code. Drawn only when a row is registered for the selection (advanced-rows.js).",
+    "meaning": "One group of › Advanced; `<id>` ∈ element, used-in, tokens, css, artboard, in-code — and, for an object (14 · ed-inspector order), css · tokens · identity (the Element id) · in-code · element · used-in · raw (the v1 editor). Drawn only when a row is registered for the selection (advanced-rows.js).",
     "producer": {
-      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
-      "symbol": "Groups"
+      "file": "apps/studio/client/v2/inspector/advanced.jsx",
+      "symbol": "ObjectGroups"
     },
     "region": "inspector",
     "consumers": [],

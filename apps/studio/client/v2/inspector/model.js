@@ -20,6 +20,10 @@ const collapse = (t) =>
     .trim();
 const clip = (t, n) => (t.length > n ? `${t.slice(0, n - 1)}…` : t);
 
+/** The Figma frame name a pasted picture carries (`data-source="figma"` + `data-source-name`), else ''. */
+const figmaNameOf = (el) =>
+  el?.attrs?.['data-source'] === 'figma' ? collapse(el.attrs['data-source-name']) : '';
+
 function findNode(nodes, id, index, trail = []) {
   for (const n of nodes || []) {
     if (n.id === id && (index == null || n.index === index)) return { node: n, trail };
@@ -53,6 +57,9 @@ export function titleOf(selection, layersTree) {
     el.attrs?.['data-ds-token'] || el.attrs?.['data-ds-master'] ? el.attrs['data-ds-label'] : ''
   );
   if (token) return token;
+  // 14 · ed-edge-paste: a picture pasted from Figma carries the frame's name ("Hero / v3"), not its file name
+  const fromFigma = figmaNameOf(el);
+  if (fromFigma) return fromFigma;
   const hit = el.id ? findNode(layersTree?.nodes, el.id, el.index) : null;
   // the Layers tree labels an unnamed node by its selector ("h1.dc-text-editing", "div.__remotion-player"): a
   // label that is the tag's own selector is no name at all
@@ -75,6 +82,7 @@ export function crumbsOf(layersTree, el) {
   const hit = findNode(layersTree?.nodes, el.id, el.index);
   if (!hit) return [];
   const trail = [...hit.trail, hit.node].map((n) => {
+    if (n === hit.node && figmaNameOf(el)) return figmaNameOf(el);
     const label = collapse(n.label);
     return label && !isSelectorLabel(label, n.tag) ? label : tagWord(n.tag || 'div');
   });

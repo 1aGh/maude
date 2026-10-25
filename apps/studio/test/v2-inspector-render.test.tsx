@@ -314,11 +314,11 @@ describe('› Advanced holds the unchanged v1 raw editor', () => {
     gone(body?.querySelector('[data-tour="css-panel"]'));
   });
 
-  test('tokens bound: the property in plain words, the variable beside it and as the hover (S11.8)', async () => {
+  test('tokens it uses: chips in the system’s words, the variable as the hover (S11.8 · 14 ed-inspector)', async () => {
     const host = await frame();
     const list = q(host, 'inspector-tokens-used');
     const labels = [...(list?.querySelectorAll('li') ?? [])].map((li) => li.textContent);
-    expect(labels).toEqual(['Gap--space-8', 'Fill--ink', 'Corners--radius-round']);
+    expect(labels).toEqual(['Space 8', 'Ink', 'Round']);
     expect(list?.querySelector('li')?.getAttribute('title')).toBe('--space-8');
   });
 });
