@@ -82,5 +82,7 @@ test('file tree rows use the shared named item that owns actions and child group
   for (const name of ['DirRow', 'DsFolderRow', 'FileRow', 'CanvasRow', 'Sidebar']) {
     expect(fnBody(name)).toContain('<FileTreeItem');
   }
-  expect(clientSource()).toContain('<FileTree aria-label="Project file tree"');
+  // the tree element (`canvas-list`): P8 C10 — Show hidden files draws the one windowed panel, so the label now
+  // lives on its role="tree" list rather than on a v1 `<FileTree>`
+  expect(clientSource()).toContain('aria-label="Project file tree"');
 });

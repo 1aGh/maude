@@ -151,13 +151,59 @@ describe('Canvases tab', () => {
     expect(host.querySelector('.st-tree-sec-hd')).toBeNull();
   });
 
-  test('hidden files on shows the file view: the section headers are back, with a plain numeral', async () => {
+  // P8 C10 (06 ad-left): Show hidden files is the SAME tree with the supporting files dimmed in place — no
+  // v1 file view (section headers, flat rows) any more; the rows the board draws: sidecars under their canvas,
+  // a folder's loose notes, the runtime entries at the root.
+  test('hidden files on draws the canvas tree with the supporting rows in place, not the file view', async () => {
     installFetch({ '/_api/sync/trash': TRASH });
-    const { host } = await sidebar({ showHidden: true });
-    const hd = host.querySelector('.st-tree-sec-hd') as HTMLElement;
-    expect(hd.querySelector('.st-pill')).toBeNull();
-    expect(hd.querySelector('.st-sec-count')?.textContent).toBe('1');
-    expect(hd.querySelector('.st-sec-name')?.textContent).toBe('UI canvases');
+    const groups = [
+      GROUPS[0],
+      {
+        label: 'UI kit',
+        kind: 'canvas',
+        fullPath: '.design/ui',
+        paths: [
+          '.design/ui/Pricing.tsx',
+          '.design/ui/Pricing.meta.json',
+          '.design/ui/Pricing.css',
+          '.design/ui/NOTES.md',
+        ],
+        tree: {},
+      },
+      {
+        label: 'Runtime',
+        kind: 'runtime',
+        fullPath: '.design',
+        paths: ['.design/_history', '.design/_canvas-state'],
+        tree: {},
+      },
+    ];
+    const { host } = await sidebar({ showHidden: true, groups });
+    expect(host.querySelector('.st-tree-sec-hd')).toBeNull();
+    const names = [...host.querySelectorAll('[data-testid^="file-row-"] .cv-name')].map(
+      (n) => n.textContent
+    );
+    expect(names).toEqual([
+      'Pricing.css',
+      'Pricing.meta.json',
+      'NOTES.md',
+      '_canvas-state/',
+      '_history/',
+    ]);
+    // the sidecars sit one level under their canvas; the runtime entries at the root
+    const level = (id: string) => q(host, id)?.closest('[role="treeitem"]')?.getAttribute('aria-level');
+    expect(level('file-row-ui-pricing-css')).toBe('2');
+    expect(level('file-row-ui-notes-md')).toBe('1');
+    expect(level('file-row-history')).toBe('1');
+    // a supporting file keeps its ⋯ menu; the runtime entries are inert (process state)
+    expect(q(host, 'tree-row-menu-ui-notes-md')).not.toBeNull();
+    expect(q(host, 'tree-row-menu-history')).toBeNull();
+  });
+
+  test('hidden files off: no supporting row at all', async () => {
+    installFetch({ '/_api/sync/trash': TRASH });
+    const { host } = await sidebar({ showHidden: false });
+    expect(host.querySelector('[data-testid^="file-row-"]')).toBeNull();
   });
 
   // P8 C4 (lead call v2-p8-lead-canvases-header-and-switcher): the header's "+" / folder pair is gone; the

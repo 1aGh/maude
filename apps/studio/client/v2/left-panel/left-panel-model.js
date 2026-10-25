@@ -142,7 +142,7 @@ export const CAPABILITY_HOMES = [
     row: 'G0-D/D5',
     feature: 'Keyboard tree navigation',
     home: 'the Canvases list (role=tree)',
-    file: 'client/tree/tree.jsx',
+    file: 'client/v2/canvases/canvases-panel.jsx',
     testid: 'canvas-list',
   },
   {

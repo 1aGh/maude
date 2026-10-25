@@ -173,6 +173,21 @@
   .cv-row.is-dim .cv-name {
     color: var(--fg-2);
   }
+  /* 06 ad-left — Show hidden files: a sidecar, a loose note or a runtime entry, in place (ad-row-hidden):
+     fg-1, the name one step smaller and in mono, a 28px cell for the glyph where a canvas has its picture */
+  .cv-row--support .cv-name {
+    font-size: var(--type-xs);
+  }
+  .cv-name--mono {
+    font-family: var(--font-mono);
+  }
+  .cv-sup-ic {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    flex: none;
+    color: var(--fg-2);
+  }
   .cv-foot[data-tone="warn"] {
     color: var(--status-warn-text);
   }

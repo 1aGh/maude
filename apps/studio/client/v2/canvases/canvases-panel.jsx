@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { placeMenu } from '../../tree-row-menu.jsx';
-import { pathTestIdSlug, shellToast } from '../../shell/util.js';
+import { pathTestIdSlug, previewKind, shellToast } from '../../shell/util.js';
 import { useArrivingRows } from '../empty/arriving.jsx';
 import { copy } from '../empty/empty-copy.js';
 import { ArrivingRow } from '../empty/skeleton.jsx';
@@ -56,6 +56,7 @@ import { moveTargets } from './move-model.js';
 import { askForCovers } from './covers.js';
 import { siblingNames } from './rename-model.js';
 import { useRowSlots } from './row-slots.js';
+import { supportIcon, supportIndex } from './support-model.js';
 import { canvasMenuItems, CanvasRowMenu } from './row-menu.jsx';
 import { leftOutOf } from '../ds/update-model.js';
 import { SORT_BYS, SORT_LABELS, KIND_NOTE, sortControl } from './sort.js';
@@ -121,6 +122,9 @@ export function CanvasesPanel({
   onJumpArtboard, // (path, artboardId) — default: the shell's tab hook, over the left-panel bus
   activeArtboard = null, // the artboard in view on the open canvas
   onNewCanvasIn,
+  showHidden = false, // 06 ad-left — Show hidden files: sidecars, loose notes and runtime entries, dimmed in place
+  onPreview, // (path) — a supporting file opens its preview in the canvas area
+  previewPath = null,
   commentsByFile = {},
   dirtyByPath,
   canvasKinds,
@@ -162,9 +166,11 @@ export function CanvasesPanel({
     lastJump && lastJump.base === activeArtboard && lastJump.path === activePath
       ? lastJump.artboardId
       : activeArtboard;
+  const support = useMemo(() => (showHidden ? supportIndex(groups) : null), [showHidden, groups]);
   const rows = useMemo(
     () =>
       visibleRows(tree, {
+        support,
         sort,
         pins: pins.pinSet,
         pinOrder: pins.pinOrder,
@@ -179,6 +185,7 @@ export function CanvasesPanel({
       }),
     [
       kind,
+      support,
       tree,
       sort,
       pins.pinSet,
@@ -321,7 +328,9 @@ export function CanvasesPanel({
     else if (act.activate !== undefined) {
       const r = rows[act.activate];
       if (r.type === 'ghost') r.onOpen?.();
-      else onOpen(r.path);
+      else if (r.type === 'support') {
+        if (!r.runtime && previewKind(r.name)) onPreview?.(r.path);
+      } else onOpen(r.path);
     }
   };
   const onFocusIn = (e) => {
@@ -525,6 +534,8 @@ export function CanvasesPanel({
     searching,
     slotFor: slots.slotFor,
     showFileNames,
+    onPreview,
+    previewPath,
   };
 
   const shown = rows.filter((r) => r.type === 'canvas').length;
@@ -771,6 +782,8 @@ function PanelRow({ row, index, top, tabStop, ctx, toggleRow }) {
     );
   if (row.type === 'ghost')
     return <PanelGhostRow row={row} index={index} style={style} tabStop={tabStop} />;
+  if (row.type === 'support')
+    return <PanelSupportRow row={row} index={index} style={style} tabStop={tabStop} ctx={ctx} />;
   return <PanelCanvasRow row={row} index={index} style={style} tabStop={tabStop} ctx={ctx} />;
 }
 
@@ -872,6 +885,81 @@ function PanelFolderRow({ row, index, style, tabStop, ctx, toggleRow }) {
               aria-label={`Folder actions for ${row.name}`}
               aria-haspopup="menu"
               onClick={(e) => menu.openAt(e, { kind: 'dir', dirPath: row.path })}
+            >
+              <MoreIcon size={12} />
+            </button>
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 06 ad-left — a supporting file drawn in place (Show hidden files): a canvas's sidecar, a folder's loose note
+ * or a runtime entry. Dim, mono, one line, a glyph where a picture would be. A click previews it (runtime
+ * entries are process state, inert like in the old file view); the ⋯ menu is the one the file view had.
+ */
+function PanelSupportRow({ row, index, style, tabStop, ctx }) {
+  const slug = pathTestIdSlug(row.path);
+  const pKind = row.runtime ? null : previewKind(row.name);
+  const sel = !!ctx.previewPath && ctx.previewPath === row.path;
+  const sidecar = row.sidecar === true;
+  const supporting = !row.runtime && !!pKind && !sidecar && !!ctx.menu;
+  const canShare = !!ctx.menu && !row.runtime;
+  const dir = row.path.slice(0, row.path.lastIndexOf('/'));
+  const open = (e) =>
+    ctx.menu.openAt(e, {
+      kind: 'file',
+      path: row.path,
+      dir,
+      canMove: supporting,
+      supporting,
+      name: row.name.replace(/\/$/, ''),
+    });
+  return (
+    <div
+      className="cv-item"
+      role="treeitem"
+      aria-level={row.level}
+      aria-posinset={row.posinset}
+      aria-setsize={row.setsize}
+      aria-selected={sel}
+      aria-disabled={pKind ? undefined : 'true'}
+      aria-label={row.name}
+      data-index={index}
+      tabIndex={tabStop ? 0 : -1}
+      style={style}
+    >
+      <div className={`cv-row cv-row--support${sel ? ' is-sel' : ''}${row.runtime ? ' is-runtime' : ''}`}>
+        <button
+          type="button"
+          className="cv-main"
+          data-tree-primary=""
+          data-testid={`file-row-${slug}`}
+          tabIndex={-1}
+          style={canvasPad(row.depth)}
+          title={row.path}
+          onClick={() => {
+            if (pKind) ctx.onPreview?.(row.path);
+          }}
+          onContextMenu={canShare ? open : undefined}
+        >
+          <span className="cv-sup-ic" aria-hidden="true">
+            <StIcon name={supportIcon(row.name)} size={14} />
+          </span>
+          <span className="cv-name cv-name--mono">{row.name}</span>
+        </button>
+        {canShare ? (
+          <span className="cv-actions">
+            <button
+              type="button"
+              className="cv-act"
+              data-testid={`tree-row-menu-${slug}`}
+              title={`Actions for ${row.name}`}
+              aria-label={`Actions for ${row.name}`}
+              aria-haspopup="menu"
+              onClick={open}
             >
               <MoreIcon size={12} />
             </button>
