@@ -2142,7 +2142,7 @@ export default function TimelinePanel({
       ) : (
         <div className="tl-scroll" ref={setScrollRef}>
           <div
-            className="tl-tracks"
+            className={`tl-tracks${stripComments.length ? ' has-comment-row' : ''}`}
             ref={trackRef}
             data-testid="timeline-track"
             style={{ width: gutter + axisPx }}
