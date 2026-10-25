@@ -8,9 +8,10 @@
 // Draws only. `onUse()` / `onAdd()` resolve to `{ ok: true }` or `{ ok: false, message }`.
 
 import { useState } from 'react';
+import { StIcon } from '../../shell/icons.jsx';
 import { EDGE_WORDS, offSystemWords } from './edge-model.js';
 
-export function OffSystemQuestion({ finding, systemLabel, onUse, onAdd, onDismiss }) {
+export function OffSystemQuestion({ finding, systemLabel, canvasName, onUse, onAdd, onDismiss }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   if (!finding) return null;
@@ -23,6 +24,9 @@ export function OffSystemQuestion({ finding, systemLabel, onUse, onAdd, onDismis
     setBusy(false);
     if (!r?.ok) setError(r?.message ?? EDGE_WORDS.failed);
   };
+  // the closest colour's own name is the one bold word of the sentence (the board's chat card)
+  const label = finding.nearest?.label;
+  const at = label ? words.text.lastIndexOf(label) : -1;
   return (
     <div
       className="island ds-edge-ask"
@@ -31,45 +35,61 @@ export function OffSystemQuestion({ finding, systemLabel, onUse, onAdd, onDismis
       data-testid="ds-off-system"
       data-literal={finding.literal}
     >
-      <p className="ds-edge-ask-t" data-testid="ds-off-system-text">
+      <p className="ds-edge-ask-hd">
+        <StIcon name="spark" size={14} />
+        <b data-testid="ds-off-system-canvas">{canvasName || 'This canvas'}</b>
         <i
           className="ds-edge-chip"
           aria-hidden="true"
           data-testid="ds-off-system-chip"
           style={{ background: finding.literal }}
         />
-        {words.text}
-      </p>
-      <div className="ds-edge-ask-b">
-        {words.canUse && finding.target ? (
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={busy}
-            data-testid="ds-off-system-use"
-            onClick={run(onUse)}
-          >
-            {words.use}
-          </button>
-        ) : null}
         <button
           type="button"
-          className="btn"
+          className="ds-edge-ask-x"
           disabled={busy}
-          data-testid="ds-off-system-add"
-          onClick={run(onAdd)}
-        >
-          {EDGE_WORDS.add}
-        </button>
-        <button
-          type="button"
-          className="btn btn--quiet"
-          disabled={busy}
+          aria-label={EDGE_WORDS.dismiss}
+          title={EDGE_WORDS.dismiss}
           data-testid="ds-off-system-dismiss"
           onClick={onDismiss}
         >
-          {EDGE_WORDS.dismiss}
+          <StIcon name="chevron-down" size={14} />
         </button>
+      </p>
+      <div className="ds-edge-ask-msg">
+        <p className="ds-edge-ask-t" data-testid="ds-off-system-text">
+          {at >= 0 ? (
+            <>
+              {words.text.slice(0, at)}
+              <b>{label}</b>
+              {words.text.slice(at + label.length)}
+            </>
+          ) : (
+            words.text
+          )}
+        </p>
+        <div className="ds-edge-ask-b">
+          <button
+            type="button"
+            className="btn"
+            disabled={busy}
+            data-testid="ds-off-system-add"
+            onClick={run(onAdd)}
+          >
+            {EDGE_WORDS.add}
+          </button>
+          {words.canUse && finding.target ? (
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={busy}
+              data-testid="ds-off-system-use"
+              onClick={run(onUse)}
+            >
+              {words.use}
+            </button>
+          ) : null}
+        </div>
       </div>
       {error ? (
         <p className="dsr-err" role="alert" data-testid="ds-off-system-error">

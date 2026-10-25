@@ -209,6 +209,7 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `ds-trash-go` | testid | S10.17: The primary, "Move to trash": the engine's trash, one ⌘Z. | `client/v2/ds/trash-token-sheet.jsx` · `TrashTokenSheet` | test:v2-ds-edges.test | new |
 | `ds-off-system` | testid | S10.17: The quiet question about a hand-picked colour that is not in the system (role=status); data-literal names it. | `client/v2/ds/off-system.jsx` · `OffSystemQuestion` | test:v2-ds-edges.test | new |
 | `ds-off-system-text` | testid | S10.17: "A colour picked by hand isn't in <System>. The closest is <Accent>." | `client/v2/ds/off-system.jsx` · `OffSystemQuestion` | test:v2-ds-edges.test | new |
+| `ds-off-system-canvas` | testid | P8 c8: the chat card's header — the canvas the question is about (the board's "Pricing"). | `client/v2/ds/off-system.jsx` · `OffSystemQuestion` | test:v2-ds-edges.test | new |
 | `ds-off-system-chip` | testid | S10.17: The swatch of the hand-picked colour. | `client/v2/ds/off-system.jsx` · `OffSystemQuestion` | test:v2-ds-edges.test | new |
 | `ds-off-system-use` | testid | S10.17: "Use <closest>": puts var(--token) in place of the literal (ds.use-nearest, one ⌘Z). | `client/v2/ds/off-system.jsx` · `OffSystemQuestion` | test:v2-ds-edges.test | new |
 | `ds-off-system-add` | testid | S10.17: "Add it to the system": a waiting new colour (ds.add-colour). | `client/v2/ds/off-system.jsx` · `OffSystemQuestion` | test:v2-ds-edges.test | new |
@@ -2191,6 +2192,9 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ds-reach-note` | testid | S10.9: the quiet line under the view ("The review is the same list…"). | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
 | `ds-reach-key` | testid | P8 c7: the token card's key line ("Colour › Accent"). | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
 | `ds-reach-contrast` | testid | P8 c7: the contrast line the inspector said, repeated on the token card ("5.6:1 on white · 4.8:1 on the dark page"). | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-halves` | testid | P8 c8: the token card's colour drawn as Light | Dark halves. | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-logo-tile` | testid | P8 c8: a logo file on the page ground in the Brand section's logo row. | `ds/board/section-brand.tsx` · `LogoTile` | test:p8-c8-ds-logo-ground.test | new |
+| `ds-logo-on-ink` | testid | P8 c8: the lockup on the ink ground (the board's dark lockup tile). | `ds/board/section-brand.tsx` · `LogoTile` | test:p8-c8-ds-logo-ground.test | new |
 | `ds-token-role` | testid | P8 c7: the token's role ("Text on surfaces — hints"), on its own row above a contrast warning. | `client/v2/ds/kinds/token.jsx` · `TokenPanel` | test:v2-ds-edges.test | new |
 | `ds-reach-review` | testid | S10.9: the review list that opens once the rings are drawn — the same decision as "Update N canvases". | `client/v2/ds/reach-view.jsx` · `ReachReview` | test:v2-ds-reach-view.test | new |
 | `ds-reach-review-title` | testid | S10.9: "Update canvases with the new Accent?". | `client/v2/ds/reach-view.jsx` · `ReachReview` | test:v2-ds-reach-view.test | new |

@@ -29030,6 +29030,54 @@
     "v2": "new"
   },
   {
+    "hook": "ds-reach-halves",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 c8: the token card's colour drawn as Light | Dark halves.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-logo-tile",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 c8: a logo file on the page ground in the Brand section's logo row.",
+    "producer": {
+      "file": "apps/studio/ds/board/section-brand.tsx",
+      "symbol": "LogoTile"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/p8-c8-ds-logo-ground.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-logo-on-ink",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 c8: the lockup on the ink ground (the board's dark lockup tile).",
+    "producer": {
+      "file": "apps/studio/ds/board/section-brand.tsx",
+      "symbol": "LogoTile"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/p8-c8-ds-logo-ground.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "ds-token-role",
     "kind": "testid",
     "pattern": false,
@@ -34763,6 +34811,22 @@
     "kind": "testid",
     "pattern": false,
     "meaning": "S10.17: \"A colour picked by hand isn't in <System>. The closest is <Accent>.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/off-system.jsx",
+      "symbol": "OffSystemQuestion"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-off-system-canvas",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 c8: the chat card's header — the canvas the question is about (the board's \"Pricing\").",
     "producer": {
       "file": "apps/studio/client/v2/ds/off-system.jsx",
       "symbol": "OffSystemQuestion"

@@ -222,6 +222,7 @@ export function TokenPanel({
       swatch: {
         before: waiting ? (token.values?.[themes.light] ?? null) : null,
         after: lightV,
+        afterDark: hasDark ? darkV : null,
         beforeName: was,
         afterName: valueName(themes.light) || null,
         kind: isColour ? 'Colour' : null,

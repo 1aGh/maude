@@ -11,7 +11,7 @@
 //
 // Pure: it reads the model the studio sent (`GET /_api/ds/board`), nothing else.
 
-import { contrastOf, ratioWords, resolveColour } from '../../../ds/contrast.ts';
+import { contrastOf, judge, ratioWords, resolveColour } from '../../../ds/contrast.ts';
 
 /** css → value text in one theme: the files' value, a waiting edit over it, then the value being dragged. */
 export function themeValues(model, theme, override = {}) {
@@ -37,6 +37,8 @@ function surfaceWords(css, values, isDark, names) {
   if (css === '--bg-0') return isDark ? 'the dark page' : 'the page';
   return names.get(css) ?? css;
 }
+
+const isFill = (css) => css === '--accent' || /^--status-[a-z]+$/.test(css);
 
 /** What a colour token is for, in a few words — read from the pairs rule, so it never claims more than it checks. */
 export function roleWords(css) {
@@ -91,10 +93,18 @@ export function contrastLine(model, css, edited = {}, editing) {
   }
   if (!any) return null;
   if (!fails.length) {
-    const part = (theme) =>
-      worst[theme] === null
+    const part = (theme) => {
+      // a fill (Accent, a status colour) is also seen on the PAGE — the board judges it there, in both modes
+      // ("5.6:1 on white · 4.8:1 on the dark page"); its own text colour is the pair the rule above already passed
+      if (isFill(css)) {
+        const page = judge({ fg: css, bg: '--bg-0', need: 3 }, values[theme]);
+        if (page.ratio !== null)
+          return `${ratioWords(page.ratio)} on ${surfaceWords('--bg-0', values[theme], theme === dark, names)}`;
+      }
+      return worst[theme] === null
         ? null
         : `${ratioWords(worst[theme])} on ${surfaceWords(worstOther[theme], values[theme], theme === dark, names)}`;
+    };
     const line = themes.map(part).filter(Boolean).join(' · ');
     return { ok: true, line, fails, light: worst[light], dark: dark ? worst[dark] : null };
   }

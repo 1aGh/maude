@@ -17,6 +17,7 @@ export const REACH_WORDS = Object.freeze({
   noteTitle: 'Only a canvas-native system can show its own reach.',
   where: 'on the Design system canvas',
   reviewNote: 'The review is the same list — untick a canvas to leave it out.',
+  patterns: 'Patterns — on the Design system canvas',
   hide: 'Hide',
   close: 'Close',
   loading: 'Looking for the places…',

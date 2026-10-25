@@ -141,21 +141,27 @@ async function mount(over: Record<string, unknown> = {}) {
     ...over,
   };
   await act(async () => root.render(createElement(DsReachView as never, props)));
-  const frames = [...host.querySelectorAll<HTMLIFrameElement>('[data-testid="ds-reach-iframe"]')];
-  return { host, calls, frames, props };
+  // the canvases' frames; the system's own Patterns frame leads them and is `board`
+  const all = [...host.querySelectorAll<HTMLIFrameElement>('[data-testid="ds-reach-iframe"]')];
+  const board = all.find((f) => f.closest('[data-board]')) ?? null;
+  const frames = all.filter((f) => f !== board);
+  return { host, calls, frames, board, props };
 }
 const ids = (host: Element, id: string) => [...host.querySelectorAll(`[data-testid="${id}"]`)];
 
 describe('the reach view', () => {
   test('a frame per artboard, the tags in the words of the canvas, the lines from the swatch', async () => {
-    const { host, frames } = await mount();
-    // 5 artboards use it (Homepage, Pricing, Onboarding × 3); four frames are drawn, the fifth is named
+    const { host, frames, board } = await mount();
+    // 5 artboards use it (Homepage, Pricing, Onboarding × 3); four frames are drawn, the fifth is named —
+    // and the system's own Patterns lead them (P8 C8)
     expect(frames).toHaveLength(4);
-    expect(ids(host, 'ds-reach-frame')).toHaveLength(4);
-    expect(host.querySelector('[data-testid="ds-reach-tag"]')?.textContent).toBe(
-      '5 patterns · 29 places'
+    expect(board).toBeTruthy();
+    expect(ids(host, 'ds-reach-frame')).toHaveLength(5);
+    expect(ids(host, 'ds-reach-places')[0]?.textContent).toBe('5 patterns · 29 places');
+    expect(host.querySelector('[data-board] figcaption b')?.textContent).toBe(
+      'Patterns — on the Design system canvas'
     );
-    expect(ids(host, 'ds-reach-places')[0]?.textContent).toBe('14 places');
+    expect(ids(host, 'ds-reach-places')[1]?.textContent).toBe('14 places');
     expect(host.querySelector('[data-testid="ds-reach-title"]')?.textContent).toBe(
       'One colour, everywhere it lands'
     );
@@ -183,7 +189,55 @@ describe('the reach view', () => {
     expect(host.querySelector('[data-testid="ds-reach-more"]')?.textContent).toBe(
       'Onboarding is in the review too'
     );
-    expect(ids(host, 'ds-reach-line')).toHaveLength(4);
+    expect(ids(host, 'ds-reach-line')).toHaveLength(5);
+  });
+
+  test("P8 C8 — the system's own Patterns lead, as a frame of the Design system canvas at its Patterns artboard", async () => {
+    const { board } = await mount();
+    const q = new URL(board?.getAttribute('src') ?? '').searchParams;
+    expect(q.get('canvas')).toBe('system/studio/design-system.tsx');
+    const win = board?.contentWindow as Window;
+    const sent = spy(win);
+    await act(async () => say(win, { dgn: 'loaded', file: 'x' }));
+    await sleep(40);
+    expect(sent.find((s) => s.data.dgn === 'reveal-artboard')?.data.artboardId).toBe('ds-patterns');
+    // the big board lays its sections out late: the camera is asked for the artboard again, not once
+    await sleep(1000);
+    expect(sent.filter((s) => s.data.dgn === 'reveal-artboard').length).toBeGreaterThan(1);
+  });
+
+  test('P8 C8 — a system with no converted board draws the canvases alone, the tag on the token card', async () => {
+    const { host, board } = await mount({ cfg: { ...CFG, dsConverted: { studio: false } } });
+    expect(board).toBeNull();
+    expect(host.querySelector('[data-testid="ds-reach-tag"]')?.textContent).toBe(
+      '5 patterns · 29 places'
+    );
+  });
+
+  test('P8 C8 — the token card draws the colour as Light | Dark halves', async () => {
+    const { host } = await mount({
+      swatch: {
+        before: '#0a6',
+        after: '#06a',
+        afterDark: '#39f',
+        beforeName: 'Azure',
+        afterName: 'Deeper azure',
+        kind: 'Colour',
+      },
+    });
+    const halves = host.querySelector('[data-testid="ds-reach-halves"]');
+    expect(halves?.textContent).toBe('LightDark');
+    expect((halves?.children[1] as HTMLElement | undefined)?.style.background).toContain('#39f');
+    const none = await mount();
+    expect(none.host.querySelector('[data-testid="ds-reach-halves"]')).toBeNull();
+  });
+
+  test('P8 C8 — the review rows wear their canvas picture', async () => {
+    const { host } = await mount({ coverOf: (p: string) => `/cover/${p}.jpg` });
+    await sleep(2800);
+    const imgs = [...host.querySelectorAll('[data-testid="ds-reach-row"] .dsr-thumb img')];
+    expect(imgs.length).toBe(3);
+    expect(imgs[0]?.getAttribute('src')).toBe('/cover/ui/Homepage.tsx.jpg');
   });
 
   test('the frames load the canvas as a read-only preview of the system', async () => {
@@ -239,7 +293,7 @@ describe('the reach view', () => {
         ],
       })
     );
-    const first = host.querySelectorAll('[data-testid="ds-reach-frame"]')[0] as Element;
+    const first = host.querySelectorAll('[data-testid="ds-reach-frame"]')[1] as Element;
     const rings = [...first.querySelectorAll('[data-testid="ds-reach-ring"]')] as HTMLElement[];
     expect(rings).toHaveLength(1);
     expect(rings[0]?.style.left).toBe(`${100 * FRAME_SCALE}px`);

@@ -5,7 +5,7 @@
 // review for the highlighted system, esc stops. The banner under it stays after the menu loses focus:
 // "Previewing Studio site in Warm paper.  5 canvases shown in it · esc to stop   Switch…". Nothing is stored.
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { PREVIEW_WORDS, pickDsPreview, stepDsPreview, stopDsPreview } from './preview-mode.js';
 
@@ -14,8 +14,24 @@ import { PREVIEW_WORDS, pickDsPreview, stepDsPreview, stopDsPreview } from './pr
  *           labelOf: (name: string) => string, project?: string, shown: number, blocked?: boolean,
  *           onSwitch: (target: string) => void }} props
  */
+/**
+ * Where the menu hangs (13 · ds-many-switch): beside the Design systems row it was opened from — the pinned strip
+ * of the Canvases panel — not under the banner. Null when that strip is not on screen (the menu then keeps the
+ * banner's column).
+ */
+export function menuAnchor(doc = typeof document === 'undefined' ? null : document) {
+  const strip = doc?.querySelector('[data-testid="canvases-pinned"]');
+  const r = strip?.getBoundingClientRect?.();
+  if (!r || r.width === 0 || r.height === 0) return null;
+  return { left: Math.round(r.right + 8), top: Math.round(r.top) };
+}
+
 export function DsPreviewBar({ session, labelOf, project = '', shown, blocked = false, onSwitch }) {
   const listRef = useRef(null);
+  const [anchor, setAnchor] = useState(null);
+  useLayoutEffect(() => {
+    setAnchor(menuAnchor());
+  }, []);
   // the menu takes focus when the preview starts, so ↑↓ ↵ esc work at once
   useEffect(() => {
     listRef.current?.focus({ preventScroll: true });
@@ -54,6 +70,8 @@ export function DsPreviewBar({ session, labelOf, project = '', shown, blocked = 
         aria-label={PREVIEW_WORDS.menuHead}
         aria-activedescendant={`ds-preview-opt-${session.index}`}
         data-testid="ds-preview-menu"
+        data-anchored={anchor ? 'row' : undefined}
+        style={anchor ? { left: anchor.left, top: anchor.top } : undefined}
         onKeyDown={onKeyDown}
       >
         <p className="dsp-head">{PREVIEW_WORDS.menuHead}</p>
@@ -84,7 +102,7 @@ export function DsPreviewBar({ session, labelOf, project = '', shown, blocked = 
             {d.key ? <kbd>{d.key}</kbd> : null}
           </div>
         ))}
-        <p className="dsp-hint">{PREVIEW_WORDS.hint}</p>
+        <p className="dsp-hint dsp-hint--quiet">{PREVIEW_WORDS.hint}</p>
       </div>
       <div className="dsp-banner island" role="status" data-testid="ds-preview-banner">
         <StIcon name="eye" size={14} />

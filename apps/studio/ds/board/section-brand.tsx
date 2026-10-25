@@ -3,6 +3,7 @@
 // (SKILL.md, CONTRACT.md) stay where they are.
 import { useState } from 'react';
 import { DsIcon } from '../../canvas-ds-icons.tsx';
+import { type LogoTileModel, logoTiles } from './logo-paint.ts';
 import { CAP, Frame, More, type SectionProps, Swatch } from './parts.tsx';
 import type { BoardBrand, BoardModel } from './types.ts';
 
@@ -27,16 +28,27 @@ export function heroLine(model: BoardModel): string {
     .join(' · ');
 }
 
-/** A logo file; one the browser cannot draw is left out rather than shown as its broken-image alt text. */
-function LogoTile({ file, src }: { file: string; src: string | null }) {
+/** A logo file, its colours written in (logo-paint.ts); one the browser cannot draw is left out rather
+ *  than shown as its broken-image alt text. The lockup also sits on the ink ground (board 13). */
+function LogoTile({ tile }: { tile: LogoTileModel }) {
   const [broken, setBroken] = useState(false);
   if (broken) return null;
   return (
-    <span className="ds-logos-tile" title={file}>
-      {src ? (
-        <img src={src} alt={file} className="ds-logo-img" onError={() => setBroken(true)} />
+    <span
+      className={`ds-logos-tile${tile.onInk ? ' ds-logos-tile--ink' : ''}${tile.wide ? ' ds-logos-tile--wide' : ''}`}
+      data-testid={tile.onInk ? 'ds-logo-on-ink' : 'ds-logo-tile'}
+      style={tile.ground ? { background: tile.ground } : undefined}
+      title={tile.file}
+    >
+      {tile.src ? (
+        <img
+          src={tile.src}
+          alt={tile.file}
+          className="ds-logo-img"
+          onError={() => setBroken(true)}
+        />
       ) : (
-        <i>{file}</i>
+        <i>{tile.file}</i>
       )}
     </span>
   );
@@ -64,8 +76,8 @@ export function BrandSection({ model, mode }: SectionProps) {
           <p className="ds-cap">No logo files yet.</p>
         ) : (
           <div className="ds-logos">
-            {model.logos.map((l) => (
-              <LogoTile key={l.file} file={l.file} src={l.src} />
+            {logoTiles(model, mode).map((t) => (
+              <LogoTile key={t.key} tile={t} />
             ))}
           </div>
         )}

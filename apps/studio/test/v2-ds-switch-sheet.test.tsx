@@ -3,7 +3,9 @@
 // with the verb the button repeats, a pinned or blocked canvas is unticked WITH a reason and cannot be ticked, the
 // AI row appears only when there is something of its own to restyle and an AI to ask, and a refused (level 11)
 // switch cannot be sent; the bar steps with ↑↓, opens the review with ↵ and stops with esc.
+
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -490,6 +492,26 @@ describe('the preview bar', () => {
     const menu = q(host, 'ds-preview-menu') as HTMLElement;
     expect(menu.getAttribute('role')).toBe('listbox');
     expect(document.activeElement).toBe(menu);
+  });
+
+  test('P8 C8 — the menu hangs beside the Design systems row it opened from, not under the banner', async () => {
+    const { menuAnchor } = await import('../client/v2/ds/preview-bar.jsx');
+    const doc = (rect: object | null) =>
+      ({
+        querySelector: (sel: string) =>
+          rect && sel.includes('canvases-pinned') ? { getBoundingClientRect: () => rect } : null,
+      }) as unknown as Document;
+    expect(menuAnchor(doc({ right: 230, top: 118, width: 214, height: 90 }))).toEqual({
+      left: 238,
+      top: 118,
+    });
+    // no strip (the panel is closed) or an unmeasured one: the menu keeps the banner's column
+    expect(menuAnchor(doc(null))).toBeNull();
+    expect(menuAnchor(doc({ right: 0, top: 0, width: 0, height: 0 }))).toBeNull();
+    const css = readFileSync(new URL('../client/v2/ds/switch.css', import.meta.url), 'utf8');
+    expect(css).toContain('.dsp-menu[data-anchored]');
+    // a transformed .dsp would turn the anchored (fixed) menu's coordinates into the banner column's own
+    expect(/\.dsp \{[^}]*transform:/.test(css)).toBe(false);
   });
 
   test('↑↓ step (and re-render the banner), ↵ opens the review for the highlighted system, esc stops', async () => {

@@ -129,7 +129,8 @@
     align-items: stretch;
     gap: var(--space-2);
     width: min(560px, calc(100vw - 32px));
-    transform: translateX(-50%);
+    /* centred by margin, not by a translate — a translated box would become the containing block of the anchored (fixed) menu */
+    margin-left: calc(min(560px, calc(100vw - 32px)) / -2);
   }
   .dsp-menu {
     align-self: flex-start;
@@ -139,6 +140,23 @@
     min-width: 280px;
     padding: var(--space-2);
     outline: none;
+  }
+  /* hung beside the Design systems row it opened from, as the board draws it */
+  .dsp-menu[data-anchored] {
+    position: fixed;
+    align-self: auto;
+    width: 252px;
+  }
+  /* the keys line is for the keyboard and a screen reader; the board's menu draws the list and the doors only */
+  .dsp-hint--quiet {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
   .dsp-menu:focus-visible {
     box-shadow: 0 0 0 2px var(--accent);
