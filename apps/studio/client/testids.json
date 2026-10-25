@@ -22396,6 +22396,38 @@
     "v2": "new"
   },
   {
+    "hook": "ai-copy-link",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inside the canvas iframe: the dashed link between a copy \"Run on a copy\" made and the artboard it was copied from (03 `ai-copy`).",
+    "producer": {
+      "file": "apps/studio/artboard-ai-copies.tsx",
+      "symbol": "AiCopyLinks"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/p8-c7-ai2-copy.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-copy-caption",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inside the canvas iframe: \"Copied from <original's name>\" under the copy (03 `ai-copy`); decoration, aria-hidden.",
+    "producer": {
+      "file": "apps/studio/artboard-ai-copies.tsx",
+      "symbol": "AiCopyLinks"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/p8-c7-ai2-copy.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "ai-choice-settled",
     "kind": "testid",
     "pattern": false,
