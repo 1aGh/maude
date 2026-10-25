@@ -945,6 +945,7 @@ export default function ChatPanel({
               designRel={designRel}
               currentChatId={activeChatId}
               onOpenChat={switchTo}
+              onOpenList={() => setMenuOpen(true)}
             />
           ) : null}
         </ChatHeader>
@@ -965,6 +966,10 @@ export default function ChatPanel({
               setMenuOpen(false);
             }}
             onBack={() => setMenuOpen(false)}
+            onNewChat={() => {
+              newChat();
+              setMenuOpen(false);
+            }}
             // S11.3 (05 · es-edge-panels): "Start a chat about it" — a new chat with the search words in its composer
             onStartChat={(text) => {
               newChat();

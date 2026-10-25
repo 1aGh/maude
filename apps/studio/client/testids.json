@@ -6406,6 +6406,19 @@
     "v2": "stable"
   },
   {
+    "hook": "ai-runs-all",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The run list's last row: \"All chats  N\" — opens the chat list.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/RunList.jsx",
+      "symbol": "RunList"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
     "hook": "ai-chat-island",
     "kind": "testid",
     "pattern": false,
@@ -6569,6 +6582,19 @@
     "kind": "testid",
     "pattern": false,
     "meaning": "\"‹ Chats\": back from the chat list to the chat.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ChatList.jsx",
+      "symbol": "ChatList"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-chat-list-new",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The chat list header \"+\": start a new chat from the list.",
     "producer": {
       "file": "apps/studio/client/v2/ai/ChatList.jsx",
       "symbol": "ChatList"

@@ -138,6 +138,20 @@ const RINGS_CSS = `
 .dc-ai-ring { position: fixed; display: none; border-radius: var(--maude-hud-radius-sm, 6px); box-sizing: border-box; pointer-events: none; }
 .dc-ai-ring[data-state="running"] { border: 1.5px dashed var(--dc-ai-spark); }
 .dc-ai-ring[data-state="needs-you"] { border: 1.5px dashed var(--dc-ai-azure); box-shadow: 0 0 0 4px var(--dc-ai-azure-muted); }
+/* 03 ai-permission: several artboards waiting on one ask share ONE dashed box + ONE tag; each keeps a "will change" chip */
+.dc-ai-ring[data-grouped] { border-color: transparent; box-shadow: none; }
+.dc-ai-ring[data-grouped] .dc-ai-tag { display: none; }
+.dc-ai-group {
+  position: fixed; display: none; box-sizing: border-box; pointer-events: none; border-radius: var(--maude-hud-radius-sm, 6px);
+  border: 1.5px dashed var(--dc-ai-azure); box-shadow: 0 0 0 4px var(--dc-ai-azure-muted);
+}
+.dc-ai-group .dc-ai-tag { top: calc(100% + 8px); background: var(--dc-ai-azure); color: var(--dc-ai-azure-fg); }
+.dc-ai-will {
+  position: absolute; right: 9px; bottom: 9px; padding: 0 8px; border-radius: 999px; white-space: nowrap;
+  background: var(--maude-chrome-bg-2, #fff); color: var(--maude-chrome-fg-1, #333);
+  font: 500 var(--maude-hud-type-xs, 11px)/18px var(--maude-chrome-font-body, system-ui, sans-serif);
+  box-shadow: var(--maude-hud-shadow-md, 0 1px 3px rgb(0 0 0 / 0.2));
+}
 /* a settled "Made by AI" artboard wears the label mark only; the ring is the finish moment (data-fresh) */
 .dc-ai-ring[data-state="done"][data-fresh] {
   border: 2px solid var(--dc-ai-spark); box-shadow: 0 0 0 4px var(--dc-ai-spark-muted);
@@ -308,6 +322,12 @@ export function ArtboardRingsLayer() {
     };
   }, [shellRings, drafted]);
   const ids = useMemo(() => Object.keys(rings), [rings]);
+  // 03 ai-permission: your waiting artboards (two or more) read as ONE group
+  const groupIds = useMemo(() => {
+    const g = ids.filter((id) => rings[id].state === 'needs-you' && rings[id].who === 'you');
+    return g.length >= 2 ? g : [];
+  }, [ids, rings]);
+  const groupEl = useRef<HTMLDivElement | null>(null);
 
   // P8 c6: the file-write rim (inspect.ts `.dc-activity-rim`) yields while this layer speaks for a run of yours
   // (live, or inside the finish moment + a short tail while the file-activity fade ends).
@@ -455,13 +475,37 @@ export function ArtboardRingsLayer() {
         div.style.height = `${Math.round(r.height + grow * 2)}px`;
         div.dataset.at = tagPlacement(r.width);
       }
+      const box = groupEl.current;
+      if (box) {
+        let l = Infinity;
+        let t = Infinity;
+        let rt = -Infinity;
+        let b = -Infinity;
+        for (const id of groupIds) {
+          const el = artboardEl(id) as HTMLElement | null;
+          const r = el?.isConnected ? el.getBoundingClientRect() : null;
+          if (!r || (r.width === 0 && r.height === 0)) continue;
+          l = Math.min(l, r.left);
+          t = Math.min(t, r.top);
+          rt = Math.max(rt, r.right);
+          b = Math.max(b, r.bottom);
+        }
+        if (l === Infinity) box.style.display = 'none';
+        else {
+          box.style.display = 'block';
+          box.style.left = `${Math.round(l - 5)}px`;
+          box.style.top = `${Math.round(t - 5)}px`;
+          box.style.width = `${Math.round(rt - l + 10)}px`;
+          box.style.height = `${Math.round(b - t + 10)}px`;
+        }
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => {
       if (raf != null) cancelAnimationFrame(raf);
     };
-  }, [ids, live]);
+  }, [ids, live, groupIds]);
 
   if (ids.length === 0) return null;
   return (
@@ -481,6 +525,7 @@ export function ArtboardRingsLayer() {
             data-state={r.state}
             data-who={r.who}
             data-at="below"
+            data-grouped={groupIds.includes(id) ? 'true' : undefined}
             data-fresh={r.state === 'done' && fresh.has(id) ? 'true' : undefined}
             data-drawing={drafted?.id === id && !shellRings[id] ? 'true' : undefined}
           >
@@ -505,9 +550,15 @@ export function ArtboardRingsLayer() {
               )}
               {ringTagText(r)}
             </span>
+            {r.state === 'needs-you' ? <span className="dc-ai-will">will change</span> : null}
           </div>
         );
       })}
+      {groupIds.length ? (
+        <div className="dc-ai-group" ref={groupEl} data-testid="ai-ring-group">
+          <span className="dc-ai-tag">{`${rings[groupIds[0]].tag} · ${groupIds.length} artboards`}</span>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1522,6 +1522,7 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-chat-new` | testid | The AI chat header's New chat icon. | `client/panels/chat-header.jsx` · `ChatHeader` | — | stable |
 | `ai-chat-hide` | testid | The AI chat header's Hide icon (replaces the old "Close assistant" button): folds the island to its spark corner icon. | `client/panels/chat-header.jsx` · `ChatHeader` | — | stable |
 | `ai-chat-count` | testid | The AI chat header's "✦ N" chip: how many of YOUR AI runs are live (a waiting ask counts; other people's AI never does); absent at zero. Click opens the run list (`ai-runs-list`). | `client/v2/ai/RunList.jsx` · `RunsCount` | — | stable |
+| `ai-runs-all` | testid | The run list's last row: "All chats  N" — opens the chat list. | `client/v2/ai/RunList.jsx` · `RunList` | — | stable |
 | `ai-chat-count` | testid | The AI chat header's "✦ N" chip: how many of YOUR chats are running; absent at zero. Click opens the chat list. | `client/panels/chat-header.jsx` · `ChatHeader` | — | stable |
 | `ai-quit-dialog` | testid | S5.14: "Quit while AI is working?" — the shell's quit:// ask shown in the project tab with AI (03 ai-quit). Desktop only. | `client/v2/ai/QuitDialog.jsx` · `QuitDialog` | `apps/desktop/e2e/scenarios/ai-quit.e2e.ts` | stable |
 | `ai-quit-confirm` | testid | S5.14: the quit dialog's Quit button — every chat stops, what AI finished is kept as a version, then the app quits. | `client/v2/ai/QuitDialog.jsx` · `QuitDialog` | `apps/desktop/e2e/scenarios/ai-quit.e2e.ts` | stable |
@@ -1576,6 +1577,7 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-scope-chip` | testid | The composer's scope chip (◆ Whole canvas · ◆ <artboard> · ◆ N artboards · No canvas). `data-scope` = whole | artboards | none. Click opens its menu. | `client/v2/ai/ScopeChip.jsx` · `ScopeChip` | — | stable |
 | `ai-chat-list` | testid | The chat list (03 ai-chat-list) that the panel title ⌄ opens in place of the thread. | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |
 | `ai-chat-list-back` | testid | "‹ Chats": back from the chat list to the chat. | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |
+| `ai-chat-list-new` | testid | The chat list header "+": start a new chat from the list. | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |
 | `ai-chat-list-search` | testid | The chat list's search field (words inside chats, not just titles). | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |
 | `ai-chat-search-none` | testid | The chat list, search with no hits: "No chat mentions …" with the number of chats searched and "Start a chat about it". | `client/v2/ai/ChatList.jsx` · `ChatList` | — | new in v2 (S11.3) |
 | `ai-chat-row-<id>` | testid | A chat row in the chat list. `<id>` = the chat id. `data-state` = working | needs | idle. | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |
