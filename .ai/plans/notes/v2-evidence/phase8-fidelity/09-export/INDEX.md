@@ -206,3 +206,17 @@ Every reachable id re-shot on the round-7 tip (release-built client, Google Chro
 | ex-handoff | no Design tokens row; Last used tag; Use the design system + sub line; review hint pill |
 | ex-handoff-edges | the connect step as its own card with a body |
 | every other reachable id | re-shot unchanged |
+
+## Round 7b (p8-c7-ex10b) — after
+
+Re-shot the touched ids on the round-7b tip (release-built client, Google Chrome channel, light + dark), IMPL side only; spec frames reused. No match judged here. Harness: `_c7b-harness-g3/` (`t09` all + `ho`; `t09b` canvas/batch steps alone; `t09p` seeded job lists alone). Work: `fix-c7-oboard.md`.
+
+| artboard id | after (round 7b) |
+|---|---|
+| ex-canvas | the sheet on "This canvas" (nothing selected): kind rows Fixed size · Web page · Print · Video, Folders, Save to |
+| ex-batch-pick | two fixed-size + one print artboard picked by their label chips: a group each; File names select (Canvas — artboard) |
+| ex-batch | Folder scope with the cloud lane on offer ("In the cloud" under the video row); the sub line no longer names the design root |
+| ex-huge | Include row (folders / loose canvases ticks) on Whole project; "Project ZIP instead" in the accent text |
+| ex-progress, ex-states, ex-history | the Exports panel with named rows, a picture tile each, the header's folder button, the running / idle foot; seeded jobs carry their specs |
+| ex-handoff | sub line "<artboards> · <design system> design system" |
+| every other id | not re-shot this round |
