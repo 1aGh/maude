@@ -324,12 +324,40 @@ const CSS_TEXT = `
   z-index: 9;
   pointer-events: none;
   transform: translateY(-100%);
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
   background: var(--maude-hud-accent, #7c5cff);
   color: var(--maude-hud-accent-fg, #fff);
+  font: 600 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
+  white-space: nowrap;
+}
+/* 14 ed-lay-reorder: what the gesture offers, as light pills under the work (the board's .ed-hints) */
+.ed-slot-hints {
+  position: fixed;
+  z-index: 9;
+  left: 50%;
+  bottom: 92px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  pointer-events: none;
+}
+.ed-slot-hint {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--maude-chrome-bg-1);
+  color: var(--maude-chrome-fg-1);
+  border: 1px solid var(--maude-chrome-border);
+  box-shadow: 0 1px 3px var(--maude-chrome-shadow, rgba(0, 0, 0, 0.18));
   font: 500 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   white-space: nowrap;
+}
+.ed-slot-hint kbd {
+  font: inherit;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: var(--maude-chrome-bg-2);
+  color: var(--maude-chrome-fg-0);
 }
 @keyframes ed-slot-fade { from { opacity: 0; } to { opacity: 1; } }
 /* Reduce motion: the neighbours jump (canvas-shell skips the slide); the slot still FADES in — an
@@ -348,6 +376,14 @@ function ensureStyles(): void {
 }
 
 export const SLOT_CSS = CSS_TEXT;
+
+/** The four things a reorder drag offers (14 ed-lay-reorder's hint pills); a key is `[key, rest]`. */
+export const SLOT_HINTS: ReadonlyArray<{ key?: string; text: string }> = [
+  { text: 'Let go — it moves here' },
+  { key: 'esc', text: ' puts it back' },
+  { key: '⌥', text: ' while dragging — a copy' },
+  { text: 'Drag out of the frame — place it freely' },
+];
 
 interface Paint {
   slot: RectLike;
@@ -452,6 +488,14 @@ export function ReorderSlot() {
         style={{ left: paint.tag.left, top: paint.tag.top - 4 }}
       >
         {paint.line}
+      </div>
+      <div className="ed-slot-hints" data-testid="edit-reorder-hints">
+        {SLOT_HINTS.map((hint) => (
+          <span key={hint.text} className="ed-slot-hint">
+            {hint.key ? <kbd>{hint.key}</kbd> : null}
+            {hint.text}
+          </span>
+        ))}
       </div>
     </div>
   );

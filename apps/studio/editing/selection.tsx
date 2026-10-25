@@ -17,7 +17,16 @@ import type { SelectionCrumb } from '../bridge/dgn-protocol.ts';
 import { hoverTargetToSelection, resolveSelectionEl } from '../dom-selection.ts';
 import type { ElementRef } from '../edit-ops/types.ts';
 import { type Selection, setSelectionDescriber, useSelectionSet } from '../use-selection-set.tsx';
-import { buildCrumbs, type CrumbNode, crumbLabel, nameTag, selectionKind } from './crumbs.ts';
+import {
+  buildCrumbs,
+  type CrumbNode,
+  crumbLabel,
+  layoutTag,
+  nameTag,
+  selectionKind,
+  tagParts,
+} from './crumbs.ts';
+import { tokenRuler } from './token-ruler.tsx';
 
 const STAMPED = '[data-cd-id]';
 
@@ -228,16 +237,19 @@ export function EditingSelection({ readOnly = false }: { readOnly?: boolean }) {
       place(tagRef.current, el, true);
       if (tagRef.current && el instanceof HTMLElement) {
         const label = crumbLabel(crumbNodeOf(el));
-        const text = nameTag(label, el.offsetWidth, el.offsetHeight);
+        // 14 ed-lay-auto: a gap drag in flight (the token ruler is up) names the layout, not the size
+        const text = tokenRuler.get()
+          ? layoutTag(label)
+          : nameTag(label, el.offsetWidth, el.offsetHeight);
         if (tagRef.current.textContent !== text) {
           // "<name> · <w> × <h>": the name in the tag's semibold, the size after it regular (14 .ed-tag-q)
-          const at = text.lastIndexOf(' · ');
           const tag = tagRef.current;
-          tag.textContent = at < 0 ? text : text.slice(0, at);
-          if (at >= 0) {
+          const [name, rest] = tagParts(text);
+          tag.textContent = name;
+          if (rest) {
             const q = tag.ownerDocument.createElement('span');
             q.className = 'ed-tag-q';
-            q.textContent = text.slice(at);
+            q.textContent = rest;
             tag.appendChild(q);
           }
         }
