@@ -108,7 +108,8 @@
     padding: var(--space-1);
     border-color: transparent;
     border-radius: var(--radius-md);
-    background: var(--bg-1);
+    /* the picker is a .st-dialog (--bg-1): a --bg-1 tile on it vanishes (light, an-stk-search); the well surface reads in both themes */
+    background: var(--bg-3);
   }
   .sg-cell .st-sp-thumb {
     max-height: 100%;

@@ -13,6 +13,15 @@ describe('an-print: the "Not printed" pill paints ABOVE the paper it sits inside
   });
 });
 
+describe('an-stk-search: a result tile has its own surface (the picker panel is --bg-1)', () => {
+  test('.sg-cell is not --bg-1 (it vanished on the panel in light)', () => {
+    const css = read('client/v2/annotations/stickers-gallery.css');
+    const rule = css.match(/\.sg-cell \{[^}]*\}/);
+    expect(rule?.[0]).toMatch(/background: var\(--bg-3\)/);
+    expect(rule?.[0]).not.toMatch(/background: var\(--bg-1\)/);
+  });
+});
+
 describe('an-vote:the Start-a-vote sheet is opaque (the inspector must not read through it)', () => {
   const css = read('client/v2/annotations/vote.css');
   test('the sheet takes the popover/sheet surface, the bar keeps the island frost', () => {
