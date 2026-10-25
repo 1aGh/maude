@@ -863,6 +863,19 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'Move assets/<name> and the sidecars that share its stem (<name>.photo.json, <stem>.<edit8>.photo.json, <name>.gen.json, transcripts) into <designRoot>/_trash/<stamp>__asset-<name>/ and write _trash-manifest.json {kind: "asset", asset, slug, trashed[]} beside them — only a picture no canvas uses and no older version shows (`maude design assets --not-used` lists them; nothing is listed until older versions are checked). Over HTTP: POST /_api/assets/trash {assets: ["assets/<name>"]} answers per item: moved, or used | kept-by-versions | checking'
     ),
   },
+  // P8 round 7 — Rename… an asset: assets/<name>.<ext> and its sidecars take the new name (asset-rename.ts). Never a
+  // picture a canvas uses or an older version shows — their references would break — so nothing else is rewritten.
+  'assets.rename': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'none',
+    server: { route: '/_api/assets/rename', method: 'POST' },
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Rename assets/<name>.<ext> to assets/<new name>.<ext> (same extension) together with the sidecars that share its stem (<name>.photo.json, <stem>.<edit8>.photo.json, <name>.gen.json, transcripts) — only a picture no canvas uses and no older version shows (`maude design assets --not-used` lists them). Over HTTP: POST /_api/assets/rename {asset: "assets/<name>.<ext>", name: "<new name>"} answers {ok, to} or 409 {reason: used | kept-by-versions | checking | exists | same | bad-name | invalid | missing}'
+    ),
+  },
   'tool.create-default': TSX(
     'Add the element’s JSX at its default size: a frame or rectangle is 100 × 100 (see object.insert-shape), a text is a <p> with the words “Text”'
   ),

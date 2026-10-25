@@ -474,7 +474,8 @@ export interface ShellToCanvas {
   'ds-rects': { seq: number; artboard: string | null; ids: string[] };
   'ai-activity': { file: string; entry: AiActivityEntry | null };
   // selection + edit round-trips
-  'select-by-id': { id?: Id; artboardId?: Id | null; index?: number };
+  /** `add` (P8 round 7, 12 · ia-placed): add to the selection instead of replacing it — the placed photos as one group */
+  'select-by-id': { id?: Id; artboardId?: Id | null; index?: number; add?: boolean };
   /** S11.9 — Layers › Advanced › Select by selector: the canvas selects what the selector matches inside its
    *  artboards (capped at 500, scoped to `[data-dc-screen]`). */
   'select-by-selector': { selector: string };
@@ -1927,7 +1928,7 @@ const s2c: S2C = {
     gate: 'parent',
     status: 'live',
     owner: CS,
-    parse: p({ id: opt(str), artboardId: opt(nul(str)), index: opt(num) }),
+    parse: p({ id: opt(str), artboardId: opt(nul(str)), index: opt(num), add: opt(bool) }),
   },
   'select-by-selector': {
     gate: 'parent',

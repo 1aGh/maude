@@ -1347,6 +1347,34 @@
     gap: var(--space-2);
     color: var(--fg-0);
   }
+  /* P8 round 7 — Rename…: the find field's focused look (12 · ia-assets-find `.k-find--on`), the extension fixed after it */
+  .lp-rename {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 30px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    box-shadow:
+      0 0 0 3px var(--accent-tint),
+      inset 0 0 0 1px var(--accent);
+  }
+  .lp-rename-in {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font: inherit;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .lp-rename-ext {
+    flex: none;
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+  }
   .lp-undo {
     flex: none;
     padding: 0 var(--space-1);

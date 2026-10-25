@@ -168,6 +168,17 @@ export const VIEW_ACTIONS: ActionDef[] = [
     search: { hidden: true },
   },
   {
+    // P8 round 7 (12 · ia-assets-keys) — Rename… in the tile menu: the picture and its sidecars take the new name; the
+    // extension stays. A write: Can edit and up, refused by the server as well, and refused for a picture a canvas uses
+    // or an older version shows (`POST /_api/assets/rename`), so no artboard loses its picture. No key.
+    id: 'assets.rename',
+    label: 'Rename…',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { minRole: 'edit' },
+    search: { hidden: true },
+  },
+  {
     // S8.20 (12 · ia-assets-find, CONTRACT §7) — search what's IN the pictures, not only their names: asked once per
     // project, per person, on this Mac ("Describe the pictures in <project>?"), never assumed. On, AI describes each
     // picture once with the person's Claude account; off, search reads names and tags. The sheet is the only way on.

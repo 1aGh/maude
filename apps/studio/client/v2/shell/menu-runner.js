@@ -311,6 +311,7 @@ export function createMenuHandlers(d) {
     'assets.place': () => runAssetsAction('assets.place'),
     'assets.details': () => runAssetsAction('assets.details'),
     'assets.trash': () => runAssetsAction('assets.trash'),
+    'assets.rename': () => runAssetsAction('assets.rename'),
     // S8.16 — Assets › Generate: the ask lives in the Assets tab, so the tab is shown first
     'assets.generate': () => {
       if (runAssetsAction('assets.generate')) return;

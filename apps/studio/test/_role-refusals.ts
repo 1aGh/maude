@@ -161,6 +161,13 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
     refused: ['view', 'comment'],
     body: { assets: ['assets/a1b2c3d4.jpg'] },
   },
+  // P8 round 7 — Rename… an asset: an edit on the project (test/asset-rename-route.test.ts is the handler's own gate)
+  {
+    method: 'POST',
+    route: '/_api/assets/rename',
+    refused: ['view', 'comment'],
+    body: { asset: 'assets/a1b2c3d4.jpg', name: 'Kick off' },
+  },
   // S8.16 — Generate with N takes: Can edit on the canvas (test/generate-takes.test.ts is the handler's own gate)
   {
     method: 'POST',

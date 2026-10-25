@@ -174,6 +174,8 @@ export const STUDIO_ROUTES = Object.freeze({
   // S8.13 — Move assets to the trash (routes/asset-trash.ts): an edit on the project; the studio also refuses a
   // canvas-only session (no project-level say over `assets/`)
   '/_api/assets/trash': { safe: null, unsafe: 'edit' },
+  // P8 round 7 — Rename… an asset (routes/asset-rename.ts): the same project-level edit as Move to trash
+  '/_api/assets/rename': { safe: null, unsafe: 'edit' },
   // Issue #126 — chunked upload of one video/audio clip; the same write as
   // `/_api/asset`, split into bounded requests (caps live in the studio).
   '/_api/asset/chunk-start': { safe: 'read', unsafe: 'edit' },

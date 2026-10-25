@@ -223,7 +223,7 @@ describe('Not used (the model)', () => {
 describe('tile menu', () => {
   test('an editor can move to the trash (with several picked it says how many); a viewer cannot', () => {
     const ids = (o: object) => tileMenuItems({ kind: 'image' }, o).map((i: { id: string }) => i.id);
-    expect(ids({})).toEqual(['place', 'details', 'copy', 'sep', 'trash']);
+    expect(ids({})).toEqual(['place', 'details', 'rename', 'copy', 'sep', 'trash']);
     expect(ids({ readOnly: true })).toEqual(['details']);
     expect(tileMenuItems({ kind: 'image' }, { count: 6 }).at(-1)?.label).toBe(
       'Move 6 to the trash'

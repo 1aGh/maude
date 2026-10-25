@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "93f9dbef4cc1",
+  "manifestVersion": "692eecf7320c",
   "actions": [
     {
       "id": "search.open",
@@ -2045,6 +2045,25 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Move assets/<name> and the sidecars that share its stem (<name>.photo.json, <stem>.<edit8>.photo.json, <name>.gen.json, transcripts) into <designRoot>/_trash/<stamp>__asset-<name>/ and write _trash-manifest.json {kind: \"asset\", asset, slug, trashed[]} beside them — only a picture no canvas uses and no older version shows (`maude design assets --not-used` lists them; nothing is listed until older versions are checked). Over HTTP: POST /_api/assets/trash {assets: [\"assets/<name>\"]} answers per item: moved, or used | kept-by-versions | checking"
+      }
+    },
+    {
+      "id": "assets.rename",
+      "label": "Rename…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "none",
+      "server": {
+        "route": "/_api/assets/rename",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Rename assets/<name>.<ext> to assets/<new name>.<ext> (same extension) together with the sidecars that share its stem (<name>.photo.json, <stem>.<edit8>.photo.json, <name>.gen.json, transcripts) — only a picture no canvas uses and no older version shows (`maude design assets --not-used` lists them). Over HTTP: POST /_api/assets/rename {asset: \"assets/<name>.<ext>\", name: \"<new name>\"} answers {ok, to} or 409 {reason: used | kept-by-versions | checking | exists | same | bad-name | invalid | missing}"
       }
     },
     {

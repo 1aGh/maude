@@ -23,6 +23,8 @@ export function tileMenuItems(asset, { readOnly = false, placeLabel = null, coun
       keys: '↵',
     });
   items.push({ id: 'details', label: 'Show details', keys: '⌘I' });
+  // P8 round 7 (12 · ia-assets-keys) — Rename… (`assets.rename`): an editor's, one picture at a time
+  if (!readOnly && count <= 1) items.push({ id: 'rename', label: 'Rename…' });
   // 12 · ia-assets-keys — Copy puts the picture on the clipboard; a viewer is offered Show details only (as before)
   if (!readOnly && asset?.kind === 'image') items.push({ id: 'copy', label: 'Copy', keys: '⌘C' });
   // S8.13 — Move to trash (`assets.trash`): an editor's; with several picked in the Browse view it takes them all

@@ -20,6 +20,7 @@ import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
 import { type AnnotationRouteDeps, createAnnotationRoutes } from './annotations.ts';
 import { type AssetDetailsRouteDeps, createAssetDetailsRoutes } from './asset-details.ts';
+import { createAssetRenameRoutes } from './asset-rename.ts';
 import { type AssetStateRouteDeps, createAssetStateRoutes } from './asset-state.ts';
 import { type AssetTrashRouteDeps, createAssetTrashRoutes } from './asset-trash.ts';
 import { type AssetImportRouteDeps, createAssetImportRoutes } from './assets.ts';
@@ -139,7 +140,8 @@ export interface RouteDeps {
   connections?: ConnectionsRouteDeps;
   /** S8.19 — `GET /_api/asset-state` (main origin): disk + upload queue + hub presence */
   assetState?: AssetStateRouteDeps;
-  /** S8.13 — `POST /_api/assets/trash` (main origin, Can edit on the project): assets + sidecars to `_trash/` */
+  /** S8.13 — `POST /_api/assets/trash` (main origin, Can edit on the project): assets + sidecars to `_trash/`;
+   *  P8 round 7 — `POST /_api/assets/rename` on the same deps */
   assetTrash?: AssetTrashRouteDeps;
   /** S8.17 — `POST /_api/figma/frames` + `…/import-frames` (main origin, Can edit on the project): frames as pictures */
   figma?: FigmaRouteDeps;
@@ -244,6 +246,8 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...(deps.connections ? createConnectionsRoutes(deps.connections) : []),
     ...createAssetStateRoutes(deps.assetState ?? { service: () => null }),
     ...(deps.assetTrash ? createAssetTrashRoutes(deps.assetTrash) : []),
+    // P8 round 7 — POST /_api/assets/rename (routes/asset-rename.ts): the same deps and verdict as Move to trash
+    ...(deps.assetTrash ? createAssetRenameRoutes(deps.assetTrash) : []),
     ...(deps.figma ? createFigmaRoutes(deps.figma) : []),
     ...(deps.describe ? createDescribeRoutes(deps.describe) : []),
     ...(deps.assetDetails ? createAssetDetailsRoutes(deps.assetDetails) : []),

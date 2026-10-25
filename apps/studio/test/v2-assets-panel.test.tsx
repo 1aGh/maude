@@ -182,6 +182,7 @@ describe('the tile menu', () => {
     expect(tileMenuItems({ kind: 'image' }, { placeLabel: 'MVP zápasu' })).toEqual([
       { id: 'place', label: 'Place in MVP zápasu', keys: '↵' },
       { id: 'details', label: 'Show details', keys: '⌘I' },
+      { id: 'rename', label: 'Rename…' },
       { id: 'copy', label: 'Copy', keys: '⌘C' },
       { id: 'sep', separator: true },
       { id: 'trash', label: 'Move to trash' },
@@ -189,6 +190,7 @@ describe('the tile menu', () => {
     expect(tileMenuItems({ kind: 'image' }).map((i) => i.label)).toEqual([
       'Place',
       'Show details',
+      'Rename…',
       'Copy',
       undefined,
       'Move to trash',
@@ -196,7 +198,12 @@ describe('the tile menu', () => {
     expect(tileMenuItems({ kind: 'image' }, { readOnly: true }).map((i) => i.id)).toEqual([
       'details',
     ]);
-    expect(tileMenuItems({ kind: 'video' }).map((i) => i.id)).toEqual(['details', 'sep', 'trash']);
+    expect(tileMenuItems({ kind: 'video' }).map((i) => i.id)).toEqual([
+      'details',
+      'rename',
+      'sep',
+      'trash',
+    ]);
     expect(tileMenuItems({ kind: 'video' }, { readOnly: true }).map((i) => i.id)).toEqual([
       'details',
     ]);
