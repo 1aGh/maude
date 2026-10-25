@@ -310,12 +310,9 @@ describe('G6 Advanced: Folders AI may read (S5.10 grants), the rest stays out', 
 
   test('rows with no backing capability are not drawn (a row that does nothing is worse than none)', async () => {
     const m = await mountAdvanced([]);
-    for (const dead of [
-      'Change canvases',
-      'Search the web',
-      'Always allowed on this canvas',
-      'Write outside this project',
-    ])
+    // P8 c7: "Search the web" / "Use Assets and footage" / "Write outside this project" ARE drawn now (the agent is
+    // told, p8-c7-ai.test.tsx), and "Change canvases" is the ask-before mode (no modes = no row). Still no store behind:
+    for (const dead of ['Change canvases', 'Always allowed on this canvas'])
       expect(m.host.textContent).not.toContain(dead);
   });
 });

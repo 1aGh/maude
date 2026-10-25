@@ -7,11 +7,12 @@
 //
 // Rows that need a substrate this build does not have are not drawn: a row that does nothing is worse than no
 // row. S5.17b: "Folders AI may read" IS drawn — S5.10's consent store backs it (GET /_api/ai/attach/folders,
-// Reset = POST …/folder/revoke). Not drawn, with no capability behind them: the "AI may" switches (Change
-// canvases · Use Assets and footage · Search the web — the allowed tools are fixed in acp/bridge.ts), "Write
-// outside this project" (always asks, nothing to set), "Always allowed on this canvas · Reset" (Claude Code's
-// own session rule, no Maude store to reset) and Images, video and voice (the Generate dialog's per-use choices;
-// nothing persists a default). Each lands as a row the day its setting exists.
+// Reset = POST …/folder/revoke). P8 c7 (03 `ai-advanced`) adds the rest of the "AI may" group that something
+// backs: Change canvases (the ask-before mode seen as a switch), Use Assets and footage / Search the web (a per-Mac
+// choice the agent is TOLD with every ask — ai-may.js; Claude Code's tool permissions stay the hard limit) and
+// "Write outside this project · Asks every time" (a fact of bridge.ts). Still not drawn, with no store behind them:
+// "Always allowed on this canvas · Reset" (Claude Code's own session rule) and Images, video and voice (the
+// Generate dialog's per-use choices; nothing persists a default). Each lands as a row the day its setting exists.
 //
 // The suggest-only banner (`SuggestOnlyBanner`) is the other half of 03 `ai-adv-edges`: a mode where AI
 // changes nothing is said up front, with ONE verb to undo it.
@@ -22,6 +23,7 @@ import { TRANSCRIPT_VIEWS } from '../../panels/transcript-view.js';
 import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import { useFold } from '../fold/use-fold.js';
 import { ADVANCED_ROW_EVENT, takeParkedRow } from './advanced-handlers.js';
+import { readMay, writeMay } from './ai-may.js';
 import {
   AI_FOLD_PANEL,
   contextMeter,
@@ -140,6 +142,27 @@ function OptionSelect({ row, label, opt, onChange }) {
   );
 }
 
+/** A labelled switch row of the "AI may" group (03 `ai-advanced`: label left, switch right). */
+function MaySwitch({ row, label, on, onChange }) {
+  return (
+    <div className="ai-adv-row" data-adv-row={row}>
+      <label className="ai-adv-k" htmlFor={rowDomId(row)}>
+        {label}
+      </label>
+      <button
+        id={rowDomId(row)}
+        type="button"
+        role="switch"
+        className="switch"
+        aria-checked={on}
+        data-adv-control
+        data-testid={`ai-adv-${row}-switch`}
+        onClick={() => onChange(!on)}
+      />
+    </div>
+  );
+}
+
 /** The one-line "AI is set to suggest only. The canvas won't change. [Allow changes]" above the thread. */
 export function SuggestOnlyBanner({ modes, onSetMode }) {
   const b = modeBanner(modes);
@@ -216,10 +239,22 @@ export function ChatAdvanced({
   const [copied, setCopied] = useState(false);
   const [want, setWant] = useState(null);
   const [folders, setFolders] = useState(null); // null = not read yet; else the granted folders (S5.10)
+  const [may, setMay] = useState(() => readMay()); // Advanced › AI may (ai-may.js)
+  const setMayKey = useCallback((key, on) => {
+    setMay((cur) => {
+      const next = { ...cur, [key]: on };
+      writeMay(next);
+      return next;
+    });
+  }, []);
 
   const parsed = caps?.parsedOptions ?? { model: null, effort: null, fast: null, others: [] };
   const modes = caps?.modes ?? null;
   const modeList = modeOptions(modes);
+  // "Change canvases" is the ask-before mode seen as a switch: the "AI changes nothing" modes are off.
+  const changesNothing = modeList.find((m) => m.id === modes?.currentModeId)?.group === 'nochange';
+  const askingMode = modeList.find((m) => m.group === 'asks')?.id ?? modes?.currentModeId;
+  const noChangeMode = modeList.find((m) => m.group === 'nochange')?.id ?? modes?.currentModeId;
   const noCaps = !modeList.length && !parsed.model && !parsed.effort && !parsed.fast;
   const connecting = capsConnecting(noCaps, sessionId);
   const ctxMeter = contextMeter(usage);
@@ -354,6 +389,20 @@ export function ChatAdvanced({
               Connecting…
             </p>
           ) : null}
+          {parsed.model ? (
+            <OptionSelect row="model" label="Model" opt={parsed.model} onChange={onSetConfig} />
+          ) : null}
+          {parsed.effort ? (
+            <OptionSegmented
+              row="effort"
+              label="Effort"
+              opt={parsed.effort}
+              onChange={onSetConfig}
+            />
+          ) : null}
+          {parsed.fast ? (
+            <OptionSwitch row="fast" label="Fast mode" opt={parsed.fast} onChange={onSetConfig} />
+          ) : null}
           {modeList.length ? (
             <Row row="ask-before" label="Ask before">
               <select
@@ -387,20 +436,6 @@ export function ChatAdvanced({
               {/* P8 c5: the agent's own id for the mode ("default") sat on its own line under the select; 03 draws
                   the row as label · select only. It stays one hover away, as the select's own title. */}
             </Row>
-          ) : null}
-          {parsed.model ? (
-            <OptionSelect row="model" label="Model" opt={parsed.model} onChange={onSetConfig} />
-          ) : null}
-          {parsed.effort ? (
-            <OptionSegmented
-              row="effort"
-              label="Effort"
-              opt={parsed.effort}
-              onChange={onSetConfig}
-            />
-          ) : null}
-          {parsed.fast ? (
-            <OptionSwitch row="fast" label="Fast mode" opt={parsed.fast} onChange={onSetConfig} />
           ) : null}
 
           <Row row="show-in-chat" label="Show in chat">
@@ -436,6 +471,32 @@ export function ChatAdvanced({
           </Row>
 
           <p className="ai-adv-sub">AI may</p>
+          {modeList.length ? (
+            <MaySwitch
+              row="change-canvases"
+              label="Change canvases"
+              on={!changesNothing}
+              onChange={(on) => onSetMode(on ? askingMode : noChangeMode)}
+            />
+          ) : null}
+          <MaySwitch
+            row="use-assets"
+            label="Use Assets and footage"
+            on={may.assets}
+            onChange={(on) => setMayKey('assets', on)}
+          />
+          <MaySwitch
+            row="search-web"
+            label="Search the web"
+            on={may.web}
+            onChange={(on) => setMayKey('web', on)}
+          />
+          <div className="ai-adv-row" data-adv-row="write-outside">
+            <span className="ai-adv-k">Write outside this project</span>
+            <span className="ai-adv-val" data-testid="ai-adv-write-outside">
+              Asks every time
+            </span>
+          </div>
           <div className="ai-adv-row" data-adv-row="folders">
             <span className="ai-adv-k">Folders AI may read</span>
             <span className="ai-adv-val" data-testid="ai-adv-folders">

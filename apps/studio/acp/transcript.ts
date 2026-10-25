@@ -580,7 +580,9 @@ export function stripContextBlock(text: string): string {
     // bracket lines) — a user merely quoting `[maude-context …]` mid-text stays.
     // S5.17 G3: the scope line (`[maude-scope whole-canvas]`, `… artboards="…"`, `… elements="…"`)
     // rides between the head line and the selection lines since S5.6 — part of the same block.
-    if (/^\[maude-context [^\n]*\](\n\[(?:maude-scope|selected:)[^\n]*\])*\s*$/.test(tail)) {
+    if (
+      /^\[maude-context [^\n]*\](\n\[(?:maude-may|maude-scope|selected:)[^\n]*\])*\s*$/.test(tail)
+    ) {
       out = out.slice(0, i).replace(/\s+$/, '');
     }
   }

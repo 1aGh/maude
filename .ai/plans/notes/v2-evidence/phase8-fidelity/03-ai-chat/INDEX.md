@@ -297,3 +297,39 @@ Final re-shoot of the IMPL side on the merged tip 21c9714cf (stage C rounds 1-6)
 | `ai-tereza` | unreachable (Needs a second person's AI on the same canvas (hub / cloud project)) | unreachable (same) |
 | `ai-needs-tab` | unreachable (Needs a second project tab (desktop shell tabs)) | unreachable (same) |
 | `ai-needs-away` | unreachable (The app in the background: an OS notification and Dock badge, native only) | unreachable (same) |
+
+
+## Round 7 (p8-c7-ai, p8-c7-ai)
+
+Re-shot on the p8-c7-ai worktree tip, both themes, committed pairs overwritten (spec left | impl right). The critic judges; this builder does not.
+
+- Harness: `_c7-ai-harness/` over `_c6-harness-g2/` (layers as that README): new `s03g.mjs` (comments seeded for the lead strip, Canvases + Inspector as the board for ai-open, photo/footage/PDF chips + the drop overlay, the second ask on POST 1:1 for ai-same-artboard / ai-copy, Uniformy-2027 with the four photo artboards picked for ai-permission, an element picked for ai-question), `s03e` (the history row selected, so its Undo this chat / Restore show), `s03c` (ai-scope with nothing picked = Whole canvas), `fake-agent` (an "Agent persona" option), real fixtures for the footage (42 s mov), photo and 12-page PDF.
+- Product (p8-c7-ai): the chat title is the first clause of the ask (`shownChatTitle`); Advanced › AI may = Change canvases (the ask-before mode) · Use Assets and footage · Search the web (told to the agent with every ask, `[maude-may …]`) · Write outside (Asks every time), Ask before after Fast mode; the panel-closed done toast quotes both sentences and offers Show for an ask about named artboards (Undo stays for a whole-canvas draft).
+- Still open (fix-c7-ai.md): the "Copied from …" caption + dashed link, the point ring chip text ("9 pt"), Always-allowed + Reset, Images/video/voice group, day divider / jump pill / sent thumbnails on ai-long, the run-list popover, 01 cf-ai-drafting (stacked tags, Tablet/Mobile ghost: needs a dgn hold for a run on a blank canvas), 01 not re-shot this round.
+
+| id | dark | light |
+|---|---|---|
+| `ai-open` | re-shot (round 7) | re-shot (round 7) |
+| `ai-suggest` | re-shot (round 7) | re-shot (round 7) |
+| `ai-scope` | re-shot (round 7) | re-shot (round 7) |
+| `ai-attach` | re-shot (round 7) | re-shot (round 7) |
+| `ai-attach-menu` | re-shot (round 7) | re-shot (round 7) |
+| `ai-advanced` | re-shot (round 7) | re-shot (round 7) |
+| `ai-working` | re-shot (round 7) | re-shot (round 7) |
+| `ai-two-artboards` | re-shot (round 7) | re-shot (round 7) |
+| `ai-same-artboard` | re-shot (round 7) | re-shot (round 7) |
+| `ai-copy` | re-shot (round 7) | re-shot (round 7) |
+| `ai-chat-list` | re-shot (round 7) | re-shot (round 7) |
+| `ai-needs-hidden` | re-shot (round 7) | re-shot (round 7) |
+| `ai-permission` | re-shot (round 7) | re-shot (round 7) |
+| `ai-choice-fail` | re-shot (round 7) | re-shot (round 7) |
+| `ai-long-pinned` | re-shot (round 7) | re-shot (round 7) |
+| `ai-not-ready` | re-shot (round 7) | re-shot (round 7) |
+| `ai-long` | re-shot (round 7) | re-shot (round 7) |
+| `ai-done` | re-shot (round 7) | re-shot (round 7) |
+| `ai-hero` | re-shot (round 7) | re-shot (round 7) |
+| `ai-history` | re-shot (round 7) | re-shot (round 7) |
+| `ai-panel-closed` | re-shot (round 7) | re-shot (round 7) |
+| `ai-question` | re-shot (round 7) | re-shot (round 7) |
+| `ai-adv-edges` | re-shot (round 7) | re-shot (round 7) |
+| `ai-quit` | re-shot (round 7) | re-shot (round 7) |

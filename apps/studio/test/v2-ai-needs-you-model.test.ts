@@ -548,9 +548,15 @@ describe('in-app toasts', () => {
     );
   });
   test("Done is the reply's own first sentence — and nothing at all for a turn that said nothing", () => {
+    // P8 c7: the board's toast is both short sentences; a long reply is cut at its first one
     expect(doneLine('Done — Post 1:1 is greener. The logo stays white.')).toBe(
-      'Done — Post 1:1 is greener.'
+      'Done — Post 1:1 is greener. The logo stays white.'
     );
+    expect(
+      doneLine(
+        'Done — Post 1:1 is greener: the background, the badge and the button all moved. The logo stays white.'
+      )
+    ).toBe('Done — Post 1:1 is greener: the background, the badge and the button all moved.');
     expect(doneNotice({ id: 'd', text: '   ', onShow: () => {} })).toBeNull();
     expect(doneNotice({ id: 'd', text: 'Done — ok.', onShow: () => {} })?.action.label).toBe(
       'Show'

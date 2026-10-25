@@ -263,6 +263,7 @@
     min-width: 0;
   }
   .ai-nc-will-th {
+    /* tiles stay 28 x 22 however long the names run */
     flex: none;
     width: 28px;
     height: 22px;
@@ -279,9 +280,8 @@
   }
   .ai-nc-will-names {
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    /* 03 `.ai-perm-list` lets the names wrap beside the tiles ("Obrana, útok, speciální týmy, trenéři") */
+    overflow-wrap: anywhere;
   }
   .ai-nc-opt:hover {
     background: var(--bg-3);

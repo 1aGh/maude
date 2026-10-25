@@ -62,7 +62,11 @@ export function doneLine(text) {
     .replace(/\s+/g, ' ')
     .trim();
   if (!t) return null;
-  const first = t.split(/(?<=[.!?])\s/)[0] ?? t;
+  // 03 ai-panel-closed: "Done — Post 1:1 is greener. The logo stays white." — the reply's first two sentences when
+  // they fit one toast line; a longer reply is quoted by its first sentence.
+  const sentences = t.split(/(?<=[.!?])\s/);
+  const two = sentences.slice(0, 2).join(' ');
+  const first = sentences.length > 1 && two.length <= 80 ? two : (sentences[0] ?? t);
   // The reply names its own result ("Done — Post 1:1 is greener…", rule `ai-describes-the-result`); the
   // toast quotes its first sentence and invents no "Done" of its own.
   return clip(first, 140);
@@ -86,7 +90,10 @@ export function doneNotice({ id, text, run = null, artboards = [], onShow, onUnd
   if (!line) return null;
   // 01 cf-ai-done: when the run changed something the one verb is Undo (the run's whole change comes back);
   // 03 ai-panel-closed: a run that only answered has nothing to undo, so the pill offers Show.
-  const undo = typeof onUndo === 'function' && !!run && changedSomething(run);
+  // 03 ai-panel-closed (the owning board): an ask about named artboards ("Make it greener" on Post 1:1) offers Show;
+  // a whole-canvas draft (scope '*') is the first-draft finish and offers Undo.
+  const scoped = Array.isArray(run?.scope?.artboards) && run.scope.artboards.length > 0;
+  const undo = typeof onUndo === 'function' && !!run && changedSomething(run) && !scoped;
   return {
     id,
     title: line,
