@@ -298,3 +298,41 @@ export function useCanvasError({ canvas, enabled = true, stamp, fetchImpl } = {}
   }, [canvas, enabled, stamp]);
   return state;
 }
+
+const fin = (n) => typeof n === 'number' && Number.isFinite(n);
+
+/**
+ * The boards a canvas had when it last drew, as plain boxes — from its `.meta.json` layout (`layout.artboards[]
+ * {x, y, width, height}`), which is written when the canvas renders. A box without all four numbers is skipped.
+ * 06 `ad-edge-syntax` draws them dimmed behind the card; this is their layout, never a render of them.
+ */
+export function ghostBoxes(meta) {
+  const list = Array.isArray(meta?.layout?.artboards) ? meta.layout.artboards : [];
+  return list
+    .filter((a) => a && fin(a.x) && fin(a.y) && fin(a.width) && fin(a.height))
+    .filter((a) => a.width > 0 && a.height > 0)
+    .map((a) => ({ id: String(a.id ?? ''), x: a.x, y: a.y, w: a.width, h: a.height }));
+}
+
+/** The last-drawn boards of `canvas` ([] while reading, and when nothing is stored). */
+export function useGhostBoxes({ canvas, fetchImpl } = {}) {
+  const [boxes, setBoxes] = useState([]);
+  const fetchRef = useRef(fetchImpl);
+  fetchRef.current = fetchImpl;
+  useEffect(() => {
+    if (!canvas) return undefined;
+    let cancelled = false;
+    const f = fetchRef.current ?? globalThis.fetch;
+    Promise.resolve()
+      .then(() => f(`/_api/canvas-meta?file=${encodeURIComponent(canvas)}`, { cache: 'no-store' }))
+      .then((r) => (r?.ok ? r.json() : null))
+      .then((meta) => {
+        if (!cancelled) setBoxes(ghostBoxes(meta));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [canvas]);
+  return boxes;
+}

@@ -4689,20 +4689,6 @@
     "notes": "S8.18: re-emitted by the v2 Import a brand sheet; BrandUploadPanel.jsx is a shim that mounts it."
   },
   {
-    "hook": "brand-up-logo-preview",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Import a brand: the chosen logo drawn on the checker tile in the drop well.",
-    "producer": {
-      "file": "apps/studio/client/v2/import/brand-sheet.jsx",
-      "symbol": "BrandSheet"
-    },
-    "region": "onboarding",
-    "consumers": [],
-    "v2": "new",
-    "notes": "P8 C8 (12 ia-brand-steps)."
-  },
-  {
     "hook": "brand-up-palette",
     "kind": "testid",
     "pattern": false,
@@ -6420,19 +6406,6 @@
     "v2": "stable"
   },
   {
-    "hook": "ai-runs-all",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The run list's last row: \"All chats  N\" — opens the chat list.",
-    "producer": {
-      "file": "apps/studio/client/v2/ai/RunList.jsx",
-      "symbol": "RunList"
-    },
-    "region": "other",
-    "consumers": [],
-    "v2": "stable"
-  },
-  {
     "hook": "ai-chat-island",
     "kind": "testid",
     "pattern": false,
@@ -6596,19 +6569,6 @@
     "kind": "testid",
     "pattern": false,
     "meaning": "\"‹ Chats\": back from the chat list to the chat.",
-    "producer": {
-      "file": "apps/studio/client/v2/ai/ChatList.jsx",
-      "symbol": "ChatList"
-    },
-    "region": "other",
-    "consumers": [],
-    "v2": "stable"
-  },
-  {
-    "hook": "ai-chat-list-new",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The chat list header \"+\": start a new chat from the list.",
     "producer": {
       "file": "apps/studio/client/v2/ai/ChatList.jsx",
       "symbol": "ChatList"
@@ -12667,21 +12627,6 @@
     "v2": "new"
   },
   {
-    "hook": "diag-logs-refresh",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Re-read `GET /_api/diagnostics`.",
-    "producer": {
-      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
-      "symbol": "LogsView"
-    },
-    "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
-    "v2": "new"
-  },
-  {
     "hook": "diag-logs-copy-all",
     "kind": "testid",
     "pattern": false,
@@ -13911,7 +13856,7 @@
     "hook": "settings-transcription-engine",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Advanced › Engines › the transcription engine radio group (Auto / whisper.cpp / Scribe / Groq).",
+    "meaning": "Advanced › Engines › the transcription engine select (Auto / whisper.cpp / Scribe / Groq).",
     "producer": {
       "file": "apps/studio/client/panels/SettingsPanel.jsx",
       "symbol": "TranscriptionEngineCard"
@@ -14511,38 +14456,6 @@
     "kind": "testid",
     "pattern": false,
     "meaning": "The button inside that row.",
-    "producer": {
-      "file": "apps/studio/client/v2/settings/reset-section.jsx",
-      "symbol": "ResetSection"
-    },
-    "region": "settings",
-    "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-s11-13-advanced.test.tsx"
-    ],
-    "v2": "new"
-  },
-  {
-    "hook": "settings-fold-list-t",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The \"Open now, on this Mac\" heading above the per-fold switches.",
-    "producer": {
-      "file": "apps/studio/client/v2/settings/reset-section.jsx",
-      "symbol": "ResetSection"
-    },
-    "region": "settings",
-    "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-s11-13-advanced.test.tsx"
-    ],
-    "v2": "new"
-  },
-  {
-    "hook": "settings-fold-<id>",
-    "kind": "testid",
-    "pattern": true,
-    "meaning": "Advanced › Reset › one switch per Advanced fold (FOLD_PANELS plus any id remembered): `settings-fold-inspector`, `settings-fold-left.canvases`…",
     "producer": {
       "file": "apps/studio/client/v2/settings/reset-section.jsx",
       "symbol": "ResetSection"
@@ -40555,178 +40468,272 @@
     "v2": "stable"
   },
   {
-    "hook": "export-adv-bleed-mm",
+    "hook": "settings-transcription-select",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Advanced › Print PDF: the bleed the artboard was authored with, read-only, beside the Bleed switch.",
+    "meaning": "Advanced › Engines › Subtitles: the select row (06 ad-settings) with what Auto uses and the save outcome under it.",
     "producer": {
-      "file": "apps/studio/client/v2/export/advanced/print.jsx",
-      "symbol": "PrintPart"
+      "file": "apps/studio/client/panels/SettingsPanel.jsx",
+      "symbol": "TranscriptionEngineCard"
     },
-    "region": "export sheet",
-    "consumers": [],
+    "region": "settings",
+    "consumers": [
+      "test:v2-settings"
+    ],
     "sourceConsumers": [
-      "apps/studio/test/v2-export-batch.test.tsx"
+      "apps/studio/test/v2-settings.test.tsx"
     ],
     "v2": "new"
   },
   {
-    "hook": "export-adv-image-col",
+    "hook": "settings-keyframe-select",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Advanced › the Image column: its heading and the part.",
+    "meaning": "Advanced › Engines › Video keyframes: the select row.",
     "producer": {
-      "file": "apps/studio/client/v2/export/advanced/advanced.jsx",
-      "symbol": "Col"
+      "file": "apps/studio/client/panels/SettingsPanel.jsx",
+      "symbol": "KeyframeEngineCard"
     },
-    "region": "export sheet",
-    "consumers": [],
+    "region": "settings",
+    "consumers": [
+      "test:v2-settings"
+    ],
     "sourceConsumers": [
-      "apps/studio/test/v2-export-batch.test.tsx"
+      "apps/studio/test/v2-settings.test.tsx"
     ],
     "v2": "new"
   },
   {
-    "hook": "export-adv-image-title",
+    "hook": "settings-whisper-models",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Advanced › the visible heading over the Image part.",
+    "meaning": "Advanced › Engines › Subtitles: the whisper.cpp model boxes and the engine install steps.",
     "producer": {
-      "file": "apps/studio/client/v2/export/advanced/advanced.jsx",
-      "symbol": "Col"
+      "file": "apps/studio/client/panels/SettingsPanel.jsx",
+      "symbol": "WhisperModelCard"
     },
-    "region": "export sheet",
-    "consumers": [],
+    "region": "settings",
+    "consumers": [
+      "test:v2-settings"
+    ],
     "sourceConsumers": [
-      "apps/studio/test/v2-export-batch.test.tsx"
+      "apps/studio/test/v2-settings.test.tsx"
     ],
     "v2": "new"
   },
   {
-    "hook": "export-adv-print-col",
+    "hook": "settings-whisper-model-<id>",
     "kind": "testid",
-    "pattern": false,
-    "meaning": "Advanced › the Print PDF column: its heading and the part.",
+    "pattern": true,
+    "meaning": "One whisper.cpp model box: name · size, status word, Download or Remove (`settings-whisper-model-base`…).",
     "producer": {
-      "file": "apps/studio/client/v2/export/advanced/advanced.jsx",
-      "symbol": "Col"
+      "file": "apps/studio/client/panels/SettingsPanel.jsx",
+      "symbol": "WhisperModelCard"
     },
-    "region": "export sheet",
-    "consumers": [],
+    "region": "settings",
+    "consumers": [
+      "test:v2-settings"
+    ],
     "sourceConsumers": [
-      "apps/studio/test/v2-export-batch.test.tsx"
+      "apps/studio/test/v2-settings.test.tsx"
     ],
     "v2": "new"
   },
   {
-    "hook": "export-adv-print-title",
+    "hook": "settings-gemma-models",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Advanced › the visible heading over the Print PDF part.",
+    "meaning": "Advanced › Engines › Video keyframes: the Gemma scout model boxes (and the setup steps while no runtime is there).",
     "producer": {
-      "file": "apps/studio/client/v2/export/advanced/advanced.jsx",
-      "symbol": "Col"
+      "file": "apps/studio/client/panels/SettingsPanel.jsx",
+      "symbol": "GemmaModelCard"
     },
-    "region": "export sheet",
-    "consumers": [],
+    "region": "settings",
+    "consumers": [
+      "test:v2-settings"
+    ],
     "sourceConsumers": [
-      "apps/studio/test/v2-export-batch.test.tsx"
+      "apps/studio/test/v2-settings.test.tsx"
     ],
     "v2": "new"
   },
   {
-    "hook": "export-adv-video-col",
+    "hook": "settings-gemma-model-<id>",
     "kind": "testid",
-    "pattern": false,
-    "meaning": "Advanced › the Video column: its heading and the part.",
+    "pattern": true,
+    "meaning": "One Gemma scout model box (`settings-gemma-model-ollama:gemma3:4b`…).",
     "producer": {
-      "file": "apps/studio/client/v2/export/advanced/advanced.jsx",
-      "symbol": "Col"
+      "file": "apps/studio/client/panels/SettingsPanel.jsx",
+      "symbol": "GemmaModelCard"
     },
-    "region": "export sheet",
-    "consumers": [],
+    "region": "settings",
+    "consumers": [
+      "test:v2-settings"
+    ],
     "sourceConsumers": [
-      "apps/studio/test/v2-export-batch.test.tsx"
+      "apps/studio/test/v2-settings.test.tsx"
     ],
     "v2": "new"
   },
   {
-    "hook": "export-adv-video-title",
+    "hook": "canvas-error-ghosts",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Advanced › the visible heading over the Video part.",
+    "meaning": "The boards the canvas last drew, dimmed behind the broken-canvas card (their stored layout, dashed; absent with no stored layout).",
     "producer": {
-      "file": "apps/studio/client/v2/export/advanced/advanced.jsx",
-      "symbol": "Col"
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "LastGoodGhosts"
     },
-    "region": "export sheet",
-    "consumers": [],
+    "region": "other",
+    "consumers": [
+      "test:v2-canvas-error-card"
+    ],
     "sourceConsumers": [
-      "apps/studio/test/v2-export-batch.test.tsx"
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
     ],
     "v2": "new"
   },
   {
-    "hook": "export-adv-render-col",
+    "hook": "insp-ab-fixed-adv",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Advanced › the Where it renders column: its heading and the part.",
+    "meaning": "A Fixed size artboard's Advanced body: Exact size · Look and layout · In code (06 ad-pinned).",
     "producer": {
-      "file": "apps/studio/client/v2/export/advanced/advanced.jsx",
-      "symbol": "Col"
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-advanced.jsx",
+      "symbol": "FixedSizeAdvanced"
     },
-    "region": "export sheet",
-    "consumers": [],
+    "region": "inspector",
+    "consumers": [
+      "test:kind-inspector-rows"
+    ],
     "sourceConsumers": [
-      "apps/studio/test/v2-export-batch.test.tsx"
+      "apps/studio/test/kind-inspector-rows.test.ts"
     ],
     "v2": "new"
   },
   {
-    "hook": "export-adv-render-title",
+    "hook": "insp-ab-exact",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Advanced › the visible heading over the Where it renders part.",
+    "meaning": "The Exact size block of a Fixed size artboard's fold.",
     "producer": {
-      "file": "apps/studio/client/v2/export/advanced/advanced.jsx",
-      "symbol": "Col"
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-advanced.jsx",
+      "symbol": "FixedSizeAdvanced"
     },
-    "region": "export sheet",
-    "consumers": [],
+    "region": "inspector",
+    "consumers": [
+      "test:kind-inspector-rows"
+    ],
     "sourceConsumers": [
-      "apps/studio/test/v2-export-batch.test.tsx"
+      "apps/studio/test/kind-inspector-rows.test.ts"
     ],
     "v2": "new"
   },
   {
-    "hook": "export-folders",
+    "hook": "insp-ab-exact-size",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Export sheet › Folders select (One folder · One per canvas) on a canvas / folder / project export.",
+    "meaning": "Exact size › Artboard: `1080 × 1080 px`.",
     "producer": {
-      "file": "apps/studio/client/v2/export/export-sheet.jsx",
-      "symbol": "ExportSheet"
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-advanced.jsx",
+      "symbol": "FixedSizeAdvanced"
     },
-    "region": "export sheet",
-    "consumers": [],
+    "region": "inspector",
+    "consumers": [
+      "test:kind-inspector-rows"
+    ],
     "sourceConsumers": [
-      "apps/studio/test/v2-export-batch.test.tsx"
+      "apps/studio/test/kind-inspector-rows.test.ts"
     ],
     "v2": "new"
   },
   {
-    "hook": "export-folders-note",
+    "hook": "insp-ab-look",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Export sheet › the path the Folders choice makes, under the select.",
+    "meaning": "The Look and layout block (Theme, Clip content, Kind) of a Fixed size artboard's fold.",
     "producer": {
-      "file": "apps/studio/client/v2/export/export-sheet.jsx",
-      "symbol": "ExportSheet"
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-advanced.jsx",
+      "symbol": "FixedSizeAdvanced"
     },
-    "region": "export sheet",
-    "consumers": [],
+    "region": "inspector",
+    "consumers": [
+      "test:kind-inspector-rows"
+    ],
     "sourceConsumers": [
-      "apps/studio/test/v2-export-batch.test.tsx"
+      "apps/studio/test/kind-inspector-rows.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ab-code",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The In code block of a Fixed size artboard's fold.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-advanced.jsx",
+      "symbol": "FixedSizeAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [
+      "test:kind-inspector-rows"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/kind-inspector-rows.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ab-code-text",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The DCArtboard tag as the file carries it.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-advanced.jsx",
+      "symbol": "FixedSizeAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [
+      "test:kind-inspector-rows"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/kind-inspector-rows.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-whisper-model-pick",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The whisper.cpp model select (every model, with its size and whether it is here); the box below is the picked one.",
+    "producer": {
+      "file": "apps/studio/client/panels/SettingsPanel.jsx",
+      "symbol": "ModelPicker"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:v2-settings"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/v2-settings.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-gemma-model-pick",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Gemma scout model select; the box below is the picked one.",
+    "producer": {
+      "file": "apps/studio/client/panels/SettingsPanel.jsx",
+      "symbol": "ModelPicker"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:v2-settings"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/v2-settings.test.tsx"
     ],
     "v2": "new"
   }

@@ -211,6 +211,7 @@ export function settingsSearchRows(opts = {}) {
   const seen = new Set();
   for (const r of rows) {
     if (!rowShown(r, { cloud, readOnly })) continue;
+    if (r.searchTwin) continue; // the ⌘K action of the same name is the result (one row, not two)
     const extra = SETTINGS_SEARCH[r.testid] ?? {};
     const derived = settingsPathOf(r.where);
     const name = extra.label ?? derived.name;

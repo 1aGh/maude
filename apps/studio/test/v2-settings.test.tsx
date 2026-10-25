@@ -391,6 +391,96 @@ describe('the desktop sheet renders every Settings row', () => {
       expect(tab.querySelector('svg')).toBeTruthy();
   });
 
+  // Phase 8 round 8 (06 ad-settings): Engines is "Subtitles · Auto" and "Video keyframes · Auto" as SELECT rows, then a
+  // quiet box per model (name + size, the status word and one action) — not radio cards with paragraphs.
+  test('Engines: Subtitles and Video keyframes are selects; a model is a box with a status word and one action', async () => {
+    installTauri();
+    installFetch({
+      '/_api/generate/prefs': { transcriptionProvider: 'auto', keyframeEngine: 'auto' },
+      '/_api/generate/whisper-model': {
+        setup: { installed: true, options: [] },
+        models: [
+          { id: 'base', label: 'Base (multilingual)', sizeMB: 142, note: 'n', downloaded: true },
+          { id: 'tiny', label: 'Tiny (multilingual)', sizeMB: 75, note: 'n', downloaded: false },
+        ],
+      },
+      '/_api/generate/keyframe-model': {
+        models: [
+          {
+            id: 'ollama:gemma3:4b',
+            label: 'Gemma 3 4B (Ollama)',
+            sizeMB: 3300,
+            note: 'n',
+            runtime: 'ollama',
+            downloaded: false,
+          },
+        ],
+        ollama: { available: true, installed: true },
+      },
+    });
+    await mount();
+    await goto('advanced');
+    await settle();
+    const sub = q('settings-transcription-engine') as HTMLSelectElement;
+    const key = q('settings-keyframe-engine') as HTMLSelectElement;
+    expect(sub.tagName).toBe('SELECT');
+    expect(key.tagName).toBe('SELECT');
+    expect(sub.value).toBe('auto');
+    expect([...sub.options].map((o) => o.textContent)).toEqual([
+      'Auto',
+      'Local whisper.cpp',
+      'ElevenLabs Scribe',
+      'Groq Whisper',
+    ]);
+    expect(q('settings-transcription')?.querySelector('.st-engine-radios')).toBeNull();
+    expect(q('settings-keyframes')?.querySelector('.st-engine-radios')).toBeNull();
+    expect(document.querySelector('[data-testid="settings-transcription"]')?.textContent).toContain(
+      'Subtitles'
+    );
+    expect(document.querySelector('[data-testid="settings-keyframes"]')?.textContent).toContain(
+      'Video keyframes'
+    );
+    const base = q('settings-whisper-model-base') as HTMLElement;
+    expect(base.textContent).toContain('whisper.cpp · Base (multilingual)');
+    expect(base.textContent).toContain('142 MB');
+    expect(base.textContent).toContain('On this Mac');
+    expect([...base.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Remove']);
+    // one model at a time: the picker lists them all, the box is the picked one (already-here first)
+    const pick = q('settings-whisper-model-pick') as HTMLSelectElement;
+    expect([...pick.options].map((o) => o.textContent)).toEqual([
+      'Base (multilingual) · on this Mac',
+      'Tiny (multilingual)',
+    ]);
+    expect(q('settings-whisper-model-tiny')).toBeNull();
+    await act(async () => {
+      pick.value = 'tiny';
+      pick.dispatchEvent(new window.Event('change', { bubbles: true }));
+    });
+    const tiny = q('settings-whisper-model-tiny') as HTMLElement;
+    expect(tiny.textContent).toContain('Not downloaded');
+    expect([...tiny.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Download']);
+    expect(q('settings-whisper-model-base')).toBeNull();
+    expect(q('settings-gemma-model-ollama:gemma3:4b')?.textContent).toContain('3.3 GB');
+  });
+
+  test('Engines: picking an engine saves it through the same prefs route', async () => {
+    installTauri();
+    installFetch({
+      '/_api/generate/prefs': { transcriptionProvider: 'auto', keyframeEngine: 'auto' },
+    });
+    await mount();
+    await goto('advanced');
+    await settle();
+    const sub = q('settings-transcription-engine') as HTMLSelectElement;
+    await act(async () => {
+      sub.value = 'groq';
+      sub.dispatchEvent(new window.Event('change', { bubbles: true }));
+    });
+    await settle();
+    const post = calls.find((c) => c.method === 'POST' && c.url.startsWith('/_api/generate/prefs'));
+    expect(post?.body).toBe(JSON.stringify({ transcriptionProvider: 'groq' }));
+  });
+
   test('V2-4.10 / S11.13: Close all Advanced sections folds every remembered fold again', async () => {
     installTauri();
     const { foldStore } = await import('../client/v2/fold/use-fold.js');

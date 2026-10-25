@@ -262,7 +262,6 @@ function sheetProps(over: Record<string, unknown> = {}) {
       : {},
     data: SOURCES,
     error: '',
-    onRefresh: () => calls.push('refresh'),
     onCopyLogs: (lines: unknown[]) => calls.push(`copy-logs:${lines.length}`),
     onReveal: () => calls.push('reveal'),
     onCopy: (_t: string, label: string) => calls.push(`copy:${label}`),
@@ -315,7 +314,7 @@ const q = (id: string) => document.querySelector(`[data-testid="${id}"]`) as HTM
 const click = (id: string) => act(async () => q(id)?.click());
 
 describe('the Diagnostics sheet', () => {
-  test('Logs: filter by source, search, copy all, Refresh; the tail is the server’s ring', async () => {
+  test('Logs: filter by source, search, copy all — no Refresh button (06 ad-logs); the tail is the server’s ring', async () => {
     const calls = await mountSheet();
     expect(q('diag-logs-lines')?.querySelectorAll('li').length).toBe(4);
     await click('diag-logs-filter-sync');
@@ -325,9 +324,10 @@ describe('the Diagnostics sheet', () => {
     expect(q('diag-logs-empty')).toBeTruthy();
     await click('diag-logs-filter-all');
     await click('diag-logs-copy-all');
-    await click('diag-logs-refresh');
+    // 06 ad-logs draws Filter, Copy all and Show in Finder — no Refresh icon (the host re-reads while Logs is in view)
+    expect(q('diag-logs-refresh')).toBeNull();
     // Copy all hands over the lines as shown (4 of them), not the report
-    expect(calls).toEqual(['copy-logs:4', 'refresh']);
+    expect(calls).toEqual(['copy-logs:4']);
     expect(document.body.textContent).toContain('Kept 7 days on this Mac');
   });
 

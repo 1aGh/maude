@@ -13,6 +13,7 @@ import {
   askAiText,
   errorText,
   excerptOf,
+  ghostBoxes,
   goBackToLastGood,
   normalizeError,
   whereLabel,
@@ -224,14 +225,11 @@ describe('<CanvasErrorCard>', () => {
     expect(rows[2].classList.contains('is-bad')).toBe(true);
     expect(rows[3].classList.contains('is-caret')).toBe(true);
     expect(rows[3].textContent?.trim()).toBe('^');
-    for (const id of [
-      'canvas-error-open-editor',
-      'canvas-error-copy',
-      'canvas-error-last-good',
-      'canvas-load-retry',
-    ]) {
+    for (const id of ['canvas-error-open-editor', 'canvas-error-copy', 'canvas-error-last-good']) {
       expect(q(id), id).not.toBeNull();
     }
+    // 06 ad-edge-syntax draws no Reload canvas under a mistake on record (it lives at Menu › Diagnostics, ⌘R)
+    expect(q('canvas-load-retry')).toBeNull();
     await click(q('canvas-error-copy-where'));
     await click(q('canvas-error-copy'));
     expect(copied).toEqual([
@@ -473,8 +471,8 @@ describe('<CanvasErrorCard>', () => {
     expect(reloaded).toBe(0);
   });
 
-  test('Reload canvas is `canvas-load-retry`, under the fold, and calls onReload', async () => {
-    const fetchImpl = route({ '/_api/canvas-errors': { body: { canvas: 'x', errors: [ERROR] } } });
+  test('Reload canvas is `canvas-load-retry`, under the fold, and calls onReload — when no mistake is on record', async () => {
+    const fetchImpl = route({ '/_api/canvas-errors': { body: { canvas: 'x', errors: [] } } });
     let reloaded = 0;
     await mount(
       <CanvasLoadFailure
@@ -487,6 +485,36 @@ describe('<CanvasErrorCard>', () => {
     await open();
     await click(q('canvas-load-retry'));
     expect(reloaded).toBe(1);
+  });
+
+  test('06 ad-edge-syntax: the boards it last drew are dimmed behind the card (dashed, layout only)', async () => {
+    const fetchImpl = route({
+      '/_api/canvas-errors': { body: { canvas: 'x', errors: [ERROR] } },
+      '/_api/canvas-meta': {
+        body: {
+          layout: {
+            artboards: [
+              { id: 'a', x: 0, y: 0, width: 403, height: 252 },
+              { id: 'b', x: 443, y: 0, width: 234, height: 334 },
+              { id: 'c', x: 717, y: 0, width: 109, height: 236 },
+            ],
+          },
+        },
+      },
+    });
+    await mount(<CanvasLoadFailure canvas="ui/Pricing.tsx" fetchImpl={fetchImpl} />);
+    const ghosts = q('canvas-error-ghosts');
+    expect(ghosts).not.toBeNull();
+    expect(ghosts?.getAttribute('aria-hidden')).toBe('true');
+    expect(ghosts?.querySelectorAll('rect.v2-err-ghost').length).toBe(3);
+    // the card is still the card
+    expect(q('canvas-error-title')?.textContent).toBe("Pricing can't be drawn right now.");
+  });
+
+  test('a canvas with no stored layout has no ghosts (nothing is invented)', async () => {
+    const fetchImpl = route({ '/_api/canvas-errors': { body: { canvas: 'x', errors: [ERROR] } } });
+    await mount(<CanvasLoadFailure canvas="ui/Pricing.tsx" fetchImpl={fetchImpl} />);
+    expect(q('canvas-error-ghosts')).toBeNull();
   });
 
   test('Open in editor: the PROJECT-relative path to the door; a refusal is said', async () => {
@@ -513,5 +541,25 @@ describe('<CanvasErrorCard>', () => {
     await click(q('canvas-error-open-editor'));
     expect(calls).toEqual(['.design/ui/Pricing.tsx']);
     expect(said).toEqual(['Switch to this tab first.']);
+  });
+});
+
+// 06 ad-edge-syntax: the last-good boards, dimmed behind the card — their stored layout, never a render of them.
+describe('the last-good ghosts', () => {
+  test('ghostBoxes keeps only boxes with all four numbers, from the canvas meta layout', () => {
+    expect(
+      ghostBoxes({
+        layout: {
+          artboards: [
+            { id: 'a', x: 0, y: 0, width: 403, height: 252 },
+            { id: 'b', x: 693, y: 0, width: 234 }, // no height: skipped
+            { id: 'c', x: 'x', y: 0, width: 10, height: 10 }, // not a number: skipped
+            { id: 'd', x: 10, y: 20, width: 0, height: 5 }, // empty: skipped
+          ],
+        },
+      })
+    ).toEqual([{ id: 'a', x: 0, y: 0, w: 403, h: 252 }]);
+    expect(ghostBoxes(null)).toEqual([]);
+    expect(ghostBoxes({ layout: {} })).toEqual([]);
   });
 });

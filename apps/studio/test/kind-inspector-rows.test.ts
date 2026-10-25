@@ -420,7 +420,21 @@ describe('Advanced holds the numbers (nothing deleted)', () => {
     const host = await frame(STORY);
     await click(q(host, 'fold-inspector-toggle'), 'Advanced');
     expect(host.querySelectorAll('[data-testid="insp-num-ab-w"]').length).toBe(1);
-    expect(q(host, 'insp-ab-fact-height')?.textContent).toBe('1920px · fixed');
+    // 06 ad-pinned: the fold says the size once, as Exact size — no raw kind / width / height rows beside it
+    expect(q(host, 'insp-ab-exact-size')?.textContent).toMatch(/\d+ × 1920 px$/);
+    expect(q(host, 'insp-ab-fact-height')).toBeNull();
+    expect(q(host, 'insp-ab-fact-kind')).toBeNull();
+    expect(q(host, 'insp-ab-fact-width')).toBeNull();
+    // Look and layout keeps Clip content and the Kind switch (the only place a board's kind is changed)
+    expect(q(host, 'insp-ab-look')?.querySelector('[data-testid="insp-ab-kind"]')).not.toBeNull();
+    expect(
+      q(host, 'insp-ab-look')?.querySelector('[data-testid="insp-ctl-ab-clip"]')
+    ).not.toBeNull();
+    expect(q(host, 'insp-ab-code-text')?.textContent).toContain('<DCArtboard');
+    const heads = [...(q(host, 'insp-ab-fixed-adv')?.querySelectorAll('.insp-adv-h') ?? [])].map(
+      (h) => h.textContent
+    );
+    expect(heads).toEqual(['Exact size', 'Look and layout', 'In code']);
   });
 
   test('switching the kind from Advanced still writes it (Fixed size clears the prop)', async () => {

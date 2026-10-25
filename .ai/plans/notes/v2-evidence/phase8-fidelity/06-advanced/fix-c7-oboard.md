@@ -71,3 +71,29 @@ Nothing is marked "matches": the lead's critic judges the re-shot pairs (06 and 
 ## Decisions
 - `decision:maude/v2-p8-c7b-artboard-unknown-kind-digital`: DCArtboard resolves an unknown `kind` to the implicit default (digital, or video by content) instead of passing it through. Rejected: teaching every slot's `kindOf` the old values (nine call sites would each need the same alias list); a migration that rewrites old canvases (a canvas file edit for a display bug).
 - `decision:maude/v2-p8-c7b-music-fade-is-a-feature`: the Music inspector's "Fade in · out" row is not drawn until a fade exists in the product. Rejected: a static "0.5 s · 1.5 s" note (a row that says something the file does not).
+
+---
+
+# Round 8 (p8-c8-adv) — continuation: done vs open
+
+Branch `p8-c8-adv` from feat/maude-v2 a428cfee7. Scope: the MUST rows of `critic-bar3.md` except ad-timeline (p8-c8-video). Nothing is marked "matches": the lead's critic judges the re-shot pairs.
+
+## Done (commit · what · test red → green)
+
+| commit | what | tests |
+|---|---|---|
+| 987d12c18 | **ad-settings** Engines are "Subtitles · …" and "Video keyframes · …" SELECT rows (the radio cards are gone); **Reset** is one wrapping row of three buttons (Reset panel layout · Close all Advanced sections · red Reset all settings…) with the "⌘K “open advanced”" hint — the "Open now, on this Mac" per-fold switch list is removed (a fold opens and closes at its own panel; `settings-fold-<id>` retired). **ad-search** one "Close all Advanced sections" result (the Settings row stays in the sheet and the parity table, `searchTwin`). **ad-logs** no Refresh icon (the Logs box re-reads every 5 s while in view instead). **ad-edge-syntax** no "Reload canvas" under a mistake on record (kept when the server knows of none; Menu › Diagnostics › Reload canvas ⌘R stays) and the last-drawn boards are dashed ghosts behind the card (layout from the canvas meta, nothing invented). **ad-pinned / ad-inspector (artboard)** a Fixed size's fold is Exact size · Look and layout · In code (the raw `kind · width · height` fact rows are gone; Kind and Clip content stay under Look and layout — see Open). | `p8-c8-adv-search`, `v2-settings` (Engines ×2), `v2-s11-13-advanced` (Reset), `v2-diagnostics-render`, `v2-canvas-error-card` (ghosts ×3, Reload), `kind-inspector-rows` — all red on the base files, green now |
+| 86a865e14 | Engines show ONE model at a time (a Model select + the board's box: name · size, status word, one action); Menu › Diagnostics keeps "Project folder" whole (the label no longer shrinks beside a long value); Fixed size In code on two lines; harness `_c8adv-harness-g2/` | `p8-c8-adv-css`, `v2-settings` |
+| ee6f098bd (**shared** `actions/defs/canvas.ts`, `view.ts`) | the four Canvases row-menu actions and Show file names say `Canvases › Advanced` in ⌘K (board: ad-search "Copy file path — Canvases › Advanced"); the chip no longer cuts "Copy fil…" | `v2-s11-18-sweep` updated |
+
+## Harness (the MUSTs that were the shot) — `_c8adv-harness-g2/impl/s06j.mjs`, `s06h.mjs`
+- ad-diag: the Diagnostics submenu with its Advanced row OPEN. ad-code: ⌘K "view code" + Enter, the panel's Advanced fold open. ad-search: the board's query "copy". ad-history: a version SELECTED (git-backed copy), fold open. ad-inspector / ad-export: a tall window (1760 / 1500 px) so the whole fold / sheet is in frame. ad-left: Show file names ON + Show hidden files ON.
+- ad-edge-syntax: the Broken canvas gets a `.meta.json` with three boards (the ghosts), left panel closed via `panel-fold-left`.
+
+## Open (not done; why)
+- ad-diag ③ Resync now · Download all: hidden for a local project (needs a linked hub project).
+- ad-pinned Kind select stays (Look and layout): it is the only place a board's kind is switched (a v1 control; the header chip is a label). Move it only when 08 gives the chip a menu.
+- ad-settings: Send anonymous usage data / Remember design decisions / Faster canvas engine rows are not built (C34, no store); the Update row reads "Up to date" (fixture).
+- ad-search: "copy" returns 16 results in the product (the board's 7): the registry has more copy actions than the board; not trimmed.
+- ad-edge-remember draws the "Open now, on this Mac" list inside Reset; ad-settings does not. ad-settings (lead's call) wins; the list's capability is each panel's own fold.
+- ad-edge-syntax provenance clause needs a server signal (unchanged).

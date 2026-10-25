@@ -65,7 +65,7 @@ export const VIEW_ACTIONS: ActionDef[] = [
     label: 'Show file names',
     kind: 'toggle',
     exec: 'shell',
-    search: { keywords: ['file', 'names', 'tsx', 'files'], where: 'Canvases panel › Advanced' },
+    search: { keywords: ['file', 'names', 'tsx', 'files'], where: 'Canvases › Advanced' },
   },
   {
     id: 'layers.show-tags',

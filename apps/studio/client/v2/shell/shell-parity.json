@@ -553,10 +553,6 @@
               "section": "advanced"
             },
             {
-              "testid": "settings-fold-<id>",
-              "section": "advanced"
-            },
-            {
               "testid": "settings-reset-folds",
               "section": "advanced"
             }
@@ -933,10 +929,6 @@
             },
             {
               "testid": "settings-reset-all",
-              "section": "advanced"
-            },
-            {
-              "testid": "settings-fold-<id>",
               "section": "advanced"
             },
             {

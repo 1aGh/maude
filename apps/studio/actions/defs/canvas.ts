@@ -153,7 +153,7 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     enabled: { facts: ['canvasOpen'] },
     search: {
       keywords: ['finder', 'show', 'file', 'folder', 'explorer'],
-      where: 'Canvases panel › Advanced › row menu › Reveal in Finder',
+      where: 'Canvases › Advanced',
     },
   },
   {
@@ -166,7 +166,7 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     enabled: { facts: ['canvasOpen'] },
     search: {
       keywords: ['editor', 'code', 'vscode', 'file', 'tsx'],
-      where: 'Canvases panel › Advanced › row menu › Open in editor',
+      where: 'Canvases › Advanced',
     },
   },
   {
@@ -179,7 +179,7 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     enabled: { facts: ['canvasOpen'] },
     search: {
       keywords: ['path', 'file', 'copy', 'location'],
-      where: 'Canvases panel › Advanced › row menu › Copy file path',
+      where: 'Canvases › Advanced',
     },
   },
   {
@@ -191,7 +191,7 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     enabled: { facts: ['canvasOpen'] },
     search: {
       keywords: ['rename', 'file', 'name'],
-      where: 'Canvases panel › Advanced › row menu › Rename file…',
+      where: 'Canvases › Advanced',
     },
   },
   // The card's own buttons: they act on the card that is showing, so they are not ⌘K rows.

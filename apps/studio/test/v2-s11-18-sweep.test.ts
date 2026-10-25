@@ -36,9 +36,8 @@ describe('⌘K "copy": the hidden tools with their homes, the rest under Also', 
     expect(byName.get('Copy code')).toBe('Inspector › Advanced');
     expect(byName.get('Copy element id')).toBe('Inspector › Advanced');
     expect(byName.get('Copy CSS')).toBe('Inspector › Advanced');
-    expect(byName.get('Copy file path')).toBe(
-      'Canvases panel › Advanced › row menu › Copy file path'
-    );
+    // 06 ad-search draws the chip as "Canvases › Advanced" — short enough never to cut the row's label
+    expect(byName.get('Copy file path')).toBe('Canvases › Advanced');
     expect(byName.get('Copy logs')).toBe('Menu › Diagnostics › Logs');
     expect(rows.every((r) => r.advanced)).toBe(true);
     expect(group('actions')?.aside).toBe(`${rows.length} hidden tools`);

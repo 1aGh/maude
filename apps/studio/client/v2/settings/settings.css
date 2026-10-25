@@ -346,6 +346,61 @@
     overflow-wrap: anywhere;
   }
 
+  /* 06 ad-settings Engines: a select row per engine, then a quiet box per model (the board's ad-model). */
+  .v2s-eng .v2s-hint {
+    margin: var(--space-1) 0 0;
+  }
+  .v2s-hint[data-ok="false"] {
+    color: var(--status-error);
+  }
+  .v2s-models {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin: var(--space-2) 0 var(--space-3);
+  }
+  .v2s-model {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--bg-1);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .v2s-model-hd,
+  .v2s-model-st {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .v2s-model-hd {
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .v2s-model-hd strong {
+    font-weight: var(--w-semibold);
+  }
+  .v2s-model-sz {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .v2s-model-st {
+    font-size: var(--type-xs);
+  }
+  /* Reset: the board's one wrapping action row (ad-acts--wrap) + the red Reset all settings…. */
+  .v2s-acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+  }
+  .v2s-acts > span {
+    display: contents;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .v2s-sheet {
       animation: none;
