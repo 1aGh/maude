@@ -85,7 +85,8 @@ export async function run(h) {
       await page.mouse.click(430, 270); await sleep(350);
       await page.mouse.click(560, 220); await sleep(350);
       await page.mouse.click(690, 285); await sleep(350);
-      await page.mouse.move(470, 274); await page.mouse.move(432, 271); await sleep(700);
+      for (const [x, y] of [[470, 274], [440, 271], [432, 271]]) { await page.mouse.move(x, y, { steps: 4 }); await sleep(300); }
+      await sleep(500);
       console.log('PENDRAW ring', await k.fr.locator('[data-testid="edit-pen-close"]').count(), 'chip', await k.fr.locator('[data-testid="edit-pen-chip-close"]').count());
     });
     await h.esc(3);
