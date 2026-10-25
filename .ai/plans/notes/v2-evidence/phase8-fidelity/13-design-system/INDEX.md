@@ -318,3 +318,74 @@ Re-shot (light + dark pairs overwritten, harness `_d3-harness-g5` copied over `_
 | id | after | notes |
 |---|---|---|
 | ds-truth-outside | re-shot, light + dark | `s13` group c: the inspector is opened (nothing selected) and the 6 s poll awaited — the "2 tokens changed outside the app" card (file, accent / bg-1 old → new, Undo / Keep) draws. The earlier "never surfaces" was the probe reading the FIRST system of `ds status` (maude, no change) instead of `ds status maude-v2`; the detection itself works |
+
+## FINAL (D4, 21c9714cf) — IMPL re-shot on the merged tip (stage C rounds 1–6)
+
+Re-shot 56 of 60 pairs; 4 unreachable. Supersedes every earlier "after" / "FINAL" / "Round" section above: every pair in this folder (`<id>-<theme>.jpg`, JPEG q55, max 1100 px wide) now shows the merged product. The SPEC side is unchanged (no commit to the board `.design/ui/v2/13 Design System.*` since the stage-A shot), so the stage-A spec PNGs are reused. Full-size pairs: last line of `full-size-path.txt` ("final (D4):").
+
+- Harness: `_d4-harness-g5/` = `_d-harness-g5` + `_d2` + `_d3` + `_c6-bugs4-harness` + `_d6-harness-g5` (copied over each other in that order, `REPO` repointed, release-built client, `bun mk-dsconv.mjs` first) plus the D4 scenarios `s13s.mjs` (ds-edge-suggest) and `s13u.mjs` (ds-multi-schema). Chain: `chain-d4.sh` (light, dark, then `dsboard.mjs` for the whole-board crops through the capture origin) and `chain-x.sh` for the newly reached states.
+- Also shot (no spec pair, full-size only): `ds-edit-colour-pending`, `ds-make-entry`, `ds-make-sentence`, `ds-edge-trash-board`, `ds-multi-schema.row`.
+- Still unreachable: `ds-many-library`, `ds-many-linked` — a team library on a hub; no real hub is booted in this lane.
+
+| id | theme | FINAL (D4) | spec |
+| --- | --- | --- | --- |
+| `ds-advanced` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-advanced` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-dark` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-dark` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-gator` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-gator` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-studio` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-studio` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-contrast` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-contrast` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-migrate` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-migrate` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-suggest` | dark | re-shot — NEWLY REACHED — the question is not AI-driven: a canvas on a converted system with a hand-picked blue (`#3b6fe0` on the "Save two months" badge) in a git repo with the canvas uncommitted; the quiet question draws at the bottom ("A colour picked by hand isn’t in maude-v2. The closest is Accent." Use Accent · Add it to the system · Not now). Fixture canvas is a small Pricing page (`s13s.mjs`). | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-suggest` | light | re-shot — NEWLY REACHED — the question is not AI-driven: a canvas on a converted system with a hand-picked blue (`#3b6fe0` on the "Save two months" badge) in a git repo with the canvas uncommitted; the quiet question draws at the bottom ("A colour picked by hand isn’t in maude-v2. The closest is Accent." Use Accent · Add it to the system · Not now). Fixture canvas is a small Pricing page (`s13s.mjs`). | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-trash` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-trash` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-colour` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-colour` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-instance` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-instance` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-master` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-master` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-reach` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-reach` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-review` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-review` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-directions` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-directions` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-done` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-done` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-filling` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-filling` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-inputs` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-inputs` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-mix` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-mix` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-library` | dark | unreachable — A team library on a hub (3 projects read it) needs a linked hub + library; not reachable in a local single-project lane (no real hub in this run). | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-library` | light | unreachable — A team library on a hub (3 projects read it) needs a linked hub + library; not reachable in a local single-project lane (no real hub in this run). | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-linked` | dark | unreachable — A project that links a team library (view-only Design system row) needs a hub-linked library; not reachable locally (no real hub in this run). | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-linked` | light | unreachable — A project that links a team library (view-only Design system row) needs a hub-linked library; not reachable locally (no real hub in this run). | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-switch` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-switch` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-menu` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-menu` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-migrate` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-migrate` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-panel` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-panel` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-schema` | dark | re-shot — NEWLY REACHED — an UNCONVERTED second system `maude` with its core colours removed: amber dot + "Made before the schema" on its row, row ⋯ › "Bring it up to the schema…" opens "Bring maude up to the schema?" (`s13u.mjs`; a converted system is refused with "is on a Design system canvas…"). The full frame shows the sheet; `ds-multi-schema.row` is the row alone (full-size only). | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-schema` | light | re-shot — NEWLY REACHED — an UNCONVERTED second system `maude` with its core colours removed: amber dot + "Made before the schema" on its row, row ⋯ › "Bring it up to the schema…" opens "Bring maude up to the schema?" (`s13u.mjs`; a converted system is refused with "is on a Design system canvas…"). The full frame shows the sheet; `ds-multi-schema.row` is the row alone (full-size only). | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-switch` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-switch` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-conflict` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-conflict` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-outside` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-outside` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-gator` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-gator` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-studio` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-studio` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
