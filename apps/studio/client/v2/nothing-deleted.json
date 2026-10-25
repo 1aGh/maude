@@ -142,7 +142,10 @@
       "v2": {
         "action": null,
         "testid": "settings-update-restart",
-        "where": "Settings › Advanced › This Mac › Update (Restart now · Later) — the banner says the same — and a callout (callout-update: “Maude updated (vX)”, Restart now, × = Later) says it where you work"
+        "where": "Settings › Advanced › This Mac › Update (Restart now · Later) — the banner says the same — and a callout (callout-update: “Maude updated (vX)”, Restart now, × = Later) says it where you work",
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -577,9 +580,9 @@
       "home": "insp",
       "drawnAt": "ad-inspector",
       "v2": {
-        "action": "view.zoom-to-artboard",
-        "testid": null,
-        "where": "⌘K “Zoom to artboard” fits just the selected artboard; ⌘K “Reset position” (artboard.reset-position) puts it back in its slot (P8 round 7 took both out of the artboard’s right-click menu)"
+        "action": null,
+        "testid": "jump-artboard-<slug>-<artboardId>",
+        "where": "Canvases panel › a canvas’s ▸ twisty › an artboard in its list frames just that artboard (“Fit just this artboard”); ⌘K “Reset artboard position” puts a selected artboard back in its slot (P8 round 7 took both out of the artboard’s right-click menu)"
       }
     },
     {
