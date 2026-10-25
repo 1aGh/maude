@@ -55,14 +55,14 @@ export const DYNAMIC_NOTE = 'Its artboards are made when it runs.';
 export const hasJumpList = (c) => !!c && ((c.boards?.length ?? 0) > 0 || !!c.dynamic);
 
 /**
- * Is the jump list of `c` open? `state` is the person's choices: a Map path → boolean. Not touched:
- * closed, except in a search where the canvas answered through an artboard — then it opens to the
- * artboards that matched (an artboard hit expands its canvas).
+ * Is the jump list of `c` open? `state` is the person's choices: a Map path → boolean. Not touched: closed — also in
+ * a search where the canvas answered through an artboard: 01 cf-panel-search draws a FLAT list (one row per canvas,
+ * the artboard that matched quoted under its name: print · “Náborový leták A6 · FLAG” and 3 more); the twisty opens
+ * the artboards when the person wants them. (`viaBoards` stays in the signature: the caller still says it.)
  */
-export function jumpIsOpen(state, c, { viaBoards = false } = {}) {
+export function jumpIsOpen(state, c, { viaBoards: _viaBoards = false } = {}) {
   const v = state?.get?.(c.path);
-  if (typeof v === 'boolean') return v;
-  return !!viaBoards;
+  return typeof v === 'boolean' ? v : false;
 }
 
 /**

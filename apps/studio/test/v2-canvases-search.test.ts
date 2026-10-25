@@ -164,24 +164,21 @@ describe('S1.3 panel search — through the tree', () => {
     expect(c.boards.map((b: { id: string }) => b.id)).toEqual(['x', 'y']);
   });
 
-  test('"treneri" flattens to Trenéři; an artboard-only hit opens its canvas to the matching artboards', () => {
+  test('"treneri" flattens to Trenéři; an artboard-only hit stays one row (01: a flat list), the twisty opens the artboards', () => {
     const rows = visibleRows(tree, { projectLabel: 'P', query: 'treneri' });
     expect(rows.map((r) => r.name)).toEqual(['Trenéři']);
 
-    const hit = visibleRows(tree, { projectLabel: 'P', query: 'letak' });
-    expect(hit.map((r) => `${r.type}:${r.name}`)).toEqual([
-      'canvas:Kampan',
-      'board:Náborový leták A6 · FLAG',
-    ]);
-    expect(hit[1].artboardId).toBe('x');
-    expect(hit[1].nameMarks).toEqual([[9, 14]]);
-    // the person closed it: back to the one-liner under the name
-    const closed = visibleRows(tree, {
+    const flat = visibleRows(tree, { projectLabel: 'P', query: 'letak' });
+    expect(flat.map((r) => r.type)).toEqual(['canvas']);
+    expect(flat[0].sub).toBe('print · “Náborový leták A6 · FLAG”');
+    // the person opened it: the artboards that matched
+    const hit = visibleRows(tree, {
       projectLabel: 'P',
       query: 'letak',
-      jumpOpen: new Map([[`${ROOT}/Kampan.tsx`, false]]),
+      jumpOpen: new Map([[`${ROOT}/Kampan.tsx`, true]]),
     });
-    expect(closed.map((r) => r.type)).toEqual(['canvas']);
-    expect(closed[0].sub).toBe('print · “Náborový leták A6 · FLAG”');
+    expect(hit.map((r) => r.type)).toEqual(['canvas', 'board', 'board']);
+    expect(hit[1].artboardId).toBe('x');
+    expect(hit[1].nameMarks).toEqual([[9, 14]]);
   });
 });

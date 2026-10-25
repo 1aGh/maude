@@ -245,28 +245,24 @@ describe('panel search rendered (01 · cf-panel-search)', () => {
     expect(q(host, 'canvases-foot')?.textContent).toBe('1 result · ⌘K searches every project');
   });
 
-  test('an artboard hit opens its canvas to the artboards that matched; the click jumps', async () => {
+  test('an artboard hit is one row quoting the artboard that matched (a flat list); the twisty opens the matches; the click jumps', async () => {
     const { host, jumps } = await mount({ search: 'letak' });
     expect(all(host, '[data-testid^="canvas-row-"]').map((n) => n.dataset.testid)).toEqual([
       'canvas-row-ui-combine-kampan',
     ]);
-    const hits = all(host, '[data-testid^="jump-artboard-"]');
-    expect(hits.map((h) => h.dataset.testid)).toEqual([
-      'jump-artboard-ui-combine-kampan-p1',
-      'jump-artboard-ui-combine-kampan-p2',
-    ]);
-    expect(all(host, 'mark.cv-mark').map((m) => m.textContent)).toEqual(['leták', 'leták']);
-    // an auto-opened hit keeps the result count in the foot
-    expect(q(host, 'canvases-foot')?.textContent).toBe('1 result · ⌘K searches every project');
-    await click(hits[1]);
-    expect(jumps).toEqual([[KAMPAN, 'p2']]);
-  });
-
-  test('closed again, the row quotes the artboard that matched', async () => {
-    const { host } = await mount({ search: 'letak' });
-    await click(q(host, 'canvas-jump-toggle-ui-combine-kampan'));
+    // 01 cf-panel-search: collapsed, the second line says which artboard it was
     expect(all(host, '[data-testid^="jump-artboard-"]')).toHaveLength(0);
-    const sub = host.querySelector('.cv-sub');
-    expect(sub?.textContent).toBe('print · “Náborový leták A6 · FLAG” and 1 more');
+    expect(host.querySelector('.cv-sub')?.textContent).toBe(
+      'print · “Náborový leták A6 · FLAG” and 1 more'
+    );
+    expect(q(host, 'canvases-foot')?.textContent).toBe('1 result · ⌘K searches every project');
+    await click(q(host, 'canvas-jump-toggle-ui-combine-kampan'));
+    // opened by hand: every artboard of the canvas, the two that matched marked
+    const hits = all(host, '[data-testid^="jump-artboard-"]');
+    expect(hits).toHaveLength(21);
+    expect(all(host, 'mark.cv-mark').map((m) => m.textContent)).toContain('leták');
+    const p2 = hits.find((h) => h.dataset.testid === 'jump-artboard-ui-combine-kampan-p2');
+    await click(p2 ?? null);
+    expect(jumps).toEqual([[KAMPAN, 'p2']]);
   });
 });
