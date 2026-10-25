@@ -72,6 +72,8 @@ export interface Selection {
    * client size (what a constraint is measured against). Absent for a non-HTML element.
    */
   geometry?: { x: number; y: number; w: number; h: number; parentW: number; parentH: number };
+  /** P8 c10 (14 ed-lay-auto) — an auto-layout frame's children: how many, of what kind, how wide ("3 frames, each Fills the width."). */
+  kids?: import('./editing/kids-summary.ts').KidsSummary;
   /** S2.12 — the style a text object wears, what that style computes to, what the object overrides. */
   textInfo?: import('./edit-ops/text-style.ts').TextInfo;
   html?: string;

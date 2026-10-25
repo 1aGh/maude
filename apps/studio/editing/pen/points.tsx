@@ -45,6 +45,7 @@ import {
   toScreen,
   typeChip,
 } from './pen-geometry.ts';
+import { penPointInfo, setPenPoint } from './point-store.ts';
 
 export const PATH_SELECTOR = 'svg[data-shape="path"][data-cd-id]';
 
@@ -116,6 +117,8 @@ export function PointEdit({ readOnly = false }: { readOnly?: boolean }) {
   const editRef = useRef(edit);
   editRef.current = edit;
   const [drag, setDrag] = useState<Drag | null>(null);
+  // 14 ed-pen: a point under the pointer says what it is (Smooth / Sharp), in a quiet tag; the selected one has the loud one
+  const [hover, setHover] = useState<PointRef | null>(null);
   const dragRef = useRef(drag);
   dragRef.current = drag;
   const latest = useRef<PathModel | null>(null);
@@ -131,7 +134,13 @@ export function PointEdit({ readOnly = false }: { readOnly?: boolean }) {
   }, []);
   useFrameTick(frameKey, on);
 
-  const leave = useCallback(() => {
+  // `republish`: the path stays the selection (↵ / esc), so the shell is told the point is gone
+  const leave = useCallback((republish = false) => {
+    const svg = editRef.current?.svg;
+    if (svg) {
+      setPenPoint(svg, null);
+      if (republish) ctx.current.selSet.replace(selectionOf(svg));
+    }
     setEdit(null);
     setDrag(null);
   }, []);
@@ -168,6 +177,26 @@ export function PointEdit({ readOnly = false }: { readOnly?: boolean }) {
     );
     if (!keep || (tool && tool !== 'move')) leave();
   }, [edit, selSet.selected, tool, leave]);
+
+  // The selected point is said to the shell (the inspector's Point card: Corner, X · Y): the selection is re-posted with
+  // it on the path's payload when the point or its numbers change — not while a drag is in flight.
+  const where = edit?.sel ? `${edit.sel.sub}:${edit.sel.i}` : '';
+  const info = edit?.sel ? penPointInfo(edit.model, edit.sel, svgOrigin(edit.svg)) : null;
+  const infoKey = info ? `${where}:${info.kind}:${info.x}:${info.y}` : '';
+  const dragging = !!drag;
+  const told = useRef('');
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `infoKey` stands for `info`
+  useEffect(() => {
+    const e = editRef.current;
+    if (!e) {
+      told.current = '';
+      return;
+    }
+    if (dragging || readOnly || infoKey === told.current) return;
+    told.current = infoKey;
+    setPenPoint(e.svg, info);
+    ctx.current.selSet.replace(selectionOf(e.svg));
+  }, [infoKey, dragging, edit?.svg, readOnly]);
 
   // The file's `d` changed (our own edit landed, an undo, a peer): re-read it.
   useEffect(() => {
@@ -211,7 +240,7 @@ export function PointEdit({ readOnly = false }: { readOnly?: boolean }) {
       if (ev.key === 'Enter' || ev.key === 'Escape') {
         ev.preventDefault();
         ev.stopPropagation();
-        return leave();
+        return leave(true);
       }
       if ((ev.key === 'Backspace' || ev.key === 'Delete') && e.sel) {
         ev.preventDefault();
@@ -353,6 +382,8 @@ export function PointEdit({ readOnly = false }: { readOnly?: boolean }) {
                     y={p.y - 5}
                     width={10}
                     height={10}
+                    onPointerEnter={() => setHover({ sub: si, i })}
+                    onPointerLeave={() => setHover((h) => (h?.sub === si && h.i === i ? null : h))}
                     onPointerDown={(ev) => press(ev, { kind: 'anchor', sub: si, i })}
                     onDoubleClick={(ev) => {
                       ev.stopPropagation();
@@ -365,6 +396,16 @@ export function PointEdit({ readOnly = false }: { readOnly?: boolean }) {
           )}
         </svg>
       }
+      {hover && !drag && !(edit.sel && edit.sel.sub === hover.sub && edit.sel.i === hover.i)
+        ? (() => {
+            const at = screen.subs[hover.sub]?.points[hover.i];
+            return at ? (
+              <PenChip x={at.x + 14} y={at.y + 14} tone="quiet" testid="edit-pen-chip-hover">
+                {typeChip(edit.model, hover)}
+              </PenChip>
+            ) : null;
+          })()
+        : null}
       {sel && edit.sel ? (
         <PenChip x={sel.x + 14} y={sel.y + 14} testid="edit-pen-chip-type">
           {typeChip(edit.model, edit.sel)}

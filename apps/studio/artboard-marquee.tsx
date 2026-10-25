@@ -56,7 +56,7 @@ function ensureMarqueeStyles(): void {
   document.head.appendChild(s);
 }
 
-function shouldIgnoreTarget(t: EventTarget | null): boolean {
+export function shouldIgnoreTarget(t: EventTarget | null): boolean {
   if (!t || !(t as Element).closest) return true;
   const el = t as Element;
   // Skip if the pointerdown landed inside any artboard — that's a select-
@@ -65,7 +65,7 @@ function shouldIgnoreTarget(t: EventTarget | null): boolean {
   // Skip floating chrome and existing overlays (their click handlers run).
   if (
     el.closest(
-      '.dc-mm, .dc-zoom-tb, .dc-tool-palette, .dc-context-menu, .dc-cv-halo, .dc-cv-group-bbox, .cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, .dc-annot-svg, .dc-annot-ctx, .dc-tp-popover, .dc-annot-resize-handle, .dc-el-resize-handle, .dc-multi-artboard-tb, .dc-elem-ctx-tb, .dc-cv-eq-spacing-layer'
+      '.dc-mm, .dc-zoom-tb, .dc-tool-palette, .dc-context-menu, .dc-cv-halo, .dc-cv-group-bbox, .cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, .dc-annot-svg, .dc-annot-ctx, .dc-tp-popover, .dc-annot-resize-handle, .dc-el-resize-handle, .dc-multi-artboard-tb, .dc-elem-ctx-tb, .dc-cv-eq-spacing-layer, .ed-pen-svg'
     )
   ) {
     return true;

@@ -12,6 +12,8 @@
 
 import { parsePathD, pointCount } from './edit-ops/path-model.ts';
 import type { TextInfo } from './edit-ops/text-style.ts';
+import { type KidsSummary, summarizeKids } from './editing/kids-summary.ts';
+import { getPenPoint, penPointAttr } from './editing/pen/point-store.ts';
 import { probeTextInfo } from './editing/type-role.ts';
 import type { HoverTarget } from './input-router.tsx';
 import { currentCanvasFile } from './shell-canvas-file.ts';
@@ -368,6 +370,11 @@ const KNOB_PROPS = [
   'white-space',
   // Overflow
   'overflow',
+  // P8 c10 (14 ed-pen) — a Pen path / line draws a stroke: the Stroke row and its Ends row read these
+  'stroke',
+  'stroke-width',
+  'stroke-linecap',
+  'stroke-linejoin',
   // Media framing
   'object-fit',
   'aspect-ratio',
@@ -435,6 +442,9 @@ function styleMapsFor(el: Element | null): {
           /* arcs: no count */
         }
       }
+      // 14 ed-pen — the point being edited (the Point card): set by the Pen's point editing, never stored in the file
+      const point = penPointAttr(getPenPoint(el));
+      if (point) attrs['data-dc-pen-point'] = point;
     }
     // Dogfood follow-up (print artboards) — ATTR_SKIP deliberately hides the
     // engine's own `data-dc-*` plumbing from the generic "custom HTML
@@ -601,7 +611,40 @@ export function hoverTargetToSelection(target: HoverTarget, file?: string): Sele
     ...styleMapsFor(el),
     // S2.12 — the style a text object wears and what it overrides, measured in the canvas
     ...textInfoFor(el),
+    // P8 c10 (14 ed-lay-auto) — an auto-layout frame's children, for "3 frames, each Fills the width."
+    ...kidsFor(el),
   };
+}
+
+/** The children of a flex frame, summarised (count, shared kind, one width sizing word); nothing for anything else. */
+function kidsFor(el: Element | null): { kids?: KidsSummary } {
+  if (!el || typeof window === 'undefined' || !window.getComputedStyle || !el.children?.length)
+    return {};
+  try {
+    const cs = window.getComputedStyle(el as HTMLElement);
+    const display = cs.display;
+    if (display !== 'flex' && display !== 'inline-flex') return {};
+    const facts = Array.from(el.children)
+      .filter((c): c is HTMLElement => c instanceof HTMLElement)
+      .map((c) => {
+        const inline = c.style;
+        const grow = inline.getPropertyValue('flex-grow').trim();
+        return {
+          tag: c.tagName.toLowerCase(),
+          width: inline.getPropertyValue('width').trim(),
+          // a class-styled child grows by its computed flex-grow
+          flexGrow: grow || window.getComputedStyle(c).flexGrow || '',
+          alignSelf: inline.getPropertyValue('align-self').trim(),
+        };
+      });
+    const kids = summarizeKids(
+      { display, flexDirection: cs.flexDirection, alignItems: cs.alignItems },
+      facts
+    );
+    return kids ? { kids } : {};
+  } catch {
+    return {};
+  }
 }
 
 /** `textInfo` for an element that holds text or wears a style; nothing for a box. */

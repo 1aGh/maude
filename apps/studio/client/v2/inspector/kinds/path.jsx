@@ -10,6 +10,8 @@
 //
 // The bodies register themselves (append-only, sections/index.js).
 
+import { PointBody } from '../sections/point.jsx';
+import { pointOf } from '../path-point.js';
 import { Row } from '../sections/row.jsx';
 import { registerSlot } from '../slots.js';
 import { useCssWrite } from '../css-write.js';
@@ -144,6 +146,14 @@ export function registerPathKind() {
       order: 20,
       kinds: ['path'],
       Body: PathEndsBody,
+    }),
+    registerSlot('point', {
+      id: 'point.words',
+      order: 10,
+      kinds: ['path'],
+      // only while the canvas says a point of this path is selected (point editing)
+      when: ({ selection }) => !!pointOf(Array.isArray(selection) ? null : selection),
+      Body: PointBody,
     }),
     registerSlot('combine', {
       id: 'combine.words',

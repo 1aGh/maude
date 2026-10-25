@@ -101,7 +101,19 @@ export function placementOf(layersTree, el) {
   const hit = findNode(layersTree?.nodes, el.id, el.index);
   if (!hit) return none;
   const frame = hit.trail[hit.trail.length - 1];
-  if (!frame) return none;
+  if (!frame) {
+    // P8 c10 (14 ed-lay-free): an object straight on the page is placed by the artboard itself
+    // the artboard's own name ("Post 1:1 · Combine 2026"), as the canvas's crumbs say it; its id for an old canvas
+    const board = collapse(el.crumbs?.[0]?.label) || collapse(layersTree?.artboardId);
+    if (!board) return none;
+    const top = (layersTree.nodes || []).filter((n) => n?.tag);
+    const at0 = top.indexOf(hit.node);
+    return {
+      parent: clip(board, 24),
+      index: at0 >= 0 ? at0 + 1 : null,
+      count: at0 >= 0 ? top.length : null,
+    };
+  }
   const label = collapse(frame.label);
   const siblings = (frame.children || []).filter((n) => n?.tag);
   const at = siblings.indexOf(hit.node);

@@ -42,6 +42,7 @@ const read = (rel: string) => readFileSync(join(STUDIO, rel), 'utf8');
 describe('the sections (14 Editing, ed-inspector)', () => {
   test('in the drawn order, numbered 1 to 10; Combine shapes (11, S2.14) and a picture’s Image and Adjust (12, 13; S2.15) are numbered after the ten drawn ones', () => {
     expect(SECTIONS.map((s) => [s.n, s.id, s.title])).toEqual([
+      [28, 'point', 'Point'], // P8 c10 (14 ed-pen)
       [12, 'image', 'Image'],
       [13, 'adjust', 'Adjust'],
       [1, 'position', 'Position'],
@@ -62,7 +63,7 @@ describe('the sections (14 Editing, ed-inspector)', () => {
       [25, 'captions', 'Captions'], // S7.11
       [10, 'export', 'Export'],
     ]);
-    expect(SECTION_IDS).toHaveLength(19);
+    expect(SECTION_IDS).toHaveLength(20);
   });
 
   test('every section carries its one-line explainer, in CONTRACT words (no "island", no "screen")', () => {

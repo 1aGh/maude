@@ -8,6 +8,7 @@
 import { ArrowDown, ArrowRight, LayoutGrid, Move, Scan } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
 import { layoutToCss, lengthToCss, toWords } from '../../../../edit-ops/words-css.ts';
+import { kidsLine } from '../../../../editing/kids-summary.ts';
 import { AlignPad, IconButtonGroup, Segmented } from '../../../inspector-controls.jsx';
 import { useCssWrite } from '../css-write.js';
 import { registerSlot } from '../slots.js';
@@ -265,6 +266,12 @@ export function LayoutBody({ el, ctx }) {
             />
           </span>
         </Row>
+      ) : null}
+      {flexy && kidsLine(el?.kids) ? (
+        // 14 ed-lay-auto: what the frame lays out — "3 frames, each Fills the width."
+        <Quiet line testid="insp-layout-kids">
+          {kidsLine(el?.kids)}
+        </Quiet>
       ) : null}
       {!editable ? (
         <Quiet testid="insp-layout-locked">

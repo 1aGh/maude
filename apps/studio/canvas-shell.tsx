@@ -473,6 +473,9 @@ function layerLabel(el: Element): string {
   if (dc) return kebabToTitle(dc);
   const aria = el.getAttribute('aria-label');
   if (aria) return aria.slice(0, 40);
+  // P8 c10 (14 ed-pen): a drawn shape is what it is — "Path", "Rectangle" — not the svg's "Icon"
+  const shape = el.getAttribute('data-shape');
+  if (shape && /^[a-z][a-z-]{0,23}$/.test(shape)) return kebabToTitle(shape);
   const picture = isPictureTag(el.tagName);
   return displayLayerName({
     tag: el.tagName,
