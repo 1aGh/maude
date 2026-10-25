@@ -38,10 +38,22 @@ const refs = [
   ...new Set([...log.matchAll(/kg: ([a-z]+:[^\s·]+)/g)].map((m) => m[1].replace(/[.,;]$/, ''))),
 ];
 for (const ref of refs) {
-  const r = spawnSync('kg', ['resolve', ref], { encoding: 'utf8' });
   let ok = false;
+  // `decision:maude/v2-gate-b-sec1-*` names a family: it resolves when at least one element carries the prefix
+  const family = /^([a-z]+):(.+)\*$/.exec(ref);
+  const r = family
+    ? spawnSync(
+        'kg',
+        [
+          'query',
+          `MATCH (e) WHERE e.kind = '${family[1]}' AND e.name STARTS WITH '${family[2].replace(/'/g, '')}' RETURN e.name LIMIT 1`,
+        ],
+        { encoding: 'utf8' }
+      )
+    : spawnSync('kg', ['resolve', ref], { encoding: 'utf8' });
   try {
-    ok = JSON.parse(r.stdout).existed === true;
+    const out = JSON.parse(r.stdout);
+    ok = family ? (out.rows?.length ?? 0) > 0 : out.existed === true;
   } catch {
     /* not JSON */
   }
