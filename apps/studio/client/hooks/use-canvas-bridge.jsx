@@ -32,7 +32,12 @@ import {
   TRASH_RECORD_LABEL,
   trashArtboardBody,
 } from '../edit-op-relay.ts';
-import { noteClipResult, shapeClipRequest } from '../clipboard-relay.ts';
+import {
+  frameClipResult,
+  noteClipResult,
+  notePasteIntent,
+  shapeClipRequest,
+} from '../clipboard-relay.ts';
 import { exportRegionOf } from '../export-region.ts';
 import {
   localSelectRecord,
@@ -128,6 +133,10 @@ export function useCanvasBridge({
   // S9.22b — the viewer's display name (left out of the mention people); optional
   gitUser = null,
 }) {
+  // V2-8.9 defender L2 (checklist C6) — every shell → canvas post names the canvas origin, never '*':
+  // a frame that navigated elsewhere hears nothing. The same origin onMessage accepts from.
+  const canvasOriginRef = useRef('');
+  canvasOriginRef.current = cfg?.canvasOrigin || window.location.origin;
   // S2.24 — the selection ladder (selection-scope.js `startSelectionRestore`): one at a time, the newest wins.
   const selectionRestoreRef = useRef(null);
   // S2.25 G1 — ids a write gave to texts the shell has selected (content-hash id → authored name); read when each rung fires
@@ -142,7 +151,7 @@ export function useCanvasBridge({
         renames: renamedIdsRef.current,
         post: (msg) => {
           try {
-            iframesRef.current.get(file)?.contentWindow?.postMessage(msg, '*');
+            iframesRef.current.get(file)?.contentWindow?.postMessage(msg, canvasOriginRef.current);
           } catch {}
         },
       });
@@ -373,7 +382,10 @@ export function useCanvasBridge({
         const editSource = e.source;
         const revert = (reason) => {
           try {
-            editSource?.postMessage({ dgn: 'edit-reverted', op: 'text', id: m.id, reason }, '*');
+            editSource?.postMessage(
+              { dgn: 'edit-reverted', op: 'text', id: m.id, reason },
+              expectedOrigin
+            );
           } catch {}
         };
         fetch('/_api/edit-text', {
@@ -404,7 +416,10 @@ export function useCanvasBridge({
         Promise.all([editApplyChainRef.current.catch(() => {}), afterRecordableWrites()]).then(
           () => {
             try {
-              source?.postMessage({ dgn: 'undo-barrier-ok', requestId: m.requestId }, '*');
+              source?.postMessage(
+                { dgn: 'undo-barrier-ok', requestId: m.requestId },
+                expectedOrigin
+              );
             } catch {}
           }
         );
@@ -431,7 +446,7 @@ export function useCanvasBridge({
           try {
             replyTo?.postMessage(
               { dgn: 'apply-edit-result', requestId: m.requestId, ...result },
-              '*'
+              expectedOrigin
             );
           } catch {}
         };
@@ -468,7 +483,10 @@ export function useCanvasBridge({
         const replyTo = e.source;
         const reply = (result) => {
           try {
-            replyTo?.postMessage({ dgn: 'edit-op-result', requestId: m.requestId, ...result }, '*');
+            replyTo?.postMessage(
+              { dgn: 'edit-op-result', requestId: m.requestId, ...result },
+              expectedOrigin
+            );
           } catch {}
         };
         // V2-clipboard-objects — the clipboard is the shell's (client/clipboard-relay.ts): a paste names the
@@ -497,11 +515,15 @@ export function useCanvasBridge({
                     .then(readEditOpAnswer)
                     .then((r) => {
                       if (!r.ok) {
-                        replyTo?.postMessage({ dgn: 'op-toast', message: r.message }, '*');
+                        replyTo?.postMessage(
+                          { dgn: 'op-toast', message: r.message },
+                          expectedOrigin
+                        );
                         return;
                       }
                       const payload = legacyRecordPayload(r, 'Paste');
-                      if (payload) replyTo?.postMessage({ dgn: 'record-edit', payload }, '*');
+                      if (payload)
+                        replyTo?.postMessage({ dgn: 'record-edit', payload }, expectedOrigin);
                     })
                     .catch(() => {})
                 );
@@ -521,7 +543,8 @@ export function useCanvasBridge({
               .then(readEditOpAnswer)
               .then((result) => {
                 noteClipResult(body, result);
-                reply(result);
+                // V2-8.9 attacker L3 — the canvas hears kind + count, never the handle
+                reply(frameClipResult(body, result));
                 // S7.21 — "Tablet and Mobile are beside Desktop." + Undo, when the inspector asked for the copies
                 const added = settleAddedWidths(body, result);
                 if (added) shellToast(added.message, true, added.action, DUPLICATE_TOAST);
@@ -1187,6 +1210,14 @@ export function useCanvasBridge({
         // demand — a modal-timing primitive (V2-2.8 S3). `activeWin &&` closes the
         // `null === null` path (no active canvas + a discarded source).
         const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
+        if (activeWin && e.source === activeWin && m.chord === '⌘V') {
+          // V2-8.9 attacker L2 — a ⌘V in the canvas is a paste intent only while the active frame
+          // holds the focus of a focused window (the sec-a undo-key gate): the shell's cross-canvas
+          // paste ask may follow it for ~1 s (client/clipboard-relay.ts). It runs no action.
+          const frame = iframesRef.current.get(activePath);
+          if (document.hasFocus() && document.activeElement === frame) notePasteIntent();
+          return;
+        }
         if (activeWin && e.source === activeWin) {
           runForwardedKey(m.chord.slice(0, 32), {
             // EH-P4-3 (S2.1) — the session's role decides, as for a key pressed in the shell
@@ -1267,13 +1298,13 @@ export function useCanvasBridge({
         const el = [...iframesRef.current.entries()].find(([k]) => k === m.file)?.[1];
         if (el && el.contentWindow) {
           try {
-            el.contentWindow.postMessage({ dgn: 'comments-set', comments: list }, '*');
+            el.contentWindow.postMessage({ dgn: 'comments-set', comments: list }, expectedOrigin);
           } catch {}
           // System-review D9 — seed the just-loaded canvas with the current
           // chrome theme so a canvas opened AFTER a theme toggle starts
           // correct (no flash from the dark default).
           try {
-            el.contentWindow.postMessage({ dgn: 'theme', theme }, '*');
+            el.contentWindow.postMessage({ dgn: 'theme', theme }, expectedOrigin);
           } catch {}
           // Seed the just-loaded canvas with the current chrome-visibility
           // state (minimap / zoom-controls toggles + Presentation Mode) so a
@@ -1288,7 +1319,7 @@ export function useCanvasBridge({
                 // P8 C8 (01 cf-open-big): a frame opened while the panels are hidden folds its toolbar too
                 zen: panelLayout.get().userHidden,
               },
-              '*'
+              expectedOrigin
             );
           } catch {}
           if (focusedCommentId && list.some((c) => c.id === focusedCommentId)) {
@@ -1296,7 +1327,7 @@ export function useCanvasBridge({
               // S6.11b — a thread landing's reply focus rides the re-send to a just-opened frame
               el.contentWindow.postMessage(
                 commentFocusMessage(focusedCommentId, replyFocusFor(focusedCommentId)),
-                '*'
+                expectedOrigin
               );
             } catch {}
           }
@@ -1311,7 +1342,7 @@ export function useCanvasBridge({
             try {
               el.contentWindow.postMessage(
                 { dgn: 'request-layers', artboardId: pend.artboardId ?? null },
-                '*'
+                expectedOrigin
               );
             } catch {}
             if (pend.movedId) {
@@ -1323,7 +1354,7 @@ export function useCanvasBridge({
                     artboardId: pend.artboardId ?? null,
                     index: 0,
                   },
-                  '*'
+                  expectedOrigin
                 );
               } catch {}
             }
@@ -1518,7 +1549,7 @@ export function useCanvasBridge({
     const el = iframesRef.current.get(activePath);
     if (el && el.contentWindow) {
       try {
-        el.contentWindow.postMessage({ dgn: 'force-clear' }, '*');
+        el.contentWindow.postMessage({ dgn: 'force-clear' }, canvasOriginRef.current);
       } catch {}
     }
   }, [activePath]);
@@ -1532,7 +1563,7 @@ export function useCanvasBridge({
       const el = iframesRef.current.get(activePath);
       if (el && el.contentWindow) {
         try {
-          el.contentWindow.postMessage({ dgn: 'apply-style', ...payload }, '*');
+          el.contentWindow.postMessage({ dgn: 'apply-style', ...payload }, canvasOriginRef.current);
         } catch {}
       }
     },
@@ -1549,7 +1580,7 @@ export function useCanvasBridge({
       const el = iframesRef.current.get(activePath);
       if (el && el.contentWindow) {
         try {
-          el.contentWindow.postMessage({ dgn: 'record-edit', payload }, '*');
+          el.contentWindow.postMessage({ dgn: 'record-edit', payload }, canvasOriginRef.current);
         } catch {}
       }
     },
@@ -2120,7 +2151,9 @@ export function useCanvasBridge({
               artboardId: id,
               post: (msg) => {
                 try {
-                  iframesRef.current.get(file)?.contentWindow?.postMessage(msg, '*');
+                  iframesRef.current
+                    .get(file)
+                    ?.contentWindow?.postMessage(msg, canvasOriginRef.current);
                 } catch {}
               },
             });
