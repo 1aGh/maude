@@ -2176,6 +2176,9 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ds-reach-note` | testid | S10.9: the quiet line under the view ("The review is the same list…"). | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
 | `ds-reach-key` | testid | P8 c7: the token card's key line ("Colour › Accent"). | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
 | `ds-reach-contrast` | testid | P8 c7: the contrast line the inspector said, repeated on the token card ("5.6:1 on white · 4.8:1 on the dark page"). | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-halves` | testid | P8 c8: the token card's colour drawn as Light | Dark halves. | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-logo-tile` | testid | P8 c8: a logo file on the page ground in the Brand section's logo row. | `ds/board/section-brand.tsx` · `LogoTile` | test:p8-c8-ds-logo-ground.test | new |
+| `ds-logo-on-ink` | testid | P8 c8: the lockup on the ink ground (the board's dark lockup tile). | `ds/board/section-brand.tsx` · `LogoTile` | test:p8-c8-ds-logo-ground.test | new |
 | `ds-token-role` | testid | P8 c7: the token's role ("Text on surfaces — hints"), on its own row above a contrast warning. | `client/v2/ds/kinds/token.jsx` · `TokenPanel` | test:v2-ds-edges.test | new |
 | `ds-reach-review` | testid | S10.9: the review list that opens once the rings are drawn — the same decision as "Update N canvases". | `client/v2/ds/reach-view.jsx` · `ReachReview` | test:v2-ds-reach-view.test | new |
 | `ds-reach-review-title` | testid | S10.9: "Update canvases with the new Accent?". | `client/v2/ds/reach-view.jsx` · `ReachReview` | test:v2-ds-reach-view.test | new |

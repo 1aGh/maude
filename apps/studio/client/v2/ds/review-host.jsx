@@ -173,6 +173,7 @@ function reachSwatch(raw) {
   return {
     before: t(raw.before),
     after: t(raw.after),
+    afterDark: t(raw.afterDark),
     beforeName: t(raw.beforeName),
     afterName: t(raw.afterName),
     // the key line ("Colour › Accent") and the contrast line the inspector already said (text only)
@@ -207,9 +208,9 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
   });
   const [sheet, setSheet] = useState(null);
   // p8 c7 — the sheet's rows wear their canvas's own picture
-  const coverOf = useCoverOf({ active: !!sheet, fetchImpl });
   // S10.9 — "Used in 5 canvases · Show": the reach view (reach-view.jsx), with the same review list beside it
   const [reach, setReach] = useState(null);
+  const coverOf = useCoverOf({ active: !!sheet || !!reach, fetchImpl });
   const live = useRef({ cfg, activePath, toast, fetchImpl });
   live.current = { cfg, activePath, toast, fetchImpl };
   const say = (m) => live.current.toast?.(m);
@@ -327,6 +328,7 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
           review={reach.review}
           places={reach.places}
           scope={scope}
+          coverOf={coverOf}
           onClose={closeReach}
           onUpdate={async (rows) => {
             const r = await publishReview(

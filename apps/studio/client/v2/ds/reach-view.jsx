@@ -38,7 +38,9 @@ import { safeColour, Tick } from './review-sheet.jsx';
 /** A frame is this many CSS pixels in its own document, drawn at FRAME_SCALE. */
 export const FRAME_W = 960;
 export const FRAME_H = 600;
-export const FRAME_SCALE = 0.62;
+export const FRAME_SCALE = 0.5;
+/** The system's own Patterns artboard (a wide strip): its frame, in the same pixels-then-scaled way. */
+export const PATTERNS_FRAME = { w: 2400, h: 468, scale: 0.42, artboard: 'ds-patterns' };
 /** The asks per frame: the camera needs a moment to settle on the artboard after `reveal-artboard`. */
 export const ASK_LADDER_MS = [0, 250, 700, 1500];
 /** The review opens once every frame has answered, or after this long (a slow or refused frame never holds it). */
@@ -76,6 +78,7 @@ export function DsReachView({
   review = null,
   places = {},
   scope = '',
+  coverOf,
   onUpdate,
   onCancel,
   onClose,
@@ -92,7 +95,32 @@ export function DsReachView({
   const [timedOut, setTimedOut] = useState(false);
 
   const origin = cfg?.canvasOrigin || (typeof window !== 'undefined' ? window.location.origin : '');
-  const frames = reach.frames;
+  // 13 · ds-edit-reach: the system's own Patterns (on the Design system canvas) come first, then the canvases
+  const boardRel = useMemo(() => {
+    const entry = cfg?.designSystems?.find((d) => d.name === ds);
+    return typeof entry?.path === 'string' && cfg?.dsConverted?.[ds] === true
+      ? `${entry.path.replace(/\/+$/, '')}/design-system.tsx`
+      : null;
+  }, [cfg, ds]);
+  const frames = useMemo(
+    () =>
+      boardRel
+        ? [
+            {
+              key: `${boardRel}#${PATTERNS_FRAME.artboard}`,
+              rel: boardRel,
+              canvas: 'Design system',
+              artboard: PATTERNS_FRAME.artboard,
+              label: REACH_WORDS.patterns,
+              places: reach.places,
+              ids: [],
+              board: true,
+            },
+            ...reach.frames,
+          ]
+        : reach.frames,
+    [boardRel, reach.frames, reach.places]
+  );
   const byKey = useMemo(() => new Map(frames.map((f) => [f.key, f])), [frames]);
 
   const ask = useCallback(
@@ -197,7 +225,8 @@ export function DsReachView({
     return () => window.removeEventListener('resize', measure);
   }, [measure]);
 
-  const answered = frames.every((f) => answers[f.key]);
+  // the system's own Patterns strip has nothing to ring (no element ids), so the list does not wait for it
+  const answered = frames.every((f) => f.board || answers[f.key]);
   const reviewOpen = !!review && (answered || timedOut);
 
   return (
@@ -239,6 +268,24 @@ export function DsReachView({
           <p className="dsx-k" data-testid="ds-reach-key">
             {swatch?.kind ? `${swatch.kind} › ${name}` : name}
           </p>
+          {swatch?.after && swatch?.afterDark ? (
+            <span className="dsx-halves" data-testid="ds-reach-halves" aria-hidden="true">
+              <span
+                className="dsx-half"
+                data-which="light"
+                style={{ background: safeColour(swatch.after) ?? undefined }}
+              >
+                <em>Light</em>
+              </span>
+              <span
+                className="dsx-half"
+                data-which="dark"
+                style={{ background: safeColour(swatch.afterDark) ?? undefined }}
+              >
+                <em>Dark</em>
+              </span>
+            </span>
+          ) : null}
           <p className="dsx-ch">
             {swatch?.before ? (
               <span
@@ -281,14 +328,17 @@ export function DsReachView({
               {REACH_WORDS.hide}
             </button>
           </p>
-          <p className="dsx-tag dsx-tag--all" data-testid="ds-reach-tag">
-            {reach.tag}
-          </p>
+          {boardRel ? null : (
+            <p className="dsx-tag dsx-tag--all" data-testid="ds-reach-tag">
+              {reach.tag}
+            </p>
+          )}
         </div>
 
         <div className="dsx-frames" data-testid="ds-reach-frames">
           {frames.map((f) => {
             const a = answers[f.key];
+            const dims = f.board ? PATTERNS_FRAME : { w: FRAME_W, h: FRAME_H, scale: FRAME_SCALE };
             return (
               <figure
                 className="dsx-frame"
@@ -296,6 +346,7 @@ export function DsReachView({
                 data-testid="ds-reach-frame"
                 data-key={f.key}
                 data-artboard={f.artboard ?? undefined}
+                data-board={f.board ? 'true' : undefined}
               >
                 <figcaption className="dsx-cap">
                   <b>{a?.label || f.label}</b>
@@ -307,12 +358,12 @@ export function DsReachView({
                       else anchors.current.delete(f.key);
                     }}
                   >
-                    {`${f.places} ${f.places === 1 ? 'place' : 'places'}`}
+                    {f.board ? reach.tag : `${f.places} ${f.places === 1 ? 'place' : 'places'}`}
                   </span>
                 </figcaption>
                 <div
                   className="dsx-shot"
-                  style={{ width: FRAME_W * FRAME_SCALE, height: FRAME_H * FRAME_SCALE }}
+                  style={{ width: dims.w * dims.scale, height: dims.h * dims.scale }}
                 >
                   <iframe
                     title={f.label}
@@ -321,7 +372,7 @@ export function DsReachView({
                     tabIndex={-1}
                     data-testid="ds-reach-iframe"
                     src={canvasUrl(f.rel, cfg, { embed: true, dsPreview: previewOf(ds) })}
-                    style={{ width: FRAME_W, height: FRAME_H, transform: `scale(${FRAME_SCALE})` }}
+                    style={{ width: dims.w, height: dims.h, transform: `scale(${dims.scale})` }}
                     {...(cfg?.canvasOrigin ? { sandbox: 'allow-scripts allow-same-origin' } : {})}
                     ref={(el) => {
                       if (el?.contentWindow) wins.current.set(f.key, el.contentWindow);
@@ -342,10 +393,10 @@ export function DsReachView({
                         className="dsx-ring"
                         data-testid="ds-reach-ring"
                         style={{
-                          left: r.x * FRAME_SCALE,
-                          top: r.y * FRAME_SCALE,
-                          width: r.w * FRAME_SCALE,
-                          height: r.h * FRAME_SCALE,
+                          left: r.x * dims.scale,
+                          top: r.y * dims.scale,
+                          width: r.w * dims.scale,
+                          height: r.h * dims.scale,
                         }}
                       />
                     ))}
@@ -373,6 +424,7 @@ export function DsReachView({
             components={[]}
             places={places}
             scope={scope}
+            coverOf={coverOf}
             onUpdate={onUpdate}
             onCancel={onCancel}
           />
@@ -392,7 +444,7 @@ const usedPhrase = (reach) => {
 const usedLine = (reach) => `${usedPhrase(reach)} · showing`;
 
 /** The review list beside the rings: the rows, the ticks, Cancel and Update — the sheet's own model. */
-function ReachReview({ review, places, scope, onUpdate, onCancel }) {
+function ReachReview({ review, places, scope, coverOf, onUpdate, onCancel }) {
   const base = useMemo(() => rowsOf(review.canvases, places), [review.canvases, places]);
   const [ticks, setTicks] = useState(() => defaultTicks(base));
   const [busy, setBusy] = useState(false);
@@ -458,6 +510,9 @@ function ReachReview({ review, places, scope, onUpdate, onCancel }) {
               path={r.path}
               onToggle={() => toggle(r.path)}
             />
+            <span className="dsr-thumb" aria-hidden="true">
+              {coverOf?.(r.path) ? <img src={coverOf(r.path)} alt="" /> : null}
+            </span>
             <span className="dsr-name">
               <b>{r.name}</b>
               <em>{noteFor(r, { keeps })}</em>

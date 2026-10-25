@@ -82,7 +82,8 @@ describe('the Brand logo row', () => {
   });
 
   test('an undefined custom property falls back to its own fallback, then to the ink', () => {
-    const svg = '<svg viewBox="0 0 8 8"><path fill="var(--gone, #123456)"/><path fill="var(--gone2)"/></svg>';
+    const svg =
+      '<svg viewBox="0 0 8 8"><path fill="var(--gone, #123456)"/><path fill="var(--gone2)"/></svg>';
     const out = body(paintLogo(model, uri(svg), { ink: '#abcdef', theme: 'light' }));
     expect(out).toContain('fill="#123456"');
     expect(out).toContain('fill="#abcdef"');

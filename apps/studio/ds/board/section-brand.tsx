@@ -3,7 +3,7 @@
 // (SKILL.md, CONTRACT.md) stay where they are.
 import { useState } from 'react';
 import { DsIcon } from '../../canvas-ds-icons.tsx';
-import { logoTiles, type LogoTileModel } from './logo-paint.ts';
+import { type LogoTileModel, logoTiles } from './logo-paint.ts';
 import { CAP, Frame, More, type SectionProps, Swatch } from './parts.tsx';
 import type { BoardBrand, BoardModel } from './types.ts';
 
@@ -41,7 +41,12 @@ function LogoTile({ tile }: { tile: LogoTileModel }) {
       title={tile.file}
     >
       {tile.src ? (
-        <img src={tile.src} alt={tile.file} className="ds-logo-img" onError={() => setBroken(true)} />
+        <img
+          src={tile.src}
+          alt={tile.file}
+          className="ds-logo-img"
+          onError={() => setBroken(true)}
+        />
       ) : (
         <i>{tile.file}</i>
       )}
