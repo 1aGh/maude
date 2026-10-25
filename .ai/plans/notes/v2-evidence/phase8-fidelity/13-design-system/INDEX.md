@@ -406,3 +406,22 @@ Re-shot light + dark (pairs overwritten, harness `.scr/chain-c7.sh` = `_d4-harne
 | `ds-multi-menu` | dark | re-shot | same |
 
 Harness `.scr/chain-c7ds2.sh` + `chain-c7ds2b.sh` (the round-7 harness + `frameColour()` and the non-default menu row). Nothing judged. Details: `fix-c7-ds.md` § Round 7 continuation.
+
+## After (round 7 third pass, p8-c7-ds3) — IMPL re-shot on the p8-c7-ds3 tip
+
+| id | theme | impl | note |
+|---|---|---|---|
+| `ds-edit-colour` | light | re-shot | contrast line in the board's words ("4.8:1 on white · …"); the edited mode's row first, the picker under it, the other mode last; the ring is 2 px, 4 px clear |
+| `ds-edit-colour` | dark | re-shot | same |
+| `ds-edit-reach` | light | re-shot | header, "Colour › Accent" key, the contrast line and the note per the board; the frames wait for their canvases |
+| `ds-edit-reach` | dark | re-shot | same |
+| `ds-edge-contrast` | light | re-shot | a token the canvases use (Fg 1), edited in Dark: "N:1 on A and B" (two surfaces, the mode being edited), Role row, "Falls short in 2 canvases · Show" |
+| `ds-edge-contrast` | dark | re-shot | same |
+| `ds-multi-migrate` | light | re-shot | the "Convert 3 system folders?" sheet is OPEN (harness: three old folders, two in use, one draft; the ds.convert event) |
+| `ds-multi-migrate` | dark | re-shot | same |
+| `ds-edge-migrate` | light | re-shot | the one-folder sheet with the per-section map (harness: a single unconverted folder) |
+| `ds-edge-migrate` | dark | re-shot | same |
+| `ds-advanced` | light | re-shot | Advanced open (CSS \| JSON, tokens from `:root`, Files, Hand off), "Studio site · N canvases", Check run, the check card closes the column; 1440×1500 viewport so the whole column shows |
+| `ds-advanced` | dark | re-shot | same |
+
+Harness `.scr/chain-c7ds3.sh` (`_c7-harness-g5` + the `_c7ds3-harness-g5` deltas; s13 groups a f b g k). Nothing judged. Details: `fix-c7-ds3.md`.
