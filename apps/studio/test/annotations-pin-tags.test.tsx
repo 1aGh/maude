@@ -122,6 +122,18 @@ describe('a note over a print artboard', () => {
     expect(rule).toContain('bottom: auto');
     expect(rule).toContain('--maude-chrome-fg-1');
   });
+  test('the note is ghosted a little (the board draws .88), and a note over a screen is not', async () => {
+    artboard('flyer', 'print');
+    artboard('home', 'digital');
+    const host = await mount([
+      sticky('over-print', { parentArtboard: 'flyer' }),
+      sticky('over-screen', { parentArtboard: 'home' }),
+    ]);
+    expect(node(host, 'over-print').hasAttribute('data-unprinted')).toBe(true);
+    expect(node(host, 'over-screen').hasAttribute('data-unprinted')).toBe(false);
+    const { TIME_PIN_CSS } = await import('../annotations/ui/time-pins.tsx');
+    expect(TIME_PIN_CSS).toMatch(/\.dc-annot-el\[data-unprinted\] \{ opacity: 0\.88; \}/);
+  });
   test('says "Not printed"; over a screen, or nothing, it says nothing', async () => {
     artboard('flyer', 'print');
     artboard('home', 'digital');
