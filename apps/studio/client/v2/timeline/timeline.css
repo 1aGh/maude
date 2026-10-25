@@ -657,6 +657,42 @@
     outline: 2px solid var(--focus-ring);
     outline-offset: 1px;
   }
+  /* with the view / volume button beside it, the fold button takes the room that is left */
+  .tl-track-cap > .tl-track-fold {
+    width: auto;
+    flex: 1;
+    min-width: 0;
+  }
+  /* P8 C8 (07 · .ve-lab-b) — the track's view / volume button: 20 px, quiet until pointed at; off = struck dim */
+  .tl-lab-b {
+    appearance: none;
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+  .tl-lab-b:hover:not(:disabled) {
+    background: var(--hover-bg, var(--bg-3));
+    color: var(--fg-0);
+  }
+  .tl-lab-b:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  .tl-lab-b:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+  .tl-lab-b.is-off {
+    color: var(--fg-3, var(--fg-2));
+  }
   /* a track with nothing on it still draws its lane (.ve-row--empty) */
   .tl-row--empty .tl-row-track {
     background: var(--bg-3);

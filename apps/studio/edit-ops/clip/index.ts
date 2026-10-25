@@ -42,6 +42,7 @@ import { CLIP_GESTURE_OPS } from './gestures.ts';
 import { applyPlace, placePatch } from './place.ts';
 import { applyReframe, reframePatch } from './reframe.ts';
 import { applyTakeSwap } from './take-swap.ts';
+import { applyTrack, trackPatch } from './track.ts';
 import { applyTitleMotion, titleMotionPatch } from './title-motion.ts';
 import { applyTitleStyle, titleStylePatch } from './title-style.ts';
 
@@ -309,6 +310,16 @@ export const VIDEO_OPS: readonly EditOp[] = [
         sourceSeconds(p.sources)
       );
       return { source: r.source, detail: { moved: r.moved, kept: r.kept } };
+    },
+  },
+  {
+    // P8 C8 (07 · the per-track view / volume button): hide or mute a whole track in ONE write (one undo step)
+    id: 'clip.track',
+    scope: 'artboard',
+    artboards: heldArtboards,
+    apply(source, req) {
+      const r = applyTrack(req.file, source, artboardOf(req), trackPatch(req.file, req.params));
+      return { source: r.source, detail: { changed: r.changed, skipped: r.skipped } };
     },
   },
   // S7.6c — the comp vocabulary (V2-1.10 §5.3 + S7 Q4/Q5). Each is one write, so one undo step.

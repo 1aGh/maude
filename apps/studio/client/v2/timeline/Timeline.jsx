@@ -42,6 +42,7 @@ import { FitFillAsk, useFitFill } from './fit-fill.jsx';
 import { joinTitle, stillSecond, tileOfPresentation } from './joins/join-model.js';
 import { TransitionPicker } from './joins/transition-picker.jsx';
 import { MusicLaneOverlay, musicSelection, useMusicLane } from './lanes/music-lane.jsx';
+import { trackToggle } from './track-toggle.js';
 import { MusicHint, MusicTool } from './music-hint.jsx';
 import { TGlyph } from './glyphs.jsx';
 import { CaptionLane, CaptionsTool } from './lanes/caption-lane.jsx';
@@ -944,6 +945,31 @@ export default function TimelinePanel({
     music: 'music',
     music2: 'music',
   };
+  // P8 C8 (07 · .ve-lab-b) — the Full timeline's per-track button: an eye on Text / Graphics, a speaker on Video / Music.
+  // One `clip.track` write for the whole track, so one ⌘Z takes it back (track-toggle.js, edit-ops/clip/track.ts).
+  const trackButton = (id, label) => {
+    if (!full) return null;
+    const t = drawnTracks.find((d) => d.id === id);
+    const tt = trackToggle(id, label, {
+      seqs: (t?.members ?? []).filter((m) => m.kind === 'seq').map((m) => sequences[m.index]),
+      beds: (t?.members ?? []).filter((m) => m.kind === 'audio').map((m) => musicLane.forBed(m.index)),
+    });
+    const can = canEditHere && !!onClipVerb && tt.ids.length > 0;
+    return (
+      <button
+        type="button"
+        className={`tl-lab-b${tt.off ? ' is-off' : ''}`}
+        data-testid={`timeline-track-${tt.kind}-${id}`}
+        aria-label={tt.label}
+        title={tt.label}
+        aria-pressed={tt.off}
+        disabled={!can}
+        onClick={() => onClipVerb(null, 'clip.track', tt.params)}
+      >
+        <TGlyph name={tt.glyph} size={12} />
+      </button>
+    );
+  };
   const trackChip = (id, label, { foldable, folded, count }) => {
     const chip = (
       <span className="tl-lab-ic" aria-hidden="true">
@@ -971,6 +997,7 @@ export default function TimelinePanel({
             <span className="tl-track-name">{label}</span>
           </>
         )}
+        {folded ? null : trackButton(id, label)}
       </div>
     );
   };
