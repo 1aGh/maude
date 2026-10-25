@@ -184,3 +184,17 @@ Harness notes (D4): the D3 harness (`_d3-harness-g3/`) plus the round-6 mini sce
 | id | after | notes |
 |---|---|---|
 | ak-convert-after | re-shot, light + dark | mini scenario `t08c` (the post → A6 convert only). The toast now says "The A6 copy is beside the post. The post is unchanged." (an artboard labelled "post" is a post, not only a catalogue size); the A6 copy is selected in both themes. Still open: the "+ 13 % height · Ink fill" chip and the "Unchanged" mark under the post (a transient canvas overlay that needs a new dgn message — see `10-share-and-collaboration/fix-c6-bugs4.md`) |
+
+## Round 7 (p8-c7-cf08) — after
+
+Re-shot light + dark with the round-7 harness (`_c7-harness-g3/t08.mjs`: the artboard is selected by its label chip; ak-web-hug grows the page; ak-mixed-fit presses the Print chip in Layers; ak-advanced scrolls the fold). Fix list: `01-create-flow/fix-c7-cf08.md`.
+
+| id | after (round 7) |
+|---|---|
+| ak-web-hug, ak-web-widths | the card reads Width · Height · Layout · Fill · Other widths; the web page itself is selected (the growth tag sits right of the page, under the inspector in this crop) |
+| ak-social, ak-safe-zones, ak-video | the ARTBOARD is selected (label chip), so the artboard card / Video card show, not the inner photo's |
+| ak-advanced | the print fold leads with Exact size · Resolution · Colour · Guides (Look and layout with Theme, then In code, follow below inside the fold's own scroll) |
+| ak-mixed-fit | the Print chip on in Layers (the canvas dims, "N other artboards are dimmed · Show all" foot) |
+| ak-mixed-select | one flat card: Kinds · Fill (swatches + Mixed) · Horizontal · Vertical (Top pressed) · note · Export; no floating align bar |
+| ak-convert-after | the canvas draws "✓ Unchanged" under the post and "+ N % height · Ink fill" on the copy (convert-marks) |
+| others | re-shot, unchanged by this round |
