@@ -421,8 +421,27 @@ describe('A · the sheets as views', () => {
     expect($('onb-figma-line')?.textContent).toBe(
       "Each frame arrives as an artboard on a new canvas in Alligators brand — Figma's exact picture of it. Make editable turns one artboard into layers; it needs Figma Dev Mode, on a paid seat."
     );
-    // no field for a token or a link: Home holds no Figma credential
-    expect(host.querySelector('input')).toBeNull();
+    // the board's link field, and the token fold (collapsed): Home holds no Figma credential
+    expect($('onb-figma-link')).not.toBeNull();
+    expect(host.querySelector('input[type="password"]')).toBeNull();
+    const fold = $('onb-figma-advanced');
+    expect(fold?.textContent).toBe('AdvancedAccess token');
+    expect($('onb-figma-token-line')).toBeNull();
+    click('onb-figma-advanced');
+    expect($('onb-figma-token-line')?.textContent).toContain('in the project window');
+    expect(host.querySelector('input[type="password"]')).toBeNull();
+  });
+
+  test('Figma: the link is checked by shape; Import hands a good one over and holds a bad one', async () => {
+    const seen: string[] = [];
+    render(createElement(FigmaSheet, { onImport: (l: string) => seen.push(l), onCancel: noop }));
+    await type('onb-figma-link', 'https://example.com/design/x');
+    expect($('onb-figma-link-err')?.textContent).toBe("That doesn't look like a Figma link.");
+    expect(($('onb-figma-go') as HTMLButtonElement).disabled).toBe(true);
+    await type('onb-figma-link', ' figma.com/design/AbC/Uniformy-2027 ');
+    expect($('onb-figma-link-err')).toBeNull();
+    click('onb-figma-go');
+    expect(seen).toEqual(['figma.com/design/AbC/Uniformy-2027']);
   });
 });
 
@@ -867,12 +886,16 @@ describe('C · Home: the flyout rows open their sheets', () => {
     await mountHome();
     await openRow('figma');
     expect($('onb-figma-line')?.textContent).toContain('on a new canvas in a project on this Mac');
+    await type('onb-figma-link', 'figma.com/design/AbC/Uniformy-2027');
     click('onb-figma-go');
     await flush();
     expect(hit('/_home/projects/create-local')).toHaveLength(1);
     const open = cmds('open_project')[0];
     expect(open?.args.root).toBe('/Users/x/Maude/Untitled project');
-    expect(open?.args.intent).toMatchObject({ kind: 'import-figma', prompt: '' });
+    expect(open?.args.intent).toMatchObject({
+      kind: 'import-figma',
+      prompt: 'figma.com/design/AbC/Uniformy-2027',
+    });
     expect($('onb-figma')).toBeNull();
   });
 });

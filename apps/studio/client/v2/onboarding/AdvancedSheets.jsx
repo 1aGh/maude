@@ -166,10 +166,10 @@ function FolderHost({ onClose, openFolder, profile, github: gh }) {
 function FigmaHost({ target, onClose, startFigma }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-  const go = async () => {
+  const go = async (link = '') => {
     setBusy(true);
     setError(null);
-    const ok = await startFigma();
+    const ok = await startFigma(link);
     if (ok === false) {
       setBusy(false);
       setError("Couldn't open the project. Nothing changed.");

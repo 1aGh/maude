@@ -30,8 +30,10 @@ import {
 import { GitHubDeviceDialog } from '../../panels/IdentityBar.jsx';
 import { ProviderCard } from '../../panels/SettingsPanel.jsx';
 import { TeamProjectsDialog } from '../../panels/TeamProjects.jsx';
+import { ConnectSheet } from '../ai/ConnectSheet.jsx';
 import { ConnectionRow, ConnField } from './connection-row.jsx';
 import {
+  claudeRow,
   cloudRow,
   figmaRow,
   figmaTestWords,
@@ -41,6 +43,7 @@ import {
   providerSummary,
 } from './connections-model.js';
 import {
+  useClaudeAccount,
   useCloudConnection,
   useFigmaConnection,
   useGitHubConnection,
@@ -272,6 +275,9 @@ export default function ConnectionsSection({ onLinkedHub, onLocalProject, syncSt
   const gh = useGitHubConnection();
   const keys = useProviderKeys();
   const figma = useFigmaConnection();
+  const claude = useClaudeAccount();
+  const [tokenOpen, setTokenOpen] = useState(false);
+  const [claudeOpen, setClaudeOpen] = useState(false);
   const [teamOpen, setTeamOpen] = useState(false);
   const [keysOpen, setKeysOpen] = useState(false);
 
@@ -285,6 +291,7 @@ export default function ConnectionsSection({ onLinkedHub, onLocalProject, syncSt
   const hub = useHubDetails(linkedUrl);
   const cr = cloudRow({ state: cloud.state, email: cloud.email });
   const gr = githubRow({ native: gh.native, state: gh.state, login: gh.login });
+  const cl = claudeRow(claude.state);
   const fr = figmaRow(figma.status);
   const tested = figmaTestWords(figma.test);
 
@@ -297,6 +304,7 @@ export default function ConnectionsSection({ onLinkedHub, onLocalProject, syncSt
         testid="settings-cloud"
         icon="cloud"
         title="cloud.maude.sh"
+        desc="Where your projects live."
         rowTestid={cloud.state === 'in' ? 'cloud-account' : undefined}
         status={cr.status}
         tone={cr.tone}
@@ -376,6 +384,7 @@ export default function ConnectionsSection({ onLinkedHub, onLocalProject, syncSt
         row="hub"
         icon="box"
         title={team.title}
+        desc="A self-hosted server, beside the cloud."
         status={team.status}
         tone={team.tone}
         action={
@@ -431,10 +440,127 @@ export default function ConnectionsSection({ onLinkedHub, onLocalProject, syncSt
       </ConnectionRow>
 
       <ConnectionRow
+        row="claude"
+        testid="settings-claude"
+        icon="sparkle"
+        title="AI — your Claude account"
+        desc="Pro or Max, or an API key."
+        status={cl.status}
+        tone={cl.tone}
+        action={
+          cl.action ? (
+            <button
+              type="button"
+              className={btn}
+              aria-expanded={claudeOpen}
+              aria-controls="v2s-claude-connect"
+              onClick={() => setClaudeOpen((v) => !v)}
+              data-testid="settings-claude-action"
+            >
+              {cl.action === 'change' ? 'Change…' : 'Connect…'}
+            </button>
+          ) : null
+        }
+      >
+        {claudeOpen ? (
+          <div id="v2s-claude-connect" className="v2s-conn-keys">
+            <ConnectSheet
+              inline
+              phase={claude.phase}
+              error={claude.error}
+              title={
+                cl.action === 'change'
+                  ? 'Change your Claude account?'
+                  : 'Connect your Claude account?'
+              }
+              lead="Sign in through your browser. Claude Code is set up for you."
+              fine={null}
+              onConnect={async () => {
+                const ok = await claude.connect({ force: cl.action === 'change' });
+                if (ok) setClaudeOpen(false);
+              }}
+              onCancel={() => {
+                claude.cancel();
+                claude.setError('');
+                setClaudeOpen(false);
+              }}
+            />
+          </div>
+        ) : null}
+      </ConnectionRow>
+
+      <ConnectionRow
+        row="figma"
+        testid="figma-connect-card"
+        icon="image"
+        title="Figma"
+        desc="For Import from Figma."
+        status={fr.status}
+        tone={fr.tone}
+        action={
+          fr.configured ? (
+            <>
+              <button
+                type="button"
+                className={btn}
+                disabled={figma.busy}
+                onClick={figma.runTest}
+                data-testid="figma-test"
+              >
+                Test
+              </button>
+              <button
+                type="button"
+                className={btn}
+                disabled={figma.busy}
+                onClick={figma.disconnect}
+                data-testid="figma-disconnect"
+              >
+                Disconnect
+              </button>
+            </>
+          ) : figma.status ? (
+            <button
+              type="button"
+              className={btn}
+              aria-expanded={tokenOpen}
+              aria-controls="v2s-figma-token"
+              onClick={() => setTokenOpen((v) => !v)}
+              data-testid="figma-add-token"
+            >
+              Add token…
+            </button>
+          ) : null
+        }
+        advanced={fr.configured ? <FigmaToken f={figma} /> : null}
+      >
+        {!fr.configured && figma.status && tokenOpen ? (
+          <div id="v2s-figma-token" className="v2s-conn-keys">
+            <FigmaToken f={figma} />
+          </div>
+        ) : null}
+        {tested ? (
+          <p
+            className={tested.ok ? 'v2s-hint' : 'v2s-conn-err'}
+            role="status"
+            data-testid={tested.ok ? 'figma-connected-as' : 'figma-connect-error'}
+          >
+            {tested.text}
+          </p>
+        ) : null}
+        {figma.error ? (
+          <p className="v2s-conn-err" role="alert" data-testid="figma-connect-error">
+            {figma.error}
+          </p>
+        ) : null}
+      </ConnectionRow>
+
+      <ConnectionRow
         row="github"
         testid="settings-github"
         icon="link"
         title="GitHub"
+        desc="GitHub projects and invites by username."
         status={gr.status}
         tone={gr.tone}
         action={
@@ -510,56 +636,6 @@ export default function ConnectionsSection({ onLinkedHub, onLocalProject, syncSt
               <ProviderCard key={p.id} provider={p} onChanged={keys.reload} />
             ))}
           </div>
-        ) : null}
-      </ConnectionRow>
-
-      <ConnectionRow
-        row="figma"
-        testid="figma-connect-card"
-        icon="image"
-        title="Figma"
-        status={fr.status}
-        tone={fr.tone}
-        action={
-          fr.configured ? (
-            <>
-              <button
-                type="button"
-                className={btn}
-                disabled={figma.busy}
-                onClick={figma.runTest}
-                data-testid="figma-test"
-              >
-                Test
-              </button>
-              <button
-                type="button"
-                className={btn}
-                disabled={figma.busy}
-                onClick={figma.disconnect}
-                data-testid="figma-disconnect"
-              >
-                Disconnect
-              </button>
-            </>
-          ) : null
-        }
-        advanced={fr.configured ? <FigmaToken f={figma} /> : null}
-      >
-        {!fr.configured && figma.status ? <FigmaToken f={figma} /> : null}
-        {tested ? (
-          <p
-            className={tested.ok ? 'v2s-hint' : 'v2s-conn-err'}
-            role="status"
-            data-testid={tested.ok ? 'figma-connected-as' : 'figma-connect-error'}
-          >
-            {tested.text}
-          </p>
-        ) : null}
-        {figma.error ? (
-          <p className="v2s-conn-err" role="alert" data-testid="figma-connect-error">
-            {figma.error}
-          </p>
         ) : null}
       </ConnectionRow>
 

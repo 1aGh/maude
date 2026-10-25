@@ -16,6 +16,7 @@
 // run. A Can view / Can comment project refuses with the shell's one denial line and makes nothing (the server
 // refuses the create too; this only says so).
 
+import { setFigmaPrefill } from '../import/figma-prefill.js';
 import { startFirstDraft } from './first-draft.js';
 import { createBlankCanvas } from './new-canvas.js';
 
@@ -87,6 +88,9 @@ export async function runIntent(raw, deps) {
     if (!made.ok) return { ok: false, reason: 'create' };
   } else {
     // An import carries no sentence into the sheet: whatever a parked prompt said is never put in a form.
+    // The one exception is Home's Figma link (02 ob-adv-sheets): it is put in the sheet only when it is a
+    // Figma link by shape (`setFigmaPrefill` drops anything else) — never a token, which stays in the window.
+    if (intent.kind === 'import-figma') setFigmaPrefill(intent.prompt);
     deps.runAction(INTENT_ACTION[intent.kind]);
   }
   // The canvas never waits on the cloud: the move runs after, in the background, and may fail quietly.

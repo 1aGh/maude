@@ -20,6 +20,7 @@ export async function connectClaude({
   now = () => Date.now(),
   signal,
   onPhase = () => {},
+  force = false, // Settings › Connections › Change… signs in again even when `claude` already reports present
 } = {}) {
   const cancelled = () => signal?.aborted === true;
   const post = (url) =>
@@ -34,9 +35,9 @@ export async function connectClaude({
   };
 
   const first = await claudeItem();
-  if (first?.status === 'present') return { ok: true };
+  if (first?.status === 'present' && !force) return { ok: true };
 
-  if (first?.action === 'install') {
+  if (first?.action === 'install' && !force) {
     onPhase('installing');
     const started = await post('/_api/claude/install');
     if (!started?.ok)

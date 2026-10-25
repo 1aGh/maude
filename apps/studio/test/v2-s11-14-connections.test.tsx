@@ -99,7 +99,7 @@ describe('connections-model (pure)', () => {
     ).toBe('2 keys · Gemini, ElevenLabs');
     expect(providerSummary([])).toBe('No keys yet');
     expect(figmaRow({ configured: true }).status).toBe('Connected · for imports');
-    expect(figmaRow({ configured: false }).status).toBe('Not connected');
+    expect(figmaRow({ configured: false }).status).toBe('No token');
   });
 
   test('each connection has its own fold, listed for Open all / Reset with a label', () => {
@@ -440,6 +440,46 @@ describe('Settings › Connections, rendered (06 ad-edge-hub)', () => {
     );
     expect(q('figma-connected-as')?.textContent).toBe('Connected as tereza');
     expect(document.body.innerHTML).not.toContain(SECRET);
+  });
+
+  test('02 ob-settings: "AI — your Claude account" (Pro or Max, Connected, Change…) sits between the hub and Figma', async () => {
+    installFetch({ '/_api/preflight': { items: [{ id: 'claude', status: 'present' }] } });
+    await mount();
+    const row = q('settings-claude');
+    expect(row?.textContent).toContain('AI — your Claude account');
+    expect(row?.textContent).toContain('Pro or Max, or an API key.');
+    expect(q('settings-conn-claude-status')?.textContent).toBe('Connected');
+    expect(q('settings-claude-action')?.textContent).toBe('Change…');
+    const order = [...document.querySelectorAll('[data-conn]')].map((n) =>
+      n.getAttribute('data-conn')
+    );
+    expect(order.slice(0, 4)).toEqual(['cloud', 'hub', 'claude', 'figma']);
+    // Change… opens the one Connect sheet, in the row; Cancel closes it
+    await click(q('settings-claude-action'));
+    expect(row?.querySelector('[data-testid="ai-connect-sheet"]')).toBeTruthy();
+    await click(row?.querySelector('[data-testid="ai-connect-cancel"]') ?? null);
+    expect(row?.querySelector('[data-testid="ai-connect-sheet"]')).toBeNull();
+  });
+
+  test('02 ob-settings: no Claude account reads Not connected with Connect…', async () => {
+    installFetch({ '/_api/preflight': { items: [{ id: 'claude', status: 'missing' }] } });
+    await mount();
+    expect(q('settings-conn-claude-status')?.textContent).toBe('Not connected');
+    expect(q('settings-claude-action')?.textContent).toBe('Connect…');
+  });
+
+  test('02 ob-settings: Figma without a token is the collapsed "Add token…" row; the field opens on it', async () => {
+    installFetch({
+      '/_api/figma/status': { configured: false, requiredScope: 'file_content:read' },
+    });
+    await mount();
+    expect(q('settings-conn-figma-status')?.textContent).toBe('No token');
+    expect(q('figma-connect-input')).toBeNull();
+    expect(q('figma-add-token')?.textContent).toBe('Add token…');
+    await click(q('figma-add-token'));
+    expect(q('figma-connect-input')).toBeTruthy();
+    await click(q('figma-add-token'));
+    expect(q('figma-connect-input')).toBeNull();
   });
 
   test('the section mounts none of the v1 Settings rows', () => {

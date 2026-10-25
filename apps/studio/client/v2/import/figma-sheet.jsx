@@ -29,6 +29,7 @@ import { askNow, clearAsked } from '../assets/ask-once.js';
 import { useFigmaConnection } from '../settings/use-connections.js';
 import { useModalFocus } from '../shell/modal-focus.js';
 import { registerFigmaArtboardSlots } from './figma-artboard.jsx';
+import { takeFigmaPrefill } from './figma-prefill.js';
 import FigmaSummary from './figma-summary.jsx';
 import FramePicker from './frame-picker.jsx';
 import {
@@ -89,6 +90,12 @@ export default function FigmaSheet({ open, onClose, onImported, activePath = nul
   const [result, setResult] = useState(null); // { kind: 'frames' or 'figjam', ... }
   const urlRef = useRef(null);
   const tokenRef = useRef(null);
+  // The link Home's sheet carried (02 ob-adv-sheets): taken once, when the sheet opens with nothing typed.
+  useEffect(() => {
+    if (!open) return;
+    const carried = takeFigmaPrefill();
+    if (carried) setUrl((cur) => cur || carried);
+  }, [open]);
   const ref = useModalFocus({ open, onClose, initialRef: step === 'connect' ? tokenRef : urlRef });
 
   useEffect(() => {
