@@ -167,6 +167,45 @@ export const EDIT_ACTIONS: ActionDef[] = [
     exec: 'canvas',
     keys: [kb('⌘D', 'selection', { when: { ...OBJ, selection: ['object'] } })],
   },
+  // V2-clipboard-objects (14 ed-obj-order, ed-ab-menu) — Cut / Copy / Paste of objects and artboards: edit-ops
+  // (`edit-ops/clipboard.ts`), the clipboard held by the shell (`client/clipboard-relay.ts`). ⌘V stays WebKit's
+  // own paste event — a copy leaves a marker the canvas's paste recognises (editing/clipboard.ts) — so
+  // `canvas.paste` has no chord: the menus, Edit › Paste and ⌘K run it.
+  {
+    id: 'object.copy',
+    label: 'Copy',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    keys: [kb('⌘C', 'selection', { when: OBJECT_EDIT })],
+    search: { hidden: true },
+  },
+  {
+    id: 'object.cut',
+    label: 'Cut',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    keys: [kb('⌘X', 'selection', { when: OBJECT_EDIT })],
+    search: { hidden: true },
+  },
+  {
+    id: 'artboard.copy',
+    label: 'Copy artboard',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    keys: [kb('⌘C', 'selection', { when: { ...OBJ, mode: ['edit'], selection: ['artboard'] } })],
+    search: { hidden: true },
+  },
+  {
+    id: 'canvas.paste',
+    label: 'Paste objects',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: EDITS,
+    search: { keywords: ['paste', 'clipboard', 'objects', 'artboard'] },
+  },
   {
     id: 'edit.copy-properties',
     label: 'Copy properties',

@@ -56,6 +56,42 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     keys: [{ chord: '⌘D', layer: 'selection', when: { focus: ['canvas'], selection: ['object'] } }],
   },
   {
+    id: 'object.copy',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['object'] },
+    keys: [
+      {
+        chord: '⌘C',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['object'] },
+      },
+    ],
+  },
+  {
+    id: 'object.cut',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['object'] },
+    keys: [
+      {
+        chord: '⌘X',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['object'] },
+      },
+    ],
+  },
+  {
+    id: 'artboard.copy',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['artboard'] },
+    keys: [
+      {
+        chord: '⌘C',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['artboard'] },
+      },
+    ],
+  },
+  {
     id: 'edit.copy-properties',
     exec: 'canvas',
     visible: { minRole: 'comment' },
