@@ -14,3 +14,6 @@ final (D5, tip e37e7d82a; shot at 0ef942d45 = tip + the D5 harness only, Mac min
 
 round 8: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aefcec9ec2efdb008/.scr/c8v/impl/07/<id>-<theme>.jpg (impl frames, committed here as <id>-<theme>.jpg; Google Chrome, local, tip 787947fb7 + harness); spec side unchanged (round-7 spec)
 round 8 harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_c8v-harness-g3/ (t07: ve-play = I/O loop + playing, ve-export = cloud Render row answered on the estimate; t07c without debug; chain.sh 07)
+
+final (D6, 3d58f57df; shot at 873574992 = tip + the D6 harness only, Mac mini): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad2725e89fee10d58/.scr/pairs/07
+(final spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad2725e89fee10d58/.scr/spec/07/<id>-<theme>.png, reused unchanged from the D5/round-7 spec; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad2725e89fee10d58/.scr/d6-g3/impl/07/)

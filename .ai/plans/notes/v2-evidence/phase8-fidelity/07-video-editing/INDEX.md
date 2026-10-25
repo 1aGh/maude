@@ -181,3 +181,23 @@ Totals: 38 id×theme re-shot (19 ids), 14 unreachable (7 ids). The committed `*-
 
 ## Round 8 (p8-c8-video) — pairs re-shot light + dark (impl frames overwritten in this folder)
 Changed and visible: the Full timeline gutter buttons (eye on Text / Graphics, speaker on Video) in every Full shot; the lane names once (no "beat-three" over "Video"); ve-captions shows the Captions inspector; ve-export draws In the cloud / On this Mac and the footer names the picked lane; ve-play is the playing frame with a loop range; the title card has no Text field. Details: `fix-c8-video.md`. ve-formats / ve-reframe still need a 3-format fixture; ve-advanced / 06 ad-timeline keyframes need keyframe data (06 ad-timeline NOT re-shot this round).
+
+## FINAL (D6, 3d58f57df) — p8-d6-g3
+
+Final verification shoot after stage C round 8, on the merged tip feat/maude-v2 3d58f57df (release-built client, Google Chrome channel, Mac mini slot 3, light + dark), IMPL side only; spec frames reused unchanged (07 board unchanged since 2220acc81, before the D4 spec shots). Shot at 873574992 = tip + the D6 harness only. Harness `_d6-harness-g3/` (`chain.sh 07` = `t07` all reachable ids with the round-8 states — ve-play = I/O loop range + playing, ve-export = cloud Render row answered on the estimate — then `t07c` for ve-captions + ve-music on a project with footage + song). Committed `<id>-<theme>.jpg` pairs overwritten.
+
+| artboard id | light | dark |
+|---|---|---|
+| ve-none, ve-select, ve-advanced, ve-fullscreen, ve-move-transition, ve-trim-split (Full timeline, held trim), ve-play (loop range, playing), ve-export (cloud Render row drawn), ve-text, ve-formats, ve-transition | re-shot | re-shot |
+| ve-captions, ve-music | re-shot (t07c) | re-shot (t07c) |
+| ve-long | re-shot (24 beats; no fold-tracks / marker jump) | re-shot (same) |
+| ve-deselect | re-shot (state "Kept open" only) | re-shot (same) |
+| ve-drop | re-shot (synthetic drag events) | re-shot (same) |
+| ve-footage | re-shot (Missing + Relink state) | re-shot (same) |
+| ve-reframe | re-shot (single-format video; fixture footage absent) | re-shot (same) |
+| ve-render | re-shot (job LIST seeded by a route intercept) | re-shot (same) |
+| ve-ai-cut, ve-ai-watch, ve-ai-scrub, ve-ai-proposal, ve-ai-adjust | unreachable — needs a live signed-in AI cut run (claude stubbed signed-out); spec-only frames stand | unreachable (same) |
+| ve-together | unreachable — a second peer on a linked hub | unreachable (same) |
+| ve-fit-fill | unreachable — needs a real vertical file dropped | unreachable (same) |
+
+Totals: 38 id×theme re-shot (19 ids), 14 unreachable (7 ids). Open fixture gaps named in `fix-c8-video.md` (3-format fixture for ve-formats pills, 24-beat markers for ve-long fold rows, keyframe data for ve-advanced easing) are not covered by this harness.
