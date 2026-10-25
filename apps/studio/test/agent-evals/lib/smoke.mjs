@@ -1,19 +1,18 @@
 // agent-evals/lib/smoke.mjs — the harness's own no-model self-test: fixtures build, graders catch
-// planted faults (red-first: every fault below must flip its grader), and the prototype hooks
-// deny / block / restore / fail open exactly as V2-1.11 §5.4 says. No `claude`, no network.
+// planted faults (red-first: every fault below must flip its grader) and read the state the SHIPPED hooks
+// and run registry leave (the run folder `_runs/<session>/`, the registry's `runs list`, the error results the
+// model saw). The end-to-end half — a scripted agent through the real hooks and a real studio — is
+// `run.mjs dry` (lib/dry.mjs). No `claude`, no network.
 
-import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runKey } from '../harness/common.mjs';
-import { primeRegistry } from './check.mjs';
 import { buildFixture } from './fixtures.mjs';
 import { gradeCode } from './grade.mjs';
+import { holdInForce, hookDecisions, readRunState, runBase } from './runstate.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const HOOK = join(HERE, '..', 'harness', 'hook.mjs');
-const VERBS = join(HERE, '..', 'harness', 'verbs.mjs');
 const EMPTY_TR = {
   ok: true,
   toolUses: [],
@@ -22,23 +21,7 @@ const EMPTY_TR = {
   metrics: { subtype: 'success' },
 };
 
-function hook(event, input) {
-  const t0 = performance.now();
-  const r = spawnSync('bun', [HOOK, event], {
-    input: JSON.stringify(input),
-    encoding: 'utf8',
-    timeout: 30_000,
-  });
-  return {
-    code: r.status,
-    out: r.stdout ? JSON.parse(r.stdout) : null,
-    raw: r.stdout,
-    ms: performance.now() - t0,
-  };
-}
-
 export async function runSmoke({ out, log = console.log } = {}) {
-  await primeRegistry();
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
   const results = [];
@@ -104,17 +87,28 @@ export async function runSmoke({ out, log = console.log } = {}) {
   unlinkSync(canvas);
   g = grade(app.dir, { trash: { canvas: 'ui/GitPanel.tsx' } });
   expect('rm of a canvas fails trash-not-rm', !g.invariants['trash-not-rm'].pass);
-  writeFileSync(canvas, src0);
-  const trs = spawnSync('bun', [VERBS, 'trash', 'move', 'ui/GitPanel.tsx'], {
-    cwd: app.dir,
-    encoding: 'utf8',
-  });
+  // The studio's trash is `_trash/<stamp>__<slug>/<file>` + a `_trash-manifest.json` that names the canvas
+  // (found by running the real route in the dry run: the prototype grader looked for a nested path).
+  const tdir = join(app.d, '_trash', '2026-10-25T22-20-49-836Z__ui-gitpanel');
+  mkdirSync(tdir, { recursive: true });
+  writeFileSync(join(tdir, 'GitPanel.tsx'), src0);
   g = grade(app.dir, { trash: { canvas: 'ui/GitPanel.tsx' } });
   expect(
-    '`maude design trash move` passes trash-not-rm',
-    trs.status === 0 && g.invariants['trash-not-rm'].pass && g.quality['canvas-trashed'].pass,
-    trs.stderr + g.invariants['trash-not-rm'].why
+    'a trash folder whose manifest does not name the canvas does not count (trash-not-rm red)',
+    !g.invariants['trash-not-rm'].pass
   );
+  writeFileSync(
+    join(tdir, '_trash-manifest.json'),
+    JSON.stringify({ canvas: 'ui/GitPanel.tsx', slug: 'ui-gitpanel', trashed: ['ui/GitPanel.tsx'] })
+  );
+  g = grade(app.dir, { trash: { canvas: 'ui/GitPanel.tsx' } });
+  expect(
+    "a canvas in the studio's trash (manifest names it) passes trash-not-rm",
+    g.invariants['trash-not-rm'].pass && g.quality['canvas-trashed'].pass,
+    g.invariants['trash-not-rm'].why
+  );
+  rmSync(join(app.d, '_trash'), { recursive: true, force: true });
+  writeFileSync(canvas, src0);
   g = grade(
     app.dir,
     { readOnly: true },
@@ -200,294 +194,178 @@ export async function runSmoke({ out, log = console.log } = {}) {
     !g.invariants['ballots-not-disclosed'].pass
   );
 
-  // 4. Hooks (no studio anywhere: everything below is the offline path).
+  // 4. The shipped hooks' and registry's state, read by the graders (the old path read a prototype
+  //    hook's `hooklog.jsonl` and `_state/eval-runs.json`, which the released plugin never writes).
   const busy = fresh('busy');
-  const ob = join(busy.d, 'ui', 'Onboarding.tsx');
-  const obSrc = readFileSync(ob, 'utf8');
-  const base = { session_id: 'smoke-session-0001', cwd: busy.dir, hook_event_name: 'PreToolUse' };
-  let h = hook('pre-edit', {
-    ...base,
-    tool_name: 'Write',
-    tool_use_id: 't1',
-    tool_input: { file_path: ob, content: 'x' },
-  });
-  expect(
-    'pre-edit denies a whole-file Write over a canvas',
-    h.out?.hookSpecificOutput?.permissionDecision === 'deny' && /whole-file-rewrite/.test(h.raw),
-    h.raw
-  );
-  h = hook('pre-edit', {
-    ...base,
-    tool_name: 'Edit',
-    tool_use_id: 't2',
-    tool_input: {
-      file_path: ob,
-      old_string: '>Connect to a team hub</h1>',
-      new_string: '>Connect to a team server</h1>',
-    },
-  });
-  expect(
-    'pre-edit denies an edit in the artboard another AI holds (artboard-busy)',
-    /artboard-busy/.test(h.raw) && /Tereza/.test(h.raw),
-    h.raw
-  );
-  h = hook('pre-edit', {
-    ...base,
-    tool_name: 'Edit',
-    tool_use_id: 't3',
-    tool_input: {
-      file_path: ob,
-      old_string: '>Open a project folder</h1>',
-      new_string: '>Open a folder</h1>',
-    },
-  });
-  expect('pre-edit allows an edit in a free artboard (no output)', h.code === 0 && !h.raw, h.raw);
-  const css = join(busy.d, 'ui', 'Onboarding.css');
-  const cssSrc = readFileSync(css, 'utf8');
-  const firstRule = cssSrc.match(/\.[a-z][^{]+\{[^}]*\}/)[0];
-  h = hook('pre-edit', {
-    ...base,
-    tool_name: 'Edit',
-    tool_use_id: 't4',
-    tool_input: {
-      file_path: css,
-      old_string: firstRule,
-      new_string: firstRule.replace('{', '{ /* x */'),
-    },
-  });
-  expect(
-    'pre-edit denies the canvas stylesheet while an artboard is busy (module scope)',
-    /artboard-busy/.test(h.raw),
-    h.raw
-  );
-  const held = busy.m.busy.held;
-  const heldLine = obSrc.split('\n').find((l) => l.includes(`data-cd-id="${held}"`));
-  h = hook('pre-edit', {
-    ...base,
-    tool_name: 'Edit',
-    tool_use_id: 't5',
-    tool_input: {
-      file_path: ob,
-      old_string: heldLine,
-      new_string: heldLine.replace('Choose a folder…', 'Pick a folder…'),
-    },
-  });
-  expect(
-    'pre-edit denies an edit of an object a person holds (soft-locked)',
-    /soft-locked/.test(h.raw) && /Jonas/.test(h.raw),
-    h.raw
-  );
-  h = hook('pre-edit', {
-    ...base,
-    agent_id: 'a1',
-    agent_type: 'maude-b:board-reader',
-    tool_name: 'Edit',
-    tool_use_id: 't6',
-    tool_input: { file_path: ob, old_string: '>Open a project folder</h1>', new_string: '>x</h1>' },
-  });
-  expect(
-    'pre-edit denies a helper sub-agent writing a canvas (out-of-scope)',
-    /out-of-scope/.test(h.raw),
-    h.raw
-  );
-  h = hook('pre-edit', {
-    ...base,
-    agent_id: 'a1',
-    agent_type: 'maude-b:board-reader',
-    tool_name: 'Write',
-    tool_use_id: 't7',
-    tool_input: {
-      file_path: join(busy.d, '_runs', 'r_smokesession', 'brief.out.json'),
-      content: '{}',
-    },
-  });
-  expect('pre-edit allows a helper writing under _runs/', h.code === 0 && !h.raw, h.raw);
-  h = hook('pre-bash', {
-    ...base,
-    tool_name: 'Bash',
-    tool_input: { command: 'rm ".design/ui/Onboarding.tsx"' },
-  });
-  expect('pre-bash denies rm of a canvas (use-trash)', /use-trash/.test(h.raw), h.raw);
-  h = hook('pre-bash', {
-    ...base,
-    tool_name: 'Bash',
-    tool_input: { command: "sed -i '' 's/a/b/' .design/ui/Onboarding.tsx" },
-  });
-  expect('pre-bash denies sed -i into .design (not-a-writer)', /not-a-writer/.test(h.raw), h.raw);
-  h = hook('pre-bash', {
-    ...base,
-    tool_name: 'Bash',
-    tool_input: {
-      command:
-        'maude design screenshot --canvas "ui/Onboarding.tsx" --screen welcome --out /tmp/x.png',
-    },
-  });
-  expect('pre-bash leaves maude verbs alone', h.code === 0 && !h.raw, h.raw);
-
-  // post-edit: a tool already wrote a bad file → blocked and restored.
-  const prev = readFileSync(ob, 'utf8');
-  hook('pre-edit', {
-    ...base,
-    tool_name: 'Edit',
-    tool_use_id: 't8',
-    tool_input: {
-      file_path: ob,
-      old_string: '>Open a project folder</h1>',
-      new_string: '>Open a project folder</h1>',
-    },
-  });
-  const someId = busy.m.ids['ui/Onboarding.tsx'].find((x) => x.text && x.id !== held);
-  writeFileSync(ob, prev.replace(` data-cd-id="${someId.id}"`, ''));
-  h = hook('post-edit', {
-    ...base,
-    hook_event_name: 'PostToolUse',
-    tool_name: 'Edit',
-    tool_use_id: 't8',
-    tool_input: { file_path: ob },
-  });
-  expect(
-    'post-edit blocks a write that lost an element id',
-    h.out?.decision === 'block' && /id-lost/.test(h.out?.reason ?? ''),
-    h.raw
-  );
-  expect('…and restores the file to before the edit', readFileSync(ob, 'utf8') === prev);
-  hook('pre-edit', {
-    ...base,
-    tool_name: 'Edit',
-    tool_use_id: 't9',
-    tool_input: {
-      file_path: ob,
-      old_string: '>Open a project folder</h1>',
-      new_string: '>Open a folder</h1>',
-    },
-  });
-  writeFileSync(ob, prev.replace('>Open a project folder</h1>', '>Open a folder</h1>'));
-  h = hook('post-edit', {
-    ...base,
-    hook_event_name: 'PostToolUse',
-    tool_name: 'Edit',
-    tool_use_id: 't9',
-    tool_input: { file_path: ob },
-  });
-  expect('post-edit passes a clean edit silently', h.code === 0 && !h.raw, h.raw);
-  h = hook('stop', { ...base, hook_event_name: 'Stop', stop_hook_active: false });
-  expect(
-    'stop blocks while a changed artboard has no screenshot',
-    h.out?.decision === 'block' && /local/.test(h.out?.reason ?? ''),
-    h.raw
-  );
-  h = hook('stop', { ...base, hook_event_name: 'Stop', stop_hook_active: true });
-  expect('stop lets go on the second identical block (loop guard)', h.code === 0 && !h.raw, h.raw);
-  spawnSync(
-    'bun',
-    [
-      VERBS,
-      'shot-log',
-      '0',
-      '--canvas',
-      'ui/Onboarding.tsx',
-      '--screen',
-      'local',
-      '--out',
-      '/tmp/x.png',
+  const ONB = 'ui/Onboarding.tsx';
+  const session = '0b3f2c1e-aaaa-4bbb-8ccc-123456789abc';
+  const runDir = join(busy.d, '_runs', session);
+  mkdirSync(runDir, { recursive: true });
+  const denyTr = {
+    ...EMPTY_TR,
+    toolUses: [
+      { name: 'Edit', id: 'toolu_1', input: { file_path: join(busy.d, ONB) }, parent: null },
     ],
-    { cwd: busy.dir }
-  );
-  writeFileSync(join(busy.d, '_runs', runKey('smoke-session-0001'), 'stop-last.json'), '{}');
-  h = hook('stop', { ...base, hook_event_name: 'Stop', stop_hook_active: false });
-  expect('stop passes once the changed artboard was screenshotted', h.code === 0 && !h.raw, h.raw);
-
-  // fail-open + deny-only.
-  h = hook('pre-edit', {
-    ...base,
-    cwd: out,
-    tool_name: 'Write',
-    tool_use_id: 't10',
-    tool_input: { file_path: join(out, 'outside.tsx'), content: 'x' },
-  });
-  expect('hooks exit 0 silently outside a design root', h.code === 0 && !h.raw);
-  const bogus = spawnSync('bun', [HOOK, 'pre-edit'], { input: '{not json', encoding: 'utf8' });
-  expect('hooks fail open on garbage input', bogus.status === 0 && !bogus.stdout);
-  const logs = readFileSync(
-    join(busy.d, '_runs', runKey('smoke-session-0001'), 'hooklog.jsonl'),
-    'utf8'
-  );
-  expect(
-    'no hook output ever says ask or allow',
-    !/"permissionDecision":"(ask|allow)"/.test(logs + JSON.stringify(results))
-  );
-  const ms = logs
-    .split('\n')
-    .filter(Boolean)
-    .map((l) => JSON.parse(l))
-    .filter((x) => typeof x.ms === 'number');
-  const worst = Math.max(...ms.map((x) => x.ms));
-  expect(
-    `in-process hook work stays far under budget (worst ${worst.toFixed(0)} ms)`,
-    worst < 1500,
-    String(worst)
-  );
-
-  // hand-off schema: the error list names the role's own branch only (the pilot's first validator didn't).
-  const { validateHandoff } = await import('../harness/handoff.mjs');
-  const goodOut = {
-    contract: 'maude.agent-handoff/1',
-    role: 'out',
-    agent: 'board-reader',
-    runId: 'r_smoke0001',
-    status: 'done',
-    summary: 's',
-    changed: [{ file: '.design/_runs/r_smoke0001/handoff/board-reader-0.out.json', kind: 'brief' }],
-    decisions: [{ decision: 'd', why: 'w' }],
-    findings: [],
-    open_questions: [],
+    toolResults: [
+      {
+        id: 'toolu_1',
+        isError: true,
+        text: 'artboard-busy: hub is busy — a Claude Code session is changing it.',
+      },
+    ],
   };
+  const dec = hookDecisions(denyTr, readRunState(busy.dir));
   expect(
-    'a valid hand-off out validates',
-    validateHandoff(goodOut).length === 0,
-    validateHandoff(goodOut).join('; ')
+    'an error result that starts with a deny code is a hook deny',
+    dec.length === 1 && dec[0].code === 'artboard-busy' && dec[0].decision === 'deny',
+    JSON.stringify(dec)
   );
-  const badOut = validateHandoff({ ...goodOut, findings: ['a plain string'] });
   expect(
-    'a string finding is reported at /findings/0, never as a missing "task"',
-    badOut.some((m) => m.startsWith('/findings/0')) && !badOut.some((m) => /task|owns/.test(m)),
-    badOut.join('; ')
+    'an ordinary tool error is not a hook decision',
+    hookDecisions(
+      { ...denyTr, toolResults: [{ id: 'toolu_1', isError: true, text: 'old_string not found' }] },
+      readRunState(busy.dir)
+    ).length === 0
   );
-  const goodIn = {
-    contract: 'maude.agent-handoff/1',
-    role: 'in',
-    runId: 'r_smoke0001',
-    agent: 'ds-switcher',
-    task: 't',
-    owns: ['.design/_runs/r_smoke0001/ds-switch/x.json'],
-    output: '.design/_runs/r_smoke0001/handoff/ds-switcher-0.out.json',
-  };
+  writeFileSync(join(runDir, 'stop-last.json'), '{"sig":"x","at":1}');
   expect(
-    'a valid hand-off in validates',
-    validateHandoff(goodIn).length === 0,
-    validateHandoff(goodIn).join('; ')
+    'a stop-last.json in the run folder is one Stop-gate block',
+    hookDecisions(EMPTY_TR, readRunState(busy.dir)).filter((x) => x.decision === 'block').length ===
+      1
   );
+  rmSync(join(runDir, 'stop-last.json'));
 
-  // stub verbs.
-  const runs = spawnSync('bun', [VERBS, 'runs', 'list'], { cwd: busy.dir, encoding: 'utf8' });
-  expect(
-    '`maude design runs list` names the busy artboard and the hold',
-    /Tereza/.test(runs.stdout) && /Jonas/.test(runs.stdout),
-    runs.stdout + runs.stderr
-  );
-  const chk = spawnSync('bun', [VERBS, 'check', 'ui/Onboarding.tsx'], {
-    cwd: busy.dir,
-    encoding: 'utf8',
+  const manifest = { busy: busy.m.busy };
+  const view = (artboard) => ({
+    runs: [{ state: 'running', artboards: [{ canvas: ONB, artboard }] }],
   });
-  expect('`maude design check` runs', chk.status === 0 || chk.status === 1, chk.stderr);
+  expect('the registry answer names the held artboard', holdInForce(view('hub'), ONB, 'hub'));
+  expect('…and not another one', !holdInForce(view('welcome'), ONB, 'hub'));
+  expect(
+    '…and a waiting run holds nothing',
+    !holdInForce(
+      { runs: [{ state: 'waiting', artboards: [{ canvas: ONB, artboard: 'hub' }] }] },
+      ONB,
+      'hub'
+    )
+  );
+  const bg = (registry, tr = EMPTY_TR) =>
+    gradeCode({
+      task: task({ readOnly: true }),
+      project: busy.dir,
+      transcript: tr,
+      manifest,
+      registry,
+    });
+  g = bg({ view: view('hub') });
+  expect(
+    'hold-in-force is green while the registry holds the artboard',
+    g.invariants['hold-in-force']?.pass
+  );
+  g = bg({ view: { runs: [] } });
+  expect(
+    'hold-in-force goes red when the hold vanished from the registry',
+    g.invariants['hold-in-force']?.pass === false,
+    JSON.stringify(g.invariants['hold-in-force'])
+  );
+  g = bg(null);
+  expect(
+    'no registry, no hold-in-force verdict (a re-grade)',
+    g.invariants['hold-in-force'] === undefined
+  );
+  expect(
+    'run-log: nothing touched → busy-not-touched green',
+    g.quality['run-log:busy-not-touched']?.pass
+  );
+  writeFileSync(
+    join(runDir, 'touched.json'),
+    JSON.stringify({ [ONB]: { at: 1, by: 'Edit', via: 'hook', artboards: ['hub'] } })
+  );
+  g = bg(null);
+  expect(
+    'a run folder that names the busy artboard fails run-log:busy-not-touched',
+    g.quality['run-log:busy-not-touched']?.pass === false,
+    JSON.stringify(g.quality['run-log:busy-not-touched'])
+  );
+  writeFileSync(
+    join(runDir, 'touched.json'),
+    JSON.stringify({ [ONB]: { at: 1, by: 'Edit', via: 'hook', artboards: null } })
+  );
+  g = bg(null);
+  expect(
+    '…and so does an unknown artboard set (the hook could not tell)',
+    g.quality['run-log:busy-not-touched']?.pass === false
+  );
+  rmSync(join(runDir, 'touched.json'));
 
-  try {
-    execFileSync('git', ['--version']);
-  } catch {}
+  // run base: the bytes before the run first touched the file, keyed like the hook keys them
+  const key = createHash('sha256').update(ONB, 'utf8').digest('hex').slice(0, 16);
+  mkdirSync(join(runDir, 'base'), { recursive: true });
+  writeFileSync(join(runDir, 'base', key), 'BEFORE');
+  expect(
+    "runBase finds the hook's base copy by the hook's key",
+    runBase(busy.dir, ONB) === 'BEFORE'
+  );
+  expect('…and has none for another file', runBase(busy.dir, 'ui/Other.tsx') === undefined);
+  rmSync(join(runDir, 'base'), { recursive: true, force: true });
+  writeFileSync(join(runDir, 'stop-last.json'), '{"sig":"x","at":1}');
+  const ob = join(busy.d, ONB);
+  const obSrc = readFileSync(ob, 'utf8');
+  writeFileSync(ob, obSrc.replace(/ data-cd-id="choose-a-folder"/, ''));
+  g = gradeCode({
+    task: task({ allow: [ONB] }),
+    project: busy.dir,
+    transcript: EMPTY_TR,
+    manifest: {},
+  });
+  expect(
+    'the Stop gate blocked and the run ended with a failing check → stop-gate-settled red',
+    g.quality['stop-gate-settled']?.pass === false,
+    JSON.stringify([g.invariants.check, g.quality['stop-gate-settled']])
+  );
+  writeFileSync(ob, obSrc);
+  // The released Stop hook deletes `_runs/<session>/` when the run ends (design-hook.mjs `stop`): what the
+  // harness archived while the run was alive is the only record left, and the graders read it.
+  const archive = join(out, 'runlog');
+  mkdirSync(join(archive, session), { recursive: true });
+  writeFileSync(
+    join(archive, session, 'touched.json'),
+    JSON.stringify({ [ONB]: { at: 1, by: 'Edit', via: 'hook', artboards: ['hub'] } })
+  );
+  rmSync(runDir, { recursive: true, force: true });
+  expect(
+    'a run folder the Stop hook deleted is still read from the harness archive',
+    readRunState(busy.dir, archive).sessions.length === 1 &&
+      readRunState(busy.dir).sessions.length === 0
+  );
+  g = gradeCode({
+    task: task({ readOnly: true }),
+    project: busy.dir,
+    transcript: EMPTY_TR,
+    manifest,
+    runlog: archive,
+  });
+  expect(
+    '…so run-log:busy-not-touched still catches a touch of the busy artboard',
+    g.quality['run-log:busy-not-touched']?.pass === false
+  );
+
+  // the deleted stand-ins stay deleted
+  const gone = ['harness/verbs.mjs', 'harness/hook.mjs', 'harness/plugin', 'lib/check.mjs'];
+  expect(
+    'the prototype hook, plugin and verb stand-ins are gone',
+    gone.every((f) => !existsSync(join(HERE, '..', f))),
+    gone.filter((f) => existsSync(join(HERE, '..', f))).join(', ')
+  );
+  expect(
+    'the PATH shim execs the shipped CLI and nothing else',
+    !/harness\/|bun /.test(
+      readFileSync(join(HERE, '..', 'shim', 'maude'), 'utf8').replace(/^#.*$/gm, '')
+    )
+  );
+
   const failed = results.filter((r) => !r.pass);
   log(`\n${results.length - failed.length}/${results.length} smoke checks passed`);
   writeFileSync(join(out, 'smoke.json'), `${JSON.stringify(results, null, 2)}\n`);
   return failed.length === 0;
 }
-
-export const _exists = existsSync;

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const SUBAGENT_TOOLS = new Set(['Task', 'Agent']);
 
-/** → { init, result, toolUses: [{name, input, id, parent}], agents: [{type, id, background}], finalText, metrics } */
+/** → { init, result, toolUses: [{name, input, id, parent}], toolResults: [{id, isError, text}], hookEvents, agents: [{type, id, background}], finalText, metrics } */
 export function readTranscript(path) {
   let lines = [];
   try {
@@ -16,6 +16,8 @@ export function readTranscript(path) {
       result: null,
       toolUses: [],
       agents: [],
+      hookEvents: [],
+      toolResults: [],
       finalText: '',
       metrics: null,
       events: 0,
@@ -25,6 +27,7 @@ export function readTranscript(path) {
   let result = null;
   const toolUses = [];
   const hookEvents = [];
+  const toolResults = [];
   let lastAssistantText = '';
   for (const l of lines) {
     let ev;
@@ -36,7 +39,15 @@ export function readTranscript(path) {
     if (ev.type === 'system' && ev.subtype === 'init') init = ev;
     else if (ev.type === 'result') result = ev;
     else if (ev.type === 'system' && /^hook_/.test(ev.subtype ?? '')) hookEvents.push(ev);
-    else if (ev.type === 'assistant') {
+    else if (ev.type === 'user') {
+      for (const c of ev.message?.content ?? []) {
+        if (c.type !== 'tool_result') continue;
+        const text = Array.isArray(c.content)
+          ? c.content.map((x) => x?.text ?? '').join('\n')
+          : String(c.content ?? '');
+        toolResults.push({ id: c.tool_use_id, isError: !!c.is_error, text });
+      }
+    } else if (ev.type === 'assistant') {
       const parent = ev.parent_tool_use_id ?? null;
       for (const c of ev.message?.content ?? []) {
         if (c.type === 'tool_use')
@@ -99,6 +110,7 @@ export function readTranscript(path) {
     toolUses,
     agents,
     hookEvents,
+    toolResults,
     finalText: String(result?.result ?? lastAssistantText ?? ''),
     metrics,
     events: lines.length,

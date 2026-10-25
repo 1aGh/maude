@@ -1,33 +1,40 @@
 #!/usr/bin/env bun
-// agent-evals/run.mjs — the V2-1.18 agent eval: topology A (one writer + skills) vs B (A + helper
-// sub-agents), on fixture canvases, headless through `claude -p --plugin-dir`. NOT a CI gate.
+// agent-evals/run.mjs — the V2-1.18 agent eval, ported to the SHIPPED build (V2-8.16b): topology A (one
+// writer + skills) vs B (A + helper sub-agents), on fixture canvases, headless through
+// `claude -p --plugin-dir plugins/design` — the released design plugin's own hooks, the real
+// `maude design check|runs|screenshot` verbs and a throwaway studio per trial (lib/trial.mjs). NOT a CI gate.
 //
+//   bun apps/studio/test/agent-evals/run.mjs preflight                                       claude signed in? (no model turn)
 //   bun apps/studio/test/agent-evals/run.mjs fixtures [--out DIR]
 //   bun apps/studio/test/agent-evals/run.mjs trial  --task e1 --topology A [--trial 1] [--out DIR]
 //   bun apps/studio/test/agent-evals/run.mjs pair   --task e1 [--trial 1] [--out DIR]       A ∥ B, symmetric load
-//   bun apps/studio/test/agent-evals/run.mjs suite  --tasks pilot|all|e1,b2 [--trials 3] [--out DIR] [--no-lane]
+//   bun apps/studio/test/agent-evals/run.mjs suite  --tasks pilot|all|e1,b2 [--topology A] [--trials 3] [--out DIR] [--no-lane] [--skip-done]
+//   bun apps/studio/test/agent-evals/run.mjs dry    [--tasks e1,e8,x2,x3] [--out DIR]       scripted agent, REAL hooks/studio/registry; no model
 //   bun apps/studio/test/agent-evals/run.mjs grade  --dir <trial dir>                        re-grade a finished trial
 //   bun apps/studio/test/agent-evals/run.mjs report [--out DIR]
-//   bun apps/studio/test/agent-evals/run.mjs smoke                                            no model: fixtures + graders + hooks
+//   bun apps/studio/test/agent-evals/run.mjs smoke                                            no model: fixtures + graders
 //
 // Options: --model claude-opus-5-5 · --effort high · --budget-usd 6 (per trial) · --timeout-min 25 ·
-//          --hooks on|off · --judge on|off · --judge-model sonnet · --render on|off
+//          --judge on|off · --judge-model sonnet · --render on|off · --rules on|off · --no-preflight
 // Outputs go to --out (default $TMPDIR/maude-agent-evals/<date>/ — never inside the repo, never committed).
 
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 
-import { primeRegistry } from './lib/check.mjs';
+import { buildStudioBrief } from '../../acp/bootstrap-brief.ts';
+import { agentEnv } from './lib/agentenv.mjs';
+import { DRY } from './lib/dry-scripts.mjs';
+import { runFakeAgent } from './lib/fake-agent.mjs';
 import { buildFixture, REPO } from './lib/fixtures.mjs';
 import { gradeCode } from './lib/grade.mjs';
 import { judge } from './lib/judge.mjs';
+import { DESIGN_PLUGIN, HERE } from './lib/paths.mjs';
 import { gitDiff, renderCheck, renderTargets, serverDown } from './lib/render.mjs';
 import { readTranscript } from './lib/transcript.mjs';
+import { snapshotRuns, startTrial, studioEnv, watchRuns } from './lib/trial.mjs';
 
-const HERE = dirname(fileURLToPath(import.meta.url));
 const CLI = join(REPO, 'cli', 'bin', 'maude.mjs');
 const argv = process.argv.slice(2);
 const cmd = argv[0];
@@ -43,9 +50,9 @@ const MODEL = opt('model', 'claude-opus-5-5');
 const EFFORT = opt('effort', 'high');
 const BUDGET = Number(opt('budget-usd', '6'));
 const TIMEOUT_MIN = Number(opt('timeout-min', '25'));
-const HOOKS = opt('hooks', 'on') === 'on';
 const JUDGE = opt('judge', 'on') === 'on';
 const RENDER = opt('render', 'on') === 'on';
+const RULES = opt('rules', 'on') === 'on';
 const JUDGE_MODEL = opt('judge-model', 'sonnet');
 
 const TASKS = JSON.parse(readFileSync(join(HERE, 'tasks.json'), 'utf8')).tasks;
@@ -55,40 +62,9 @@ const taskById = (id) => {
   return t;
 };
 
-// Env for the agent: the host's auth/proxy stays, behaviour switches from the parent session go.
-const STRIP = [
-  'CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS',
-  'CLAUDE_CODE_MESSAGING_SOCKET',
-  'CLAUDE_CODE_MESSAGING_TOKEN',
-  'CLAUDE_CODE_CHILD_SESSION',
-  'CLAUDE_CODE_SESSION_ID',
-  'CLAUDE_CODE_HOST_SESSION_ID',
-  'CLAUDE_CODE_SESSION_ATTENDED',
-  'CLAUDE_CODE_STOP_HOOK_BLOCK_CAP',
-  'CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING',
-  'CLAUDE_CODE_REPORT_FINDINGS',
-  'CLAUDE_CODE_EMIT_TOOL_USE_SUMMARIES',
-  'CLAUDE_CODE_TERMINAL_MCP_TOOLS',
-  'CLAUDE_CODE_ENABLE_ASK_USER_QUESTION_TOOL',
-  'CLAUDE_PID',
-  'CLAUDECODE',
-  'CLAUDE_EFFORT',
-  'CLAUDE_PROJECT_DIR',
-  'CLAUDE_PLUGIN_ROOT',
-];
-function agentEnv(_project) {
-  const env = { ...process.env };
-  for (const k of STRIP) delete env[k];
-  Object.assign(env, {
-    PATH: `${join(HERE, 'shim')}:${process.env.PATH}`,
-    NO_OPEN: '1',
-    MAUDE_NO_AUTOBUILD: '1',
-    MAUDE_FORCE_SOURCE: '1',
-    MAUDE_EVAL: '1',
-    CLAUDE_CODE_DISABLE_CRON: '1',
-  });
-  return env;
-}
+// The model process keeps the person's HOME (its login lives there); everything the studio side runs
+// (studio, the hooks' studio calls, check, runs, screenshots) gets the trial's throwaway one (lib/trial.mjs).
+const liveEnv = (trialDir) => agentEnv(process.env, trialDir);
 
 function fixtureProject(name) {
   const dir = join(OUT, 'fixtures', name);
@@ -119,8 +95,16 @@ const ALLOWED = [
 const TOOLS = 'Bash,Read,Edit,Write,MultiEdit,Glob,Grep,Skill,Task,TodoWrite,ToolSearch';
 
 function claudeArgs(task, topology) {
+  // What the AI chat carries (the real studio brief), then — unless `--rules off` — the eval's task rules
+  // (topologies/contract.md: what the skills and hooks teach, spelt out as the Phase 1 pilot had them, so the
+  // new run compares with it), then the topology.
   const sys = [
-    readFileSync(join(HERE, 'topologies', 'contract.md'), 'utf8'),
+    buildStudioBrief({
+      designRel: '.design',
+      projectLabel: 'eval project',
+      commandsAvailable: true,
+    }),
+    ...(RULES ? [readFileSync(join(HERE, 'topologies', 'contract.md'), 'utf8')] : []),
     readFileSync(join(HERE, 'topologies', `${topology.toLowerCase()}.md`), 'utf8'),
   ].join('\n\n');
   const args = [
@@ -139,7 +123,8 @@ function claudeArgs(task, topology) {
     '--mcp-config',
     '{"mcpServers":{}}',
     '--plugin-dir',
-    join(REPO, 'plugins', 'design'),
+    DESIGN_PLUGIN,
+    '--include-hook-events',
     '--tools',
     TOOLS,
     '--allowedTools',
@@ -154,19 +139,19 @@ function claudeArgs(task, topology) {
     String(BUDGET),
     '--no-session-persistence',
   ];
-  if (HOOKS) args.push('--plugin-dir', join(HERE, 'harness', 'plugin'));
   if (topology === 'B') args.push('--plugin-dir', join(HERE, 'topologies', 'b', 'plugin'));
   return args;
 }
 
 function cloneFixture(src, dst) {
   rmSync(dst, { recursive: true, force: true });
-  mkdirSync(dirname(dst), { recursive: true });
+  mkdirSync(join(dst, '..'), { recursive: true });
   const r = spawnSync('cp', ['-cR', src, dst]);
   if (r.status !== 0) spawnSync('cp', ['-R', src, dst]);
 }
 
 async function runAgent(task, topology, trialDir, project) {
+  // (--dry never gets here: trial() hands the scripted agent the same trial instead)
   const t0 = Date.now();
   const transcript = join(trialDir, 'transcript.jsonl');
   const errf = join(trialDir, 'stderr.txt');
@@ -178,9 +163,10 @@ async function runAgent(task, topology, trialDir, project) {
   const { createWriteStream } = await import('node:fs');
   const out = createWriteStream(transcript);
   const err = createWriteStream(errf);
+  const watcher = watchRuns(project, join(trialDir, 'runlog'));
   const child = spawn('claude', args, {
     cwd: project,
-    env: agentEnv(project),
+    env: liveEnv(trialDir),
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   child.stdout.pipe(out);
@@ -192,28 +178,48 @@ async function runAgent(task, topology, trialDir, project) {
     setTimeout(() => child.kill('SIGKILL'), 10_000);
   }, TIMEOUT_MIN * 60_000);
   const code = await new Promise((res) => child.on('close', res));
+  watcher.stop();
   clearTimeout(timer);
   await new Promise((r) => out.end(r));
   await new Promise((r) => err.end(r));
   return { code, killed, wallMs: Date.now() - t0 };
 }
 
-async function gradeTrial(trialDir, task, topology, run, prevJudge = null) {
-  await primeRegistry();
+async function gradeTrial(
+  trialDir,
+  task,
+  topology,
+  run,
+  prevJudge = null,
+  live = null,
+  dry = false
+) {
   const project = join(trialDir, 'project');
   const tr = readTranscript(join(trialDir, 'transcript.jsonl'));
   const fx = JSON.parse(
     readFileSync(join(OUT, 'fixtures', task.fixture, `${task.fixture}.manifest.json`), 'utf8')
   );
-  const code = gradeCode({ task, project, transcript: tr, manifest: fx });
+  // `live` = the trial's own studio (lib/trial.mjs): its registry answer, taken before it stops, is the
+  // evidence the hold was still in force; a re-grade of a finished trial has none.
+  const registry = live ? { view: live.view() } : null;
+  const code = gradeCode({
+    task,
+    project,
+    transcript: tr,
+    manifest: fx,
+    registry,
+    runlog: join(trialDir, 'runlog'),
+  });
   let render = { ran: false, shots: [] };
-  if (RENDER) {
+  // a dry run never calls a model, so no judge; screenshots only when asked for (--render on)
+  if (dry ? opt('render', 'off') === 'on' : RENDER) {
     try {
       render = renderCheck({
         cli: CLI,
         project,
         trialDir,
         targets: renderTargets(task, code, project),
+        env: live?.env ?? null,
       });
     } catch (e) {
       render = { ran: true, error: String(e.message), shots: [] };
@@ -231,7 +237,7 @@ async function gradeTrial(trialDir, task, topology, run, prevJudge = null) {
     };
   let verdict = null;
   if (prevJudge) verdict = prevJudge;
-  else if (JUDGE && task.rubric)
+  else if (JUDGE && task.rubric && !dry)
     verdict = judge({
       task,
       project,
@@ -239,7 +245,7 @@ async function gradeTrial(trialDir, task, topology, run, prevJudge = null) {
       diff: gitDiff(project),
       shots: render.shots,
       model: JUDGE_MODEL,
-      env: agentEnv(project),
+      env: liveEnv(trialDir),
     });
   if (verdict) {
     code.quality.judge = {
@@ -248,7 +254,6 @@ async function gradeTrial(trialDir, task, topology, run, prevJudge = null) {
       unknown: verdict.verdict === 'unknown',
     };
   }
-  serverDown(project);
   const hookMs = code.hooklog
     .filter((h) => typeof h.ms === 'number')
     .reduce((acc, h) => {
@@ -263,7 +268,10 @@ async function gradeTrial(trialDir, task, topology, run, prevJudge = null) {
   // infra-failure: the run (or its judge) was cut by the network / provider, not by the agent — excluded from pass rates, re-run.
   const infraRe =
     /ENOTFOUND|ECONNRESET|ECONNREFUSED|Can't reach the API server|overloaded_error|API Error: 5\d\d|rate.?limit/i;
+  // a busy fixture whose hold vanished from the registry measured nothing: re-run, don't grade
+  const holdLost = code.invariants['hold-in-force']?.pass === false;
   const harnessFailure =
+    holdLost ||
     !tr.ok ||
     !!run?.killed ||
     infraRe.test(`${readSafe(join(trialDir, 'stderr.txt'))}\n${tr.finalText}`);
@@ -292,6 +300,7 @@ async function gradeTrial(trialDir, task, topology, run, prevJudge = null) {
       })),
     },
     changed: code.changed,
+    runState: code.runState,
     hooks: {
       events: code.hooklog.length,
       denies: code.hooklog
@@ -299,14 +308,12 @@ async function gradeTrial(trialDir, task, topology, run, prevJudge = null) {
         .map((h) => `${h.code}${h.agent ? ` (${h.agent})` : ''}`),
       blocks: code.hooklog
         .filter((h) => h.decision === 'block')
-        .map(
-          (h) =>
-            `${h.event}:${(h.codes ?? [h.code ?? ''].filter(Boolean)).join(',') || `${h.problems ?? 0}p/${h.missing ?? 0}m`}`
-        ),
+        .map((h) => `${h.event}:${h.code ?? ''}`),
       errors: code.hooklog
         .filter((h) => h.decision === 'error')
         .map((h) => h.error)
         .slice(0, 3),
+      // the released hooks keep no latency log; their budget is pinned by their own tests
       ms: Object.fromEntries(
         Object.entries(hookMs).map(([k, v]) => [
           k,
@@ -334,31 +341,80 @@ const pct = (arr, p) => {
   return s.length ? s[Math.min(s.length - 1, Math.floor(p * (s.length - 1)))] : null;
 };
 
-async function trial(taskId, topology, n) {
+/**
+ * One trial: clone the fixture, boot the trial's own studio (lib/trial.mjs), make the fixture's world real
+ * (the busy artboard is held through the registry), run the agent — `claude -p` with the released plugin, or,
+ * with `opts.script`, the scripted stand-in (lib/fake-agent.mjs) — grade, and ALWAYS stop the studio.
+ */
+async function trial(taskId, topology, n, opts = {}) {
   const task = taskById(taskId);
   const fx = fixtureProject(task.fixture);
   if (!fx) {
     console.log(`skip ${taskId}.${topology}: fixture ${task.fixture} unavailable on this Mac`);
     return null;
   }
-  const trialDir = join(OUT, 'trials', `${taskId}.${topology}.${n}`);
+  if (!opts.script && !flag('no-preflight')) preflight();
+  const label = opts.label ?? `${taskId}.${topology}.${n}`;
+  const trialDir = join(OUT, opts.script ? 'dry' : 'trials', label);
   rmSync(trialDir, { recursive: true, force: true });
   mkdirSync(trialDir, { recursive: true });
   const project = join(trialDir, 'project');
   cloneFixture(fx.project, project);
-  console.log(`▶ ${taskId}.${topology}.${n} (${task.fixture}) — ${task.prompt.slice(0, 70)}`);
-  const run = await runAgent(task, topology, trialDir, project);
-  serverDown(project);
-  const g = await gradeTrial(trialDir, task, topology, run);
+  console.log(`▶ ${label} (${task.fixture}) — ${task.prompt.slice(0, 70)}`);
+  let live = null;
+  let run;
+  let g;
+  try {
+    live = await startTrial(project, trialDir, fx.manifest);
+    run = opts.script
+      ? await runFakeAgent({
+          script: opts.script(trialDir, project, fx.manifest),
+          prompt: task.prompt,
+          project,
+          trialDir,
+          env: agentEnv(studioEnv(trialDir), trialDir),
+          snapshot: () => snapshotRuns(project, join(trialDir, 'runlog')),
+        })
+      : await runAgent(task, topology, trialDir, project);
+    g = await gradeTrial(trialDir, task, topology, run, null, live, !!opts.script);
+  } finally {
+    await live?.stop();
+    serverDown(project);
+  }
   const m = g.metrics ?? {};
   console.log(
-    `■ ${taskId}.${topology}.${n}: inv ${g.invPass ? 'PASS' : 'FAIL'} · qual ${g.qualPass ? 'PASS' : 'FAIL'} · ${((run.wallMs ?? 0) / 1000).toFixed(0)} s · ${(m.tokens ?? 0).toLocaleString()} tok · $${(m.costUsd ?? 0).toFixed(2)} · agents ${m.subagents ?? 0}${g.harnessFailure ? ' · HARNESS FAILURE' : ''}`
+    `■ ${label}: inv ${g.invPass ? 'PASS' : 'FAIL'} · qual ${g.qualPass ? 'PASS' : 'FAIL'} · ${((run.wallMs ?? 0) / 1000).toFixed(0)} s · ${(m.tokens ?? 0).toLocaleString()} tok · $${(m.costUsd ?? 0).toFixed(2)} · agents ${m.subagents ?? 0}${g.harnessFailure ? ' · HARNESS FAILURE' : ''}`
   );
   for (const [k, v] of Object.entries(g.invariants))
     if (!v.pass) console.log(`    ✗ inv ${k}: ${v.why}`);
   for (const [k, v] of Object.entries(g.quality))
     if (!v.pass) console.log(`    · q ${k}: ${v.why}`);
   return g;
+}
+
+/** `claude auth status` — a local read, no model turn. Exits 2 with a plain message when not signed in. */
+function preflight() {
+  const r = spawnSync('claude', ['auth', 'status', '--json'], {
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  let st = null;
+  try {
+    st = JSON.parse(r.stdout);
+  } catch {}
+  if (r.error?.code === 'ENOENT')
+    fail('preflight: `claude` is not on PATH — install Claude Code first.');
+  if (!st?.loggedIn)
+    fail(
+      'preflight: `claude` is not signed in. Run `claude auth login`, then start the eval again. Nothing was run, nothing was spent.'
+    );
+  console.log(
+    `preflight: claude signed in (${st.authMethod ?? '?'}${st.subscriptionType ? `, ${st.subscriptionType}` : ''}) — no model turn was made`
+  );
+}
+function fail(msg) {
+  console.error(msg);
+  process.exit(2);
 }
 
 async function pair(taskId, n) {
@@ -377,28 +433,35 @@ async function suite() {
   const trials = Number(opt('trials', '1'));
   const start = Number(opt('first-trial', '1'));
   const lane = !flag('no-lane');
+  // `--topology A` (or B): one side only, one `trial` per slot instead of an A ∥ B `pair`.
+  const topo = opt('topology', 'A,B').toUpperCase().split(',');
+  if (!topo.every((x) => x === 'A' || x === 'B')) fail('--topology is A, B or A,B');
+  if (!flag('no-preflight')) preflight();
   for (let n = start; n < start + trials; n++) {
     for (const id of ids) {
       if (
         flag('skip-done') &&
-        existsSync(join(OUT, 'trials', `${id}.A.${n}`, 'grade.json')) &&
-        existsSync(join(OUT, 'trials', `${id}.B.${n}`, 'grade.json'))
+        topo.every((t) => existsSync(join(OUT, 'trials', `${id}.${t}.${n}`, 'grade.json')))
       )
         continue;
+      const verb = topo.length === 1 ? ['trial', '--topology', topo[0]] : ['pair'];
       if (lane) {
         const r = spawnSync(
           join(REPO, 'scripts', 'v2-test-lane.sh'),
           [
             '--wait',
             '3600',
+            '--max',
+            '3600',
             '--',
             'bun',
             join(HERE, 'run.mjs'),
-            'pair',
+            ...verb,
             '--task',
             id,
             '--trial',
             String(n),
+            '--no-preflight',
             ...passthrough(),
           ],
           { stdio: 'inherit' }
@@ -406,6 +469,8 @@ async function suite() {
         if (r.status === 75) console.log(`lane busy for ${id}; skipped`);
         // Leave the lane free for a moment so other lane users waiting on it get their turn.
         await new Promise((res) => setTimeout(res, Number(opt('gap-s', '30')) * 1000));
+      } else if (topo.length === 1) {
+        await trial(id, topo[0], n);
       } else {
         await pair(id, n);
       }
@@ -421,8 +486,8 @@ function passthrough() {
     'effort',
     'budget-usd',
     'timeout-min',
-    'hooks',
     'judge',
+    'rules',
     'judge-model',
     'render',
   ];
@@ -452,7 +517,27 @@ async function smoke() {
   process.exit(ok ? 0 : 1);
 }
 
+/** The dry run: a scripted agent through the REAL hooks, studio and registry; every fault must flip its grader. */
+async function dry() {
+  // Belt and braces: nothing in this process may reach the real `claude` (no model call, no spend) —
+  // a stub that answers "signed out" goes first on PATH for the whole run.
+  const { stubClaudeEnv } = await import('../../../../scripts/lib/stub-claude.mjs');
+  const stubHome = join(OUT, 'dry-stub');
+  mkdirSync(stubHome, { recursive: true });
+  process.env.PATH = stubClaudeEnv(stubHome).PATH;
+  const { runDry } = await import('./lib/dry.mjs');
+  const ok = await runDry({
+    out: OUT,
+    tasks: (opt('tasks', '') || Object.keys(DRY).join(',')).split(','),
+    trial,
+    log: console.log,
+  });
+  process.exit(ok ? 0 : 1);
+}
+
 const commands = {
+  preflight: async () => preflight(),
+  dry,
   fixtures: async () => {
     for (const name of (opt('names', '') || 'app5,marketing21,board300,video,multids,busy').split(
       ','
@@ -517,7 +602,9 @@ const commands = {
   smoke,
 };
 if (!commands[cmd]) {
-  console.error('usage: run.mjs fixtures|trial|pair|suite|grade|report|smoke …  (see the header)');
+  console.error(
+    'usage: run.mjs preflight|fixtures|trial|pair|suite|dry|grade|report|smoke …  (see the header)'
+  );
   process.exit(2);
 }
 await commands[cmd]();

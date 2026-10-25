@@ -365,10 +365,10 @@
         "allow": ["ui/Onboarding.tsx", "ui/Onboarding.css"],
         "untouched": [{ "canvas": "ui/Onboarding.tsx", "artboard": "hub" }],
         "heldUntouched": { "canvas": "ui/Onboarding.tsx", "element": "choose-a-folder" },
-        "finalMentions": ["Tereza|busy|hub"]
+        "finalMentions": ["busy|another AI|hub"]
       },
       "render": [{ "canvas": "ui/Onboarding.tsx", "artboards": ["welcome", "github"] }],
-      "rubric": "The headlines of the free artboards (welcome, github, local, success) are one type step bigger (e.g. --type-3xl → --type-4xl) without touching the shared .ob-head rule the busy artboard uses; the hub artboard — busy with Tereza's AI — is untouched and the answer says it waits; Jonas's held 'Choose a folder…' button is untouched."
+      "rubric": "The headlines of the free artboards (welcome, github, local, success) are one type step bigger (e.g. --type-3xl → --type-4xl) without touching the shared .ob-head rule the busy artboard uses; the hub artboard — busy: another AI is changing it — is untouched and the answer says it waits; the 'Choose a folder…' button, which a person locked, is untouched."
     },
     {
       "id": "x1",
@@ -407,9 +407,9 @@
       "expect": {
         "untouched": [{ "canvas": "ui/Onboarding.tsx", "artboard": "hub" }],
         "allow": ["ui/Onboarding.tsx"],
-        "finalMentions": ["Tereza|busy"]
+        "finalMentions": ["busy|another AI"]
       },
-      "rubric": "The hub artboard is unchanged because Tereza's AI is changing it; the answer says so (it can wait or be done on a copy) and does not edit a copy without being asked unless it says it did."
+      "rubric": "The hub artboard is unchanged because another AI is changing it; the answer says so (it can wait or be done on a copy) and does not edit a copy without being asked unless it says it did."
     },
     {
       "id": "x4",

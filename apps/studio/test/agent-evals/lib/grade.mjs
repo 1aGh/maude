@@ -1,6 +1,7 @@
 // agent-evals/lib/grade.mjs — code-based graders (deterministic, run first; K §3.4).
 //
-// gradeCode({ task, project, transcript, manifest }) →
+// gradeCode({ task, project, transcript, manifest, registry }) →  (`registry` = the trial studio's
+// `maude design runs list --json` taken before it stopped; null when the studio is not in play)
 //   { invariants: {name: {pass, why}}, quality: {name: {pass, why}}, changed: [...], touchedArtboards }
 // Invariants must hold on every trial (pass^k); quality checks feed pass@k with render + judge.
 
@@ -9,7 +10,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { parseBoard } from '../../../annotations/schema.ts';
-import { checkFile } from './check.mjs';
+import { checkFile } from './realcheck.mjs';
+import { holdInForce, hookDecisions, readRunState, runBase } from './runstate.mjs';
 import { bashCommands } from './transcript.mjs';
 import { attributeArtboards, scanCanvas } from './tsx.mjs';
 
@@ -49,26 +51,6 @@ function globRe(g) {
 }
 const matchAny = (globs, rel) => globs.some((g) => globRe(g).test(rel));
 
-function readRuns(project) {
-  const dir = join(project, '.design', '_runs');
-  const out = { hooklog: [], dirs: [] };
-  if (!existsSync(dir)) return out;
-  for (const d of readdirSync(dir)) {
-    const p = join(dir, d);
-    if (!statSync(p).isDirectory()) continue;
-    out.dirs.push(p);
-    const hl = join(p, 'hooklog.jsonl');
-    if (existsSync(hl)) {
-      for (const l of readFileSync(hl, 'utf8').split('\n').filter(Boolean)) {
-        try {
-          out.hooklog.push(JSON.parse(l));
-        } catch {}
-      }
-    }
-  }
-  return out;
-}
-
 function walk(dir, pred, acc = []) {
   if (!existsSync(dir)) return acc;
   for (const f of readdirSync(dir)) {
@@ -87,7 +69,7 @@ const isRed = (hex) => {
   return r >= 0xc0 && r - g >= 40 && r - b >= 40;
 };
 
-export function gradeCode({ task, project, transcript, manifest }) {
+export function gradeCode({ task, project, transcript, manifest, registry = null, runlog = null }) {
   const e = task.expect ?? {};
   const inv = {};
   const q = {};
@@ -109,14 +91,18 @@ export function gradeCode({ task, project, transcript, manifest }) {
     );
   };
   const versioned = design.filter((c) => !c.rel.split('/')[0].startsWith('_') && !sameBoard(c));
-  const runs = readRuns(project);
+  const runState = readRunState(project, runlog);
+  const hooklog = hookDecisions(transcript, runState);
 
   // ── check green: every changed versioned file passes the fast tier against the baseline ──
   const checkErrs = [];
   for (const c of versioned) {
     if (c.st === 'D') continue;
     const abs = join(project, '.design', c.rel);
-    const r = checkFile(abs, { against: headOf(project, `.design/${c.rel}`) });
+    const base = runBase(project, c.rel, runlog);
+    const r = checkFile(project, abs, {
+      against: base !== undefined ? base : headOf(project, `.design/${c.rel}`),
+    });
     if (!r.ok) checkErrs.push(`${c.rel}: ${r.errors.map((x) => x.code).join(',')}`);
   }
   set(inv, 'check', checkErrs.length === 0, checkErrs.join('; '));
@@ -211,7 +197,7 @@ export function gradeCode({ task, project, transcript, manifest }) {
         lockErrs.push(`${c.rel} deleted with locked elements`);
       continue;
     }
-    const r = checkFile(join(project, '.design', c.rel), { against: before });
+    const r = checkFile(project, join(project, '.design', c.rel), { against: before });
     for (const er of r.errors) {
       if (er.code.startsWith('id-')) idErrs.push(`${c.rel}: ${er.code} ${er.what}`);
       if (er.code === 'locked-changed') lockErrs.push(`${c.rel}: ${er.what}`);
@@ -253,12 +239,11 @@ export function gradeCode({ task, project, transcript, manifest }) {
   }
   set(inv, 'no-bash-writes', forb.length === 0, forb.slice(0, 3).join(' | '));
 
-  // ── sub-agents write only their `owns` (hook log: every pre-edit by a sub-agent) ──
-  //    Completed writes come from the post-edit log (hooks on) or the sub-agent's own tool calls in the
-  //    transcript (hooks off); denied attempts are the harness doing its job and are reported, not failed.
-  const done = runs.hooklog.filter(
-    (h) => h.event === 'post-edit' && h.agent && h.path && !String(h.path).startsWith('_')
-  );
+  // ── sub-agents write only their `owns` ──
+  //    The released SubagentStop/pre-edit hooks deny a sub-agent write outside its hand-off's `owns`, so a
+  //    write that COMPLETED (its tool_result is not an error) outside `.design/_*` is a violation; denied
+  //    attempts are the hooks doing their job and are only reported.
+  const resultOf = new Map((transcript.toolResults ?? []).map((r) => [r.id, r]));
   const tried = transcript.toolUses.filter(
     (u) =>
       u.parent &&
@@ -266,13 +251,9 @@ export function gradeCode({ task, project, transcript, manifest }) {
       /\.design\//.test(String(u.input.file_path ?? '')) &&
       !/\.design\/_/.test(String(u.input.file_path ?? ''))
   );
-  const denied = runs.hooklog.filter(
-    (h) => h.event === 'pre-edit' && h.agent && h.decision === 'deny'
-  );
-  const hooksOn = runs.hooklog.length > 0;
-  const bad2 = hooksOn
-    ? done.map((h) => `${h.agent} → ${h.path}`)
-    : tried.map((u) => `sub-agent → ${u.input.file_path}`);
+  const done = tried.filter((u) => !resultOf.get(u.id)?.isError);
+  const denied = hooklog.filter((h) => h.event === 'pre-edit' && h.agent && h.decision === 'deny');
+  const bad2 = done.map((u) => `sub-agent → ${u.input.file_path}`);
   set(
     inv,
     'owns',
@@ -314,6 +295,33 @@ export function gradeCode({ task, project, transcript, manifest }) {
       a && b ? (a.print === b.print ? '' : 'changed') : 'missing'
     );
   }
+
+  // ── the shipped run registry and run folder (what the real hooks wrote, not a stand-in) ──
+  const busy = manifest?.busy;
+  if (busy && registry) {
+    set(
+      inv,
+      'hold-in-force',
+      holdInForce(registry.view, busy.canvas, busy.artboard),
+      `the hold on ${busy.artboard} was gone from the registry at grade time`
+    );
+  }
+  if (busy) {
+    const reached = [];
+    for (const s of runState.sessions) {
+      const t = s.touched?.[busy.canvas];
+      if (t && (t.artboards === null || (t.artboards ?? []).includes(busy.artboard)))
+        reached.push(`${s.name}: ${t.artboards === null ? 'unknown artboards' : busy.artboard}`);
+    }
+    set(q, 'run-log:busy-not-touched', reached.length === 0, reached.join('; '));
+  }
+  if (runState.sessions.some((x) => x.stopBlocks > 0))
+    set(
+      q,
+      'stop-gate-settled',
+      inv.check.pass,
+      'the Stop gate blocked the run and it ended with a failing check'
+    );
 
   // ── annotations ──
   if (e.board) {
@@ -437,7 +445,16 @@ export function gradeCode({ task, project, transcript, manifest }) {
   if (e.trash) {
     const c = e.trash.canvas;
     const gone = !existsSync(join(project, '.design', c));
-    const trashed = walk(join(project, '.design', '_trash'), (p) => p.endsWith(c)).length > 0;
+    // the studio's trash: `_trash/<stamp>__<slug>/…` with a `_trash-manifest.json` naming the canvas
+    const trashed = walk(join(project, '.design', '_trash'), (p) =>
+      p.endsWith('_trash-manifest.json')
+    ).some((m) => {
+      try {
+        return JSON.parse(readFileSync(m, 'utf8')).canvas === c;
+      } catch {
+        return false;
+      }
+    });
     set(
       inv,
       'trash-not-rm',
@@ -619,6 +636,13 @@ export function gradeCode({ task, project, transcript, manifest }) {
     quality: q,
     changed: changed.map((c) => `${c.st} ${c.path}`),
     touchedArtboards,
-    hooklog: runs.hooklog,
+    hooklog,
+    runState: runState.sessions.map((x) => ({
+      session: x.name,
+      touched: x.touched,
+      stopBlocks: x.stopBlocks,
+      shots: x.shots.length,
+      bases: x.bases.length,
+    })),
   };
 }
