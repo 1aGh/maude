@@ -38,10 +38,16 @@ describe('the pass line names the surface in each mode', () => {
     expect(line?.line).not.toMatch(/Light|Dark/);
   });
 
-  test("the accent on its own text: white in Light, the text token's name in Dark", () => {
+  test('the accent is judged on the page: white in Light, "the dark page" in Dark (P8 C8)', () => {
     const line = contrastLine(model(), '--accent', {});
     expect(line?.ok).toBe(true);
-    expect(line?.line).toMatch(/^\d+(\.\d)?:1 on white · \d+(\.\d)?:1 on Text on accent$/);
+    expect(line?.line).toMatch(/^\d+(\.\d)?:1 on white · \d+(\.\d)?:1 on the dark page$/);
+  });
+
+  test('a fill without a page of its own to sit on (a soft fill) keeps the pair it is judged in', () => {
+    const line = contrastLine(model(), '--accent-fg', {});
+    expect(line?.ok).toBe(true);
+    expect(line?.line).not.toContain('the dark page');
   });
 
   test('the page itself is "the dark page" in Dark and "white" in Light when it is white', () => {
