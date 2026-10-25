@@ -87,3 +87,30 @@ describe('ai-permission rings', () => {
     expect(q('ai-ring-a')?.hasAttribute('data-grouped')).toBe(false);
   });
 });
+
+describe('ai-panel-closed: a tag is never hidden by the dock or the size chip', () => {
+  test('a selected narrow artboard puts its tag below, not beside its own name + size chip', async () => {
+    const { tagPlacement } = await import('../artboard-activity-overlay.tsx');
+    expect(tagPlacement(270)).toBe('above');
+    expect(tagPlacement(270, { selected: true })).toBe('below');
+    expect(tagPlacement(500, { selected: true })).toBe('above');
+  });
+  test('a tag that would land under the dock strip goes inside the artboard, at its foot', async () => {
+    const { tagPlacement } = await import('../artboard-activity-overlay.tsx');
+    expect(tagPlacement(200, { bottomPx: 880, viewportPx: 900 })).toBe('inside');
+    expect(tagPlacement(200, { bottomPx: 500, viewportPx: 900 })).toBe('below');
+  });
+  test('the layer applies it: the ring says data-at=inside near the viewport foot', async () => {
+    const { act } = await overlay(['a']);
+    const el = document.querySelector('[data-dc-screen="a"]') as HTMLElement;
+    el.getBoundingClientRect = () => rect(100, window.innerHeight - 160, 100, 140);
+    await act(async () => {
+      post({
+        dgn: 'ai-runs',
+        artboards: { a: { state: 'running', who: 'you', tag: 'AI is working', waiting: 0 } },
+      });
+    });
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    expect(q('ai-ring-a')?.getAttribute('data-at')).toBe('inside');
+  });
+});

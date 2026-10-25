@@ -122,6 +122,7 @@ export function RunList({
   width,
   listRef,
   allChats,
+  place,
 }) {
   const yours = yoursRows(view, { designRel, labels, currentChatId });
   const others = canvasRows(view, { activeCanvas, labels });
@@ -129,7 +130,7 @@ export function RunList({
     <div
       ref={listRef}
       className="ai-runs"
-      style={width ? { width } : undefined}
+      style={width || place ? { ...(width ? { width } : null), ...place } : undefined}
       role="menu"
       id={id}
       aria-label="Running chats"
@@ -292,6 +293,7 @@ function RunListOpen({ view, designRel, onOpenList, ...rest }) {
   // S5.18 G1: in a narrow dock column the list narrows to what fits (it hangs from the button's right edge).
   const listRef = useRef(null);
   const [width, setWidth] = useState(null);
+  const [place, setPlace] = useState(null);
   // "All chats  N": the project's chat count, read once while the list is open
   const [total, setTotal] = useState(null);
   useEffect(() => {
@@ -309,11 +311,19 @@ function RunListOpen({ view, designRel, onOpenList, ...rest }) {
   useLayoutEffect(() => {
     const fit = () => {
       const el = listRef.current;
-      const anchor = el?.offsetParent; // the ✦ N wrapper the list hangs from
+      const anchor = el?.parentElement; // the ✦ N wrapper the list hangs from
       if (!el || !anchor) return;
       const column = el.closest('.ai-island, .st-rpanel');
       // 03 `ai-two-artboards`: the list opens UP over the canvas when there is room, so it never covers the chat
-      el.toggleAttribute('data-up', anchor.getBoundingClientRect().top >= el.offsetHeight + 16);
+      // (fixed, from the button's rectangle: the dock slot clips everything that hangs outside it)
+      const a = anchor.getBoundingClientRect();
+      const up = a.top >= el.offsetHeight + 16;
+      el.toggleAttribute('data-up', up);
+      setPlace({
+        position: 'fixed',
+        right: Math.max(8, Math.round(window.innerWidth - a.right)),
+        ...(up ? { bottom: Math.round(window.innerHeight - a.top + 8), top: 'auto' } : { top: Math.round(a.bottom + 8) }),
+      });
       setWidth(
         fitRunListWidth({
           anchorRight: anchor.getBoundingClientRect().right,
@@ -331,6 +341,7 @@ function RunListOpen({ view, designRel, onOpenList, ...rest }) {
       designRel={designRel}
       labels={labels}
       width={width}
+      place={place}
       listRef={listRef}
       allChats={onOpenList ? { count: total, onOpen: onOpenList } : undefined}
       {...rest}

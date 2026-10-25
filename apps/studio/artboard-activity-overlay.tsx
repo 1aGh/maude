@@ -165,6 +165,7 @@ const RINGS_CSS = `
 }
 .dc-ai-ring[data-at="above"] .dc-ai-tag { bottom: calc(100% + 2px); }
 .dc-ai-ring[data-at="below"] .dc-ai-tag { top: calc(100% + 8px); }
+.dc-ai-ring[data-at="inside"] .dc-ai-tag { bottom: 8px; right: 8px; }
 .dc-ai-ring[data-state="running"] .dc-ai-tag { background: var(--dc-ai-spark); color: var(--dc-ai-spark-fg); }
 .dc-ai-ring[data-state="needs-you"] .dc-ai-tag { background: var(--dc-ai-azure); color: var(--dc-ai-azure-fg); }
 /* The settled tag takes its placement from data-at: pinning bottom here as well as the below placement top
@@ -219,9 +220,25 @@ export function ringTagText(r: AiRing): string {
 }
 
 /** Above the artboard (beside its name) when it is wide enough to leave the name room, else below it. */
-export function tagPlacement(widthPx: number): 'above' | 'below' {
-  return widthPx >= 260 ? 'above' : 'below';
+export function tagPlacement(
+  widthPx: number,
+  opts: { selected?: boolean; bottomPx?: number; viewportPx?: number } = {}
+): 'above' | 'below' | 'inside' {
+  // a selected artboard's own label grows by its size chip: "above" then needs room for name + size + tag
+  const placed = widthPx >= (opts.selected ? 440 : 260) ? 'above' : 'below';
+  // a tag below an artboard that ends in the dock's strip would sit under the toolbar: it moves inside, at the foot
+  if (
+    placed === 'below' &&
+    opts.bottomPx !== undefined &&
+    opts.viewportPx !== undefined &&
+    opts.bottomPx + 40 > opts.viewportPx - DOCK_STRIP_PX
+  )
+    return 'inside';
+  return placed;
 }
+
+/** The strip along the viewport's foot that the canvas toolbar / zoom controls cover. */
+const DOCK_STRIP_PX = 72;
 
 /** One letter for another person's face (the canvas has no avatars). */
 export function faceLetter(who: string): string {
@@ -473,7 +490,11 @@ export function ArtboardRingsLayer() {
         div.style.top = `${Math.round(r.top - grow)}px`;
         div.style.width = `${Math.round(r.width + grow * 2)}px`;
         div.style.height = `${Math.round(r.height + grow * 2)}px`;
-        div.dataset.at = tagPlacement(r.width);
+        div.dataset.at = tagPlacement(r.width, {
+          selected: !!target?.hasAttribute('data-ed-selected'),
+          bottomPx: r.bottom + grow,
+          viewportPx: window.innerHeight,
+        });
       }
       const box = groupEl.current;
       if (box) {

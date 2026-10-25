@@ -30,10 +30,6 @@
       inset 0 0 0 1px var(--border-default);
     color: var(--fg-0);
   }
-  .ai-runs[data-up] {
-    top: auto;
-    bottom: calc(100% + var(--space-2));
-  }
   .ai-run-all {
     color: var(--fg-1);
   }
