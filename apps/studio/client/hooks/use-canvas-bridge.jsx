@@ -16,6 +16,9 @@ import { browseFirstRunHint, layersTreeSig, shellToast } from '../shell/util.js'
 // S7.21 — the toast after the inspector's "Add a width" (08 ak-web-widths) and the video artboard's length
 import { settleDuplicateAtWidth } from '../v2/create/duplicate-done.js';
 import { menuRunner } from '../v2/shell/menu-runner.js';
+
+// 01 cf-duplicate-done / 08 ak-web-widths: a copy made is told with the copy glyph, not a success tick
+const DUPLICATE_TOAST = { kind: 'info', icon: 'duplicate' };
 import { settleAddedWidths } from '../v2/inspector/kinds/add-width.js';
 import { publishVideoComps } from '../v2/inspector/kinds/video-facts.js';
 import { resolveToolCursor } from '../../canvas-cursors.ts';
@@ -520,14 +523,15 @@ export function useCanvasBridge({
                 reply(result);
                 // S7.21 — "Tablet and Mobile are beside Desktop." + Undo, when the inspector asked for the copies
                 const added = settleAddedWidths(body, result);
-                if (added) shellToast(added.message, true, added.action);
+                if (added)
+                  shellToast(added.message, true, added.action, DUPLICATE_TOAST);
                 else {
                   // S6.16b (01 cf-duplicate-done) — the artboard menu's "Duplicate at another width ▸": the
                   // shell says it, off the request it forwarded and the server's answer, with its own ⌘Z.
                   const done = settleDuplicateAtWidth(body, result, () =>
                     menuRunner.run('edit.undo')
                   );
-                  if (done) shellToast(done.message, true, done.action);
+                  if (done) shellToast(done.message, true, done.action, DUPLICATE_TOAST);
                 }
                 // S2.24 G1 — a write to the selected text changes what the inspector measured (the style it wears,
                 // what differs from it, the size): put the selection back so the canvas probes it again.
