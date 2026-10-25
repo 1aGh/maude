@@ -224,6 +224,9 @@ export function TokenPanel({
         after: lightV,
         beforeName: was,
         afterName: valueName(themes.light) || null,
+        kind: isColour ? 'Colour' : null,
+        contrast: line?.line ?? null,
+        contrastOk: line?.ok === true,
       },
     });
   // S10.17 — "Move to trash…": ask the server what the canvases would follow, then show the sheet

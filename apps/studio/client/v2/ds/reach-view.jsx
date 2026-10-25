@@ -216,9 +216,9 @@ export function DsReachView({
         </h2>
         <p className="dsx-s" data-testid="ds-reach-sub">
           {swatch?.beforeName && swatch?.afterName
-            ? `${name} goes from ${swatch.beforeName} to ${swatch.afterName}. `
-            : `${name} lands in these places. `}
-          {REACH_WORDS.lines}
+            ? `${name} went from ${swatch.beforeName} to ${swatch.afterName} ${REACH_WORDS.where}. `
+            : `${name} lands in these places ${REACH_WORDS.where}. `}
+          {`“${usedPhrase(reach)} › Show” draws where it goes — the system's own Patterns and every canvas — before anything is updated.`}
         </p>
         <button type="button" className="btn dsx-x" data-testid="ds-reach-close" onClick={onClose}>
           {REACH_WORDS.close}
@@ -236,7 +236,9 @@ export function DsReachView({
         </svg>
 
         <div className="island island--pad dsx-token" data-testid="ds-reach-token">
-          <p className="dsx-k">{name}</p>
+          <p className="dsx-k" data-testid="ds-reach-key">
+            {swatch?.kind ? `${swatch.kind} › ${name}` : name}
+          </p>
           <p className="dsx-ch">
             {swatch?.before ? (
               <span
@@ -244,6 +246,7 @@ export function DsReachView({
                 style={{ background: safeColour(swatch.before) ?? undefined }}
               />
             ) : null}
+            {swatch?.beforeName && swatch?.afterName ? <span>{swatch.beforeName}</span> : null}
             {swatch?.before && swatch?.after ? <StIcon name="chevron-right" size={12} /> : null}
             {swatch?.after ? (
               <span
@@ -254,7 +257,14 @@ export function DsReachView({
             ) : (
               <span className="dsx-dot dsx-dot--bare" ref={dot} />
             )}
+            {swatch?.beforeName && swatch?.afterName ? <b>{swatch.afterName}</b> : null}
           </p>
+          {swatch?.contrast ? (
+            <p className="insp-quiet dsx-contrast" data-testid="ds-reach-contrast" data-tone={swatch.contrastOk ? 'ok' : 'warn'}>
+              <StIcon name={swatch.contrastOk ? 'check' : 'problem'} size={12} />
+              <span>{swatch.contrast}</span>
+            </p>
+          ) : null}
           <p className="dsx-used" data-testid="ds-reach-used">
             <StIcon name="layers" size={12} />
             <span>{usedLine(reach)}</span>
@@ -365,16 +375,17 @@ export function DsReachView({
         ) : null}
       </div>
       <p className="dsx-note" data-testid="ds-reach-note">
-        {REACH_WORDS.reviewNote}
+        <b>{REACH_WORDS.noteTitle}</b> {REACH_WORDS.lines} {REACH_WORDS.reviewNote}
       </p>
     </div>
   );
 }
 
-const usedLine = (reach) => {
+const usedPhrase = (reach) => {
   const n = reach.canvases;
-  return `Used in ${n} ${n === 1 ? 'canvas' : 'canvases'} · showing`;
+  return `Used in ${n} ${n === 1 ? 'canvas' : 'canvases'}`;
 };
+const usedLine = (reach) => `${usedPhrase(reach)} · showing`;
 
 /** The review list beside the rings: the rows, the ticks, Cancel and Update — the sheet's own model. */
 function ReachReview({ review, places, scope, onUpdate, onCancel }) {

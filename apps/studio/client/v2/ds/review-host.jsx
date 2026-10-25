@@ -175,6 +175,10 @@ function reachSwatch(raw) {
     after: t(raw.after),
     beforeName: t(raw.beforeName),
     afterName: t(raw.afterName),
+    // the key line ("Colour › Accent") and the contrast line the inspector already said (text only)
+    kind: t(raw.kind),
+    contrast: t(raw.contrast),
+    contrastOk: raw.contrastOk === true,
   };
 }
 

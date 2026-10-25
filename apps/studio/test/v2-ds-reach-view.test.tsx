@@ -115,7 +115,15 @@ async function mount(over: Record<string, unknown> = {}) {
     ds: 'studio',
     cfg: CFG,
     name: 'Accent',
-    swatch: { before: '#0a6', after: '#06a', beforeName: 'Azure', afterName: 'Deeper azure' },
+    swatch: {
+      before: '#0a6',
+      after: '#06a',
+      beforeName: 'Azure',
+      afterName: 'Deeper azure',
+      kind: 'Colour',
+      contrast: '5.6:1 on white · 4.8:1 on the dark page',
+      contrastOk: true,
+    },
     reach: reachModel(USAGE),
     review: REVIEW,
     places: { 'ui/Homepage.tsx': 14, 'ui/Pricing.tsx': 11 },
@@ -152,7 +160,22 @@ describe('the reach view', () => {
       'One colour, everywhere it lands'
     );
     expect(host.querySelector('[data-testid="ds-reach-sub"]')?.textContent).toContain(
-      'Accent goes from Azure to Deeper azure.'
+      'Accent went from Azure to Deeper azure on the Design system canvas.'
+    );
+    // the board's header: the way back to "Show", and what the view draws
+    expect(host.querySelector('[data-testid="ds-reach-sub"]')?.textContent).toContain(
+      '“Used in 3 canvases › Show” draws where it goes — the system\'s own Patterns and every canvas — before anything is updated.'
+    );
+    // the token card: "Colour › Accent", the change in words, the contrast line the inspector said
+    expect(host.querySelector('[data-testid="ds-reach-key"]')?.textContent).toBe('Colour › Accent');
+    expect(host.querySelector('[data-testid="ds-reach-token"]')?.textContent).toContain(
+      'AzureDeeper azure'
+    );
+    expect(host.querySelector('[data-testid="ds-reach-contrast"]')?.textContent).toBe(
+      '5.6:1 on white · 4.8:1 on the dark page'
+    );
+    expect(host.querySelector('[data-testid="ds-reach-note"]')?.textContent).toContain(
+      'Only a canvas-native system can show its own reach.'
     );
     expect(host.querySelector('[data-testid="ds-reach-used"]')?.textContent).toContain(
       'Used in 3 canvases · showing'

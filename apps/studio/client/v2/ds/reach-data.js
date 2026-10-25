@@ -14,6 +14,8 @@ export const REACH_WORDS = Object.freeze({
   title: 'One colour, everywhere it lands',
   titleOther: 'Everywhere it lands',
   lines: 'Lines run from the swatch to every spot that will change, ringed.',
+  noteTitle: 'Only a canvas-native system can show its own reach.',
+  where: 'on the Design system canvas',
   reviewNote: 'The review is the same list — untick a canvas to leave it out.',
   hide: 'Hide',
   close: 'Close',
