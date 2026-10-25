@@ -12,6 +12,8 @@
 
 import path from 'node:path';
 
+import { SPOOF_CHARS_CLASS } from '../spoof-chars.ts';
+
 export const DEFAULT_NAME_TEMPLATE = '{canvas} — {artboard}@{scale}';
 export const MAX_NAME_CHARS = 120;
 
