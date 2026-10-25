@@ -15,6 +15,8 @@ import {
 import { stripOffer } from './ai-offer.js';
 import { alreadySaysUnchanged, CANVAS_UNCHANGED, canvasUnchanged } from './answer-note.js';
 import { OfferSlot } from './OfferCard.jsx';
+import { TurnResult, useTurnRun } from './TurnResult.jsx';
+import { changedSomething } from './run-model.js';
 import { dayDividerFor } from './run-model.js';
 import { StIcon } from '../../shell/icons.jsx';
 import { Copy, Retry, Spark } from './icons.jsx';
@@ -344,6 +346,10 @@ export function AssistantMessage() {
     [parts, view]
   );
   const forceExpand = transcriptForcesExpand(view);
+  // P8 c10 (03 `ai-long`): an earlier turn that changed the canvas keeps its result card
+  const media = useContext(ChatMediaContext);
+  const turnRun = useTurnRun(media?.chatRuns);
+  const turnChanged = !!turnRun && changedSomething(turnRun);
   // A turn that has only called tools so far says nothing yet: no empty bubble, no empty gap.
   const bare = grouped.length === 0;
   return (
@@ -378,10 +384,15 @@ export function AssistantMessage() {
       <OfferSlot parts={rawParts} status={status} />
       {/* S5.8 (03 `ai-question`): an answer that touched nothing says so. Off for a running turn and for any
           tool that can write — see answer-note.js. */}
-      {canvasUnchanged(rawParts, status === 'complete') && !alreadySaysUnchanged(rawParts) ? (
+      {canvasUnchanged(rawParts, status === 'complete') &&
+      !alreadySaysUnchanged(rawParts) &&
+      !turnChanged ? (
         <p className="ai-unchanged" data-testid="ai-canvas-unchanged">
           {CANVAS_UNCHANGED}
         </p>
+      ) : null}
+      {turnChanged ? (
+        <TurnResult run={turnRun} parts={rawParts} designRel={media?.designRel} />
       ) : null}
       <div className="chat-msg-actions" data-testid="chat-msg-actions">
         <ActionBarPrimitive.Copy

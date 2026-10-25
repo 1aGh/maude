@@ -44,6 +44,7 @@ import {
   UserMessage,
 } from '../v2/ai/Feed.jsx';
 import { RunSurface } from '../v2/ai/RunSurface.jsx';
+import { useChatRuns } from '../v2/ai/use-chat-runs.js';
 import { cleanChatTitle, runTitleFor, shownChatTitle } from '../v2/ai/chat-list-model.js';
 import { useAiRuns } from '../v2/ai/runs-store.js';
 import { fetchChatRuns, undoNote, undoRun } from '../v2/ai/run-api.js';
@@ -298,14 +299,21 @@ function ChatThread({
   // ThreadPrimitive.Messages' component registry, which doesn't pass custom
   // props through, so this context is the only way it reaches the filter.
   const [lightboxSrc, setLightboxSrc] = useState(null);
+  // P8 c10 (03 `ai-long`): the chat's runs, so an earlier reply can draw its own result card (v2/ai/TurnResult.jsx)
+  const { run: latestChatRun, runs: chatRunList } = useChatRuns(conn, chatId);
+  const chatRuns = useMemo(
+    () => ({ runs: chatRunList, latestId: latestChatRun?.runId ?? null }),
+    [chatRunList, latestChatRun]
+  );
   const media = useMemo(
     () => ({
       chipName: (token) => attachmentName(attachmentsRef.current.map.get(token) || ''),
       openLightbox: setLightboxSrc,
       designRel,
       transcriptView,
+      chatRuns,
     }),
-    [designRel, transcriptView]
+    [designRel, transcriptView, chatRuns]
   );
   const [activeTools, setActiveTools] = useState([]);
   useEffect(() => conn.onActivity(setActiveTools), [conn]);

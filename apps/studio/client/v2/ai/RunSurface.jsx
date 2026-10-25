@@ -35,7 +35,8 @@ import {
 import { shellMode } from '../shell/use-canvas-mode-lane.js';
 import { compareStore } from '../history/compare-store.js';
 import { viewingWords } from '../history/use-versions.js';
-import { compareView, fetchRunVersions } from './run-compare.js';
+import { compareView } from './run-compare.js';
+import { useRunVersions } from './use-run-versions.js';
 import { artboardLabel, runFile } from './runs-model.js';
 import { useBoardLabels } from './RunList.jsx';
 import { shortArtboardName } from './scope.js';
@@ -46,38 +47,7 @@ import { useChatRuns } from './use-chat-runs.js';
 import { setAnswered, setResultShown } from './result-shown.js';
 
 const IDLE = { runId: null, status: 'idle', note: '' };
-const PICTURE_RETRY_MS = 1500;
-const PICTURE_RETRIES = 4;
 
-/** S5.19 G4: the run's version and the one before it (versions list) once the run has ended having changed things. */
-function useRunVersions(run, designRel) {
-  const [state, setState] = useState({ runId: null, versions: null });
-  const runId = run?.runId ?? null;
-  const wants = !!run && run.state === 'ended' && run.outcome === 'done';
-  useEffect(() => {
-    if (!wants || !runId) return undefined;
-    let cancelled = false;
-    let timer = null;
-    let tries = 0;
-    const read = async () => {
-      const v = await fetchRunVersions(run, { designRel });
-      if (cancelled) return;
-      setState({ runId, versions: v });
-      // pictures still being drawn: look again a few times, then settle for Compare alone
-      if (v && compareView(v).pending && tries < PICTURE_RETRIES) {
-        tries += 1;
-        timer = setTimeout(read, PICTURE_RETRY_MS);
-      }
-    };
-    void read();
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-    // biome-ignore lint/correctness/useExhaustiveDependencies: one read per ended run
-  }, [wants, runId, designRel]);
-  return state.runId === runId ? state.versions : null;
-}
 const ANNOUNCE_MAX = 240;
 
 export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel = '.design' }) {
