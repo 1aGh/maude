@@ -1325,6 +1325,7 @@
     color: var(--fg-2);
   }
   .lp-tidy-foot {
+    container-type: inline-size;
     flex: none;
     display: flex;
     align-items: center;
@@ -1344,6 +1345,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  /* a narrow panel keeps the count and the button on ONE line: the size gives way first (it is in the title and the dialog) */
+  @container (max-width: 270px) {
+    .lp-tidy-size {
+      display: none;
+    }
   }
   .lp-tidy-foot .btn {
     flex: none;

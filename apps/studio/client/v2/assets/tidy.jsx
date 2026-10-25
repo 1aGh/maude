@@ -65,7 +65,10 @@ export function TidyFoot({ model, canTrash, busy, onAsk }) {
   if (model.count === 0) return null;
   return (
     <div className="lp-tidy-foot" data-testid="assets-tidy-foot">
-      <span>{tidyTotalWords(model)}</span>
+      <span title={tidyTotalWords(model)}>
+        {model.count} {model.count === 1 ? 'asset' : 'assets'}
+        <span className="lp-tidy-size"> · {sizeWords(model.bytes)}</span>
+      </span>
       {canTrash ? (
         <button
           type="button"
