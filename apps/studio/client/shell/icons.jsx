@@ -39,6 +39,8 @@ export const STICONS = {
   // the row "›" (a fold, a group count, a Used-in row). StIcon draws an empty svg for an unknown name.
   chevron: <path d="M5 6.5l3 3 3-3" />,
   submenu: <path d="M6 4.5l3.5 3.5L6 11.5" />,
+  // P8 C7 (11 pn-relaunch): the kit's `tab` glyph, path for path — the restore pill's icon
+  tab: <path d="M1.5 13.5h2v-7A2.5 2.5 0 0 1 6 4h4a2.5 2.5 0 0 1 2.5 2.5v7h2" />,
   more: (
     <g fill="currentColor" stroke="none">
       <circle cx="3.5" cy="8" r="1.1" />
