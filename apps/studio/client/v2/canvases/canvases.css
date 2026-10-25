@@ -143,6 +143,15 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  /* 10 co-trashed: "In the trash · open here" is the row's whole message — it is read in full, the name gives way */
+  .cv-sub--slot[data-source="trash"] {
+    flex: none;
+  }
+  .cv-sub--slot[data-source="trash"] .cv-sub-text {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+  }
   .cv-meta {
     flex: none;
     font-size: var(--type-xs);
