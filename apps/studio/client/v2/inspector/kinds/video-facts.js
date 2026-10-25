@@ -4,7 +4,7 @@
 //   Length / fps   a video-comp announces them (`timeline-comps`, DDR-148); the shell bridge hands every announcement to
 //                  `publishVideoComps(file, comps)` and the inspector reads `videoFactsOf(file, artboardId)`. Nothing is
 //                  fetched for them, nothing is stored: they are the comp's own numbers.
-//   Sound          the first music clip of the comp — `GET /_api/comp-clips` (the one clip enumerator, DDR-150; read-only,
+//   Sound          the first music of the comp (a clip's Audio, else a bare <Audio> bed) — `GET /_api/comp-clips` (the one clip enumerator, DDR-150; read-only,
 //                  main origin). Read once per (canvas, artboard) and again when the comp announces a different length.
 //
 // A small external store (like the poster's, `timeline/poster.js`) so the rows redraw when an announcement lands.
@@ -77,8 +77,12 @@ export async function loadSound(file, artboardId, fetchImpl = globalThis.fetch) 
     );
     if (r.ok) {
       const body = await r.json();
-      const audio = (body?.clips ?? []).find((c) => c?.mediaTag === 'Audio' && c?.mediaSrc);
-      name = audio ? soundName(audio.mediaSrc) : '';
+      // A song is either a clip's own media or a bare `<Audio>` in the comp body (outside every Sequence — how the
+      // Timeline's Music lane reads it too); the enumerator lists the second kind under `media`, not `clips`.
+      const audio =
+        (body?.clips ?? []).find((c) => c?.mediaTag === 'Audio' && c?.mediaSrc) ??
+        (body?.media ?? []).find((m) => m?.tag === 'Audio' && m?.src);
+      name = audio ? soundName(audio.mediaSrc ?? audio.src) : '';
       videos = (body?.clips ?? [])
         .filter((c) => c?.mediaTag === 'Video' && typeof c?.mediaSrc === 'string' && c.mediaSrc)
         .map((c) => ({

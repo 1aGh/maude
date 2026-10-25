@@ -8,6 +8,7 @@ import { createRoot, type Root } from 'react-dom/client';
 
 const realFetch = globalThis.fetch;
 let clips: unknown[] = [];
+let media: unknown[] = [];
 const fetched: string[] = [];
 beforeAll(() => {
   GlobalRegistrator.register();
@@ -17,7 +18,7 @@ beforeAll(() => {
     if (String(url).endsWith('.css'))
       return new Response(':root{--space-4:16px;--bg-1:#fff;--ink:#111}', { status: 200 });
     if (String(url).startsWith('/_api/comp-clips'))
-      return new Response(JSON.stringify({ ok: true, clips }), { status: 200 });
+      return new Response(JSON.stringify({ ok: true, clips, media }), { status: 200 });
     if (String(url).startsWith('/_api/canvas-meta'))
       return new Response(JSON.stringify({ artboardMeta: { hype: { poster: 120 } } }), {
         status: 200,
@@ -39,6 +40,7 @@ beforeEach(async () => {
   const { foldStore } = await import('../client/v2/fold/use-fold.js');
   foldStore.set('inspector', false);
   clips = [];
+  media = [];
   fetched.length = 0;
 });
 afterEach(async () => {
@@ -362,6 +364,22 @@ describe('Video (ak-video)', () => {
       'insp-ab-sound'
     );
     expect(none?.className).not.toContain('insp-ro--pill');
+  });
+
+  test('08 ak-video: a music bed that sits loose in the comp body (no Sequence) is the Sound too', async () => {
+    const { publishVideoComps, resetVideoFacts } = await import(
+      '../client/v2/inspector/kinds/video-facts.js'
+    );
+    resetVideoFacts();
+    publishVideoComps(FILE, [
+      { id: 'hype-comp', artboardId: 'hype', fps: 30, durationInFrames: 450 },
+    ]);
+    // the enumerator lists the Sequences as clips and the bare <Audio src="assets/music.mp3"> under `media`
+    clips = [{ mediaTag: 'Video', mediaSrc: 'assets/a.mp4' }];
+    media = [{ tag: 'Audio', src: 'assets/music.mp3' }];
+    const host = await frame(REELS);
+    expect(q(host, 'insp-ab-sound')?.textContent).toBe('music');
+    expect(q(host, 'insp-ab-sound')?.className).toContain('insp-ro--pill');
   });
 
   test('before the comp has announced itself: no numbers invented; no music reads "None yet"', async () => {
