@@ -52,30 +52,30 @@ export async function run(h) {
     await page.keyboard.press('Escape'); await sleep(500);
     await h.step(`${D}/an-place-preview`, 'Stickies in Preview', 'Preview mode', async () => {});
     await h.step(`${D}/an-sticky`, 'A sticky, up close', 'click a sticky, zoom to it', async () => {
-      const el = af().first(); if (await el.count()) { const b = await el.boundingBox(); await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2); await sleep(900); await zoomIn(b.x + b.width / 2, b.y + b.height / 2, 5); }
+      const el = af().first(); if (await el.count()) { const b = await el.boundingBox(); await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2); await sleep(900); await zoomIn(b.x + b.width / 2, b.y + b.height / 2, 4); const b2 = await el.boundingBox(); if (b2) { await page.mouse.wheel(b2.x + b2.width / 2 - 720, b2.y + b2.height / 2 - 500); await sleep(900); } }
     });
     await page.keyboard.press('Escape'); await sleep(400);
     await frame();
     // c8-ann: what the layer already does, all of it on the canvas (the board's 8 cells): text in five sizes, the
     // shape set, a link card, clips, a dashed arrow, stickies with lists
     await k.seed(REL, [
-      { op: 'create', type: 'text', text: 'Hej!', x: 40, y: 1120, w: 200, h: 90, fontSize: 64 },
-      { op: 'create', type: 'text', text: 'So 14. 3.', x: 40, y: 1230, w: 260, h: 50, fontSize: 36 },
-      { op: 'create', type: 'text', text: 'Kraví hora, Brno', x: 40, y: 1296, w: 260, h: 40, fontSize: 24 },
-      { op: 'create', type: 'text', text: 'Registrace do 10. 3.', x: 40, y: 1346, w: 260, h: 30, fontSize: 16 },
+      { op: 'create', type: 'text', text: 'Hej!', x: 40, y: 1120, w: 200, h: 90, fontSize: 64, color: '#7a7a86' },
+      { op: 'create', type: 'text', text: 'So 14. 3.', x: 40, y: 1230, w: 260, h: 50, fontSize: 36, color: '#7a7a86' },
+      { op: 'create', type: 'text', text: 'Kraví hora, Brno', x: 40, y: 1296, w: 260, h: 40, fontSize: 24, color: '#7a7a86' },
+      { op: 'create', type: 'text', text: 'Registrace do 10. 3.', x: 40, y: 1346, w: 260, h: 30, fontSize: 16, color: '#7a7a86' },
       { op: 'create', type: 'shape', shape: 'rounded', x: 420, y: 1120, w: 120, h: 70, fill: '#bcd2f0', label: 'Start' },
       { op: 'create', type: 'shape', shape: 'ellipse', x: 580, y: 1120, w: 120, h: 70, fill: '#bfe3c0' },
       { op: 'create', type: 'shape', shape: 'diamond', x: 740, y: 1110, w: 120, h: 90, fill: '#fce8a6', label: 'Ano?' },
       { op: 'create', type: 'shape', shape: 'triangle', x: 420, y: 1230, w: 110, h: 100, fill: '#f7c5c0', dashed: true },
       { op: 'create', type: 'shape', shape: 'triangle-down', x: 580, y: 1230, w: 110, h: 100, fill: '#cfc4ec' },
       { op: 'create', type: 'arrow', x1: 900, y1: 1140, x2: 1080, y2: 1210, dashed: true },
-      { op: 'create', type: 'sticky', text: '• Logo výš\n• Datum tučně\n• QR na zadní', x: 1120, y: 1110, w: 200, h: 130, list: 'bullet' },
-      { op: 'create', type: 'sticky', text: '1. Tisk do pátku\n2. Web v neděli', x: 900, y: 1260, w: 200, h: 110, list: 'number', color: '#bcd2f0' },
+      { op: 'create', type: 'sticky', text: 'Logo výš\nDatum tučně\nQR na zadní', x: 1120, y: 1110, w: 200, h: 130, list: 'bullet' },
+      { op: 'create', type: 'sticky', text: 'Tisk do pátku\nWeb v neděli', x: 900, y: 1260, w: 200, h: 110, list: 'number', color: '#bcd2f0' },
     ]);
-    await k.seed(REL, [{ op: 'create', type: 'link', url: 'https://alligators.cz/combine', title: 'Combine 2026 — registrace', domain: 'alligators.cz', x: 740, y: 1250, w: 260, h: 70 }], 1500);
+    await k.seed(REL, [{ op: 'create', type: 'link', url: 'https://alligators.cz/combine', title: 'Combine 2026 — registrace', domain: 'alligators.cz', x: 420, y: 1370, w: 260, h: 70 }], 1500);
     await k.seed(REL, [
-      { op: 'create', type: 'mediaref', src: 'touchdown.mov', media: 'video', title: 'touchdown.mov', x: 1140, y: 1280, w: 240, h: 56 },
-      { op: 'create', type: 'mediaref', src: 'hymna-2026.mp3', media: 'audio', title: 'hymna-2026.mp3', x: 1140, y: 1350, w: 240, h: 56 },
+      { op: 'create', type: 'mediaref', src: 'assets/touchdown.mov', media: 'video', title: 'touchdown.mov', x: 740, y: 1380, w: 240, h: 56 },
+      { op: 'create', type: 'mediaref', src: 'assets/hymna-2026.mp3', media: 'audio', title: 'hymna-2026.mp3', x: 740, y: 1450, w: 240, h: 56 },
     ], 1500);
     await k.fit();
     await h.step(`${D}/an-today`, 'Everything the layer already does — kept', 'text sizes + the size menu, the shape set, a link card, clips, a dashed arrow, lists', async () => {
@@ -117,7 +117,7 @@ export async function run(h) {
     await h.step(`${D}/an-section`, "Tereza's feedback, wrapped in a section", 'wrap-section around two stickies; Preview, the section selected', async () => {
       await page.keyboard.press('n'); await sleep(1100); await page.keyboard.press('Escape'); await sleep(500);
       const sec = k.fr.locator('.dc-annot-el[data-type="section"]').first();
-      if (await sec.count()) { const b = await sec.boundingBox(); await page.mouse.click(b.x + 70, b.y - 9); await sleep(900); await zoomIn(b.x + b.width / 2, b.y + b.height / 2, 3); }
+      if (await sec.count()) { const b = await sec.boundingBox(); await page.mouse.click(b.x + 70, b.y - 9); await sleep(900); await zoomIn(b.x + b.width / 2, b.y + b.height / 2, 2); const b2 = await sec.boundingBox(); if (b2) { await page.mouse.wheel(b2.x + b2.width / 2 - 720, b2.y + b2.height / 2 - 430); await sleep(900); } }
     });
     await h.esc(2);
     await edit();
@@ -172,10 +172,10 @@ export async function run(h) {
       });
       await page.keyboard.press('Escape'); await sleep(600);
       // the Layers panel stays shut for this shot (the board draws the canvas alone)
-      if (await page.locator('[data-testid="panel-tab-layers"]').first().isVisible().catch(() => false)) { await page.locator('[data-testid="panel-icon-left"]').first().click().catch(() => {}); await sleep(500); }
+      if (await page.locator('[data-testid="panel-fold-left"]').count()) await k.fold();
       await k.seed(REL, sec, 2500);
       await k.seed(REL, stk, 5500);
-      await page.mouse.click(700, 120); await sleep(300); await k.fit(); for (let i = 0; i < 2; i++) { await page.keyboard.press('Meta+-'); await sleep(500); }
+      await page.mouse.click(700, 120); await sleep(300); await k.fit(); await sleep(600);
       await page.mouse.move(60, 520); await sleep(1500);
     });
   }
@@ -270,9 +270,9 @@ export async function run(h) {
         { title: 'Rozpracované', tone: 'yellow', cards: [{ text: 'Leták A6 — registrace s QR kódem', color: '#f7c5c0' }, { text: 'Web: stránka STAŇ SE GATOREM', color: '#bfe3c0' }, { text: 'Post 1:1 — datum tučně', color: '#bcd2f0' }] },
         { title: 'Hotovo', tone: 'green', cards: [{ text: 'Pozvánka pro partnery', color: '#bfe3c0' }, { text: 'Combine v číslech 2025', color: '#bcd2f0' }] },
       ] }));
-      const r = spawnSync('node', [join(REPO, 'cli/bin/maude.mjs'), 'design', 'annotate', REL, '--board', bf, '--near', 'desktop', '--rects', rf, '--root', h.project], { encoding: 'utf8' });
+      const r = spawnSync('node', [join(REPO, 'cli/bin/maude.mjs'), 'design', 'annotate', REL, '--board', bf, '--rects', rf, '--root', h.project], { encoding: 'utf8' });
       console.log('kanban', r.status, (r.stderr || '').slice(0, 300));
-      await sleep(2500); await k.fit();
+      await sleep(2500); await page.keyboard.press('Escape'); await sleep(300); await page.mouse.click(700, 120); await sleep(400); await k.fit();
       await h.step(`${D}/an-plan`, 'The plan sits next to the work', 'annotate --board kanban', async () => {});
     }
   }
