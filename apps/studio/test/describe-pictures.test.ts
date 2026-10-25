@@ -470,6 +470,10 @@ describe('/_api/describe', () => {
       (await routes({ inCell: true }).call('POST', '/_api/describe/consent', { on: true })).status
     ).toBe(409);
     expect((await routes({ access: guest }).call('GET', '/_api/describe')).status).toBe(403);
+    // p8-c4 (403 sweep) — in a cell too: the guest's refusal comes before the cell's 409.
+    expect(
+      (await routes({ access: guest, inCell: true }).call('GET', '/_api/describe')).status
+    ).toBe(403);
     expect((await call('POST', '/_api/describe/consent', { on: 'yes' })).status).toBe(400);
   });
 
