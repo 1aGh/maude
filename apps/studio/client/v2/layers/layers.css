@@ -5,6 +5,7 @@
   .ly2 {
     display: flex;
     flex-direction: column;
+    flex: 1 0 auto; /* fills the panel body, so the kind filter's foot sits at the panel's foot (08 ak-mixed-fit) */
     min-width: 0;
     font-family: var(--font-body);
   }
@@ -67,9 +68,6 @@
     background: var(--accent-tint);
     color: var(--fg-0);
     font-weight: 500;
-  }
-  .ly2-board[data-dim="true"] {
-    opacity: 0.45;
   }
   .ly2-ic {
     flex: none;

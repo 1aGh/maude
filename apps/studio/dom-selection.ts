@@ -454,7 +454,9 @@ function styleMapsFor(el: Element | null): {
         if (a.name.startsWith('data-dc-') && a.name !== 'data-dcid') {
           attrs[a.name] = a.value;
         }
-      }
+      } // V2-8.5 C8 (08 ak-web-widths) — the Height row's note compares this page with its other widths.
+      const longest = webLongestOf(el as HTMLElement);
+      if (longest) attrs['data-dc-web-longest'] = String(longest);
     }
     // Stage M — parent's layout context (for the Fixed/Hug/Fill sizing control +
     // flex-child row gating). Read here because the shell can't reach the
@@ -692,6 +694,28 @@ function artboardBody(el: HTMLElement): HTMLElement | null {
  */
 export function artboardWorldW(el: HTMLElement): number {
   return artboardBody(el)?.offsetWidth ?? el.offsetWidth;
+}
+
+/**
+ * V2-8.5 C8 (08 ak-web-widths: "2185 now — the longest of the three.") — how many web pages stand in this one's
+ * section when it is the TALLEST of them, else null. The same page at 1440 / 834 / 390 sits side by side in one
+ * section, each at its own width and each fitting its content; a board that is fixed, or a section whose web boards
+ * share a width (separate pages, not widths of one), has nothing to compare. Read at selection time, so it never goes
+ * stale when a sibling grows.
+ */
+export function webLongestOf(el: HTMLElement): number | null {
+  const isWeb = (b: Element) =>
+    b.getAttribute('data-dc-kind') === 'web' && b.getAttribute('data-dc-fixed') !== 'true';
+  if (!el.hasAttribute('data-dc-screen') || !isWeb(el)) return null;
+  const scope = el.closest('[data-dc-section]') ?? el.ownerDocument;
+  const pages = Array.from(scope.querySelectorAll('[data-dc-screen]')).filter(
+    isWeb
+  ) as HTMLElement[];
+  if (pages.length < 2 || !pages.includes(el)) return null;
+  const widths = new Set(pages.map((b) => Math.round(artboardWorldW(b))));
+  if (widths.size !== pages.length) return null;
+  const mine = artboardWorldH(el);
+  return pages.every((b) => b === el || artboardWorldH(b) < mine) ? pages.length : null;
 }
 
 /**

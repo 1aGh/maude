@@ -117,7 +117,7 @@ export function HeightRows({ f, setHug }) {
         </span>
       </Row>
       {!f.fixed && Number.isFinite(f.h) ? (
-        <Quiet testid="insp-ab-height-note">{webHeightNote(f.h)}</Quiet>
+        <Quiet testid="insp-ab-height-note">{webHeightNote(f.h, f.longestOf)}</Quiet>
       ) : null}
     </>
   );

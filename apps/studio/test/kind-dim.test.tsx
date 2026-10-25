@@ -154,7 +154,14 @@ async function mount(node: React.ReactNode) {
 describe('the Layers chips', () => {
   async function filter(boards: Board[] | undefined, canvas = 'Combine-kampan') {
     const { LayersKindFilter } = await import('../client/v2/kinds/LayersKindFilter.jsx');
-    return mount(<LayersKindFilter boards={boards} canvasName={canvas} />);
+    const { ArtboardLayers } = await import('../client/v2/layers/artboard-layers.jsx');
+    // the foot is the Layers list's (V2-8.5 C8, 08 ak-mixed-fit): chips above, list, the foot under it
+    return mount(
+      <>
+        <LayersKindFilter boards={boards} canvasName={canvas} />
+        <ArtboardLayers boards={boards} canvasName={canvas} />
+      </>
+    );
   }
 
   test('five chips with the per-artboard counts; each name is "<word>, <n>"', async () => {

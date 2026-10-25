@@ -42,7 +42,7 @@ export const THEME_OPTIONS = Object.freeze([
 const num = (v) => (Number.isFinite(v) ? v : null);
 
 /** @returns {{ id: string | null, w: number | null, h: number | null, kind: string, fixed: boolean, bg: string,
- *   padding: string, gap: string, layout: string, print: any, theme: string }} */
+ *   padding: string, gap: string, layout: string, print: any, theme: string, longestOf: number | null }} */
 export function artboardFacts(el) {
   const attrs = el?.attrs || {};
   let print = null;
@@ -65,6 +65,9 @@ export function artboardFacts(el) {
     layout: attrs['data-dc-layout'] ?? '',
     print,
     theme: attrs['data-dc-theme-pin'] || 'follow',
+    // V2-8.5 C8 (08 ak-web-widths): how many pages this one is the tallest of ("the longest of the three")
+    longestOf:
+      Number(attrs['data-dc-web-longest']) > 1 ? Number(attrs['data-dc-web-longest']) : null,
   };
 }
 

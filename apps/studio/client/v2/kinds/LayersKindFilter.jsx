@@ -23,6 +23,32 @@ import {
 } from './kind-filter-store.js';
 import { artboardCounts, layersFoot, noArtboardsOfKind, SHOW_ALL } from './layers-kind-model.js';
 
+/**
+ * V2-8.5 C8 (08 ak-mixed-fit): "19 other artboards are dimmed. Show all" is the FOOT of the panel — under the list the
+ * filter narrowed, not stacked under the chips. Drawn by the Layers-by-artboard list (it knows the list).
+ * @param {{ boards?: Array<{ id: string, kind?: string }> }} props
+ */
+export function LayersKindFoot({ boards }) {
+  const [filter] = useKindFilter();
+  const counts = useMemo(() => artboardCounts(boards), [boards]);
+  const kind = counts.all > 0 && isFilterKind(filter) ? filter : 'all';
+  const foot = layersFoot({ boards, kind });
+  if (!foot || (kind !== 'all' && counts[kind] === 0)) return null;
+  return (
+    <p className="kf-foot" data-testid="layers-kind-foot">
+      {foot}{' '}
+      <button
+        type="button"
+        className="kf-foot-link"
+        data-testid="layers-kind-show-all"
+        onClick={clearKindFilter}
+      >
+        {SHOW_ALL}
+      </button>
+    </p>
+  );
+}
+
 /** @param {{ boards?: Array<{ id: string, kind?: string }>, canvasName?: string }} props */
 export function LayersKindFilter({ boards, canvasName = '' }) {
   const [filter, , pick] = useKindFilter();
@@ -45,7 +71,6 @@ export function LayersKindFilter({ boards, canvasName = '' }) {
   }, [known]);
 
   if (!known) return null;
-  const foot = layersFoot({ boards, kind });
   const none = kind !== 'all' && counts[kind] === 0;
   const words = none ? noArtboardsOfKind({ kind, canvas: canvasName, boards }) : null;
   return (
@@ -77,19 +102,6 @@ export function LayersKindFilter({ boards, canvasName = '' }) {
             </button>
           }
         />
-      ) : null}
-      {foot && !words ? (
-        <p className="kf-foot" data-testid="layers-kind-foot">
-          {foot}{' '}
-          <button
-            type="button"
-            className="kf-foot-link"
-            data-testid="layers-kind-show-all"
-            onClick={clearKindFilter}
-          >
-            {SHOW_ALL}
-          </button>
-        </p>
       ) : null}
     </div>
   );
