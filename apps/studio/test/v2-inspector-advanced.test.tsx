@@ -148,6 +148,7 @@ describe('06 · ad-inspector — closed and open', () => {
       'element',
       'used-in',
       'raw',
+      'facts',
     ]);
     const titles = [...host.querySelectorAll('.insp-sub')].map(
       (p) => p.firstElementChild?.textContent

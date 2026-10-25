@@ -86,9 +86,12 @@ const OBJECT_SLOTS = [
   { key: 'tokens', group: 'tokens' },
   { key: 'identity', group: 'element', only: ['element.id'], title: 'Element id', idBlock: true },
   { key: 'in-code', group: 'in-code' },
-  { key: 'element', group: 'element', not: ['element.id'] },
+  { key: 'element', group: 'element', not: ['element.id', 'element.facts'] },
   { key: 'used-in', group: 'used-in' },
   { key: 'raw', group: 'css', only: ['css.raw-editor'], title: null },
+  // POS / SIZE / FILL / TEXT / FONT (the v1 Inspect facts): neither 06 nor 14 draws them — they duplicate
+  // Position / Size above — so they follow the raw editor at the very end (nothing deleted, p8-c10-advvid).
+  { key: 'facts', group: 'element', only: ['element.facts'], title: null },
 ];
 
 function ObjectGroups({ el, ctx }) {
