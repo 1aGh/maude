@@ -26,6 +26,13 @@ describe('artboard-activity-overlay', () => {
     expect(html).toContain('aria-hidden');
   });
 
+  test('04 md-edge-ai: the AI wears a pointer — an arrow and a "+ AI" label — on the artboard it is changing', () => {
+    const html = renderToStaticMarkup(<ArtboardActivityOverlay rect={RECT} label="x" active />);
+    expect(html).toContain('dc-activity-ptr');
+    expect(html).toMatch(/dc-activity-ptr-l[^>]*>\+ AI</);
+    expect(html).toContain('<svg');
+  });
+
   test('agent color overrides the activity CSS var', () => {
     const html = renderToStaticMarkup(
       <ArtboardActivityOverlay rect={RECT} label="Nimble Ferret" active color="#ff9800" />

@@ -126,10 +126,12 @@ describe('modes-present (S3.13)', () => {
 
   it('Presenter view needs two displays', async function () {
     await $(tid('mode-present-menu')).click();
-    const hasRow = await exists('mode-present-presenter-view');
+    // one display: the row is drawn greyed, "Needs a second display" (v2-p8-c7-presenter-row-greyed) — nothing to drive
+    const hasRow =
+      (await $(tid('mode-present-presenter-view')).getAttribute('aria-disabled')) !== 'true';
     await chord('Escape', 'Escape');
     if (!hasRow) {
-      this.skip(); // one display: the row is not offered (S3.6b), nothing to drive
+      this.skip();
       return;
     }
     await $(tid('mode-present-menu')).click();
