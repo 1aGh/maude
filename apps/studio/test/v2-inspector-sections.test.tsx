@@ -287,6 +287,24 @@ describe('Layout', () => {
       value: 'var(--space-2) var(--space-5)',
     });
   });
+  test('Padding with all four sides alike is ONE chip (14 ed-lay-auto); the sides open from the section header', async () => {
+    const host = await frame({}, { authored: { ...BUTTON.authored, padding: 'var(--space-5)' } });
+    expect(q(host, 'insp-chip-pad-all')?.textContent).toBe('Space 24');
+    expect(q(host, 'insp-ctl-pad-h')).toBeNull();
+    expect(q(host, 'insp-ctl-pad-v')).toBeNull();
+    // the toggle is the Layout header's icon, not a button in the Padding row
+    const toggle = q(host, 'insp-sides');
+    expect(toggle?.closest('[data-testid="insp-row-padding"]')).toBeNull();
+    expect(toggle?.closest('[data-testid="insp-sec-layout"]')).not.toBeNull();
+    expect(q(host, 'insp-row-pad-top')).toBeNull();
+    await click(toggle);
+    for (const side of ['top', 'right', 'bottom', 'left'])
+      expect(q(host, `insp-row-pad-${side}`)).not.toBeNull();
+    // one value for every side: the chip writes the whole shorthand
+    await click(q(host, 'insp-chip-pad-all')?.closest('button') ?? null);
+    await click(q(host, 'insp-stop-pad-all-16'));
+    expect(lastPost()).toMatchObject({ property: 'padding', value: 'var(--space-4)' });
+  });
   test('Padding per side opens four rows; an uneven box says Mixed', async () => {
     const host = await frame(
       {},
@@ -389,18 +407,62 @@ describe('Position pins go through object.constrain (S2.11b)', () => {
   });
 });
 
+// V2-8.5 c6 (14 ed-lay-auto vs ed-obj-enter): who leads the card depends on who places the object.
+describe('Section order for a frame', () => {
+  const order = (host: HTMLElement) =>
+    [...host.querySelectorAll<HTMLElement>('[data-testid^="insp-sec-"]')]
+      .map((n) => n.getAttribute('data-testid')?.replace('insp-sec-', '') ?? '')
+      .slice(0, 3);
+  const FRAME = {
+    tag: 'div',
+    authored: { display: 'flex' },
+    computed: { display: 'flex', position: 'static' },
+    childCount: 3,
+  };
+  test('an auto-layout frame no layout places leads with Layout, then Size', async () => {
+    const host = await frame({}, { ...FRAME, parentDisplay: 'block' });
+    expect(order(host)).toEqual(['layout', 'size', 'position']);
+  });
+  test('the same frame inside another layout keeps Position first (who places it)', async () => {
+    const host = await frame({}, { ...FRAME, parentDisplay: 'flex' });
+    expect(order(host)).toEqual(['position', 'size', 'layout']);
+  });
+});
+
 describe('Position', () => {
   const PLACED = {
     authored: { position: 'absolute', left: '1220px', top: '22px' },
     computed: { position: 'absolute' },
   };
-  test('inside auto layout X and Y are the frame’s: dim, with the one-line reason, and write nothing', async () => {
-    const host = await frame();
-    expect(q(host, 'insp-row-xy')?.getAttribute('data-dim')).toBe('true');
-    expect(q(host, 'insp-position-auto')).not.toBeNull();
-    await enter(inner(host, 'insp-num-x'), '40');
-    expect(posts).toEqual([]);
+  test('inside auto layout (14 ed-obj-enter): "In <frame> · Set by <frame> · 2 of 3" — no X · Y, no Rotation', async () => {
+    const host = await frame({
+      layersTree: {
+        artboardId: 'desktop',
+        nodes: [
+          {
+            id: 'services',
+            index: 0,
+            label: 'Services',
+            tag: 'div',
+            children: [
+              { id: 'a', index: 0, label: 'A', tag: 'div' },
+              { id: BUTTON.id, index: BUTTON.index ?? 0, label: 'Book', tag: 'button' },
+              { id: 'c', index: 0, label: 'C', tag: 'div' },
+            ],
+          },
+        ],
+      },
+    });
+    expect(q(host, 'insp-row-in-layout')?.textContent).toContain('In Services');
+    expect(q(host, 'insp-in-layout')?.textContent).toBe('Set by Services · 2 of 3');
+    expect(q(host, 'insp-row-xy')).toBeNull();
+    expect(q(host, 'insp-row-rotation')).toBeNull();
+    expect(q(host, 'insp-position-auto')).toBeNull();
     expect(q(host, 'insp-cons')).toBeNull();
+  });
+  test('inside auto layout with a tree that does not know the object: "Set by its frame", no count', async () => {
+    const host = await frame();
+    expect(q(host, 'insp-in-layout')?.textContent).toBe('Set by its frame');
   });
   test('a placed object: X and Y are left and top', async () => {
     const host = await frame({}, PLACED);

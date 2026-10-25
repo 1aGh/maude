@@ -6,7 +6,7 @@
 // change never touches display), through the words → CSS writer.
 
 import { ArrowDown, ArrowRight, LayoutGrid, Move, Scan } from 'lucide-react';
-import { useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { layoutToCss, lengthToCss, toWords } from '../../../../edit-ops/words-css.ts';
 import { AlignPad, IconButtonGroup, Segmented } from '../../../inspector-controls.jsx';
 import { useCssWrite } from '../css-write.js';
@@ -39,6 +39,55 @@ const cellOf = (align) => {
   return ROWS[idx(align.v)] + COLS[idx(align.h)];
 };
 
+/* V2-8.5 c6: "Padding per side" is the section header's icon (14 ed-lay-auto draws it at the end of the Padding row;
+   the 264 card has no room for it beside H and V). The choice is per element, like Corners' unlink. */
+const sidesOpen = new Map();
+const subs = new Set();
+let version = 0;
+const subscribe = (f) => {
+  subs.add(f);
+  return () => subs.delete(f);
+};
+const keyOf = (el) => `${el?.id ?? ''}#${el?.index ?? 0}`;
+const readPad = (el) => {
+  const w = toWords(el?.authored || {}, {}).layout.padding;
+  return {
+    h: lengthToCss(w.left) !== lengthToCss(w.right),
+    v: lengthToCss(w.top) !== lengthToCss(w.bottom),
+  };
+};
+
+/** Tests only: which elements opened their sides, back to none. */
+export function resetPaddingSides() {
+  sidesOpen.clear();
+}
+
+/** The header's per-side toggle (an aside of the slot: a component, so it can read the store). */
+function SidesToggle({ el }) {
+  useSyncExternalStore(subscribe, () => version);
+  const mixed = readPad(el);
+  const forced = mixed.h || mixed.v;
+  const open = sidesOpen.get(keyOf(el)) ?? false;
+  return (
+    <button
+      type="button"
+      className="insp-sec-ic"
+      data-testid="insp-sides"
+      data-on={open || forced ? 'true' : undefined}
+      aria-pressed={open || forced}
+      aria-label="Padding per side"
+      title="Padding per side"
+      onClick={() => {
+        sidesOpen.set(keyOf(el), !open);
+        version += 1;
+        for (const f of subs) f();
+      }}
+    >
+      <Scan size={12} />
+    </button>
+  );
+}
+
 const sameLength = (a, b) => lengthToCss(a) === lengthToCss(b);
 const SIDES = [
   ['top', 'Top'],
@@ -50,7 +99,8 @@ const SIDES = [
 export function LayoutBody({ el, ctx }) {
   const { css, editable, write } = useCssWrite(el, ctx);
   const tokens = useSpaceTokens(ctx);
-  const [sides, setSides] = useState(false);
+  useSyncExternalStore(subscribe, () => version);
+  const sides = sidesOpen.get(keyOf(el)) ?? false;
   const read = effectiveCss(el, css);
   // a gap the file does not author but the browser resolved (a class) reads as the number it is
   const gapComputed = el?.computed?.gap;
@@ -74,6 +124,7 @@ export function LayoutBody({ el, ctx }) {
   const pad = words.padding;
   const hMixed = !sameLength(pad.left, pad.right);
   const vMixed = !sameLength(pad.top, pad.bottom);
+  const allSame = !hMixed && !vMixed && sameLength(pad.left, pad.top);
   const setPad = (patch) => set('padding', { ...words, padding: { ...pad, ...patch } });
 
   return (
@@ -133,47 +184,51 @@ export function LayoutBody({ el, ctx }) {
       ) : null}
       <Row k="Padding" name="padding">
         <span className="insp-pad">
-          <span className="insp-ax">H</span>
-          {hMixed ? (
-            <span className="insp-mixed" data-testid="insp-mixed-h">
-              Mixed
-            </span>
-          ) : (
+          {allSame ? (
+            // 14 ed-lay-auto / ed-obj-enter: all four sides alike read as ONE value ("Space 24"); H and V only
+            // appear when they differ (ed-inspector: "H Space 24 · V 10 Bind")
             <LengthControl
-              name="pad-h"
-              label="Padding horizontal"
+              name="pad-all"
+              label="Padding"
               value={pad.left}
               tokens={tokens}
               disabled={!editable}
-              onChange={(l) => setPad({ left: l, right: l })}
+              onChange={(l) => setPad({ left: l, right: l, top: l, bottom: l })}
             />
-          )}
-          <span className="insp-ax">V</span>
-          {vMixed ? (
-            <span className="insp-mixed" data-testid="insp-mixed-v">
-              Mixed
-            </span>
           ) : (
-            <LengthControl
-              name="pad-v"
-              label="Padding vertical"
-              value={pad.top}
-              tokens={tokens}
-              disabled={!editable}
-              onChange={(l) => setPad({ top: l, bottom: l })}
-            />
+            <>
+              <span className="insp-ax">H</span>
+              {hMixed ? (
+                <span className="insp-mixed" data-testid="insp-mixed-h">
+                  Mixed
+                </span>
+              ) : (
+                <LengthControl
+                  name="pad-h"
+                  label="Padding horizontal"
+                  value={pad.left}
+                  tokens={tokens}
+                  disabled={!editable}
+                  onChange={(l) => setPad({ left: l, right: l })}
+                />
+              )}
+              <span className="insp-ax">V</span>
+              {vMixed ? (
+                <span className="insp-mixed" data-testid="insp-mixed-v">
+                  Mixed
+                </span>
+              ) : (
+                <LengthControl
+                  name="pad-v"
+                  label="Padding vertical"
+                  value={pad.top}
+                  tokens={tokens}
+                  disabled={!editable}
+                  onChange={(l) => setPad({ top: l, bottom: l })}
+                />
+              )}
+            </>
           )}
-          <button
-            type="button"
-            className="insp-sides"
-            data-testid="insp-sides"
-            aria-pressed={sides || hMixed || vMixed}
-            aria-label="Padding per side"
-            title="Padding per side"
-            onClick={() => setSides((s) => !s)}
-          >
-            <Scan size={12} />
-          </button>
         </span>
       </Row>
       {sides || hMixed || vMixed
@@ -228,4 +283,5 @@ export const offLayout = registerSlot('layout', {
   order: 10,
   kinds: LAYOUT_KINDS,
   Body: LayoutBody,
+  aside: ({ el }) => <SidesToggle el={el} />,
 });

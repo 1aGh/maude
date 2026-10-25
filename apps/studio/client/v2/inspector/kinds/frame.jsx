@@ -11,6 +11,7 @@
 // the inspector owns no write of its own here. The bodies register themselves (append-only, sections/index.js).
 
 import { ArrowLeftRight, Move } from 'lucide-react';
+import { Toggle } from '../../../inspector-controls.jsx';
 import { menuRunner } from '../../shell/menu-runner.js';
 import { registerAdvancedRow } from '../advanced-rows.js';
 import { registerSlot } from '../slots.js';
@@ -35,19 +36,22 @@ function PlaceFreelyBody({ el, ctx }) {
   return (
     <>
       <Row k="Place freely" name="place-freely">
-        <button
-          type="button"
-          className="btn btn--sm"
+        {/* 14 ed-obj-enter: a switch, off while the frame lays it out; turning it on makes X and Y its own */}
+        <span
           data-testid="insp-place-freely"
-          disabled={ctx?.editable === false}
           title="Make X and Y yours: it keeps where it is and the frame stops arranging it"
-          onClick={() => menuRunner.run('object.place-freely')}
         >
-          <Move size={12} /> Place freely
-        </button>
+          <Toggle
+            checked={false}
+            ariaLabel="Place freely"
+            onChange={(on) => {
+              if (on && ctx?.editable !== false) menuRunner.run('object.place-freely');
+            }}
+          />
+        </span>
       </Row>
       {parentRow ? (
-        <Quiet testid="insp-reorder-note">
+        <Quiet testid="insp-reorder-note" line>
           <ArrowLeftRight size={11} /> In auto layout, ← → move it earlier or later.
         </Quiet>
       ) : null}

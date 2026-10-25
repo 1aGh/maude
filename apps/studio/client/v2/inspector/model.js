@@ -81,6 +81,30 @@ export function crumbsOf(layersTree, el) {
   return [layersTree.artboardId, ...trail].filter(Boolean);
 }
 
+/**
+ * Where an object sits among its frame's children: "Set by Services · 2 of 3" (14 Editing, ed-obj-enter). `parent` is
+ * the frame's name by the same rule the crumbs use; `index` / `count` count the frame's element children and stay
+ * null when the tree does not know the object (never invented).
+ * @returns {{ parent: string | null, index: number | null, count: number | null }}
+ */
+export function placementOf(layersTree, el) {
+  const none = { parent: null, index: null, count: null };
+  if (!el || Array.isArray(el) || !el.id) return none;
+  const hit = findNode(layersTree?.nodes, el.id, el.index);
+  if (!hit) return none;
+  const frame = hit.trail[hit.trail.length - 1];
+  if (!frame) return none;
+  const label = collapse(frame.label);
+  const siblings = (frame.children || []).filter((n) => n?.tag);
+  const at = siblings.indexOf(hit.node);
+  return {
+    parent:
+      label && !isSelectorLabel(label, frame.tag) ? clip(label, 24) : tagWord(frame.tag || 'div'),
+    index: at >= 0 ? at + 1 : null,
+    count: at >= 0 ? siblings.length : null,
+  };
+}
+
 /** Every id the layers tree knows, other than this element's own occurrences. */
 export function takenIds(layersTree, ownId) {
   const out = new Set();

@@ -102,11 +102,15 @@ const click = async (el: Element | null) => {
 };
 
 describe('Position › Place freely', () => {
-  test('a card in a row: the button runs object.place-freely, and ← → is said', async () => {
+  test('a card in a row: the Place freely switch (14 ed-obj-enter) runs object.place-freely, and ← → is said', async () => {
     await frame();
     expect(q('insp-place-freely')).not.toBeNull();
+    // a switch, not a button: the row is "Place freely" + an off switch
+    const sw = q('insp-place-freely')?.querySelector<HTMLInputElement>('input[type="checkbox"]');
+    expect(sw).not.toBeNull();
+    expect(sw?.checked).toBe(false);
     expect(q('insp-reorder-note')?.textContent).toContain('← → move it earlier or later');
-    await click(q('insp-place-freely'));
+    await click(sw ?? null);
     expect(sent).toEqual([{ dgn: 'run-action', v: 1, id: 'object.place-freely' }]);
   });
 
