@@ -46,6 +46,7 @@ import { useExportCenter } from '../export-center.jsx';
 import { registerExportOpener } from '../v2/export/use-export-spec.js';
 import { canvasTokenRefreshDelay, setLiveCanvasToken, withCanvasToken } from '../canvas-url.js';
 import { useThemeAuto } from '../v2/settings/theme-auto.js';
+import { canvasTargetOrigin } from '../v2/kinds/kind-dim-relay.js';
 
 export function useShellCore({}) {
   const [groups, setGroups] = useState([]);
@@ -130,6 +131,9 @@ export function useShellCore({}) {
         if (!c1 || c1.id !== one.id || (c1.file && c1.file !== one.file)) return; // superseded (the canvas's own select-set names no file, S2.23)
         const frame = iframesRef.current.get(one.file);
         if (!frame?.contentWindow) return;
+        // V2-8.9 defender L2 (C6): the frame's canvas origin, never '*'
+        const origin = canvasTargetOrigin(frame);
+        if (!origin) return;
         try {
           frame.contentWindow.postMessage(
             {
@@ -138,7 +142,7 @@ export function useShellCore({}) {
               artboardId: one.artboardId ?? null,
               index: one.index ?? 0,
             },
-            '*'
+            origin
           );
         } catch {}
       }, delay)
@@ -164,8 +168,10 @@ export function useShellCore({}) {
         if (!isArtboardSelectionOf(c1, artboardId, file)) return; // superseded
         const frame = iframesRef.current.get(file);
         if (!frame?.contentWindow) return;
+        const origin = canvasTargetOrigin(frame); // V2-8.9 L2 (C6)
+        if (!origin) return;
         try {
-          frame.contentWindow.postMessage({ dgn: 'select-by-id', artboardId }, '*');
+          frame.contentWindow.postMessage({ dgn: 'select-by-id', artboardId }, origin);
         } catch {}
       }, delay)
     );
@@ -192,10 +198,12 @@ export function useShellCore({}) {
     })(tree);
     if (!has) return;
     pendingReorderRef.current = null;
-    const win = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
-    if (win) {
+    const frame = activePath ? iframesRef.current.get(activePath) : null;
+    const win = frame?.contentWindow ?? null;
+    const origin = canvasTargetOrigin(frame); // V2-8.9 L2 (C6)
+    if (win && origin) {
       try {
-        win.postMessage({ dgn: 'select-by-id', id: pend.movedId, artboardId, index: 0 }, '*');
+        win.postMessage({ dgn: 'select-by-id', id: pend.movedId, artboardId, index: 0 }, origin);
       } catch {}
     }
   };
@@ -1224,8 +1232,11 @@ export function useShellCore({}) {
     (payload) => {
       const el = activePath ? iframesRef.current.get(activePath) : null;
       if (!el || !el.contentWindow) return;
+      // V2-8.9 defender L2 (C6): the frame's canvas origin, never '*'
+      const origin = canvasTargetOrigin(el);
+      if (!origin) return;
       try {
-        el.contentWindow.postMessage(payload, '*');
+        el.contentWindow.postMessage(payload, origin);
       } catch {}
     },
     [activePath]
