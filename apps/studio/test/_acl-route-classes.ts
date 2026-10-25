@@ -308,6 +308,8 @@ const PROJECT = [
   '/_api/trash/clear',
   // S8.13 — Move assets to the trash: the whole `assets/` folder is the project's (a canvas-only session has no say)
   '/_api/assets/trash',
+  // P8 round 7 — Rename… an asset: the same project-level say as Move to trash
+  '/_api/assets/rename',
   '/_api/ai/attach/file',
   '/_api/ai/attach/folder',
   '/_api/ai/attach/folder/detach',

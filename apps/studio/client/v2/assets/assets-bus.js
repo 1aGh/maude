@@ -82,7 +82,9 @@ export function runAssetsAction(id) {
         ? bound?.details
         : id === 'assets.trash'
           ? bound?.trash
-          : null;
+          : id === 'assets.rename'
+            ? bound?.rename
+            : null;
   if (!fn) return false;
   fn();
   return true;

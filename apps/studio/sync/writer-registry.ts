@@ -368,6 +368,9 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   // S8.13 — Move assets to the trash: the files leave `assets/` (parked in this machine's `_trash/`), and the file plane
   // carries the removal to peers as a tombstone, exactly like a trashed canvas (sync/tombstone-apply.ts quarantines it there)
   '/_api/assets/trash': { class: 'file-plane', rows: 'S27 (delete lane)' },
+  // P8 round 7 — Rename… an asset: assets/<name> + its sidecars move to the new name (a delete + a create on the file plane);
+  // a picture a canvas uses is refused, so no reference changes (asset-rename.ts)
+  '/_api/assets/rename': { class: 'file-plane', rows: 'S27 (rename = delete + create)' },
   '/_api/import-asset': { class: 'file-plane', rows: 'S28/I08' },
   '/_api/import-brand': { class: 'file-plane', rows: 'S28/I07' },
   '/_api/figma/import': { class: 'file-plane', rows: 'I04/I05 (canvases join by cold start)' },
