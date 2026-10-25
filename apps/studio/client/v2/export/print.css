@@ -102,6 +102,21 @@
     border-radius: var(--radius-sm, 6px);
     pointer-events: none;
   }
+  /* 09 ex-print-warn: "2 mm to the cut", the amber tag over the ringed element */
+  .ex-flag-tag {
+    position: absolute;
+    z-index: 3;
+    padding: 1px var(--space-1);
+    border-radius: var(--radius-xs);
+    background: var(--status-warn);
+    color: var(--object-ink);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    font-weight: var(--w-semibold);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
   @keyframes ex-mark-in {
     from {
       opacity: 0;

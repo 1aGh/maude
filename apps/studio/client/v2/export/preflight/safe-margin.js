@@ -9,7 +9,8 @@ const num = (n) => String(Math.round(n * 10) / 10);
 /** What the person calls the element: its text in quotes, else its id as words, else its tag. */
 export function elementName(f) {
   const label = String(f.label ?? '').trim();
-  if (f.element && label === f.element) return `The ${label.replace(/[-_]+/g, ' ')}`;
+  if (f.element && label === f.element)
+    return `The ${label.replace(/[-_]+/g, ' ').replace(/\b(qr|url|cta|ean)\b/gi, (w) => w.toUpperCase())}`;
   return label ? `“${label}”` : 'An element';
 }
 
