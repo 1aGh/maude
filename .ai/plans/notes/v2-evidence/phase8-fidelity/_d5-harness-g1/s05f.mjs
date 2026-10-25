@@ -23,7 +23,12 @@ export async function run(h) {
   await sleep(1500);
   await h.step(`${D}/es-panels-canvas.comment-sent`, 'One comment sent', 'Preview, C, click, type, Enter', async () => {});
   await h.esc(2);
-  await h.click('share-cluster-comments').catch(() => {});
+  await page.keyboard.press('Meta+k');
+  await sleep(500);
+  await page.keyboard.type('comments');
+  await sleep(800);
+  await page.locator('[data-testid="palette-row-action:view.comments"]').first().click().catch((e) => console.log('comments palette fail'));
+  await sleep(1200);
   await sleep(1000);
   await h.step(`${D}/es-panels-canvas.comments-open`, 'Comments panel with one thread', 'share cluster › Comments', async () => {});
   await page.locator('[data-testid^="comment-resolve-"]').first().click({ timeout: 3000 }).catch((e) => console.log('resolve fail'));

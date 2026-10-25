@@ -11,7 +11,7 @@ cp -R "$H"/. .scr/h/
 (cd apps/studio && MAUDE_SKIP_RUNTIME_BUILD=1 bun run build.ts --release) 2>&1 | tail -3
 # the mini has no Playwright chromium build: use its installed Chrome
 export D5_REPO="$PWD" D5_CHANNEL=chrome D5_OUT=.scr/d5g1-impl
-node .scr/h/chain.mjs "$THEMES"
+node .scr/h/chain.mjs "$THEMES" ${D5_SCN:-}
 cat .scr/chain.log
 # leave the slot clean: committed dist back, harness copy gone
 git checkout -- apps/studio/dist 2>/dev/null
