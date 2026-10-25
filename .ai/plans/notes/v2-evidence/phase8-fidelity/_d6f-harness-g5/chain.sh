@@ -15,7 +15,7 @@ rm -f .scr/impl/$DIR/*-$T.png .scr/impl/$DIR/*-$T.*.png
 run() {
   local out
   out=$(bun .scr/run.mjs "$@" 2>&1)
-  echo "$out" | grep -E "^shot|FAIL|RUN ERROR|pageerrors"
+  echo "$out" | grep -E "^shot|FAIL|RUN ERROR|pageerrors|^INSTANCE"
   if ! echo "$out" | grep -q '^shot'; then echo "NO SHOTS:"; echo "$out" | tail -15; fi
 }
 case "$N" in
