@@ -14,13 +14,33 @@ import { readGrowthMemory, sectionSigs, writeGrowthMemory } from './artboard-gro
 import { GROWTH_MS } from './artboard-growth-tag.tsx';
 import { displayLayerName, snippetOf } from './layer-name.ts';
 
+/**
+ * Does this child take its place in the page's flow? A picture placed ON the page (`position: absolute`) is not a
+ * section: the page does not get longer for it, so it is never "new section" (14 ed-edge-paste).
+ */
+export function inFlow(el: Element): boolean {
+  const own = (el as HTMLElement).style?.position ?? '';
+  let pos = own;
+  if (!pos && typeof getComputedStyle === 'function') {
+    try {
+      pos = getComputedStyle(el).position;
+    } catch {
+      pos = '';
+    }
+  }
+  return pos !== 'absolute' && pos !== 'fixed';
+}
+
+/** The children that make up the page: those in its flow. */
+export const flowChildren = (el: Element): Element[] => Array.from(el.children).filter(inFlow);
+
 /** The container whose children are the page's sections: down through single-child wrappers (`<main>`, a page div). */
 export function sectionHost(body: Element | null): Element | null {
   let host: Element | null = body;
-  for (let i = 0; i < 6 && host && host.children.length === 1; i++) {
-    host = host.children[0] ?? null;
+  for (let i = 0; i < 6 && host && flowChildren(host).length === 1; i++) {
+    host = flowChildren(host)[0] ?? null;
   }
-  return host && host.children.length > 1 ? host : null;
+  return host && flowChildren(host).length > 1 ? host : null;
 }
 
 /** The children that were not there last time (empty on the first look: that is the baseline). */
@@ -81,7 +101,7 @@ export function useNewSection(
       return;
     }
     const host = sectionHost(body);
-    const kids = host ? Array.from(host.children) : [];
+    const kids = host ? flowChildren(host) : [];
     const sigs = sectionSigs(kids);
     // the page has not drawn its sections yet (a reload's first pass): keep what was remembered as the baseline
     if (!sigs.length) return;

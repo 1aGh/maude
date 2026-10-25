@@ -6,7 +6,9 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
   ArtboardNewSection,
+  flowChildren,
   freshChildren,
+  inFlow,
   sectionHost,
   sectionName,
 } from '../artboard-new-section.tsx';
@@ -24,6 +26,17 @@ describe('sectionHost', () => {
   test('goes down through single-child wrappers to the container of the sections', () => {
     const body = dom('<main><div class="page"><header></header><section></section></div></main>');
     expect(sectionHost(body)?.className).toBe('page');
+  });
+
+  // P8 c10 (14 ed-edge-paste): a picture placed ON the page is not a section; the page's own block stays the host
+  test('a picture placed on the page (absolute) is not a section: the host is still the page', () => {
+    const body = dom(
+      '<div class="page"><header></header><section></section></div><img style="position:absolute;left:10px" alt="">'
+    );
+    expect(sectionHost(body)?.className).toBe('page');
+    expect(flowChildren(body).map((c) => c.tagName)).toEqual(['DIV']);
+    expect(inFlow(body.querySelector('img') as Element)).toBe(false);
+    expect(inFlow(body.querySelector('header') as Element)).toBe(true);
   });
 
   test('a page that is one block has no sections to compare', () => {
