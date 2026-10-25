@@ -97,6 +97,7 @@ COPY apps/studio/sync/atomic-write.ts /build/apps/studio/sync/atomic-write.ts
 COPY apps/studio/exporters/door-fingerprint.ts /build/apps/studio/exporters/door-fingerprint.ts
 COPY apps/studio/draw/palette.ts /build/apps/studio/draw/palette.ts
 COPY apps/studio/ds/board/build-model.ts /build/apps/studio/ds/board/build-model.ts
+COPY apps/studio/ds/board/brand-notes.ts /build/apps/studio/ds/board/brand-notes.ts
 COPY apps/studio/ds/board/component-states.ts /build/apps/studio/ds/board/component-states.ts
 COPY apps/studio/ds/board/directions-model.ts /build/apps/studio/ds/board/directions-model.ts
 COPY apps/studio/ds/board/types.ts /build/apps/studio/ds/board/types.ts
