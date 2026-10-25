@@ -9,6 +9,9 @@ bash .ai/plans/notes/v2-evidence/phase8-fidelity/_d6f-harness-g5/setup.sh "${N%p
 export SHOTS_OUT=.scr/impl
 export SHOT_CHANNEL="${SHOT_CHANNEL-chrome}"
 mkdir -p .scr/impl
+# a slot's .scr survives between runs: drop this canvas's earlier shots of this theme so only fresh ones are fetched
+case "${N%p}" in 13) DIR=13-design-system;; 14) DIR=14-editing;; 15) DIR=15-annotations;; esac
+rm -f .scr/impl/$DIR/*-$T.png .scr/impl/$DIR/*-$T.*.png
 run() {
   local out
   out=$(bun .scr/run.mjs "$@" 2>&1)
