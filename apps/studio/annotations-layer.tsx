@@ -702,6 +702,7 @@ const ANNOT_CSS = `
   color: var(--maude-hud-accent-fg, #fff); background: var(--maude-hud-accent, oklch(0.53 0.175 238));
 }
 .dc-annot-snap-tag b { font-weight: 600; }
+.dc-annot-gone { position: absolute; box-sizing: border-box; border-style: dashed; border-color: var(--maude-chrome-fg-2, #6e6660); pointer-events: none; }
 .dc-annot-open { position: absolute; box-sizing: border-box; transform: translate(-50%, -50%); border-style: solid; border-radius: 50%; border-color: var(--maude-hud-accent, oklch(0.53 0.175 238)); background: var(--maude-hud-bg, #fff); pointer-events: none; }
 .dc-annot-dg {
   position: absolute; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; width: 228px; transform-origin: 0 0;
