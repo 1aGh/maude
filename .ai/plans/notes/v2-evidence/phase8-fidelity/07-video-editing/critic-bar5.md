@@ -1,31 +1,31 @@
-# critic-bar5 — 07 Video Editing · verified bar (v2-michal-verified-bar), round-9 merged tip (6d96b9aa1 + harness)
+# critic-bar5 — 07 Video Editing · verified bar (v2-michal-verified-bar), D7 merged-tip re-shoot (6d062a4d3)
 
-Judged fresh from the round-9 pairs (light and dark read for every id called verified); full-size impl frames opened for trim-split, formats, reframe, transition, play, music, long, advanced, export, text, captions, move-transition, render. No shot re-taken, no code edited.
+Judged fresh from the D7 pairs (both themes read for every id called verified; full-size SPEC|IMPL frames opened for advanced, formats, none, select, deselect, drop, trim-split, move-transition, transition, text, captions, music, play, reframe, fullscreen, export, render, long, footage-light). No shot re-taken, no code edited.
 
-Lead decisions honoured (not MUST): owning board wins (09 export sheet + Exports panel, 04 present fill, 14 inspector sections such as "Clip" / "Music"), esc chip, timeline raw keys, music Fade not built, "Title · Slide up" tag deferred, captions "Also as a file" deferred (no writer), note-26 extras (Cut to the beat row, tools row above the timeline), re-frame format pills = scope, no auto tracker (so no "Follow a subject"), the 2 min long-video guard kept (nothing-deleted).
+Lead decisions honoured (not MUST): owning board wins (09 export sheet + Exports panel, 04 present fill, 14 inspector sections), esc chip, timeline raw keys, music Fade not built, "Title · Slide up" tag and captions "Also as a file" deferred, note-26 extras (Cut to the beat row, tools row above the timeline), re-frame format pills = scope, no tracker (no "Follow a subject"), 2 min long-video guard kept, Easing card actions (Straight line / Copy timecode) and Render settings "Long videos" + "+ track" are kept v1 controls (c10 decision v2-p8-c10-advanced-cards-in-body).
 
-Round-9 fixes confirmed in the shots: Full timeline shows ruler + all four lanes (trim-split, long, advanced); I / O loop badges on the ruler (play); beat ticks visible over the song (music, both themes); Formats list / link badges / Shared by 3 formats / Make an unlinked copy (formats); format pills in the re-frame header, Reset + Done only (reframe); three-format export sheet "Export 3 videos"; 40-clip fold rows + markers (long); keyframed title + Easing card with curve (advanced).
+Round-10 fixes confirmed: ve-formats shows the "Formats" row with no section heading above it (both themes); ve-advanced draws keyframe diamonds on the title clip (start diamond sits under the playhead, end diamond outlined), Easing is a card at the centre top with the curve, Render settings + The cut as code are one stacked island in the inspector's column at the right, the inspector steps aside while Advanced is open.
 
 ## Per id
-- ve-none · verified (L, D) · none (the reveal-inspector chip at the right edge is shell chrome, polish)
+- ve-none · verified (L, D) · none
 - ve-select · verified (L, D) · none
 - ve-deselect · verified (L, D) · none (open View menu = side row)
 - ve-drop · verified (L, D) · none (OS drag image = side row)
-- ve-trim-split · verified (L, D) · none (F1 fixed: ruler, Text, Graphics, Video, Music all in the body; held trim tip, toast + Undo, Fit / Compact, eye + speaker buttons drawn)
-- ve-move-transition · verified (L, D) · none (lift, tilt, landing line, drop tip drawn; Volume + Framing rows absent only because the fixture beat has no media)
-- ve-transition · verified (L, D) · none (six tiles, Length slider, hover hint, picker anchored on the join with its notch)
-- ve-text · verified (L, D) · none (Font / Colour / Motion tiles / Length card matches; "Title · Slide up" tag = recorded deferral, polish)
-- ve-captions · verified (L, D) · none (Transcript card + Captions inspector + word chips drawn; "Also as a file" = recorded deferral; struck-word state = side row)
-- ve-music · verified (L, D) · none (beat ticks now visible in both themes; Fade = feature deferral; Cut to the beat row = note-26 extra)
-- ve-formats · differs · M1 — the Video inspector draws a "Formats" section heading AND a "Formats" row label (the board has the row only); make the `formats` section headless like `safe-zones` (sections.js, the 08 precedent)
-- ve-reframe · verified (L, D) · none (pills Reels 9:16 / 16:9 / 1:1 are the scope; Reset + Done; "Follow a subject" + "#1 followed" box need the tracker that the video-intelligence decision left out = side row, cannot confirm; Volume row absent because the clip is a photo)
-- ve-play · verified (L, D) · none (I / O badges on the loop range, pause + loop on, Pause tip with the space chip, "Sound on" chip; Step tip = side row)
-- ve-fullscreen · verified (L, D) · none (esc chip, transport pill, scrub, sound, captions; format switcher = side row, one-format fixture)
-- ve-export · verified (L, D) · none (sheet layout is 09's; three formats ticked, Format / Quality / Captions / Render cards, "Export 3 videos"; Captions "Both" disabled and cloud-not-default per 09 / sign-in)
-- ve-render · verified (L, D) · none (Share-cluster ring, Exports panel Queued / progress / Ready / partly-done + Retry, cloud foot per 09; done and partly-done toasts = side rows)
-- ve-footage · unreachable · the board draws "Waiting for Jonas's Mac" (a second device preparing the clip); the shot is the Missing + Relink state
-- ve-long · verified (L, D) · none (header, grip, Full layout, "Text · 18" / "Graphics · 6" folded to striped lines, ruler markers Výkop / TD 1 / Poločas / TD 2; hover name tag = side row)
-- ve-advanced · differs · M1 — keyframes are drawn as range blocks (`.tl-kf`, from..to) not the board's diamonds (◇ at each keyframe, filled at the playhead); M2 — Easing / Render settings / The cut as code are one band of three cards over the artboard above the timeline, the board puts Easing centre-top and Render settings + the cut as code stacked in the inspector's column (fix-c9 "Open"; no lead decision overrules it)
+- ve-trim-split · verified (L, D) · none
+- ve-move-transition · verified (L, D) · none
+- ve-transition · verified (L, D) · none
+- ve-text · verified (L, D) · none
+- ve-captions · verified (L, D) · none
+- ve-music · verified (L, D) · none
+- ve-formats · verified (L, D) · none (M1 of bar5 fixed: row only, no heading)
+- ve-reframe · verified (L, D) · none
+- ve-play · verified (L, D) · none
+- ve-fullscreen · verified (L, D) · none
+- ve-export · verified (L, D) · none
+- ve-render · verified (L, D) · none
+- ve-footage · unreachable · the board draws "Waiting for Jonas's Mac" (second device preparing the clip); the shot is the Missing + Relink state
+- ve-long · verified (L, D) · none
+- ve-advanced · verified (L, D) · none (M1 diamonds + M2 card placement fixed; extra Easing-card buttons and Render-settings "Long videos" / "+ track" are kept v1 controls = polish)
 - ve-ai-cut, ve-ai-watch, ve-ai-scrub, ve-ai-proposal, ve-ai-adjust · unreachable (live signed-in AI cut run)
 - ve-together · unreachable (second peer on a linked hub)
 - ve-fit-fill · unreachable (needs a real vertical file dropped)
@@ -46,6 +46,9 @@ Round-9 fixes confirmed in the shots: Full timeline shows ruler + all four lanes
 - ve-render · long job names clipped; job order and names are fixture; footer wording follows 09
 - ve-transition · picker overlaps the small artboard at 100 %
 - ve-fullscreen · picture is a different frame; scrub has no marker ticks
+- ve-advanced · Easing card also carries "Straight line" and "Copy timecode" (board has no actions; kept v1 keyframe actions, lead to confirm); Render settings card has "Long videos" note and "+ track  Video 2 / Music 2" (kept v1 controls); artboard is a 9:16 fixture so the Easing card overlaps it; start diamond hidden under the playhead at 0:01 (fixture); tools row above the timeline (note-26)
+- ve-formats · header chip "Reels" label vs board's "Recap"; fixture 30 s vs 15 s
+- ve-export · in dark the preview frame is blank while light shows the picture (load timing; flipped from the previous round)
 
 ## Side states
 - ve-deselect/view-menu · Menu › View › Advanced open with "Keep timeline open" ticked · reachable (open the menu)
