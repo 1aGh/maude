@@ -65,6 +65,17 @@ describe('S8.5 Suggest each time / always', () => {
       "Starts now. About 3 min — keep this window open until it's done."
     );
   });
+  test('09 ex-offline: with no connection Suggest each time ticks this Mac (the cloud only waits); a standing choice or a click still wins', () => {
+    const off = renderChoice({ pref: 'auto', render: FOUR_K, online: false });
+    expect(off).toMatchObject({ lane: 'this-mac', suggested: false, why: null });
+    expect(renderChoice({ pref: 'cloud', render: FOUR_K, online: false }).lane).toBe('cloud');
+    expect(renderChoice({ render: FOUR_K, online: false, picked: 'cloud' }).lane).toBe('cloud');
+    // back online it is the cloud again, with its reason
+    expect(renderChoice({ pref: 'auto', render: FOUR_K, online: true })).toMatchObject({
+      lane: 'cloud',
+      suggested: true,
+    });
+  });
   test('the button sends the chosen lane on a video, and leaves every other spec alone', () => {
     const spec = { v: 2, format: 'mp4', scope: 'selection', options: { fps: 30 } };
     const c = renderChoice({ render: FOUR_K });

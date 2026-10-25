@@ -95,7 +95,9 @@ export function renderChoice({
   if (picked === 'cloud' || picked === 'this-mac') lane = picked;
   else if (pref === 'cloud' || pref === 'this-mac') lane = pref;
   else {
-    lane = render.suggest === 'cloud' ? 'cloud' : 'this-mac';
+    // 09 ex-offline: with no connection the cloud card only waits, so "Suggest each time" ticks this Mac; a standing
+    // choice (or a click) above still wins
+    lane = online && render.suggest === 'cloud' ? 'cloud' : 'this-mac';
     suggested = lane === 'cloud';
   }
   const why = suggested && render.why ? (SUGGEST_WHY[render.why] ?? null) : null;
