@@ -380,16 +380,21 @@ div
           section .so-section.so-section--objects [data-testid="shortcuts-group-objects"]
             h3 .so-section-hd "Objects"
             dl .so-list
-              div .so-pair [data-testid="shortcuts-row-edit.copy"]
+              div .so-pair [data-testid="shortcuts-row-object.copy"]
                 dt "Copy"
                 dd
                   span .so-combos
                     span .kbd "⌘C"
-              div .so-pair [data-testid="shortcuts-row-edit.cut"]
+              div .so-pair [data-testid="shortcuts-row-object.cut"]
                 dt "Cut"
                 dd
                   span .so-combos
                     span .kbd "⌘X"
+              div .so-pair [data-testid="shortcuts-row-artboard.copy"]
+                dt "Copy artboard"
+                dd
+                  span .so-combos
+                    span .kbd "⌘C"
               div .so-pair [data-testid="shortcuts-row-edit.paste"]
                 dt "Paste"
                 dd
@@ -410,11 +415,6 @@ div
                 dd
                   span .so-combos
                     span .kbd "⌘D"
-              div .so-pair [data-testid="shortcuts-row-artboard.copy"]
-                dt "Copy artboard"
-                dd
-                  span .so-combos
-                    span .kbd "⌘C"
               div .so-pair [data-testid="shortcuts-row-edit.copy-properties"]
                 dt "Copy properties"
                 dd

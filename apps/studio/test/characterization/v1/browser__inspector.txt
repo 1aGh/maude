@@ -74,22 +74,6 @@ div
                   button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [aria-haspopup="menu"] [type="button"]
                     span [aria-hidden="true"] "⋯"
               div .cv-panel
-                div .kf-chips [data-testid="kind-chips"] [role="group"] [aria-label="Filter by kind"]
-                  button .kf-chip [data-testid="kind-chip-all"] [aria-label="All, 3"] [aria-pressed="true"] [title="All · 3"] [type="button"]
-                    span .kf-chip-w "All"
-                    span .kf-chip-n "3"
-                  button .kf-chip [data-testid="kind-chip-digital"] [aria-label="Fixed size, 1"] [aria-pressed="false"] [title="Fixed size · 1"] [type="button"]
-                    svg [aria-hidden="true"]
-                    span .kf-chip-n "1"
-                  button .kf-chip [data-testid="kind-chip-web"] [aria-label="Web page, 1"] [aria-pressed="false"] [title="Web page · 1"] [type="button"]
-                    svg [aria-hidden="true"]
-                    span .kf-chip-n "1"
-                  button .kf-chip [data-testid="kind-chip-print"] [aria-label="Print, 0"] [aria-pressed="false"] [title="Print · 0"] [type="button"]
-                    svg [aria-hidden="true"]
-                    span .kf-chip-n "0"
-                  button .kf-chip [data-testid="kind-chip-video"] [aria-label="Video, 0"] [aria-pressed="false"] [title="Video · 0"] [type="button"]
-                    svg [aria-hidden="true"]
-                    span .kf-chip-n "0"
                 div .cv-listwrap
                   div .cv-sort-lane
                     button .cv-sort.cv-sort--quiet [data-testid="canvases-sort"] [aria-label="3 canvases — sort canvases (Recently opened)"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "3 canvases"
@@ -116,6 +100,7 @@ div
                             svg .st-chev [aria-hidden="true"]
                           button .cv-main [data-testid="canvas-row-ui-marketing-landing"] [title=".design/ui/marketing/Landing.tsx"] [type="button"] [tabindex="-1"]
                             span .cv-thumb [aria-hidden="true"]
+                              img
                             span .cv-name "Landing"
                             span .cv-badges
                           span .cv-actions

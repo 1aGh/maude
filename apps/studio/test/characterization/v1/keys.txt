@@ -357,7 +357,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +622 -1 #6d7e78b12b
+  shell: +627 -1 #707c25a212
     - @focus body
     + @focus input[data-testid="shortcuts-find"][aria-label="Find a shortcut"][placeholder="Find a shortcut"]
     + button .k-adv-btn.so-adv-btn [data-testid="shortcuts-advanced-toggle"] [aria-expanded="true"] [type="button"] "Advanced"
@@ -367,14 +367,14 @@
     + div .so-overlay.so-overlay--v2 [data-testid="shortcuts-sheet"] [role="dialog"] [aria-label="Keyboard shortcuts"] [aria-modal="true"] [tabindex="-1"]
     + div .so-pair [data-testid="shortcuts-row-ai.ask-selection"]
     + div .so-pair [data-testid="shortcuts-row-annotation.chain"]
-    + … 131 more
+    + … 132 more
   canvas: =
 ## browser/canvas/chrome Meta+Shift+Slash
   keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="?" PREVENTED
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +622 -1 #6d7e78b12b
+  shell: +627 -1 #707c25a212
     - @focus body
     + @focus input[data-testid="shortcuts-find"][aria-label="Find a shortcut"][placeholder="Find a shortcut"]
     + button .k-adv-btn.so-adv-btn [data-testid="shortcuts-advanced-toggle"] [aria-expanded="true"] [type="button"] "Advanced"
@@ -384,7 +384,7 @@
     + div .so-overlay.so-overlay--v2 [data-testid="shortcuts-sheet"] [role="dialog"] [aria-label="Keyboard shortcuts"] [aria-modal="true"] [tabindex="-1"]
     + div .so-pair [data-testid="shortcuts-row-ai.ask-selection"]
     + div .so-pair [data-testid="shortcuts-row-annotation.chain"]
-    + … 131 more
+    + … 132 more
   canvas: =
 ## browser/canvas/chrome F1
   keydown: shell key="F1" PREVENTED
@@ -1152,7 +1152,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +622 -1 #0676b4d0b7
+  shell: +627 -1 #fb5bd9e4d7
     - @focus select
     + @focus input[data-testid="shortcuts-find"][aria-label="Find a shortcut"][placeholder="Find a shortcut"]
     + button .k-adv-btn.so-adv-btn [data-testid="shortcuts-advanced-toggle"] [aria-expanded="true"] [type="button"] "Advanced"
@@ -1162,7 +1162,7 @@
     + div .so-overlay.so-overlay--v2 [data-testid="shortcuts-sheet"] [role="dialog"] [aria-label="Keyboard shortcuts"] [aria-modal="true"] [tabindex="-1"]
     + div .so-pair [data-testid="shortcuts-row-ai.ask-selection"]
     + div .so-pair [data-testid="shortcuts-row-annotation.chain"]
-    + … 131 more
+    + … 132 more
   canvas: =
 ## browser/canvas/select Meta+z
   keydown: shell ⌘key="Meta" default · shell ⌘key="z" PREVENTED
@@ -1329,7 +1329,7 @@
     + button .cmp-x [data-testid="comments-panel-close"] [aria-label="Hide Comments"] [title="Hide Comments"] [type="button"]
     + button .cv-act [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
     + … 43 more
-  canvas: +19 -28 #c8f9a874de
+  canvas: +18 -27 #f6c18c160a
     - @html data-maude-theme=dark lang=en
     - body [data-active-tool="browse"]
     - button .dc-tp-b [data-testid="toolbar-slot-components"] [aria-label="Component (⇧I)"] [title="Component (⇧I) — place from the design system"] [type="button"]
@@ -1338,7 +1338,7 @@
     - button .dc-tp-b [data-testid="toolbar-slot-el-text"] [aria-label="Text (T)"] [aria-pressed="false"] [title="Text (T)"] [type="button"]
     - button .dc-tp-b [data-testid="toolbar-slot-frame"] [aria-label="Frame (F)"] [aria-pressed="false"] [title="Frame (F)"] [type="button"]
     - button .dc-tp-b [data-testid="toolbar-slot-hand"] [aria-label="Hand (H)"] [aria-pressed="false"] [title="Hand (H)"] [type="button"]
-    - … 15 more
+    - … 14 more
     + @html data-maude-preview= data-maude-theme=dark lang=en
     + body [data-active-tool="comment"]
     + button .dc-tp-b [data-testid="toolbar-slot-arrow"] [aria-label="Arrow (A) · double-click to lock"] [aria-pressed="false"] [title="Arrow (A) · double-click to lo
@@ -1347,7 +1347,7 @@
     + button .dc-tp-b [data-testid="toolbar-slot-pen"] [aria-label="Marker (M) — Marker, click again for tips"] [aria-pressed="false"] [aria-expanded="false"] [title=
     + button .dc-tp-b [data-testid="toolbar-slot-section"] [aria-label="Section (S) · double-click to lock"] [aria-pressed="false"] [title="Section (S) · double-click
     + button .dc-tp-b [data-testid="toolbar-slot-shape"] [aria-label="Shape (R) — rounded, click again for shape types"] [aria-pressed="false"] [aria-expanded="false"
-    + … 9 more
+    + … 8 more
 ## browser/in-canvas/canvas b
   keydown: canvas key="b" default
   to-shell: (none)
@@ -1425,7 +1425,7 @@
     + button .k-adv-btn.lp-adv-btn [data-testid="canvases-advanced"] [aria-expanded="false"] [type="button"] "Advanced"
     + button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [type="button"]
     + … 32 more
-  canvas: +19 -28 #1022ef4c9b
+  canvas: +18 -27 #77870f884b
     - @html data-maude-theme=dark lang=en
     - body [data-active-tool="browse"]
     - button .dc-tp-b [data-testid="toolbar-slot-components"] [aria-label="Component (⇧I)"] [title="Component (⇧I) — place from the design system"] [type="button"]
@@ -1434,7 +1434,7 @@
     - button .dc-tp-b [data-testid="toolbar-slot-el-text"] [aria-label="Text (T)"] [aria-pressed="false"] [title="Text (T)"] [type="button"]
     - button .dc-tp-b [data-testid="toolbar-slot-frame"] [aria-label="Frame (F)"] [aria-pressed="false"] [title="Frame (F)"] [type="button"]
     - button .dc-tp-b [data-testid="toolbar-slot-hand"] [aria-label="Hand (H)"] [aria-pressed="false"] [title="Hand (H)"] [type="button"]
-    - … 15 more
+    - … 14 more
     + @html data-maude-preview= data-maude-theme=dark lang=en
     + body [data-active-tool="arrow"]
     + button .dc-tp-b [data-testid="toolbar-slot-arrow"] [aria-label="Arrow (A) · double-click to lock"] [aria-pressed="true"] [title="Arrow (A) · double-click to loc
@@ -1443,7 +1443,7 @@
     + button .dc-tp-b [data-testid="toolbar-slot-pen"] [aria-label="Marker (M) — Marker, click again for tips"] [aria-pressed="false"] [aria-expanded="false"] [title=
     + button .dc-tp-b [data-testid="toolbar-slot-section"] [aria-label="Section (S) · double-click to lock"] [aria-pressed="false"] [title="Section (S) · double-click
     + button .dc-tp-b [data-testid="toolbar-slot-shape"] [aria-label="Shape (R) — rounded, click again for shape types"] [aria-pressed="false"] [aria-expanded="false"
-    + … 9 more
+    + … 8 more
 ## browser/in-canvas/canvas n
   keydown: canvas key="n" PREVENTED
   to-shell: child mode-request tool=sticky mode=preview · child tool-cursor tool=sticky · child tool-cursor tool=sticky · {mode-changed tool=sticky mode=preview,peers,viewport-zoom}
@@ -1468,7 +1468,7 @@
     + button .k-adv-btn.lp-adv-btn [data-testid="canvases-advanced"] [aria-expanded="false"] [type="button"] "Advanced"
     + button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [type="button"]
     + … 32 more
-  canvas: +28 -28 #c102dc91d7
+  canvas: +27 -27 #8197ed15c9
     - @html data-maude-theme=dark lang=en
     - body [data-active-tool="browse"]
     - button .dc-tp-b [data-testid="toolbar-slot-components"] [aria-label="Component (⇧I)"] [title="Component (⇧I) — place from the design system"] [type="button"]
@@ -1477,7 +1477,7 @@
     - button .dc-tp-b [data-testid="toolbar-slot-el-text"] [aria-label="Text (T)"] [aria-pressed="false"] [title="Text (T)"] [type="button"]
     - button .dc-tp-b [data-testid="toolbar-slot-frame"] [aria-label="Frame (F)"] [aria-pressed="false"] [title="Frame (F)"] [type="button"]
     - button .dc-tp-b [data-testid="toolbar-slot-hand"] [aria-label="Hand (H)"] [aria-pressed="false"] [title="Hand (H)"] [type="button"]
-    - … 15 more
+    - … 14 more
     + @html data-maude-preview= data-maude-theme=dark lang=en
     + body [data-active-tool="sticky"]
     + button .dc-tp-b [data-testid="toolbar-slot-arrow"] [aria-label="Arrow (A) · double-click to lock"] [aria-pressed="false"] [title="Arrow (A) · double-click to lo
@@ -1486,7 +1486,7 @@
     + button .dc-tp-b [data-testid="toolbar-slot-pen"] [aria-label="Marker (M) — Marker, click again for tips"] [aria-pressed="false"] [aria-expanded="false"] [title=
     + button .dc-tp-b [data-testid="toolbar-slot-section"] [aria-label="Section (S) · double-click to lock"] [aria-pressed="false"] [title="Section (S) · double-click
     + button .dc-tp-b [data-testid="toolbar-slot-shape"] [aria-label="Shape (R) — rounded, click again for shape types"] [aria-pressed="false"] [aria-expanded="false"
-    + … 17 more
+    + … 16 more
 ## browser/in-canvas/canvas t
   keydown: canvas key="t" PREVENTED
   to-shell: child tool-cursor tool=el-text · child tool-cursor tool=el-text
@@ -1733,12 +1733,12 @@
   to-shell: child key
   to-canvas: (none)
   writes: (none)
-  shell: +45 -1 #3a793514d3
+  shell: +45 -1 #36f146eb46
     - @focus iframe[data-testid="canvas-frame"]
     + @focus input[data-testid="palette-input"][aria-label="Command search"][placeholder="Search canvases, actions, or ask AI…"]
-    + button .is-active.st-pal-item [data-testid="palette-row-start:import.figma"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
-    + button .st-pal-item [data-testid="palette-row-start:canvas.new"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+    + button .is-active.st-pal-item [data-testid="palette-row-start:canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
     + button .st-pal-item [data-testid="palette-row-start:help.shortcuts"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+    + button .st-pal-item [data-testid="palette-row-start:import.figma"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
     + button .st-pal-item [data-testid="palette-row-start:project.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
     + div .st-pal-group [role="presentation"] "Recent"
     + div .st-pal-group [role="presentation"] "Start here"
@@ -1813,8 +1813,8 @@
   canvas: =
 ## browser/in-canvas/canvas Meta+Shift+E
   keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="E" PREVENTED
-  to-shell: child key · child export-capture-error id=cap-mvnqpw94-1
-  to-canvas: parent export-capture id=cap-mvnqpw94-1
+  to-shell: child key · child export-capture-error id=cap-mvo32m6c-1
+  to-canvas: parent export-capture id=cap-mvo32m6c-1
   writes: POST /_api/export-estimate
   shell: +72 -1 #6e01b4cedc
     - @focus iframe[data-testid="canvas-frame"]
@@ -1937,7 +1937,7 @@
   to-shell: child key
   to-canvas: (none)
   writes: (none)
-  shell: +622 -1 #de9f3627be
+  shell: +627 -1 #3fe64acfdb
     - @focus iframe[data-testid="canvas-frame"]
     + @focus input[data-testid="shortcuts-find"][aria-label="Find a shortcut"][placeholder="Find a shortcut"]
     + button .k-adv-btn.so-adv-btn [data-testid="shortcuts-advanced-toggle"] [aria-expanded="true"] [type="button"] "Advanced"
@@ -1947,7 +1947,7 @@
     + div .so-overlay.so-overlay--v2 [data-testid="shortcuts-sheet"] [role="dialog"] [aria-label="Keyboard shortcuts"] [aria-modal="true"] [tabindex="-1"]
     + div .so-pair [data-testid="shortcuts-row-ai.ask-selection"]
     + div .so-pair [data-testid="shortcuts-row-annotation.chain"]
-    + … 131 more
+    + … 132 more
   canvas: +1 -1 #b1cbc9e41f
     - @focus div.dc-canvas
     + @focus body
@@ -2013,9 +2013,9 @@
   to-shell: {viewport-zoom}
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
-  shell: +1 -1 #7d376a8409
-    - button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
-    + button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 76%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "76%"
+  shell: +1 -1 #334b5afe92
+    - button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 83%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "83%"
+    + button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 99%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "99%"
   canvas: =
 ## browser/in-canvas/canvas Meta+Minus
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="-" PREVENTED
@@ -2101,7 +2101,7 @@
   to-shell: child delete-request id=3807c330 · child timeline-peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child render-ok · child loaded · child annotation-selection · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
   to-canvas: parent record-edit · parent run-action id=select.none · parent gen-takes · parent vote-state · parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: POST /_api/delete-element
-  shell: +58 -223 #8e040f18d6
+  shell: +57 -223 #fb9b19cc7c
     - aside .st-rpanel.st-rpanel--insp [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
@@ -2136,8 +2136,7 @@
   to-canvas: (none)
   writes: (none)
   shell: =
-  canvas: +1 -0 #a29cb3bcde
-    + span .ed-nudge-tag [data-testid="edit-nudge-tag"] [aria-hidden="true"] "X 0"
+  canvas: =
 ## browser/in-canvas/canvas BracketRight
   keydown: canvas key="]" PREVENTED
   to-shell: child edit-op op=object.bring-forward · child timeline-peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child render-ok · child loaded · child active-artboard id=home-pricing · child annotation-selection · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
@@ -2216,7 +2215,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: =
+  shell: +1 -0 #ca46fad4a0
   canvas: +1 -1 #58490fca0e
     - input [aria-label="Name"] [placeholder="Name"]
     + input [aria-label="Name"] [placeholder="Name"] {value="h"}
@@ -2286,12 +2285,10 @@
   to-canvas: parent gen-takes · parent vote-state · parent comments-set · parent theme · parent view-chrome · parent gen-takes · parent vote-state · {occluded-insets,set-mode mode=edit}
   writes: (none)
   shell: =
-  canvas: +2 -3 #f23623360b
+  canvas: +1 -2 #f4fa5be56e
     - @focus input[aria-label="Name"][placeholder="Name"][data-cd-id="home-hero-input"]
-    - @world translate(47.069px, 293.103px)
     - div .dc-cv-halo.dc-cv-halo--hover [aria-hidden="true"]
     + @focus div.dc-canvas
-    + @world translate(119.483px, 293.103px)
 ## browser/in-canvas-text/canvas Meta+Shift+E
   keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="E" PREVENTED
   to-shell: child key
@@ -2396,7 +2393,8 @@
   to-canvas: (none)
   writes: (none)
   shell: =
-  canvas: =
+  canvas: +1 -0 #a29cb3bcde
+    + span .ed-nudge-tag [data-testid="edit-nudge-tag"] [aria-hidden="true"] "X 0"
 ## browser/in-canvas-selected/canvas Meta+d
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="d" PREVENTED
   to-shell: child duplicate-request id=3807c330 · child timeline-peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child render-ok · child loaded · child active-artboard id=home-pricing · child annotation-selection · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
@@ -2864,7 +2862,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +1 -0 #ca46fad4a0
+  shell: =
   canvas: =
 ## browser/timeline/select ArrowRight
   keydown: shell key="ArrowRight" default
@@ -2905,8 +2903,9 @@
   to-shell: (none)
   to-canvas: parent timeline-seek id=comp-hero frame=1
   writes: (none)
-  shell: +1 -1 #491ebb065a
+  shell: +6 -2 #6a91b48fcb
     - span .tl-readout [data-testid="timeline-readout"] [title="Frame 0 of 89"]
+    + span .tl-keytip.tl-keytip--step [data-testid="timeline-step-tip"] "Step one frame · one second"
     + span .tl-readout [data-testid="timeline-readout"] [title="Frame 1 of 89"]
   canvas: =
 ## browser/timeline/range Meta+z
@@ -3206,10 +3205,10 @@
   canvas: =
 ## viewer/canvas/chrome Meta+Shift+E
   keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="E" PREVENTED
-  to-shell: (none)
-  to-canvas: (none)
+  to-shell: child export-capture-error id=cap-mvo37182-1
+  to-canvas: parent export-capture id=cap-mvo37182-1
   writes: POST /_api/export-estimate
-  shell: +71 -1 #f4e4514f6a
+  shell: +76 -1 #eb87221f8f
     - @focus body
     + @focus button[data-testid="export-submit"][type="button"]
     + button .btn [data-testid="export-cancel"] [type="button"] "Cancel"
@@ -3218,8 +3217,8 @@
     + button .ex-adv-btn.v2-fold-btn [data-testid="export-advanced-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
     + button .ex-seg-b [data-testid="export-format-jpg"] [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "JPG"
     + button .ex-seg-b [data-testid="export-format-png"] [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "PNG"
-    + button .ex-seg-b [data-testid="export-scope-canvas"] [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "This canvas"
-    + … 30 more
+    + button .ex-seg-b [data-testid="export-scope-canvas"] [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "This canvas"
+    + … 34 more
   canvas: =
 ## viewer/canvas/chrome Backspace
   keydown: shell key="Backspace" PREVENTED
