@@ -149,6 +149,36 @@ Totals: 36 id×theme re-shot, 2 unreachable (spec-only frames kept).
 
 Harness notes (D3): the D2 harness (`_d2-harness-g3/`) plus the bugs3 deltas, repointed; no scenario changes were needed for the round-5 product. Observed in the frames: the View › Advanced submenu now draws its rows inside its panel (nested submenus are position:fixed — the empty-panel observation of D2 no longer shows); ak-convert-after shows the "The A6 copy is beside the artboard. The artboard is unchanged." toast with Undo. `ak-picker-custom` is an extra impl frame with no board artboard (no pair).
 
+## FINAL (D4, 21c9714cf) — p8-d4-g3
+
+Every reachable id re-shot again on the merged tip after stage C round 6 (release-built client, Google Chrome channel, light + dark), IMPL side only. Spec frames reused from stage D (the board 08 .tsx/.css last changed in 2220acc81, before the stage-D spec shot). No match/mismatch judged here. Pairs: full-size-path.txt (last line, "final (D3)").
+
+| artboard id | light | dark |
+|---|---|---|
+| ak-picker | re-shot | re-shot |
+| ak-picker-full | re-shot | re-shot |
+| ak-web-hug | re-shot | re-shot |
+| ak-web-widths | re-shot | re-shot |
+| ak-social | re-shot | re-shot |
+| ak-safe-zones | re-shot (inspector safe-zone select driven by option index; the board shows a menu of platforms next to three overlays) | re-shot (inspector safe-zone select driven by option index; the board shows a menu of platforms next to three overlays) |
+| ak-print-letak | re-shot | re-shot |
+| ak-print-view | re-shot | re-shot |
+| ak-video | re-shot | re-shot |
+| ak-mixed-fit | re-shot (a 7-artboard mixed canvas, not 21) | re-shot (a 7-artboard mixed canvas, not 21) |
+| ak-mixed-filter | re-shot (13 canvases not 93) | re-shot (13 canvases not 93) |
+| ak-mixed-select | re-shot | re-shot |
+| ak-convert | re-shot | re-shot |
+| ak-convert-after | re-shot | re-shot |
+| ak-warnings | re-shot (same selection as ak-print-letak; whether a warning line shows depends on the fixture QR box) | re-shot (same selection as ak-print-letak; whether a warning line shows depends on the fixture QR box) |
+| ak-advanced | re-shot | re-shot |
+| ak-real-about | unreachable — a note card on the board, not an app state | unreachable — a note card on the board, not an app state |
+| ak-real-print | re-shot (the fixture’s print artboard, not the Alligators flyer) | re-shot (the fixture’s print artboard, not the Alligators flyer) |
+| ak-real-web | re-shot (the fixture’s web artboard, not the Alligators page) | re-shot (the fixture’s web artboard, not the Alligators page) |
+
+Totals: 36 id×theme re-shot, 2 unreachable (spec-only frames kept).
+
+Harness notes (D4): the D3 harness (`_d3-harness-g3/`) plus the round-6 mini scenarios (`t08c`/`t09c`, for reference; the full `t08` was run and needed no scenario changes), repointed to worktree wf_74ac1088-f6f-11 (branch p8-d4-g3, tip 21c9714cf), Google Chrome channel, release-built client. Spec frames reused unchanged (the `08` board last changed on 2026-10-22 or earlier, before the stage-D spec shots). The extra frame ak-picker-custom has no spec and no committed pair.
+
 ## Round 6 (p8-c6-bugs4) — after
 
 | id | after | notes |
