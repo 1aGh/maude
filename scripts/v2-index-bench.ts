@@ -212,6 +212,7 @@ try {
       .flatMap((m) => (Array.isArray(m.shots) ? (m.shots as Array<Record<string, unknown>>) : []));
   const coverStatus = async () => {
     const tally: Record<string, number> = {};
+    const failed: Array<{ rel: string; status: string; reason?: string }> = [];
     let bytes = 0;
     for (const c of index.snapshot().canvases) {
       const r = await svc.thumb({
@@ -222,9 +223,11 @@ try {
       });
       const k = r.status === 'unavailable' ? `unavailable:${r.reason}` : r.status;
       tally[k] = (tally[k] ?? 0) + 1;
+      if (r.status !== 'ready' && failed.length < 30)
+        failed.push({ rel: c.rel, status: r.status, reason: (r as { reason?: string }).reason });
       if (r.status === 'ready') bytes += svc.read(r.key)?.length ?? 0;
     }
-    return { tally, avgBytes: Math.round(bytes / Math.max(1, tally.ready ?? 1)) };
+    return { tally, failed, avgBytes: Math.round(bytes / Math.max(1, tally.ready ?? 1)) };
   };
 
   // covers — cold (first browser launch, nothing cached)
