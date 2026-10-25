@@ -97,3 +97,34 @@ All reachable ids re-shot dark + light on the release client of branch `p8-c7-g1
 | ia-missing-gone | re-shot | the picture inside the missing frame is selected: the inspector's Missing box with Relink… and Replace… |
 | ia-brand-steps-3 | re-shot | the failed site is said once (callout), no second amber row; "1 colour" is singular (the fixture logo reads 2) |
 
+
+
+## FINAL (D5, e37e7d82a) — merged tip after round 7
+
+Every reachable id re-shot on the merged tip `feat/maude-v2` @ `e37e7d82a` (release-built client, light + dark, IMPL side only), by `_d5-harness-g4/chain1112.sh` (scenarios `s12 s12b s12e s12f s12g s12h s12c7`, the round-7 `_c7-harness-g1112b` set) on the Mac mini with Google Chrome (no Playwright Chromium download there). Spec frames reused from stage A: `.design/ui/v2/12 Import and Assets.*` last changed 2026-10-21 (one line), before the spec shoot. No match judged here.
+
+Fixture note: the photo fixtures (18 files in `assets/`, the Spread canvas) are drawn in Chromium because the runner has no ImageMagick — same names and sizes as before, a blob "plasma" look instead of `plasma:fractal`.
+
+| artboard id | light | dark | note |
+|---|---|---|---|
+| ia-drop-photos | re-shot | re-shot | |
+| ia-placed | re-shot | re-shot | Spread artboard (six empty frames), Assets › From this Mac… › six files (`s12e`/`s12h`; the first `s12` try printed "no filechooser" and was overwritten by the later successful shot) |
+| ia-assets-panel | re-shot | re-shot | |
+| ia-assets-keys | re-shot | re-shot | artboard selected, tile menu open (`s12c7`) |
+| ia-assets-browse | re-shot | re-shot | click + shift-click six (`s12c7`) |
+| ia-assets-find | re-shot | re-shot | |
+| ia-assets-tidy | re-shot | re-shot | `s12c7` |
+| ia-asset-details | re-shot | re-shot | |
+| ia-photo-inspector | re-shot | re-shot | `s12c7` |
+| ia-photo-steps | re-shot | re-shot | Placement › Crop, double-click = crop mode (`s12c7`) |
+| ia-gen-ask | re-shot | re-shot | |
+| ia-figma-sheets, ia-figma-sheets-connect | re-shot | re-shot | |
+| ia-brand-steps, ia-brand-steps-1/-2/-3 | re-shot | re-shot | `s12`, `s12b`, `s12g` |
+| ia-missing-gone | re-shot | re-shot | picture selected: the Missing box (`s12c7`) |
+| ia-advanced | re-shot | re-shot | |
+| ia-more-ways | unreachable | unreachable | paste / native picker for video and logo drops are native |
+| ia-gen-placed | unreachable | unreachable | needs the generation provider (BYOK) |
+| ia-figma-arrived, ia-figjam | unreachable | unreachable | need the Figma API |
+| ia-brand | unreachable | unreachable | needs a reachable website to read |
+| ia-missing | unreachable | unreachable | needs a synced project with a peer that holds the file |
+| ia-edges | unreachable | unreachable | nine separate conditions (network, hub, provider keys, file types) |
