@@ -49,12 +49,12 @@ function ensureMarqueeStyles(): void {
 
 // Skip the same chrome / overlay surfaces as artboard-marquee — the user is
 // interacting with floating UI, not the world.
-function isChromeTarget(t: EventTarget | null): boolean {
+export function isChromeTarget(t: EventTarget | null): boolean {
   if (!t || !(t as Element).closest) return true;
   const el = t as Element;
   if (
     el.closest(
-      '.dc-mm, .dc-zoom-tb, .dc-tool-palette, .dc-context-menu, .dc-cv-halo, .dc-cv-group-bbox, .cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, .dc-annot-svg, .dc-annot-ctx, .dc-tp-popover, .dc-annot-resize-handle, .dc-el-resize-handle, .dc-multi-artboard-tb, .dc-elem-ctx-tb, .dc-cv-eq-spacing-layer'
+      '.dc-mm, .dc-zoom-tb, .dc-tool-palette, .dc-context-menu, .dc-cv-halo, .dc-cv-group-bbox, .cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, .dc-annot-svg, .dc-annot-ctx, .dc-tp-popover, .dc-annot-resize-handle, .dc-el-resize-handle, .dc-multi-artboard-tb, .dc-elem-ctx-tb, .dc-cv-eq-spacing-layer, .ed-pen-svg'
     )
   ) {
     return true;
