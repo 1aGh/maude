@@ -205,6 +205,23 @@ describe('open', () => {
     ]);
   });
 
+  test('07 ve-advanced (P8 C10): Easing is a card of its own; Render settings and The cut as code are one stack; neither is inside the timeline', async () => {
+    await mount();
+    openAdvanced();
+    const easing = q('[data-testid="timeline-advanced-easing"]') as HTMLElement;
+    const stack = q('[data-testid="timeline-advanced-stack"]') as HTMLElement;
+    expect(easing.querySelector('[data-testid="timeline-keyframe"]')).not.toBeNull();
+    expect([...stack.children].map((c) => c.getAttribute('data-testid'))).toEqual([
+      'timeline-render-settings',
+      'timeline-cut-as-code',
+    ]);
+    // the stack stands in the inspector's column: the canvas fits left of it
+    expect(stack.getAttribute('data-occludes')).toBe('right');
+    expect(easing.getAttribute('data-occludes')).toBeNull();
+    expect(easing.closest('.tl-island, [data-testid="timeline-island"]')).toBeNull();
+    expect(stack.closest('.tl-island, [data-testid="timeline-island"]')).toBeNull();
+  });
+
   test('a keyframe is a diamond, filled where the playhead is — never a range block', async () => {
     await mount({ frame: 270 });
     openAdvanced();
