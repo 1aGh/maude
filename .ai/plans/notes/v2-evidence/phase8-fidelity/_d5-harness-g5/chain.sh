@@ -7,6 +7,8 @@ N=$1; T=$2
 bash .ai/plans/notes/v2-evidence/phase8-fidelity/_d5-harness-g5/setup.sh || exit 1
 (cd apps/studio && MAUDE_SKIP_RUNTIME_BUILD=1 bun run build.ts --release) 2>&1 | tail -3
 export SHOTS_OUT=.scr/impl
+# no Playwright browser on the mini: use its Google Chrome unless the caller says otherwise (SHOT_CHANNEL= to use the downloaded one)
+export SHOT_CHANNEL="${SHOT_CHANNEL-chrome}"
 mkdir -p .scr/impl
 run() {
   local out

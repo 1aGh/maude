@@ -12,6 +12,11 @@ export const STUDIO = join(REPO, 'apps/studio');
 export const OUT = process.env.SHOTS_OUT;
 const require = createRequire(join(STUDIO, 'package.json'));
 export const playwright = require('playwright');
+// D5: the Mac mini has no Playwright browser download; SHOT_CHANNEL=chrome launches its installed Google Chrome instead.
+if (process.env.SHOT_CHANNEL) {
+  const launch = playwright.chromium.launch.bind(playwright.chromium);
+  playwright.chromium.launch = (o = {}) => launch({ channel: process.env.SHOT_CHANNEL, ...o });
+}
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export const TAURI_STUB = `window.__TAURI__ = { core: { invoke: async (cmd, args) => { (window.__invokes = window.__invokes || []).push([cmd, args]); return null; } }, event: { listen: async () => () => {} } };`;
