@@ -191,7 +191,8 @@ describe('Canvases tab', () => {
       '_history/',
     ]);
     // the sidecars sit one level under their canvas; the runtime entries at the root
-    const level = (id: string) => q(host, id)?.closest('[role="treeitem"]')?.getAttribute('aria-level');
+    const level = (id: string) =>
+      q(host, id)?.closest('[role="treeitem"]')?.getAttribute('aria-level');
     expect(level('file-row-ui-pricing-css')).toBe('2');
     expect(level('file-row-ui-notes-md')).toBe('1');
     expect(level('file-row-history')).toBe('1');

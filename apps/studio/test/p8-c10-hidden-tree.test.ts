@@ -2,7 +2,13 @@
 // files dimmed in place (the board's "both ON" frame), not the v1 file view.
 import { describe, expect, test } from 'bun:test';
 import { supportIcon, supportIndex } from '../client/v2/canvases/support-model.js';
-import { buildTree, navigate, rowHeight, ROW_H, visibleRows } from '../client/v2/canvases/tree-model.js';
+import {
+  buildTree,
+  navigate,
+  rowHeight,
+  ROW_H,
+  visibleRows,
+} from '../client/v2/canvases/tree-model.js';
 
 const D = '.design';
 const ROOT = `${D}/ui`;
@@ -22,7 +28,13 @@ const GROUPS = [
     ],
     dirs: [`${ROOT}/combine`],
   },
-  { label: 'Design system', kind: 'canvas', fullPath: `${D}/system`, paths: [`${D}/system/x/tokens.css`], dirs: [] },
+  {
+    label: 'Design system',
+    kind: 'canvas',
+    fullPath: `${D}/system`,
+    paths: [`${D}/system/x/tokens.css`],
+    dirs: [],
+  },
   {
     label: 'Runtime',
     kind: 'runtime',
@@ -37,14 +49,15 @@ describe('supportIndex', () => {
   const idx = supportIndex(GROUPS);
 
   test('a canvas keeps its sidecars, in name order', () => {
-    expect(idx.byCanvas.get(`${ROOT}/combine/Combine-kampan.tsx`)?.map((f: { name: string }) => f.name)).toEqual([
-      'Combine-kampan.css',
-      'Combine-kampan.meta.json',
-    ]);
+    expect(
+      idx.byCanvas.get(`${ROOT}/combine/Combine-kampan.tsx`)?.map((f: { name: string }) => f.name)
+    ).toEqual(['Combine-kampan.css', 'Combine-kampan.meta.json']);
   });
 
   test('a folder keeps its loose notes; pictures are the Assets panel’s', () => {
-    expect(idx.byDir.get(`${ROOT}/combine`)?.map((f: { name: string }) => f.name)).toEqual(['NOTES.md']);
+    expect(idx.byDir.get(`${ROOT}/combine`)?.map((f: { name: string }) => f.name)).toEqual([
+      'NOTES.md',
+    ]);
   });
 
   test('the design system group is not a canvas group: its files stay under Advanced', () => {
@@ -73,7 +86,9 @@ describe('visibleRows with support', () => {
     fileNames: true,
     support: supportIndex(GROUPS),
   });
-  const shape = rows.filter((r: { type: string }) => r.type !== 'head').map((r: { type: string; name: string; depth: number }) => `${r.type}:${r.name}:${r.depth}`);
+  const shape = rows
+    .filter((r: { type: string }) => r.type !== 'head')
+    .map((r: { type: string; name: string; depth: number }) => `${r.type}:${r.name}:${r.depth}`);
 
   test('sidecars sit under their canvas, a folder’s notes after its canvases, runtime at the root', () => {
     expect(shape).toEqual([

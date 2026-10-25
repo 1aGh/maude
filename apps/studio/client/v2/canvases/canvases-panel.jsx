@@ -931,7 +931,9 @@ function PanelSupportRow({ row, index, style, tabStop, ctx }) {
       tabIndex={tabStop ? 0 : -1}
       style={style}
     >
-      <div className={`cv-row cv-row--support${sel ? ' is-sel' : ''}${row.runtime ? ' is-runtime' : ''}`}>
+      <div
+        className={`cv-row cv-row--support${sel ? ' is-sel' : ''}${row.runtime ? ' is-runtime' : ''}`}
+      >
         <button
           type="button"
           className="cv-main"
