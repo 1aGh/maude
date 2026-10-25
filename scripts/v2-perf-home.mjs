@@ -148,6 +148,7 @@ if (argv.includes('--page')) {
     });
     await ctx.addInitScript((s) => sessionStorage.setItem('maude-home-page-secret', s), SECRET);
     const times = [];
+    const fcp = [];
     for (let i = 0; i < 5; i++) {
       const page = await ctx.newPage();
       const t = Date.now();
@@ -158,6 +159,11 @@ if (argv.includes('--page')) {
         })
         .catch(() => {});
       times.push(Date.now() - t);
+      fcp.push(
+        await page.evaluate(
+          () => performance.getEntriesByName('first-contentful-paint')[0]?.startTime ?? null
+        )
+      );
       out.shelfTestids = await page.evaluate(() =>
         [
           ...new Set(
@@ -170,7 +176,8 @@ if (argv.includes('--page')) {
       await page.close();
     }
     out.page = {
-      firstPaintMs: times,
+      firstContentfulPaintMs: fcp,
+      shelvesInDomMs: times,
       budgetMs: 300,
       note: 'domcontentloaded → shelves in the DOM; the page is a plain browser here',
     };
