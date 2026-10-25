@@ -50,6 +50,7 @@ const ROWS = [
     title: 'Venkovní dres v zelené',
     who: { kind: 'ai', actor: 'ai:you', name: 'AI', you: true },
     kind: 'ai',
+    chatId: 'c1',
     chips: ['Made by AI'],
     madeAt: at(18, 14, 32),
   }),
@@ -432,6 +433,21 @@ describe('Version history while comparing', () => {
     await click(q('[data-testid="vh-now-back"]'));
     expect(compareStore.get()?.b.at).toBe('now');
     expect(shellMode.get().viewing?.at).toBe('r41'); // Now is B, not "leave"
+  });
+
+  test('03 ai-history: your AI row keeps "Undo this chat" beside Restore while comparing', async () => {
+    shellMode.view({ path: PATH, at: 'r43', title: 'Venkovní dres v zelené', when: '', who: 'AI' });
+    await mount(<VersionHistoryHost {...base} onClose={() => {}} />);
+    expect(q('[data-testid="vh-undo-chat"]')).not.toBeNull(); // before Compare: there
+    await click(q('[data-testid="vh-compare"]'));
+    const acts = q('[data-testid="vh-acts"]');
+    const names = [...(acts?.querySelectorAll('button') ?? [])].map((b) =>
+      b.getAttribute('data-testid')
+    );
+    // Stop comparing · (Restore only …) · Undo this chat · Restore this version — Undo sits just before Restore
+    expect(names.at(-1)).toBe('vh-restore');
+    expect(names.at(-2)).toBe('vh-undo-chat');
+    expect(names[0]).toBe('vh-stop-compare');
   });
 
   test('Stop comparing goes back to looking at the version', async () => {
