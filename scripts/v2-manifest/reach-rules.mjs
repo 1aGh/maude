@@ -236,6 +236,11 @@ export const HOOK_SHELLS = Object.freeze([
     ['desktop'],
     "⌘K lists the person's other projects only in the desktop app (its tabs, its Home index — search-projects.js acrossProjects)",
   ],
+  [
+    /^switcher-open-(folder|team)$/,
+    ['desktop'],
+    "the pill's Switch project submenu is drawn only by the desktop shell (useProjectSwitcher: `node` is null outside the app)",
+  ],
   [/^embed-/, ['embed'], 'the embed shell (?embed=1)'],
   [
     /^share-open-app$/,

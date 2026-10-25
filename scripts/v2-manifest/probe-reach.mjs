@@ -420,6 +420,24 @@ export default function Flyer() {
 }
 `
   );
+  // a web page: the only kind whose Inspector draws the Layout row (Top to bottom · …)
+  put(
+    '.design/ui/Page.tsx',
+    `import { DCArtboard, DesignCanvas } from '@maude/canvas-lib';
+
+export default function Page() {
+  return (
+    <DesignCanvas>
+      <DCArtboard id="page" kind="web" label="Page" width={1280} height={720}>
+        <main style={{ padding: 40, fontFamily: 'system-ui' }}>
+          <h1 data-cd-id="page-title">Page</h1>
+        </main>
+      </DCArtboard>
+    </DesignCanvas>
+  );
+}
+`
+  );
   put('.design/ui/marketing/Landing.tsx', CANVAS('Landing', [['landing', 'Landing']]));
   // a video comp: two sequences of 1 850 frames = 3 700, past the 3 600-frame default cap (S7.18), so the Timeline draws
   // its long-video badge (a click on it opens Advanced); each sequence animates its title, so Advanced has keyframes.
@@ -525,7 +543,14 @@ const PNG_1X1 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 const TAURI_STUB = `window.__TAURI__ = {
   core: {
+    // the one channel the page hands the shell (client/shell-bus.js): a probe step (shellMsg) speaks through it
+    Channel: class {
+      set onmessage(fn) {
+        window.__PROBE_SHELL_CHANNEL__ = fn;
+      }
+    },
     invoke: (cmd) => {
+      if (cmd === 'shell_subscribe') return Promise.resolve(true);
       const answers = window.__PROBE_INVOKE__ || {};
       if (!(cmd in answers)) return Promise.reject(new Error('reachability probe: ' + cmd));
       const a = answers[cmd];
@@ -809,6 +834,16 @@ async function runOpener(browser, srv, probe, opener) {
           f?.contentWindow?.postMessage(msg, '*');
         }, step.frameMsg);
         await sleep(250);
+      } else if (step.selectOption) {
+        await page
+          .locator(step.selectOption[0])
+          .first()
+          .selectOption(step.selectOption[1], { timeout: 4000 });
+        await sleep(300);
+      } else if (step.shellMsg) {
+        // what the Rust shell tells this page (`update-ready`…): handed to the channel the page gave it
+        await page.evaluate((m) => window.__PROBE_SHELL_CHANNEL__?.(m), step.shellMsg);
+        await sleep(300);
       } else if (step.frameDblclick) {
         const target = page.frameLocator(tid('canvas-frame')).locator(step.frameDblclick).first();
         if (step.optional) {
