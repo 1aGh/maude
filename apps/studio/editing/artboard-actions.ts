@@ -20,6 +20,7 @@ import type { CommandRecord } from '../undo-stack.ts';
 import { type Selection, useSelectionSet } from '../use-selection-set.tsx';
 import { useUndoStackOptional } from '../use-undo-stack.tsx';
 import type { ArtboardMenuDeps } from './artboard-menu.tsx';
+import type { Clipboard } from './clipboard-actions.ts';
 import { type Box, copyPlaces, dropPlaces, pinsFor } from './duplicate-rhythm.ts';
 import { type EditOpAsk, editOpRecord, runEditOp } from './edit-op.ts';
 import { requestRename } from './rename-order.ts';
@@ -154,12 +155,12 @@ export interface ArtboardActions {
   menuDeps: ArtboardMenuDeps;
 }
 
-export function useArtboardActions(): ArtboardActions {
+export function useArtboardActions(clipboard?: Clipboard): ArtboardActions {
   const selSet = useSelectionSet();
   const bus = useDragStateContext();
   const undo = useUndoStackOptional();
-  const live = useRef({ selSet, bus, undo });
-  live.current = { selSet, bus, undo };
+  const live = useRef({ selSet, bus, undo, clipboard });
+  live.current = { selSet, bus, undo, clipboard };
   return useMemo<ArtboardActions>(() => {
     const boards = (): Box[] => live.current.bus?.layoutRects().map((r) => ({ ...r })) ?? [];
     const selectedIds = (): string[] =>
@@ -224,6 +225,21 @@ export function useArtboardActions(): ArtboardActions {
       customWidth,
       rename: (t) => rename(t.artboardId ?? undefined),
       resetPosition: (t) => resetPosition(idsFor(t.artboardId)),
+      // V2-clipboard-objects — the artboard's Copy ⌘C / Paste ⌘V (a paste lands beside this board's row)
+      ...(live.current.clipboard
+        ? {
+            copy: (t: ContextTarget) =>
+              void live.current.clipboard?.run('artboard.copy', {
+                objects: [],
+                artboards: idsFor(t.artboardId),
+              }),
+            paste: (t: ContextTarget) =>
+              void live.current.clipboard?.run('canvas.paste', {
+                objects: [],
+                artboards: t.artboardId ? [t.artboardId] : [],
+              }),
+          }
+        : {}),
     };
     return {
       idsFor,

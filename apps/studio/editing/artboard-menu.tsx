@@ -4,19 +4,19 @@
 //
 //   Ask AI about “<artboard name>” ⌘/   (`labelOf` names it per click; the static label stays "this artboard")
 //   Duplicate ⌘D · Duplicate at another width ▸ Laptop 1280 · Tablet 834 · Mobile 390 · Custom width… · Rename
-//   Add comment
-//   Start a vote…   (S4.14)
+//   Copy ⌘C · Paste ⌘V   (V2-clipboard-objects, editing/clipboard.ts)
 //   Export… ⇧⌘E
-//   Advanced ▸  Fit just this artboard · Reset position · Convert layout to absolute… · Open Timeline ·
-//               Fit to view · Reset view · Align… · Distribute… · Theme ▸ · Kind ▸
 //   Move to trash ⌫
 //
-// "Nothing deleted": every v1 row is either in the main list or under Advanced ▸; "Duplicate at width ▸"
-// replaces v1's "Duplicate at width…" flyout (same widths, plus Custom). Copy / Paste of an artboard are
-// drawn in the design but need an artboard clipboard that does not exist yet — not faked here.
+// P8 round 7: exactly the rows 14 ed-ab-menu draws ("the settled set"). The rows it does not draw left the
+// menu and stay reachable elsewhere: Add comment (C, the comment tool), Start a vote… (⌘K
+// `annotations.start-vote`), and the old Advanced ▸ (Fit just this artboard / Fit to view / Reset view: the
+// zoom keys and the View menu; Reset position: ⌘K `artboard.reset-position`; Convert layout to absolute: ⌘K
+// `layout.convert-to-absolute`; Align / Distribute: the align bar; Theme / Kind: the inspector; Open Timeline:
+// the video artboard's own chrome). `artboardMenuAdvanced` still returns that list for callers that want it.
+// "Duplicate at width ▸" replaces v1's "Duplicate at width…" flyout (same widths, plus Custom).
 // Pure over the item structure — testable without a DOM.
 
-import { askVoteBoard } from '../annotations/ui/vote-dots.tsx';
 import type { ContextTarget, MenuItem, MenuSection } from '../context-menu.tsx';
 import { ASK_ARTBOARD_EVENT, askAboutWords } from './ask-bubble.tsx';
 
@@ -44,20 +44,17 @@ export interface ArtboardMenuDeps {
   customWidth(target: ContextTarget): void;
   rename(target: ContextTarget): void;
   resetPosition(target: ContextTarget): void;
+  /** V2-clipboard-objects — absent: no Copy / Paste rows */
+  copy?(target: ContextTarget): void;
+  paste?(target: ContextTarget): void;
 }
 
 /** v1 ids that move out of Advanced into the main list (relabelled) or are replaced. */
 const MAIN = new Set(['add-comment', 'export-artboard', 'delete-artboard']);
 const REPLACED = new Set(['duplicate-at-breakpoint']);
 
-export function artboardMenuSections(v1: MenuSection[], deps: ArtboardMenuDeps): MenuSection[] {
-  const byId = new Map<string, MenuItem>();
-  for (const sec of v1) for (const it of sec) byId.set(it.id, it);
-  const reuse = (id: string, over: Partial<MenuItem> = {}): MenuItem[] => {
-    const it = byId.get(id);
-    return it ? [{ ...it, ...over }] : [];
-  };
-
+/** The v1 rows the drawn menu leaves out (they are reachable elsewhere — see the header). */
+export function artboardMenuAdvanced(v1: MenuSection[], deps: ArtboardMenuDeps): MenuItem[] {
   const advanced: MenuItem[] = [];
   const reset: MenuItem = {
     id: 'reset-position',
@@ -73,6 +70,24 @@ export function artboardMenuSections(v1: MenuSection[], deps: ArtboardMenuDeps):
     }
   }
   if (!advanced.includes(reset)) advanced.unshift(reset);
+  return advanced;
+}
+
+export function artboardMenuSections(v1: MenuSection[], deps: ArtboardMenuDeps): MenuSection[] {
+  const byId = new Map<string, MenuItem>();
+  for (const sec of v1) for (const it of sec) byId.set(it.id, it);
+  const reuse = (id: string, over: Partial<MenuItem> = {}): MenuItem[] => {
+    const it = byId.get(id);
+    return it ? [{ ...it, ...over }] : [];
+  };
+  const clip: MenuItem[] = [
+    ...(deps.copy
+      ? [{ id: 'copy-artboard', label: 'Copy', shortcut: '⌘C', onSelect: deps.copy } as MenuItem]
+      : []),
+    ...(deps.paste
+      ? [{ id: 'paste-artboard', label: 'Paste', shortcut: '⌘V', onSelect: deps.paste } as MenuItem]
+      : []),
+  ];
 
   const sections: MenuSection[] = [
     [
@@ -123,18 +138,8 @@ export function artboardMenuSections(v1: MenuSection[], deps: ArtboardMenuDeps):
       },
       { id: 'rename-artboard', label: 'Rename', icon: 'edit', onSelect: deps.rename },
     ],
-    reuse('add-comment'),
-    // S4.14 — "Start a vote…" with this artboard ticked: the canvas hands the shell its artboards
-    // (`vote-board {open, focus}`); the shell opens the sheet for an editor (the server refuses the rest).
-    [
-      {
-        id: 'start-vote',
-        label: 'Start a vote…',
-        onSelect: (t) => askVoteBoard(true, t.artboardId ?? null),
-      },
-    ],
+    clip,
     reuse('export-artboard', { label: 'Export…', shortcut: '⇧⌘E', icon: 'export' }),
-    [{ id: 'advanced', label: 'Advanced', onSelect: () => {}, submenu: advanced }],
     // 14 ed-ab-menu owns this menu and draws Move to trash as a plain row with the trash glyph and ⌫ (01's
     // `danger` variant loses to the owning board): not red, and the key it really has.
     reuse('delete-artboard', {

@@ -81,7 +81,7 @@ describe('G5 — the artboard menu names the artboard', () => {
     expect(row?.textContent).toContain('⌘/');
   });
 
-  test('an artboard that says no name keeps the static words; Add comment is still there', () => {
+  test('an artboard that says no name keeps the static words; Add comment left the menu (P8 r7: 14 draws none)', () => {
     document.body.innerHTML = '<article data-dc-screen="x"></article>';
     const sections = artboardMenuSections(
       [[{ id: 'add-comment', label: 'Add comment', shortcut: 'C', onSelect: noop }]],
@@ -92,7 +92,7 @@ describe('G5 — the artboard menu names the artboard', () => {
     expect(
       ask.labelOf?.({ ...target(q('article'), 'artboard-chrome'), artboardId: 'x' })
     ).toBeNull();
-    expect(sections.flat().some((i) => i.id === 'add-comment')).toBe(true);
+    expect(sections.flat().some((i) => i.id === 'add-comment')).toBe(false);
   });
 });
 

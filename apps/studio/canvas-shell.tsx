@@ -86,6 +86,7 @@ import {
 import { setElementDragActive } from './drag-state.ts';
 import { useArtboardActions } from './editing/artboard-actions.ts';
 import { type ArtboardMenuDeps, artboardMenuSections } from './editing/artboard-menu.tsx';
+import { useClipboard } from './editing/clipboard-actions.ts';
 import { drawToolOfAction } from './editing/draw-geometry.ts';
 import { editOpRecord, editOpRecordFromShell } from './editing/edit-op.ts';
 import { EditingLayer } from './editing/index.tsx';
@@ -1081,8 +1082,10 @@ function CanvasCore({
     [controller, artboardsCtx]
   );
 
-  const objectOps = useObjectOps();
-  const artboardActions = useArtboardActions();
+  // V2-clipboard-objects — the object / artboard menus' Cut · Copy · Paste (editing/clipboard-actions.ts)
+  const clipboard = useClipboard();
+  const objectOps = useObjectOps(clipboard);
+  const artboardActions = useArtboardActions(clipboard);
   const registry = useMemo<ContextRegistry>(
     () =>
       buildRegistry({

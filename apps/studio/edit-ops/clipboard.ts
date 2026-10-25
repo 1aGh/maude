@@ -79,10 +79,10 @@ const ARTBOARD_GAP = 80;
 
 const clips = new Map<string, Clip>();
 
-function keep(clip: Omit<Clip, 'id' | 'bytes'>): ClipHandle {
+function keep(clip: Omit<Clip, 'id' | 'bytes' | 'count'>): ClipHandle {
   const id = `c_${randomBytes(8).toString('hex')}`;
   const bytes = clip.items.reduce((n, t) => n + t.length * 2, 0);
-  clips.set(id, { ...clip, id, bytes });
+  clips.set(id, { ...clip, id, bytes, count: clip.items.length });
   let total = 0;
   for (const c of clips.values()) total += c.bytes;
   for (const [k, c] of clips) {
@@ -161,7 +161,7 @@ const widthOf = (attrs: string): number | null => {
   return m ? Number(m[1]) : null;
 };
 
-function readArtboards(source: string, req: ResolvedEditOp): Omit<Clip, 'id' | 'bytes'> {
+function readArtboards(source: string, req: ResolvedEditOp): Omit<Clip, 'id' | 'bytes' | 'count'> {
   const { els, all } = artboardsOf(source, req);
   const labels = artboardLabels(source);
   return {
@@ -376,7 +376,7 @@ function pasteArtboards(source: string, req: ResolvedEditOp, clip: Clip) {
 /** `<DCArtboard id="…" label="…">` of a checked item with a new id and label (the opening tag only). */
 function renameBoard(text: string, id: string, label: string, file: string): string {
   const synth = `${WRAP_HEAD}${text}${WRAP_TAIL}`;
-  const parsed = parseSync('clip.tsx', synth, { sourceType: 'module' }) as {
+  const parsed = parseSync('clip.tsx', synth, { sourceType: 'module' }) as unknown as {
     program: { body: Array<Record<string, unknown>> };
   };
   // const __maudeClip = ( <DCArtboard …> ) — the declarator's init, through the parentheses

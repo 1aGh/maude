@@ -3,7 +3,7 @@
 // canvas-shell builds the v1 sections as before (every handler stays where it was, every
 // `canvas-menu-item-<id>` testid stays), and `objectMenuSections` lays them out in the v2 order:
 //
-//   Duplicate ⌘D · Copy properties ⌥⌘C · Paste properties ⌥⌘V · Select matching
+//   Cut ⌘X · Copy ⌘C · Paste ⌘V · Duplicate ⌘D · Copy properties ⌥⌘C · Paste properties ⌥⌘V · Select matching
 //   Frame selection ⌥⌘G · Remove frame ⇧⌘G (greyed when it does not apply)
 //   Bring to front ⌘] · Bring forward ] · Send backward [ · Send to back ⌘[
 //   Lock ⇧⌘L (Unlock) · Hide (Show)
@@ -13,12 +13,13 @@
 //   Remove ⌫
 //
 // Ask AI about “<name>” ⌘/ opens the list (S2.22; it runs `ai.ask-selection` through the ask bubble). Cut / Copy /
-// Paste of OBJECTS are drawn in the design but no element clipboard exists in the registry (`edit.copy`/`cut`/`paste`
-// are text and annotation rows), so they are not faked here. "Nothing deleted": every v1 row is either in the main
-// list or under Advanced ▸ (D6). Pure over the item structure — testable without a DOM.
+// Paste are the object clipboard (V2-clipboard-objects, editing/clipboard.ts: edit-ops, the clipboard in the shell).
+// "Nothing deleted": every v1 row is either in the main list or under Advanced ▸ (D6). Pure over the item
+// structure — testable without a DOM.
 
 import type { ContextTarget, MenuItem, MenuSection } from '../context-menu.tsx';
 import { ASK_OBJECTS_EVENT, askAboutWords } from './ask-bubble.tsx';
+import type { ClipAction } from './clipboard.ts';
 import type { ObjectOpAction } from './object-ops.ts';
 
 export interface ObjectMenuDeps {
@@ -26,6 +27,8 @@ export interface ObjectMenuDeps {
   elementsFor(target: ContextTarget): Element[];
   run(action: ObjectOpAction, target: ContextTarget): void;
   selectMatching(target: ContextTarget): void;
+  /** V2-clipboard-objects — Cut / Copy / Paste on the objects `target` names (absent: no rows). */
+  clip?(action: ClipAction, target: ContextTarget): void;
 }
 
 /** v1 ids that move into the v2 main list (relabelled); everything else goes under Advanced ▸. */
@@ -126,6 +129,22 @@ export function objectMenuSections(v1: MenuSection[], deps: ObjectMenuDeps): Men
       },
     ],
     [
+      ...(deps.clip
+        ? (
+            [
+              ['cut-object', 'Cut', 'object.cut', '⌘X'],
+              ['copy-object', 'Copy', 'object.copy', '⌘C'],
+              ['paste-object', 'Paste', 'canvas.paste', '⌘V'],
+            ] as const
+          ).map(
+            ([id, label, action, shortcut]): MenuItem => ({
+              id,
+              label,
+              shortcut,
+              onSelect: (t) => deps.clip?.(action, t),
+            })
+          )
+        : []),
       ...reuse('duplicate-element', { label: 'Duplicate', shortcut: '⌘D', icon: 'duplicate' }),
       ...reuse('copy-style', { label: 'Copy properties', shortcut: '⌥⌘C' }),
       ...reuse('paste-style', { label: 'Paste properties', shortcut: '⌥⌘V' }),

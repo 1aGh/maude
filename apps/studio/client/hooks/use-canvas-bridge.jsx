@@ -28,6 +28,7 @@ import {
   TRASH_RECORD_LABEL,
   trashArtboardBody,
 } from '../edit-op-relay.ts';
+import { noteClipResult, shapeClipRequest } from '../clipboard-relay.ts';
 import { exportRegionOf } from '../export-region.ts';
 import {
   localSelectRecord,
@@ -458,14 +459,53 @@ export function useCanvasBridge({
         // `file` to the active canvas (a canvas edits only its own file) and forwards a well-formed
         // request to the main-origin-only dispatch route; the answer goes back by requestId. On the
         // same chain as apply-edit so two source writes to one file never race.
-        const body = editOpBody(m, activePath && activePath !== SYSTEM_TAB ? activePath : null);
-        if (!body) return;
+        const asked = editOpBody(m, activePath && activePath !== SYSTEM_TAB ? activePath : null);
+        if (!asked) return;
         const replyTo = e.source;
         const reply = (result) => {
           try {
             replyTo?.postMessage({ dgn: 'edit-op-result', requestId: m.requestId, ...result }, '*');
           } catch {}
         };
+        // V2-clipboard-objects — the clipboard is the shell's (client/clipboard-relay.ts): a paste names the
+        // shell's handle, never the canvas's; a clip from ANOTHER canvas waits for a click on the shell's toast.
+        const shaped = shapeClipRequest(asked);
+        if (shaped.kind === 'reply') {
+          reply(shaped.result);
+          return;
+        }
+        if (shaped.kind === 'confirm') {
+          reply(shaped.reply);
+          const askedFile = asked.file;
+          shellToast(shaped.line, true, {
+            label: 'Paste',
+            onClick: () => {
+              // the canvas that asked is still open (the toast may be clicked later)
+              if (iframesRef.current.get(askedFile)?.contentWindow !== replyTo) return;
+              editApplyChainRef.current = editApplyChainRef.current
+                .catch(() => {})
+                .then(() =>
+                  fetch('/_api/edit-op', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify(shaped.body),
+                  })
+                    .then(readEditOpAnswer)
+                    .then((r) => {
+                      if (!r.ok) {
+                        replyTo?.postMessage({ dgn: 'op-toast', message: r.message }, '*');
+                        return;
+                      }
+                      const payload = legacyRecordPayload(r, 'Paste');
+                      if (payload) replyTo?.postMessage({ dgn: 'record-edit', payload }, '*');
+                    })
+                    .catch(() => {})
+                );
+            },
+          });
+          return;
+        }
+        const body = shaped.body;
         editApplyChainRef.current = editApplyChainRef.current
           .catch(() => {})
           .then(() =>
@@ -476,6 +516,7 @@ export function useCanvasBridge({
             })
               .then(readEditOpAnswer)
               .then((result) => {
+                noteClipResult(body, result);
                 reply(result);
                 // S7.21 — "Tablet and Mobile are beside Desktop." + Undo, when the inspector asked for the copies
                 const added = settleAddedWidths(body, result);
