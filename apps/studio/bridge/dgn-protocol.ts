@@ -563,6 +563,11 @@ export interface ShellToCanvas {
   // the post (`from`) and "+13 % height · Ink fill" on the copy (`to`, `extraPct` of its height is background in `fill`).
   // Words only: the canvas builds the strings from these three facts, nothing is shown as markup.
   'convert-marks': { v: 1; from: Id; to: Id; extraPct: number; fill: string | null };
+  // V2-8.5 c7 (03 ai-copy): the artboards a "Run on a copy" made, each with the artboard it was copied from. The canvas
+  // draws a dashed link between the pair and "Copied from <the original's name>" under the copy. Ids only: the
+  // canvas reads the name off its own artboard, and nothing the person asked (or the busy chat's title) crosses
+  // (DDR-054, v2-S5.11-neutral-ring-tags). State, not an event: the whole list each time; `[]` clears.
+  'ai-copies': { v: 1; copies: Array<{ from: Id; to: Id }> };
   // S5.11 (V2-1.15 §5.8, P3): which artboards an AI is on, for the ring + tag the canvas draws. A state, a
   // name and a count per artboard — never a prompt, a question or a progress line (the canvas is untrusted).
   // `done` is the settled ring after a run (driven by the V2-1.5 action event, not the registry).
@@ -1071,6 +1076,11 @@ export const AI_SEEN_MAX = 8;
 export const AI_SEEN_TAG_MAX = 40;
 const SEEN_ID = '[A-Za-z0-9_.:-]{1,128}';
 const SEEN_REF = new RegExp(`^(?:ab:${SEEN_ID}|el:${SEEN_ID}/${SEEN_ID})$`);
+/** V2-8.5 c7 - how many copy pairs one `ai-copies` may carry. */
+export const AI_COPIES_MAX = 20;
+const aiCopiesList: V = (v) =>
+  Array.isArray(v) && v.length <= AI_COPIES_MAX ? arrOf(shape({ from: cdId, to: cdId }))(v) : BAD;
+
 const aiSeenList: V = (v) =>
   Array.isArray(v) && v.length <= AI_SEEN_MAX
     ? arrOf(
@@ -2052,6 +2062,13 @@ const s2c: S2C = {
     // paints the two marks (artboard-convert-marks.tsx) for a few seconds
     owner: 'artboard-convert-marks',
     parse: p({ v: lit(1), from: str, to: str, extraPct: num, fill: nul(shortStr(40)) }),
+  },
+  'ai-copies': {
+    gate: 'parent',
+    status: 'live',
+    // sent by v2/ai/ring-relay.js beside `ai-runs`; drawn by artboard-ai-copies.tsx (more than AI_COPIES_MAX pairs is refused whole)
+    owner: 'artboard-ai-copies',
+    parse: p({ v: lit(1), copies: aiCopiesList }),
   },
   'ai-runs': {
     gate: 'parent',

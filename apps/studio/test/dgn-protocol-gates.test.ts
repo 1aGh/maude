@@ -149,3 +149,36 @@ describe('convert-marks (V2-8.5 c7, 08 ak-convert-after)', () => {
     expect(acceptFromShell(ev({ dgn: 'convert-marks', v: 1 }, shell), win)).toBeNull();
   });
 });
+
+describe('ai-copies (V2-8.5 c7, 03 ai-copy)', () => {
+  const shell = { name: 'shell' } as unknown as Window;
+  const sibling = { name: 'sibling' } as unknown as Window;
+  const win = { parent: shell } as unknown as Window;
+  const msg = { dgn: 'ai-copies', v: 1, copies: [{ from: 'post', to: 'post-copy-a1b2c3' }] };
+
+  test('is a shell to canvas, parent-gated row', () => {
+    expect(DGN_TABLE.s2c['ai-copies'].gate).toBe('parent');
+    expect(Object.keys(DGN_TABLE.c2s)).not.toContain('ai-copies');
+  });
+
+  test('only the parent frame is heard; a sibling or the canvas itself is refused', () => {
+    expect(acceptFromShell(ev(msg, shell), win)).toEqual(msg);
+    expect(acceptFromShell(ev(msg, sibling), win)).toBeNull();
+    expect(acceptFromShell(ev(msg, win), win)).toBeNull();
+  });
+
+  test('ids only: an id outside the artboard grammar, a missing id or too many pairs are refused whole', () => {
+    const ok = (o: Record<string, unknown>) => acceptFromShell(ev({ ...msg, ...o }, shell), win);
+    expect(ok({ copies: [] })).not.toBeNull();
+    expect(ok({ copies: [{ from: 'post', to: 'x y' }] })).toBeNull();
+    expect(ok({ copies: [{ from: 'post', to: 4 }] })).toBeNull();
+    expect(ok({ copies: [{ from: 'post' }] })).toBeNull();
+    expect(
+      ok({ copies: Array.from({ length: 21 }, (_, i) => ({ from: 'a', to: `b${i}` })) })
+    ).toBeNull();
+    expect(ok({ v: 2 })).toBeNull();
+    // a caption the shell might be tempted to send never survives the parser (the busy chat's title stays home)
+    const words = ok({ copies: [{ from: 'post', to: 'copy', caption: 'before Make it greener' }] });
+    expect(JSON.stringify(words)).not.toContain('Make it greener');
+  });
+});
