@@ -8,12 +8,11 @@ export function PickedShots({ parts, designRel = '.design', onOpen }) {
   const shots = pickedShots(parts, designRel);
   if (!shots.length) return null;
   return (
-    <span className="ai-six" role="list" aria-label="Shots it picked" data-testid="ai-six">
+    <span className="ai-six" data-testid="ai-six">
       {shots.map((s) => (
         <button
           key={s.src}
           type="button"
-          role="listitem"
           className="ai-six-btn"
           aria-label={`Open ${s.name}`}
           title={s.name}

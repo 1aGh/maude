@@ -27,7 +27,6 @@ describe('picked shots in the feed', () => {
   });
 
   async function mount(tools: unknown[], opened: string[] = []) {
-    const React = await import('react');
     const { createRoot } = await import('react-dom/client');
     const { act } = await import('react');
     const { AssistantRuntimeProvider, ThreadPrimitive, useLocalRuntime } = await import(
