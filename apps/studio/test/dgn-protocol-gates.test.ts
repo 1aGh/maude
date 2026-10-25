@@ -149,3 +149,24 @@ describe('convert-marks (V2-8.5 c7, 08 ak-convert-after)', () => {
     expect(acceptFromShell(ev({ dgn: 'convert-marks', v: 1 }, shell), win)).toBeNull();
   });
 });
+
+describe('viewport-zoom fit flag (V2-8.5 c7, 01 cf-open-big "Zoom to fit · N %")', () => {
+  const base = { dgn: 'viewport-zoom', zoom: 0.1 };
+
+  test('the camera says it is fitted: an optional boolean rides on the existing message', () => {
+    expect(acceptFromCanvas(ev({ ...base, fit: true }, active), ctx)).toEqual({
+      ...base,
+      fit: true,
+    });
+    expect(acceptFromCanvas(ev(base, active), ctx)).toEqual(base); // older canvases: no flag
+  });
+
+  test('a flag that is not a boolean refuses the whole message', () => {
+    expect(acceptFromCanvas(ev({ ...base, fit: 'yes' }, active), ctx)).toBeNull();
+    expect(acceptFromCanvas(ev({ ...base, fit: 1 }, active), ctx)).toBeNull();
+  });
+
+  test('still active-gated: a background canvas cannot move the readout', () => {
+    expect(acceptFromCanvas(ev({ ...base, fit: true }, background), ctx)).toBeNull();
+  });
+});
