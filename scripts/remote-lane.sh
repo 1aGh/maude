@@ -25,7 +25,8 @@
 #      always reports 0, so the code is read back from runs/<id>.rc — gate on this script's exit.
 #
 # Capacity rule (16 GB RAM): at most ONE full suite and two screenshot chains at a time — i.e. use
-# --slot 1 for suites; shooting chains take auto (2/3). Each slot runs one command at a time.
+# --slot 1 for suites; `auto` takes only slots 2/3 (never 1) and waits for one of them. Each slot
+# runs one command at a time.
 #
 # Examples
 #   scripts/remote-lane.sh --slot 1 -- bash -c 'cd apps/studio && bun test'
@@ -85,7 +86,7 @@ trap 'rc=$?; echo "$rc" >"$R/runs/$ID.rc"; [[ -n "$got" ]] && rm -rf "$R/locks/s
 take() { mkdir "$R/locks/slot$1" 2>/dev/null && echo "$$ $ID" >"$R/locks/slot$1/owner"; }
 stale() { local p; p="$(cut -d' ' -f1 "$R/locks/slot$1/owner" 2>/dev/null)"; [[ -n "$p" ]] && ! kill -0 "$p" 2>/dev/null; }
 for _ in $(seq 1 180); do
-  if [[ "$SLOT" == auto ]]; then cands="2 3 1"; else cands="$SLOT"; fi
+  if [[ "$SLOT" == auto ]]; then cands="2 3"; else cands="$SLOT"; fi
   for s in $cands; do
     if stale "$s"; then rm -rf "$R/locks/slot$s"; fi
     if take "$s"; then got="$s"; break 2; fi
