@@ -55,12 +55,14 @@ export function copyLinkGeometry(
 }
 
 const CAPTION_GAP = 16;
+/** The height an AI tag under the artboard takes (its 16 px line, padding and the ring's offset). */
+const TAG_ROOM = 24;
 
 const CSS_TEXT = `
 .dc-ai-copies { position: fixed; inset: 0; z-index: 6; pointer-events: none; }
 .dc-ai-copy-link { position: fixed; display: none; box-sizing: border-box; pointer-events: none; }
-.dc-ai-copy-link[data-axis="x"] { height: 0; border-top: 1.5px dashed var(--maude-chrome-border, currentColor); }
-.dc-ai-copy-link[data-axis="y"] { width: 0; border-left: 1.5px dashed var(--maude-chrome-border, currentColor); }
+.dc-ai-copy-link[data-axis="x"] { height: 0; border-top: 1.5px dashed var(--maude-chrome-fg-2, currentColor); }
+.dc-ai-copy-link[data-axis="y"] { width: 0; border-left: 1.5px dashed var(--maude-chrome-fg-2, currentColor); }
 .dc-ai-copy-from {
   position: fixed; display: none; align-items: center; gap: 4px; white-space: nowrap; pointer-events: none;
   font: 400 var(--maude-hud-type-xs, 11px)/16px var(--maude-chrome-font-body, system-ui, sans-serif);
@@ -114,7 +116,12 @@ export function AiCopyLinks(): React.JSX.Element | null {
           if (live(b)) {
             note.style.display = 'inline-flex';
             note.style.left = `${Math.round(b.left)}px`;
-            note.style.top = `${Math.round(b.bottom + CAPTION_GAP)}px`;
+            // a narrow artboard wears its AI tag below it (artboard-activity-overlay `data-at="below"`): sit under that
+            const ring = document.querySelector<HTMLElement>(
+              `.dc-ai-ring[data-artboard="${p.to.replace(/["\\]/g, '\\$&')}"]`
+            );
+            const tagBelow = ring?.dataset.at === 'below' && ring.style.display !== 'none';
+            note.style.top = `${Math.round(b.bottom + CAPTION_GAP + (tagBelow ? TAG_ROOM : 0))}px`;
           } else note.style.display = 'none';
         }
         if (link) {

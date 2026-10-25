@@ -138,6 +138,44 @@ describe('the canvas side of ai-copy', () => {
   });
 });
 
+describe('the caption makes room for the AI tag when that tag sits below the copy', () => {
+  test('a ring tag below the artboard (a narrow one) pushes the caption under it', async () => {
+    const parent = { postMessage: () => {} };
+    Object.defineProperty(window, 'parent', { value: parent, configurable: true });
+    document.body.innerHTML = `<div id="root"></div>
+      <div data-dc-screen="post" data-dc-label="Post 1:1"></div>
+      <div data-dc-screen="copy" data-dc-label="Post 1:1 · copy"></div>
+      <div class="dc-ai-ring" data-artboard="copy" data-at="below" style="display: block"></div>`;
+    const box = (left: number, top: number, w: number, h: number) =>
+      ({ left, top, right: left + w, bottom: top + h, width: w, height: h }) as DOMRect;
+    const rects: Record<string, DOMRect> = { post: box(0, 0, 160, 160), copy: box(200, 0, 160, 160) };
+    for (const el of document.querySelectorAll('[data-dc-screen]'))
+      (el as HTMLElement).getBoundingClientRect = () =>
+        rects[el.getAttribute('data-dc-screen') ?? ''] as DOMRect;
+    const root = createRoot(document.getElementById('root') as HTMLElement);
+    await act(async () => {
+      root.render(<AiCopyLinks />);
+    });
+    const ev = new MessageEvent('message', {
+      data: { dgn: 'ai-copies', v: 1, copies: [{ from: 'post', to: 'copy' }] },
+    });
+    Object.defineProperty(ev, 'source', { value: parent });
+    await act(async () => {
+      window.dispatchEvent(ev);
+    });
+    await act(async () => {
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+    });
+    const cap = document.querySelector('[data-testid="ai-copy-caption"]') as HTMLElement;
+    // 160 (bottom) + 16 (gap) + 24 (the tag's room) = 200
+    expect(cap.style.top).toBe('200px');
+    await act(async () => {
+      root.unmount();
+    });
+  });
+});
+
 describe('the relay posts ai-copies to the open canvas', () => {
   const FILE = '.design/ui/C.tsx';
   const run = (extra: Record<string, unknown> = {}) => ({
