@@ -71,7 +71,7 @@
     flex: none;
   }
   .kf-foot {
-    margin: var(--space-1) var(--space-2) 0;
+    margin: auto var(--space-2) 0; /* the foot of the panel (08 ak-fp-foot), under the list */
     padding: var(--space-2) var(--space-1) 0;
     box-shadow: inset 0 0.5px 0 var(--border-subtle);
     font-size: var(--type-xs);

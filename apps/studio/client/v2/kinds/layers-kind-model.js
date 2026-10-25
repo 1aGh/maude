@@ -39,6 +39,12 @@ export function dimIds(boards, kind) {
   return ids;
 }
 
+/** The artboards the Layers list names while the filter is on `kind`: only those of it. No filter → all. */
+export function boardsOfKind(boards, kind) {
+  const list = Array.isArray(boards) ? boards : [];
+  return isFilterKind(kind) && kind !== 'all' ? list.filter((b) => kindOf(b) === kind) : list;
+}
+
 /** How many artboards sit outside the filter. */
 export function otherCount(boards, kind) {
   if (!isFilterKind(kind)) return 0;

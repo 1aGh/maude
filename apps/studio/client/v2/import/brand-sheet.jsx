@@ -89,6 +89,17 @@ export default function BrandSheet({ open, onClose }) {
   const fileInputRef = useRef(null);
   const websiteRef = useRef(null);
   const ref = useModalFocus({ open, onClose, initialRef: websiteRef });
+  // V2-8.5 C8 (12 ia-brand-steps): the chosen logo draws itself in the drop well, on the transparency checker
+  const [logoUrl, setLogoUrl] = useState(null);
+  useEffect(() => {
+    if (!logoFile?.blob || typeof URL?.createObjectURL !== 'function') {
+      setLogoUrl(null);
+      return undefined;
+    }
+    const url = URL.createObjectURL(logoFile.blob);
+    setLogoUrl(url);
+    return () => URL.revokeObjectURL?.(url);
+  }, [logoFile]);
 
   useEffect(() => {
     if (open) return;
@@ -226,8 +237,17 @@ export default function BrandSheet({ open, onClose }) {
                 takeFile(e.dataTransfer?.files?.[0]);
               }}
             >
-              <span className="bi-drop-ic" aria-hidden="true">
-                {logoFile ? '✓' : '+'}
+              <span
+                className={`bi-drop-ic${logoUrl ? ' bi-drop-ic--logo' : ''}`}
+                aria-hidden="true"
+              >
+                {logoUrl ? (
+                  <img src={logoUrl} alt="" data-testid="brand-up-logo-preview" />
+                ) : logoFile ? (
+                  '✓'
+                ) : (
+                  '+'
+                )}
               </span>
               <span className="bi-drop-t">
                 <strong>{logoFile ? logoFile.name : 'Drop a logo here'}</strong>

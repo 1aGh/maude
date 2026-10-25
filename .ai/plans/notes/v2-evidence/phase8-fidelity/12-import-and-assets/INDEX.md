@@ -128,3 +128,9 @@ Fixture note: the photo fixtures (18 files in `assets/`, the Spread canvas) are 
 | ia-brand | unreachable | unreachable | needs a reachable website to read |
 | ia-missing | unreachable | unreachable | needs a synced project with a peer that holds the file |
 | ia-edges | unreachable | unreachable | nine separate conditions (network, hub, provider keys, file types) |
+
+## Round 8 (p8-c8-misc2) — re-shot, light + dark (harness `_c8m2-harness-g4`, `s12g`)
+
+| artboard id | after (round 8) |
+| --- | --- |
+| ia-brand-steps (= frame -1), -1, -2, -3 | re-shot: the chosen logo draws itself on the checker tile in the drop well (`bi-drop-ic--logo`); the website read is held by a route stub, so the Reading column (two Reading… rows, progress bar, "Usually under 10 seconds…") is on screen (-2), then answers "didn't answer" for the Edge column (-3). The opener pair uses the logo-chosen frame, which is what the board's first column draws |

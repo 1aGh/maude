@@ -183,10 +183,17 @@
         align-items: center;
         justify-content: center;
         gap: var(--space-2, 8px);
-        padding: 0 24px;
+        /* P8-C8 (11 pn-tab-b20): a tab at rest keeps the board's k-tab--dense padding (space-2) so
+           the name gets ~7 characters beside the state mark; the × takes the square's place on
+           hover/focus and the active tab keeps its 24 px for it. */
+        padding: 0 var(--space-2, 8px);
         border-radius: var(--radius-md);
         color: var(--strip-fg);
         outline: none;
+      }
+      .tab:not([aria-selected="true"]):hover .sq,
+      .tab:not([aria-selected="true"]):focus-within .sq {
+        opacity: 0;
       }
       /* between inactive tabs a hairline (k-tab + k-tab::before) */
       .tab + .tab:not([aria-selected="true"])::before {
@@ -202,6 +209,7 @@
         background: var(--tab-hover);
       }
       .tab[aria-selected="true"] {
+        padding: 0 var(--space-2, 8px) 0 28px; /* the × room, on the left only (P8-C8) */
         background: var(--tab-active-bg);
         color: var(--tab-active-fg);
         font-weight: 600;

@@ -21,3 +21,14 @@ Checklist: critic-bar2.md MUST rows. Everything below is committed, tested, and 
 - pn-compare: the stage is still two iframes (two documents: both versions' CSS cannot share one), not the canvas with A / B artboard labels + a 660 px island; "Restore this version" wraps in a 248 px panel with a long artboard name (fixture).
 - pn-ds: "used by N projects" (no data), ⌘K "Colour / Components · section of the Design system" rows (13's rows, needs a converted system in the harness).
 - pn-history / pn-compare version titles are machine change lines; the keys sheet is the full 92-key one (06 owns).
+
+## Round 8 (p8-c8-misc2) — done
+
+- **pn-tab-b20 / pn-relaunch-strip** — `apps/desktop/src/strip.html`: a resting tab's padding is the board's dense space-2 (was 24 px each side, which left 1-4 characters of name beside a state mark); the × replaces the square on hover/focus; the active tab keeps its × room on the left only. Re-shot (strip page) light + dark: ~8 characters.
+- **pn-move** — harness only: the drag state is shot (HTML5 events dispatched on one DataTransfer, shot before the spring-load): "Move here" on the folder, the dragged row dimmed/dashed. The native drag ghost is still not drawable.
+- **pn-deeplink** — not a product bug: the D5 light shot was taken while the centring pan ran; ring and artboard are aligned once the canvas is up. Re-shot after the pan.
+
+## Open
+
+- pn-ds / pn-ds-search "used by N projects" — board deviation, no data (decided).
+- The active tab is not wider than its neighbours (board: shows the full name) — polish.

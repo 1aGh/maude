@@ -21,8 +21,18 @@ const PRESET_WORD = new Map(WIDTH_PRESETS.map((p) => [p.w, p.label]));
 /** 1440 → "Desktop"; a width that is no preset reads as itself ("1300 px"). */
 export const widthWord = (w) => PRESET_WORD.get(w) ?? `${w} px`;
 
-/** "1573 now — grows as you add." (08 ak-web-hug) */
-export const webHeightNote = (h) => `${Math.round(h)} now — grows as you add.`;
+const COUNT_WORD = ['', '', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+
+/**
+ * "1573 now — grows as you add." (08 ak-web-hug); on the tallest of several widths of one page "2185 now — the
+ * longest of the three." (08 ak-web-widths). `longestOf` = how many pages stand side by side (null: not compared).
+ */
+export const webHeightNote = (h, longestOf = null) => {
+  const n = Number(longestOf);
+  if (!(n >= 2)) return `${Math.round(h)} now — grows as you add.`;
+  const word = COUNT_WORD[n] || String(n);
+  return `${Math.round(h)} now — ${n === 2 ? 'the longer' : 'the longest'} of the ${word}.`;
+};
 
 /** The pair "Add a width" can add in one gesture. */
 export const ADD_PAIR = Object.freeze({

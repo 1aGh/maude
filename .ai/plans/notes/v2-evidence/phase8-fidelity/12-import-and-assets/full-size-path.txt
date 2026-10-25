@@ -10,3 +10,6 @@ round 7: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a8e7c0c42105bd43
 
 final (D5, e37e7d82a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a14648f2c5028a8a1/.scr/pairs/12-import-and-assets
 (full-size PNG pairs: <id>-<theme>.png; spec PNGs, reused from stage A (boards unchanged since): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a14648f2c5028a8a1/.scr/spec/12-import-and-assets/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a14648f2c5028a8a1/.scr/impl/12-import-and-assets/; shot on the Mac mini with Google Chrome, harness _d5-harness-g4)
+
+round 8 (p8-c8-misc2, tip ce5531151 + this round's commits): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a4b2de463af638d6e/.scr/pairs/12-import-and-assets
+(full-size PNG pairs <id>-<theme>.png, spec | impl; spec reused from stage A / D5: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a4b2de463af638d6e/.scr/spec/12-import-and-assets/; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a4b2de463af638d6e/.scr/impl/12-import-and-assets/; ids ia-brand-steps ia-brand-steps-1 -2 -3; harness _c8m2-harness-g4, local Google Chrome)

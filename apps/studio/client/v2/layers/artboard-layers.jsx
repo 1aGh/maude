@@ -16,6 +16,8 @@
 import { Fragment } from 'react';
 import { DigitalIcon, PrintIcon, VideoIcon, WebIcon } from '../canvases/canvas-icons.jsx';
 import { isFilterKind } from '../kinds/kind-filter-model.js';
+import { boardsOfKind } from '../kinds/layers-kind-model.js';
+import { LayersKindFoot } from '../kinds/LayersKindFilter.jsx';
 import { useKindFilter } from '../kinds/kind-filter-store.js';
 
 const ICON = { digital: DigitalIcon, web: WebIcon, print: PrintIcon, video: VideoIcon };
@@ -48,8 +50,12 @@ export function ArtboardLayers({
   const [filter] = useKindFilter();
   const list = Array.isArray(boards) ? boards : [];
   const n = Number.isFinite(count) && count > 0 ? count : list.length;
-  const dimKind = list.length && isFilterKind(filter) ? filter : null;
-  const placed = current && list.some((b) => b.id === current);
+  const dimKind = list.length && isFilterKind(filter) && filter !== 'all' ? filter : null;
+  // V2-8.5 C8 (08 ak-mixed-fit): while a kind chip is on, the list names only the artboards of that kind (the canvas
+  // dims the rest); the tree of an artboard outside the kind waits until the chip goes.
+  const shown = boardsOfKind(list, dimKind);
+  const placed = current && shown.some((b) => b.id === current);
+  const treeHere = !dimKind || placed;
   return (
     <div className="ly2" data-testid="layers-by-artboard">
       <p className="ly2-t">
@@ -62,7 +68,7 @@ export function ArtboardLayers({
       </p>
       {list.length ? (
         <div className="ly2-list" role="group" aria-label="Artboards">
-          {list.map((b) => {
+          {shown.map((b) => {
             const Icon = ICON[b.kind] ?? DigitalIcon;
             const on = b.id === current;
             return (
@@ -72,7 +78,6 @@ export function ArtboardLayers({
                   className="ly2-board"
                   data-testid={`layers-artboard-${b.id}`}
                   data-kind={b.kind || 'digital'}
-                  data-dim={dimKind && b.kind !== dimKind ? 'true' : undefined}
                   aria-current={on ? 'true' : undefined}
                   title={b.label || b.id}
                   onClick={() => onPick?.(b.id)}
@@ -86,11 +91,14 @@ export function ArtboardLayers({
               </Fragment>
             );
           })}
-          {!placed && children ? <div className="ly2-tree ly2-tree--loose">{children}</div> : null}
+          {!placed && treeHere && children ? (
+            <div className="ly2-tree ly2-tree--loose">{children}</div>
+          ) : null}
         </div>
       ) : (
         children
       )}
+      <LayersKindFoot boards={list} />
     </div>
   );
 }
