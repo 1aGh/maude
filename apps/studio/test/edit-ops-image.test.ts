@@ -193,6 +193,34 @@ export default function Post() {
     expect(src.indexOf(img)).toBeLessThan(src.indexOf('</div>\n      </DCArtboard>'));
   });
 
+  test('P8 c8: a page that is a component call cannot hold the picture — it goes on the artboard itself, still absolute', async () => {
+    const SRC2 = `import { DCArtboard, DesignCanvas } from '@maude/canvas-lib';
+import { Home } from './Home';
+export default function Post() {
+  return (
+    <DesignCanvas>
+      <DCArtboard id="post" label="Post 1:1" width={1080} height={1080}>
+        <Home />
+      </DCArtboard>
+    </DesignCanvas>
+  );
+}
+`;
+    const h = harness(SRC2);
+    const r = good(
+      await h.run('image.place', {
+        asset: 'assets/deadbeef.jpg',
+        mode: 'loose',
+        artboard: 'post',
+        natural: { w: 720, h: 400 },
+        at: { x: 10, y: 20 },
+      })
+    );
+    const img = tagOf(h.src(), r.created?.[0]?.element as string);
+    expect(img).toContain('position: "absolute"');
+    expect(h.src().indexOf(img)).toBeGreaterThan(h.src().indexOf('<Home />'));
+  });
+
   test('an `at` that is not a point is refused; without `at` nothing changes', async () => {
     const h = harness();
     const r = await h.run('image.place', {

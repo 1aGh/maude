@@ -407,7 +407,9 @@ export const imagePlace: EditOp = {
       // a picture pasted onto an artboard with a point goes ON its page (the artboard's one element child), absolute
       const page = kidsOf(walk, target);
       const onBoard = !!p.at && p.assets.length === 1 && target.tag === 'DCArtboard';
-      const host = onBoard && page.length === 1 && page[0] ? page[0] : target;
+      // (a page that is a component call cannot hold a child: then it sits on the artboard itself)
+      const host =
+        onBoard && page.length === 1 && page[0] && /^[a-z]/.test(page[0].tag) ? page[0] : target;
       if (onBoard && p.at) put(first, atStyle(p.at, p.natural), 'end', host);
       else
         for (const a of p.assets)
