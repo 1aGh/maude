@@ -846,7 +846,8 @@
   .insp-zmenu {
     right: 0;
     left: auto;
-    width: 252px;
+    /* the card is ~246 px wide: a 252 px menu anchored to the trigger's right edge was cut off on the left (C8) */
+    width: 224px;
     padding: var(--space-1);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge, transparent);
