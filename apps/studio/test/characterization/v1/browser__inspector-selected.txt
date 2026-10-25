@@ -65,6 +65,14 @@ div
                   div .insp-hd
                     strong .insp-title [data-testid="inspector-title"] "Page"
                     span .chip.insp-kind [data-testid="inspector-kind"] "Frame"
+                  div .insp-uses-top
+                    p .insp-uses [data-testid="inspector-uses"]
+                      button .insp-uses-link [data-testid="inspector-uses-link"] [title="Open demo"] [type="button"]
+                        span .insp-uses-ic [aria-hidden="true"]
+                          svg [aria-hidden="true"]
+                        span .insp-uses-t "Uses"
+                          strong "demo"
+                        svg [aria-hidden="true"]
                   fieldset .ed-insp-fields
                     section .insp-sec [data-testid="insp-sec-position"] [aria-label="Position"]
                       p .insp-sec-t
@@ -266,14 +274,6 @@ div
                       button .insp-export-line [data-testid="insp-export-more"] [type="button"]
                         span "Export… — every option"
                         kbd .insp-export-keys "⇧⌘E"
-                    div .insp-uses-wrap
-                      p .insp-uses [data-testid="inspector-uses"]
-                        button .insp-uses-link [data-testid="inspector-uses-link"] [title="Open demo"] [type="button"]
-                          span .insp-uses-ic [aria-hidden="true"]
-                            svg [aria-hidden="true"]
-                          span .insp-uses-t "Uses"
-                            strong "demo"
-                          svg [aria-hidden="true"]
                     div .k-adv.v2-fold [data-testid="fold-inspector"]
                       button .k-adv-btn.v2-fold-btn [data-testid="fold-inspector-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
                         span .k-adv-ch.v2-fold-ch

@@ -67,7 +67,9 @@ div
                       svg [aria-hidden="true"]
                     span .lp-ds-two
                       span .lp-name "Design system"
-                      span .lp-ds-sub [data-testid="canvases-ds-row-sub"] "demo · 3 canvases"
+                      span .lp-ds-sub [data-testid="canvases-ds-row-sub"]
+                        span .lp-ds-line "demo"
+                        span .lp-ds-line "3 canvases"
                     span .lp-ds-warn [data-testid="canvases-ds-row-warn"] [role="img"] [aria-label="Made before the schema"] [title="Made before the schema — click to bring it up"]
                   button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [aria-haspopup="menu"] [type="button"]
                     span [aria-hidden="true"] "⋯"
@@ -153,7 +155,7 @@ div
                   span .v2-err-ic [aria-hidden="true"]
                     svg [aria-hidden="true"]
                   h2 .v2-err-t [data-testid="canvas-error-title"] "Broken can't be drawn right now."
-                p .v2-err-d [data-testid="canvas-error-body"] "Its code stops halfway on line 2. Other canvases are fine; the last good version is in Version history."
+                p .v2-err-d [data-testid="canvas-error-body"] "Its code has a mistake the canvas can't show. Other canvases are fine; the last good version is in Version history."
                 div .v2-err-acts
                 div .k-adv.v2-fold [data-testid="fold-canvas-error"]
                   button .k-adv-btn.v2-fold-btn [data-testid="fold-canvas-error-toggle"] [aria-expanded="false"] [type="button"] "Advanced"

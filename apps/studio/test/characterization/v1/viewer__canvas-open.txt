@@ -62,7 +62,9 @@ div
                       svg [aria-hidden="true"]
                     span .lp-ds-two
                       span .lp-name "Design system"
-                      span .lp-ds-sub [data-testid="canvases-ds-row-sub"] "demo · 3 canvases"
+                      span .lp-ds-sub [data-testid="canvases-ds-row-sub"]
+                        span .lp-ds-line "demo"
+                        span .lp-ds-line "3 canvases"
                     span .lp-ds-warn [data-testid="canvases-ds-row-warn"] [role="img"] [aria-label="Made before the schema"] [title="Made before the schema"]
                   button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [aria-haspopup="menu"] [type="button"]
                     span [aria-hidden="true"] "⋯"

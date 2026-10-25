@@ -305,6 +305,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               svg [aria-hidden="true"]
             span .v2s-conn-t
               strong "cloud.maude.sh"
+              span .v2s-conn-d "Where your projects live."
               span .v2s-conn-s [data-testid="settings-conn-cloud-status"] "Where your projects live. Not signed in."
             span .v2s-conn-a
               button .btn.btn--sm [data-testid="cloud-signin"] [type="button"] "Sign in"
@@ -320,15 +321,37 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               svg [aria-hidden="true"]
             span .v2s-conn-t
               strong "Your team’s own server"
+              span .v2s-conn-d "A self-hosted server, beside the cloud."
               span .v2s-conn-s [data-testid="settings-conn-hub-status"] "A self-hosted server, beside the cloud. Sign in with your email and password."
             span .v2s-conn-a
               button .btn.btn--sm [data-testid="settings-team-server-add"] [type="button"] "Add a team server…"
+        section .v2s-conn [data-testid="settings-claude"] [aria-label="AI — your Claude account"]
+          div .v2s-conn-r
+            span .v2s-conn-ic [aria-hidden="true"]
+              svg [aria-hidden="true"]
+            span .v2s-conn-t
+              strong "AI — your Claude account"
+              span .v2s-conn-d "Pro or Max, or an API key."
+              span .v2s-conn-s [data-testid="settings-conn-claude-status"] "Not connected"
+            span .v2s-conn-a
+              button .btn.btn--sm [data-testid="settings-claude-action"] [aria-expanded="false"] [type="button"] "Connect…"
+        section .v2s-conn [data-testid="figma-connect-card"] [aria-label="Figma"]
+          div .v2s-conn-r
+            span .v2s-conn-ic [aria-hidden="true"]
+              svg [aria-hidden="true"]
+            span .v2s-conn-t
+              strong "Figma"
+              span .v2s-conn-d "For Import from Figma."
+              span .v2s-conn-s [data-testid="settings-conn-figma-status"] "No token"
+            span .v2s-conn-a
+              button .btn.btn--sm [data-testid="figma-add-token"] [aria-expanded="false"] [type="button"] "Add token…"
         section .v2s-conn [data-testid="settings-github"] [aria-label="GitHub"]
           div .v2s-conn-r
             span .v2s-conn-ic [aria-hidden="true"]
               svg [aria-hidden="true"]
             span .v2s-conn-t
               strong "GitHub"
+              span .v2s-conn-d "GitHub projects and invites by username."
               span .v2s-conn-s [data-testid="settings-conn-github-status"] "Signing in with GitHub needs the Maude desktop app."
         section .v2s-conn [data-testid="settings-ai-keys"] [aria-label="AI images, video and voice"]
           div .v2s-conn-r
@@ -344,19 +367,6 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               button .k-adv-btn.v2-fold-btn [data-testid="fold-connections.ai-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
                 span .k-adv-ch.v2-fold-ch
                   svg [aria-hidden="true"]
-        section .v2s-conn [data-testid="figma-connect-card"] [aria-label="Figma"]
-          div .v2s-conn-r
-            span .v2s-conn-ic [aria-hidden="true"]
-              svg [aria-hidden="true"]
-            span .v2s-conn-t
-              strong "Figma"
-              span .v2s-conn-s [data-testid="settings-conn-figma-status"] "Not connected"
-          p .v2s-hint "A personal access token with the scope. Kept on this Mac only and never sent anywhere but Figma."
-            code "file_content:read"
-          button .btn.btn--ghost.btn--sm [type="button"] "Get a token ↗"
-          span .v2s-conn-replace
-            input .input [data-testid="figma-connect-input"] [aria-label="Figma personal access token"] [type="password"] [placeholder="figd_…"] [value]
-            button .btn.btn--sm [data-testid="figma-connect-save"] [type="button"] [disabled] "Save"
 ## tab 2
 div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Settings"] [aria-modal="true"]
   div .v2s-rail
@@ -514,6 +524,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               svg [aria-hidden="true"]
             span .v2s-conn-t
               strong "cloud.maude.sh"
+              span .v2s-conn-d "Where your projects live."
               span .v2s-conn-s [data-testid="settings-conn-cloud-status"] "Where your projects live. Not signed in."
             span .v2s-conn-a
               button .btn.btn--sm [data-testid="cloud-signin"] [type="button"] "Sign in"
@@ -529,15 +540,37 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               svg [aria-hidden="true"]
             span .v2s-conn-t
               strong "Your team’s own server"
+              span .v2s-conn-d "A self-hosted server, beside the cloud."
               span .v2s-conn-s [data-testid="settings-conn-hub-status"] "A self-hosted server, beside the cloud. Sign in with your email and password."
             span .v2s-conn-a
               button .btn.btn--sm [data-testid="settings-team-server-add"] [type="button"] "Add a team server…"
+        section .v2s-conn [data-testid="settings-claude"] [aria-label="AI — your Claude account"]
+          div .v2s-conn-r
+            span .v2s-conn-ic [aria-hidden="true"]
+              svg [aria-hidden="true"]
+            span .v2s-conn-t
+              strong "AI — your Claude account"
+              span .v2s-conn-d "Pro or Max, or an API key."
+              span .v2s-conn-s [data-testid="settings-conn-claude-status"] "Not connected"
+            span .v2s-conn-a
+              button .btn.btn--sm [data-testid="settings-claude-action"] [aria-expanded="false"] [type="button"] "Connect…"
+        section .v2s-conn [data-testid="figma-connect-card"] [aria-label="Figma"]
+          div .v2s-conn-r
+            span .v2s-conn-ic [aria-hidden="true"]
+              svg [aria-hidden="true"]
+            span .v2s-conn-t
+              strong "Figma"
+              span .v2s-conn-d "For Import from Figma."
+              span .v2s-conn-s [data-testid="settings-conn-figma-status"] "No token"
+            span .v2s-conn-a
+              button .btn.btn--sm [data-testid="figma-add-token"] [aria-expanded="false"] [type="button"] "Add token…"
         section .v2s-conn [data-testid="settings-github"] [aria-label="GitHub"]
           div .v2s-conn-r
             span .v2s-conn-ic [aria-hidden="true"]
               svg [aria-hidden="true"]
             span .v2s-conn-t
               strong "GitHub"
+              span .v2s-conn-d "GitHub projects and invites by username."
               span .v2s-conn-s [data-testid="settings-conn-github-status"] "Signing in with GitHub needs the Maude desktop app."
         section .v2s-conn [data-testid="settings-ai-keys"] [aria-label="AI images, video and voice"]
           div .v2s-conn-r
@@ -553,19 +586,6 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               button .k-adv-btn.v2-fold-btn [data-testid="fold-connections.ai-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
                 span .k-adv-ch.v2-fold-ch
                   svg [aria-hidden="true"]
-        section .v2s-conn [data-testid="figma-connect-card"] [aria-label="Figma"]
-          div .v2s-conn-r
-            span .v2s-conn-ic [aria-hidden="true"]
-              svg [aria-hidden="true"]
-            span .v2s-conn-t
-              strong "Figma"
-              span .v2s-conn-s [data-testid="settings-conn-figma-status"] "Not connected"
-          p .v2s-hint "A personal access token with the scope. Kept on this Mac only and never sent anywhere but Figma."
-            code "file_content:read"
-          button .btn.btn--ghost.btn--sm [type="button"] "Get a token ↗"
-          span .v2s-conn-replace
-            input .input [data-testid="figma-connect-input"] [aria-label="Figma personal access token"] [type="password"] [placeholder="figd_…"] [value]
-            button .btn.btn--sm [data-testid="figma-connect-save"] [type="button"] [disabled] "Save"
     section .v2s-panel [data-testid="settings-panel-advanced"] [role="tabpanel"]
       div .v2s-cols [data-testid="settings-advanced-cols"]
         div .v2s-col
