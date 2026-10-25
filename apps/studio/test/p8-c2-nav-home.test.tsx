@@ -407,3 +407,15 @@ describe('the docked ask row and the top-right face (CSS pinned)', () => {
     expect(css).toContain('.home-pal-veil');
   });
 });
+
+// P8 C7 (11 · pn-home): what scrolls under the sticky header fades behind it, so the docked ask bar sits on a clear row
+describe('the header fades what scrolls under it', () => {
+  test('.home-top::before paints the canvas colour out to transparent, behind the header and out of the way of clicks', () => {
+    const css = readFileSync(join(import.meta.dir, '..', 'client', 'home', 'home.css'), 'utf8');
+    const rule = css.match(/\.home-top::before \{[^}]*\}/)?.[0] ?? '';
+    expect(rule).toContain('var(--canvas-bg)');
+    expect(rule).toContain('transparent');
+    expect(rule).toContain('z-index: -1');
+    expect(rule).toContain('pointer-events: none');
+  });
+});

@@ -653,7 +653,7 @@ describe('the compare frames follow the theme', () => {
     expect(posted).toContainEqual([1, { dgn: 'theme', theme: 'light' }]);
     posted.length = 0;
     await act(async () => {
-      document.documentElement.dataset.theme = 'dark';
+      document.documentElement.setAttribute('data-theme', 'dark');
       await new Promise((r) => setTimeout(r, 60));
     });
     expect(posted).toContainEqual([1, { dgn: 'theme', theme: 'dark' }]);
