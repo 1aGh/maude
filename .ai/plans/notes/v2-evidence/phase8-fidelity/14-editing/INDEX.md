@@ -363,3 +363,65 @@ Re-shot: ed-ab-select, ed-ab-resize, ed-ab-arrange, ed-ab-tidy, ed-lay-reorder, 
 | `ed-edge-undo` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ed-lay-reorder` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ed-lay-reorder` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+## FINAL (D4, 21c9714cf) — IMPL re-shot on the merged tip (stage C rounds 1–6)
+
+Re-shot 52 of 52 pairs; 0 unreachable. Supersedes every earlier "after" / "FINAL" / "Round" section above: every pair in this folder (`<id>-<theme>.jpg`, JPEG q55, max 1100 px wide) now shows the merged product. The SPEC side is unchanged (no commit to the board `.design/ui/v2/14 Editing.*` since the stage-A shot), so the stage-A spec PNGs are reused. Full-size pairs: last line of `full-size-path.txt` ("final (D4):").
+
+- Harness: `_d4-harness-g5/` (see the 13 INDEX), plus `s14ai.mjs` (+ `h/fake-acp/g14-agent.mjs`) and `s14t.mjs` for the two newly reached states. 14 ids come from `s14a`/`s14b`/`s14c` (round-6 drag + objinsp versions).
+- Also shot (no spec pair): `ed-edge-huge-fit`, `ed-edge-ai.chat`.
+
+| id | theme | FINAL (D4) | spec |
+| --- | --- | --- | --- |
+| `ed-ab-arrange` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-arrange` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-menu` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-menu` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-resize` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-resize` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-select` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-select` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-tidy` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-tidy` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-comp-instance` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-comp-instance` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-comp-pick` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-comp-pick` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-ai` | dark | re-shot — NEWLY REACHED — signed-in AI through the fake agent edited through the design hook (`s14ai.mjs`, `h/fake-acp/g14-agent.mjs`): artboards carry "AI is working" tags and the chat shows the run with Stop (`ed-edge-ai.chat`, full-size only); the pair shows it with the headline selected. NOTE for the critic: the hold covers ALL THREE artboards of the canvas, not one footer element (the run holds whole artboards; no per-element ring drew for the footer edit), and the chat message list is squeezed to a sliver under a tall Inspector. | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-ai` | light | re-shot — NEWLY REACHED — signed-in AI through the fake agent edited through the design hook (`s14ai.mjs`, `h/fake-acp/g14-agent.mjs`): artboards carry "AI is working" tags and the chat shows the run with Stop (`ed-edge-ai.chat`, full-size only); the pair shows it with the headline selected. NOTE for the critic: the hold covers ALL THREE artboards of the canvas, not one footer element (the run holds whole artboards; no per-element ring drew for the footer edit), and the chat message list is squeezed to a sliver under a tall Inspector. | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-ask` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-ask` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-huge` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-huge` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-keys` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-keys` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-paste` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-paste` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-tereza` | dark | re-shot — NEWLY REACHED — a second browser named Tereza (its `/_api/git-user` answered "Tereza") on the same studio selects See pricing (`s14t.mjs`); this browser sees her avatar "T" and a purple ring + "Tereza" tag. NOTE for the critic: the ring lands on the Hero FRAME, not the button, and this browser's inspector shows no "Tereza is editing See pricing" line even with the same button selected here. | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-tereza` | light | re-shot — NEWLY REACHED — a second browser named Tereza (its `/_api/git-user` answered "Tereza") on the same studio selects See pricing (`s14t.mjs`); this browser sees her avatar "T" and a purple ring + "Tereza" tag. NOTE for the critic: the ring lands on the Hero FRAME, not the button, and this browser's inspector shows no "Tereza is editing See pricing" line even with the same button selected here. | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-undo` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-undo` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-img` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-img` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-inspector` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-inspector` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-auto` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-auto` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-free` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-free` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-reorder` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-reorder` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-enter` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-enter` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-multi` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-multi` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-order` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-order` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-pen` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-pen` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-shape` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-shape` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-text-edit` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-text-edit` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-text-style` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-text-style` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
