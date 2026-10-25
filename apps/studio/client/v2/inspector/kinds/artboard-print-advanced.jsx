@@ -13,6 +13,7 @@
 import { useState } from 'react';
 
 import { Select } from '../../../inspector-controls.jsx';
+import { menuRunner } from '../../shell/menu-runner.js';
 import { Row as AdvRow } from '../advanced-rows-default.jsx';
 import { writeGuides } from '../print-write.js';
 import { ArtboardThemeRow } from './artboard-advanced.jsx';
@@ -161,6 +162,34 @@ export function PrintLookAndLayout({ el, ctx }) {
           options={LAYOUT_OPTIONS}
           onChange={(v) => f.id && h.onSetArtboardStyle(f.id, { layout: v || null })}
         />
+      </AdvRow>
+      {/* 08 ak-advanced: the board's fold ends Look and layout with the two layout verbs, as 06 draws them */}
+      <AdvRow k="Grid tracks" testid="insp-pr-grid-tracks">
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          data-testid="insp-pr-grid-tracks-edit"
+          disabled
+          title={
+            f.layout === 'grid'
+              ? 'Select the page frame to edit its tracks'
+              : 'Set the body layout to Grid first'
+          }
+        >
+          Edit tracks…
+        </button>
+      </AdvRow>
+      <AdvRow k="Layout" testid="insp-pr-layout-convert">
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          data-testid="insp-pr-layout-convert-btn"
+          disabled={!f.layout || ctx?.canEdit === false}
+          title={f.layout ? undefined : 'Nothing is arranging the page yet'}
+          onClick={() => (ctx?.runAction ?? ((id) => menuRunner.run(id)))('layout.convert-to-absolute')}
+        >
+          Convert to absolute…
+        </button>
       </AdvRow>
     </div>
   );

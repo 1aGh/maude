@@ -298,6 +298,20 @@ describe('Advanced — every number, and the code', () => {
     expect(look.contains(q(host, 'insp-ab-theme'))).toBe(true);
     expect(after('insp-ab-theme', 'insp-pr-body-layout')).toBe(true);
   });
+  test('Look and layout ends with the board\'s two layout rows: Grid tracks · Edit tracks…, Layout · Convert to absolute…', async () => {
+    const host = await frame(SHEET());
+    await openAdvanced(host);
+    const look = must(q(host, 'insp-pr-look'), 'look');
+    expect(look.contains(q(host, 'insp-pr-grid-tracks'))).toBe(true);
+    expect(look.contains(q(host, 'insp-pr-layout-convert'))).toBe(true);
+    expect(text(host, 'insp-pr-grid-tracks')).toContain('Grid tracks');
+    expect(text(host, 'insp-pr-grid-tracks-edit')).toBe('Edit tracks…');
+    expect(text(host, 'insp-pr-layout-convert-btn')).toBe('Convert to absolute…');
+    const after = (a: string, b: string) =>
+      !!(must(q(host, a), a).compareDocumentPosition(must(q(host, b), b)) & 4);
+    expect(after('insp-pr-body-layout', 'insp-pr-grid-tracks')).toBe(true);
+    expect(after('insp-pr-layout-convert', 'insp-pr-code')).toBe(true);
+  });
   test('Kind and Clip content keep their rows under Advanced (nothing deleted)', async () => {
     const host = await frame(SHEET());
     await openAdvanced(host);
