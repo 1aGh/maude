@@ -218,7 +218,7 @@ describe('the frame draws only the token block', () => {
     expect(q(host, 'ds-token-light')?.textContent).toBe('Azure');
     expect(q(host, 'ds-token-dark')?.textContent).toBe('Follows Light');
     expect(q(host, 'ds-token-contrast')?.textContent).toMatch(
-      /Light \d+(\.\d)?:1 · Dark \d+(\.\d)?:1/
+      /^\s*\d+(\.\d)?:1 on .+ · \d+(\.\d)?:1 on .+$/
     );
     expect(q(host, 'ds-token-contrast')?.getAttribute('data-tone')).toBe('ok');
     expect(q(host, 'ds-token-used')?.textContent).toContain('Used in 5 canvases');
@@ -300,7 +300,7 @@ describe('dragging the picker', () => {
     await type(q(host, 'ds-token-picker'), '#f2f2f2');
     const live = q(host, 'ds-token-contrast');
     expect(live?.getAttribute('data-tone')).toBe('warn');
-    expect(live?.textContent).toMatch(/^\s*\d+(\.\d)?:1 on Text on accent in Light\s*$/);
+    expect(live?.textContent).toMatch(/^\s*\d+(\.\d)?:1 on Text on accent\s*$/);
     expect(live?.textContent).not.toBe(before);
     expect(writes).toHaveLength(0);
     // the picker closes: ONE write, no dialog
@@ -363,6 +363,17 @@ describe('typing, naming, Dark', () => {
     await type(q(host, 'ds-token-value'), '#4488cc');
     await blur(q(host, 'ds-token-value'));
     expect((writes[0] as { edit: unknown }).edit).toEqual({ theme: 'dark', value: '#4488cc' });
+  });
+
+  test('the row of the mode being edited comes first, the picker under it, the other mode last (the board)', async () => {
+    const { host } = await panel();
+    const order = () =>
+      [...host.querySelectorAll('[data-testid="insp-row-ds-light"], [data-testid="insp-row-ds-dark"], [data-testid="ds-token-picker"]')].map(
+        (el) => el.getAttribute('data-testid')
+      );
+    expect(order()).toEqual(['insp-row-ds-light', 'ds-token-picker', 'insp-row-ds-dark']);
+    await click(host.querySelectorAll('.st-cp-segbtn')[1], 'Dark');
+    expect(order()).toEqual(['insp-row-ds-dark', 'ds-token-picker', 'insp-row-ds-light']);
   });
 
   test('"Dark follows automatically" is a switch; off means Dark is the person’s', async () => {
