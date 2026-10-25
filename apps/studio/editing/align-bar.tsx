@@ -303,7 +303,7 @@ const GUIDE_MS = 1800;
 
 /** Do the selected artboards (no element picked inside them) differ in kind? 08 ak-mixed-select draws no bar then. */
 export function boardsMixKinds(
-  selected: ReadonlyArray<{ id?: unknown; artboardId?: string }>,
+  selected: ReadonlyArray<{ id?: unknown; artboardId?: string | null }>,
   artboards: ReadonlyArray<{ id: string; kind: string }>
 ): boolean {
   const ids = new Set(selected.filter((s) => !s.id && s.artboardId).map((s) => s.artboardId));
