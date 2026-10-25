@@ -24,3 +24,24 @@ Verified: tsc 0, biome clean on touched files, 461 + 137 + 26 tests green in the
 4. Item (4) multi-artboard card "Mixed" (not "—"); Tidy bar still on the name labels in light.
 5. Item (5) harness: shoot shape / text-edit / text-style / lay-free / img / comp-instance on the board's object, open Layers, close the Undo popover / AI panel in edge shots.
 6. Clipboard follow-ups: no live e2e paste through the iframe yet (the dispatcher + relay are pinned by unit tests); a pasted artboard with no `at` (⌘K / Edit › Paste with nothing selected) takes a default-grid slot; a JSX item that reads a component's props pastes but renders an error card (undoable); the characterization snapshot of the v1 artboard menu needs `check-v1-characterization --update` on the merged tip.
+
+# Continuation — p8-c7-edit2 (round 7, second builder)
+
+Branch `p8-c7-edit2` (from feat/maude-v2 e5833ffc4). Commits: 22cfd8527 (Uses row), f392310b4 (picker label), 6dd6766c0 (marquee boards), 3001cb524 (clipboard), + the stage-D/docs commit.
+
+## Done
+| item | change | test (red → green) |
+| --- | --- | --- |
+| (2) ed-inspector / ed-obj-enter | the object inspector's "Uses <system>" row is the first thing under the name (14 draws it there); an artboard / several artboards keep the door at the foot (13 ed-where) — `inspector/frame.jsx` `usesOnTop`, `.insp-uses-top` | `v2-inspector-render` (object: right under `.insp-hd`; artboard: hairline wrap) |
+| (2) harness | ed-inspector shot = "Book a call" on an 1800 px page (the whole card, Advanced folded); the fixture's Book a call has a link + hover so Interaction reads "Open cal.com/studio" / "Lift to Floating"; Layers open on the object boards; layers carry sentence-case names | — |
+| (3) ed-comp-pick | a system's description after a component's name ("Tabs (this system switches views with …)") no longer rides into the row (`ds/component-list.ts oneLine`) | `edit-components-route` |
+| (4) ed-ab-tidy | a marquee-caught artboard is selected with the SAME snapshot a click makes (attrs, world size, geometry): the multi-artboard card reads "Mixed" / a shared size instead of "—"; `mergeSelClientFields` merges a SET member by member (echo lacks the client-only fields) and keeps an artboard's geometry. The Tidy bar already clears the name labels (`clearLabels`); both themes now shoot the same 3-board state | `p8-c7-marquee-hit`, `p8-c7-merge-selection` |
+| (5) harness | all 14 ids re-shot both themes with Layers / Assets / framing; edge-paste + edge-keys before the AI/Undo steps | — |
+| (6) clipboard | a paste with nothing selected lands beside the LAST artboard (its row, one gap right of that row; `pasteSpot`); an object that reads names declared around it (component props, a local const, a module helper) is refused at paste in words ("That object reads title from where it was copied; it can’t be pasted here. Copy the whole component instead.") — never an error card (`edit-ops/scope-names.ts`: `needsOf` at copy, `scopeAt` at the paste spot) | `p8-c7-paste-spot`, `p8-c7-clipboard-scope` |
+
+## Open
+1. Patterns group in the picker stays hidden (no placeable pattern source; the DS board's showcases are not insertable) — Brand / Components are drawn.
+2. ed-obj-order: the board's four panels (nudge chips, "Logo is locked" tip, Layers hide/lock rows, Frame selection before/after) are side states, only the menu (now with Cut / Copy / Paste) + Layers are in the shot.
+3. ed-inspector Advanced is 06's (Element / POS / SIZE rows, "Tokens it uses" as `--token` rows) — not 14's Tokens chips / CSS block / Constraints diagram.
+4. ed-edge-keys: focus does not land on the "Services" row in the fixture (the walk stops on the page frame, discs 1.1–1.4 are drawn); ed-edge-paste shows no paste bar ("Pasted from Figma as an image…") — the synthetic ClipboardEvent is not taken in this state.
+5. Fixture content (cards 111 px high, "Ink" is "Black", no Alligators "Plakát" style, Datum is a Text) differs from the board's story.
