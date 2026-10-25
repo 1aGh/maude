@@ -62,7 +62,7 @@ for (const lane of lanes) {
       }
       pooled[arm].push(r);
       out.push(
-        `| ${dir.split('/').pop()} | ${arm} | ${r1(r.p50FrameMs)} | ${r1(r.p95FrameMs)} | ${r1(r.p95SpreadMs)} | ${r1(r.zoomP95Ms)} | ${r1(r.longFrames)} (${r1(r.longFramesRange)}) | ${r1(r.jankFrames)} | ${r1(r.artboardRenders)} | ${r.boardsOnScreen} | ${r.kept}${r.worldScale != null ? `, scale ${r.worldScale}` : ''} |`
+        `| ${dir.split('/').pop()} | ${arm} | ${r1(r.p50FrameMs)} | ${r1(r.p95FrameMs)} | ${r1(r.p95SpreadMs)} | ${r1(r.zoomP95Ms)} | ${r1(r.longFrames)} (${r1(r.longFramesRange)}) | ${r1(r.jankFrames)} | ${r1(r.artboardRenders)} | ${r.boardsOnScreen} | ${Array.isArray(r.kept) ? r.kept.length : r.kept}${r.worldScale != null ? `, scale ${r.worldScale}` : ''} |`
       );
     }
   }
