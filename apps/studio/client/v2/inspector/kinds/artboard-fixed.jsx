@@ -17,6 +17,9 @@ import { registerSlot } from '../slots.js';
 import { sourceWord } from './artboard-model.js';
 import { SizePairRow, SizeSelectRow, useArtboardWrites } from './artboard-rows.jsx';
 
+/** When the marks are sent again after "Make A6 print" (the select-by-id's own delays are 0 / 450 / 1200 ms). */
+export const MARKS_RETRY_MS = Object.freeze([2500, 4500, 7000]);
+
 function FixedRows({ el, ctx }) {
   const { f, id, can, resize, commitHeight } = useArtboardWrites(el, ctx);
   // S7.25 — Change kind: a paper picked here opens the dialog; the plan is the server's own module, so it opens at once
@@ -67,6 +70,9 @@ function FixedRows({ el, ctx }) {
               if (d === 0) send();
               else setTimeout(send, d);
             }
+            // the canvas may reload around the new copy (its module state starts empty): the marks are asked again
+            // until the new document is up — each answer restarts their few seconds
+            for (const d of MARKS_RETRY_MS) setTimeout(() => ctx.onRunAction?.(marks), d);
           }}
           onClose={() => setAsking(null)}
         />

@@ -139,3 +139,16 @@ test('the post says Unchanged, the copy says how much height was added; nobody e
     host.remove();
   }
 });
+
+test('the shell asks again while the canvas reloads around the new copy (its module state starts empty)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const src = readFileSync(
+    join(import.meta.dir, '../client/v2/inspector/kinds/artboard-fixed.jsx'),
+    'utf8'
+  );
+  expect(src).toMatch(/MARKS_RETRY_MS = Object\.freeze\(\[2500, 4500, 7000\]\)/);
+  expect(src).toContain(
+    'for (const d of MARKS_RETRY_MS) setTimeout(() => ctx.onRunAction?.(marks), d);'
+  );
+});
