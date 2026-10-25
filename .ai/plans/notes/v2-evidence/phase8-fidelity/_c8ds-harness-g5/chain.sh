@@ -26,6 +26,10 @@ case "$N" in
   echo "== s13u"; run .scr/s13u.mjs $T
   if [ "$T" = light ]; then bun .scr/dsboard.mjs 2>&1 | tail -8; fi
   ;;
+13be) # c8: only the groups the later fixes touch — b (edit-colour-pending, edit-reach, edit-review) and e (multi-*, many-switch)
+  bun .scr/mk-dsconv.mjs 2>&1 | tail -5
+  for g in b e; do echo "== s13 G=$g $T"; G=$g run .scr/s13.mjs $T; done
+  ;;
 13p) # re-run of s13p alone (a random port can collide: EADDRINUSE)
   bun .scr/mk-dsconv.mjs 2>&1 | tail -2
   echo "== s13p"; run .scr/s13p.mjs $T

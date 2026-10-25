@@ -211,6 +211,8 @@ export async function run(h) {
     await h.esc(2);
     // c8: the board draws no inspector under this step — close it; the panel stays open (the menu hangs beside its row)
     await k.inspector(false); await sleep(600);
+    // the empty inspector card has no `inspector-panel` hook — close it by its words
+    if (await page.getByText(/Click an object on the canvas/).first().isVisible().catch(() => false)) { await page.locator('[data-testid="panel-icon-right"]').first().click().catch(() => {}); await sleep(700); }
     if (!(await page.locator('[data-testid="canvases-pinned"]').first().isVisible().catch(() => false))) { await page.locator('[data-testid="panel-icon-left"]').first().click().catch(() => {}); await sleep(900); }
     await page.evaluate(() => { const m = document.querySelectorAll('[data-testid="canvases-ds-row-menu"]'); (m[m.length - 1])?.click(); }); await sleep(700);
     await h.step(`${D}/ds-many-switch`, 'Preview the project in another system', 'menu › Preview in…', async () => {

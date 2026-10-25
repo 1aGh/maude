@@ -201,6 +201,9 @@ describe('the reach view', () => {
     await act(async () => say(win, { dgn: 'loaded', file: 'x' }));
     await sleep(40);
     expect(sent.find((s) => s.data.dgn === 'reveal-artboard')?.data.artboardId).toBe('ds-patterns');
+    // the big board lays its sections out late: the camera is asked for the artboard again, not once
+    await sleep(1000);
+    expect(sent.filter((s) => s.data.dgn === 'reveal-artboard').length).toBeGreaterThan(1);
   });
 
   test('P8 C8 — a system with no converted board draws the canvases alone, the tag on the token card', async () => {

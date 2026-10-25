@@ -43,6 +43,8 @@ export const FRAME_SCALE = 0.5;
 export const PATTERNS_FRAME = { w: 2400, h: 468, scale: 0.42, artboard: 'ds-patterns' };
 /** The asks per frame: the camera needs a moment to settle on the artboard after `reveal-artboard`. */
 export const ASK_LADDER_MS = [0, 250, 700, 1500];
+/** The board frame asks for its Patterns artboard again at these moments (the board lays its sections out late). */
+export const BOARD_REVEAL_MS = [900, 2400, 5000, 8000];
 /** The review opens once every frame has answered, or after this long (a slow or refused frame never holds it). */
 export const REVIEW_AFTER_MS = 2600;
 
@@ -149,6 +151,21 @@ export function DsReachView({
           { dgn: 'reveal-artboard', artboardId: f.artboard, glide: false, flash: false },
           origin
         );
+      // the Design system canvas is big: its Patterns artboard is not laid out when the page first says "loaded", so
+      // the camera is asked for it again until it has settled there (a canvas's own artboard is there at once)
+      if (f.board)
+        for (const ms of BOARD_REVEAL_MS)
+          timers.current.push(
+            setTimeout(
+              () =>
+                post(
+                  win,
+                  { dgn: 'reveal-artboard', artboardId: f.artboard, glide: false, flash: false },
+                  origin
+                ),
+              ms
+            )
+          );
       for (const ms of ASK_LADDER_MS) timers.current.push(setTimeout(() => ask(key), ms));
     },
     [ask, byKey, origin]
@@ -349,7 +366,7 @@ export function DsReachView({
                 data-board={f.board ? 'true' : undefined}
               >
                 <figcaption className="dsx-cap">
-                  <b>{a?.label || f.label}</b>
+                  <b>{f.board ? f.label : a?.label || f.label}</b>
                   <span
                     className="dsx-tag"
                     data-testid="ds-reach-places"
