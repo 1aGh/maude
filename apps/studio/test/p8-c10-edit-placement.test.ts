@@ -24,6 +24,14 @@ describe('14 ed-lay-free: placementOf for a top-level object', () => {
     expect(p.index).toBe(2);
     expect(p.count).toBe(3);
   });
+  test('the artboard is named as the canvas’s crumbs name it (its label, not its id)', () => {
+    const p = placementOf(
+      { artboardId: 'p1', nodes: tree.nodes },
+      { id: 'datum', index: 0, crumbs: [{ label: 'Post 1:1 · Combine 2026' }, { label: 'Frame' }, { label: 'Datum' }] }
+    );
+    expect(p.parent).toBe('Post 1:1 · Combine 2026');
+    expect(placementOf({ artboardId: 'p1', nodes: tree.nodes }, { id: 'datum', index: 0 }).parent).toBe('p1');
+  });
   test('an object inside a frame still names the frame', () => {
     expect(placementOf(tree, { id: 'b', index: 0 })).toEqual({ parent: 'Services', index: 2, count: 2 });
   });
