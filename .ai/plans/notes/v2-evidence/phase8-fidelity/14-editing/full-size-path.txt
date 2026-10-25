@@ -13,3 +13,4 @@ round 6 (p8-c6-drag): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a0c
 final (D4): /Users/iagh/git/personal/maude/.claude/worktrees/wf_74ac1088-f6f-13/.scr/pairs/14-editing
 round 7 (p8-c7-edit2): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a0ce546028d99790d/.scr/pairs/14-editing (all 14 ids re-shot, both themes, except ed-edge-tereza: unreachable; IMPL frames alone: .scr/impl/14-editing; harness: _d4-harness-g5 chain + _c7e2-harness-g5 (s14b.mjs, s14c.mjs, g5.mjs, fixture Homepage.tsx, chain-c7e2.sh))
 round 7 (p8-c7-edit3): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a7739a4d783013e2d/.scr/pairs/14-editing (re-shot: ed-inspector, ed-edge-keys, ed-edge-paste, ed-obj-order; IMPL frames alone: .scr/impl/14-editing, side shots .scr/impl/_side; harness: _c7e3-harness-g5 on top of _c7e2-harness-g5)
+final (D5): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ab9bfb98617a582f7/.scr/pairs/14-editing

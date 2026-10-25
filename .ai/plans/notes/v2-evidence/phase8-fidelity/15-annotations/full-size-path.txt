@@ -5,3 +5,4 @@ round 4: /Users/iagh/git/personal/maude/.claude/worktrees/agent-afdefb8ca3c77c0e
 final (D2): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae0b93df010d6d2f4/.scr/pairs/15-annotations
 round 7: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa4cb62150ebcb7dd/.scr/pairs/15-annotations (15 Annotations re-shot on the p8-c7-g15 tip, both themes; harness _c7g15-harness-g5)
 round 7 (g15b): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a50e509d6d9909846/.scr/pairs/15-annotations (15 Annotations re-shot on the p8-c7-g15b tip, both themes; harness _c7g15b-harness-g5)
+final (D5): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ab9bfb98617a582f7/.scr/pairs/15-annotations
