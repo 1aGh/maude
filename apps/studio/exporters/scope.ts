@@ -126,6 +126,8 @@ export interface ExportScopeHints {
   regionRect?: { x: number; y: number; w: number; h: number };
   /** S8.1 — `project-raw` limited to this designRoot-relative folder (the Folder scope's zip). */
   folder?: string;
+  /** P8 c7 — the Whole project zip's Include row: folders and the loose top-level canvases left out. */
+  exclude?: { folders: string[]; loose: boolean };
 }
 
 export interface ResolveScopeArgs {
@@ -196,7 +198,33 @@ function readHints(options: Record<string, unknown> | undefined): ExportScopeHin
     !isRuntimeStateRel(options.folder)
       ? options.folder
       : undefined;
-  return { selection, artboardId, canvasFile, selectionAll, artboardIds, regionRect, folder };
+  const ex = options.exclude as Record<string, unknown> | undefined;
+  const exclude =
+    ex && typeof ex === 'object'
+      ? {
+          folders: (Array.isArray(ex.folders) ? (ex.folders as unknown[]) : [])
+            .filter(
+              (f): f is string =>
+                typeof f === 'string' &&
+                f !== '' &&
+                !f.split('/').some((seg) => seg === '' || seg === '.' || seg === '..') &&
+                !f.includes('\\') &&
+                !isRuntimeStateRel(f)
+            )
+            .slice(0, 64),
+          loose: ex.loose === true,
+        }
+      : undefined;
+  return {
+    selection,
+    artboardId,
+    canvasFile,
+    selectionAll,
+    artboardIds,
+    regionRect,
+    folder,
+    exclude,
+  };
 }
 
 /** Caps on `options.selectionAll` (security review, issue #125). */
@@ -301,6 +329,10 @@ async function walkProjectRaw(root: string): Promise<string[]> {
  * `project-raw`. Never throws — invalid input collapses to `[]` and the
  * adapter's "no targets" path emits an empty payload.
  */
+/** `Print.meta.json` → `Print` (a canvas's files share the stem up to the first dot after it). */
+const stemOf = (name: string): string =>
+  name.replace(/\.(tsx|css|meta\.json|annotations\.(json|svg))$/, '');
+
 export async function resolveScope(args: ResolveScopeArgs): Promise<Target[]> {
   const { scope, activeJson, designRoot } = args;
   const designRel = path.basename(designRoot);
@@ -324,6 +356,18 @@ export async function resolveScope(args: ResolveScopeArgs): Promise<Target[]> {
       }
       paths = inside ? (await walkProjectRaw(abs)).map((p) => `${folder}/${p}`) : [];
     } else paths = await walkProjectRaw(designRoot);
+    // P8 c7 (09 ex-huge): the Include row — a folder (and what sits under it) or the loose canvases stay out
+    const ex = readHints(args.options).exclude;
+    if (ex) {
+      const stems = new Set(
+        ex.loose ? paths.filter((p) => !p.includes('/') && p.endsWith('.tsx')).map(stemOf) : []
+      );
+      paths = paths.filter(
+        (p) =>
+          !ex.folders.some((f) => p.startsWith(`${f}/`)) &&
+          !(!p.includes('/') && stems.has(stemOf(p)))
+      );
+    }
     if (!paths.length) return [];
     return [{ kind: 'file-tree', paths }];
   }
@@ -830,7 +874,14 @@ export function resolveSpecV2(spec: ExportSpecV2, ctx: SpecContext): SpecResolut
 
   // folder | project — project-class; expansion over the VISIBLE canvases only (O1: subtree)
   const prefix = spec.scope === 'folder' ? `${spec.folder}/` : '';
-  const inScope = ctx.canvases.filter((c) => c.rel.startsWith(prefix));
+  // P8 c7 (09 ex-huge): the Include row — a folder (and what sits under it) or the loose canvases left out
+  const gone = spec.exclude?.folders ?? [];
+  const inScope = ctx.canvases.filter(
+    (c) =>
+      c.rel.startsWith(prefix) &&
+      !(spec.exclude?.loose && !c.rel.includes('/')) &&
+      !gone.some((f) => c.rel.startsWith(`${f}/`))
+  );
   if (spec.format === 'zip') {
     for (const c of inScope) reached.push(c.rel);
     push({
@@ -840,7 +891,17 @@ export function resolveSpecV2(spec: ExportSpecV2, ctx: SpecContext): SpecResolut
       artboards: [],
       kind: null,
       v2: mergeOptions(spec.options, undefined),
-      hints: spec.scope === 'folder' ? { folder: spec.folder } : {},
+      hints:
+        spec.scope === 'folder'
+          ? { folder: spec.folder }
+          : spec.exclude
+            ? {
+                exclude: {
+                  folders: spec.exclude.folders ?? [],
+                  loose: spec.exclude.loose === true,
+                },
+              }
+            : {},
     });
     return { ok: true, units, skipped, canvases: reached };
   }

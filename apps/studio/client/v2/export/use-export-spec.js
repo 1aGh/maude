@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { applyAdvanced } from './advanced/model.js';
 import { annotationsState } from './annotations-policy.js';
 import { SCOPE_IDS } from './export-copy.js';
-import { batchPart, isBatch } from './sections/batch-model.js';
+import { batchPart, excludeSpec, isBatch } from './sections/batch-model.js';
 import {
   captionsFor,
   formatsFor,
@@ -130,6 +130,11 @@ export function buildSpec(state, ctx = {}) {
   if (state.scope === 'folder') {
     const folder = folderRel(ctx);
     if (folder) spec.folder = folder;
+  }
+  // 09 ex-huge: the Include row — folders / loose canvases a Whole project leaves out
+  if (state.scope === 'project') {
+    const exclude = excludeSpec(state.exclude);
+    if (exclude) spec.exclude = exclude;
   }
   if (state.scope === 'selection') {
     const elements = (ctx.elements ?? []).slice(0, 256);

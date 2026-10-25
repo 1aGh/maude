@@ -493,6 +493,12 @@
     margin: -3px 0;
     color: var(--accent-text);
   }
+  /* 09 ex-huge: the Include row's ticks sit side by side */
+  .ex-checks.ex-checks--row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-2, 8px) var(--space-4, 16px);
+  }
 
   .ex-code {
     display: flex;
@@ -682,5 +688,13 @@
     font-size: var(--type-xs, 11px);
     color: var(--fg-2);
     letter-spacing: 0.04em;
+  }
+}
+
+@layer components {
+  /* the Maude kit ghost button (components layer) greyed the link; the board draws it in the accent text */
+  .maude .ex-hint .ex-hint-a,
+  .maude .ex-hint .ex-hint-a:hover {
+    color: var(--accent-text);
   }
 }

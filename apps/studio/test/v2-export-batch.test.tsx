@@ -622,6 +622,40 @@ describe('the sheet: many at once', () => {
     expect(posted()).toMatchObject({ scope: 'project', format: 'zip' });
   });
 
+  test('P8 c7 (09 ex-huge): Whole project has an Include row — unticking a part reaches the spec as exclude', async () => {
+    estimate = {
+      counts: { selection: null, canvas: 21, folder: 38, project: 524 },
+      files: 524,
+      bytes: 5_900_000_000,
+      seconds: 720,
+      lane: 'cloud',
+      byKind: { digital: { artboards: 424, files: 424, format: 'png' } },
+      skipped: [],
+      canvasCounts: {
+        folder: 38,
+        project: 97,
+        folders: 2,
+        loose: 4,
+        folderNames: ['social', 'print'],
+        looseNames: ['test', 'Test2', 'ahoj', 'ahoj2'],
+      },
+    };
+    await mountSheet({ hasSelection: false, selectedArtboards: [] });
+    // not on a folder or a selection
+    expect($('[data-testid="export-row-include"]')).toBeNull();
+    await click('[data-testid="export-scope-project"]');
+    expect(text('[data-testid="export-row-include"]')).toContain('Include');
+    expect(text('[data-testid="export-row-include"]')).toContain('All 2 folders');
+    expect(text('[data-testid="export-row-include"]')).toContain('test, Test2, ahoj, ahoj2');
+    await click('[data-testid="export-include-folders"]');
+    await click('[data-testid="export-submit"]');
+    expect(posted()).toMatchObject({
+      scope: 'project',
+      exclude: { folders: ['social', 'print'] },
+    });
+    expect(posted().exclude.loose).toBeUndefined();
+  });
+
   test('Other… in a batch puts the format on every kind that can take it', async () => {
     await mountSheet();
     // V2-8.5 C4 (09 ex-canvas): the batch sheet draws no "Other format" row — it sits under Advanced

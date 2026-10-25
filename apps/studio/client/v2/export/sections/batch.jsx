@@ -10,12 +10,15 @@ import { Check, Hint, Row } from '../parts.jsx';
 import { Select } from '../advanced/fields.jsx';
 import { DigitalIcon, PrintIcon, VideoIcon, WebIcon } from '../../canvases/canvas-icons.jsx';
 import {
+  allFoldersLabel,
   bigWords,
   choiceFor,
   choicesFor,
   formatSkipLine,
   groupTitle,
+  INCLUDE_ROW,
   kindLabel,
+  looseLabel,
   OTHER_ROW,
   orderKinds,
   PROJECT_ZIP_ACTION,
@@ -96,6 +99,44 @@ function Group({ kind, row, pick, cloud, onPick, boards = [], canvases = 0, stil
 }
 
 /**
+ * 09 ex-huge — "Include": which parts of the project a Whole project takes. Two ticks, as the board draws them:
+ * the folders ("All 5 folders") and the canvases loose at the top ("test, Test2, ahoj…"). Unticking one is the
+ * spec's `exclude`; a part with nothing in it draws no tick.
+ */
+function IncludeRow({ state, set, counts }) {
+  const folderNames = counts?.folderNames ?? [];
+  const looseNames = counts?.looseNames ?? [];
+  if (!folderNames.length && !looseNames.length) return null;
+  const ex = state.exclude ?? {};
+  const foldersOn = !(ex.folders?.length > 0);
+  const looseOn = ex.loose !== true;
+  return (
+    <Row k={INCLUDE_ROW} testid="export-row-include">
+      <span className="ex-checks ex-checks--row">
+        {folderNames.length ? (
+          <Check
+            checked={foldersOn}
+            testid="export-include-folders"
+            onChange={(on) => set({ exclude: { ...ex, folders: on ? [] : folderNames } })}
+          >
+            {allFoldersLabel(counts?.folders ?? folderNames.length)}
+          </Check>
+        ) : null}
+        {looseNames.length ? (
+          <Check
+            checked={looseOn}
+            testid="export-include-loose"
+            onChange={(on) => set({ exclude: { ...ex, loose: !on } })}
+          >
+            {looseLabel(looseNames, counts?.loose ?? looseNames.length)}
+          </Check>
+        ) : null}
+      </span>
+    </Row>
+  );
+}
+
+/**
  * @param state    the sheet's state (`kindPicks`: { [kind]: choiceId })
  * @param set      patch the sheet's state
  * @param est      the server's estimate (`byKind`, `skipped`, `counts`, numbers)
@@ -149,6 +190,9 @@ export function BatchSection({ state, set, est, setFormat, pictures }) {
         <Hint icon="download" testid="export-big">
           {big}
         </Hint>
+      ) : null}
+      {state.scope === 'project' ? (
+        <IncludeRow state={state} set={set} counts={est?.canvasCounts} />
       ) : null}
       {state.scope === 'project' ? (
         <Hint
