@@ -23,7 +23,7 @@ import { RenderErrorHost } from '../v2/create/render-error.jsx';
 import { useRenderSignal } from '../v2/create/use-render-error.js';
 import { freeCentre } from '../v2/empty/free-centre.js';
 import { ArrivingCanvas, NotLocalCanvas, useCanvasAvailability } from '../v2/empty/not-local.jsx';
-import { insetsNow } from './insets-now.js';
+import { insetsNow } from '../v2/shell/insets-now.js';
 
 export function Viewport({
   tabs,
