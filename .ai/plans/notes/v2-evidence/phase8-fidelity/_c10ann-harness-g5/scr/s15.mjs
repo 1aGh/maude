@@ -195,7 +195,7 @@ export async function run(h) {
       { op: 'create', type: 'sticky', ref: '@f1', text: "Make See the work bigger — it's the point of the page", x: mob.x + mob.w + 140, y: mob.y + 160, w: 210, h: 150 },
       { op: 'connect', from: '@f1', to: 'el:desktop/see-work' },
     ]);
-    await viewWorld({ x: dsk.x - 60, y: Math.min(dsk.y, mob.y) - 200, w: mob.x + mob.w + 1050 - dsk.x, h: Math.max(dsk.h, mob.h) + 400 }, { fill: 0.94, up: 60 });
+    await viewWorld({ x: dsk.x - 60, y: Math.min(dsk.y, mob.y) - 200, w: mob.x + mob.w + 1900 - dsk.x, h: Math.max(dsk.h, mob.h) + 400 }, { fill: 0.94, up: 60 });
     {
       // c8-ann: board 15 an-follow routes an ELBOW arrow around the artboard in the way — pick the bound arrow, press Elbow
       await page.keyboard.press('n'); await sleep(1100); await page.keyboard.press('Escape'); await sleep(500);

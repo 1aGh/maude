@@ -14,6 +14,7 @@ afterAll(async () => {
 
 import { act, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { postPanelOpen } from '../input-router.tsx';
 import { ToolPalette } from '../tool-palette.tsx';
 import { setShellPanelOpen, setStickerSelected } from '../toolbars/shell-panels.ts';
 import { ToolProvider, useToolMode } from '../use-tool-mode.tsx';
@@ -76,5 +77,33 @@ describe('15 an-stk-drop: Stickers stays pressed while the dropped sticker is se
   test('the annotation layer reports the selected sticker', async () => {
     const src = await Bun.file(`${import.meta.dir}/../annotations-layer.tsx`).text();
     expect(src).toContain('setStickerSelected(');
+  });
+});
+
+describe('15 an-stamps: E opens the gallery anchored to the Stickers slot', () => {
+  test('the key path carries the slot box (no slot drawn = no anchor)', () => {
+    const sent: unknown[] = [];
+    const real = Object.getOwnPropertyDescriptor(window, 'parent');
+    Object.defineProperty(window, 'parent', {
+      value: { postMessage: (m: unknown) => sent.push(m) },
+      configurable: true,
+    });
+    try {
+      postPanelOpen('stickers');
+      expect(sent[0]).toEqual({ dgn: 'tool-panel-open', panel: 'stickers', anchor: null });
+      const slot = document.createElement('button');
+      slot.setAttribute('data-testid', 'toolbar-slot-stickers');
+      slot.getBoundingClientRect = () =>
+        ({ left: 882, top: 830, width: 40, height: 40, right: 922, bottom: 870 }) as DOMRect;
+      document.body.append(slot);
+      postPanelOpen('stickers');
+      expect(sent[1]).toMatchObject({
+        panel: 'stickers',
+        anchor: { x: 882, y: 830, w: 40, h: 40 },
+      });
+      slot.remove();
+    } finally {
+      if (real) Object.defineProperty(window, 'parent', real);
+    }
   });
 });

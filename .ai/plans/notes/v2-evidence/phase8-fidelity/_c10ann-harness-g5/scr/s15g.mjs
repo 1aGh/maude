@@ -71,7 +71,7 @@ export async function run(h) {
   if (G === 'g2') {
     const R = await k.seed(REL, [
       { op: 'create', type: 'sticky', ref: '@s1', text: 'Photo feels small next to the headline', x: 760, y: 120, w: 200, h: 140 },
-      { op: 'create', type: 'sticky', ref: '@s2', text: 'Is this the right CTA?', x: 560, y: 380, w: 200, h: 130 },
+      { op: 'create', type: 'sticky', ref: '@s2', text: 'Is this the right CTA?', x: 70, y: 450, w: 200, h: 130 },
     ]);
     await frame();
     await preview();
