@@ -8,7 +8,12 @@ bash .ai/plans/notes/v2-evidence/phase8-fidelity/_d5-harness-g5/setup.sh || exit
 (cd apps/studio && MAUDE_SKIP_RUNTIME_BUILD=1 bun run build.ts --release) 2>&1 | tail -3
 export SHOTS_OUT=.scr/impl
 mkdir -p .scr/impl
-run() { bun .scr/run.mjs "$@" 2>&1 | grep -E "^shot|FAIL|RUN ERROR|pageerrors|Error"; }
+run() {
+  local out
+  out=$(bun .scr/run.mjs "$@" 2>&1)
+  echo "$out" | grep -E "^shot|FAIL|RUN ERROR|pageerrors"
+  if ! echo "$out" | grep -q '^shot'; then echo "NO SHOTS:"; echo "$out" | tail -15; fi
+}
 case "$N" in
 13)
   bun .scr/mk-dsconv.mjs 2>&1 | tail -5
