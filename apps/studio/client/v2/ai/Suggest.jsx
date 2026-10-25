@@ -1,7 +1,7 @@
 // v2/ai/Suggest.jsx — the empty state, the quick-action verbs (moved from ChatPanel.jsx, S5.8) and the
 // suggestion strip with its one-line why.
 
-import { ThreadPrimitive, useThread } from '@assistant-ui/react';
+import { ThreadPrimitive, useComposer, useThread } from '@assistant-ui/react';
 import { StIcon } from '../../shell/icons.jsx';
 import { lastUserText } from '../../panels/acp-runtime.js';
 import { deriveSuggestions } from './suggest-why.js';
@@ -104,6 +104,8 @@ export function SuggestStrip({
   const lastAsk = useThread((t) => lastUserText(t.messages) || '');
   const resultShown = useResultShown(chatId);
   const answered = useAnswered(chatId);
+  // P8 c10 (03 `ai-long`): a chip fills the field — with a draft in it (or one being typed) the strip steps aside
+  const drafting = useComposer((c) => c.text.trim() !== '');
   const sug = deriveSuggestions({
     enabled,
     openComments,
@@ -115,7 +117,7 @@ export function SuggestStrip({
     repair,
     answered,
   });
-  if (!sug) return null;
+  if (!sug || drafting) return null;
   return (
     <div className="ai-suggest" data-testid="ai-suggest" data-context={sug.context}>
       <div className="ai-suggest-chips">

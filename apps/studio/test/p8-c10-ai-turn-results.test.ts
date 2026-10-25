@@ -8,7 +8,9 @@ import {
   turnCardVerbs,
   turnRunFor,
 } from '../client/v2/ai/run-model.js';
+import { beforeAfterOf } from '../client/v2/ai/run-compare.js';
 import { shortArtboardName } from '../client/v2/ai/scope.js';
+import { reduceRows } from '../client/v2/history/rows';
 
 const T = 1_700_000_000_000;
 const MIN = 60_000;
@@ -81,6 +83,35 @@ describe('the scope chip of a copy (03 `ai-copy`: "Post 1:1 · copy")', () => {
     const long = shortArtboardName('Pozvánka na zimní soustředění mládeže 2026 · A4 · copy');
     expect(long.length).toBeLessThanOrEqual(28);
     expect(long.endsWith(' · copy')).toBe(true);
+  });
+});
+
+describe('the versions list names the run of each AI row (Before / After needs it)', () => {
+  const v = (rev: number, kind: string, extra: Record<string, unknown> = {}) => ({
+    rev,
+    actionId: `a${rev}`,
+    actor: 'me',
+    mine: true,
+    kind,
+    label: null,
+    madeAt: T + rev * 3_600_000,
+    canvas: 'ui/a.tsx',
+    artboards: ['post'],
+    changes: [],
+    alsoOn: 0,
+    ...extra,
+  });
+  test('an AI row carries its runId, and beforeAfterOf finds it and skips an undo row', () => {
+    const rows = reduceRows([
+      v(1, 'edit'),
+      v(2, 'ai', { runId: 'r_story1', chatId: 'long1' }),
+      v(3, 'undo', { undoVia: 'panel', undoes: ['a2'] }),
+      v(4, 'ai', { runId: 'r_story2', chatId: 'long1' }),
+    ] as never);
+    expect(rows.find((r) => r.kind === 'ai' && r.id === 'a2')?.runId).toBe('r_story1');
+    const { after, before } = beforeAfterOf(rows, 'r_story2');
+    expect(after?.id).toBe('a4');
+    expect(before?.id).toBe('a2'); // the undo row between them is not a "before"
   });
 });
 

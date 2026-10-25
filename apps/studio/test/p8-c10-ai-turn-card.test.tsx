@@ -276,6 +276,65 @@ describe('an earlier reply keeps its result card', () => {
     expect(document.querySelector('[data-testid="ai-result"]')).not.toBeNull();
   });
 
+  test('the suggestion strip steps aside while there is a draft in the field (03 `ai-long`)', async () => {
+    const React = await import('react');
+    const { createRoot } = await import('react-dom/client');
+    const { act } = await import('react');
+    const { AssistantRuntimeProvider, useComposerRuntime, useLocalRuntime } = await import(
+      '@assistant-ui/react'
+    );
+    const { SuggestStrip } = await import('../client/v2/ai/Suggest.jsx');
+    const adapter = {
+      async *run() {
+        await new Promise(() => {});
+      },
+    };
+    let setText: (t: string) => void = () => {};
+    function Grab() {
+      const c = useComposerRuntime();
+      setText = (t) => c.setText(t);
+      return null;
+    }
+    function Host() {
+      const runtime = useLocalRuntime(adapter as never, {
+        initialMessages: [
+          {
+            role: 'user',
+            content: [{ type: 'text', text: 'Cut a 15 s recap for Reels' }],
+            createdAt: new Date(T0),
+          },
+          {
+            role: 'assistant',
+            content: [{ type: 'text', text: 'Done.' }],
+            status: { type: 'complete', reason: 'stop' },
+          },
+        ] as never,
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Grab />
+          <SuggestStrip chatId="c1" />
+        </AssistantRuntimeProvider>
+      );
+    }
+    document.body.innerHTML = '';
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(<Host />);
+    });
+    expect(document.querySelector('[data-testid="ai-suggest"]')).not.toBeNull();
+    await act(async () => {
+      setText('Now cut a 15 s recap for Reels');
+    });
+    expect(document.querySelector('[data-testid="ai-suggest"]')).toBeNull();
+    await act(async () => {
+      setText('');
+    });
+    expect(document.querySelector('[data-testid="ai-suggest"]')).not.toBeNull();
+  });
+
   test('no registry run, no card', async () => {
     const { all } = await mount([]);
     expect(all('[data-testid="ai-turn-result"]')).toHaveLength(0);

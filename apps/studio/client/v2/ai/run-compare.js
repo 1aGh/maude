@@ -21,9 +21,10 @@ export const pictureUrl = (row) =>
  */
 export function beforeAfterOf(rows, runId) {
   const list = Array.isArray(rows) ? rows : [];
-  const at = list.findIndex((r) => r && r.runId === runId && !r.undoes);
+  const isUndo = (r) => !!r.undoes || r.kind === 'undo';
+  const at = list.findIndex((r) => r && r.runId === runId && !isUndo(r));
   if (at < 0) return { after: null, before: null };
-  const before = list.slice(at + 1).find((r) => r && !r.undoes) ?? null;
+  const before = list.slice(at + 1).find((r) => r && !isUndo(r)) ?? null;
   return { after: list[at], before };
 }
 
