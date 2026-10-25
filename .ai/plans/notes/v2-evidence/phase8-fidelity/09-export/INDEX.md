@@ -220,3 +220,11 @@ Re-shot the touched ids on the round-7b tip (release-built client, Google Chrome
 | ex-progress, ex-states, ex-history | the Exports panel with named rows, a picture tile each, the header's folder button, the running / idle foot; seeded jobs carry their specs |
 | ex-handoff | sub line "<artboards> · <design system> design system" |
 | every other id | not re-shot this round |
+
+## Round 7c (p8-c7-ex10c) — after
+
+| artboard id | after (round 7c) |
+|---|---|
+| ex-print-warn | LetakA6 fixture: the REAL preflight says the QR code is 2 mm from the cut and the headline face can't be embedded; the ringed QR carries the "2 mm to the cut" tag |
+| ex-history | six rows with the cloud row hovered and its More menu open (Show in Finder · Export again · Export again with other settings… · Copy file names · Remove from list) |
+| ex-offline | faked linked project + offline browser, whole window: the top bar says "Offline — kept on this Mac" |
