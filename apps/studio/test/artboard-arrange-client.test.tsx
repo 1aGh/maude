@@ -101,7 +101,9 @@ describe('p8-c7-cf08 — no bar over boards of different kinds (08 ak-mixed-sele
     expect(boardsMixKinds([{ artboardId: 'ig' }, { artboardId: 'story' }], rects)).toBe(false);
   });
   test('an element picked inside a board does not count as the board', () => {
-    expect(boardsMixKinds([{ id: 'x', artboardId: 'karta' }, { artboardId: 'ig' }], rects)).toBe(false);
+    expect(boardsMixKinds([{ id: 'x', artboardId: 'karta' }, { artboardId: 'ig' }], rects)).toBe(
+      false
+    );
   });
 });
 

@@ -114,7 +114,7 @@ export function AddWidthRow({ f, id, ctx }) {
 }
 
 function WebRows({ el, ctx }) {
-  const { f, id, resize, setHug } = useArtboardWrites(el, ctx);
+  const { f, resize, setHug } = useArtboardWrites(el, ctx);
   return (
     <>
       <SizeSelectRow k="Width" f={f} resize={resize} />

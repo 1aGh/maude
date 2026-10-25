@@ -45,7 +45,9 @@ function MixedFillRow({ selection, ctx }) {
   const fills = facts.map((f) => (f.bg ? colourFromCss(f.bg) : null));
   const distinct = [...new Set(facts.map((f) => f.bg || `unset:${f.kind}`))];
   const mixed = distinct.length > 1;
-  const shown = [...new Map(fills.map((c, i) => [facts[i].bg || `unset:${facts[i].kind}`, c])).values()];
+  const shown = [
+    ...new Map(fills.map((c, i) => [facts[i].bg || `unset:${facts[i].kind}`, c])).values(),
+  ];
   return (
     <Row k="Fill" name="mk-fill">
       <span data-testid="insp-mab-bg">
@@ -90,7 +92,12 @@ function MultiKindRows({ selection, ctx }) {
       <MixedFillRow selection={selection} ctx={ctx} />
       <Row k="Horizontal" name="mk-horizontal">
         <span data-testid="insp-mk-horizontal">
-          <Segmented value={held.h} ariaLabel="Align horizontally" options={H_ALIGN} onChange={run} />
+          <Segmented
+            value={held.h}
+            ariaLabel="Align horizontally"
+            options={H_ALIGN}
+            onChange={run}
+          />
         </span>
       </Row>
       <Row k="Vertical" name="mk-vertical">

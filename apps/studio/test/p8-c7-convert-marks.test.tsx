@@ -53,7 +53,9 @@ test('the words: "✓ Unchanged" and "+ 13 % height · Ink fill" (no fill name, 
 });
 
 test('the shell builds the message from the plan: ids, a percent, the fill name', () => {
-  expect(convertMarksMessage({ from: 'post', to: 'a6', plan: { extraPct: 13, fill: 'Ink' } })).toEqual({
+  expect(
+    convertMarksMessage({ from: 'post', to: 'a6', plan: { extraPct: 13, fill: 'Ink' } })
+  ).toEqual({
     dgn: 'convert-marks',
     v: 1,
     from: 'post',
@@ -61,7 +63,10 @@ test('the shell builds the message from the plan: ids, a percent, the fill name'
     extraPct: 13,
     fill: 'Ink',
   });
-  expect(convertMarksMessage({ from: 'a', to: 'b', plan: {} })).toMatchObject({ extraPct: 0, fill: null });
+  expect(convertMarksMessage({ from: 'a', to: 'b', plan: {} })).toMatchObject({
+    extraPct: 0,
+    fill: null,
+  });
 });
 
 test('the canvas takes convert-marks from its parent only; a sibling frame paints nothing', async () => {

@@ -120,9 +120,7 @@ export function ArtboardConvertMarks({
           pointerEvents: 'none',
         }}
       >
-        <span
-          style={{ alignSelf: 'stretch', width: 3, borderRadius: 2, background: TAG_EDGE }}
-        />
+        <span style={{ alignSelf: 'stretch', width: 3, borderRadius: 2, background: TAG_EDGE }} />
         <span
           style={{
             padding: '3px 8px',

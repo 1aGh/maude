@@ -150,9 +150,9 @@ describe('p8-c7-cf08 — the mixed card as 08 ak-mixed-select draws it', () => {
       (r.getAttribute('data-testid') ?? '').replace('insp-row-mk-', '')
     );
     expect(keys).toEqual(['kinds', 'fill', 'horizontal', 'vertical']);
-    expect(
-      q(host, 'insp-sec-size')?.querySelector('.insp-sec-t')?.hasAttribute('hidden')
-    ).toBe(true);
+    expect(q(host, 'insp-sec-size')?.querySelector('.insp-sec-t')?.hasAttribute('hidden')).toBe(
+      true
+    );
     // Fill is a swatch row (the boards' fills side by side) and the word Mixed — not a "Background" row in a section
     expect(q(host, 'insp-sec-fill')).toBeNull();
     const face = q(host, 'insp-chip-mk-fill');
@@ -172,9 +172,9 @@ describe('p8-c7-cf08 — the mixed card as 08 ak-mixed-select draws it', () => {
     expect(on('insp-mk-vertical')).toEqual(['Top']);
     const c = { ...KARTA, geometry: { x: 300, y: 200, w: 397, h: 559 } };
     const apart = await frame([a, c]);
-    expect(
-      [...(q(apart, 'insp-mk-horizontal')?.querySelectorAll('[aria-checked="true"]') ?? [])]
-    ).toEqual([]);
+    expect([
+      ...(q(apart, 'insp-mk-horizontal')?.querySelectorAll('[aria-checked="true"]') ?? []),
+    ]).toEqual([]);
   });
 });
 

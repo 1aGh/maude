@@ -184,8 +184,14 @@ export function useArtboardActions(): ArtboardActions {
     const duplicateAtWidth: ArtboardActions['duplicateAtWidth'] = async (ids, width) => {
       const list = ids ?? selectedIds();
       // 01 cf-duplicate-done: the copy lands under the source, left edges aligned
-      const sources = list.map((id) => boards().find((b) => b.id === id)).filter((b): b is Box => !!b);
-      await writeCopies(copyPlacesBelow(sources, boards(), () => width), deps(), width);
+      const sources = list
+        .map((id) => boards().find((b) => b.id === id))
+        .filter((b): b is Box => !!b);
+      await writeCopies(
+        copyPlacesBelow(sources, boards(), () => width),
+        deps(),
+        width
+      );
     };
     const duplicateAtWidths: ArtboardActions['duplicateAtWidths'] = async (ids, widths) => {
       const list = ids ?? selectedIds();

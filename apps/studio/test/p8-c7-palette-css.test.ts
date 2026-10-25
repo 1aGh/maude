@@ -18,7 +18,9 @@ const block = (sel: string) => {
 describe('⌘K canvas rows (01 cf-search-k)', () => {
   test('the picture and its placeholder are the same 32 × 22 tile', () => {
     expect(block('.st-pal-thumb')).toMatch(/width: 32px;[\s\S]*height: 22px/);
-    expect(block('.st-palette--search .st-pal-icon--pic')).toMatch(/width: 32px;[\s\S]*height: 22px/);
+    expect(block('.st-palette--search .st-pal-icon--pic')).toMatch(
+      /width: 32px;[\s\S]*height: 22px/
+    );
     // a canvas row without a cover wears the tile; an action row keeps the 24 px icon square
     expect(jsx).toContain("item.group === 'canvases' ? ' st-pal-icon--pic'");
   });
