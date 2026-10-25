@@ -328,8 +328,6 @@ async function island(over: Record<string, unknown> = {}) {
       options: OPTIONS,
       format: '9:16',
       onFormat: (a: string) => calls.push(['format', a]),
-      scope: 'format',
-      onScope: (s: string) => calls.push(['scope', s]),
       out: { w: 1080, h: 1920 },
       focus: [0.5, 0.5],
       zoom: 1,
@@ -346,7 +344,7 @@ async function island(over: Record<string, unknown> = {}) {
 }
 
 describe('the Re-frame island (ve-reframe)', () => {
-  test('the canvas’s words: Frame “Touchdown” for · the formats · This format / All formats · Reset · Done', async () => {
+  test('the canvas’s words: Frame “Touchdown” for · one pill per format · Reset · Done (P8 C9: no This format / All formats)', async () => {
     const { host } = await island();
     expect(q(host, 'reframe-title')?.textContent).toBe('Frame “Touchdown” for');
     expect(
@@ -357,6 +355,11 @@ describe('the Re-frame island (ve-reframe)', () => {
     expect(q(host, 'reframe-done')?.textContent).toBe('Done');
     // P8 C8 (07 · ve-reframe): the footer says it once (the count line); no second hint under it
     expect(q(host, 'reframe-note')).toBeNull();
+    // P8 C9 (lead, v2-p8-c9-reframe-format-pills): the pill picked IS the scope — no second segment, no hint line drawn
+    expect(q(host, 'reframe-scope-all')).toBeNull();
+    expect(q(host, 'reframe-scope-format')).toBeNull();
+    expect(host.textContent).not.toMatch(/This format|All formats/);
+    expect(q(host, 'reframe-count')?.className).toContain('sr-only');
     // B3: nothing about following a subject is drawn
     expect(host.textContent).not.toMatch(/follow|subject|#1/i);
   });
@@ -427,14 +430,13 @@ describe('the Re-frame island (ve-reframe)', () => {
     expect((q(host, 'reframe-reset') as HTMLButtonElement).disabled).toBe(true);
   });
 
-  test('the format, the scope, Reset and Done are the person’s to say', async () => {
+  test('the format, Reset and Done are the person’s to say', async () => {
     const { host, calls } = await island({ framed: true, keyCount: 2 });
     expect(q(host, 'reframe-count')?.textContent).toBe('2 keyframes');
     await click(q(host, 'reframe-format-16x9'), '16:9');
-    await click(q(host, 'reframe-scope-all'), 'All formats');
     await click(q(host, 'reframe-reset'), 'Reset');
     await click(q(host, 'reframe-done'), 'Done');
-    expect(calls).toEqual([['format', '16:9'], ['scope', 'all'], ['reset'], ['done']]);
+    expect(calls).toEqual([['format', '16:9'], ['reset'], ['done']]);
   });
 
   test('Esc closes it', async () => {
@@ -515,7 +517,7 @@ describe('the island on the selected clip (the Timeline’s wiring)', () => {
     );
   });
 
-  test('a drop writes the keyframe in SOURCE time for This format; All formats writes the shared focus', async () => {
+  test('a drop writes the keyframe in SOURCE time for the picked format; a format picked after it gets its own', async () => {
     const { runs } = await open();
     const w = must(q(document.body, 'reframe-window'), 'window');
     const drag = async (dx: number) => {
@@ -528,9 +530,25 @@ describe('the island on the selected clip (the Timeline’s wiring)', () => {
     };
     await drag(56);
     expect(runs).toEqual([{ focus: [[2, 0.6, 0.5]], format: '9:16' }]);
-    await click(q(document.body, 'reframe-scope-all'), 'All formats');
-    await drag(-56);
-    expect(runs[1]).toEqual({ focus: [[2, 0.4, 0.5]] });
+    // the pill picked is the scope: another format's pill shows ITS window (a 16:9 window fills a 16:9 picture)
+    await click(q(document.body, 'reframe-format-16x9'), '16:9');
+    expect(
+      parseFloat(must(q(document.body, 'reframe-window'), 'window').style.width)
+    ).toBeCloseTo(100, 4);
+    expect(runs).toHaveLength(1);
+  });
+
+  test('a video with no linked formats frames its one shared window (no format in the write)', async () => {
+    media.formats.formats = [];
+    const { runs } = await open();
+    const w = must(q(document.body, 'reframe-window'), 'window');
+    await act(async () => {
+      w.dispatchEvent(pointer('pointerdown', 100));
+      w.dispatchEvent(pointer('pointermove', 156));
+      w.dispatchEvent(pointer('pointerup', 156));
+    });
+    await settle();
+    expect(runs).toEqual([{ focus: [[2, 0.6, 0.5]] }]);
   });
 
   test('Reset clears this format’s framing', async () => {
