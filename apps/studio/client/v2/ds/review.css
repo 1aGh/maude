@@ -150,6 +150,30 @@
     background: var(--bg-4);
     overflow: hidden;
   }
+  /* the master before | after (13 · ds-edit-master): the name in a box whose corners are the old and the new */
+  .dsr-mpair {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-right: var(--space-3);
+  }
+  .dsr-mbox {
+    display: inline-grid;
+    place-items: center;
+    min-width: 64px;
+    height: 32px;
+    padding: 0 var(--space-3);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    color: var(--fg-0);
+  }
+  .dsr-mbox[data-which="after"] {
+    background: var(--accent);
+    color: var(--accent-fg);
+    box-shadow: none;
+  }
   .dsr-thumb img {
     width: 100%;
     height: 100%;

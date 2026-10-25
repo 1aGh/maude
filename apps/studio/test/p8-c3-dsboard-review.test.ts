@@ -46,6 +46,29 @@ describe('review sheet words', () => {
     expect(withValueNames([{ css: '--accent' }], null)).toEqual([{ css: '--accent' }]);
   });
 
+  test('p8 c7: a colour with no name of its own is said in words on each side (never raw), and only when the sides differ', () => {
+    const named = withValueNames(
+      [
+        {
+          css: '--bg-0',
+          before: { light: 'oklch(0.5 0.19 255)' },
+          after: { light: 'oklch(0.3 0.1 150)' },
+        },
+        {
+          css: '--bg-0',
+          before: { light: 'oklch(0.5 0.19 255)' },
+          after: { light: 'oklch(0.52 0.19 252)' },
+        },
+        { css: '--bg-0', before: { light: '10px' }, after: { light: '12px' } },
+      ],
+      board
+    );
+    expect(named[0]).toMatchObject({ beforeName: 'Deep blue', afterName: 'Dark green' });
+    expect(named[1].beforeName).toBeUndefined();
+    expect(named[1].afterName).toBeUndefined();
+    expect(named[2].beforeName).toBeUndefined();
+  });
+
   test('a master edit reads "Corners 2 → 6" — only the master’s own look, never a state rule', () => {
     expect(masterLines(board)).toEqual({ Button: ['Corners 2 → 6'] });
     expect(masterLines(null)).toEqual({});

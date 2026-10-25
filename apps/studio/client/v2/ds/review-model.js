@@ -8,6 +8,7 @@
 // a count names the noun for 1 and for many.
 
 import { humanize } from '../../../ds/board/types.ts';
+import { colourWords } from './colour-words.js';
 
 export const REVIEW_WORDS = Object.freeze({
   cancel: 'Cancel',
@@ -232,7 +233,19 @@ export function withValueNames(changes = [], board = null) {
     if (!t || !light) return c;
     const beforeName = t.valueNames?.[light] ?? null;
     const afterName = t.pending?.valueNames?.[light] ?? null;
-    return { ...c, ...(beforeName ? { beforeName } : {}), ...(afterName ? { afterName } : {}) };
+    // p8 c7: a value nobody named is said in words ("Deep blue › Dark green"), never as raw oklch; when both
+    // sides come out the same word the pair says nothing rather than "Deep blue › Deep blue"
+    let bw = beforeName;
+    let aw = afterName;
+    if (!bw && !aw) {
+      const wb = colourWords(c.before?.[light] ?? c.before?.light);
+      const wa = colourWords(c.after?.[light] ?? c.after?.light);
+      if (wb && wa && wb !== wa) {
+        bw = wb;
+        aw = wa;
+      }
+    }
+    return { ...c, ...(bw ? { beforeName: bw } : {}), ...(aw ? { afterName: aw } : {}) };
   });
 }
 
@@ -278,4 +291,17 @@ export function masterLines(board = null) {
     if (lines.length) out[c.name] = lines;
   }
   return out;
+}
+
+/**
+ * "Corners 10 → 6" among a master's lines → the two radii the sheet draws as a before/after pair (13 · ds-edit-master:
+ * the master swatch pair beside the line), or null when no line is about corners.
+ * @param {string[] | undefined} lines
+ */
+export function cornersOf(lines) {
+  for (const l of lines ?? []) {
+    const m = /^Corners\s+(\d+(?:\.\d+)?)\s*→\s*(\d+(?:\.\d+)?)$/.exec(String(l).trim());
+    if (m) return { from: Number(m[1]), to: Number(m[2]) };
+  }
+  return null;
 }

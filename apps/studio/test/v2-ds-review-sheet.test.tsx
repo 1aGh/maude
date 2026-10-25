@@ -254,6 +254,21 @@ describe('the sheet', () => {
     );
   });
 
+  test('p8 c7 · ds-edit-master: a corner change draws the master as it was and as it is, beside the line', async () => {
+    const { host } = await mount({
+      components: ['Button'],
+      componentLines: { Button: ['Corners 10 → 6'] },
+    });
+    const pair = q(host, 'ds-review-master-pair');
+    expect(pair).not.toBeNull();
+    expect(q(host, 'ds-review-master-before')?.style.borderRadius).toBe('10px');
+    expect(q(host, 'ds-review-master-after')?.style.borderRadius).toBe('6px');
+    expect(q(host, 'ds-review-master-lines')?.textContent).toBe('Corners 10 → 6');
+    // a master whose edit is not about corners draws no pair
+    const other = await mount({ components: ['Field'], componentLines: { Field: ['Fill → red'] } });
+    expect(q(other.host, 'ds-review-master-pair')).toBeNull();
+  });
+
   test('defaults: followers ticked, the left-out one is not, the pinned one says why and cannot be ticked', async () => {
     const { host } = await mount();
     for (const n of ['Homepage', 'Pricing', 'Onboarding', 'Mobile — detail'])

@@ -16,6 +16,7 @@ import { DsAdvancedHost } from './advanced-host.jsx';
 import { DsLibraryHost } from './library-host.jsx';
 import { DsReachView } from './reach-view.jsx';
 import { DsReviewSheet } from './review-sheet.jsx';
+import { useCoverOf } from './use-covers.js';
 import { onDsReviewRequest } from './review-bus.js';
 import {
   masterLines,
@@ -201,6 +202,8 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
     fetchImpl,
   });
   const [sheet, setSheet] = useState(null);
+  // p8 c7 — the sheet's rows wear their canvas's own picture
+  const coverOf = useCoverOf({ active: !!sheet, fetchImpl });
   // S10.9 — "Used in 5 canvases · Show": the reach view (reach-view.jsx), with the same review list beside it
   const [reach, setReach] = useState(null);
   const live = useRef({ cfg, activePath, toast, fetchImpl });
@@ -355,6 +358,7 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
         componentLines={sheet.componentLines}
         places={sheet.places}
         scope={scope}
+        coverOf={coverOf}
         onClose={close}
         onUpdate={async (rows) => {
           const r = await publishReview(
