@@ -104,10 +104,16 @@ export function createModality(initial = false) {
 
 export const modality = createModality();
 
-const MODIFIER_KEYS = new Set(['Shift', 'Control', 'Alt', 'Meta', 'CapsLock']);
+/** The keys that WALK the keyboard's place — Tab / ⇧Tab through the reading order, F6 between regions. Everything else
+ *  is a key press on whatever the pointer selected and must not paint the order pills over a pointer selection
+ *  (14 R3, ed-edge-ask / ed-edge-undo / ed-edge-keys): a tool letter, Esc, Delete, a chord (⌘Z, ⌘/, ⌘D) — and an ARROW,
+ *  which nudges the selected object, it does not move the keyboard's place. */
+const WALKING_KEYS = new Set(['Tab', 'F6']);
 
-/** The keys that move or change the keyboard's place (a bare modifier does not). */
-export const isNavigationKey = (key: string): boolean => !MODIFIER_KEYS.has(key);
+export const isNavigationKey = (
+  key: string,
+  mods?: { metaKey?: boolean; ctrlKey?: boolean; altKey?: boolean }
+): boolean => WALKING_KEYS.has(key) && !(mods?.metaKey || mods?.ctrlKey || mods?.altKey);
 
 export function useKeyboardModality(): boolean {
   return useSyncExternalStore(modality.subscribe, modality.get, () => false);
@@ -258,7 +264,7 @@ export function KeyboardLayer({ readOnly = false }: { readOnly?: boolean }) {
       const tool = tmRef.current?.tool;
       const armed = !readOnly && !isReadOnlyCanvas() && isCreateTool(tool);
       const typing = isEditableTarget(e.target);
-      if (isNavigationKey(e.key) && !typing) modality.key();
+      if (isNavigationKey(e.key, e) && !typing) modality.key();
       const hit = resolveChord(
         KEYS,
         chordFromEvent(e),
