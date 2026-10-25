@@ -110,8 +110,13 @@ export async function run(h) {
     await sleep(1800);
     h.mode({ mode: 'done', target: 'post', steps: 6, ms: 800, text: 'Done — Story 9:16 uses the three photos in Club green, like Post 1:1. The logo stays white.' });
     await send('Make a story from these three, same look as the post', 0);
-    await h.fresh();
-    await sleep(3200);
+    // wait for BOTH runs to be over (the ring of the first one can still be "fresh" when the second starts)
+    for (let i = 0; i < 60; i++) {
+      await sleep(500);
+      const st = await page.evaluate(() => fetch('/_api/ai/runs').then((r) => r.json()).then((b) => [b.mine.length, b.mine.filter((r) => r.state !== 'ended').length])).catch(() => [0, 1]);
+      if (st[0] >= 2 && st[1] === 0) break;
+    }
+    await sleep(3500);
     // ── the turn is dated yesterday evening: the files say so, then the server starts again so its run registry says so too ──
     const dir = join(h.project, '.design/_chat');
     const mine = readdirSync(dir).filter((n) => /^c-.*\.jsonl$/.test(n));
