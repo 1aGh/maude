@@ -201,6 +201,15 @@ async function main() {
       );
     }
     const result = medianOf(passes);
+    // where the camera ended (fit-all): the world's scale, so "below 25 %" is a measured fact
+    const worldScale = await frame
+      .evaluate(() => {
+        const w = document.querySelector('.dc-world');
+        if (!w) return null;
+        const m = new DOMMatrix(getComputedStyle(w).transform);
+        return Math.round(m.a * (Number.parseFloat(w.style.zoom) || 1) * 1000) / 1000;
+      })
+      .catch(() => null);
     const label = `${opts.label || opts.studio} (studio)${opts.variant ? ` [${opts.variant}]` : ''}`;
     const engineTag = opts.engineTag || 'blink-studio';
     const prev = readHistory(opts.history, label, engineTag);
@@ -209,7 +218,7 @@ async function main() {
       label,
       engineTag,
       opts: { ...opts, url: opts.url },
-      extra: { window: opts.window, dpr: opts.dpr, studio: true },
+      extra: { window: opts.window, dpr: opts.dpr, studio: true, worldScale },
     });
     if (opts.history) {
       mkdirSync(dirname(opts.history), { recursive: true });

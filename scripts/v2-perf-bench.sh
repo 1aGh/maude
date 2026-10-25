@@ -3,7 +3,7 @@
 # Chromium, in the order given (V2-1.8 contract T5/M7; the plan wants two batches in OPPOSITE order).
 #
 #   scripts/v2-perf-bench.sh [--order "base v2"] [--base <rev>] [--repeat 6] [--window 1600x1000]
-#                            [--out <dir>] [--canvas ui/c12.tsx]
+#                            [--out <dir>] [--canvas ui/c12.tsx] [--lanes "studio bare"]
 #
 # One invocation = one batch. For each arm (`base` = the pre-v2 build at <rev>, a `main` release;
 # `v2` = this checkout) it release-builds the client, boots that arm's studio server on its OWN copy
@@ -14,7 +14,14 @@
 #           (the shell is what differs: v2's islands over a full-width canvas vs the pre-v2 docked
 #           panels — this is the M7 comparison)
 #   bare    Chromium on the bare canvas page, fit-all (the canvas engine alone)
-# Writes <out>/<arm>-{studio,bare}.json (+ .txt reports) and <out>/env.txt (uptime, machine).
+#   V2-8.14 lanes (--lanes "panel peers lod"):
+#   panel   the 93-canvas Canvases panel in the studio shell (scripts/v2-perf-panel.mjs): first row,
+#           rows mounted, list scroll frames, search latency, open-a-canvas
+#   peers   the studio lane again with 11 simulated people publishing cursors at 15 Hz into the
+#           canvas's collab room (scripts/v2-perf-peers.mjs) — twelve with the measuring tab
+#   lod     the studio lane on a generated MIXED annotation board (--fixture --mix, 1,500 elements,
+#           64 boards) at a fit-all zoom below 25 %, where v2's LOD mosaic takes over
+# Writes <out>/<arm>-<lane>.json (+ .txt reports) and <out>/env.txt (uptime, machine).
 # Not CI: frame timings swing with machine load; read the medians against the spread.
 #
 # Meant for the Mac mini lane (display-free):
@@ -30,6 +37,7 @@ REPEAT=6
 WINDOW=1600x1000
 CANVAS=ui/c12.tsx
 OUT=""
+LANES="studio bare"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --order) ORDER="$2"; shift 2 ;;
@@ -38,6 +46,7 @@ while [[ $# -gt 0 ]]; do
     --window) WINDOW="$2"; shift 2 ;;
     --canvas) CANVAS="$2"; shift 2 ;;
     --out) OUT="$2"; shift 2 ;;
+    --lanes) LANES="$2"; shift 2 ;;
     *) echo "v2-perf-bench: unknown arg $1" >&2; exit 2 ;;
   esac
 done
@@ -99,12 +108,34 @@ for arm in $ORDER; do
   for _ in $(seq 1 90); do grep -q "^READY" "$WORK/boot-$arm.log" 2>/dev/null && break; sleep 1; done
   grep -q "^READY" "$WORK/boot-$arm.log" || { echo "server for $arm never came up" >&2; tail -20 "$WORK/boot-$arm.log" >&2; exit 1; }
   echo "uptime before $arm: $(uptime)" >> "$OUT/env.txt"
-  for lane in studio bare; do
+  for lane in $LANES; do
     flags=(--fit-all --repeat "$REPEAT" --json)
-    [[ $lane == studio ]] && flags+=(--studio --window "$WINDOW")
-    MAUDE_PERF_ENGINE_TAG="$arm-$lane" bash "$ROOT/apps/studio/bin/perf.sh" --root "$WORK/fx-$arm" \
-      --canvas "$CANVAS" "${flags[@]}" > "$OUT/$arm-$lane.json" 2> "$OUT/$arm-$lane.log"
-    echo "$arm/$lane: exit $? — $(grep -c '^→ pass' "$OUT/$arm-$lane.log") passes"
+    case "$lane" in
+      studio|bare)
+        [[ $lane == studio ]] && flags+=(--studio --window "$WINDOW")
+        MAUDE_PERF_ENGINE_TAG="$arm-$lane" bash "$ROOT/apps/studio/bin/perf.sh" --root "$WORK/fx-$arm" \
+          --canvas "$CANVAS" "${flags[@]}" > "$OUT/$arm-$lane.json" 2> "$OUT/$arm-$lane.log"
+        ;;
+      panel)
+        node "$ROOT/scripts/v2-perf-panel.mjs" --url "http://localhost:$PORT/" --runs 6 --window "$WINDOW" --json \
+          > "$OUT/$arm-panel.json" 2> "$OUT/$arm-panel.log"
+        ;;
+      peers)
+        node "$ROOT/scripts/v2-perf-peers.mjs" --port "$PORT" --slug "$(basename "$CANVAS" .tsx | sed 's/^/ui-/')" \
+          --peers 11 --hz 15 --secs 600 > "$WORK/peers-$arm.log" 2>&1 &
+        PPID_=$!
+        for _ in $(seq 1 20); do grep -q "^PEERS" "$WORK/peers-$arm.log" 2>/dev/null && break; sleep 1; done
+        MAUDE_PERF_ENGINE_TAG="$arm-peers" bash "$ROOT/apps/studio/bin/perf.sh" --root "$WORK/fx-$arm" \
+          --canvas "$CANVAS" "${flags[@]}" --studio --window "$WINDOW" > "$OUT/$arm-peers.json" 2> "$OUT/$arm-peers.log"
+        kill "$PPID_" 2>/dev/null; wait "$PPID_" 2>/dev/null
+        ;;
+      lod)
+        MAUDE_PERF_ENGINE_TAG="$arm-lod" bash "$ROOT/apps/studio/bin/perf.sh" --root "$WORK/fx-$arm" \
+          --fixture --boards 64 --annotations 1500 --mix "${flags[@]}" --studio --window "$WINDOW" \
+          > "$OUT/$arm-lod.json" 2> "$OUT/$arm-lod.log"
+        ;;
+    esac
+    echo "$arm/$lane: exit $? — $(grep -c '^→' "$OUT/$arm-$lane.log") progress lines"
   done
   kill "$SPID" 2>/dev/null
   wait "$SPID" 2>/dev/null
