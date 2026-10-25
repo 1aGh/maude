@@ -8,8 +8,8 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // D5: the harness lives at <repo>/.ai/plans/notes/v2-evidence/phase8-fidelity/_d5-harness-g4 — REPO is derived, so it runs from any checkout (the Mac mini slot included)
-export const HERE = dirname(fileURLToPath(import.meta.url));
-export const REPO = resolve(HERE, '../../../../../..');
+import { HERE, REPO } from './paths.mjs';
+export { HERE, REPO };
 export const { stubClaudeEnv } = await import(pathToFileURL(join(REPO, 'scripts/lib/stub-claude.mjs')).href);
 export const STUDIO = join(REPO, 'apps/studio');
 export const OUT = process.env.SHOTS_OUT || join(REPO, '.scr/impl');

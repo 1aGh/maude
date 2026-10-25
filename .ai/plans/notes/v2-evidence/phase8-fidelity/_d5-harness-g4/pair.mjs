@@ -4,7 +4,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { REPO } from './lib.mjs';
+import { REPO } from './paths.mjs';
 
 export function pair(dir, id, theme, { specCrop, implCrop, label = '', implPath, specPath } = {}) {
   const spec = specPath || join(REPO, '.scr/spec', dir, `${id}-${theme}.png`);

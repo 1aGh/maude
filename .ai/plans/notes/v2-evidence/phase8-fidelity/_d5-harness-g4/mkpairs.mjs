@@ -1,7 +1,7 @@
 // usage: node mkpairs.mjs <dir> [id,id...]   — builds pairs for every id in table[dir] that has an impl image for the theme
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { REPO } from './lib.mjs';
+import { REPO } from './paths.mjs';
 import { pair } from './pair.mjs';
 
 const WIN = '1440x860+1+41'; // the window body of a Stage artboard (below the native tab strip, above the note)
