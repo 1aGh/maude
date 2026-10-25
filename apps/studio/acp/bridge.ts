@@ -9,7 +9,7 @@
 // auth precedence falls through to the user's Pro/Max subscription.
 
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import {
   type AvailableCommand,
@@ -32,6 +32,15 @@ import { autoAllowRules } from '../actions/verbs.ts';
 import { HANDOFF_RUN_VERBS } from '../handoff/write-scopes.ts';
 import { readUiPrefs } from '../ui-prefs.ts';
 import { chatSpawnEnv, scrubAgentEnv, teamsSpawnEnv } from './env.ts';
+import {
+  type AiMay,
+  assetsRootsFor,
+  MAY_ALL,
+  mayAllowedTools,
+  mayDenyRules,
+  mayKey,
+  mayRefusal,
+} from './may-scope.ts';
 import { type SdkPluginConfig, suppressionFor } from './plugin-bootstrap.ts';
 import {
   resolveAdapterEntry,
@@ -52,6 +61,11 @@ import {
 export interface AcpBridgeOptions {
   /** Absolute repo root the ACP session runs in (where `.design/` + the CLI operate). */
   repoRoot: string;
+  /**
+   * P8 c7 (decision maude/v2-p8-c7-ai-may-enforced) — the project's design root, whose `assets/` folder
+   * "Use Assets and footage" covers (acp/may-scope.ts). Absent → `<repoRoot>/.design`.
+   */
+  designRoot?: string;
   /**
    * Static studio-environment brief appended to every new session's system
    * prompt (feature-acp-context-hardening; built by bootstrap-brief.ts).
@@ -545,7 +559,12 @@ export function newSessionParams(
   repoRoot: string,
   studioBrief?: string,
   plugins?: SdkPluginConfig[],
-  scope: { onlyVerbs?: readonly string[] | null } = {}
+  scope: {
+    onlyVerbs?: readonly string[] | null;
+    /** P8 c7 — Advanced › AI may. Off switches become deny rules + leave the allow-list (may-scope.ts). */
+    may?: AiMay;
+    assetsRoots?: readonly string[];
+  } = {}
 ): { cwd: string; mcpServers: never[]; _meta?: Record<string, unknown> } {
   const meta: Record<string, unknown> = {};
   if (studioBrief) meta.systemPrompt = { append: studioBrief };
@@ -566,10 +585,18 @@ export function newSessionParams(
     // the same `_meta.claudeCode.options` spread as `plugins`/`settings` below
     // (`...userProvidedOptions`, acp-agent.js:2333→2455) into the SDK's
     // `allowedTools` (sdk.d.ts:1331). Everything off this list still prompts.
-    allowedTools: scope.onlyVerbs
-      ? scopedAllowedTools(scope.onlyVerbs)
-      : [...MAUDE_DEFAULT_ALLOWED_TOOLS],
+    allowedTools: mayAllowedTools(
+      scope.onlyVerbs ? scopedAllowedTools(scope.onlyVerbs) : MAUDE_DEFAULT_ALLOWED_TOOLS,
+      scope.may ?? MAY_ALL
+    ),
   };
+  // P8 c7 (decision maude/v2-p8-c7-ai-may-enforced) — an "AI may" switch the person turned off is a
+  // DENY rule: it wins over every allow rule (ours and the person's own ~/.claude) and every mode,
+  // bypassPermissions included, and it is the only thing that holds a Read inside the project (Claude
+  // Code approves those itself; the bridge never sees them). Absent when everything is on, so such a
+  // session is byte-for-byte what it was. The adapter appends its own entries (acp-agent.js:2855).
+  const deny = mayDenyRules(scope.may ?? MAY_ALL, scope.assetsRoots ?? []);
+  if (deny.length) options.disallowedTools = deny;
   if (plugins && plugins.length > 0) {
     options.plugins = plugins;
     // DDR-168 — the bundled `design` plugin is now injected UNCONDITIONALLY
@@ -792,9 +819,36 @@ export class AcpBridge {
    * to prevent, so the pin ships WITH the lifetime change, not after it.
    */
   private readonly scopeRoot: string;
+  /**
+   * P8 c7 (decision maude/v2-p8-c7-ai-may-enforced) — Advanced › "AI may", as the last main-origin
+   * `prompt`/`warm` frame stated it (acp/index.ts → `setMay`). Read live by the permission gate, and
+   * stamped into a session's spawn-time deny rules (`newSessionParams`); `sessionMay` remembers which
+   * state each live session was spawned with, so a change re-establishes it before the next turn.
+   */
+  private may: AiMay = MAY_ALL;
+  private readonly assetsRoots: string[];
+  private sessionMay = new Map<string, string>(); // sessionId → mayKey it was spawned with
 
   constructor(private readonly opts: AcpBridgeOptions) {
     this.scopeRoot = pinScopeRoot(opts.repoRoot);
+    this.assetsRoots = assetsRootsFor(
+      opts.repoRoot,
+      opts.designRoot ?? join(opts.repoRoot, '.design')
+    );
+  }
+
+  /**
+   * P8 c7 — the person's "AI may" switches (`null` = the frame carried no news: keep what we have).
+   * Takes effect at once for every permission request that reaches the bridge, and for the CLI-side
+   * deny rules at the chat's next turn (`sessionFor` re-establishes a session spawned with another state).
+   */
+  setMay(may: AiMay | null): void {
+    if (may) this.may = { assets: may.assets !== false, web: may.web !== false };
+  }
+
+  /** The current "AI may" state (read-only snapshot) — tests + diagnostics. */
+  get aiMay(): AiMay {
+    return { ...this.may };
   }
 
   /** The pinned write-scope root (read-only) — exposed for tests + diagnostics. */
@@ -986,11 +1040,21 @@ export class AcpBridge {
    */
   private async sessionFor(chatId: string): Promise<string> {
     const existing = this.sessions.get(chatId);
-    if (existing) return existing;
+    // P8 c7 — a session spawned under another "AI may" state carries stale deny rules. Re-establish it
+    // (close + load, same id: the chat keeps its history) — but never under a running turn, which the
+    // close would kill; that turn keeps the live gate and the next ask picks the change up.
+    if (
+      existing &&
+      (this.sessionMay.get(existing) === mayKey(this.may) || this.pendingTurns.size > 0)
+    ) {
+      return existing;
+    }
     const inFlight = this.sessionPromises.get(chatId);
     if (inFlight) return inFlight;
 
-    const promise = this.establishSession(chatId).finally(() => {
+    const promise = (
+      existing ? this.reestablishForMay(chatId, existing) : this.establishSession(chatId)
+    ).finally(() => {
       this.sessionPromises.delete(chatId);
     });
     this.sessionPromises.set(chatId, promise);
@@ -1007,7 +1071,32 @@ export class AcpBridge {
    * transport can't wedge `replaying` true forever and silently black-hole
    * every future turn on this bridge).
    */
-  private async establishSession(chatId: string): Promise<string> {
+  /**
+   * P8 c7 — the "AI may" switches changed since `sessionId` was spawned. The adapter's `loadSession` hands
+   * back an already-open session as it is (getOrCreateSession), so the session is CLOSED first and then
+   * loaded again with the current deny rules. A close the adapter refuses must not leave the stale
+   * session running: the chat then starts a fresh session instead (its history stays in the transcript).
+   */
+  private async reestablishForMay(chatId: string, sessionId: string): Promise<string> {
+    const conn = this.conn;
+    if (!conn) throw new Error('ACP adapter not started');
+    let closed = false;
+    try {
+      const r = await withTimeout(conn.closeSession({ sessionId }), LOAD_SESSION_TIMEOUT_MS);
+      closed = r !== TIMED_OUT;
+    } catch {
+      closed = false;
+    }
+    this.sessions.delete(chatId);
+    this.sessionMay.delete(sessionId);
+    if (!closed) {
+      await this.appendTranscript({ role: 'bootstrap', kind: 'may-refresh-new-session' });
+    }
+    return this.establishSession(chatId, closed ? sessionId : null);
+  }
+
+  /** `resume`: undefined → the id persisted for this chat; null → never resume (a fresh session). */
+  private async establishSession(chatId: string, resume?: string | null): Promise<string> {
     if (!this.conn) throw new Error('ACP adapter not started');
 
     // S8.10 — a run with its own write scope auto-approves only its own maude verbs (fail closed:
@@ -1018,10 +1107,13 @@ export class AcpBridge {
     } catch {
       scoped = [];
     }
+    const may = { ...this.may };
     const params = newSessionParams(this.opts.repoRoot, this.opts.studioBrief, this.opts.plugins, {
       onlyVerbs: scoped === null ? null : HANDOFF_RUN_VERBS,
+      may,
+      assetsRoots: this.assetsRoots,
     });
-    const persistedId = await this.readPersistedSessionId();
+    const persistedId = resume === undefined ? await this.readPersistedSessionId() : resume;
     let sessionId: string | undefined;
     let modes: SessionModeState | null | undefined;
     let configOptions: SessionConfigOption[] | null | undefined;
@@ -1064,6 +1156,7 @@ export class AcpBridge {
     // current session state (the RPC response), never replayed history, but
     // we still sequence it after the try/finally so nothing fires while a
     // resume is nominally in flight.
+    this.sessionMay.set(sessionId, mayKey(may));
     this.lastModes = modes ?? null;
     this.lastConfigOptions = configOptions ?? [];
     await this.applyDesiredConfigOnce(sessionId);
@@ -1282,6 +1375,22 @@ export class AcpBridge {
         // transparency callback (every request, however it resolves);
         // `onPermissionRequest` is the actual UI hook the client answers.
         this.opts.onPermission?.(params);
+        // P8 c7 (decision maude/v2-p8-c7-ai-may-enforced) — an "AI may" switch the person turned off
+        // refuses the call here, against the CURRENT state, with no card: the person already said no.
+        // Before the write gate, so an off switch is never auto-approved as an in-project write.
+        // `reject_once` makes the adapter answer "refused" (the agent moves on) rather than abort.
+        {
+          const toolCallId = params.toolCall?.toolCallId;
+          const name = typeof toolCallId === 'string' ? this.toolNames.get(toolCallId) : undefined;
+          if (mayRefusal(name, params.toolCall, this.may, this.scopeRoot, this.assetsRoots)) {
+            const reject = (params.options ?? []).find((o) => o.kind === 'reject_once');
+            return Promise.resolve({
+              outcome: reject
+                ? { outcome: 'selected', optionId: reject.optionId }
+                : { outcome: 'cancelled' },
+            });
+          }
+        }
         // feature-acp-write-path-scope Task 3 — THE WRITE-PATH GATE. This is the
         // branch that replaces `Edit`/`Write`/`NotebookEdit`'s former presence on
         // MAUDE_DEFAULT_ALLOWED_TOOLS. An in-project write short-circuits here
@@ -1835,6 +1944,7 @@ export class AcpBridge {
     this.proc = null;
     this.conn = null;
     this.sessions.clear();
+    this.sessionMay.clear();
     // Drop any in-flight sessionFor() promises too — they were bound to the
     // now-dead `conn`; a subsequent sessionFor() for the same chatId must
     // establish fresh against the respawned connection, not await a stale
