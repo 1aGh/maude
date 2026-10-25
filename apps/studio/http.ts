@@ -18,12 +18,7 @@ import { existsSync, readFileSync, realpathSync, unlinkSync, watch } from 'node:
 import { basename, join, posix, relative, resolve, sep } from 'node:path';
 // Ownership mutations live with the CLI on purpose — see /_api/sync/ownership.
 import { adoptToHub, detachToRepo, ownershipState } from '../../cli/lib/design-ownership.mjs';
-import {
-  assetReferrers,
-  type Closure,
-  closureConfigOf,
-  localDepsFromSource,
-} from './access/closure.ts';
+import { assetReferrers, type Closure, localDepsFromSource } from './access/closure.ts';
 import {
   canvasOnlyLogPaths,
   canvasOriginTarget,
@@ -57,6 +52,7 @@ import {
   narrowToFrame,
   verifyFrameCap,
 } from './access/frame.ts';
+import { closureConfigFor } from './access/known-canvases.ts';
 import {
   ACP_REFUSAL,
   accessForDesktop,
@@ -1919,7 +1915,7 @@ export function createHttp(
           : all;
       // gate-b-c4k — judged with the effective config, like the frame's closure (access/filters.ts)
       const r = closureFingerprint(ctx.paths.designRoot, list, {
-        config: ctx.cfg ? closureConfigOf(ctx.cfg) : undefined,
+        config: closureConfigFor(ctx), // p8-c4b — with the authority's known canvases
       });
       return r.ok ? r.expect : r.reason === 'too-large' ? 'too-big' : null;
     },

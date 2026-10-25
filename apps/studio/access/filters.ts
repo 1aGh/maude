@@ -56,10 +56,11 @@ import {
   type Closure,
   type ClosureCache,
   canvasImportsReport,
-  closureConfigOf,
   closureFor,
   createClosureCache,
+  projectClosureConfig,
 } from './closure.ts';
+import { closureConfigFor, knownCanvasesFor } from './known-canvases.ts';
 import { currentAccess, diskProjectReader, toDesignRel } from './request.ts';
 import { type Access, sees } from './scope.ts';
 
@@ -598,14 +599,16 @@ export function projectVisibility(
   });
   const cache: ClosureCache = createClosureCache();
   const reader = diskProjectReader(ctx.paths.designRoot, () => String(generation));
-  const config = () => (ctx.cfg ? closureConfigOf(ctx.cfg) : undefined);
+  // p8-c4b — plus the canvases the authority knows of (a stored grant), re-read per call.
+  const config = () =>
+    closureConfigFor(ctx) ?? projectClosureConfig(reader, knownCanvasesFor(undefined));
   const closureOf = (access: Access): Closure | null =>
     access.grants.length > 0 ? closureFor(access, reader, cache, config()) : null;
   const visibilityFor = (access: Access) => visibilityOf(access, () => closureOf(access));
   const reports = new Map<string, ReadonlyMap<string, string[]>>();
   const canvasImports = (canvases: readonly string[]) => {
     const cfg = config();
-    const key = `${generation}\u0002${JSON.stringify(cfg ?? null)}\u0003${canvases.join('\u0001')}`;
+    const key = `${generation}\u0002${JSON.stringify(cfg)}\u0003${canvases.join('\u0001')}`;
     const hit = reports.get(key);
     if (hit) return hit;
     const report = canvasImportsReport(reader, canvases, cfg);
