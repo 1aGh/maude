@@ -559,6 +559,10 @@ export interface ShellToCanvas {
   // optionally flash its outline. The shell decides glide (reduced motion = cut); a repeat to the same
   // artboard while gliding is a no-op. canvas-lib's handler lands with the L1 slice that owns it.
   'reveal-artboard': { artboardId: Id; glide: boolean; flash: boolean };
+  // V2-8.5 c7 (08 ak-convert-after): right after "Make A6 print" the canvas draws two transient marks — "✓ Unchanged" under
+  // the post (`from`) and "+13 % height · Ink fill" on the copy (`to`, `extraPct` of its height is background in `fill`).
+  // Words only: the canvas builds the strings from these three facts, nothing is shown as markup.
+  'convert-marks': { v: 1; from: Id; to: Id; extraPct: number; fill: string | null };
   // S5.11 (V2-1.15 §5.8, P3): which artboards an AI is on, for the ring + tag the canvas draws. A state, a
   // name and a count per artboard — never a prompt, a question or a progress line (the canvas is untrusted).
   // `done` is the settled ring after a run (driven by the V2-1.5 action event, not the registry).
@@ -2040,6 +2044,14 @@ const s2c: S2C = {
     // S1.3 sends it from the jump list once REVEAL_ARTBOARD_LIVE flips; the handler is canvas-shell's (A6c)
     owner: 'canvas-lib',
     parse: p({ artboardId: str, glide: bool, flash: bool }),
+  },
+  'convert-marks': {
+    gate: 'parent',
+    status: 'live',
+    // the shell sends it from the Change-kind dialog's onDone (inspector/kinds/artboard-fixed.jsx); the canvas
+    // paints the two marks (artboard-convert-marks.tsx) for a few seconds
+    owner: 'artboard-convert-marks',
+    parse: p({ v: lit(1), from: str, to: str, extraPct: num, fill: nul(shortStr(40)) }),
   },
   'ai-runs': {
     gate: 'parent',
