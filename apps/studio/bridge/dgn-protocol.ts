@@ -565,6 +565,10 @@ export interface ShellToCanvas {
   // the post (`from`) and "+13 % height · Ink fill" on the copy (`to`, `extraPct` of its height is background in `fill`).
   // Words only: the canvas builds the strings from these three facts, nothing is shown as markup.
   'convert-marks': { v: 1; from: Id; to: Id; extraPct: number; fill: string | null };
+  // V2-8.5 c7 (15 an-stk-gallery, 04 md-edit-image): which of the shell's tool panels is open, so the canvas dock can
+  // press the slot that opened it (Stickers · E while the gallery is up, Image · I while the Assets panel is). A state:
+  // the whole answer each time, `null` = none. Two words and nothing else; the canvas never learns what the panel shows.
+  'shell-panels': { v: 1; open: 'stickers' | 'assets' | null };
   // V2-8.5 c7 (03 ai-copy): the artboards a "Run on a copy" made, each with the artboard it was copied from. The canvas
   // draws a dashed link between the pair and "Copied from <the original's name>" under the copy. Ids only: the
   // canvas reads the name off its own artboard, and nothing the person asked (or the busy chat's title) crosses
@@ -2064,6 +2068,14 @@ const s2c: S2C = {
     // paints the two marks (artboard-convert-marks.tsx) for a few seconds
     owner: 'artboard-convert-marks',
     parse: p({ v: lit(1), from: str, to: str, extraPct: num, fill: nul(shortStr(40)) }),
+  },
+  'shell-panels': {
+    gate: 'parent',
+    status: 'live',
+    // sent by v2/shell/shell-panels-relay.js (the Stickers gallery / Assets panel opened or closed, and again to a frame
+    // that has just loaded); read by canvas-shell.tsx into toolbars/shell-panels.ts, which the dock's panel slots follow
+    owner: 'shell-panels',
+    parse: p({ v: lit(1), open: nul(lit('stickers', 'assets')) }),
   },
   'ai-copies': {
     gate: 'parent',

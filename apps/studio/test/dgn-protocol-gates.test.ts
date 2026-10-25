@@ -203,3 +203,32 @@ describe('viewport-zoom fit flag (V2-8.5 c7, 01 cf-open-big "Zoom to fit · N %"
     expect(acceptFromCanvas(ev({ ...base, fit: true }, background), ctx)).toBeNull();
   });
 });
+
+describe('shell-panels (V2-8.5 c7, 15 an-stk-gallery / 04 md-edit-image)', () => {
+  const shell = { name: 'shell' } as unknown as Window;
+  const sibling = { name: 'sibling' } as unknown as Window;
+  const win = { parent: shell } as unknown as Window;
+  const msg = { dgn: 'shell-panels', v: 1, open: 'stickers' };
+
+  test('is a shell→canvas, parent-gated row', () => {
+    expect(DGN_TABLE.s2c['shell-panels'].gate).toBe('parent');
+    expect(Object.keys(DGN_TABLE.c2s)).not.toContain('shell-panels');
+  });
+
+  test('only the parent frame is heard; a sibling or the canvas itself is refused', () => {
+    expect(acceptFromShell(ev(msg, shell), win)).toEqual(msg);
+    expect(acceptFromShell(ev(msg, sibling), win)).toBeNull();
+    expect(acceptFromShell(ev(msg, win), win)).toBeNull();
+  });
+
+  test('open is an enum (stickers · assets · null) and nothing else', () => {
+    const ok = (o: Record<string, unknown>) => acceptFromShell(ev({ ...msg, ...o }, shell), win);
+    expect(ok({ open: 'assets' })).not.toBeNull();
+    expect(ok({ open: null })).not.toBeNull();
+    expect(ok({ open: 'templates' })).toBeNull();
+    expect(ok({ open: '<img src=x>' })).toBeNull();
+    expect(ok({ open: undefined })).toBeNull();
+    expect(ok({ v: 2 })).toBeNull();
+    expect(acceptFromShell(ev({ dgn: 'shell-panels', v: 1 }, shell), win)).toBeNull();
+  });
+});
