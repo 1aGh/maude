@@ -20,8 +20,15 @@ export async function run(h) {
   const pick = async (id) => {
     await closePanel();
     const el = frame().locator(`[data-dc-screen="${id}"]`).first();
-    const b = await el.boundingBox().catch(() => null);
+    let b = await el.boundingBox().catch(() => null);
     if (!b) return false;
+    // a label above the window (the camera sits low after the page grew) cannot be clicked: fit first
+    if (b.y - 14 < 60 || b.x + 44 < 0) {
+      await page.keyboard.press('Meta+0');
+      await sleep(1300);
+      b = await el.boundingBox().catch(() => null);
+      if (!b) return false;
+    }
     await page.mouse.click(b.x + 44, b.y - 14);
     await sleep(900);
     return true;
@@ -52,6 +59,11 @@ export async function run(h) {
   await openC('ui-matchday', 3500);
   await h.step(`${D}/ak-web-hug`, 'A web page grows with its content', 'select the web artboard (Nábor · web), add a section to its file: the page grows and the tag says by how much', async () => {
     await pick('nabor');
+    // c7: the page grows to the right of the inspector's edge - pan the board left first so the "+ N px" tag and the
+    // new section's frame are on the canvas, not under the inspector card
+    await page.mouse.move(600, 520);
+    await page.mouse.wheel(420, 0);
+    await sleep(700);
     const f = join(h.project, '.design/ui/Matchday.tsx');
     const src = readFileSync(f, 'utf8');
     writeFileSync(f, src.replace('["Tréninky", "Tým", "Kontakt", "Často kladené otázky"]', '["Tréninky", "Rozpis zápasů", "Tým", "Kontakt", "Často kladené otázky"]'));
@@ -69,14 +81,10 @@ export async function run(h) {
   await h.step(`${D}/ak-warnings`, 'Warnings — one place, one verb', 'print artboard selected (label mark + inspector line)', async () => {}, { reach: 'partial', note: 'same selection as ak-print-letak; whether a warning line shows depends on the fixture QR box' });
   await h.step(`${D}/ak-advanced`, 'Advanced — exact values and the code', 'print artboard, inspector Advanced fold', async () => {
     await tid('fold-inspector-toggle').click({ timeout: 3000 }).catch(async () => { await page.getByText('Advanced', { exact: true }).last().click().catch(() => {}); }); // D2: the fold's own testid
-    await sleep(900);
-    // c7: the fold sits below the card; scroll the inspector so the Advanced head is at the top, as the board draws it
-    await page.evaluate(() => {
-      const t = document.querySelector('[data-testid="fold-inspector-toggle"]');
-      let n = t && t.parentElement;
-      while (n && !(n.scrollHeight > n.clientHeight + 4 && /(auto|scroll)/.test(getComputedStyle(n).overflowY))) n = n.parentElement;
-      if (n && t) n.scrollTop = t.getBoundingClientRect().top - n.getBoundingClientRect().top + n.scrollTop - 8;
-    });
+    await sleep(2000);
+    // c7: the fold is taller than the card (Exact size … In code). Scroll the card AND the fold body to their ends, so Guides, Look and
+    // layout (Theme, Body layout, Grid tracks, Convert to absolute) and In code are in view as the board draws them
+    await page.evaluate(() => { const o = document.querySelector('.st-rp-body'); if (o) o.scrollTop = o.scrollHeight; const f = document.querySelector('[data-testid="fold-inspector-body"]'); if (f) f.scrollTop = f.scrollHeight; }); // the fold's own body scrolls (max-height 40vh)
     await sleep(500);
   });
   await h.esc(2);
@@ -87,7 +95,7 @@ export async function run(h) {
     await tid('panel-icon-left').click().catch(() => {});
     await sleep(500);
     await h.click('panel-tab-layers').catch(() => {});
-    await h.click('kind-chip-print').catch(() => {});
+    await h.click('layers-kind-chip-print').catch(() => {}); // c7: the Layers panel's own chip testid
     await sleep(700);
   }, { reach: 'partial', note: 'a 7-artboard mixed canvas, not 21' });
   await h.click('panel-tab-tree').catch(() => {});

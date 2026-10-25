@@ -377,7 +377,8 @@ export interface CanvasToShell {
   // tip, Highlighter hue / nib): the shell writes prefs.json and tells every canvas (`annotation-prefs`).
   // Only fields that are members of their palette survive `parse` + the receivers' sanitiser.
   'annotation-prefs-set': { prefs: AnnotationPrefsPayload };
-  'viewport-zoom': { zoom: number };
+  // fit: the camera is where the last ⌘0 / Zoom to fit put it (V2-8.5 c7: "Zoom to fit · N %").
+  'viewport-zoom': { zoom: number; fit?: boolean };
   // S3.7a — `sid` / `seq` (S3-present-session §3): the presenting session, and its step count.
   'present-position': { index: number; total: number; artboardId: Id; sid?: string; seq?: number };
   // S3.6b — the Present run's artboards with their world rects and labels, in canvas order: the presenter
@@ -1766,7 +1767,7 @@ const c2s: C2S = {
     status: 'live',
     owner:
       'present/present-zoom.ts (S3.2b) + v2/preview/zoom-only (S3.9) ← canvas-lib ViewportZoomReporter',
-    parse: p({ zoom: num }),
+    parse: p({ zoom: num, fit: opt(bool) }),
   },
   // S3.1 — live: the Present stage (S3.2a) reports through canvas-mode-store `reportPresentPosition`;
   // the shell's mode store keeps it (use-canvas-mode-lane).

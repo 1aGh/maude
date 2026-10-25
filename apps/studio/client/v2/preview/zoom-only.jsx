@@ -38,16 +38,21 @@ export function ZoomOnly({ zoom, state = 'in' }) {
  * @param activeWin () => Window | null — the active canvas' window
  */
 export function useViewportZoom({ canvasOrigin, activeWin }) {
-  const [zoom, setZoom] = useState(1);
+  return useViewportCamera({ canvasOrigin, activeWin }).zoom;
+}
+
+/** Zoom and whether the camera still sits where the last Zoom to fit put it (`viewport-zoom.fit`). */
+export function useViewportCamera({ canvasOrigin, activeWin }) {
+  const [cam, setCam] = useState({ zoom: 1, fit: false });
   // biome-ignore lint/correctness/useExhaustiveDependencies: activeWin reads a live ref
   useEffect(() => {
     const onMessage = (e) => {
       if (e.data?.dgn !== 'viewport-zoom') return;
       const m = acceptFromCanvas(e, { canvasOrigin, active: activeWin() });
-      if (m?.dgn === 'viewport-zoom') setZoom(m.zoom);
+      if (m?.dgn === 'viewport-zoom') setCam({ zoom: m.zoom, fit: m.fit === true });
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
   }, [canvasOrigin]);
-  return zoom;
+  return cam;
 }

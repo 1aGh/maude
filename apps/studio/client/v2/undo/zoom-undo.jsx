@@ -21,7 +21,12 @@ export function zoomUndoForm(mode, present) {
   return null;
 }
 
-export function ZoomUndo({ zoom, form = 'full', onUndo, onRedo, onFit }) {
+/** "10%" — or, right after a Zoom to fit (⌘0), "Zoom to fit · 10%" (01 cf-open-big). Drops with the next pan or zoom. */
+export function zoomPctLabel(zoom, fit) {
+  return fit ? `Zoom to fit · ${zoomLabel(zoom)}` : zoomLabel(zoom);
+}
+
+export function ZoomUndo({ zoom, fit = false, form = 'full', onUndo, onRedo, onFit }) {
   const full = form === 'full';
   return (
     <div
@@ -58,11 +63,13 @@ export function ZoomUndo({ zoom, form = 'full', onUndo, onRedo, onFit }) {
         type="button"
         className="btn btn--ghost btn--sm st-zoomundo-pct"
         data-testid="zoom-undo-pct"
-        aria-label={`Zoom ${zoomLabel(zoom)}, zoom to fit`}
+        aria-label={
+          fit ? `Zoom to fit, ${zoomLabel(zoom)}` : `Zoom ${zoomLabel(zoom)}, zoom to fit`
+        }
         title="Zoom to fit ⌘0"
         onClick={onFit}
       >
-        {zoomLabel(zoom)}
+        {zoomPctLabel(zoom, fit)}
       </button>
     </div>
   );

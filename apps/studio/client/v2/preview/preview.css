@@ -139,6 +139,7 @@
   }
   .st-zoomundo-pct.btn {
     min-width: 52px;
+    white-space: nowrap; /* "Zoom to fit · 10%" right after ⌘0 */
     font-variant-numeric: tabular-nums;
   }
   /* S9.21c (10 co-browser-view) — "Open in the Mac app", bottom right, in a browser on a cloud cell only. */

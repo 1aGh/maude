@@ -32,7 +32,7 @@ describe('plainLayerName', () => {
   test('the Layers tree uses it as its fallback — no `tag.class` label is built any more', () => {
     const src = readFileSync(join(import.meta.dir, '..', 'canvas-shell.tsx'), 'utf8');
     const fn = /function layerLabel\(el: Element\): string \{[\s\S]*?\n\}\n/.exec(src)?.[0] ?? '';
-    expect(fn).toContain('plainLayerName(');
+    expect(fn).toContain('displayLayerName(');
     expect(fn).not.toContain('.toLowerCase()}.');
     expect(fn).not.toMatch(/\$\{tag\}\.\$\{cls\}/);
   });

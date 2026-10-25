@@ -18,3 +18,4 @@ final (D4, 21c9714cf): /Users/iagh/git/personal/maude/.claude/worktrees/wf_74ac1
 
 round 7 (p8-c7-cf08, feat/maude-v2 + this branch): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a83dd4e69dad79c1e/.scr/pairs/08
 (round 7 spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a83dd4e69dad79c1e/.scr/spec/08/<id>-<theme>.png; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a83dd4e69dad79c1e/.scr/h3/impl/08/)
+round 7b (p8-c7-cf08b): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae7f6a5e804968df1/.scr/pairs/08 (impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae7f6a5e804968df1/.scr/h3/impl/08/; harness _c7b-harness-g3/ on top of _c7-harness-g3/)

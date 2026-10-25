@@ -12,6 +12,7 @@
 // layout lane land together. On a legacy link the write pushes ONE revert record (S2-edit-ops.md §5).
 
 import { useMemo, useRef } from 'react';
+import { setGapMark } from '../artboard-gap-mark.tsx';
 import { synthDefaultGrid, useDragStateContext } from '../canvas-lib.tsx';
 import { showCanvasToast } from '../canvas-notifications.tsx';
 import type { ContextTarget } from '../context-menu.tsx';
@@ -190,11 +191,17 @@ export function useArtboardActions(clipboard?: Clipboard): ArtboardActions {
         const sources = list
           .map((id) => boards().find((b) => b.id === id))
           .filter((b): b is Box => !!b);
-        await writeCopies(
-          copyPlacesBelow(sources, boards(), () => width),
-          deps(),
-          width
-        );
+        const places = copyPlacesBelow(sources, boards(), () => width);
+        const result = await writeCopies(places, deps(), width);
+        // the board draws the gap between the two, and the shared left edge, for a few seconds
+        const copyId = result?.ok ? result.created?.[0]?.artboard : undefined;
+        const src = sources[0];
+        if (copyId && src && places[0])
+          setGapMark({
+            copyId,
+            source: { x: src.x, y: src.y, w: src.w, h: src.h },
+            copy: { x: places[0].at.x, y: places[0].at.y, w: width, h: src.h },
+          });
         return;
       }
       await writeCopies(duplicatePlaces(list, boards(), width), deps(), width);

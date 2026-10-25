@@ -105,14 +105,16 @@ import {
 
 import { canvasKeyIndex, resolveCanvasKey } from './actions/canvas-keys.ts';
 import { ArtboardActivityOverlay } from './artboard-activity-overlay.tsx';
-import { ArtboardGhostsLayer } from './artboard-ghosts-overlay.tsx';
 import { ArtboardConvertMarks } from './artboard-convert-marks.tsx';
+import { ArtboardGapMark } from './artboard-gap-mark.tsx';
+import { ArtboardGhostsLayer } from './artboard-ghosts-overlay.tsx';
 import { ArtboardGrowthTag, useGrowthDelta } from './artboard-growth-tag.tsx';
 import {
   ArtboardGuidesOverlay,
   type GuideDefinitions,
   type OverlayVisibility,
 } from './artboard-guides-overlay.tsx';
+import { ArtboardNewSection, useNewSection } from './artboard-new-section.tsx';
 import {
   ArtboardWarnMark,
   ArtboardWarnOutlines,
@@ -132,6 +134,7 @@ import { previewWheelPassthrough } from './preview/wheel-scroll.ts';
 import type { ArtboardPrintProp } from './print/units.ts';
 import { useGovernedMode } from './use-governed-mode.ts';
 import { VideoLinksLayer } from './video-links-overlay.tsx';
+import { viewportAtFit } from './viewport-fit.ts';
 // feature-2-print-artboards T3 — side-effect import: registers the print
 // kind's overlay content (bleed/trim/margin) into artboard-guides-overlay's
 // registry at module load, per that file's own "call registerKindOverlay at
@@ -1171,6 +1174,8 @@ export function fitRectIntoHost(rect: ArtboardRect, hostEl: HTMLElement, pad = 2
 // outlives the subtree. A full page load clears it — correct, view.json seeds
 // then. Written on every applyViewport (exact — no settle/publish lag).
 let liveViewport: ViewportState | null = null;
+// V2-8.5 c7 — where the last Zoom to fit put the camera (viewport-fit.ts); the reporter tells the shell while it still sits there.
+let fitMark: ViewportState | null = null;
 
 /**
  * The current pan/zoom, read from OUTSIDE the React tree — the
@@ -1477,6 +1482,9 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
   const PROGRAMMATIC_EASE_MS = 200;
   const fit = useCallback(() => {
     const next = computeFitRef.current();
+    fitMark = { ...next, zoom: clampZoom(next.zoom) };
+    // already on the target: nothing moves, so republish the same camera and let the reporter say "fit"
+    if (viewportAtFit(vpRef.current, fitMark)) setViewportPublished({ ...vpRef.current });
     const a = animateToRef.current;
     if (a) a(next, PROGRAMMATIC_EASE_MS);
     else applyViewport(next);
@@ -2812,7 +2820,7 @@ export function DCArtboard({
     ctx.reportMeasuredHeight(id, Math.round(measured.height));
   }, [ctx, dragHook.dragState.kind, measured.height, id]);
   // S7.21 (08 ak-web-hug) — "+ 373 px" beside a web page that just grew (a hugging page only; never exported)
-  const growth = useGrowthDelta(resolvedKind === 'web' && !fixed, measured.height);
+  const growth = useGrowthDelta(resolvedKind === 'web' && !fixed, measured.height, id);
   // P8 C3 (04 X1) - the breakpoint chip and the growth tag are Edit's chrome (the what-shows `object-tools` cell;
   // an ungoverned canvas keeps v1): Preview / Viewing / Present show the design, not Maude's marks on it.
   const governedMode = useGovernedMode();
@@ -2823,6 +2831,8 @@ export function DCArtboard({
   // Guides (print bleed/trim/margins, layout grids) describe the DESIGN, so
   // they are drawn over it, not over the frame with its label strip.
   const bodyRef = useRef<HTMLDivElement | null>(null);
+  // ... and the section that arrived, framed and named beside it (08 ak-web-hug "Rozpis zápasů · new section")
+  const newSection = useNewSection(bodyRef, resolvedKind === 'web' && !fixed, measured.height, id);
   // S7.25 — the one warning style: this artboard checks itself (print · web · video) and marks its label
   const warnings = useArtboardWarnings({
     id,
@@ -3154,6 +3164,11 @@ export function DCArtboard({
         bottom={liveY + rect.h}
         delta={artboardEditChrome ? growth : null}
       />
+      <ArtboardNewSection
+        x={liveX + (surface?.dx ?? 0)}
+        y={liveY + (surface?.dy ?? 0)}
+        section={artboardEditChrome ? newSection : null}
+      />
       {/* V2-8.5 c7 (08 ak-convert-after) — "✓ Unchanged" / "+ 13 % height · Ink fill" after Make A6 print */}
       <ArtboardConvertMarks
         id={id}
@@ -3163,6 +3178,8 @@ export function DCArtboard({
         h={rect.h}
         show={artboardEditChrome}
       />
+      {/* V2-8.5 c7 (01 cf-duplicate-done) — the gap to the source and the shared left edge after a menu duplicate */}
+      <ArtboardGapMark id={id} show={artboardEditChrome} />
     </>
   );
 }
@@ -4476,15 +4493,21 @@ function ViewportZoomReporter() {
   const lastKey = useRef('');
   useEffect(() => {
     if (typeof window === 'undefined' || window.parent === window) return;
-    const key = `${Math.round(vp.zoom * 100)}|${modeSeq}`;
+    const fitted = viewportAtFit(vp, fitMark);
+    const key = `${Math.round(vp.zoom * 100)}|${modeSeq}|${fitted ? 'fit' : ''}`;
     if (key === lastKey.current) return;
     lastKey.current = key;
     try {
-      window.parent.postMessage({ dgn: 'viewport-zoom', zoom: vp.zoom }, '*');
+      window.parent.postMessage(
+        fitted
+          ? { dgn: 'viewport-zoom', zoom: vp.zoom, fit: true }
+          : { dgn: 'viewport-zoom', zoom: vp.zoom },
+        '*'
+      );
     } catch {
       /* detached */
     }
-  }, [vp.zoom, modeSeq]);
+  }, [vp, modeSeq]);
   return null;
 }
 ViewportZoomReporter.displayName = 'ViewportZoomReporter';

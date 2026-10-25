@@ -15103,6 +15103,128 @@
     "v2": "new"
   },
   {
+    "hook": "canvas-recent-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A canvas under the Canvases panel's Recent block (a project of 8+ canvases lists the last three opened on this Mac, newest first, beside when).",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-recent-when-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "When a Recent row was last opened (\"1 h ago\", \"yesterday\", a weekday).",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pr-grid-tracks",
+    "kind": "testid",
+    "meaning": "A print board's Advanced > Look and layout row \"Grid tracks\" (08 ak-advanced).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print-advanced.jsx",
+      "symbol": "PrintLookAndLayout"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pr-grid-tracks-edit",
+    "kind": "testid",
+    "meaning": "\"Edit tracks…\" beside Grid tracks; disabled until the page frame is a grid.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print-advanced.jsx",
+      "symbol": "PrintLookAndLayout"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pr-layout-convert",
+    "kind": "testid",
+    "meaning": "A print board's Advanced > Look and layout row \"Layout\" (08 ak-advanced).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print-advanced.jsx",
+      "symbol": "PrintLookAndLayout"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-pr-layout-convert-btn",
+    "kind": "testid",
+    "meaning": "\"Convert to absolute…\" (runs `layout.convert-to-absolute`); disabled while nothing arranges the page.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print-advanced.jsx",
+      "symbol": "PrintLookAndLayout"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "artboard-gap-guide",
+    "kind": "testid",
+    "meaning": "Canvas iframe: the guide between a source board and its fresh duplicate (6 s, exporter-hidden).",
+    "producer": {
+      "file": "apps/studio/artboard-gap-mark.tsx",
+      "symbol": "ArtboardGapMark"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "artboard-gap-value",
+    "kind": "testid",
+    "meaning": "Canvas iframe: the measured gap in px on that guide.",
+    "producer": {
+      "file": "apps/studio/artboard-gap-mark.tsx",
+      "symbol": "ArtboardGapMark"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "artboard-gap-edge",
+    "kind": "testid",
+    "meaning": "Canvas iframe: the dashed shared left edge of a source board and its duplicate.",
+    "producer": {
+      "file": "apps/studio/artboard-gap-mark.tsx",
+      "symbol": "ArtboardGapMark"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "artboard-new-section",
+    "kind": "testid",
+    "meaning": "Canvas iframe: the frame + \"<name> · new section\" around the section that just made a hugging web page grow (08 ak-web-hug).",
+    "producer": {
+      "file": "apps/studio/artboard-new-section.tsx",
+      "symbol": "ArtboardNewSection"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "canvas-pinned-<slug>",
     "kind": "testid",
     "pattern": true,

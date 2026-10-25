@@ -6,6 +6,7 @@ import { remapDirPrefix, revealPath } from '../tree-expansion.js';
 import { buildShareLinks, normalizeOpenPath, readOpenParam, withOpenParam } from '../share-link.js';
 import { basename, displayName, previewKind, shellToast } from '../shell/util.js';
 import { notify } from '../../notifications.tsx';
+import { lastOpenedPath } from '../v2/canvases/last-canvas.js';
 import { trashCanvas } from '../v2/canvases/trash-canvas.js';
 import { invoke, isNativeApp, listenHere } from '../github.js';
 import { applyShellNavigate, startShellEvents } from '../shell-events.js';
@@ -241,6 +242,41 @@ export function useTabs({
     autoOpened.current = true;
     openTab(first, { reveal: false });
   }, [cfg.cloud, groups, tabs.length, openTab]);
+
+  /**
+   * A desktop project opens on the canvas it was last on (V2-8.5 c7, 01 cf-big-tree) — not on "No canvas open".
+   * "Last" is this Mac's own opened-here stamp (`/_api/pins` -> `opened`, last-canvas.js): a project nobody has
+   * opened a canvas in yet keeps its empty state and first-run card. Once, and only while nothing is open: a
+   * canvas the person closed afterwards stays closed, and a `?open=` link wins (the effect above).
+   */
+  const lastOpened = useRef(false);
+  const tabsLen = useRef(tabs.length);
+  tabsLen.current = tabs.length;
+  useEffect(() => {
+    if (lastOpened.current) return;
+    if (cfg.cloud) return; // a cloud cell has its own first-canvas rule above
+    if (new URLSearchParams(location.search).has('open')) {
+      lastOpened.current = true;
+      return;
+    }
+    if (tabs.length > 0) {
+      lastOpened.current = true;
+      return;
+    }
+    if (!groups.length) return; // tree not loaded
+    lastOpened.current = true;
+    (async () => {
+      try {
+        const r = await fetch('/_api/pins', { cache: 'no-store' });
+        if (!r.ok) return;
+        const body = await r.json();
+        const path = lastOpenedPath(body?.opened, groups, cfg.designRel || '.design');
+        if (path && tabsLen.current === 0) openTab(path, { reveal: false });
+      } catch {
+        /* the empty state is the fallback */
+      }
+    })();
+  }, [cfg.cloud, cfg.designRel, groups, tabs.length, openTab]);
 
   const openSystem = useCallback(
     (dsName) => {
