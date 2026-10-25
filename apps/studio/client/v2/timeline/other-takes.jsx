@@ -12,7 +12,7 @@
 //   OtherTakesHost  the wiring (selected clip → its source's footage → the model → the one write pipe)
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { createPortal } from 'react-dom';
+import { portalToBody } from '../portal-scope.jsx';
 import { shellToast } from '../../shell/util.js';
 import { Spark } from '../ai/icons.jsx';
 import { swapParams, TAKES_WORDS, takesOf } from './other-takes-model.js';
@@ -252,7 +252,7 @@ export function OtherTakesHost({ seq, fps, name, canEdit, url = null, run }) {
   );
 
   if (!ui || !valid || !model?.canSwap) return null;
-  return createPortal(
+  return portalToBody(
     <OtherTakesPop
       name={name}
       takes={model.takes}
@@ -262,7 +262,5 @@ export function OtherTakesHost({ seq, fps, name, canEdit, url = null, run }) {
       url={url}
       onPick={onPick}
       onClose={() => otherTakesUi.close()}
-    />,
-    document.body
-  );
+    />);
 }

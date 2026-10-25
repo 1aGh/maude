@@ -17,7 +17,7 @@
 // -play | -pause`), consumed by video-comp.tsx.
 
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { portalToBody } from '../portal-scope.jsx';
 
 import { isSilentVideo, timelineKindOf } from '../inspector/kinds/clip-model.js';
 import { foldStore } from '../fold/use-fold.js';
@@ -2872,7 +2872,7 @@ export default function TimelinePanel({
         />
       ) : null}
       {commentDraft
-        ? createPortal(
+        ? portalToBody(
             <div
               className="tlci tlci--comment"
               style={{ left: commentDraft.x, top: commentDraft.y }}
@@ -2926,12 +2926,10 @@ export default function TimelinePanel({
                   </button>
                 </div>
               </div>
-            </div>,
-            document.body
-          )
+            </div>)
         : null}
       {commentPopover
-        ? createPortal(
+        ? portalToBody(
             (() => {
               const c = comments.find((k) => k.id === commentPopover.id);
               if (!c) return null;
@@ -2992,12 +2990,10 @@ export default function TimelinePanel({
                   </div>
                 </div>
               );
-            })(),
-            document.body
-          )
+            })())
         : null}
       {joinPicker && picker
-        ? createPortal(
+        ? portalToBody(
             <TransitionPicker
               title={picker.title}
               tile={picker.tile}
@@ -3016,9 +3012,7 @@ export default function TimelinePanel({
                 setJoinPicker(null);
                 if (from?.isConnected) from.focus?.();
               }}
-            />,
-            document.body
-          )
+            />)
         : null}
       {/* S7.13 — Re-frame: the selected clip's window per format (drawn only while opened) */}
       <ReframeHost
@@ -3045,13 +3039,11 @@ export default function TimelinePanel({
         }
       />
       {fitFill.ask
-        ? createPortal(
-            <FitFillAsk ask={fitFill.ask} onAnswer={fitFill.answer} onClose={fitFill.dismiss} />,
-            document.body
-          )
+        ? portalToBody(
+            <FitFillAsk ask={fitFill.ask} onAnswer={fitFill.answer} onClose={fitFill.dismiss} />)
         : null}
       {ctxMenu && sequences[ctxMenu.index]
-        ? createPortal(
+        ? portalToBody(
             (() => {
               const seq = sequences[ctxMenu.index];
               const i = ctxMenu.index;
@@ -3130,9 +3122,7 @@ export default function TimelinePanel({
                   }}
                 />
               );
-            })(),
-            document.body
-          )
+            })())
         : null}
       {island?.fileDrag && island.dropRect && onDropMedia ? (
         <ArtboardDropCatcher rect={island.dropRect} onFiles={(files) => onDropMedia(files, null)} />

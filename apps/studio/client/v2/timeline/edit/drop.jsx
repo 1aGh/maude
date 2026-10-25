@@ -9,7 +9,7 @@
 // The write is one `clip.insert` edit-op per file (client/v2/timeline/clip-verb.js `runInsertClip`).
 
 import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { portalToBody } from '../../portal-scope.jsx';
 import { dropTip } from './words.js';
 
 /** Is this drag carrying files? (dataTransfer.types is all a dragover may read.) */
@@ -78,7 +78,7 @@ export function useFileDrag(enabled) {
  */
 export function ArtboardDropCatcher({ rect, onFiles }) {
   if (!rect || typeof document === 'undefined') return null;
-  return createPortal(
+  return portalToBody(
     <div
       className="tl-artboard-drop"
       data-testid="timeline-artboard-drop"
@@ -95,7 +95,5 @@ export function ArtboardDropCatcher({ rect, onFiles }) {
         const files = Array.from(e.dataTransfer.files || []);
         if (files.length) onFiles(files);
       }}
-    />,
-    document.body
-  );
+    />);
 }

@@ -12,7 +12,7 @@
 //   ReframeHost    the wiring (selected clip, comp-media formats, the source's size, the one write pipe)
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { createPortal } from 'react-dom';
+import { portalToBody } from '../portal-scope.jsx';
 import { shellToast } from '../../shell/util.js';
 import { useCompMedia } from '../transcript/comp-media-store.js';
 import { probeSize } from './fit-model.js';
@@ -460,7 +460,7 @@ export function ReframeHost({
 
   if (!ui || !valid) return null;
   // on the body: the timeline island moves with a transform, which would hold a fixed child inside it
-  return createPortal(
+  return portalToBody(
     <ReframeIsland
       name={name}
       url={url}
@@ -480,7 +480,5 @@ export function ReframeHost({
       onDrop={onDrop}
       onReset={onReset}
       onDone={onDone}
-    />,
-    document.body
-  );
+    />);
 }
