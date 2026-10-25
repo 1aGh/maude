@@ -672,7 +672,9 @@ export function ToolPalette() {
     const current: ToolId = isTips ? ((tip as ToolId) ?? target) : target;
     const lit = isTips
       ? (s.tips as readonly ToolId[]).includes(tool as ToolId)
-      : tool === target || (s.lights ?? []).includes(tool as ToolId);
+      : // Preview's resting Browse tool lights Hand; while the Stickers gallery is up the board (15 an-stk-gallery) presses E alone
+        (tool === target && !(tool === 'browse' && shellPanel !== null)) ||
+        (s.lights ?? []).includes(tool as ToolId);
     const lockable = STICKY_LOCKABLE.has(current);
     const isSticky = lockable && sticky.locked && sticky.tool === current;
     const popover: Popover = isShape

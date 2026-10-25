@@ -89,6 +89,17 @@ describe('the dock follows the shell panel', () => {
     expect(q('toolbar-slot-stickers')?.hasAttribute('aria-pressed')).toBe(false);
   });
 
+  test('Preview: Hand (the resting Browse tool) lets go while the gallery is up - E alone is pressed (15 an-stk-gallery)', () => {
+    mountBar();
+    act(() => ctx?.setMode('preview'));
+    expect(q('toolbar-slot-browse')?.getAttribute('aria-pressed')).toBe('true');
+    act(() => setShellPanelOpen('stickers'));
+    expect(q('toolbar-slot-browse')?.getAttribute('aria-pressed')).toBe('false');
+    expect(q('toolbar-slot-stickers')?.getAttribute('aria-pressed')).toBe('true');
+    act(() => setShellPanelOpen(null));
+    expect(q('toolbar-slot-browse')?.getAttribute('aria-pressed')).toBe('true');
+  });
+
   test('Edit: Image (I) is pressed while the Assets panel is open; the Stickers panel does not press it', () => {
     mountBar();
     act(() => ctx?.setMode('edit'));
