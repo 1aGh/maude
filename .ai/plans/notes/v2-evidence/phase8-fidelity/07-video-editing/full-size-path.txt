@@ -17,3 +17,5 @@ round 8 harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_c8v-harness-g3/ (t
 
 final (D6, 3d58f57df; shot at 873574992 = tip + the D6 harness only, Mac mini): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad2725e89fee10d58/.scr/pairs/07
 (final spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad2725e89fee10d58/.scr/spec/07/<id>-<theme>.png, reused unchanged from the D5/round-7 spec; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad2725e89fee10d58/.scr/d6-g3/impl/07/)
+round 9: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a69e35dc3906732fe/.scr/c9-g3/impl/07/<id>-<theme>.jpg (impl frames, committed here as <id>-<theme>.jpg SPEC | IMPL pairs; Google Chrome, Mac mini, tip 6d96b9aa1 + harness b4b1c4ecf); spec side unchanged (round-7 spec, .scr/spec/07 from the D6 worktree)
+round 9 harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_c9v-harness-g3/ (chain.sh 07 = t07 t07c t07v; t07v = ve-formats / ve-reframe / ve-export on HypeFormats, ve-long on ZapasLong, ve-advanced on NaborKeyframes; fixtures in fxv.mjs; pairs.mjs 07 06)
