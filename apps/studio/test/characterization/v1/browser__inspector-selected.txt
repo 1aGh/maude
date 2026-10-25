@@ -124,6 +124,9 @@ div
                     section .insp-sec [data-testid="insp-sec-layout"] [aria-label="Layout"]
                       p .insp-sec-t
                         span .insp-sec-name [title="Auto layout: direction, gap, spacing (Packed or Space between), padding H and V,"] "Layout"
+                        span .insp-sec-a
+                          button .insp-sec-ic [data-testid="insp-sides"] [aria-label="Padding per side"] [aria-pressed="false"] [title="Padding per side"] [type="button"]
+                            svg .lucide.lucide-scan [aria-hidden="true"]
                       div .insp-row [data-testid="insp-row-direction"]
                         span .insp-row-k "Direction"
                         span .insp-row-v
@@ -141,22 +144,12 @@ div
                         span .insp-row-k "Padding"
                         span .insp-row-v
                           span .insp-pad
-                            span .insp-ax "H"
-                            span .insp-len [data-testid="insp-ctl-pad-h"]
+                            span .insp-len [data-testid="insp-ctl-pad-all"]
                               span .insp-num
-                                input .insp-num-in [data-testid="insp-num-pad-h"] [aria-label="Padding horizontal"] [type="text"] [value="40"] {value="40"}
-                                button .insp-bind [data-testid="insp-bind-pad-h"] [title="Bind to Space 16"] [type="button"] "Bind"
-                              button .insp-chip-more [aria-label="Padding horizontal — choose a token"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"]
+                                input .insp-num-in [data-testid="insp-num-pad-all"] [aria-label="Padding"] [type="text"] [value="40"] {value="40"}
+                                button .insp-bind [data-testid="insp-bind-pad-all"] [title="Bind to Space 16"] [type="button"] "Bind"
+                              button .insp-chip-more [aria-label="Padding — choose a token"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"]
                                 svg [aria-hidden="true"]
-                            span .insp-ax "V"
-                            span .insp-len [data-testid="insp-ctl-pad-v"]
-                              span .insp-num
-                                input .insp-num-in [data-testid="insp-num-pad-v"] [aria-label="Padding vertical"] [type="text"] [value="40"] {value="40"}
-                                button .insp-bind [data-testid="insp-bind-pad-v"] [title="Bind to Space 16"] [type="button"] "Bind"
-                              button .insp-chip-more [aria-label="Padding vertical — choose a token"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"]
-                                svg [aria-hidden="true"]
-                            button .insp-sides [data-testid="insp-sides"] [aria-label="Padding per side"] [aria-pressed="false"] [title="Padding per side"] [type="button"]
-                              svg .lucide.lucide-scan [aria-hidden="true"]
                     section .insp-sec [data-testid="insp-sec-fill"] [aria-label="Fill"]
                       p .insp-sec-t
                         span .insp-sec-name [title="Colour from the Design system first; + adds another fill — a colour, a gradient "] "Fill"
