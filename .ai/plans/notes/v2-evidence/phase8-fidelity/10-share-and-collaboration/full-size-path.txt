@@ -11,3 +11,6 @@ round 5: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a6978930be4932b0
 final (D3, 63592219a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-aaa727bd7827e55cb/.scr/pairs/10-share-and-collaboration
 (full-size PNG pairs: <id>-<theme>.png; spec PNGs, reused from stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aaa727bd7827e55cb/.scr/spec/10-share-and-collaboration/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aaa727bd7827e55cb/.scr/impl/10-share-and-collaboration/)
 round 6: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa6b69031abb5eb4d/.scr/pairs/10-share-and-collaboration (p8-c6-bugs4: co-sync-offline, co-comment-thread only; raw impl /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa6b69031abb5eb4d/.scr/impl/10-share-and-collaboration)
+
+final (D4, 21c9714cf): /Users/iagh/git/personal/maude/.claude/worktrees/wf_74ac1088-f6f-12/.scr/pairs/10-share-and-collaboration
+(full-size PNG pairs: <id>-<theme>.png; spec PNGs, reused from stage A: /Users/iagh/git/personal/maude/.claude/worktrees/wf_74ac1088-f6f-12/.scr/spec/10-share-and-collaboration/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/wf_74ac1088-f6f-12/.scr/impl/10-share-and-collaboration/)

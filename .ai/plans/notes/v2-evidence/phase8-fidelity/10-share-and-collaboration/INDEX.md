@@ -103,3 +103,26 @@ Spec-only JPEGs of the five unreachable ids unchanged (`spec-only/`). Still not 
 |---|---|---|
 | co-sync-offline | re-shot, light + dark | mini scenario `s10m` (an offline day seeded: `maude-offline-since` = yesterday 18:20, then a reload — how a relaunch looks). The foot reads "14 changes since yesterday 18:20 — kept on this Mac" (it read "since 0:19": a relaunch's first paint forgot the stored day, and the clock was an unpadded hour) |
 | co-comment-thread | re-shot, light + dark | `s10m`. With no configured identity the comment is signed by the OS account (author and pin initial on a tone pill) — it read "unknown" and a "?" disc |
+
+## FINAL (D4, 21c9714cf)
+
+Final re-shoot, IMPL side, dark + light, on the release client built from `feat/maude-v2` @ `21c9714cf` (stage C rounds 1-6 merged). Every `<id>-<theme>.jpg` in this folder is this shot (supersedes D3 and the round-6 mini frames; byte-identical to D3 where the product did not move). Spec side: **reused** — `10 Share and Collaboration.tsx` last changed 2026-10-19 (before stage A), so the stage-A spec PNGs were copied in. Full-size pairs: `full-size-path.txt` ("final (D4)" line). No product code touched; no verdicts here.
+
+Harness: `_d4-harness-g4/` (= `_d3-harness-g4` + round-6 `s10m`). Playwright Chromium 1440x860, `window.__TAURI__` stub, throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`. Same FAKED routes as D3 (share API, sync-status, outbox, conflicts, trash, `/_config` readOnly, 401 access-withdrawn). Frames that changed against D3: co-access-ends, co-browser-view, co-comment-thread, co-conflict, co-share-advanced, co-sync-back, co-sync-offline, co-trashed (both themes) and co-comment-print light.
+
+| id | dark · light | note |
+|---|---|---|
+| co-share-sheet, co-share-roles | re-shot | FAKED `/_api/share/*` (cloud, 4 people, 1 invite) |
+| co-share-advanced | re-shot | `s10e`: 1440x1040 window so the sheet shows down to "Where it syncs" |
+| co-browser-view, co-presence | re-shot | presence is still one local face (no peers) |
+| co-comment-thread | re-shot | `s10m` (round-6 frame): Comments panel docked, pin opened, reply being typed; signed by the OS account ("iagh") |
+| co-comment-video, co-comment-print | re-shot | `s10cm`: composer on the video clip (with "at 0:00") / print artboard |
+| co-sync-offline | re-shot | `s10m`: FAKED linked project + browser offline + outbox 14 + `maude-offline-since` seeded to yesterday 18:20, then a reload |
+| co-sync-back | re-shot | FAKED sync; toast kept |
+| co-conflict, co-trashed, co-local-cloud | re-shot | FAKED conflicts / trash routes; real local Share (Move to cloud) |
+| co-access-ends | re-shot | `s10c`: FAKED 401 `access-withdrawn`, plain browser, notices dismissed (the canvas behind the card is the last-opened one, a video canvas: the Print row was not clicked after the fold) |
+| co-ask-edit | re-shot | `s10d` frame `co-ask-edit-tip` (view-only tip after a >8 px drag), impl cropped to the cluster + tip |
+| co-follow, co-bring, co-spotlight, co-twelve | unreachable | need N live peers (Yjs awareness over `/_ws/collab`); no fixture, no route to fake presence |
+| co-mention-notify | unreachable | OS banner / e-mail, native only |
+
+Spec-only JPEGs of the five unreachable ids unchanged (`spec-only/`). Still not reachable in the lane: the @ picker (no peers), the existing Jonas/Tereza thread with Resolve, the video timeline strip, print guides, the "Invites send when this Mac is online." tooltip and per-row "not sent" tags.
