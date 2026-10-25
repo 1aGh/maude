@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { readGrowthMemory, writeGrowthMemory } from './artboard-growth-memory.ts';
 
 /** Smaller than this is a re-measure, not a section being added. */
 export const GROWTH_MIN = 8;
@@ -34,8 +35,9 @@ export function growthStep(prev: number | null, next: number): number | 'clear' 
 export const growthWords = (delta: number): string => `+ ${Math.round(delta)} px`;
 
 /** How much the page grew in its last edit, while the tag is up. Null otherwise. */
-export function useGrowthDelta(active: boolean, height: number): number | null {
-  const prev = useRef<number | null>(null);
+export function useGrowthDelta(active: boolean, height: number, memoryKey?: string): number | null {
+  // the page's last height survives the reload its own edit causes (artboard-growth-memory.ts)
+  const prev = useRef<number | null>(readGrowthMemory(memoryKey)?.h || null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [delta, setDelta] = useState<number | null>(null);
 
@@ -46,7 +48,10 @@ export function useGrowthDelta(active: boolean, height: number): number | null {
       return;
     }
     const step = growthStep(prev.current, height);
-    if (height > 0) prev.current = height;
+    if (height > 0) {
+      prev.current = height;
+      writeGrowthMemory(memoryKey, { h: height });
+    }
     if (step === null) return;
     if (timer.current) clearTimeout(timer.current);
     if (step === 'clear') {
@@ -55,7 +60,7 @@ export function useGrowthDelta(active: boolean, height: number): number | null {
     }
     setDelta(step);
     timer.current = setTimeout(() => setDelta(null), GROWTH_MS);
-  }, [active, height]);
+  }, [active, height, memoryKey]);
 
   useEffect(
     () => () => {

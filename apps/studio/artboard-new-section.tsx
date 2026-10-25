@@ -10,6 +10,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { readGrowthMemory, sectionSigs, writeGrowthMemory } from './artboard-growth-memory.ts';
 import { GROWTH_MS } from './artboard-growth-tag.tsx';
 import { displayLayerName, snippetOf } from './layer-name.ts';
 
@@ -58,9 +59,16 @@ export interface NewSection {
 export function useNewSection(
   bodyRef: { current: HTMLElement | null },
   active: boolean,
-  height: number
+  height: number,
+  memoryKey?: string
 ): NewSection | null {
-  const seen = useRef<Set<Element> | null>(null);
+  // what the sections looked like at the last look: from the frame's memory on a reload, else the first look here
+  const seen = useRef<Set<string> | null>(
+    (() => {
+      const m = readGrowthMemory(memoryKey);
+      return m && m.sigs.length ? new Set(m.sigs) : null;
+    })()
+  );
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [mark, setMark] = useState<NewSection | null>(null);
 
@@ -74,9 +82,14 @@ export function useNewSection(
     }
     const host = sectionHost(body);
     const kids = host ? Array.from(host.children) : [];
-    const fresh = freshChildren(seen.current, kids);
-    seen.current = new Set(kids);
-    const el = fresh[0];
+    const sigs = sectionSigs(kids);
+    // the page has not drawn its sections yet (a reload's first pass): keep what was remembered as the baseline
+    if (!sigs.length) return;
+    const fresh = freshChildren(seen.current, sigs);
+    seen.current = new Set(sigs);
+    if (sigs.length) writeGrowthMemory(memoryKey, { sigs });
+    const at = fresh.length ? sigs.indexOf(fresh[0] as string) : -1;
+    const el = at >= 0 ? kids[at] : undefined;
     if (!el) return;
     const b = body.getBoundingClientRect();
     const r = el.getBoundingClientRect();
@@ -90,7 +103,7 @@ export function useNewSection(
       h: r.height / k,
     });
     timer.current = setTimeout(() => setMark(null), GROWTH_MS);
-  }, [active, height, bodyRef]);
+  }, [active, height, bodyRef, memoryKey]);
 
   useEffect(
     () => () => {
