@@ -21,6 +21,6 @@ Nothing below is marked matched; the lead's critic judges. Checklist: the MUST r
 
 1. **Reach Patterns frame has no rings and no own place count** — the usage index scans canvases, not the generated board's own `ds-patterns` artboard; the strip is a live frame of it and the tag is the whole view's ("N patterns · M places").
 2. Reach canvases are drawn in the canvas's own artboard chrome (dark bezel around the web artboard in the embed), not the board's plain cards; review sub-lines "N places — buttons, links, cards" and the left-out row need element kinds from the usage index (fixture rows read "Follows the system" / "1 place").
-3. ds-many-switch: the preview restyles nothing in the fixture (same tokens), so the canvases look unchanged; no selection (the board draws no inspector).
+3. ds-many-switch: **the empty inspector card ("Click an object on the canvas…") still shows** — the harness closes the inspector by its words before opening the menu, but the card is back in the shot (the preview start, or a select-nothing, re-opens the right panel; not traced). The preview restyles nothing in the fixture (same tokens).
 4. Chat card: the board draws the full chat panel (composer chip "Badge", "Ask AI…"); the card is the question only.
 5. Per the earlier list: Preview in… stays in the menu (decision), hero outside the Brand frame, Advanced at 250 px.
