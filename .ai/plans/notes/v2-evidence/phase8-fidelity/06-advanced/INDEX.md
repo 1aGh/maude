@@ -168,3 +168,15 @@ Re-shoot of the IMPL side on the merged tip d3881fe41 (stage C rounds 1-4 all me
 | `ad-edge-hub` | unreachable (A self-hosted hub project (hub).) | unreachable (same) |
 | `ad-edge-where` | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) | unreachable (same) |
 | `ad-edge-remember` | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) | unreachable (same) |
+
+## Round 7b re-shoot (p8-c7-g0607b, light + dark, the merged tip + this branch)
+
+All 25 ids re-shot (the same reachable set as above). Product changes since the last pairs: an artboard kind outside digital / web /
+print / video (an old `kind="social"`) resolves like no kind, so a Post's inspector draws its Size / Fill rows (ad-pinned, ad-inspector
+for an artboard); AI Advanced › Raw log / Copy transcript / Open in terminal carry the board's glyphs (ad-ai); the id copy glyph and
+palette glyphs from round 7a. Harness changes (`_c7o-harness-g2/`):
+
+- **ad-pinned** pins both panels (⌘K "pin panels"), selects the Post artboard and opens the Inspector's Advanced fold — it pinned only the AI chat before.
+- **ad-edge-syntax** runs with the desktop stub ON (`isNativeApp()` gates the "Ask AI to fix it" button; the earlier walk had deleted `__TAURI__` for ad-share), opens the card's Advanced fold and closes the left panel (the board draws the card alone).
+- **ad-history** runs on a throwaway copy that is a real git repo (3 commits, a draft branch, an origin remote), so the fold shows Branch / Drafts / Remote and the git actions; the app's history list itself is 11's (the seg + Now row are 11 · pn-vh), the board's Compare / Restore row under the list is 11's `pn-vh-acts`.
+- ad-diag = Menu › Diagnostics submenu; ad-settings = the Advanced tab; ad-logs with the desktop stub on (from round 7a).

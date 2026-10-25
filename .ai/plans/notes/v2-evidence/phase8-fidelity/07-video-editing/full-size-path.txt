@@ -6,3 +6,5 @@ stage A:/Users/iagh/git/personal/maude/.claude/worktrees/agent-af625ef88bd36c798
 
 final (D2, d3881fe41): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a595be579d5cc0243/.scr/pairs/07
 (final spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a595be579d5cc0243/.scr/spec/07/<id>-<theme>.png; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a595be579d5cc0243/.scr/impl/07/)
+round 7: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a1af84c21309d604f/.scr/pairs/07 (spec | impl); impl frames: .../.scr/g3/impl/07/; spec: .../.scr/spec/07/
+round 7 harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_c7o-harness-g3/ (t07 with the Full-timeline trim hold, t07c = ve-captions + ve-music on real media, chain7.sh; run over the layered g3 harness, SHOT_CHANNEL=chrome)

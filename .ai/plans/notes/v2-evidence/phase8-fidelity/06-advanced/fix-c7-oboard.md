@@ -31,3 +31,43 @@ Nothing here is marked "matches": the lead's critic judges the re-shot pairs.
 ## Decisions
 - `decision:maude/v2-p8-c7-video-label-tail`: the label's format + length are DATA the comp stamps on its label (`data-dc-vtail`), drawn by `::after`; the author's name text is never rewritten. Rejected: appending to the stored label (stale on a length edit, doubles an author's own "· Reels · 0:30"), a React child in canvas-lib's label (canvas-lib must not know comps).
 - `decision:maude/v2-p8-c7-present-video-04-wins`: Present · video keeps 04's fill; 07's inset is not drawn. Rejected: a per-entry-point fit (the shell's mode switch and the artboard Present are one stage).
+
+---
+
+# Round 7b (p8-c7-g0607b) — continuation: done vs open
+
+Branch `p8-c7-g0607b`. Harness fixes the previous builder left uncommitted are in `_c7o-harness-g2/` + `_c7o-harness-g3/` (copied, repointed).
+Nothing is marked "matches": the lead's critic judges the re-shot pairs (06 and 07, light + dark).
+
+## Done (commit · what · test red → green)
+
+| commit | what | tests |
+|---|---|---|
+| 7299b26fb (**shared canvas-lib.tsx**) | **ad-pinned / ad-inspector (artboard).** A `DCArtboard` with a `kind` outside digital · web · print · video (an old `kind="social"`: the alligators Post / Story) kept that value in `data-dc-kind`, so no per-kind slot matched and the artboard inspector drew a "Size" heading with nothing under it (and no Fill row). It now resolves like no kind (digital, or video over a VideoComp). | `p8-c7b-unknown-kind` (2) — red before |
+| 7bc96dee9 (+ 8e4bff541 **shared icons.jsx**: the kit's `tab` glyph) | **ad-ai.** Raw log / Copy transcript / Open in terminal carry the board's glyphs (file · duplicate · tab). | `v2-ai-chat-list-ui` (new test) — red before |
+| c79d70a1d | the round-7a label CSS comment spelled `\00a0` inside a template literal (tsc TS1487, red on the lane's typecheck) | tsc clean |
+
+## Harness (the MUSTs that were the shot)
+
+- **ad-edge-syntax** — "Ask AI to fix it" is a desktop-only action (`isNativeApp()`); `s06b` deletes `__TAURI__` for ad-share and never puts it back. `s06h` runs with the stub ON, opens the card's Advanced fold (Error / Where / excerpt / Open in editor / Copy error / Last good version) and closes the left panel. The button and the rows are in the shot now.
+- **ad-pinned** — `s06g` pins both panels and selects the Post artboard with its Advanced fold open (it pinned only the AI chat). The "Canvases collapses while pinned" claim does not reproduce on this tip.
+- **ad-history** — `s06i` runs on a throwaway git repo (3 commits, a draft branch, an origin): Branch / Drafts / Remote and the git actions are drawn.
+- **07 ve-trim-split** Full timeline + a held trim (tip on screen); **ve-captions** with real footage, transcript card and caption chips; **ve-music** with the song + beats file (`t07c`).
+
+## Decided against / owned elsewhere (the owning board wins)
+
+- **ad-history seg + Compare / Restore row**: `11 · pn-vh` draws the All / Named / Made by AI / People seg, the Now row and the `pn-vh-acts` row; 11 owns Version history.
+- **ad-export Advanced body** (two columns, Exact scale, File names pattern, From the terminal): `09 · ex-advanced` owns the sheet (p8-c7-ex10b merged the File names select / Include row); 06's own sheet is a smaller drawing of it.
+- **ad-left extra rows**, **ad-timeline raw keys**: unchanged, see round 7a.
+
+## Open
+
+- **07 ve-music "Fade in · out"**: the product has NO music fade (no prop on the music Audio, no op, no render path — `MUSIC_WORDS.fade` exists only as a word). It is a feature: an edit op `video.music.fade` (frames in / out on the one music `<Audio>`, like `<Duck>`), the comp's volume callback, the inspector row (a read-only "0.5 s · 1.5 s" note in the board, two number fields in a real build). Handed back as its own task.
+- **07 ve-text** "Title · Slide up" tag on the artboard (a selection box over the title inside the video frame: needs the comp to report the title's rect).
+- **07 ve-captions** Captions inspector (font · highlight · position · words at a time · also as a file) does not replace the Video inspector when a caption chip is selected in the lane (the chip highlights; the inspector stays on the video).
+- **07 ve-transition** the picker is anchored on the join dot with its tip (it was already); over a small artboard at 100 % it overlaps the picture, which the board's camera avoids (a layout of the fixture, not of the picker).
+- 06: ad-ai "AI may" heading (03 owns the fold, p8-c7-aimay), ad-ds specimen view (13), ad-logs title row + x, Element group rows (POS / SIZE / FILL…) under Advanced, ad-edge-syntax provenance clause ("changed outside the app 2 min ago") needs a server signal.
+
+## Decisions
+- `decision:maude/v2-p8-c7b-artboard-unknown-kind-digital`: DCArtboard resolves an unknown `kind` to the implicit default (digital, or video by content) instead of passing it through. Rejected: teaching every slot's `kindOf` the old values (nine call sites would each need the same alias list); a migration that rewrites old canvases (a canvas file edit for a display bug).
+- `decision:maude/v2-p8-c7b-music-fade-is-a-feature`: the Music inspector's "Fade in · out" row is not drawn until a fade exists in the product. Rejected: a static "0.5 s · 1.5 s" note (a row that says something the file does not).

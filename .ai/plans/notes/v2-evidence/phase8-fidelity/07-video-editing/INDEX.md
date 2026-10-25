@@ -146,3 +146,15 @@ Every reachable id re-shot on the merged tip (release-built client, Google Chrom
 Totals: 38 id×theme re-shot, 14 unreachable (spec-only frames kept from stage A/D).
 
 Harness notes (D2): lane = Google Chrome (`SHOT_CHANNEL=chrome`, H.264). ve-fullscreen is shot ~2.5 s after pressing play from the 37 % poster moment (0:11), re-trying from other scrub points if the stage is black (a paused seek does not repaint; a later moment of the cut can be dark). ve-reframe now selects the video first, so the Re-frame window opens (it frames a hatch: the fixture footage is missing). ve-render = the real Exports panel with a seeded job list (route intercept on GET /_api/export-jobs; no render runs), newly reachable. The AI-cut, together and fit-fill ids stay unreachable (no AI / second-peer / real-file-drop stub in the lane).
+
+## Round 7b re-shoot (p8-c7-g0607b, light + dark, all 21 reachable ids)
+
+Product since the last pairs: a video artboard's label reads `Name · Format · Length` (round 7a); an artboard kind outside the four
+resolves like no kind. Harness changes (`_c7o-harness-g3/`), where a MUST was the shot, not the product:
+
+- **ve-trim-split** is the **Full** timeline (the board draws Full, not Compact), S splits at the playhead (toast + Undo), then the first half's right edge is dragged left and HELD while the shot is taken: the trim tip (`beat-two · 0.7 s` over `−0.3 s · video 0:06`) is on screen.
+- **ve-captions** (t07c) runs on a copy that HAS its media: the interview's footage (the picture is real, not a hatch), the transcript sidecar read, "Captions from speech" pressed — the Transcript card (words, the "Select words and press delete" foot) and the caption chips in the lane are drawn; the first chip is selected.
+- **ve-music** (t07c) has the song file and its beats sidecar, so the bed carries a waveform + BPM label; the song's name is the file's ("song"), the board's "Hype instrumental" is fixture naming.
+- ve-play (paused, loop on, two frames stepped) from round 7a.
+
+Not done, and why (see `../06-advanced/fix-c7-oboard.md`): music **Fade in · out** needs a new edit op + a render path (the product has no music fade), the Captions inspector does not replace the video's when a caption chip is selected, ve-text has no "Title · Slide up" tag on the artboard.
