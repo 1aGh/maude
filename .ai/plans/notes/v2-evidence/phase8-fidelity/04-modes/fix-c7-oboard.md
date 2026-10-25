@@ -53,3 +53,18 @@ home2.mjs `es-home-local` registers no project (the board's "No projects on this
 | md-edge-mixed | harness: a Banner 1200 x 300 artboard added in `prepare`, sixth part of the contact sheet (checked locally: letterbox bars above and below) | `_c8-harness-g2/impl/s04d.mjs` | - |
 
 Open: stage D re-shoot of 04 not run (budget).
+
+## Round 10 (p8-c10-misc: 13 · 12 · 10 · 04 · 01)
+
+| canvas / id | what | where | tests |
+|---|---|---|---|
+| 13 ds-edit-reach | no Design system bar (name, Light/Dark, "1 change waiting", Review...) inside the reach view's `?embed=1` Patterns frame | `ds/board/ds-bar.tsx` (`DsBar` returns null for `isEmbedCanvas()`) | `test/p8-c10-ds-bar-embed.test.tsx` (red without the fix) |
+| 13 ds-multi-panel | LIGHT re-shot with `_c10m-harness-g5/chain.sh` (s13 G=b + s13p): "2 in use", amber dot, "Uses maude" present | harness only | - |
+| 12 ia-brand-steps | the chosen-logo tile is light-fixed like board `.ia-logo`: `maude-v2` + `data-theme="light"` on the tile (light token scope, no hex); the empty "+" tile follows the theme | `client/v2/import/brand-sheet.jsx`, `brand.css` comment | `test/p8-c8-misc2-assets.test.tsx` (red without the fix) |
+| 10 co-comment-thread | heading `.cm-thread__where` min-width 8em; `.cm-thread__head-end` shrinks, actions wrap (owner: Edit / Resolve / x, Delete comment below) | `client/comments-overlay.css` | `test/p8-c5-comments.test.tsx` CSS pin (red without the fix) |
+| 10 co-comment-video | harness: Preview + Comment tool, a pin on the picture made through the product, thread card over it; seeded comments now carry `file: '.design/ui/Matchday.tsx'` (a bad file value drew every group twice) | `_c10m-harness-g4/s10v.mjs` | - |
+| 04 md-inspect | harness: camera 68 % (ctrl+wheel pinch; Meta+Minus did not move the Preview camera on the mini), board panned left, Advanced opened (`fold-inspect-toggle`) | `_c10m-harness-g2/impl/s04a.mjs`, chain case `04x` | - |
+| 01 cf-render-error | harness: AI panel opened while the card shows - the "Ask AI to fix it" chip is on the shot | `_c10m-harness-g1/s01d.mjs` | - |
+
+Re-shot light + dark on the mini: 13 (reach, multi-panel, review), 12 (ia-brand-steps + -1/-2/-3), 10 (thread, video, print), 04 md-inspect, 01 cf-render-error. INDEX "after (round 10)" + full-size-path lines added per canvas.
+Open: none from this round's MUST list. Still in the bar4 lists, not this round's scope: 01 cf-panel-search (native search cancel x), cf-open-big (Share in zen, notice centring); 10 co-sync-* per-row "not sent"/"sending" labels and queued-comment bubble (no data), co-comment-print bleed legend.

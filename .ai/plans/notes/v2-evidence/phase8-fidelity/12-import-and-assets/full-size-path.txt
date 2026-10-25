@@ -16,3 +16,4 @@ round 8 (p8-c8-misc2, tip ce5531151 + this round's commits): /Users/iagh/git/per
 
 final (D6, 3d58f57df): /Users/iagh/git/personal/maude/.claude/worktrees/agent-afe06393dccec2837/.scr/pairs/12-import-and-assets
 (full-size PNG pairs: <id>-<theme>.png, spec | impl; spec PNGs reused from stage A (boards unchanged since): /Users/iagh/git/personal/maude/.claude/worktrees/agent-afe06393dccec2837/.scr/spec/12-import-and-assets/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-afe06393dccec2837/.scr/impl/12-import-and-assets/; merged tip of feat/maude-v2 after stage C round 8, release-built client, Mac mini slot 2 with Google Chrome, harness _d6-harness-g4)
+round 10: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a9edb1b6ebcc9cfe4/.scr/pairs/12-import-and-assets (p8-c10-misc; re-shot light + dark: ia-brand-steps (+ -1/-2/-3); raw impl .scr/impl/12-import-and-assets)

@@ -20,3 +20,4 @@ round 7 (p8-c7-cf08): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a83
 round 7b (p8-c7-cf08b): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae7f6a5e804968df1/.scr/pairs/01 (raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae7f6a5e804968df1/.scr/impl-raw/01/; harness _c7b-harness-g1/ on top of _c7-harness-g1/)
 final (D5, e37e7d82a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a47304d95ce1393d6/.scr/pairs/01 (raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a47304d95ce1393d6/.scr/impl-raw/01)
 final (D6, 3d58f57df): /Users/iagh/git/personal/maude/.claude/worktrees/agent-af2cca2becd40770b/.scr/pairs/01 (raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-af2cca2becd40770b/.scr/impl-raw/01)
+round 10: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a9edb1b6ebcc9cfe4/.scr/pairs/01 (p8-c10-misc; re-shot light + dark: cf-render-error; raw impl .scr/impl-raw/01)

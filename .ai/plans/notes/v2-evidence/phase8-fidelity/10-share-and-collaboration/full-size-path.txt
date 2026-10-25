@@ -24,3 +24,4 @@ round 8: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a875aa1138758847
 
 final (D6, 3d58f57df): /Users/iagh/git/personal/maude/.claude/worktrees/agent-afe06393dccec2837/.scr/pairs/10-share-and-collaboration
 (full-size PNG pairs: <id>-<theme>.png, spec | impl; spec PNGs reused from stage A (boards unchanged since): /Users/iagh/git/personal/maude/.claude/worktrees/agent-afe06393dccec2837/.scr/spec/10-share-and-collaboration/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-afe06393dccec2837/.scr/impl/10-share-and-collaboration/; merged tip of feat/maude-v2 after stage C round 8, release-built client, Mac mini slot 2 with Google Chrome, harness _d6-harness-g4)
+round 10: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a9edb1b6ebcc9cfe4/.scr/pairs/10-share-and-collaboration (p8-c10-misc; re-shot light + dark: co-comment-thread, co-comment-video, co-comment-print; raw impl .scr/impl/10-share-and-collaboration)

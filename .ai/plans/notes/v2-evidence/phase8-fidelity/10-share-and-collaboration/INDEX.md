@@ -206,3 +206,16 @@ Every reachable id re-shot, light + dark, IMPL side only, on the merged tip `fea
 | co-share-advanced | re-shot | re-shot | pair uses the tall 1040 px frame (`co-share-advanced-tall`, `s10e`) |
 | co-follow, co-bring, co-spotlight, co-twelve | unreachable | unreachable | need N live Yjs awareness peers (unchanged) |
 | co-mention-notify | unreachable | unreachable | OS banner + hub mention e-mail template are not in the lane (unchanged) |
+
+## after (round 10, p8-c10-misc)
+
+Re-shot light + dark on the Mac mini (Google Chrome), impl side only; spec reused.
+
+| id | theme | after | note |
+| --- | --- | --- | --- |
+| `co-comment-thread` | dark | re-shot | the location heading keeps min-width 8em; Edit / Resolve / Delete wrap instead of cutting it to "S..." |
+| `co-comment-thread` | light | re-shot | the location heading keeps min-width 8em; Edit / Resolve / Delete wrap instead of cutting it to "S..." |
+| `co-comment-video` | dark | re-shot | Preview + Comment tool, a pin on the picture and its thread card over it (made through the product) |
+| `co-comment-video` | light | re-shot | Preview + Comment tool, a pin on the picture and its thread card over it (made through the product) |
+| `co-comment-print` | dark | re-shot | re-shot with the same chain (unchanged) |
+| `co-comment-print` | light | re-shot | re-shot with the same chain (unchanged) |

@@ -13,3 +13,4 @@ round 7 (third pass): /Users/iagh/git/personal/maude/.claude/worktrees/agent-aaa
 final (D5): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ab9bfb98617a582f7/.scr/pairs/13-design-system
 round 8: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a8efb26c80da9dadb/.scr/pairs/13-design-system (p8-c8-ds; re-shot light + dark, every reachable id; the groups b and e were shot twice, the later wins; raw impl .scr/impl/13-design-system)
 final (D6): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad16b7d7df8d5efc0/.scr/pairs/13-design-system
+round 10: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a9edb1b6ebcc9cfe4/.scr/pairs/13-design-system (p8-c10-misc; re-shot light + dark: ds-edit-reach, ds-multi-panel (two systems in use), ds-edit-review; raw impl .scr/impl/13-design-system)

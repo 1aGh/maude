@@ -268,3 +268,12 @@ Final verification re-shoot of the IMPL side on the merged `feat/maude-v2` tip 3
 | `cf-status-words` | re-shot | re-shot |  |
 | `cf-render-error` | re-shot | re-shot | second frame = the throwing-component variant (round 7: the Go back card) |
 | `cf-offline-create` | re-shot | re-shot |  |
+
+## after (round 10, p8-c10-misc)
+
+Re-shot light + dark on the Mac mini (Google Chrome), impl side only; spec reused.
+
+| id | theme | after | note |
+| --- | --- | --- | --- |
+| `cf-render-error` | dark | re-shot | AI panel open while the card shows, so the "Ask AI to fix it" chip is on the shot |
+| `cf-render-error` | light | re-shot | AI panel open while the card shows, so the "Ask AI to fix it" chip is on the shot |

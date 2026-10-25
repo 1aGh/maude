@@ -151,3 +151,12 @@ Every reachable id re-shot, light + dark, IMPL side only, on the merged tip `fea
 | ia-more-ways, ia-gen-placed, ia-figma-arrived, ia-figjam, ia-brand, ia-missing, ia-edges | unreachable | unreachable | unchanged: native picker/paste, BYOK provider, Figma API, a reachable website, synced peer, nine external conditions |
 
 Harness note: picture fixtures are drawn in Chromium (no ImageMagick on the runner).
+
+## after (round 10, p8-c10-misc)
+
+Re-shot light + dark on the Mac mini (Google Chrome), impl side only; spec reused.
+
+| id | theme | after | note |
+| --- | --- | --- | --- |
+| `ia-brand-steps` | dark | re-shot | the chosen logo tile is light-fixed (data-theme="light", light token scope) in both themes; also -1 / -2 / -3 |
+| `ia-brand-steps` | light | re-shot | the chosen logo tile is light-fixed (data-theme="light", light token scope) in both themes; also -1 / -2 / -3 |
