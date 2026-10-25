@@ -3,6 +3,17 @@
   "currentPhase": null,
   "phases": [
     {
+      "id": "feature-flow-refactor",
+      "title": "Feature: Flow plugin refactor — lean command set, economical runs, plans that run as goals",
+      "status": "done",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming (DDR-004 group prefix, DDR-191 bare name:), the generated Codex mirrors and the project-agnostic <project>...",
+      "planPath": ".ai/plans/archive/feature-flow-refactor.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
       "id": "phase-1-contribute-infra-changesets",
       "title": "Phase 1: Contribute infrastructure + Changesets bootstrap",
       "status": "done",
@@ -2375,17 +2386,6 @@
       "date": null,
       "summary": "Drafted 2026-09-19, on the owner's request, while writing a post that promotes Maude Cloud publicly. The post had to be re-framed (\"free pilot, €19 later\") because the funnel cannot take money toda...",
       "planPath": ".ai/plans/cloud-live-payments-rollout.md",
-      "archived": false,
-      "phaseKey": null
-    },
-    {
-      "id": "feature-flow-refactor",
-      "title": "Feature: Flow plugin refactor — lean command set, economical runs, plans that run as goals",
-      "status": "planned",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming (DDR-004 group prefix, DDR-191 bare name:), the generated Codex mirrors and the project-agnostic <project>...",
-      "planPath": ".ai/plans/feature-flow-refactor.md",
       "archived": false,
       "phaseKey": null
     },

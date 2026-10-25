@@ -354,3 +354,11 @@ No UI, so no scenario-runner, design-system-guard or a11y-auditor.
 | v2 constants are wrong for small repos | presets and ratios, A/B on both sizes (T1, P1 gate) |
 | Model ids drift | tier aliases plus config routing (T2, T3) |
 | Conflicts with `feat/maude-v2` plugin edits | start after the v2 merge, or rebase a worktree off its tip |
+
+## Retro (2026-10-25)
+
+- **Worked:** spiking the claims first (T0, ~10 min of real `claude -p`) settled every "can a plugin do X" argument before code; measuring before cutting (census, baseline) turned the merge list from taste into data — and showed the lever was the lead's context, not model routing.
+- **Worked:** six parallel Sonnet workers on disjoint files with a shared rules file did P3 in ~3 minutes each; the lead only integrated test patches. Owner lists + "patch requests, not edits" kept them from colliding.
+- **Didn't:** the first `/flow:run` design trusted a file inside the project (`.ai/state/run.json`) to name the command the Stop hook runs. Two reviewers found the same hole independently. Rule for next time: a hook that executes anything reads its command only from a place the project cannot write.
+- **Didn't:** the stub-for-one-release guardrail was dropped the same day (Michal's go) — fine here (0–2 uses), but the bug-autofix bot still called `/flow:quick`; the refs ratchet only found it after it was widened to `.claude/` and `docs/`. Point the ratchet at every text root from the start.
+- **Change in /plan:** a plan that adds a hook or anything that runs commands unattended gets a security task in its own phase (before dogfood), not a review at `/done`.
