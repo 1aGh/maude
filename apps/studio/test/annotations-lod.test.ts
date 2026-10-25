@@ -117,6 +117,12 @@ describe('render', () => {
     expect(h).not.toContain('annotations-lod-card');
     expect(h).toContain('Nápady · 84 stickies. Click to zoom to it');
   });
+  test('a section is its own tone: the block is tinted and its count is a solid chip in that colour (15 an-crowd)', () => {
+    const h = html(false);
+    // section() above carries #ddd; the block washes it and the count chip is solid
+    expect(h).toMatch(/data-lod="section"[^>]*style="[^"]*(color-mix|#ddd)/);
+    expect(h).toMatch(/data-lod="count"[^>]*style="[^"]*background:#ddd/);
+  });
   test('in Edit the mosaic is quiet and takes no pointer', () => {
     const h = html(true);
     expect(h).toContain('data-quiet="1"');

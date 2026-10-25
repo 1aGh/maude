@@ -15,12 +15,17 @@ import { usePlayhead } from '../../video-comp.tsx';
 import { OFF_RANGE_OPACITY, pinOpacity, readTimeRange, timeChip } from '../time-marks.ts';
 import type { AnnotationElement } from '../types.ts';
 
+/** How faded a note over a print artboard draws (canvas 15 an-print: .88). */
+export const UNPRINTED_OPACITY = 0.88;
+
 /** Appended to the layer's stylesheet (annotations-layer.tsx `ANNOT_CSS` sibling). */
 export const TIME_PIN_CSS = `
 /* S4.16 - a note pinned to a moment of a video fades off its range (canvas 15 an-video); the fade eases on
    --dur-soft, and reduced motion collapses it. */
 .dc-annot-el[data-pin] { transition: opacity var(--dur-soft, 160ms) var(--ease-out, ease-out); }
 .dc-annot-el[data-pin="off"] { opacity: ${OFF_RANGE_OPACITY}; }
+/* 15 an-print: a note over a print artboard is ghosted a little (the board's .88) - it reads as "not part of the print" */
+.dc-annot-el[data-unprinted] { opacity: ${UNPRINTED_OPACITY}; }
 .dc-annot-pintag {
   position: absolute; bottom: 100%; margin-bottom: 4px; display: inline-flex; align-items: center; gap: 4px;
   font: 600 10px/1 var(--font-ui, system-ui, sans-serif); padding: 3px 7px; border-radius: 999px; white-space: nowrap;
@@ -66,7 +71,13 @@ export function useTimePin(el: AnnotationElement): TimePin {
   const parent = typeof el.parentArtboard === 'string' ? el.parentArtboard : null;
   const unprinted = parent !== null && artboardKindOf(parent) === 'print';
   return {
-    attrs: range ? { 'data-pin': opacity < 1 ? 'off' : 'on' } : undefined,
+    attrs:
+      range || unprinted
+        ? {
+            ...(range ? { 'data-pin': opacity < 1 ? 'off' : 'on' } : {}),
+            ...(unprinted ? { 'data-unprinted': 'true' } : {}),
+          }
+        : undefined,
     chip: range ? timeChip(range) : null,
     unprinted,
     opacity,

@@ -164,7 +164,6 @@ describe('G4 - the selected sticky follows canvas 15 an-sticky', () => {
     const { host, ran, locks } = await mountToolbar([sticky()], ['st']);
     await click(byId(host, 'annot-ctx-lock'));
     expect(locks).toEqual([true]);
-    await click(byId(host, 'annot-ctx-more'));
     await click(byId(host, 'annot-ctx-to-comment'));
     expect(ran).toEqual(['annotation.to-comment']);
     for (const gone of ['Bold', 'Italic', 'Strikethrough', 'Underline', 'Text alignment'])

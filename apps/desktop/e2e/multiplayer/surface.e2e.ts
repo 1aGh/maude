@@ -4391,7 +4391,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             if (!ready) throw new Unexercised('Context controls need the seeded annotations');
             await select([ids.rect]);
             const start = performance.now();
-            await gesture(from, inToolbar('[aria-label="Delete selected annotations"]'), 'click');
+            // P8 C8: Delete is the "Move to trash" row of the toolbar's closing "…"
+            await gesture(from, inToolbar('[data-testid="annot-ctx-more"]'), 'click');
+            await gesture(from, inToolbar('[data-testid="annot-ctx-delete"]'), 'click');
             return observeAll(
               all,
               `L09-ctx-delete-${from.name}`,

@@ -68,6 +68,7 @@ import {
   IconDash,
   IconDistributeH,
   IconDistributeV,
+  IconComment,
   IconDuplicate,
   IconFlip,
   IconGroup,
@@ -90,7 +91,6 @@ import {
   IconObjAlignVCenter,
   IconStampDisc,
   IconStrike,
-  IconTrash,
   IconUnderline,
   IconUngroup,
   SHAPE_KIND_ICONS,
@@ -1013,15 +1013,7 @@ export function AnnotationContextToolbar({
           {mr.title}
         </span>
         <div className="dc-annot-ctx-sep" />
-        <button
-          type="button"
-          className="dc-annot-ctx-ibtn dc-annot-ctx-ibtn--danger"
-          aria-label="Delete media reference"
-          title="Delete"
-          onClick={remove}
-        >
-          <IconTrash />
-        </button>
+        <ToolbarMore onDelete={remove} />
       </div>
     );
   }
@@ -1081,16 +1073,7 @@ export function AnnotationContextToolbar({
         >
           <IconDuplicate size={14} />
         </button>
-        <div className="dc-annot-ctx-sep" />
-        <button
-          type="button"
-          className="dc-annot-ctx-ibtn dc-annot-ctx-ibtn--danger"
-          aria-label="Delete sticker"
-          title="Delete"
-          onClick={remove}
-        >
-          <IconTrash />
-        </button>
+        <ToolbarMore onDelete={remove} />
       </div>
     );
   }
@@ -1130,15 +1113,7 @@ export function AnnotationContextToolbar({
           />
         </div>
         <div className="dc-annot-ctx-sep" />
-        <button
-          type="button"
-          className="dc-annot-ctx-ibtn dc-annot-ctx-ibtn--danger"
-          aria-label="Delete image"
-          title="Delete"
-          onClick={remove}
-        >
-          <IconTrash />
-        </button>
+        <ToolbarMore onDelete={remove} />
       </div>
     );
   }
@@ -1209,15 +1184,7 @@ export function AnnotationContextToolbar({
           />
         </div>
         <div className="dc-annot-ctx-sep" />
-        <button
-          type="button"
-          className="dc-annot-ctx-ibtn dc-annot-ctx-ibtn--danger"
-          aria-label="Delete link"
-          title="Delete"
-          onClick={remove}
-        >
-          <IconTrash />
-        </button>
+        <ToolbarMore onDelete={remove} />
       </div>
     );
   }
@@ -1385,6 +1352,55 @@ export function AnnotationContextToolbar({
         ? 'Color'
         : 'Fill';
 
+  // The "…" at the end of every selection bar (15: the board ends each one in a more button). Delete lives here, and
+  // whatever the board does not draw on the bar: Resolve for a sticky; an arrow's widths, two-way and dashes.
+  const moreItems: MoreItem[] = [];
+  if (soleSticky) {
+    moreItems.push({
+      key: 'resolve',
+      label: soleSticky.resolved ? 'Reopen' : 'Resolve',
+      testid: 'annot-ctx-resolve',
+      title: soleSticky.resolved ? 'Reopen this sticky' : 'Resolve — strike it through',
+      resolved: !!soleSticky.resolved,
+      onPick: () => store.runAction?.('annotation.resolve'),
+    });
+  }
+  if (caps.arrowDir) {
+    moreItems.push(
+      {
+        key: 'two-way',
+        label: 'Two-way',
+        testid: 'annot-arrow-two-way',
+        title: 'Two-way — a head on both ends',
+        checked: uniqTwoWay === true,
+        onPick: toggleTwoWay,
+      },
+      {
+        key: 'dashed',
+        label: 'Dashed line',
+        testid: 'annot-ctx-dashed',
+        checked: uniqDashed === true,
+        onPick: () => setDashed(!(uniqDashed === true)),
+      },
+      {
+        key: 'thin',
+        label: 'Thin line',
+        testid: 'annot-ctx-thin',
+        title: 'Thin (3px)',
+        checked: uniqThickness === 3,
+        onPick: () => setThickness(3),
+      },
+      {
+        key: 'thick',
+        label: 'Thick line',
+        testid: 'annot-ctx-thick',
+        title: 'Thick (6px)',
+        checked: uniqThickness === 6,
+        onPick: () => setThickness(6),
+      }
+    );
+  }
+
   return (
     <div
       ref={ref}
@@ -1429,7 +1445,36 @@ export function AnnotationContextToolbar({
         </>
       ) : null}
       {caps.arrowDir ? (
-        <ArrowInks value={uniqColor} onPick={setColor} />
+        // 15 an-arrow-kinds: kind + head come first, the inks after, then Lock (the bar's own order)
+        <>
+          <div className="dc-annot-ctx-mode" role="radiogroup" aria-label="Arrow line">
+            {ARROW_KINDS.map((k) => (
+              <button
+                key={k.value}
+                type="button"
+                className="dc-annot-ctx-mode-btn"
+                data-testid={`annot-arrow-kind-${k.value}`}
+                aria-pressed={uniqLineType === k.value}
+                onClick={() => setLineType(k.value)}
+              >
+                {k.label}
+              </button>
+            ))}
+          </div>
+          <div className="dc-annot-ctx-sep" />
+          <IconDropdown
+            ariaLabel="Arrowhead"
+            value={uniqEndHead ?? 'triangle'}
+            options={ARROW_HEAD_CHOICES}
+            renderIcon={(v) => {
+              const I = HEAD_ICON[v as ArrowHead];
+              return I ? <I size={16} /> : null;
+            }}
+            onPick={(v) => setHeadPicked(v as ArrowHead)}
+          />
+          <div className="dc-annot-ctx-sep" />
+          <ArrowInks value={uniqColor} onPick={setColor} />
+        </>
       ) : (
         <div className="dc-annot-ctx-swrow" role="radiogroup" aria-label="Color">
           {effectiveMode === 'fill' ? (
@@ -1468,7 +1513,7 @@ export function AnnotationContextToolbar({
           ) : null}
         </div>
       )}
-      {caps.thickness && effectiveMode === 'stroke' ? (
+      {caps.thickness && effectiveMode === 'stroke' && !caps.arrowDir ? (
         <>
           <div className="dc-annot-ctx-sep" />
           <button
@@ -1645,48 +1690,7 @@ export function AnnotationContextToolbar({
           })}
         </>
       ) : null}
-      {caps.arrowDir ? (
-        <>
-          <div className="dc-annot-ctx-sep" />
-          <div className="dc-annot-ctx-mode" role="radiogroup" aria-label="Arrow line">
-            {ARROW_KINDS.map((k) => (
-              <button
-                key={k.value}
-                type="button"
-                className="dc-annot-ctx-mode-btn"
-                data-testid={`annot-arrow-kind-${k.value}`}
-                aria-pressed={uniqLineType === k.value}
-                onClick={() => setLineType(k.value)}
-              >
-                {k.label}
-              </button>
-            ))}
-          </div>
-          <div className="dc-annot-ctx-sep" />
-          <IconDropdown
-            ariaLabel="Arrowhead"
-            value={uniqEndHead ?? 'triangle'}
-            options={ARROW_HEAD_CHOICES}
-            renderIcon={(v) => {
-              const I = HEAD_ICON[v as ArrowHead];
-              return I ? <I size={16} /> : null;
-            }}
-            onPick={(v) => setHeadPicked(v as ArrowHead)}
-          />
-          <button
-            type="button"
-            className="dc-annot-ctx-ibtn"
-            data-testid="annot-arrow-two-way"
-            aria-label="Two-way"
-            aria-pressed={uniqTwoWay === true}
-            title="Two-way"
-            onClick={toggleTwoWay}
-          >
-            <span aria-hidden="true">⇄</span>
-          </button>
-        </>
-      ) : null}
-      {caps.dash ? (
+      {caps.dash && !caps.arrowDir ? (
         <>
           <div className="dc-annot-ctx-sep" />
           <button
@@ -1699,16 +1703,6 @@ export function AnnotationContextToolbar({
           >
             <IconDash />
           </button>
-        </>
-      ) : null}
-      {soleSticky ? (
-        <>
-          <div className="dc-annot-ctx-sep" />
-          <StickyMore
-            resolved={!!soleSticky.resolved}
-            onResolve={() => store.runAction?.('annotation.resolve')}
-            onToComment={() => store.runAction?.('annotation.to-comment')}
-          />
         </>
       ) : null}
       {soleSection ? (
@@ -1737,6 +1731,18 @@ export function AnnotationContextToolbar({
       ) : null}
       <div className="dc-annot-ctx-sep" />
       {lockBtn}
+      {soleSticky ? (
+        <button
+          type="button"
+          className="dc-annot-ctx-ibtn"
+          data-testid="annot-ctx-to-comment"
+          aria-label="Turn into a comment"
+          title="Turn into a comment — its words become a thread, the sticky goes to the trash"
+          onClick={() => store.runAction?.('annotation.to-comment')}
+        >
+          <IconComment size={14} />
+        </button>
+      ) : null}
       {canGroup || canUngroup || canAlign ? (
         <>
           <div className="dc-annot-ctx-sep" />
@@ -1777,16 +1783,7 @@ export function AnnotationContextToolbar({
           ) : null}
         </>
       ) : null}
-      <div className="dc-annot-ctx-sep" />
-      <button
-        type="button"
-        className="dc-annot-ctx-ibtn dc-annot-ctx-ibtn--danger"
-        title="Delete (Backspace)"
-        aria-label="Delete selected annotations"
-        onClick={remove}
-      >
-        <IconTrash />
-      </button>
+      <ToolbarMore items={moreItems} onDelete={remove} />
     </div>
   );
 }
@@ -1916,18 +1913,28 @@ function IconDropdown({
  * item fires an operation instead of reflecting a current value. Used by the
  * align/distribute cluster; distribute items disable below three strokes.
  */
+interface MoreItem {
+  key: string;
+  label: string;
+  testid: string;
+  title?: string;
+  /** a toggle: the row is a checkbox */
+  checked?: boolean;
+  resolved?: boolean;
+  onPick: () => void;
+}
+
 /**
- * The sticky's "..." (15 an-sticky: colours, size, list, lock, duplicate, more): Resolve / Reopen and
- * Turn into a comment live in this menu instead of as two word buttons crowding the bar.
+ * The "…" every selection toolbar ends in (canvas 15: the sticky, arrow, section and sticker bars all close on a
+ * more button). A word menu: the bar's extras first, then "Move to trash" - Delete is one click away here and on
+ * the key.
  */
-function StickyMore({
-  resolved,
-  onResolve,
-  onToComment,
+function ToolbarMore({
+  items = [],
+  onDelete,
 }: {
-  resolved: boolean;
-  onResolve: () => void;
-  onToComment: () => void;
+  items?: readonly MoreItem[];
+  onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -1962,32 +1969,36 @@ function StickyMore({
       </button>
       {open ? (
         <div className="dc-annot-ctx-menu dc-annot-ctx-menu--words" role="menu" aria-label="More">
+          {items.map((it) => (
+            <button
+              key={it.key}
+              type="button"
+              role={it.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+              aria-checked={it.checked === undefined ? undefined : it.checked}
+              className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+              data-testid={it.testid}
+              data-resolved={it.resolved ? 'true' : undefined}
+              title={it.title}
+              onClick={() => {
+                it.onPick();
+                setOpen(false);
+              }}
+            >
+              {it.label}
+            </button>
+          ))}
           <button
             type="button"
             role="menuitem"
             className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
-            data-testid="annot-ctx-to-comment"
-            title="Turn into a comment — its words become a thread, the sticky goes to the trash"
+            data-testid="annot-ctx-delete"
+            title="Move to trash (⌫)"
             onClick={() => {
-              onToComment();
+              onDelete();
               setOpen(false);
             }}
           >
-            Turn into a comment
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
-            data-testid="annot-ctx-resolve"
-            data-resolved={resolved ? 'true' : undefined}
-            title={resolved ? 'Reopen this sticky' : 'Resolve — strike it through'}
-            onClick={() => {
-              onResolve();
-              setOpen(false);
-            }}
-          >
-            {resolved ? 'Reopen' : 'Resolve'}
+            Move to trash
           </button>
         </div>
       ) : null}

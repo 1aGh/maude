@@ -32,6 +32,8 @@ export interface LodTile extends Rect {
 export interface LodSection extends Rect {
   id: string;
   label: string;
+  /** The section's own tone (its stored colour). */
+  color: string;
   count: number;
   tiles: LodTile[];
   /** Distinct people who drew a sticky in it, by chip key, first seen first. */
@@ -56,7 +58,15 @@ export function lodModel(strokes: readonly Stroke[]): LodModel {
   const secs: LodSection[] = [];
   for (const s of strokes) {
     if (s.tool !== 'section') continue;
-    secs.push({ id: s.id, label: s.label, ...norm(s), count: 0, tiles: [], people: [] });
+    secs.push({
+      id: s.id,
+      label: s.label,
+      color: typeof s.color === 'string' && s.color ? s.color : '#8b8b94',
+      ...norm(s),
+      count: 0,
+      tiles: [],
+      people: [],
+    });
   }
   const bySize = [...secs].sort((a, b) => a.w * a.h - b.w * b.h);
   const loose: LodTile[] = [];
@@ -114,11 +124,10 @@ export const LOD_CSS = `
 .dc-annot-lod[data-live] [data-lod="section"] { pointer-events: auto; cursor: zoom-in; }
 .dc-annot-lod [data-lod="tile"] { border-radius: 4px; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.14); }
 .dc-annot-lod button[data-lod="section"] { padding: 0; border: 0; font: inherit; }
-.dc-annot-lod [data-lod="section"] { border-radius: 10px; background: rgba(0,0,0,0.04);
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.16); }
-.dc-annot-lod [data-lod="section"][data-hover] { box-shadow: inset 0 0 0 2px var(--maude-hud-accent, oklch(0.53 0.175 238)); }
-.dc-annot-lod [data-lod="count"] { color: #2a2a28; font: 600 14px/1.2 system-ui, sans-serif;
-  white-space: nowrap; transform-origin: 0 100%; font-variant-numeric: tabular-nums; }
+.dc-annot-lod [data-lod="section"] { border-radius: 10px; }
+.dc-annot-lod [data-lod="section"][data-hover] { box-shadow: inset 0 0 0 2px var(--maude-hud-accent, oklch(0.53 0.175 238)) !important; }
+.dc-annot-lod [data-lod="count"] { color: var(--maude-hud-object-ink, #1a1a1a); font: 600 14px/1.2 system-ui, sans-serif;
+  padding: 2px 8px; border-radius: 6px; white-space: nowrap; transform-origin: 0 100%; font-variant-numeric: tabular-nums; }
 .dc-annot-lod [data-lod="card"] { z-index: 15; width: 220px; padding: 10px 12px; border-radius: 10px;
   background: var(--maude-chrome-bg-0, #fff); color: var(--maude-chrome-fg-0, #1a1a1a);
   box-shadow: 0 8px 24px rgba(0,0,0,0.22), inset 0 0 0 0.5px rgba(0,0,0,0.12);
@@ -179,7 +188,15 @@ function LodMosaicImpl({
             data-id={s.id}
             data-count={s.count}
             {...(hover === s.id ? { 'data-hover': '1' } : {})}
-            style={{ left: s.x, top: s.y, width: s.w, height: s.h }}
+            style={{
+              left: s.x,
+              top: s.y,
+              width: s.w,
+              height: s.h,
+              // 15 an-crowd: the block is the section's own tone, washed (the full-size body is 7 % of it, ringed at 45 %)
+              background: `color-mix(in srgb, ${s.color} 12%, transparent)`,
+              boxShadow: `inset 0 0 0 1.5px color-mix(in srgb, ${s.color} 45%, transparent)`,
+            }}
             onPointerEnter={live ? () => setHover(s.id) : undefined}
             onPointerLeave={live ? () => setHover((h) => (h === s.id ? null : h)) : undefined}
             onClick={live ? () => onZoomTo(zoomTarget(s)) : undefined}
@@ -193,6 +210,7 @@ function LodMosaicImpl({
             style={{
               left: s.x + 8 * k,
               top: s.y - 6 * k,
+              background: s.color,
               transform: `translateY(-100%) scale(${k})`,
             }}
           >

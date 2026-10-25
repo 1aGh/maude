@@ -106,15 +106,37 @@ const click = async (el: Element | null) => {
 describe('the small toolbar over a sticky', () => {
   test('Resolve and Turn into a comment run the registry actions', async () => {
     const { host, ran } = await mountToolbar([sticky()], ['st']);
-    // P8-C2 (15 an-sticky): the words live behind the sticky's "..." instead of crowding the bar
+    // P8-C8 (15 an-sticky): Turn into a comment is the bar's icon after Lock (the board draws it there);
+    // Resolve is a word behind the closing "…"
     expect(byId(host, 'annot-ctx-resolve')).toBeNull();
+    const toComment = byId(host, 'annot-ctx-to-comment');
+    expect(toComment?.getAttribute('aria-label')).toBe('Turn into a comment');
     await click(byId(host, 'annot-ctx-more'));
     expect(byId(host, 'annot-ctx-resolve')?.textContent).toBe('Resolve');
-    expect(byId(host, 'annot-ctx-to-comment')?.textContent).toBe('Turn into a comment');
     await click(byId(host, 'annot-ctx-resolve'));
-    await click(byId(host, 'annot-ctx-more'));
     await click(byId(host, 'annot-ctx-to-comment'));
     expect(ran).toEqual(['annotation.resolve', 'annotation.to-comment']);
+  });
+  test('the sticky bar reads colours · size · list · Lock · Turn into a comment · "…" (the board order)', async () => {
+    const { host } = await mountToolbar([sticky()], ['st']);
+    const order = [
+      '.dc-annot-ctx-swrow',
+      '[data-testid="annot-sticky-size"]',
+      '[data-testid="annot-sticky-list"]',
+      '[data-testid="annot-ctx-lock"]',
+      '[data-testid="annot-ctx-to-comment"]',
+      '[data-testid="annot-ctx-more"]',
+    ].map((q) => host.querySelector(q));
+    for (const el of order) expect(el).not.toBeNull();
+    for (let i = 1; i < order.length; i++) {
+      const prev = order[i - 1] as Element;
+      const cur = order[i] as Element;
+      expect(!!(prev.compareDocumentPosition(cur) & 4)).toBe(true); // FOLLOWING
+    }
+    // no trash button on the bar: Delete is a row of the "…"
+    expect(host.querySelector('[aria-label="Delete selected annotations"]')).toBeNull();
+    await click(byId(host, 'annot-ctx-more'));
+    expect(byId(host, 'annot-ctx-delete')?.textContent).toBe('Move to trash');
   });
   test('a resolved sticky offers Reopen, pressed', async () => {
     const { host } = await mountToolbar(

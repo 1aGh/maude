@@ -10209,7 +10209,7 @@
     "hook": "Annotation toolbar labels",
     "kind": "selector",
     "pattern": false,
-    "meaning": "Annotation toolbar controls by `aria-label`: \"Align and distribute\", \"Annotation properties\", \"Color\", \"No fill\", \"Swatch target\", \"Dashed line\", \"Thin stroke\", \"Thick stroke\", \"Font size\", \"Font size: <v>\", \"Custom font size in pixels\", \"Group selection\", \"Ungroup selection\", \"Delete selected annotations\", \"Locked selection\", \"Start arrowhead: <v>\", \"End arrowhead: <v>\", \"Line type: <v>\", \"Text alignment: <v>\", \"Sticky color <c>\".",
+    "meaning": "Annotation toolbar controls by `aria-label`: \"Align and distribute\", \"Annotation properties\", \"Color\", \"No fill\", \"Swatch target\", \"Dashed line\", \"Thin stroke\", \"Thick stroke\", \"Font size\", \"Font size: <v>\", \"Custom font size in pixels\", \"Group selection\", \"Ungroup selection\", \"Locked selection\", \"Start arrowhead: <v>\", \"End arrowhead: <v>\", \"Line type: <v>\", \"Text alignment: <v>\", \"Sticky color <c>\".",
     "producer": {
       "file": "apps/studio/annotations-context-toolbar.tsx",
       "symbol": "AnnotationContextToolbar"
@@ -27020,7 +27020,7 @@
     "hook": "annot-arrow-two-way",
     "kind": "testid",
     "pattern": false,
-    "meaning": "S4.11: the two-way toggle on the arrow toolbar (a head on both ends).",
+    "meaning": "S4.11 / P8 C8: the Two-way row (aria-checked) of the arrow toolbar's \"…\" (a head on both ends).",
     "producer": {
       "file": "apps/studio/annotations-context-toolbar.tsx",
       "symbol": "AnnotationContextToolbar"
@@ -27074,7 +27074,7 @@
     "hook": "annot-ctx-resolve",
     "kind": "testid",
     "pattern": false,
-    "meaning": "S4.12: Resolve / Reopen on the small toolbar over a sole sticky (`aria-pressed` while resolved).",
+    "meaning": "S4.12 / P8 C8: Resolve / Reopen row of the \"…\" on the small toolbar over a sole sticky.",
     "producer": {
       "file": "apps/studio/annotations-context-toolbar.tsx",
       "symbol": "AnnotationContextToolbar"
@@ -27089,10 +27089,90 @@
     "v2": "new"
   },
   {
+    "hook": "annot-ctx-more",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 C8: the \"…\" every annotation selection toolbar ends in (sticky, arrow, section, sticker, picture, link). Opens a word menu: the bar's extras, then Move to trash.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "ToolbarMore"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-convert-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-delete",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 C8: \"Move to trash\" row of the toolbar \"…\" (replaces the trailing trash button).",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "ToolbarMore"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-convert-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-dashed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 C8: \"Dashed line\" row (aria-checked) of an arrow toolbar's \"…\"; shapes keep Dashed on the bar.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "ToolbarMore"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-toolbar.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-thin",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 C8: \"Thin line\" row of an arrow toolbar's \"…\".",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "ToolbarMore"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-toolbar.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-thick",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 C8: \"Thick line\" row of an arrow toolbar's \"…\".",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "ToolbarMore"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-toolbar.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "annot-ctx-to-comment",
     "kind": "testid",
     "pattern": false,
-    "meaning": "S4.12: Turn into a comment on the small toolbar over a sole sticky.",
+    "meaning": "S4.12 / P8 C8: Turn into a comment - the icon button after Lock on the small toolbar over a sole sticky.",
     "producer": {
       "file": "apps/studio/annotations-context-toolbar.tsx",
       "symbol": "AnnotationContextToolbar"

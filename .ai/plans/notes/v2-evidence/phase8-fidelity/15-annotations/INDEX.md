@@ -312,3 +312,22 @@ Shot on the Mac mini (`scripts/remote-lane.sh`) with its installed Google Chrome
 | `an-vote` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `an-vs` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `an-vs` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+
+## Round 8 (p8-c8-ann, 83696d6cd) — IMPL re-shot, both themes
+
+Harness `_c8ann-harness-g5`. Every reachable id re-shot; the unreachable ones (an-viewer) keep their earlier cards. What changed on the impl side:
+
+| id | what the pair now shows |
+| --- | --- |
+| an-vs · an-layers | no stale "Annotations hidden" toast (showing the layer takes it down); an-layers selects a locked sticky ("Locked · Unlock") |
+| an-sticky · an-section · an-stk-drop · an-arrow-kinds · an-dangling | every selection bar ends in "…" (Move to trash); the sticky bar reads colours · size · list · Lock · Turn into a comment · "…"; the arrow bar reads kind · head · inks · Lock · "…" |
+| an-section | a lilac section with its chip tone, count and swatches, framed whole |
+| an-today | text in five sizes with the size menu open, the shape set, a link card, clip chip, dashed arrow, bullet / numbered stickies |
+| an-dangling | the arrow whose button is gone is selected: dashed end + "Point to…" card |
+| an-convert | the converted thread card and the sticky menu on one canvas (menu clear of the dock) |
+| an-plan | three toned columns with count chips and channel-coloured cards, in free space |
+| an-stamps | stamps on the artboard and the folded stamp tray |
+| an-crowd | five sections of coloured stickies below 25 % (tone blocks, solid count chips, readable in dark) |
+| an-print | a note over a print artboard ghosted at .88 |
+| an-follow | the bound arrow set to Elbow before the artboard is dragged |
