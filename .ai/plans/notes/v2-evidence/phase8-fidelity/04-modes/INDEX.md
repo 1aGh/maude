@@ -239,3 +239,39 @@ Final verification shoot on the merged tip after stage C round 7 (harness `_d5-h
 | `md-edge-mixed` | re-shot | re-shot |
 | `md-edge-offline` | unreachable (Offline Present with a missing clip is a desktop-shell state (Presenter view).) | unreachable (Offline Present with a missing clip is a desktop-shell state (Presenter view).) |
 | `md-esc` | re-shot | re-shot |
+
+
+## FINAL (D6, 3d58f57df)
+
+Final verification shoot on the merged tip after stage C round 8 (harness `_d6-harness-g2/`, a flattened copy of the newest per-canvas layers; shot on the Mac mini with Google Chrome, not the Playwright headless shell). Spec side reused (the boards `.design/ui/v2/03|04|06` are unchanged since 2026-10-19). Committed JPEG pairs overwritten (spec left | impl right). The critic judges; this builder does not.
+
+- Shot on feat/maude-v2 tip 3d58f57df (stage C round 8 merged); harness _d6-harness-g2 = _d5 + the round-8 edits (_c8-harness-g2 s04a: fit camera before the inspect click; s04d: Banner 1200x300 fixture artboard, sixth part of the md-edge-mixed contact sheet). md-edit-image from the same chain (s04i, Photos seeded).
+
+| id | dark | light |
+|---|---|---|
+| `md-model` | re-shot | re-shot |
+| `md-keys` | re-shot | re-shot |
+| `md-edit` | re-shot | re-shot |
+| `md-edit-image` | re-shot | re-shot |
+| `md-edit-component` | re-shot | re-shot |
+| `md-motion` | unreachable (An animation storyboard of Edit to Preview (frames over 0 to 220 ms), not a state.) | unreachable (An animation storyboard of Edit to Preview (frames over 0 to 220 ms), not a state.) |
+| `md-annotate` | re-shot | re-shot |
+| `md-preview` | re-shot | re-shot |
+| `md-preview-follow` | re-shot | re-shot |
+| `md-preview-combine` | re-shot | re-shot |
+| `md-present-menu` | re-shot | re-shot |
+| `md-present-lift` | re-shot | re-shot |
+| `md-present-full` | re-shot | re-shot |
+| `md-present-video` | re-shot | re-shot |
+| `md-present-canvas` | re-shot | re-shot |
+| `md-presenter` | unreachable (Presenter view needs a second display (desktop shell).) | unreachable (Presenter view needs a second display (desktop shell).) |
+| `md-present-link` | unreachable (A cloud viewer link needs a hub project.) | unreachable (A cloud viewer link needs a hub project.) |
+| `md-comment` | re-shot | re-shot |
+| `md-comment-only` | unreachable (A Can comment role needs a hub / second person.) | unreachable (A Can comment role needs a hub / second person.) |
+| `md-draw` | re-shot | re-shot |
+| `md-inspect` | re-shot | re-shot |
+| `md-edge-ai` | re-shot | re-shot |
+| `md-edge-viewer` | unreachable (A view-only link in a browser needs a cloud project.) | unreachable (A view-only link in a browser needs a cloud project.) |
+| `md-edge-mixed` | re-shot | re-shot |
+| `md-edge-offline` | unreachable (Offline Present with a missing clip is a desktop-shell state (Presenter view).) | unreachable (Offline Present with a missing clip is a desktop-shell state (Presenter view).) |
+| `md-esc` | re-shot | re-shot |

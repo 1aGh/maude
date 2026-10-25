@@ -11,8 +11,8 @@ cp "$H/impl/pairs.mjs" .scr/pairs.mjs
 if [ "$DIR" = 04-modes ]; then
   for t in dark light; do
     d=.scr/d6/04-modes
-    # web, post, story / teaser, poster (the order the round-7 sheet used)
-    magick montage -font /System/Library/Fonts/Helvetica.ttc "$d/md-edge-mixed-web-$t.jpg" "$d/md-edge-mixed-post-$t.jpg" "$d/md-edge-mixed-story-$t.jpg" "$d/md-edge-mixed-teaser-$t.jpg" "$d/md-edge-mixed-poster-$t.jpg" -tile 3x2 -geometry 720x450+6+6 -background "$([ $t = dark ] && echo '#0e1013' || echo '#d8dbe0')" "$d/md-edge-mixed-$t.jpg"
+    # web, post, story / teaser, poster (s04d order, round 8: + banner as the sixth part)
+    magick montage -font /System/Library/Fonts/Helvetica.ttc "$d/md-edge-mixed-web-$t.jpg" "$d/md-edge-mixed-post-$t.jpg" "$d/md-edge-mixed-story-$t.jpg" "$d/md-edge-mixed-poster-$t.jpg" "$d/md-edge-mixed-teaser-$t.jpg" "$d/md-edge-mixed-banner-$t.jpg" -tile 3x2 -geometry 720x450+6+6 -background "$([ $t = dark ] && echo '#0e1013' || echo '#d8dbe0')" "$d/md-edge-mixed-$t.jpg"
   done
 fi
 case "$DIR" in
