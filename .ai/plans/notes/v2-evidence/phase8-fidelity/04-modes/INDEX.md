@@ -208,6 +208,7 @@ IMPL re-shot, both themes, on the merged tip + p8-c7-modes. The committed `<id>-
 
 Final verification shoot on the merged tip after stage C round 7 (harness `_d5-harness-g2/`, a flattened copy of the newest per-canvas layers; shot on the Mac mini with Google Chrome, not the Playwright headless shell). Spec side reused (the boards `.design/ui/v2/03|04|06` are unchanged since 2026-10-19). Committed JPEG pairs overwritten (spec left | impl right). The critic judges; this builder does not.
 
+- md-edit-image was re-run once after the main chain with the six Photos seeded into the Assets panel (fixture only; the g5 site fixture had none, the board shows them).
 - Impl frames: scenarios s04a s04c s04v (Google Chrome, H.264) s04d s04k s04i (md-edit-image: Image slot pressed beside the Assets panel) both themes in one chain on the mini; md-edge-mixed is a contact sheet of the real Present frames per kind (assembled locally from the five per-kind frames); the extra-impl frames (md-comment-thread, md-edge-ai-after, md-present-video-play) were refreshed too.
 
 | id | dark | light |
