@@ -76,6 +76,17 @@
     color: var(--fg-1);
     font-size: var(--type-md, 15px);
   }
+  /* the chosen logo on the transparency checker (12 `.ia-logo`) */
+  .bi-drop-ic--logo {
+    overflow: hidden;
+    background: repeating-conic-gradient(var(--bg-3) 0 25%, var(--bg-2) 0 50%) 0 0 / 12px 12px;
+  }
+  .bi-drop-ic--logo img {
+    display: block;
+    max-width: 80%;
+    max-height: 80%;
+    object-fit: contain;
+  }
   .bi-drop-t {
     display: flex;
     flex: 1;
