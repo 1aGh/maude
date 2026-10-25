@@ -71,6 +71,20 @@ export interface HandoffRouteDeps {
   handoffs: Handoffs;
 }
 
+/** The labels of a canvas's artboards, in source order (09 ex-handoff: "Desktop, Tablet, Mobile"). First few only. */
+export function artboardLabels(source: string | null, max = 6): string[] {
+  if (!source) return [];
+  const out: string[] = [];
+  for (const m of source.matchAll(
+    /<DCArtboard\b[^>]*?\blabel=(?:"([^"]*)"|'([^']*)'|\{\s*(?:"([^"]*)"|'([^']*)')\s*\})/g
+  )) {
+    const label = (m[1] ?? m[2] ?? m[3] ?? m[4] ?? '').trim();
+    if (label) out.push(label.slice(0, 80));
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 const canvasOf = (deps: HandoffRouteDeps, file: string) =>
   deps.resolveCanvas
     ? deps.resolveCanvas(file)
@@ -221,7 +235,12 @@ export function createHandoffRoutes(deps: HandoffRouteDeps): RouteSpec[] {
         if (s instanceof Response) return s;
         const access = deps.access(req);
         return json(200, {
-          subject: { name: s.name, canvas: s.canvas, ds: s.ds },
+          subject: {
+            name: s.name,
+            canvas: s.canvas,
+            ds: s.ds,
+            boards: s.canvas ? artboardLabels(deps.readCanvas(s.canvas)) : [],
+          },
           targets: targetRows(deps, s),
           review: reviewOf(deps, s),
           connected: deps.aiConnected(),

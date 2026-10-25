@@ -273,7 +273,9 @@ export function HandoffSheet({
           <h2 className="ex-title" id="ho-title" data-testid="export-title">
             {handoffTitle(name)}
           </h2>
-          {handoffSub(ds) ? <p className="ex-sheet-sub">{handoffSub(ds)}</p> : null}
+          {handoffSub(ds, info?.subject?.boards) ? (
+            <p className="ex-sheet-sub">{handoffSub(ds, info?.subject?.boards)}</p>
+          ) : null}
         </div>
 
         {phase === 'pick' ? (
