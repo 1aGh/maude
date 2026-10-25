@@ -1608,28 +1608,33 @@ export default function TimelinePanel({
               {prepChip}
             </span>
           ) : null}
-          {(advOpen ? seq.keyframes : []).map((kf, k) => {
-            const l = ((kf.from - seq.from) / Math.max(1, seq.duration)) * 100;
-            const w = ((kf.to - kf.from) / Math.max(1, seq.duration)) * 100;
+          {/* 07 ve-advanced (P8 C10): a keyframe is a DIAMOND on the clip (the board's `.ve-kf`), one at each end of
+              its animated window, filled where the playhead is; a click picks the window whose curve the cards
+              show and seeks to that end. */}
+          {(advOpen ? seq.keyframes : []).flatMap((kf, k) => {
             // S7.18 — the markers show with Advanced open; a click picks the keyframe whose curve the foot shows
             const info = seq.keyframeInfo?.[k];
             const picked = !!info && adv.kf?.component === seq.label && adv.kf.index === info.index;
-            return (
-              <span
-                key={k}
-                className={`tl-kf${picked ? ' is-picked' : ''}`}
-                data-testid={`timeline-kf-${i}-${k}`}
-                style={{ left: `${clamp(l, 0, 100)}%`, width: `${Math.max(1.5, w)}%` }}
-                title={`seek to keyframe ${kf.from}f (animates ${kf.from}–${kf.to}f)`}
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (info)
-                    advancedStore.selectKeyframe({ component: seq.label, index: info.index });
-                  onSeek?.(kf.from);
-                }}
-              />
-            );
+            const ends = kf.to > kf.from ? [kf.from, kf.to] : [kf.from];
+            return ends.map((f, e) => {
+              const l = ((f - seq.from) / Math.max(1, seq.duration)) * 100;
+              return (
+                <span
+                  key={`${k}-${e}`}
+                  className={`tl-kf${picked ? ' is-picked' : ''}${clamped === f ? ' is-at' : ''}`}
+                  data-testid={e === 0 ? `timeline-kf-${i}-${k}` : `timeline-kf-${i}-${k}-to`}
+                  style={{ left: `${clamp(l, 0, 100)}%` }}
+                  title={`seek to keyframe ${f}f (animates ${kf.from}–${kf.to}f)`}
+                  onPointerDown={(ev) => ev.stopPropagation()}
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    if (info)
+                      advancedStore.selectKeyframe({ component: seq.label, index: info.index });
+                    onSeek?.(f);
+                  }}
+                />
+              );
+            });
           })}
           {(comments || [])
             .filter((c) => c.timeline?.clipStableId && c.timeline.clipStableId === seq.stableId)
