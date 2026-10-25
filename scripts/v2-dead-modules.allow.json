@@ -1,0 +1,11 @@
+{
+  "apps/studio/actions/uniqueness.ts": "invariant-1 lattice checker (one live binding per chord); imported by test/actions-uniqueness.test.ts, the shortcut-uniqueness gate — not shipped code",
+  "apps/studio/ai-banner.tsx": "kept on purpose by P8 C3 (03 ai-working) as the `ai-activity` reader that bridge/dgn-protocol.ts names as owner; test/gate-a-polish.test.tsx and p8-c3-ai.test.ts pin it",
+  "apps/studio/annotations/migrate-cli.ts": "run by hand (`bun apps/studio/annotations/migrate-cli.ts <designRoot> --in-place`) to convert committed v1 board fixtures; documented in its header",
+  "apps/studio/client/v2/advanced/where-matrix.js": "data table (S11.15 where-you-are matrix) held against the live surfaces by test/v2-where-matrix.test.ts and v2-rule-access-in-words.test.tsx — the proof, not a runtime module",
+  "apps/studio/client/v2/shell/dock-rail-homes.js": "data table (V2-4.4b) naming where each old dock / rail capability lives now; test/v2-right-islands.test.tsx checks every row against the source — a nothing-deleted proof, not a runtime module",
+  "apps/studio/ds/pin-scope.ts": "source of truth for the element-pin CSS scoper that plugins/design/templates/_shell.html mirrors between ds-pins:begin/end; test/ds-element-pin.test.ts holds the two equal (the shell template imports nothing)",
+  "apps/studio/examples/perf-100-artboards.tsx": "a hand-copied example canvas (examples/README.md), not an importable module",
+  "apps/studio/sync/materialize.ts": "canonical doc materializer, the convergence oracle of test/shared-doc-convergence.test.ts (DDR-064); test-time only by design",
+  "apps/studio/sync/writer-registry.ts": "the writer classification table the route scrapers read as data: test/sync-writer-registry.test.ts fails a mutating route that is not classified here"
+}
