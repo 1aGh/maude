@@ -1124,6 +1124,16 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
                 {row.recentWord}
               </span>
             ) : null}
+            {/* 11 pn-jump: an opened jump list says how many artboards it holds ("21", the board's row meta) */}
+            {row.jumpOpen && row.boardCount > 0 && !row.inPinned && !row.inRecent ? (
+              <span
+                className="cv-meta cv-meta--count"
+                data-testid={`${idPrefix}-count-${slug}`}
+                title={`${row.boardCount} artboards`}
+              >
+                {row.boardCount}
+              </span>
+            ) : null}
             {row.kindCount ? (
               <span
                 className="cv-meta cv-meta--count"
