@@ -245,6 +245,15 @@
     /* V2-4.3a: below the Share cluster (kit: 68px). */
     top: calc(var(--float-gap, 16px) + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
+  /* P8 r11 (03 `ai-long`): a full-height AI chat (`data-full`, AiChatIsland) reaches the top of its slot, so a folded
+     panel's icon at that corner stood on the chat's header and hid its Hide chevron. It stands beside the chat, on
+     the canvas side: the chat is 420 wide (or the slot, when wider — --rp-w / --sb-w) plus the slot's own gap. */
+  .st-body--float:has(> .st-dockslot--right:not(.is-hidden):not(.is-collapsed) .st-dockslot-ai:not([hidden]) > .ai-island[data-full="true"]) > .st-corner--right {
+    right: calc(max(var(--rp-w, 0px), 420px + var(--float-gap, 16px)) + var(--space-2, 8px));
+  }
+  .st-body--float:has(> .st-dockslot--left:not(.is-hidden):not(.is-collapsed) .st-dockslot-ai:not([hidden]) > .ai-island[data-full="true"]) > .st-corner--left {
+    left: calc(max(var(--sb-w, 0px), 420px + var(--float-gap, 16px)) + var(--space-2, 8px));
+  }
   .st-corner--ai {
     right: var(--float-gap, 16px);
     bottom: var(--float-gap, 16px);
