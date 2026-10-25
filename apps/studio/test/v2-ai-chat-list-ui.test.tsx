@@ -443,6 +443,17 @@ describe('Advanced: one quiet row; everything that was visible sits under it', (
     await m.act(async () => m.root.unmount());
   });
 
+  test('p8 c7b (06 ad-ai): Raw log, Copy transcript and Open in terminal each carry a glyph, as the board draws them', async () => {
+    const m = await mountAdvanced();
+    await m.act(async () => q('[data-testid="ai-advanced"]')?.click());
+    for (const id of ['ai-adv-raw-log', 'ai-adv-copy-transcript', 'ai-adv-open-terminal']) {
+      const b = q(`[data-testid="${id}"]`);
+      expect(b?.querySelector('svg'), id).not.toBeNull();
+      expect(b?.querySelector('svg')?.getAttribute('aria-hidden'), id).toBe('true');
+    }
+    await m.act(async () => m.root.unmount());
+  });
+
   test('Open in terminal says why when there is nothing to continue; it is absent outside the desktop app', async () => {
     const m = await mountAdvanced({
       openTerminal: async () => ({ ok: false, reason: 'no-session' }),
