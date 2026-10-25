@@ -213,6 +213,8 @@ function artboardEl(id: string): Element | null {
 
 /** How long the finish moment (settled ring + Before / After sweep) lasts before only the label mark is left. */
 export const FRESH_DONE_MS = 1800;
+/** How long the file-write rim stays hidden after the ring layer lets go (its own fade-out is ~200 ms + idle debounce). */
+const AI_LIVE_TAIL_MS = 4000;
 /** A "done" counts as just-finished when the artboard was a running ring this recently. */
 const FRESH_WINDOW_MS = 20_000;
 
@@ -293,6 +295,20 @@ export function ArtboardRingsLayer() {
     };
   }, [shellRings, drafted]);
   const ids = useMemo(() => Object.keys(rings), [rings]);
+
+  // P8 c6: the file-write rim (inspect.ts `.dc-activity-rim`) yields while this layer speaks for a run of yours
+  // (live, or inside the finish moment + a short tail while the file-activity fade ends).
+  const speaking = live || fresh.size > 0;
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const root = document.documentElement;
+    if (speaking) {
+      root.setAttribute('data-maude-ai-live', '');
+      return undefined;
+    }
+    const tail = setTimeout(() => root.removeAttribute('data-maude-ai-live'), AI_LIVE_TAIL_MS);
+    return () => clearTimeout(tail);
+  }, [speaking]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

@@ -34,6 +34,7 @@ import { activeComp, resolveCompTarget } from '../panels/timeline-comp-target.js
 import { useWhatsNew } from '../whats-new.jsx';
 import {
   createCanvasesFold,
+  isArtboardSelection,
   isFollowable,
   shouldCloseOnDeselect,
   shouldOpenOnSelect,
@@ -935,6 +936,7 @@ export function useShellCore({}) {
   // and only when the preference is on. Idempotent: once the inspector is open,
   // the `anyRightPanelOpen` guard stops it re-firing on the next selection.
   const inspectorAutoOpenedRef = useRef(false);
+  const lastFollowPickRef = useRef(null);
   const canvasesFold = useRef(createCanvasesFold());
   const maybeAutoOpenInspectorOnSelect = useCallback(
     (sel) => {
@@ -943,11 +945,18 @@ export function useShellCore({}) {
       // S3.11 — in Preview and Viewing the selection is an INSPECTION: its specs are the floating Inspect
       // panel (v2/inspect), not the docked Inspector, so the follow rule treats them like a viewer.
       const reads = modeShows(shellMode.get().mode, 'inspect-panel');
+      // P8 c6: the canvas re-announces the SAME selection after it reloads (an AI edit lands) — that is not a new
+      // pick, so it neither opens the Inspector the first pick left shut (the AI chat was open then) nor reopens
+      // one the person closed. The memory ends with the selection (effect below).
+      const pickKey = sel?.selector || sel?.id || null;
+      if (pickKey && pickKey === lastFollowPickRef.current) return;
+      lastFollowPickRef.current = pickKey;
       const open = shouldOpenOnSelect({
         pref: autoOpenInspectorRef.current,
         viewer: !!viewerMode || reads,
         hasId: isFollowable(sel), // an element with an id, or a whole artboard (V2-8.5 c3)
         anyMainOpen: anyRightPanelOpenRef.current,
+        askingAi: assistantOpenRef.current && isArtboardSelection(sel), // a whole-artboard pick with the chat open = the ask scope (board 03)
       });
       if (!open) return;
       inspectorAutoOpenedRef.current = true; // V2-4.4b — this appearance is the selection's; it leaves with it
@@ -970,6 +979,9 @@ export function useShellCore({}) {
     if (!inspectorOpen) inspectorAutoOpenedRef.current = false;
   }, [inspectorOpen]);
   const hasSelection = !!selected && (!Array.isArray(selected) || selected.length > 0);
+  useEffect(() => {
+    if (!hasSelection) lastFollowPickRef.current = null; // a new pick after a deselect follows again
+  }, [hasSelection]);
   useEffect(() => {
     if (hasSelection || !inspectorAutoOpenedRef.current) return;
     const close = shouldCloseOnDeselect({

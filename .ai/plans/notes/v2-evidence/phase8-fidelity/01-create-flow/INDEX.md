@@ -139,3 +139,19 @@ Final re-shoot D3 of the IMPL side on the merged `feat/maude-v2` tip 63592219a (
 | `cf-status-words` | re-shot | re-shot |  |
 | `cf-render-error` | re-shot | re-shot |  |
 | `cf-offline-create` | re-shot | re-shot |  |
+
+
+## Round 6 (p8-c6-aisurf, 89a794e96)
+
+Re-shot on the p8-c6-aisurf worktree tip, both themes, committed pairs overwritten (spec left | impl right). The critic judges; this builder does not.
+
+- Harness: `_c6-harness-g2/s01ai.mjs` (the D3 g1 script, `fake-acp` paths repointed to `.scr/impl`), run through the g2 `run.mjs` / `pairs.mjs` (impl frames are 1600x1000 jpg, spec side cropped to 1440x900).
+- Product (p8-c6-aisurf): the camera Fits whenever an artboard lands while a run of yours draws (`cf-ai-drafting.tablet` shows Desktop + Tablet at 39 %); the finish frame shows the "Made by AI" label only (no ring, no wash); the chat is titled from the ask while it runs; one hugging island.
+- Still open: the Mobile ghost + "AI is drawing Tablet" ring on the artboard being drawn (the ring layer has no hold for a blank-canvas run, so the file-write rim shows until the run ends); the generic follow-up row after a multi-artboard finish.
+
+| id | dark | light |
+|---|---|---|
+| `cf-ai-drafting` | re-shot (round 6) | re-shot (round 6) |
+| `cf-ai-done` | re-shot (round 6) | re-shot (round 6) |
+| `cf-undo-before` | re-shot (round 6) | re-shot (round 6) |
+| `cf-undo-ai` | re-shot (round 6) | re-shot (round 6) |

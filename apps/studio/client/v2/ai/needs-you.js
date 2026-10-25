@@ -72,6 +72,16 @@ function workWords(work, kind, toolVerb, target) {
   };
 }
 
+/**
+ * A tool title that is already a human sentence: a capitalised verb and at least one more plain word, no
+ * identifier punctuation (`Bash: ls`, `mcp__x__y`, paths). The verb phrase is what is said before " in/on/from/to ".
+ */
+function sentenceWork(raw) {
+  if (!raw || !/^[A-Z][a-z]+(\s[\w.'’-]+)+$/.test(raw) || /__|\//.test(raw)) return null;
+  const head = raw.split(/\s(?:in|on|from|to|of)\s/)[0];
+  return head.includes(' ') ? { verb: head } : null;
+}
+
 function canvasName(path) {
   if (typeof path !== 'string' || !path) return null;
   const base = path.split('/').pop() ?? path;
@@ -136,6 +146,15 @@ export function permissionModel(request, work = null) {
         ? 'Write'
         : (VERB_BY_KIND[toolCall.kind] ?? 'Allow');
     title = target ? `${verb} ${target}?` : raw ? `${verb} — ${raw}?` : `${verb}?`;
+    // P8 c6 (03 ai-permission): an unmapped tool whose own title already reads as the work ("Replace 4 team
+    // photos in Uniformy-2027") is asked as that sentence, never "Allow — <sentence>?"; the button names the work.
+    const said = !target && !VERB_BY_KIND[toolCall.kind] ? sentenceWork(raw) : null;
+    if (said) {
+      verb = said.verb;
+      title = `${raw}?`;
+      line = said.verb;
+      workApplied = true;
+    }
     // P8 C3 (03 ai-permission): the question is about the WORK, not the tool call - "Change Post and Story in
     // Combine-kampan?" with the button "Change 2 artboards", never "Edit Combine-kampan.tsx?". Only for a change
     // to a canvas file that says which artboards (or at least which canvas) it is; anything else keeps the tool words.

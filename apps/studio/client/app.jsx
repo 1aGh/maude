@@ -252,6 +252,9 @@ import { SyncStatesHost } from './v2/sync-states/conflict-card.jsx';
 import { panelOpenDecision, rightMainWidth, rightPanelWidth } from './v2/shell/panel-layout.js';
 import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/use-panel-layout.js';
 import { useFitOnAiPin } from './v2/shell/use-fit-on-ai-pin.js';
+import { useFitWhileAiDrafts } from './v2/shell/use-fit-while-ai-drafts.js';
+import { useAiRuns } from './v2/ai/runs-store.js';
+import { yoursCount } from './v2/ai/runs-model.js';
 import { useOccludedInsets } from './v2/shell/use-occluded-insets.js';
 import { useToolPanels } from './v2/shell/use-tool-panels.js';
 import { useAssetStateLane } from './v2/assets/asset-state-lane.js';
@@ -2799,6 +2802,7 @@ function ShellViewport() {
 function ShellTree() {
   const {
     shellCore: {
+      activeArtboards,
       activeComps,
       activePath,
       assistantBusy,
@@ -2958,6 +2962,13 @@ function ShellTree() {
     iframesRef,
     aiPinned:
       pinned && !panelsHidden && assistantOpen && (leftHostsAssistant || rightHostsAssistant),
+  });
+  // P8 c6 (01 cf-ai-drafting): while an AI run of yours draws, the camera frames every artboard that has landed
+  const { view: aiRunsView } = useAiRuns();
+  useFitWhileAiDrafts({
+    iframesRef,
+    count: activeArtboards,
+    working: yoursCount(aiRunsView) > 0,
   });
   useOccludedInsets({
     bodyRef,

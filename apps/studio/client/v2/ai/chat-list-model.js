@@ -26,6 +26,24 @@ export function cleanChatTitle(title) {
   return (i === -1 ? t : t.slice(0, i)).replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * P8 c6 (03 ai-working "Make it greener"): until the agent names the chat, the title is the first clause of the ask,
+ * at most 40 characters. A slash command is not an ask (the chat keeps "New chat").
+ */
+export function askTitle(text) {
+  const t = cleanChatTitle(text);
+  if (!t || t.startsWith('/')) return null;
+  const first = t.split(/\s*[,;—]\s*|\.\s+|\.$/)[0].trim();
+  if (!first) return null;
+  return first.length > 40 ? `${first.slice(0, 39).trimEnd()}…` : first;
+}
+
+/** The title a chat's live run gives it (`view.mine` rows carry `chatId` + `label`, the prompt), or null. */
+export function runTitleFor(view, chatId) {
+  const run = (view?.mine || []).find((r) => r?.chatId === chatId && r.label);
+  return run ? askTitle(run.label) : null;
+}
+
 const startOfDay = (t) => {
   const d = new Date(t);
   d.setHours(0, 0, 0, 0);

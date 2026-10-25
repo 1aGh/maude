@@ -5,6 +5,7 @@ import { ThreadPrimitive, useThread } from '@assistant-ui/react';
 import { StIcon } from '../../shell/icons.jsx';
 import { lastUserText } from '../../panels/acp-runtime.js';
 import { deriveSuggestions } from './suggest-why.js';
+import { useResultShown } from './result-shown.js';
 
 // Persistent quick-action verbs (prefill the composer; never fire blind). The
 // one-time `/design:setup-ds` is offered contextually in the empty state, not here.
@@ -87,8 +88,10 @@ export function SuggestStrip({
   justShared = null,
   enabled = true,
   lastFailed = false,
+  chatId = null,
 }) {
   const lastAsk = useThread((t) => lastUserText(t.messages) || '');
+  const resultShown = useResultShown(chatId);
   const sug = deriveSuggestions({
     enabled,
     openComments,
@@ -96,6 +99,7 @@ export function SuggestStrip({
     justShared,
     lastAsk: lastAsk ? { text: lastAsk } : null,
     lastFailed,
+    resultShown,
   });
   if (!sug) return null;
   return (

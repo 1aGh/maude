@@ -11,6 +11,7 @@
 import { groupLabel } from '../history/use-versions.js';
 import { humanize } from './runs-model.js';
 import { shortArtboardName } from './scope.js';
+import { askTopic } from './suggest-why.js';
 
 /** The run is on a turn (or about to be): the working line shows, with Stop. */
 export const WORKING_STATES = new Set(['starting', 'running']);
@@ -161,16 +162,27 @@ export const hasResultCard = (run) => resultVerbs(run).length > 0 || runCutShort
 export const runCutShort = (run) =>
   !!run && run.state === 'ended' && (run.outcome === 'stopped' || run.outcome === 'interrupted');
 
-/** Follow-ups after a one-artboard change: "Same on <another artboard>" for up to two untouched ones. */
+/**
+ * Follow-ups after a one-artboard change (03 `ai-done`: "Same on Story 9:16 · A darker green"): ONE "Same on
+ * <another artboard>", then a variation of what was asked when its topic is known (colour → a darker shade,
+ * text → a bit larger). A second "Same on" or a generic "Try a variation" is not drawn.
+ */
 export function followUps(run, artboards = [], max = 2) {
   if (run?.state !== 'ended' || run.outcome !== 'done' || !changedSomething(run)) return [];
   const touched = touchedIds(run);
   if (touched.length !== 1) return [];
-  return (artboards || [])
-    .filter((a) => a?.id && !touched.includes(a.id))
-    .slice(0, max)
-    .map((a) => `Same on ${shortArtboardName(a.label ?? a.id)}`);
+  const other = (artboards || []).find((a) => a?.id && !touched.includes(a.id));
+  const out = other ? [`Same on ${shortArtboardName(other.label ?? other.id)}`] : [];
+  const topic = askTopic(run.label);
+  if (topic === 'colour') out.push('A darker shade');
+  else if (topic === 'text') out.push('A bit larger');
+  return out.slice(0, max);
 }
+
+/** Below this many steps the "What AI did" fold has nothing worth unfolding (03 draws it on the 4- and 6-step recap runs only). */
+export const FOLD_MIN_STEPS = 4;
+export const foldedSteps = (steps) =>
+  Array.isArray(steps) && steps.length >= FOLD_MIN_STEPS ? steps : [];
 
 /** "What AI did · 6 steps · 41 s" — the fold's summary line. */
 export function stepsSummary(steps, run) {

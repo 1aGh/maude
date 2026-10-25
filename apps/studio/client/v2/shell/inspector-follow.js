@@ -20,9 +20,17 @@ export function isFollowable(sel) {
   return !!sel?.id || ARTBOARD_SELECTOR.test(sel?.selector || '');
 }
 
-/** @param {{pref: boolean, viewer: boolean, hasId: boolean, anyMainOpen: boolean}} s */
-export function shouldOpenOnSelect({ pref, viewer, hasId, anyMainOpen }) {
-  return !!pref && !viewer && !!hasId && !anyMainOpen;
+/** A whole-artboard pick (its selector names the screen), as against an element inside it. */
+export const isArtboardSelection = (sel) => ARTBOARD_SELECTOR.test(sel?.selector || '');
+
+/**
+ * `askingAi` (P8 c6, board 03): the AI chat is open and the pick is a WHOLE artboard. That pick is the ask's
+ * scope ("Post 1:1" on the chip), not an edit, and every board-03 frame shows it with the chat and no Inspector.
+ * An element with an id still follows with the chat open (01 cf-select-tweak draws both).
+ * @param {{pref: boolean, viewer: boolean, hasId: boolean, anyMainOpen: boolean, askingAi?: boolean}} s
+ */
+export function shouldOpenOnSelect({ pref, viewer, hasId, anyMainOpen, askingAi }) {
+  return !!pref && !viewer && !!hasId && !anyMainOpen && !askingAi;
 }
 
 /** @param {{pref: boolean, autoOpened: boolean, hasSelection: boolean}} s */
