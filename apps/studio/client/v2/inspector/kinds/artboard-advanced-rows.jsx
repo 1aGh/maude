@@ -24,7 +24,7 @@ import { ArtboardSpacingRows } from './artboard.jsx';
  *  (client/v2/kinds/advanced-rows.js, S7.23); here it keeps Clip content and Kind. */
 const OWN_ROWS = new Set(['web', 'digital', 'video', 'print']);
 
-export function ArtboardAdvancedRows({ el, ctx }) {
+export function ArtboardAdvancedRows({ el, ctx, digital = false }) {
   const { f, id, can, resize, commitHeight } = useArtboardWrites(el, ctx);
   const h = handlersOf(ctx);
   const file = el?.file ?? ctx?.canvasFile ?? null;
@@ -74,13 +74,16 @@ export function ArtboardAdvancedRows({ el, ctx }) {
           onChange={setKind}
         />
       </Row>
-      {(f.kind === 'print' ? [] : advancedFacts(f, { ...video, linkedTo })).map(([k, v]) => (
-        <Row key={k} k={k} name={`ab-fact-${k}`}>
-          <span className="insp-ro" data-testid={`insp-ab-fact-${k}`}>
-            {v}
-          </span>
-        </Row>
-      ))}
+      {/* a Fixed size's kind / width / height are said once, as Exact size (06 ad-pinned) */}
+      {(f.kind === 'print' || digital ? [] : advancedFacts(f, { ...video, linkedTo })).map(
+        ([k, v]) => (
+          <Row key={k} k={k} name={`ab-fact-${k}`}>
+            <span className="insp-ro" data-testid={`insp-ab-fact-${k}`}>
+              {v}
+            </span>
+          </Row>
+        )
+      )}
     </div>
   );
 }

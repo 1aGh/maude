@@ -15,6 +15,7 @@ import { canvasNamesBySlug } from './sync-details/sync-details-model.js';
 
 const REVEAL_LOGS = 'diag.logs-show-in-finder';
 const RESYNC_POLL_MS = 1500;
+const LOGS_POLL_MS = 5000;
 
 export default function DiagnosticsHost({ toast }) {
   const {
@@ -64,6 +65,13 @@ export default function DiagnosticsHost({ toast }) {
   useEffect(() => {
     if (open) load();
   }, [open, load]);
+  // 06 ad-logs draws no Refresh button: the Logs box is a live tail instead (re-read every few seconds while it
+  // is in view), so the one thing the button did is still done, without a control the board does not have.
+  useEffect(() => {
+    if (!open || view !== 'logs') return undefined;
+    const t = setInterval(load, LOGS_POLL_MS);
+    return () => clearInterval(t);
+  }, [open, view, load]);
 
   // S11.11 — the last Resync's trace while the Sync tab is in view (it can be started from the menu,
   // ⌘K, the old panel's button or `maude design sync resync`; the server keeps one trace for all).
@@ -145,7 +153,6 @@ export default function DiagnosticsHost({ toast }) {
       }}
       data={data}
       error={error}
-      onRefresh={load}
       onCopyLogs={onCopyLogs}
       onReveal={onReveal}
       onCopy={onCopy}

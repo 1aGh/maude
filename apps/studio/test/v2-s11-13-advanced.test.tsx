@@ -58,7 +58,6 @@ describe('the model carries 06 ad-settings', () => {
       'settings-reset-panel-layout',
       'settings-reset-folds',
       'settings-reset-all',
-      'settings-fold-<id>',
     ])
       expect(ids, want).toContain(want);
     for (const r of SETTINGS_ROWS.filter((x) => x.section === 'advanced'))
@@ -477,25 +476,21 @@ describe('Reset', () => {
     expect(foldStore.openIds()).toEqual([]);
   });
 
-  test('the per-fold list has one switch per fold, in step with the store', async () => {
+  test('06 ad-settings › Reset is ONE row of three buttons — no per-fold switch list, the third is the warning', async () => {
     await mount();
-    const row = (id: string) =>
-      q(`settings-fold-${id}`)?.querySelector('input') as HTMLInputElement;
-    for (const id of FOLD_PANELS) expect(row(id), id).toBeTruthy();
-    expect(row('inspector').checked).toBe(false);
-    await click(row('inspector'));
-    expect(foldStore.get('inspector')).toBe(true);
-    expect(row('inspector').checked).toBe(true);
-    // an id remembered later joins the list
-    await act(async () => {
-      foldStore.set('future.panel', true);
-    });
-    expect(row('future.panel').checked).toBe(true);
-    // and a fold opened elsewhere flips its switch
-    await act(async () => {
-      foldStore.set('inspector', false);
-    });
-    expect(row('inspector').checked).toBe(false);
+    const group = q('settings-reset') as HTMLElement;
+    const btns = [...group.querySelectorAll('button')].map((b) => b.textContent);
+    expect(btns).toEqual([
+      'Reset panel layout',
+      'Close all Advanced sections',
+      'Reset all settings…',
+    ]);
+    expect(group.querySelector('.v2s-acts')).toBeTruthy();
+    expect(q('settings-reset-all-btn')?.className).toContain('v2s-warn');
+    // the "Open now, on this Mac" list of ad-edge-remember is not drawn here
+    expect(q('settings-fold-list-t')).toBeNull();
+    expect(group.querySelector('[data-testid^="settings-fold-"]')).toBeNull();
+    expect(group.textContent).toContain('⌘K “open advanced” opens them all, once.');
   });
 
   test('Reset all settings… asks first: a dialog titled with its verb, Cancel writes nothing', async () => {

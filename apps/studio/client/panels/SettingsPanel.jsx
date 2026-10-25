@@ -246,53 +246,60 @@ export function TranscriptionEngineCard() {
     }
   }
 
+  // 06 ad-settings: the engine is ONE select row ("Subtitles · Auto"); what Auto resolves to and the save
+  // outcome ride under it as hints. Maude never switches engines behind your back — a pinned choice stays.
   return (
-    <div className="st-provider-card">
-      <div className="st-provider-hd">
-        <span className="st-provider-name">Subtitles — transcription engine</span>
-      </div>
-      <div className="st-provider-notes">
-        Which engine turns audio into subtitles. Maude never switches engines behind your back — pin
-        one, or pick <strong>Auto</strong> and it uses the best you're set up for and says so.
-      </div>
+    <div className="v2s-eng" data-testid="settings-transcription-select">
+      <label className="v2s-row">
+        <span className="v2s-row-t">
+          <span className="v2s-row-k">Subtitles</span>
+        </span>
+        <select
+          className="v2s-select"
+          aria-label="Transcription engine"
+          data-testid="settings-transcription-engine"
+          value={engine ?? 'auto'}
+          disabled={busy || engine === null}
+          onChange={(e) => choose(e.target.value)}
+        >
+          {TRANSCRIPTION_ENGINES.map((e) => (
+            <option key={e.id} value={e.id} title={e.note}>
+              {e.label}
+            </option>
+          ))}
+        </select>
+      </label>
       {engine === 'auto' && auto && (
-        <div className="st-provider-notes">
+        <p className="v2s-hint">
           Right now Auto uses <strong>{ENGINE_LABELS[auto.engine] || auto.engine}</strong> —{' '}
           {auto.reason}
           {auto.cloud && ' Audio is uploaded to that provider and billed to your account.'}
-        </div>
+        </p>
       )}
-      <div
-        className="st-engine-radios"
-        role="radiogroup"
-        aria-label="Transcription engine"
-        data-testid="settings-transcription-engine"
-      >
-        {TRANSCRIPTION_ENGINES.map((e) => (
-          <label key={e.id} className={'st-engine-radio' + (engine === e.id ? ' is-selected' : '')}>
-            <input
-              type="radio"
-              name="transcription-engine"
-              value={e.id}
-              checked={engine === e.id}
-              disabled={busy || engine === null}
-              onChange={() => choose(e.id)}
-            />
-            <span className="st-engine-radio-body">
-              <span className="st-engine-radio-label">{e.label}</span>
-              <span className="st-engine-radio-note">{e.note}</span>
-            </span>
-          </label>
-        ))}
-      </div>
       {status && (
-        <div
-          className="st-provider-status"
-          style={{ color: status.ok ? 'var(--accent)' : 'var(--danger, #e5484d)' }}
-        >
+        <p className="v2s-hint" role="status" data-ok={status.ok ? 'true' : 'false'}>
           {status.msg}
-        </div>
+        </p>
       )}
+    </div>
+  );
+}
+
+// 06 ad-settings `ModelCard`: a quiet box per model — name + size on the first line, the status word and ONE
+// action on the second. The note rides the tooltip (the board draws none); install commands sit under the list.
+function ModelBox({ name, size, tone, word, action, title, testid }) {
+  return (
+    <div className="v2s-model" data-testid={testid} title={title}>
+      <span className="v2s-model-hd">
+        <strong>{name}</strong>
+        <span className="v2s-model-sz">{size}</span>
+      </span>
+      <span className="v2s-model-st">
+        <span className="dg-word" data-tone={tone}>
+          {word}
+        </span>
+        {action}
+      </span>
     </div>
   );
 }
@@ -358,14 +365,58 @@ export function WhisperModelCard() {
   const modelsReady = (state?.models || []).some((m) => m.downloaded);
 
   return (
-    <div className="st-provider-card">
-      <div className="st-provider-hd">
-        <span className="st-provider-name">Local subtitle models (whisper.cpp)</span>
-      </div>
-      <div className="st-provider-notes">
-        Local subtitles need two things: the whisper.cpp engine and one model. Models are stored on
-        this machine only and never committed.
-      </div>
+    <div className="v2s-models" data-testid="settings-whisper-models">
+      {state === null && !err && <p className="v2s-hint">Loading…</p>}
+      {err && (
+        <p className="v2s-hint" role="alert" data-ok="false">
+          {err}
+        </p>
+      )}
+      {dl?.error && (
+        <p className="v2s-hint" role="alert" data-ok="false">
+          Download of {dl.id} failed: {dl.error}
+        </p>
+      )}
+      {(state?.models || []).map((m) => {
+        const busy = dl && !dl.error && dl.id === m.id;
+        return (
+          <ModelBox
+            key={m.id}
+            testid={`settings-whisper-model-${m.id}`}
+            name={`whisper.cpp · ${m.label}`}
+            size={`${m.sizeMB} MB`}
+            title={m.note}
+            tone={m.downloaded ? 'ok' : busy ? 'info' : 'off'}
+            word={
+              m.downloaded
+                ? 'On this Mac'
+                : busy
+                  ? `Downloading… ${pctOf(dl.received, dl.total)}%`
+                  : 'Not downloaded'
+            }
+            action={
+              m.downloaded ? (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  onClick={() => remove(m.id)}
+                >
+                  Remove
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  disabled={!!(dl && !dl.error)}
+                  onClick={() => download(m.id)}
+                >
+                  {busy ? 'Downloading…' : 'Download'}
+                </button>
+              )
+            }
+          />
+        );
+      })}
       {state && (
         <div className="st-setup">
           <div className={`st-step${state.setup?.installed ? ' is-done' : ''}`}>
@@ -394,7 +445,7 @@ export function WhisperModelCard() {
             <span className="st-step-n">{modelsReady ? '✓' : '2'}</span>
             <div className="st-step-body">
               <span className="st-step-title">
-                {modelsReady ? 'Model ready' : 'Download a model (below)'}
+                {modelsReady ? 'Model ready' : 'Download a model (above)'}
               </span>
             </div>
           </div>
@@ -415,62 +466,6 @@ export function WhisperModelCard() {
           )}
         </div>
       )}
-      {err && (
-        <div className="st-provider-status" style={{ color: 'var(--danger, #e5484d)' }}>
-          {err}
-        </div>
-      )}
-      {dl?.error && (
-        <div className="st-provider-status" style={{ color: 'var(--danger, #e5484d)' }}>
-          Download of {dl.id} failed: {dl.error}
-        </div>
-      )}
-      {state === null && !err && <div className="st-settings-intro">Loading…</div>}
-      <div className="st-model-list">
-        {(state?.models || []).map((m) => {
-          const busy = dl && !dl.error && dl.id === m.id;
-          return (
-            <div key={m.id} className="st-model-row">
-              <div className="st-model-info">
-                <span className="st-model-label">
-                  {m.label}
-                  <span className={'st-pill' + (m.multilingual ? '' : ' is-local')}>
-                    {m.multilingual ? 'multilingual' : 'English-only'}
-                  </span>
-                  <span className="st-model-size">~{m.sizeMB} MB</span>
-                </span>
-                <span className="st-engine-radio-note">{m.note}</span>
-                {busy && (
-                  <span className="st-model-progress">
-                    Downloading… {pctOf(dl.received, dl.total)}%
-                  </span>
-                )}
-              </div>
-              <div className="st-model-actions">
-                {m.downloaded ? (
-                  <>
-                    <span className="st-provider-configured">
-                      <Icon name="check" size={12} /> ready
-                    </span>
-                    <button type="button" className="st-btn" onClick={() => remove(m.id)}>
-                      Remove
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    className="st-btn"
-                    disabled={!!(dl && !dl.error)}
-                    onClick={() => download(m.id)}
-                  >
-                    {busy ? 'Downloading…' : 'Download'}
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -530,46 +525,32 @@ export function KeyframeEngineCard() {
     }
   }
 
+  // 06 ad-settings: "Video keyframes · Auto" is one select row; an unavailable pick says how to fix it under it.
   return (
-    <div className="st-provider-card">
-      <div className="st-provider-hd">
-        <span className="st-provider-name">Scene-aware keyframes — analysis engine</span>
-      </div>
-      <div className="st-provider-notes">
-        How Maude picks frames when it analyzes a video (`/design:video-analyze`, `/design:reel`).
-        Scene-aware beats a blind frame rate. This is an explicit choice — a chosen-but-unavailable
-        engine tells you how to fix it; <strong>Auto</strong> just uses the best you have installed.
-      </div>
-      <div
-        className="st-engine-radios"
-        role="radiogroup"
-        aria-label="Keyframe engine"
-        data-testid="settings-keyframe-engine"
-      >
-        {KEYFRAME_ENGINES.map((e) => (
-          <label key={e.id} className={'st-engine-radio' + (engine === e.id ? ' is-selected' : '')}>
-            <input
-              type="radio"
-              name="keyframe-engine"
-              value={e.id}
-              checked={engine === e.id}
-              disabled={busy || engine === null}
-              onChange={() => choose(e.id)}
-            />
-            <span className="st-engine-radio-body">
-              <span className="st-engine-radio-label">{e.label}</span>
-              <span className="st-engine-radio-note">{e.note}</span>
-            </span>
-          </label>
-        ))}
-      </div>
-      {status && (
-        <div
-          className="st-provider-status"
-          style={{ color: status.ok ? 'var(--accent)' : 'var(--danger, #e5484d)' }}
+    <div className="v2s-eng" data-testid="settings-keyframe-select">
+      <label className="v2s-row">
+        <span className="v2s-row-t">
+          <span className="v2s-row-k">Video keyframes</span>
+        </span>
+        <select
+          className="v2s-select"
+          aria-label="Keyframe engine"
+          data-testid="settings-keyframe-engine"
+          value={engine ?? 'auto'}
+          disabled={busy || engine === null}
+          onChange={(e) => choose(e.target.value)}
         >
+          {KEYFRAME_ENGINES.map((e) => (
+            <option key={e.id} value={e.id} title={e.note}>
+              {e.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      {status && (
+        <p className="v2s-hint" role="status" data-ok={status.ok ? 'true' : 'false'}>
           {status.msg}
-        </div>
+        </p>
       )}
     </div>
   );
@@ -758,87 +739,68 @@ export function GemmaModelCard() {
       : 'blind (even-spaced)';
 
   return (
-    <div className="st-provider-card">
-      <div className="st-provider-hd">
-        <span className="st-provider-name">Gemma scout model (optional)</span>
-      </div>
-      <div className="st-provider-notes">
-        Adds semantic action-beat detection on top of scene cuts. Two short steps in a terminal —
-        Maude picks the result up on its own.
-      </div>
+    <div className="v2s-models" data-testid="settings-gemma-models">
       {state && !scoutReady && <SetupSteps state={state} />}
       {state && (
-        <div className="st-provider-notes">
+        <p className="v2s-hint">
           Active tier on this machine: <strong>{activeTier}</strong>
           {scoutReady && !mlx && ' — Ollama manages its own models, nothing to download below.'}
-        </div>
+        </p>
       )}
       {err && (
-        <div className="st-provider-status" style={{ color: 'var(--danger, #e5484d)' }}>
+        <p className="v2s-hint" role="alert" data-ok="false">
           {err}
-        </div>
+        </p>
       )}
       {dl?.error && (
-        <div className="st-provider-status" style={{ color: 'var(--danger, #e5484d)' }}>
+        <p className="v2s-hint" role="alert" data-ok="false">
           Download of {dl.id} failed: {dl.error}
-        </div>
+        </p>
       )}
-      {state === null && !err && <div className="st-settings-intro">Loading…</div>}
-      <div className="st-model-list">
-        {(state?.models || []).map((m) => {
-          const busy = dl && !dl.error && dl.id === m.id;
-          const runtimeReady = m.runtime === 'ollama' ? Boolean(ollama?.available) : Boolean(mlx);
-          const blockedNote =
-            m.runtime === 'ollama'
-              ? ollama?.installed
-                ? 'start Ollama first'
-                : 'needs Ollama'
-              : 'needs mlx-vlm';
-          return (
-            <div key={m.id} className="st-model-row">
-              <div className="st-model-info">
-                <span className="st-model-label">
-                  {m.label}
-                  <span className="st-model-size">~{Math.round(m.sizeMB / 100) / 10} GB</span>
-                </span>
-                <span className="st-engine-radio-note">{m.note}</span>
-                {busy && (
-                  <span className="st-model-progress">
-                    {m.runtime === 'ollama' ? 'Pulling' : 'Downloading'}…{' '}
-                    {pctOf(dl.received, dl.total)}%
-                  </span>
-                )}
-              </div>
-              <div className="st-model-actions">
-                {m.downloaded ? (
-                  <span className="st-provider-configured">
-                    <Icon name="check" size={12} /> ready
-                  </span>
-                ) : (
-                  // Each row is enabled by ITS OWN runtime — an Ollama model is
-                  // one click whenever Ollama is running (the server pulls it
-                  // through /api/pull); an mlx snapshot needs mlx-vlm. The
-                  // button keeps its label and just goes disabled, with the
-                  // reason in small type underneath.
-                  <span className="st-model-action">
-                    <button
-                      type="button"
-                      className="st-btn"
-                      disabled={!runtimeReady || !!(dl && !dl.error)}
-                      onClick={() => download(m.id)}
-                    >
-                      {busy ? 'Downloading…' : 'Download'}
-                    </button>
-                    {runtimeReady ? null : (
-                      <span className="st-model-action-note">{blockedNote}</span>
-                    )}
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {state === null && !err && <p className="v2s-hint">Loading…</p>}
+      {(state?.models || []).map((m) => {
+        const busy = dl && !dl.error && dl.id === m.id;
+        const runtimeReady = m.runtime === 'ollama' ? Boolean(ollama?.available) : Boolean(mlx);
+        const blockedNote =
+          m.runtime === 'ollama'
+            ? ollama?.installed
+              ? 'start Ollama first'
+              : 'needs Ollama'
+            : 'needs mlx-vlm';
+        return (
+          <ModelBox
+            key={m.id}
+            testid={`settings-gemma-model-${m.id}`}
+            name={m.label}
+            size={`${Math.round(m.sizeMB / 100) / 10} GB`}
+            title={m.note}
+            tone={m.downloaded ? 'ok' : busy ? 'info' : 'off'}
+            word={
+              m.downloaded
+                ? 'On this Mac'
+                : busy
+                  ? `${m.runtime === 'ollama' ? 'Pulling' : 'Downloading'}… ${pctOf(dl.received, dl.total)}%`
+                  : runtimeReady
+                    ? 'Not downloaded'
+                    : blockedNote
+            }
+            action={
+              m.downloaded ? null : (
+                // Each row is enabled by ITS OWN runtime — an Ollama model is one click whenever Ollama is
+                // running (the server pulls it through /api/pull); an mlx snapshot needs mlx-vlm.
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  disabled={!runtimeReady || !!(dl && !dl.error)}
+                  onClick={() => download(m.id)}
+                >
+                  {busy ? 'Downloading…' : 'Download'}
+                </button>
+              )
+            }
+          />
+        );
+      })}
     </div>
   );
 }

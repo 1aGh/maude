@@ -83,7 +83,7 @@ function Row({ id, k, children, mono, copy, onCopy }) {
 
 // ── Logs ──────────────────────────────────────────────────────────────────────────────────────
 
-function LogsView({ data, error, onRefresh, onCopyLogs, onReveal, current }) {
+function LogsView({ data, error, onCopyLogs, onReveal, current }) {
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
   const lines = logLines(data?.sources, { filter, query });
@@ -118,16 +118,6 @@ function LogsView({ data, error, onRefresh, onCopyLogs, onReveal, current }) {
             onChange={(e) => setQuery(e.target.value)}
           />
         </label>
-        <button
-          type="button"
-          className="dg-btn dg-btn--icon icon-btn k-icon-sm"
-          data-testid="diag-logs-refresh"
-          aria-label="Refresh logs"
-          title="Refresh logs"
-          onClick={onRefresh}
-        >
-          <StIcon name="reload" size={14} />
-        </button>
         <button
           type="button"
           className="dg-btn btn btn--ghost btn--sm"
@@ -483,7 +473,6 @@ export default function DiagnosticsSheet({
   words,
   data,
   error,
-  onRefresh,
   onCopyLogs,
   onReveal,
   onCopy,
@@ -533,7 +522,6 @@ export default function DiagnosticsSheet({
             <LogsView
               data={data}
               error={error}
-              onRefresh={onRefresh}
               onCopyLogs={onCopyLogs}
               onReveal={onReveal}
               current={view === 'logs'}

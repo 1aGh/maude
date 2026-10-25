@@ -10,8 +10,8 @@
 //           passes `lastGood` ("Last good version · 6 Oct, 14:05") and `onGoBack` (`history.go-back`).
 //
 // Everyone gets the same three things up front — what happened, that nothing is lost, ONE way out. The
-// technical part (the error, the exact line with a caret, Open in editor, Copy error, Last good version,
-// Reload canvas) sits in the "Show details" fold, the only place mono appears.
+// technical part (the error, the exact line with a caret, Open in editor, Copy error, Last good version;
+// Reload canvas only when no mistake is on record) sits in the "Show details" fold, the only place mono appears.
 //
 // The error text is untrusted (it quotes a file anyone could have written): every string is drawn as a
 // React text node and handed to the clipboard / the composer as plain text. "Ask AI to fix it" PRE-FILLS
@@ -31,6 +31,7 @@ import {
   goBackToLastGood,
   useCanvasError,
   useCanvasSource,
+  useGhostBoxes,
   whereLabel,
 } from './use-canvas-source.js';
 
@@ -283,7 +284,10 @@ export function CanvasErrorCard({
               Last good version
             </button>
           ) : null}
-          {onReload ? (
+          {/* 06 ad-edge-syntax draws no Reload canvas: with a mistake on record the way out is the fix (or the last
+              good version), and Reload canvas stays at Menu › Diagnostics (⌘R). It is the one way out only when
+              the load failed and the server knows of no mistake. */}
+          {onReload && !error ? (
             <button
               type="button"
               className="btn btn--ghost btn--sm"
@@ -296,6 +300,43 @@ export function CanvasErrorCard({
         </div>
       </AdvancedFold>
     </section>
+  );
+}
+
+/**
+ * 06 `ad-edge-syntax`: the boards the canvas had when it last drew, dimmed behind the card — dashed outlines at
+ * their stored layout, fitted to the viewport. Layout only: there is no last-good render of a file that no longer
+ * compiles, so nothing here pretends to show one. Absent when the canvas has no stored layout.
+ */
+export function LastGoodGhosts({ boxes }) {
+  if (!boxes || boxes.length === 0) return null;
+  const x0 = Math.min(...boxes.map((b) => b.x));
+  const y0 = Math.min(...boxes.map((b) => b.y));
+  const x1 = Math.max(...boxes.map((b) => b.x + b.w));
+  const y1 = Math.max(...boxes.map((b) => b.y + b.h));
+  const pad = Math.max(x1 - x0, y1 - y0) * 0.08;
+  return (
+    <svg
+      className="v2-err-ghosts"
+      data-testid="canvas-error-ghosts"
+      aria-hidden="true"
+      focusable="false"
+      viewBox={`${x0 - pad} ${y0 - pad} ${x1 - x0 + 2 * pad} ${y1 - y0 + 2 * pad}`}
+      preserveAspectRatio="xMidYMid meet"
+    >
+      {boxes.map((b) => (
+        <rect
+          key={`${b.id}@${b.x},${b.y}`}
+          className="v2-err-ghost"
+          x={b.x}
+          y={b.y}
+          width={b.w}
+          height={b.h}
+          rx="4"
+          vectorEffect="non-scaling-stroke"
+        />
+      ))}
+    </svg>
   );
 }
 
@@ -320,6 +361,7 @@ export function CanvasLoadFailure({
   fetchImpl,
 }) {
   const err = useCanvasError({ canvas, fetchImpl });
+  const ghosts = useGhostBoxes({ canvas, fetchImpl });
   const error = err.status === 'ok' ? err.error : null;
   // Context lines come from the source — for people who may read it (Can view gets the one quoted line).
   const src = useCanvasSource({ canvas, enabled: !!error?.line, fetchImpl });
@@ -346,17 +388,20 @@ export function CanvasLoadFailure({
     );
   }
   return (
-    <CanvasErrorCard
-      canvas={canvas}
-      kind="syntax"
-      error={error}
-      lines={lines}
-      askAiAvailable={askAiAvailable}
-      onAskAi={onAskAi}
-      onOpenInEditor={openInEditor}
-      onGoBack={canEdit ? goBack : undefined}
-      onReload={onReload}
-      onCopy={onCopy}
-    />
+    <>
+      <LastGoodGhosts boxes={ghosts} />
+      <CanvasErrorCard
+        canvas={canvas}
+        kind="syntax"
+        error={error}
+        lines={lines}
+        askAiAvailable={askAiAvailable}
+        onAskAi={onAskAi}
+        onOpenInEditor={openInEditor}
+        onGoBack={canEdit ? goBack : undefined}
+        onReload={onReload}
+        onCopy={onCopy}
+      />
+    </>
   );
 }

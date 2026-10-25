@@ -212,6 +212,23 @@
       var(--shadow-lg),
       inset 0 0 0 0.5px var(--island-edge, var(--border-default));
     color: var(--fg-0);
+    position: relative; /* above the last-good ghosts */
+    z-index: 1;
+  }
+  /* 06 ad-edge-syntax: the last-good boards, dimmed behind the card (`.ad-ghost`) */
+  .v2-err-ghosts {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .v2-err-ghost {
+    fill: var(--bg-1);
+    stroke: var(--border-strong);
+    stroke-width: 1.5px;
+    stroke-dasharray: 5 4;
+    opacity: 0.6;
   }
   .v2-err-hd {
     display: flex;

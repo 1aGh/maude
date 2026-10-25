@@ -302,20 +302,15 @@ export const SETTINGS_ROWS = Object.freeze([
     local: true,
   },
   {
-    // The per-fold switch list (ad-edge-remember): one switch per fold, `settings-fold-<id>`.
-    nd: null,
-    section: 'advanced',
-    testid: 'settings-fold-<id>',
-    where: 'Settings › Advanced › Reset › Open now, on this Mac',
-    local: true,
-  },
-  {
     // V2-4.10 (06 ad-settings › Reset, ad-edge-remember): the Advanced folds are remembered per panel per
     // Mac; this folds them all again. Its ⌘K twin is "Close all Advanced sections" (view.advanced-close-all).
     nd: null,
     section: 'advanced',
     testid: 'settings-reset-folds',
     where: 'Settings › Advanced › Reset › Close all Advanced sections',
+    // ⌘K lists the action itself (06 ad-search draws it once, path "Settings › Advanced › Reset"): this row stays
+    // in the sheet and in the parity table but is not a second search result.
+    searchTwin: 'view.advanced-close-all',
     local: true,
   },
 ]);
