@@ -63,6 +63,8 @@ const MODULE_EXT_RE = /\.(tsx|ts|jsx|js|mjs|cjs)$/i;
  * frame, so it blocks the grant like an imported canvas.
  */
 const IMPORTABLE_EXT_RE = /\.(tsx|ts|jsx|js|mjs|cjs|css|json)$/i;
+/** A design system's own folder — exactly one segment under `system/` (V2-8.9 defender L3). */
+const DS_SYSTEM_PATH_RE = /^system\/[^/]+$/;
 /** A specifier with an extension of its own (`./data.json`, `./logo.svg`): the exact file. */
 const ANY_EXT_RE = /\/[^/]*[^/.]\.[A-Za-z0-9]+$/;
 
@@ -732,7 +734,13 @@ function walkImports(
           .map((s) => s.rel)
           .filter((r) => env.files.has(r))
       : [];
-  const ownBoard = sys !== null && canvas === `${sys.path}/${DS_BOARD_FILE}`;
+  // V2-8.9 defender L3: sys.path is read from the peer-writable config.json, so the board rule
+  // holds only for a real system folder (`system/<one segment>`) and only its own files — a path of
+  // bare `system` would otherwise admit every other system's specimens to that one grant.
+  const ownBoard =
+    sys !== null && DS_SYSTEM_PATH_RE.test(sys.path) && canvas === `${sys.path}/${DS_BOARD_FILE}`;
+  const ownSurface = (dep: string): boolean =>
+    ownBoard && dep.startsWith(`${sys?.path}/`) && isDsSurfaceRel(dep);
   const seen = new Set<string>();
   const visited: Array<{ rel: string; text: string }> = [];
   while (queue.length) {
@@ -745,7 +753,7 @@ function walkImports(
     if (rel === canvas)
       for (const dep of specimens) {
         if (seen.has(dep)) continue;
-        if ((ownBoard && isDsSurfaceRel(dep)) || importable(dep)) queue.push(dep);
+        if (ownSurface(dep) || importable(dep)) queue.push(dep);
         else blocked = true;
       }
     if (!MODULE_EXT_RE.test(rel) && !/\.css$/i.test(rel)) continue;

@@ -13,6 +13,8 @@
 import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { stripSpoofChars } from '../spoof-chars.ts';
+
 export const SYSTEM_LABEL_MAX = 64;
 
 type RenameCode = 'ds-unknown-system' | 'ds-config-unreadable' | 'ds-bad-name' | 'ds-name-taken';
@@ -43,7 +45,9 @@ export function cleanSystemLabel(raw: unknown): string | null {
     const c = ch.codePointAt(0) ?? 0;
     if (c < 0x20 || c === 0x7f || c === 0x2028 || c === 0x2029) return null;
   }
-  const s = raw.normalize('NFC').replace(/\s+/g, ' ').trim();
+  // V2-8.9 defender L4: bidi overrides / isolates / tag characters would spoof the name in every
+  // list — dropped with the exporters' set (spoof-chars.ts); a name of nothing else is refused below.
+  const s = stripSpoofChars(raw.normalize('NFC')).replace(/\s+/g, ' ').trim();
   if (!s || [...s].length > SYSTEM_LABEL_MAX) return null;
   return s;
 }

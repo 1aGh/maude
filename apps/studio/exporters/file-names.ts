@@ -62,13 +62,8 @@ function sizeText(f: NameFacts): string {
   return '';
 }
 
-// biome-ignore lint/suspicious/noControlCharactersInRegex: stripping control characters is the point
-const BIDI_AND_SEPARATORS = [
-  0x2028, 0x2029, 0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2066, 0x2067, 0x2068, 0x2069,
-]
-  .map((c) => String.fromCodePoint(c))
-  .join('');
-const UNSAFE = new RegExp(`[\\\\/:*?"<>|\\x00-\\x1f\\x7f${BIDI_AND_SEPARATORS}]`, 'g');
+// the separators / bidi controls / tag characters are the one shared set (spoof-chars.ts, V2-8.9 L4)
+const UNSAFE = new RegExp(`[\\\\/:*?"<>|\\x00-\\x1f\\x7f${SPOOF_CHARS_CLASS}]`, 'gu');
 
 /** Make one rendered stem safe (no extension). Never empty. */
 export function sanitizeStem(raw: string): string {
