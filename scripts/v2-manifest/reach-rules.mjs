@@ -292,6 +292,13 @@ export const HOOK_PROOFS = Object.freeze({
     name: 'is the section label chip',
     needles: ['data-section-chip'],
   },
+  // the frame round a section the page grew: drawn for a few seconds after the page changes underneath an open
+  // canvas; the probe fixture's board never grows
+  'artboard-new-section': proof(
+    'apps/studio/test/v2-gate-proofs.test.tsx',
+    'artboard-new-section is on the page, named for the section',
+    ['artboard-new-section']
+  ),
   // the local harness canvas `maude design photo-bg-remove` drives; nobody opens it
   '[data-photo-bgremove-status]': {
     container: 'canvas-frame',

@@ -957,6 +957,25 @@ export const OPENERS = [
       { frameDom: tid('canvas-menu-item-theme'), optional: true },
     ],
   },
+  // the shell names a pair of boards "Run on a copy" made: the dashed link between them and "Copied from <name>"
+  {
+    id: 'ai-copies',
+    steps: [
+      { frameMsg: { dgn: 'ai-copies', v: 1, copies: [{ from: 'home-hero', to: 'home-pricing' }] } },
+      { wait: 600 },
+    ],
+  },
+  // the artboard menu's Duplicate at another width › Laptop: the copy lands under the board and the canvas draws the gap
+  // (value, dashed edge, guide) for six seconds
+  {
+    id: 'canvas-menu-duplicate-below',
+    steps: [
+      { frameContext: '[data-dc-screen="home-hero"] .dc-artboard-label', optional: true },
+      { frameDom: tid('canvas-menu-item-duplicate-at-width'), optional: true },
+      { frameDom: tid('canvas-menu-item-duplicate-at-laptop'), optional: true },
+      { wait: 1500 },
+    ],
+  },
   // the Inspector's Advanced section (custom CSS / attribute rows) and an artboard's own Inspector. Since
   // S2.2 `css-panel`, `inspector-section-*` and `inspector-body-layout` sit inside the Inspector's
   // › Advanced fold, so each opener opens it first (`ensureOpen`, a no-op when it is open already).
@@ -1791,7 +1810,7 @@ const WHERE = [
     LOCAL,
   ],
   [
-    /^(asset-frames|left-search|palette-day-one|palette-close-note|edit-more|preview-inspect|annot-|artboard-|print-canvas|left-row-menu|text-edit|preview-popovers|preview-stickers|asset-picker|welcome|left-row-hover|new-video-prompt|palette-nothing|palette-close|shortcuts-nothing|tree-loading|canvas-load-failed|canvas-chrome|dialog-report-bug-|history-project|history-cloud-down|history-clean|history-compare)/,
+    /^(asset-frames|left-search|palette-day-one|palette-close-note|edit-more|preview-inspect|annot-|artboard-|print-canvas|left-row-menu|text-edit|preview-popovers|preview-stickers|asset-picker|welcome|left-row-hover|new-video-prompt|palette-nothing|palette-close|shortcuts-nothing|tree-loading|canvas-load-failed|canvas-chrome|ai-copies|canvas-menu-duplicate-below|dialog-report-bug-|history-project|history-cloud-down|history-clean|history-compare)/,
     LOCAL,
   ],
   [/^(comments-panel|comment-thread|comment-thread-converted|comment-refused)$/, LOCAL],
