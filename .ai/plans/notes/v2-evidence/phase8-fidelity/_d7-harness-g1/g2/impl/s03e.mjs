@@ -102,6 +102,8 @@ export async function run(h) {
   await page.keyboard.press('Alt+Meta+h');
   await sleep(500);
   await h.esc(2); // leave Viewing (a history row was picked for the shot)
+  // D7: on the merged tip esc stands down while the composer has focus: leave Viewing through the bar's own button
+  await page.locator('[data-testid="vh-viewbar-back"]').first().click({ timeout: 1500 }).catch(() => {});
   await sleep(500);
   await page.locator('[data-testid="vh-close"], [data-testid="history-close"]').first().click({ timeout: 1500 }).catch(() => {});
   await sleep(300);
