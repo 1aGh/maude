@@ -118,7 +118,15 @@ describe('recomputeBoundArrows with hosts', () => {
     expect(arrowOf(gone).endHost?.ref).toBe(ref); // the bind survives
     expect([arrowOf(gone).x2, arrowOf(gone).y2]).toEqual([x2, y2]);
     expect(danglingEnds(gone, resolverOver({}))).toEqual([
-      { arrowId: 'a', end: 'end', ref, label: 'Hero CTA', at: [x2, y2] },
+      // the bind's last resolved box rides along: the trashed target is outlined where it was (15 an-dangling)
+      {
+        arrowId: 'a',
+        end: 'end',
+        ref,
+        label: 'Hero CTA',
+        at: [x2, y2],
+        box: { x: 300, y: 100, w: 100, h: 40 },
+      },
     ]);
     expect(danglingEnds(gone, live)).toEqual([]);
   });
