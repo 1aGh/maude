@@ -7,6 +7,7 @@ import {
   turnCardVerbs,
   turnRunFor,
 } from '../client/v2/ai/run-model.js';
+import { shortArtboardName } from '../client/v2/ai/scope.js';
 
 const T = 1_700_000_000_000;
 const run = (id: string, over: Record<string, unknown> = {}) => ({
@@ -57,6 +58,17 @@ describe('the older turn’s verbs', () => {
   });
   test('a cut-short turn offers Undo too, still no Keep going', () => {
     expect(turnCardVerbs(run('r', { outcome: 'stopped' }), {})).toEqual(['Undo']);
+  });
+});
+
+describe('the scope chip of a copy (03 `ai-copy`: "Post 1:1 · copy")', () => {
+  test('a copy keeps its "· copy" tail; an original is still cut at the first " · "', () => {
+    expect(shortArtboardName('Post 1:1 · Combine 2026 · copy')).toBe('Post 1:1 · copy');
+    expect(shortArtboardName('Post 1:1 · copy')).toBe('Post 1:1 · copy');
+    expect(shortArtboardName('Post 1:1 · Combine 2026')).toBe('Post 1:1');
+    const long = shortArtboardName('Pozvánka na zimní soustředění mládeže 2026 · A4 · copy');
+    expect(long.length).toBeLessThanOrEqual(28);
+    expect(long.endsWith(' · copy')).toBe(true);
   });
 });
 
