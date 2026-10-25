@@ -78,5 +78,6 @@ export function mergeSelClientFields(incoming, prev) {
     attrs: incoming.attrs ?? prev.attrs,
     photoKind: incoming.photoKind ?? prev.photoKind,
     photoAsset: incoming.photoAsset ?? prev.photoAsset,
+    kids: incoming.kids ?? prev.kids,
   };
 }
