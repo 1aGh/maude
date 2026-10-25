@@ -289,9 +289,13 @@ describe('mode-toggle / the Share cluster switch', () => {
       'Present the canvasno chrome, no pins',
       'Order and notes…',
     ]);
+    // Presenter view (p8-c7): drawn greyed for an editor with one display, not a menuitem press target
+    expect(
+      list?.querySelector('[data-testid="mode-present-presenter-view"]')?.getAttribute('aria-disabled')
+    ).toBe('true');
     expect(list?.textContent).toContain('Artboards, one by one');
-    // Presenter view, Copy presentation link: not until their slice (hidden).
-    expect(list?.textContent).not.toMatch(/Presenter view|presentation link/);
+    // Copy presentation link: not until its slice (hidden).
+    expect(list?.textContent).not.toMatch(/presentation link/);
     for (const id of ['from-selection', 'from-start', 'canvas']) {
       if (!document.querySelector('[data-testid="mode-present-list"]')) open();
       act(() =>
@@ -313,7 +317,10 @@ describe('mode-toggle / the Share cluster switch', () => {
       '[data-testid="mode-present-order-notes"]'
     );
     expect(row?.getAttribute('role')).toBe('menuitem');
-    expect(row?.closest('.st-pm-li')?.previousElementSibling?.tagName).toBe('HR');
+    // the rule, the greyed Presenter view row, then Order and notes…
+    const presenter = document.querySelector('[data-testid="mode-present-presenter-view"]');
+    expect(row?.closest('.st-pm-li')?.previousElementSibling).toBe(presenter?.closest('.st-pm-li'));
+    expect(presenter?.closest('.st-pm-li')?.previousElementSibling?.tagName).toBe('HR');
     act(() => row?.click());
     expect(asked).toEqual(['order-notes']);
     act(() => root?.unmount());

@@ -126,7 +126,8 @@ const PRESENT_ROWS = [
   },
 ];
 
-/** S3.6b — below the canvas rows, only where another display exists (04 md-present-menu). */
+/** S3.6b — below the canvas rows (04 md-present-menu). Drawn on every Mac (decision v2-p8-c7-presenter-row-greyed:
+ *  the owning board 04 wins over S3.6b's "absent"): live where another display exists, greyed with why otherwise. */
 const PRESENTER_ROW = {
   kind: 'presenter',
   testid: 'mode-present-presenter-view',
@@ -135,14 +136,15 @@ const PRESENTER_ROW = {
 
 /**
  * The Present ⌄ rows for this session: editor-only rows only for editors (S3.5), and the presenter row
- * (S3.6b) only where another display exists — in the tools group, before Order and notes…; for a
+ * (S3.6b; greyed when no other display exists) — in the tools group, before Order and notes…; for a
  * non-editor (no tools group) under its own rule.
  */
 function presentRows(caps, presenterView, copyLink) {
   const rows = PRESENT_ROWS.filter(
     (row) => (!row.edit || caps?.edit) && (row.needs !== 'copyLink' || copyLink)
   ).filter((row, i, all) => !(row.sep === 'link' && !all.some((r) => r.kind === 'copy-link')));
-  if (!presenterView) return rows;
+  // greyed for an editor (the one who presents); a role that cannot edit sees it only when it can run
+  if (!presenterView && !caps?.edit) return rows;
   const at = rows.findIndex((r) => r.kind === 'order-notes');
   if (at >= 0) rows.splice(at, 0, PRESENTER_ROW);
   else rows.push({ sep: 'presenter' }, PRESENTER_ROW);
@@ -158,7 +160,7 @@ function presentRows(caps, presenterView, copyLink) {
  * @param presentFromLabel the selected artboard's label: the first row reads Present from “…”
  * @param canPresent false with no canvas open (Present has nothing to show)
  * @param presenterView S3.6b — `{ name, on }` when the desktop app has another display (the row is a check
- *        with that display's name); null = no row at all (hidden, never greyed)
+ *        with that display's name); null = the row greyed, "Needs a second display" (04 md-present-menu)
  * @param onPresenterView () => void — the row toggles presenter view
  * @param copyLink S3.14 — `{ enabled, note }` (copy-link.js `copyRowState`): Copy presentation link, an editor's
  *        row; greyed with the reason when not enabled. null = no row (the host decides)
@@ -293,7 +295,9 @@ export function ModeSwitch({
                   aria-checked={!!presenterView?.on}
                   className="st-pm-row"
                   data-testid={row.testid}
+                  aria-disabled={presenterView ? undefined : 'true'}
                   onClick={() => {
+                    if (!presenterView) return;
                     setMenu(false);
                     onPresenterView?.();
                   }}
@@ -302,7 +306,9 @@ export function ModeSwitch({
                     {presenterView?.on ? <StIcon name="check" size={13} /> : null}
                   </span>
                   <span className="st-pm-lab">{row.label}</span>
-                  <span className="st-mode-menu-note">{presenterView?.name ?? ''}</span>
+                  <span className="st-mode-menu-note">
+                    {presenterView ? (presenterView.name ?? '') : 'Needs a second display'}
+                  </span>
                 </button>
               </div>
             ) : row.kind === 'copy-link' ? (

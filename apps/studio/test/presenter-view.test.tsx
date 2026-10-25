@@ -450,7 +450,7 @@ describe('the ways in are hidden with one display', () => {
     expect(q('present-controls')).toBeNull();
   });
 
-  test('Present ⌄: no row without the prop; with it, the name and a check, and a click runs it', () => {
+  test('Present ⌄: greyed row without a second display (Needs a second display); with one, the name and a check, and a click runs it', () => {
     const MODE = { edit: true, annotate: true, comment: true, present: true };
     let ran = 0;
     const row = (presenterView: unknown) =>
@@ -469,7 +469,13 @@ describe('the ways in are hidden with one display', () => {
     row(null);
     act(() => q('mode-present-menu')?.click());
     expect(q('mode-present-list')).not.toBeNull();
-    expect(q('mode-present-presenter-view')).toBeNull();
+    // decision v2-p8-c7-presenter-row-greyed: the board draws the row on a one-display Mac, greyed with why
+    const grey = q('mode-present-presenter-view');
+    expect(grey?.textContent).toContain('Presenter view on another display');
+    expect(grey?.textContent).toContain('Needs a second display');
+    expect(grey?.getAttribute('aria-disabled')).toBe('true');
+    act(() => grey?.click());
+    expect(ran).toBe(0);
     act(() => root?.unmount());
     host?.remove();
     row({ name: 'LG UltraFine', on: true });
