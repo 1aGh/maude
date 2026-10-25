@@ -424,9 +424,9 @@ describe('S2.22 G1 — the artboard inspector says what the canvas says', () => 
     expect(q(host, 'inspector-title')?.textContent).toBe('desktop');
   });
 
-  test('Fill comes before Layout (Artboard, Fill, Layout, Export)', async () => {
+  test('Layout comes before Fill (08 ak-web-hug: Artboard, Layout, Fill, Export)', async () => {
     const host = await frame();
-    const order = ['insp-sec-size', 'insp-sec-fill', 'insp-sec-layout', 'insp-sec-export'].map(
+    const order = ['insp-sec-size', 'insp-sec-layout', 'insp-sec-fill', 'insp-sec-export'].map(
       (id) => must(q(host, id), id)
     );
     for (let i = 1; i < order.length; i++)

@@ -178,7 +178,9 @@ describe('<CanvasErrorCard>', () => {
       <CanvasErrorCard canvas="ui/Pricing.tsx" kind="syntax" error={ERROR} onAskAi={() => {}} />
     );
     expect(q('canvas-error-title')?.textContent).toBe("Pricing can't be drawn right now.");
-    expect(q('canvas-error-body')?.textContent).toContain('stops halfway on line 212');
+    // the technical part (the line) is under Show details, never in the sentence
+    expect(q('canvas-error-body')?.textContent).toContain("mistake the canvas can't show");
+    expect(q('canvas-error-body')?.textContent).not.toMatch(/line \d|halfway/);
     expect(q('canvas-error-body')?.textContent).toContain('Version history');
     expect(q('canvas-error-ask-ai')?.textContent).toContain('Ask AI to fix it');
     // closed: no error text, no path, no line
@@ -391,7 +393,7 @@ describe('<CanvasErrorCard>', () => {
       />
     );
     expect(q('canvas-error-card')).not.toBeNull();
-    expect(q('canvas-error-body')?.textContent).toContain('line 212');
+    expect(q('canvas-error-body')?.textContent).toContain("mistake the canvas can't show");
     await open();
     expect(q('canvas-error-excerpt')?.textContent).toContain('<b>{plan.name}</b>');
     expect(q('canvas-error-excerpt')?.textContent).toContain('</span>');

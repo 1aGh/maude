@@ -143,6 +143,41 @@ describe('two kinds', () => {
   });
 });
 
+describe('p8-c7-cf08 — the mixed card as 08 ak-mixed-select draws it', () => {
+  test('one flat list: Kinds · Fill · Horizontal · Vertical · note, with no section heads', async () => {
+    const host = await frame([IG, KARTA]);
+    const keys = [...host.querySelectorAll('[data-testid^="insp-row-mk-"]')].map((r) =>
+      (r.getAttribute('data-testid') ?? '').replace('insp-row-mk-', '')
+    );
+    expect(keys).toEqual(['kinds', 'fill', 'horizontal', 'vertical']);
+    expect(q(host, 'insp-sec-size')?.querySelector('.insp-sec-t')?.hasAttribute('hidden')).toBe(
+      true
+    );
+    // Fill is a swatch row (the boards' fills side by side) and the word Mixed — not a "Background" row in a section
+    expect(q(host, 'insp-sec-fill')).toBeNull();
+    const face = q(host, 'insp-chip-mk-fill');
+    expect(face?.textContent).toBe('Mixed');
+    expect(face?.querySelectorAll('.insp-sw').length).toBe(2);
+  });
+
+  test('Left and Top read pressed when the boards already share that edge', async () => {
+    const a = { ...IG, geometry: { x: 100, y: 40, w: 432, h: 540 } };
+    const b = { ...KARTA, geometry: { x: 100, y: 40, w: 397, h: 559 } };
+    const host = await frame([a, b]);
+    const on = (id: string) =>
+      [...(q(host, id)?.querySelectorAll('button') ?? [])]
+        .filter((x) => x.getAttribute('aria-checked') === 'true')
+        .map((x) => x.textContent);
+    expect(on('insp-mk-horizontal')).toEqual(['Left']);
+    expect(on('insp-mk-vertical')).toEqual(['Top']);
+    const c = { ...KARTA, geometry: { x: 300, y: 200, w: 397, h: 559 } };
+    const apart = await frame([a, c]);
+    expect([
+      ...(q(apart, 'insp-mk-horizontal')?.querySelectorAll('[aria-checked="true"]') ?? []),
+    ]).toEqual([]);
+  });
+});
+
 describe('one kind', () => {
   test("two fixed sizes keep S2.9's rows, not the two-kind ones", async () => {
     const host = await frame([IG, STORY]);

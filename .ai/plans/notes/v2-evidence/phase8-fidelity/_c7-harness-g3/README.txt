@@ -1,0 +1,2 @@
+Round 7 (p8-c7-cf08), G3 (08 only): only t08.mjs changed. Setup = the D4 harness (_d4-harness-g3/) copied to <repo>/.scr/h3, paths repointed to your worktree, node_modules symlinked, spec frames copied from the D4 .scr/spec, release build of the client. Then go.sh t08 <dark|light>; node pairs.mjs (ONLY=… to limit).
+What changed: the artboard is selected by its label chip (pick), ak-web-hug adds a section to Matchday.tsx so the growth tag shows, ak-mixed-fit presses the Print chip in Layers, ak-advanced scrolls the fold to the top.

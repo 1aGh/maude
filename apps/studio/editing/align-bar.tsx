@@ -301,12 +301,28 @@ function boxOf(els: Element[]): { l: number; t: number; r: number; b: number } |
 
 const GUIDE_MS = 1800;
 
+/** Do the selected artboards (no element picked inside them) differ in kind? 08 ak-mixed-select draws no bar then. */
+export function boardsMixKinds(
+  selected: ReadonlyArray<{ id?: unknown; artboardId?: string }>,
+  artboards: ReadonlyArray<{ id: string; kind: string }>
+): boolean {
+  const ids = new Set(selected.filter((s) => !s.id && s.artboardId).map((s) => s.artboardId));
+  return new Set(artboards.filter((r) => ids.has(r.id)).map((r) => r.kind)).size > 1;
+}
+
 export function AlignBar({ readOnly = false }: { readOnly?: boolean }) {
   const { selected } = useSelectionSet();
   const world = useArtboardsContext();
   const bus = useDragStateContext();
   const undo = useUndoStackOptional();
-  const model = useMemo(() => (readOnly ? null : barModel(selected)), [readOnly, selected]);
+  const model = useMemo(() => {
+    if (readOnly) return null;
+    const m = barModel(selected);
+    // 08 ak-mixed-select: boards of DIFFERENT kinds are aligned from the inspector's Horizontal / Vertical rows —
+    // the board draws no bar over them (Tidy up stays in ⌘K as `artboard.tidy`)
+    if (m?.kind === 'artboards' && world && boardsMixKinds(selected, world.artboards)) return null;
+    return m;
+  }, [readOnly, selected, world]);
   const bar = useRef<HTMLDivElement | null>(null);
   const [guide, setGuide] = useState<Guide | null>(null);
   const guideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

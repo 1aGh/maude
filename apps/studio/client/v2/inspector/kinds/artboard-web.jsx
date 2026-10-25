@@ -114,14 +114,19 @@ export function AddWidthRow({ f, id, ctx }) {
 }
 
 function WebRows({ el, ctx }) {
-  const { f, id, resize, setHug } = useArtboardWrites(el, ctx);
+  const { f, resize, setHug } = useArtboardWrites(el, ctx);
   return (
     <>
       <SizeSelectRow k="Width" f={f} resize={resize} />
       <HeightRows f={f} setHug={setHug} />
-      <AddWidthRow f={f} id={id} ctx={ctx} />
     </>
   );
+}
+
+// 08 ak-web-hug: the card reads Width · Height · Layout · Fill · Other widths, so the last row is seated after Fill
+function WebWidthsRow({ el, ctx }) {
+  const { f, id } = useArtboardWrites(el, ctx);
+  return <AddWidthRow f={f} id={id} ctx={ctx} />;
 }
 
 const kindOf = (selection) => {
@@ -139,6 +144,17 @@ export const ARTBOARD_WEB_SLOTS = Object.freeze([
       title: 'Artboard',
       when: ({ selection }) => kindOf(selection) === 'web',
       Body: WebRows,
+    },
+  ],
+  [
+    'fill',
+    {
+      id: 'fill.artboard-web-widths',
+      order: 20,
+      kinds: ['artboard'],
+      headless: true,
+      when: ({ selection }) => kindOf(selection) === 'web',
+      Body: WebWidthsRow,
     },
   ],
 ]);

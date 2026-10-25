@@ -193,7 +193,7 @@ export function ArtboardCommands({ readOnly = false }: { readOnly?: boolean }) {
     const w = parseWidth(draft);
     if (w === null) return;
     setField(null);
-    void live.current.actions.duplicateAtWidth(field.ids, w);
+    void live.current.actions.duplicateAtWidth(field.ids, w, 'below'); // the menu's Custom width…
   }, [field, draft]);
 
   if (!field) return null;

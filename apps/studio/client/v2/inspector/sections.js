@@ -199,8 +199,6 @@ export function sectionsFor(kindId, opts = {}) {
   }
   const named = KIND_SECTIONS[kindId];
   if (named) return named.map((id) => BY_ID.get(id));
-  if (kindId !== 'artboard') return SECTIONS;
-  const rest = SECTIONS.filter((s) => s.id !== 'fill');
-  const at = rest.findIndex((s) => s.id === 'layout');
-  return [...rest.slice(0, at), BY_ID.get('fill'), ...rest.slice(at)];
+  // 08 ak-web-hug (owns the Artboard card): Width · Height · Layout · Fill · Other widths — the table's own order
+  return SECTIONS;
 }

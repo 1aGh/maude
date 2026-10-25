@@ -15,6 +15,7 @@ import { useState } from 'react';
 import { Select } from '../../../inspector-controls.jsx';
 import { Row as AdvRow } from '../advanced-rows-default.jsx';
 import { writeGuides } from '../print-write.js';
+import { ArtboardThemeRow } from './artboard-advanced.jsx';
 import { LAYOUT_OPTIONS, artboardFacts } from './artboard-model.js';
 import {
   COLOUR_WORDS,
@@ -150,6 +151,8 @@ export function PrintLookAndLayout({ el, ctx }) {
   return (
     <div className="insp-adv-block" data-testid="insp-pr-look">
       <H>Look and layout</H>
+      {/* 08 ak-advanced: Theme is the first row of Look and layout */}
+      <ArtboardThemeRow el={el} ctx={ctx} />
       <AdvRow k="Body layout" testid="insp-pr-body-layout">
         <Select
           value={f.layout}

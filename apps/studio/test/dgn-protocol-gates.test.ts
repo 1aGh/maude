@@ -121,3 +121,31 @@ describe('acceptFromShell (canvas side)', () => {
     ).toBe(false);
   });
 });
+
+describe('convert-marks (V2-8.5 c7, 08 ak-convert-after)', () => {
+  const shell = { name: 'shell' } as unknown as Window;
+  const sibling = { name: 'sibling' } as unknown as Window;
+  const win = { parent: shell } as unknown as Window;
+  const msg = { dgn: 'convert-marks', v: 1, from: 'post', to: 'a6', extraPct: 13, fill: 'Ink' };
+
+  test('is a shell→canvas, parent-gated row', () => {
+    expect(DGN_TABLE.s2c['convert-marks'].gate).toBe('parent');
+    expect(Object.keys(DGN_TABLE.c2s)).not.toContain('convert-marks');
+  });
+
+  test('only the parent frame is heard; a sibling or the canvas itself is refused', () => {
+    expect(acceptFromShell(ev(msg, shell), win)).toEqual(msg);
+    expect(acceptFromShell(ev(msg, sibling), win)).toBeNull();
+    expect(acceptFromShell(ev(msg, win), win)).toBeNull();
+  });
+
+  test('the payload is checked: ids are strings, the percent a number, the fill a short word or null', () => {
+    const ok = (o: Record<string, unknown>) => acceptFromShell(ev({ ...msg, ...o }, shell), win);
+    expect(ok({ fill: null })).not.toBeNull();
+    expect(ok({ extraPct: 'a lot' })).toBeNull();
+    expect(ok({ from: 4 })).toBeNull();
+    expect(ok({ fill: 'x'.repeat(41) })).toBeNull();
+    expect(ok({ v: 2 })).toBeNull();
+    expect(acceptFromShell(ev({ dgn: 'convert-marks', v: 1 }, shell), win)).toBeNull();
+  });
+});

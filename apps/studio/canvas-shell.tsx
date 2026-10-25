@@ -38,6 +38,7 @@ import {
 
 import { AnnotationsLayer } from './annotations-layer.tsx';
 import { ArtboardRingsLayer } from './artboard-activity-overlay.tsx';
+import { setConvertMarks } from './artboard-convert-marks.tsx';
 import { ArtboardMarqueeOverlay } from './artboard-marquee.tsx';
 import { canvasInsets, canvasModeStore } from './bridge/canvas-mode-store.ts';
 import { canvasMayHandle } from './bridge/dgn-protocol.ts';
@@ -3079,6 +3080,20 @@ function CanvasRouter({
       // S1.3 L1 (A6c) — the jump list's / Compare's camera move: glide (or cut, under reduced motion or
       // `glide: false`) to one artboard and flash it. Parent-only like select-by-id: a sibling canvas
       // frame must not move this camera. An unknown id moves nothing.
+      // V2-8.5 c7 (08 ak-convert-after) — the two marks after "Make A6 print". Parent-only, like the rest of this block:
+      // a sibling canvas frame must not paint marks on this canvas. The strings are built here from the facts.
+      if (m.dgn === 'convert-marks') {
+        if (e.source !== window.parent) return;
+        const mm = m as { from?: unknown; to?: unknown; extraPct?: unknown; fill?: unknown };
+        if (typeof mm.from !== 'string' || typeof mm.to !== 'string') return;
+        setConvertMarks({
+          from: mm.from,
+          to: mm.to,
+          extraPct: typeof mm.extraPct === 'number' && mm.extraPct > 0 ? mm.extraPct : 0,
+          fill: typeof mm.fill === 'string' && mm.fill ? mm.fill : null,
+        });
+        return;
+      }
       if (m.dgn === 'reveal-artboard') {
         if (e.source !== window.parent) return;
         const mm = m as { artboardId?: unknown; glide?: unknown; flash?: unknown };

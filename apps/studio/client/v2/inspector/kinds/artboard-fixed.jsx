@@ -12,10 +12,13 @@ import { useState } from 'react';
 import { planConvert } from '../../../../kinds/convert.ts';
 import { intendSelection } from '../../../selection-scope.js';
 import ConvertDialog from '../../kinds/ConvertDialog.jsx';
-import { selectCopyPlan } from '../../kinds/convert-api.js';
+import { convertMarksMessage, selectCopyPlan } from '../../kinds/convert-api.js';
 import { registerSlot } from '../slots.js';
 import { sourceWord } from './artboard-model.js';
 import { SizePairRow, SizeSelectRow, useArtboardWrites } from './artboard-rows.jsx';
+
+/** When the marks are sent again after "Make A6 print" (the select-by-id's own delays are 0 / 450 / 1200 ms). */
+export const MARKS_RETRY_MS = Object.freeze([2500, 4500, 7000]);
 
 function FixedRows({ el, ctx }) {
   const { f, id, can, resize, commitHeight } = useArtboardWrites(el, ctx);
@@ -54,12 +57,22 @@ function FixedRows({ el, ctx }) {
             // 08 ak-convert-after: the A6 copy is selected, the post stays as it was
             const plan = selectCopyPlan(r);
             if (!plan) return;
+            // …and the canvas marks the pair for a few seconds: "✓ Unchanged" under the post, "+ 13 % height · Ink
+            // fill" on the copy (the canvas draws them once it has re-rendered with the copy — they wait by id)
+            const marks = convertMarksMessage({ from: id, to: r.copy, plan: asking.plan });
             // the shell's own put-back after the canvas reloads must not return the selection to the post
             intendSelection(ctx.canvasFile, { from: id, to: r.copy });
             for (const d of plan.delays) {
-              if (d === 0) ctx.onRunAction?.(plan.message);
-              else setTimeout(() => ctx.onRunAction?.(plan.message), d);
+              const send = () => {
+                ctx.onRunAction?.(plan.message);
+                ctx.onRunAction?.(marks);
+              };
+              if (d === 0) send();
+              else setTimeout(send, d);
             }
+            // the canvas may reload around the new copy (its module state starts empty): the marks are asked again
+            // until the new document is up — each answer restarts their few seconds
+            for (const d of MARKS_RETRY_MS) setTimeout(() => ctx.onRunAction?.(marks), d);
           }}
           onClose={() => setAsking(null)}
         />

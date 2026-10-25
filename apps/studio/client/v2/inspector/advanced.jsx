@@ -184,8 +184,19 @@ export function InspectorAdvanced({
     <AdvancedFold panel="inspector" hint={hint} open={open} onToggle={onToggle}>
       {isArtboard ? (
         <div className="insp-adv">
-          <ArtboardAdvanced el={el} ctx={{ cfg, canvasFile, artboard }} />
-          <Groups groups={['artboard', 'in-code']} kind="artboard" el={el} ctx={ctx} />
+          {(el?.attrs?.['data-dc-kind'] || 'digital') === 'print' ? (
+            // 08 ak-advanced: a print board's fold reads Exact size · Resolution · Colour · Guides · Look and layout
+            // (Theme first) · In code; Clip content and Kind stay (nothing is taken away) but come last
+            <>
+              <Groups groups={['artboard', 'in-code']} kind="artboard" el={el} ctx={ctx} />
+              <ArtboardAdvanced el={el} ctx={{ cfg, canvasFile, artboard }} print />
+            </>
+          ) : (
+            <>
+              <ArtboardAdvanced el={el} ctx={{ cfg, canvasFile, artboard }} />
+              <Groups groups={['artboard', 'in-code']} kind="artboard" el={el} ctx={ctx} />
+            </>
+          )}
         </div>
       ) : (
         <div className="insp-adv">

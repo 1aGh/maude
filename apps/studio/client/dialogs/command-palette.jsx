@@ -225,7 +225,9 @@ export function CommandPalette({ open, onClose, actions }) {
         {item.thumb ? (
           <img className="st-pal-thumb" src={item.thumb} alt="" />
         ) : (
-          <span className={`st-pal-icon${group === 'ask-ai' ? ' st-pal-icon--spark' : ''}`}>
+          <span
+            className={`st-pal-icon${group === 'ask-ai' ? ' st-pal-icon--spark' : ''}${item.group === 'canvases' ? ' st-pal-icon--pic' : ''}`}
+          >
             <StIcon name={iconFor(item, group)} size={15} />
           </span>
         )}

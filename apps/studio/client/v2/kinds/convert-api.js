@@ -98,3 +98,19 @@ export function selectCopyPlan(result) {
   if (!result?.ok || !result.copy) return null;
   return { delays: [0, 450, 1200], message: { dgn: 'select-by-id', artboardId: result.copy } };
 }
+
+/**
+ * V2-8.5 c7 (08 ak-convert-after) — the message that makes the canvas draw "✓ Unchanged" under the post and
+ * "+ 13 % height · Ink fill" on the copy. Facts only (ids, a percent, the fill's name): the canvas builds the words.
+ * @param {{ from: string, to: string, plan: { extraPct?: number, fill?: string | null } }} a
+ */
+export function convertMarksMessage({ from, to, plan }) {
+  return {
+    dgn: 'convert-marks',
+    v: 1,
+    from,
+    to,
+    extraPct: Number.isFinite(plan?.extraPct) ? plan.extraPct : 0,
+    fill: typeof plan?.fill === 'string' && plan.fill ? plan.fill : null,
+  };
+}

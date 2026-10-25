@@ -8,8 +8,11 @@ import { Quiet, Row } from '../sections/row.jsx';
 import { ArtboardAdvancedRows } from './artboard-advanced-rows.jsx';
 import { THEME_OPTIONS, artboardFacts } from './artboard-model.js';
 
-/** Advanced › Theme (A-artboard-theme): the pin the artboard menu's Theme submenu has always set. */
-export function ArtboardAdvanced({ el, ctx }) {
+/**
+ * Advanced › Theme (A-artboard-theme): the pin the artboard menu's Theme submenu has always set. A print board draws
+ * it as the first row of "Look and layout" (08 ak-advanced), so the row is its own piece.
+ */
+export function ArtboardThemeRow({ el, ctx }) {
   const f = artboardFacts(el);
   const h = ctx?.artboard || {};
   // the pin is session state in the canvas; the payload carries it only when the selection is re-read, so the
@@ -19,7 +22,7 @@ export function ArtboardAdvanced({ el, ctx }) {
   useEffect(() => setPicked(null), [f.id, f.theme]);
   if (!h.onSetArtboardTheme) return null;
   return (
-    <div className="insp-adv insp-adv--artboard">
+    <>
       <Row k="Theme" name="ab-theme">
         <Select
           value={picked ?? f.theme}
@@ -36,6 +39,15 @@ export function ArtboardAdvanced({ el, ctx }) {
       <Quiet testid="insp-ab-theme-note">
         Follow chrome tracks the studio's light or dark; the others pin this artboard.
       </Quiet>
+    </>
+  );
+}
+
+/** Advanced › Theme, then Clip content / Kind and the kind's facts. `print`: Theme sits in Look and layout instead. */
+export function ArtboardAdvanced({ el, ctx, print = false }) {
+  return (
+    <div className="insp-adv insp-adv--artboard">
+      {print ? null : <ArtboardThemeRow el={el} ctx={ctx} />}
       {/* S7.21 — exact size, Clip content, Kind and the kind's facts (web page · fixed size · video) */}
       <ArtboardAdvancedRows el={el} ctx={ctx} />
     </div>

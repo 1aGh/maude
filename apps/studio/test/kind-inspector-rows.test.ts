@@ -88,6 +88,13 @@ const rowsOf = (host: HTMLElement) =>
       `${(r.getAttribute('data-testid') ?? '').replace('insp-row-', '')} = ${r.querySelector('.insp-row-k')?.textContent}`
   );
 
+// every row of the card, whichever section it sits in (Layout and Fill are headless sections of the one Artboard card)
+const cardRows = (host: HTMLElement) =>
+  [...host.querySelectorAll('[data-testid^="insp-row-"]')].map(
+    (r) =>
+      `${(r.getAttribute('data-testid') ?? '').replace('insp-row-', '')} = ${r.querySelector('.insp-row-k')?.textContent}`
+  );
+
 const FILE = '.design/ui/Homepage.tsx';
 const CFG = {
   designRel: '.design',
@@ -167,12 +174,14 @@ async function frame(el: Record<string, unknown>, over: Record<string, unknown> 
 }
 
 describe('Web page (ak-web-hug, ak-web-widths)', () => {
-  test('chip, then Width · Height · Other widths — and the page says how tall it is now', async () => {
+  test('chip, then Width · Height · Layout · Fill · Other widths (08 order) — and the page says how tall it is now', async () => {
     const host = await frame(WEB);
     expect(q(host, 'inspector-kind')?.textContent).toBe('Web page');
-    expect(rowsOf(host)).toEqual([
+    expect(cardRows(host).filter((r) => !r.startsWith('export-'))).toEqual([
       'ab-preset = Width',
       'ab-height = Height',
+      'ab-content = Layout',
+      'ab-background = Fill',
       'ab-add-width = Other widths',
     ]);
     expect(shown(host)).toBe('Desktop · 1440');

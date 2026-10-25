@@ -21,7 +21,7 @@ import { type Selection, useSelectionSet } from '../use-selection-set.tsx';
 import { useUndoStackOptional } from '../use-undo-stack.tsx';
 import type { ArtboardMenuDeps } from './artboard-menu.tsx';
 import type { Clipboard } from './clipboard-actions.ts';
-import { type Box, copyPlaces, dropPlaces, pinsFor } from './duplicate-rhythm.ts';
+import { type Box, copyPlaces, copyPlacesBelow, dropPlaces, pinsFor } from './duplicate-rhythm.ts';
 import { type EditOpAsk, editOpRecord, runEditOp } from './edit-op.ts';
 import { requestRename } from './rename-order.ts';
 
@@ -146,7 +146,8 @@ export interface ArtboardActions {
   /** the artboards a menu / chord acts on: the selected ones when `id` is among them, else `id` alone */
   idsFor(id: string | null | undefined): string[];
   duplicate(ids?: string[]): Promise<void>;
-  duplicateAtWidth(ids: string[] | undefined, width: number): Promise<void>;
+  /** `place: 'below'` is the artboard MENU's (01 cf-duplicate-done); the inspector and ⌘K keep the row (08 ak-web-widths). */
+  duplicateAtWidth(ids: string[] | undefined, width: number, place?: 'below'): Promise<void>;
   /** S7.21: several widths of the same board(s) in ONE request (one ⌘Z). */
   duplicateAtWidths(ids: string[] | undefined, widths: readonly number[]): Promise<void>;
   duplicateOnDrop(moved: ReadonlyArray<{ id: string; x: number; y: number }>): Promise<void>;
@@ -182,8 +183,20 @@ export function useArtboardActions(clipboard?: Clipboard): ArtboardActions {
       const list = ids ?? selectedIds();
       await writeCopies(duplicatePlaces(list, boards()), deps());
     };
-    const duplicateAtWidth: ArtboardActions['duplicateAtWidth'] = async (ids, width) => {
+    const duplicateAtWidth: ArtboardActions['duplicateAtWidth'] = async (ids, width, place) => {
       const list = ids ?? selectedIds();
+      if (place === 'below') {
+        // 01 cf-duplicate-done: the copy lands under the source, left edges aligned
+        const sources = list
+          .map((id) => boards().find((b) => b.id === id))
+          .filter((b): b is Box => !!b);
+        await writeCopies(
+          copyPlacesBelow(sources, boards(), () => width),
+          deps(),
+          width
+        );
+        return;
+      }
       await writeCopies(duplicatePlaces(list, boards(), width), deps(), width);
     };
     const duplicateAtWidths: ArtboardActions['duplicateAtWidths'] = async (ids, widths) => {
@@ -221,7 +234,7 @@ export function useArtboardActions(clipboard?: Clipboard): ArtboardActions {
     };
     const menuDeps: ArtboardMenuDeps = {
       duplicate: (t) => void duplicate(idsFor(t.artboardId)),
-      duplicateAtWidth: (t, width) => void duplicateAtWidth(idsFor(t.artboardId), width),
+      duplicateAtWidth: (t, width) => void duplicateAtWidth(idsFor(t.artboardId), width, 'below'),
       customWidth,
       rename: (t) => rename(t.artboardId ?? undefined),
       resetPosition: (t) => resetPosition(idsFor(t.artboardId)),

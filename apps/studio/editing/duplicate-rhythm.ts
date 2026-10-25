@@ -70,6 +70,27 @@ export function copyPlace(
   return { x: Math.round(x), y: Math.round(source.y) };
 }
 
+/**
+ * 01 cf-duplicate-done: "Duplicate at another width" from the menu lands the copy UNDER the source, left edges
+ * aligned, at the default gutter — a board that stands there pushes it further down. (⌘D and the inspector's Add a
+ * width keep the row: right of the source.)
+ */
+export function copyPlaceBelow(
+  source: Box,
+  all: readonly Box[],
+  copy: { w: number; h?: number } = { w: source.w }
+): { x: number; y: number } {
+  const h = copy.h ?? source.h;
+  let y = bottom(source) + DEFAULT_GAP;
+  for (let guard = 0; guard < 500; guard++) {
+    const probe: Box = { id: '', x: source.x, y, w: copy.w, h };
+    const blocker = all.filter((b) => overlaps(probe, b)).sort((a, b) => bottom(b) - bottom(a))[0];
+    if (!blocker) break;
+    y = bottom(blocker) + DEFAULT_GAP;
+  }
+  return { x: Math.round(source.x), y: Math.round(y) };
+}
+
 /** One entry per board to copy: the copy's place, each one counted among the boards the next sees. */
 export function copyPlaces(
   sources: readonly Box[],
@@ -81,6 +102,23 @@ export function copyPlaces(
   for (const s of sources) {
     const w = widthOf(s);
     const at = copyPlace(s, occupied, { w });
+    occupied.push({ id: `copy-of-${s.id}`, x: at.x, y: at.y, w, h: s.h });
+    out.push({ artboard: s.id, at });
+  }
+  return out;
+}
+
+/** `copyPlaces`, but under each source (the menu's Duplicate at another width). */
+export function copyPlacesBelow(
+  sources: readonly Box[],
+  all: readonly Box[],
+  widthOf: (b: Box) => number = (b) => b.w
+): Array<{ artboard: string; at: { x: number; y: number } }> {
+  const occupied: Box[] = [...all];
+  const out: Array<{ artboard: string; at: { x: number; y: number } }> = [];
+  for (const s of sources) {
+    const w = widthOf(s);
+    const at = copyPlaceBelow(s, occupied, { w });
     occupied.push({ id: `copy-of-${s.id}`, x: at.x, y: at.y, w, h: s.h });
     out.push({ artboard: s.id, at });
   }

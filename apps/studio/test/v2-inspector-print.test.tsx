@@ -285,6 +285,19 @@ describe('Advanced — every number, and the code', () => {
     expect(text(host, 'insp-pr-code-text')).toContain('print={{ paper: "a6"');
     expect(text(host, 'insp-pr-code-text')).toContain('width={419} height={581}');
   });
+  test('the fold leads with the 08 groups, Theme is a row of Look and layout, Kind and Clip content come last', async () => {
+    const host = await frame(SHEET());
+    await openAdvanced(host);
+    const after = (a: string, b: string) =>
+      !!(must(q(host, a), a).compareDocumentPosition(must(q(host, b), b)) & 4);
+    expect(after('insp-pr-exact', 'insp-pr-resolution')).toBe(true);
+    expect(after('insp-pr-code', 'insp-ab-kind')).toBe(true);
+    expect(after('insp-pr-exact', 'insp-ctl-ab-clip')).toBe(true);
+    // Theme is inside the "Look and layout" block, above Body layout
+    const look = must(q(host, 'insp-pr-look'), 'look');
+    expect(look.contains(q(host, 'insp-ab-theme'))).toBe(true);
+    expect(after('insp-ab-theme', 'insp-pr-body-layout')).toBe(true);
+  });
   test('Kind and Clip content keep their rows under Advanced (nothing deleted)', async () => {
     const host = await frame(SHEET());
     await openAdvanced(host);
