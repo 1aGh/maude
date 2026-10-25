@@ -265,6 +265,12 @@ describe('the words', () => {
     );
   });
 
+  test('P8 c7 (09 ex-batch): a folder never shows the design root’s internal name; a path adds only what the title lacks', () => {
+    expect(sheetSub({ scope: 'folder', folder: 'ui' })).toBe('');
+    expect(sheetSub({ scope: 'folder', folder: 'social' })).toBe('');
+    expect(sheetSub({ scope: 'folder', folder: 'ui/2026/combine' })).toBe('2026/combine');
+  });
+
   test('the estimate sentence equals the CLI’s (one set of words)', () => {
     for (const est of [
       { files: 1, bytes: 1_400_000, seconds: 1, lane: 'this-mac' },

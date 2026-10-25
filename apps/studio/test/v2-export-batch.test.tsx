@@ -547,7 +547,12 @@ describe('the sheet: many at once', () => {
     expect(
       row.querySelector('.ex-grp-v [data-testid="export-group-digital-format"]')
     ).not.toBeNull();
-    expect($('[data-testid="export-row-folders"] [data-testid="export-folders"]')).not.toBeNull();
+    // P8 c7 (09 ex-batch-pick): picked artboards name their files ("File names"); the Folders row is for a canvas or more
+    expect($('[data-testid="export-row-folders"]')).toBeNull();
+    expect(text('[data-testid="export-row-file-names"]')).toContain('File names');
+    expect(($('[data-testid="export-file-names"]') as HTMLSelectElement).value).toBe(
+      'canvas-artboard'
+    );
     await click('[data-testid="export-submit"]');
     expect(posted()).toMatchObject({
       v: 2,
@@ -558,6 +563,13 @@ describe('the sheet: many at once', () => {
         print: { format: 'pdf', options: { print: { bleed: true, marks: 'crop' } } },
       },
     });
+  });
+
+  test('P8 c7 (09 ex-batch-pick): the File names pick is the spec’s nameTemplate', async () => {
+    await mountSheet();
+    await choose('[data-testid="export-file-names"]', 'artboard');
+    await click('[data-testid="export-submit"]');
+    expect(posted().options.nameTemplate).toBe('{artboard}');
   });
 
   test('changing one group leaves the other alone — in the select and in the posted spec', async () => {

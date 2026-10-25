@@ -43,7 +43,13 @@ import {
 } from './export-copy.js';
 import { AdvancedSection, AdvancedToggle } from './advanced/advanced.jsx';
 import { nameSamples } from './advanced/model.js';
-import { FileRows, SAVE_TO_DEFAULT } from './file-rows.jsx';
+import {
+  FILE_NAMES_OPTIONS,
+  FILE_NAMES_TEMPLATE,
+  FileRows,
+  fileNamesPick,
+  SAVE_TO_DEFAULT,
+} from './file-rows.jsx';
 import { fitBox, Pic, PreviewColumn, sizeLine, useBoardPicture } from './preview.jsx';
 import { AccessLine, exportAccess } from './access-line.jsx';
 import { annotationsState } from './annotations-policy.js';
@@ -494,19 +500,39 @@ export function ExportSheet({
       onSaveTo={(saveTo) => set({ saveTo })}
       folders={
         batch ? (
-          <Row k="Folders" testid="export-row-folders">
-            {/* 09: a select with the path it makes under it. File names carry no `/` yet, so one folder is the one choice */}
-            <Select
-              label="Folders"
-              testid="export-folders"
-              value="one"
-              options={[['one', 'One folder']]}
-              onChange={() => {}}
-            />
-            <span className="ex-row-n ex-row-n--in" data-testid="export-folders-note">
-              {fileSamples[0] ?? ''}
-            </span>
-          </Row>
+          state.scope === 'selection' ? (
+            // 09 ex-batch-pick: several artboards picked → how the files are named; the folder row is for a canvas / more
+            <Row k="File names" testid="export-row-file-names">
+              <Select
+                label="File names"
+                testid="export-file-names"
+                value={fileNamesPick(state.adv?.nameTemplate)}
+                options={FILE_NAMES_OPTIONS}
+                onChange={(id) =>
+                  set({
+                    adv: { ...(state.adv ?? {}), nameTemplate: FILE_NAMES_TEMPLATE[id] },
+                  })
+                }
+              />
+              <span className="ex-row-n ex-row-n--in" data-testid="export-file-names-note">
+                {fileSamples[0] ?? ''}
+              </span>
+            </Row>
+          ) : (
+            <Row k="Folders" testid="export-row-folders">
+              {/* 09: a select with the path it makes under it. File names carry no `/` yet, so one folder is the one choice */}
+              <Select
+                label="Folders"
+                testid="export-folders"
+                value="one"
+                options={[['one', 'One folder']]}
+                onChange={() => {}}
+              />
+              <span className="ex-row-n ex-row-n--in" data-testid="export-folders-note">
+                {fileSamples[0] ?? ''}
+              </span>
+            </Row>
+          )
         ) : null
       }
     />

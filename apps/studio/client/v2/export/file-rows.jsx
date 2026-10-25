@@ -15,6 +15,16 @@ export const SAVE_TO_OPTIONS = [
 ];
 export const SAVE_TO_DEFAULT = 'downloads';
 
+/** 09 ex-batch-pick — the "File names" row of several picked artboards: the pattern, by its two plain readings. */
+export const FILE_NAMES_OPTIONS = [
+  ['canvas-artboard', 'Canvas — artboard'],
+  ['artboard', 'Artboard only'],
+];
+export const FILE_NAMES_TEMPLATE = { 'canvas-artboard': undefined, artboard: '{artboard}' };
+/** Which of the two a pattern is (anything else typed under Advanced reads as the default one). */
+export const fileNamesPick = (template) =>
+  template === '{artboard}' ? 'artboard' : 'canvas-artboard';
+
 /** `name.png` → `name`: the extension is the format's, the person only types the stem. */
 export const stemOf = (file) => String(file ?? '').replace(/\.[A-Za-z0-9]{2,5}$/, '');
 const extOf = (file) => /(\.[A-Za-z0-9]{2,5})$/.exec(String(file ?? ''))?.[1] ?? '';
