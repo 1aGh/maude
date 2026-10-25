@@ -187,3 +187,22 @@ Re-shot light + dark on the Mac mini (`_c8-harness-g4`: `s10e` for the tall Adva
 | co-ask-edit | the view-only tip shows (the drag repeats until it does); Viewing pressed (the harness takes it; the view-only boot default stays Preview) |
 | co-comment-print | View › Print guides on (trim + safe margin guides); the board's "Bleed 3 mm · trim · safe margin 5 mm" legend is not a product element (open, see fix-c8-exshare.md) |
 | co-sync-offline, co-sync-back | not re-shot: per-row "not sent" / "sending" labels are a data gap (no per-canvas pending data; see fix-c8-exshare.md) |
+
+## FINAL (D6, 3d58f57df)
+
+Every reachable id re-shot, light + dark, IMPL side only, on the merged tip `feat/maude-v2` @ `3d58f57df` (stage C round 8 merged, release-built client) on the Mac mini (slot 2, Google Chrome), harness `_d6-harness-g4` (= `_c8m2-harness-g4` + the round-8 canvas-10 scenarios `s10cm`/`s10d` from `_c8-harness-g4`). Spec frames reused from stage A (the boards `.design/ui/v2/10 Share and Collaboration.*` have not changed since). Committed JPEG pairs overwritten. No match judged here.
+
+| artboard id | light | dark | note |
+|---|---|---|---|
+| co-share-sheet, co-share-roles | re-shot | re-shot | |
+| co-browser-view, co-presence | re-shot | re-shot | |
+| co-comment-thread | re-shot | re-shot | Preview › comment thread, Comments panel open (`s10m`) |
+| co-comment-video | re-shot | re-shot | Edit, trailer selected, timeline markers (`s10v`) |
+| co-comment-print | re-shot | re-shot | View › Print guides on via ⌘K (`s10cm`, round 8) |
+| co-sync-offline, co-sync-back | re-shot | re-shot | per-row pending labels are still a data gap (`fix-c8-exshare.md`) |
+| co-conflict, co-trashed | re-shot | re-shot | Canvases panel folded (`s10k`) |
+| co-local-cloud, co-access-ends | re-shot | re-shot | |
+| co-ask-edit | re-shot | re-shot | pair uses the `co-ask-edit-tip` frame; Viewing pressed, the drag repeats until the tip shows (`s10d`, round 8); `-ask` and `-rel` frames are in the raw impl dir |
+| co-share-advanced | re-shot | re-shot | pair uses the tall 1040 px frame (`co-share-advanced-tall`, `s10e`) |
+| co-follow, co-bring, co-spotlight, co-twelve | unreachable | unreachable | need N live Yjs awareness peers (unchanged) |
+| co-mention-notify | unreachable | unreachable | OS banner + hub mention e-mail template are not in the lane (unchanged) |

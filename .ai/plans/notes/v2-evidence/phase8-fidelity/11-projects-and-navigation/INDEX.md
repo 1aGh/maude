@@ -154,3 +154,23 @@ Every reachable id re-shot on the merged tip `feat/maude-v2` @ `e37e7d82a` (rele
 | pn-tab-b, pn-tab-b20, pn-switch-ai-strip, pn-relaunch-strip | re-shot from `strip.html`: a tab at rest keeps the board's dense padding (space-2), so the name gets ~8 characters beside the state mark; the × takes the square's place on hover, the active tab keeps its × room on the left only |
 | pn-move | re-shot: the HTML5 drag events are dispatched by hand on one DataTransfer (Chrome's drag interception never delivered dragover to the panel): "Move here" on the folder, the dragged row dimmed and dashed, shot before the 600 ms spring-load opens the folder |
 | pn-deeplink | re-shot after the canvas is up and the centring pan settled (D5 light caught the selection ring mid-pan; ring and artboard are aligned — not a product bug) |
+
+## FINAL (D6, 3d58f57df)
+
+Every reachable id re-shot, light + dark, IMPL side only, on the merged tip `feat/maude-v2` @ `3d58f57df` (stage C round 8 merged, release-built client) on the Mac mini (slot 2, Google Chrome), harness `_d6-harness-g4` (= `_c8m2-harness-g4` + the round-8 canvas-10 scenarios `s10cm`/`s10d` from `_c8-harness-g4`). Spec frames reused from stage A (the boards `.design/ui/v2/11 Projects and Navigation.*` have not changed since). Committed JPEG pairs overwritten. No match judged here.
+
+| artboard id | light | dark | note |
+|---|---|---|---|
+| pn-tab-b, pn-tab-b20 | re-shot | re-shot | the real `apps/desktop/src/strip.html` fed a stubbed `tabs_state` (`strip-shoot`) |
+| pn-switch-ai | re-shot | re-shot | ⌘K › Keyboard shortcuts (`s11d`) |
+| pn-switch-ai-strip, pn-relaunch-strip | re-shot | re-shot | strip page |
+| pn-relaunch | re-shot | re-shot | |
+| pn-home, pn-home-search | re-shot | re-shot | Home server mode, seeded machine index (`home11`) |
+| pn-ds, pn-ds-search | re-shot | re-shot | ONE design system, the system open (`s11ds7`) |
+| pn-organise, pn-trash | re-shot | re-shot | |
+| pn-move | re-shot | re-shot | HTML5 drag events dispatched by hand, "Move here" on the folder (`s11c7`) |
+| pn-jump | re-shot | re-shot | artboard selected, list opened (`s11c7`) |
+| pn-k-across, pn-k-close | re-shot | re-shot | |
+| pn-history, pn-compare | re-shot | re-shot | |
+| pn-deeplink | re-shot | re-shot | after the toast and the centring pan (`s11dl`) |
+| pn-tab-a, pn-tab-a20, pn-ab, pn-tab-menu, pn-windows, pn-accounts, pn-cant-open | unreachable | unreachable | unchanged: variant A not picked / decision board / native NSMenu + multi-window / account card not built / needs the Rust shell + hub |

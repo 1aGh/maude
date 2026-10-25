@@ -134,3 +134,20 @@ Fixture note: the photo fixtures (18 files in `assets/`, the Spread canvas) are 
 | artboard id | after (round 8) |
 | --- | --- |
 | ia-brand-steps (= frame -1), -1, -2, -3 | re-shot: the chosen logo draws itself on the checker tile in the drop well (`bi-drop-ic--logo`); the website read is held by a route stub, so the Reading column (two Reading… rows, progress bar, "Usually under 10 seconds…") is on screen (-2), then answers "didn't answer" for the Edge column (-3). The opener pair uses the logo-chosen frame, which is what the board's first column draws |
+
+## FINAL (D6, 3d58f57df)
+
+Every reachable id re-shot, light + dark, IMPL side only, on the merged tip `feat/maude-v2` @ `3d58f57df` (stage C round 8 merged, release-built client) on the Mac mini (slot 2, Google Chrome), harness `_d6-harness-g4` (= `_c8m2-harness-g4` + the round-8 canvas-10 scenarios `s10cm`/`s10d` from `_c8-harness-g4`). Spec frames reused from stage A (the boards `.design/ui/v2/12 Import and Assets.*` have not changed since). Committed JPEG pairs overwritten. No match judged here.
+
+| artboard id | light | dark | note |
+|---|---|---|---|
+| ia-drop-photos, ia-placed | re-shot | re-shot | |
+| ia-assets-panel, ia-assets-keys, ia-assets-browse, ia-assets-find, ia-assets-tidy, ia-asset-details | re-shot | re-shot | `s12`, `s12c7` |
+| ia-photo-inspector, ia-photo-steps | re-shot | re-shot | `s12c7` |
+| ia-gen-ask, ia-figma-sheets, ia-figma-sheets-connect | re-shot | re-shot | |
+| ia-brand-steps, ia-brand-steps-1, -2, -3 | re-shot | re-shot | `s12g` (website read held by a route stub; opener pair uses the `-1` frame) |
+| ia-missing-gone | re-shot | re-shot | `s12c7` |
+| ia-advanced | re-shot | re-shot | |
+| ia-more-ways, ia-gen-placed, ia-figma-arrived, ia-figjam, ia-brand, ia-missing, ia-edges | unreachable | unreachable | unchanged: native picker/paste, BYOK provider, Figma API, a reachable website, synced peer, nine external conditions |
+
+Harness note: picture fixtures are drawn in Chromium (no ImageMagick on the runner).
