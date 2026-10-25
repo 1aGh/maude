@@ -2379,6 +2379,17 @@
       "phaseKey": null
     },
     {
+      "id": "feature-flow-refactor",
+      "title": "Feature: Flow plugin refactor — lean command set, economical runs, plans that run as goals",
+      "status": "planned",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming (DDR-004 group prefix, DDR-191 bare name:), the generated Codex mirrors and the project-agnostic <project>...",
+      "planPath": ".ai/plans/feature-flow-refactor.md",
+      "archived": false,
+      "phaseKey": null
+    },
+    {
       "id": "feature-local-media-generation",
       "title": "Feature: Power-user local media generation + native keychain (post-v1)",
       "status": "planned",

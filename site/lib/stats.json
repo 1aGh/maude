@@ -10,12 +10,12 @@
       "agents": 22
     },
     "flow": {
-      "commands": 31,
-      "skills": 53,
-      "agents": 12
+      "commands": 32,
+      "skills": 55,
+      "agents": 15
     },
     "maude": {
-      "subcommands": 24
+      "subcommands": 25
     }
   },
   "pageUpdated": {

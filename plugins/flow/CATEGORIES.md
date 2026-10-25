@@ -35,6 +35,7 @@ Verb-as-complete-action. Terse names. Includes `validate` and `release` which al
 | `/flow:scenario` | Cross-platform UI scenario across 5 platforms. | Manual smoke / validation. |
 | `/flow:quick` | Fast-path for trivial changes — skip plan cycle. | One-line hotfix, doc nudge. |
 | `/flow:release` | Walk the project's release runbook with explicit confirmation per step. | Cutting a release. |
+| `/flow:run` | Run a plan unattended as a goal: opt-in Stop gate with caps, plus `--status` / `--pause` / `--resume` / `--stop`. | Handing a whole plan to the session. |
 | `/flow:help` | Auto-generated grouped index (this catalog, live from frontmatter). | When you forget a command name. |
 
 > **Bookend debate layer (DDR-130) adds no new commands.** The opt-in multi-agent debate rides *inside* existing commands at the loop's bookends (`plan`/`setup-prd`/`validate-security`/`bug-rca`, design `setup-ds`/`critic`), gated by `orchestration.*` in `.ai/workflows.config.json`. The seats (`builder`, `shipper`, `breaker`, `user-advocate`, `investigator`) are agents, not commands — not catalogued here. See `plugins/flow/skills/debate-protocol/SKILL.md`.

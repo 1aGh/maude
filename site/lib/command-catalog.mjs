@@ -70,6 +70,7 @@ export const COMMAND_CATALOG = [
       { name: 'scenario', category: 'daily' },
       { name: 'quick', category: 'daily' },
       { name: 'release', category: 'daily' },
+      { name: 'run', category: 'daily' },
       { name: 'help', category: 'daily' },
       { name: 'init', category: 'setup' },
       { name: 'setup-prd', category: 'setup' },

@@ -384,6 +384,219 @@ Observability knob. If the measured short-circuit escalation rate (fraction of b
 
 **Type:** `integer` · **Default:** `2` · **Min:** `2`
 
+## `run`
+
+**Type:** `object`
+
+Economy and unattended-run settings for /flow:execute and /flow:run (flow:context-budget skill). Every key is optional; an absent block keeps today's behaviour apart from the preset defaults the skill documents.
+
+### `run.routing`
+
+**Type:** `object`
+
+Which tier and effort each role agent runs on. Defaults: worker fast/high, spike deep/high, scout fast/medium, critic fast.
+
+#### `run.routing.worker`
+
+**Type:** `object`
+
+flow:worker — implements one plan task.
+
+##### `run.routing.worker.tier`
+
+**Type:** enum: `"fast"` │ `"deep"` │ `"inherit"`
+
+`fast` = the Sonnet-class model, `deep` = the Opus-class model, `inherit` = the lead's model. A tier, never a dated model id — the plugin maps it to the host alias.
+
+**Allowed values:**
+
+- `"fast"`
+- `"deep"`
+- `"inherit"`
+
+##### `run.routing.worker.effort`
+
+**Type:** enum: `"low"` │ `"medium"` │ `"high"` │ `"xhigh"`
+
+**Allowed values:**
+
+- `"low"`
+- `"medium"`
+- `"high"`
+- `"xhigh"`
+
+#### `run.routing.spike`
+
+**Type:** `object`
+
+flow:spike — resolves an open question.
+
+##### `run.routing.spike.tier`
+
+**Type:** enum: `"fast"` │ `"deep"` │ `"inherit"`
+
+`fast` = the Sonnet-class model, `deep` = the Opus-class model, `inherit` = the lead's model. A tier, never a dated model id — the plugin maps it to the host alias.
+
+**Allowed values:**
+
+- `"fast"`
+- `"deep"`
+- `"inherit"`
+
+##### `run.routing.spike.effort`
+
+**Type:** enum: `"low"` │ `"medium"` │ `"high"` │ `"xhigh"`
+
+**Allowed values:**
+
+- `"low"`
+- `"medium"`
+- `"high"`
+- `"xhigh"`
+
+#### `run.routing.scout`
+
+**Type:** `object`
+
+flow:scout — read-only fact finding.
+
+##### `run.routing.scout.tier`
+
+**Type:** enum: `"fast"` │ `"deep"` │ `"inherit"`
+
+`fast` = the Sonnet-class model, `deep` = the Opus-class model, `inherit` = the lead's model. A tier, never a dated model id — the plugin maps it to the host alias.
+
+**Allowed values:**
+
+- `"fast"`
+- `"deep"`
+- `"inherit"`
+
+##### `run.routing.scout.effort`
+
+**Type:** enum: `"low"` │ `"medium"` │ `"high"` │ `"xhigh"`
+
+**Allowed values:**
+
+- `"low"`
+- `"medium"`
+- `"high"`
+- `"xhigh"`
+
+#### `run.routing.critic`
+
+**Type:** `object`
+
+Rubric reviewers (design critics, a11y-auditor, scenario-runner, design-system-guard). The security pair always inherits.
+
+##### `run.routing.critic.tier`
+
+**Type:** enum: `"fast"` │ `"deep"` │ `"inherit"`
+
+`fast` = the Sonnet-class model, `deep` = the Opus-class model, `inherit` = the lead's model. A tier, never a dated model id — the plugin maps it to the host alias.
+
+**Allowed values:**
+
+- `"fast"`
+- `"deep"`
+- `"inherit"`
+
+##### `run.routing.critic.effort`
+
+**Type:** enum: `"low"` │ `"medium"` │ `"high"` │ `"xhigh"`
+
+**Allowed values:**
+
+- `"low"`
+- `"medium"`
+- `"high"`
+- `"xhigh"`
+
+### `run.riskClasses`
+
+**Type:** `string[]`
+
+Globs or plan tags (e.g. `auth/**`, `migration`) that send a task's worker to the deep tier.
+
+### `run.budget`
+
+**Type:** `object`
+
+Per-agent context budget. `preset` picks the defaults (see flow:context-budget); explicit keys override it.
+
+#### `run.budget.preset`
+
+**Type:** enum: `"small"` │ `"default"` │ `"monorepo"` · **Default:** `"default"`
+
+**Allowed values:**
+
+- `"small"`
+- `"default"`
+- `"monorepo"`
+
+#### `run.budget.agentTurns`
+
+**Type:** `integer` · **Min:** `10`
+
+#### `run.budget.agentContextK`
+
+**Type:** `integer` · **Min:** `50`
+
+#### `run.budget.handbackLines`
+
+**Type:** `integer` · **Min:** `10`
+
+#### `run.budget.leadCheckpointPct`
+
+**Type:** `integer` · **Min:** `20` · **Max:** `95`
+
+#### `run.budget.maxRunTokens`
+
+**Type:** `integer` · **Min:** `1`
+
+/flow:run only: total read+write tokens after which the Stop hook checkpoints and lets the run stop. Absent = no ceiling.
+
+### `run.largeFileKB`
+
+**Type:** `integer` · **Default:** `64` · **Min:** `1`
+
+Files above this size are read by range, never whole.
+
+### `run.gates`
+
+**Type:** enum: `"per-batch"` │ `"per-task"` · **Default:** `"per-batch"`
+
+When /flow:execute runs the full `quality` gates: after each batch of related tasks (default) or after every task. Workers always run their focused tests.
+
+**Allowed values:**
+
+- `"per-batch"`
+- `"per-task"`
+
+### `run.lane`
+
+**Type:** `string`
+
+Optional wrapper that serialises test suites, invoked as `&lt;lane> -- &lt;command>` (e.g. a script that takes a machine-wide lock). Absent = suites run directly.
+
+### `run.hooks`
+
+**Type:** `boolean` · **Default:** `false`
+
+/flow:run hooks (SubagentStart rules, SubagentStop Decisions check, Stop gate). OFF by default; every hook is a no-op unless this is true AND a run marker for this session exists. Kill switch for one shell: FLOW_RUN_HOOKS=0.
+
+### `run.maxStopBlocks`
+
+**Type:** `integer` · **Default:** `3` · **Min:** `1` · **Max:** `20`
+
+/flow:run: identical red done-checks in a row after which the Stop hook writes the waiting file and lets the session stop.
+
+### `run.expiresHours`
+
+**Type:** `integer` · **Default:** `24` · **Min:** `1`
+
+/flow:run: hours after arming when the marker expires and every hook becomes a no-op.
+
 ## `knowledgeGraph`
 
 **Type:** `object`
