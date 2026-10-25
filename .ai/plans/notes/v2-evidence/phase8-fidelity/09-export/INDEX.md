@@ -248,3 +248,14 @@ Final verification shoot after stage C round 7, on the merged tip (release-built
 | ex-edges | unreachable — viewer-role export and "AI is changing this artboard" need a viewer session / a live AI edit; spec-only frame stands | unreachable (same) |
 
 Totals: 38 id×theme re-shot (19 ids), 4 unreachable (2 ids). Watchdog notes (harness): `t09 dark` and `ho light` hung after their last shot and were killed by the idle watchdog; all frames of those runs were already written.
+
+## Round 8 (p8-c8-exshare) — after
+
+Re-shot light + dark on the Mac mini (`_c8-harness-g3`: `t09b`, `vid`, `adv`) on the release client of `feat/maude-v2` + this round. Pairs overwritten; spec reused. No verdicts here.
+
+| id | after (round 8) |
+|---|---|
+| ex-video | footer lane words follow the ticked Render card ("... in the cloud" with In the cloud ticked) |
+| ex-offline | same footer rule; cloud card still the default tick (harness estimate suggests it) |
+| ex-batch | Folders set to **One per canvas** in the shot (select offers One folder / One per canvas; path hint "<canvas path> · <file>") |
+| ex-advanced | a visible heading over each part, JPG quality row, Bleed switch + "3 mm" field, Paper select, Text select inside its column |

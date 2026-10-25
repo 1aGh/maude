@@ -40513,5 +40513,181 @@
     "region": "git/history",
     "consumers": [],
     "v2": "stable"
+  },
+  {
+    "hook": "export-adv-bleed-mm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Print PDF: the bleed the artboard was authored with, read-only, beside the Bleed switch.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/print.jsx",
+      "symbol": "PrintPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-batch.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-image-col",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › the Image column: its heading and the part.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/advanced.jsx",
+      "symbol": "Col"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-batch.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-image-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › the visible heading over the Image part.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/advanced.jsx",
+      "symbol": "Col"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-batch.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-print-col",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › the Print PDF column: its heading and the part.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/advanced.jsx",
+      "symbol": "Col"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-batch.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-print-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › the visible heading over the Print PDF part.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/advanced.jsx",
+      "symbol": "Col"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-batch.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-video-col",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › the Video column: its heading and the part.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/advanced.jsx",
+      "symbol": "Col"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-batch.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-video-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › the visible heading over the Video part.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/advanced.jsx",
+      "symbol": "Col"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-batch.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-render-col",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › the Where it renders column: its heading and the part.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/advanced.jsx",
+      "symbol": "Col"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-batch.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-render-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › the visible heading over the Where it renders part.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/advanced.jsx",
+      "symbol": "Col"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-batch.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-folders",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Export sheet › Folders select (One folder · One per canvas) on a canvas / folder / project export.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/export-sheet.jsx",
+      "symbol": "ExportSheet"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-batch.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-folders-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Export sheet › the path the Folders choice makes, under the select.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/export-sheet.jsx",
+      "symbol": "ExportSheet"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-batch.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

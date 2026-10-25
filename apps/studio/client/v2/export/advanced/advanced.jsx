@@ -8,6 +8,7 @@
 import { useCallback, useMemo } from 'react';
 import { StIcon } from '../../../shell/icons.jsx';
 import { foldBodyId } from '../../fold/advanced-fold.jsx';
+import { IMAGE_TITLE, PRINT_TITLE, RENDER_TITLE, VIDEO_TITLE } from './advanced-copy.js';
 import { CommandPart } from './command.jsx';
 import { ImagePart } from './image.jsx';
 import { advancedParts, nameSamples, specFormats } from './model.js';
@@ -17,6 +18,18 @@ import { RenderPart } from './render.jsx';
 import { VideoPart } from './video.jsx';
 
 const VIDEO_FORMATS = ['mp4', 'webm', 'gif'];
+
+/** 09 ex-advanced: each part sits under its own visible heading (Image · Print PDF · Video · Where it renders). */
+function Col({ id, title, children }) {
+  return (
+    <div className="ex-adv-col" data-testid={`export-adv-${id}-col`}>
+      <p className="ex-advp-h" data-testid={`export-adv-${id}-title`}>
+        {title}
+      </p>
+      {children}
+    </div>
+  );
+}
 
 /**
  * 09 — the Advanced row lives in the sheet's footer: `› Advanced <hint>` at the left, Cancel and the verb at the
@@ -60,6 +73,7 @@ export function AdvancedSection({
   exportLane,
   facts,
   sheetScale,
+  bleedMm = 3,
   extra = null,
 }) {
   const adv = state.adv ?? {};
@@ -90,23 +104,33 @@ export function AdvancedSection({
       >
         <div className="ex-adv-cols" data-testid="export-adv-parts">
           {parts.image ? (
-            <ImagePart adv={adv} setAdv={setAdv} sheetScale={sheetScale} jpg={formats.has('jpg')} />
+            <Col id="image" title={IMAGE_TITLE}>
+              <ImagePart adv={adv} setAdv={setAdv} sheetScale={sheetScale} />
+            </Col>
           ) : null}
-          {parts.print ? <PrintPart spec={spec} setAdv={setAdv} /> : null}
+          {parts.print ? (
+            <Col id="print" title={PRINT_TITLE}>
+              <PrintPart spec={spec} setAdv={setAdv} bleedMm={bleedMm} />
+            </Col>
+          ) : null}
           {parts.video ? (
-            <VideoPart
-              spec={spec}
-              formats={VIDEO_FORMATS.filter((f) => formats.has(f))}
-              setAdv={setAdv}
-            />
+            <Col id="video" title={VIDEO_TITLE}>
+              <VideoPart
+                spec={spec}
+                formats={VIDEO_FORMATS.filter((f) => formats.has(f))}
+                setAdv={setAdv}
+              />
+            </Col>
           ) : null}
           {parts.render ? (
-            <RenderPart
-              spec={spec}
-              exportLane={exportLane}
-              video={parts.video || formats.has('audio')}
-              setAdv={setAdv}
-            />
+            <Col id="render" title={RENDER_TITLE}>
+              <RenderPart
+                spec={spec}
+                exportLane={exportLane}
+                video={parts.video || formats.has('audio')}
+                setAdv={setAdv}
+              />
+            </Col>
           ) : null}
         </div>
         <div className="ex-adv-foot">

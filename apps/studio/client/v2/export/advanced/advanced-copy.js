@@ -21,6 +21,7 @@ export const BACKGROUND = 'Background';
 export const PRINT_TITLE = 'Print PDF';
 export const IMAGES_INSIDE = 'Images inside';
 export const BLEED = 'Bleed';
+export const BLEED_AMOUNT = 'Bleed amount';
 export const CROP_MARKS = 'Crop marks';
 // S8.7 — A-crop-and-registration-marks, A-pdf-quality-and-text-outlines (09 ex-advanced, Print PDF column)
 export const REGISTRATION_MARKS = 'Registration marks';
@@ -47,6 +48,7 @@ export const LONG_VIDEOS = 'Long videos';
 export const LONG_VIDEOS_WORDS = (cap) => `Up to ${Number(cap).toLocaleString('en-US')} frames`;
 export const PAPER = 'Paper';
 export const PAPER_WORDS = 'Same as artboard';
+export const PAPER_OPTIONS = [['same', PAPER_WORDS]];
 export const CODEC_WORDS = { mp4: 'H.264 (MP4)', webm: 'VP9 (WebM)', gif: 'GIF' };
 export const VIDEO_NOTE = 'Size is the sheet’s Quality. WebM uses VP9.';
 

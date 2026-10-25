@@ -31,9 +31,8 @@ import {
  * @param adv       what the fold has touched (`state.adv`)
  * @param setAdv    (patch) => void
  * @param sheetScale  the 1× / 2× the sheet itself has picked (shown until an exact one is typed)
- * @param jpg       is a JPG part of this export?
  */
-export function ImagePart({ adv, setAdv, sheetScale = 1, jpg = false }) {
+export function ImagePart({ adv, setAdv, sheetScale = 1 }) {
   const by = adv.sizeBy === 'dpi' ? 'dpi' : 'scale';
   return (
     <section className="ex-advp" data-testid="export-adv-image" aria-label={IMAGE_TITLE}>
@@ -99,19 +98,18 @@ export function ImagePart({ adv, setAdv, sheetScale = 1, jpg = false }) {
         />
       </Row>
       <Note>{COLOUR_NOTE}</Note>
-      {jpg ? (
-        <Row k={JPG_QUALITY}>
-          <NumberField
-            label={JPG_QUALITY}
-            testid="export-adv-jpg-quality"
-            unit="%"
-            integer
-            range={JPG_RANGE}
-            value={adv.jpgQuality ?? JPG_DEFAULT}
-            onCommit={(jpgQuality) => setAdv({ jpgQuality })}
-          />
-        </Row>
-      ) : null}
+      {/* 09 ex-advanced draws it on the Image column always: the fold is the sheet's, so a JPG picked next uses it */}
+      <Row k={JPG_QUALITY}>
+        <NumberField
+          label={JPG_QUALITY}
+          testid="export-adv-jpg-quality"
+          unit="%"
+          integer
+          range={JPG_RANGE}
+          value={adv.jpgQuality ?? JPG_DEFAULT}
+          onCommit={(jpgQuality) => setAdv({ jpgQuality })}
+        />
+      </Row>
       <Row k={BACKGROUND}>
         <Select
           label={BACKGROUND}

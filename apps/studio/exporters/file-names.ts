@@ -88,6 +88,25 @@ export function sanitizeStem(raw: string): string {
   return s || 'export';
 }
 
+/**
+ * 09 ex-batch › Folders "One per canvas": the folder a canvas's files go in, inside the result zip — its path
+ * under the design root without `.tsx` and without the root's own `ui/` ("social/matchday/DOMA"). Every segment
+ * is made safe (no `..`, no empty one); '' for a file that belongs to no canvas.
+ */
+export function canvasDir(rel: string | null | undefined): string {
+  if (!rel) return '';
+  const parts = rel
+    .replace(/\\/g, '/')
+    .replace(/\.tsx$/i, '')
+    .split('/')
+    .filter((p) => p !== '' && p !== '.' && p !== '..');
+  if (parts[0] === 'ui' && parts.length > 1) parts.shift();
+  return parts
+    .map((p) => sanitizeStem(p.replace(UNSAFE, '')))
+    .filter(Boolean)
+    .join('/');
+}
+
 /** Render a template for one file (no extension). Unknown tokens stay literal. */
 export function renderStem(template: string, f: NameFacts): string {
   const values: Record<string, string> = {

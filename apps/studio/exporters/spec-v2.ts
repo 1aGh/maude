@@ -51,6 +51,8 @@ export interface ExportOptionsV2 {
   };
   audio?: { codec: 'm4a' | 'wav' };
   nameTemplate?: string;
+  /** P8 c8 (09 ex-batch › Folders): `one` (flat, the default) or `per-canvas` (files under `<canvas path>/` in the zip) */
+  folders?: 'one' | 'per-canvas';
   saveTo?: 'downloads' | 'remembered' | 'ask';
   lane?: 'auto' | 'this-mac' | 'cloud';
 }
@@ -194,6 +196,7 @@ function options(v: unknown, at: string): ExportOptionsV2 {
       'video',
       'audio',
       'nameTemplate',
+      'folders',
       'saveTo',
       'lane',
     ],
@@ -265,6 +268,8 @@ function options(v: unknown, at: string): ExportOptionsV2 {
       );
     out.nameTemplate = v.nameTemplate;
   }
+  if (v.folders !== undefined)
+    out.folders = oneOf(v.folders, `${at}.folders`, ['one', 'per-canvas']);
   if (v.saveTo !== undefined)
     out.saveTo = oneOf(v.saveTo, `${at}.saveTo`, ['downloads', 'remembered', 'ask']);
   if (v.lane !== undefined) out.lane = oneOf(v.lane, `${at}.lane`, ['auto', 'this-mac', 'cloud']);

@@ -388,8 +388,7 @@
   /* the value stays a read-only field (select-all, the stable testid) drawn as plain mono text */
   .v2sh-arow-v input.v2sh-val {
     /* the UA's inset border is the white outline the board never draws; the whole value shows, right-aligned */
-    flex: 1 1 auto;
-    width: auto;
+    flex: 0 1 auto;
     min-width: 0;
     max-width: 100%;
     height: 22px;

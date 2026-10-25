@@ -489,11 +489,22 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `export-adv-dpi-<n>` | testid (pattern) | One dpi preset: `150` · `300` · `600`. | `client/v2/export/advanced/image.jsx` · `ImagePart` | test:v2-export-batch | new |
 | `export-adv-color` | testid | Advanced › Image: colour profile, sRGB or Display P3. | `client/v2/export/advanced/image.jsx` · `ImagePart` | test:v2-export-batch | new |
 | `export-adv-color-<id>` | testid (pattern) | One colour profile: `srgb` · `display-p3`. | `client/v2/export/advanced/image.jsx` · `ImagePart` | test:v2-export-batch | new |
-| `export-adv-jpg-quality` | testid | Advanced › Image: JPG quality 1–100 %. Shown when a JPG is part of the export. | `client/v2/export/advanced/image.jsx` · `ImagePart` | test:v2-export-batch | new |
+| `export-adv-jpg-quality` | testid | Advanced › Image: JPG quality 1–100 % (always on the Image part; used when a JPG is exported). | `client/v2/export/advanced/image.jsx` · `ImagePart` | test:v2-export-batch | new |
 | `export-adv-background` | testid | Advanced › Image: the background (as on the artboard · transparent · white). | `client/v2/export/advanced/image.jsx` · `ImagePart` | test:v2-export-batch | new |
 | `export-adv-print` | testid | Advanced › Print PDF: the images' dpi, bleed and crop marks. Shown for a PDF of a print artboard. | `client/v2/export/advanced/print.jsx` · `PrintPart` | test:v2-export-batch | new |
 | `export-adv-print-dpi` | testid | Advanced › Print PDF: resolution of the images inside. | `client/v2/export/advanced/print.jsx` · `PrintPart` | test:v2-export-batch | new |
 | `export-adv-bleed` | testid | Advanced › Print PDF: bleed switch. | `client/v2/export/advanced/print.jsx` · `PrintPart` | test:v2-export-batch | new |
+| `export-adv-bleed-mm` | testid | Advanced › Print PDF: the bleed the artboard was authored with, read-only, beside the Bleed switch. | `client/v2/export/advanced/print.jsx` · `PrintPart` | test:v2-export-batch | new |
+| `export-adv-image-col` | testid | Advanced › the Image column: its heading and the part. | `client/v2/export/advanced/advanced.jsx` · `Col` | test:v2-export-batch | new |
+| `export-adv-image-title` | testid | Advanced › the visible heading over the Image part. | `client/v2/export/advanced/advanced.jsx` · `Col` | test:v2-export-batch | new |
+| `export-adv-print-col` | testid | Advanced › the Print PDF column: its heading and the part. | `client/v2/export/advanced/advanced.jsx` · `Col` | test:v2-export-batch | new |
+| `export-adv-print-title` | testid | Advanced › the visible heading over the Print PDF part. | `client/v2/export/advanced/advanced.jsx` · `Col` | test:v2-export-batch | new |
+| `export-adv-video-col` | testid | Advanced › the Video column: its heading and the part. | `client/v2/export/advanced/advanced.jsx` · `Col` | test:v2-export-batch | new |
+| `export-adv-video-title` | testid | Advanced › the visible heading over the Video part. | `client/v2/export/advanced/advanced.jsx` · `Col` | test:v2-export-batch | new |
+| `export-adv-render-col` | testid | Advanced › the Where it renders column: its heading and the part. | `client/v2/export/advanced/advanced.jsx` · `Col` | test:v2-export-batch | new |
+| `export-adv-render-title` | testid | Advanced › the visible heading over the Where it renders part. | `client/v2/export/advanced/advanced.jsx` · `Col` | test:v2-export-batch | new |
+| `export-folders` | testid | Export sheet › Folders select (One folder · One per canvas) on a canvas / folder / project export. | `client/v2/export/export-sheet.jsx` · `ExportSheet` | test:v2-export-batch | new |
+| `export-folders-note` | testid | Export sheet › the path the Folders choice makes, under the select. | `client/v2/export/export-sheet.jsx` · `ExportSheet` | test:v2-export-batch | new |
 | `export-adv-crop` | testid | Advanced › Print PDF: crop marks switch. | `client/v2/export/advanced/print.jsx` · `PrintPart` | test:v2-export-batch | new |
 | `export-print` | testid | The Print section: the paper preview beside the rows, for a spec that reaches only print artboards. `data-pages` = 1 or 2. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
 | `export-print-preview` | testid | The paper column of the Print section: the page, its pages, the caption, the legend. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |

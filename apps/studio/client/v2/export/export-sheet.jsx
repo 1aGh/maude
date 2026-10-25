@@ -46,6 +46,7 @@ import { nameSamples } from './advanced/model.js';
 import {
   FILE_NAMES_OPTIONS,
   FILE_NAMES_TEMPLATE,
+  FOLDERS_OPTIONS,
   FileRows,
   fileNamesPick,
   SAVE_TO_DEFAULT,
@@ -54,6 +55,7 @@ import { fitBox, Pic, PreviewColumn, sizeLine, useBoardPicture } from './preview
 import { AccessLine, exportAccess } from './access-line.jsx';
 import { annotationsState } from './annotations-policy.js';
 import { OtherFormats } from './other-formats.jsx';
+import { canvasDir } from '../../../exporters/file-names.ts';
 import { laneBlocked, replayBody, runExport } from './run-export.js';
 import { ScopeBar } from './scope-bar.jsx';
 import { picksForOther } from './sections/batch-model.js';
@@ -334,7 +336,10 @@ export function ExportSheet({
   const summary =
     mode === 'export'
       ? summaryWords(
-          est,
+          // 09 ex-video: the words follow the Render card that is ticked, not the lane the estimate was asked in
+          render.show && est
+            ? { ...est, lane: render.lane === 'cloud' ? 'cloud' : 'this-mac' }
+            : est,
           printChoice.printPdf ? { pdfPages: printChoice.withBack ? 2 : 1 } : undefined
         )
       : null;
@@ -520,16 +525,18 @@ export function ExportSheet({
             </Row>
           ) : (
             <Row k="Folders" testid="export-row-folders">
-              {/* 09: a select with the path it makes under it. File names carry no `/` yet, so one folder is the one choice */}
+              {/* 09: a select with the path it makes under it: all in one folder, or one folder per canvas (spec options.folders) */}
               <Select
                 label="Folders"
                 testid="export-folders"
-                value="one"
-                options={[['one', 'One folder']]}
-                onChange={() => {}}
+                value={state.adv?.folders === 'per-canvas' ? 'per-canvas' : 'one'}
+                options={FOLDERS_OPTIONS}
+                onChange={(id) => set({ adv: { ...(state.adv ?? {}), folders: id } })}
               />
               <span className="ex-row-n ex-row-n--in" data-testid="export-folders-note">
-                {fileSamples[0] ?? ''}
+                {state.adv?.folders === 'per-canvas' && nameFacts.canvas
+                  ? `${canvasDir(nameFacts.canvas)} · ${fileSamples[0] ?? ''}`
+                  : (fileSamples[0] ?? '')}
               </span>
             </Row>
           )
@@ -650,6 +657,7 @@ export function ExportSheet({
             exportLane={exportLane}
             facts={nameFacts}
             sheetScale={effectiveScale(state, kind)}
+            bleedMm={preflight?.boards?.[0]?.paper?.bleedMm ?? 3}
             extra={
               batch ? (
                 <BatchAdvancedRows

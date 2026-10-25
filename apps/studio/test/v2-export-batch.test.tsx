@@ -572,6 +572,30 @@ describe('the sheet: many at once', () => {
     expect(posted().options.nameTemplate).toBe('{artboard}');
   });
 
+  test('P8 c8 (09 ex-batch): Folders offers One folder / One per canvas; the pick is the spec’s folders and the hint shows the path', async () => {
+    await mountSheet({ hasSelection: false, selectedArtboards: [] });
+    await click('[data-testid="export-scope-folder"]');
+    const sel = $('[data-testid="export-folders"]') as HTMLSelectElement;
+    expect([...sel.options].map((o) => [o.value, o.textContent])).toEqual([
+      ['one', 'One folder'],
+      ['per-canvas', 'One per canvas'],
+    ]);
+    expect(sel.value).toBe('one');
+    expect(text('[data-testid="export-folders-note"]')).not.toContain(' · ');
+    await choose('[data-testid="export-folders"]', 'per-canvas');
+    // the path the files go under (the canvas's own, no .tsx), then the first file's name
+    expect(text('[data-testid="export-folders-note"]')).toMatch(/^combine · .+\.png$/);
+    await click('[data-testid="export-submit"]');
+    expect(posted().options.folders).toBe('per-canvas');
+  });
+
+  test('One folder (the default) sends no folders key at all', async () => {
+    await mountSheet({ hasSelection: false, selectedArtboards: [] });
+    await click('[data-testid="export-scope-folder"]');
+    await click('[data-testid="export-submit"]');
+    expect(posted().options?.folders).toBeUndefined();
+  });
+
   test('changing one group leaves the other alone — in the select and in the posted spec', async () => {
     await mountSheet();
     await choose('[data-testid="export-group-digital-format"]', 'jpg-2');
@@ -718,6 +742,37 @@ describe('the sheet: Advanced', () => {
     expect($('[data-testid="export-adv-print"]')).not.toBeNull();
     expect($('[data-testid="export-adv-video"]')).not.toBeNull();
     expect($('[data-testid="export-adv-render"]')).not.toBeNull();
+  });
+
+  test('P8 c8 (09 ex-advanced): each part has its visible heading; JPG quality, Bleed mm and Paper are drawn', async () => {
+    estimate = {
+      ...EST_BATCH,
+      byKind: {
+        digital: { artboards: 2, files: 2, format: 'png' },
+        print: { artboards: 1, files: 1, format: 'pdf' },
+        video: { artboards: 1, files: 1, format: 'mp4' },
+      },
+    };
+    await mountSheet();
+    await click('[data-testid="export-advanced-toggle"]');
+    expect(text('[data-testid="export-adv-image-title"]')).toBe('Image — PNG · JPG');
+    expect(text('[data-testid="export-adv-print-title"]')).toBe('Print PDF');
+    expect(text('[data-testid="export-adv-video-title"]')).toBe('Video — MP4 · GIF · WebM');
+    expect(text('[data-testid="export-adv-render-title"]')).toBe('Where it renders');
+    // each part sits inside its titled column
+    expect(
+      $('[data-testid="export-adv-image-col"] [data-testid="export-adv-image"]')
+    ).not.toBeNull();
+    // JPG quality is on the Image part even for a PNG-only export (the fold is the sheet's: a JPG picked next uses it)
+    expect(($('[data-testid="export-adv-jpg-quality"]') as HTMLInputElement).value).toBe('85');
+    // Bleed: the switch keeps its job, the field beside it reads the artboard's own bleed in mm
+    expect(($('[data-testid="export-adv-bleed-mm"]') as HTMLInputElement).value).toBe('3 mm');
+    expect(($('[data-testid="export-adv-bleed-mm"]') as HTMLInputElement).readOnly).toBe(true);
+    // Paper is a select (the board's), enabled, with the one answer there is
+    const paper = $('[data-testid="export-adv-paper"]') as HTMLSelectElement;
+    expect(paper.tagName).toBe('SELECT');
+    expect(paper.disabled).toBe(false);
+    expect([...paper.options].map((o) => o.textContent)).toEqual(['Same as artboard']);
   });
 
   test('an Advanced change reaches the spec: exact scale', async () => {

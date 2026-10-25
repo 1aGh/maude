@@ -10,6 +10,7 @@
 
 import JSZip from 'jszip';
 import {
+  canvasDir,
   createNameDeduper,
   DEFAULT_NAME_TEMPLATE,
   groupFolderName,
@@ -152,7 +153,23 @@ export async function collectGroup(
   taken: Iterable<string> = []
 ): Promise<GroupCollected> {
   const template = plan.spec.options?.nameTemplate ?? DEFAULT_NAME_TEMPLATE;
-  const dedupe = createNameDeduper(taken);
+  // 09 ex-batch › Folders "One per canvas": a file's name is `<canvas path>/<name>`; a duplicate is judged inside its folder
+  const perCanvas = plan.spec.options?.folders === 'per-canvas';
+  const takenAll = [...taken];
+  const dedupers = new Map<string, ReturnType<typeof createNameDeduper>>();
+  const dedupeIn = (dir: string, stem: string, ext: string) => {
+    let d = dedupers.get(dir);
+    if (!d) {
+      d = createNameDeduper(
+        dir
+          ? takenAll.filter((n) => n.startsWith(`${dir}/`)).map((n) => n.slice(dir.length + 1))
+          : takenAll.filter((n) => !n.includes('/'))
+      );
+      dedupers.set(dir, d);
+    }
+    const name = d(stem, ext);
+    return dir ? `${dir}/${name}` : name;
+  };
   const files: GroupFile[] = [];
   const reasons = new Set<string>();
   const merged: Omit<ExportDegradation, 'reason'> = {};
@@ -173,7 +190,11 @@ export async function collectGroup(
       item.files = [];
       for (const p of parts) {
         if (!p.bytes.byteLength) continue;
-        const name = dedupe(renderStem(template, factsFor(plan, unit, p.board)), p.ext);
+        const name = dedupeIn(
+          perCanvas ? canvasDir(unit.canvas) : '',
+          renderStem(template, factsFor(plan, unit, p.board)),
+          p.ext
+        );
         files.push({ name, bytes: p.bytes });
         item.files.push(name);
       }
@@ -209,7 +230,8 @@ export async function packGroup(
   if (files.length === 1) {
     const f = files[0] as GroupFile;
     return {
-      filename: f.name,
+      // one file is one download: its own name, never the folder path it would sit in inside a zip
+      filename: f.name.replace(/^.*\//, ''),
       contentType: MIME[extOf(f.name)] ?? 'application/octet-stream',
       body: f.bytes,
       ...deg,
