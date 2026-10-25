@@ -52,6 +52,7 @@ import { useAssets } from '../assets/use-assets.js';
 import { AskButton, copy, Empty } from '../empty/index.js';
 import { getPaletteEnv } from '../search/search-env.js';
 import { menuRunner } from '../shell/menu-runner.js';
+import { ASSET_RENAME_WORDS, renameAssetRequest, renameDraftOf } from '../assets/rename-asset.js';
 
 export { filterAssets };
 
@@ -159,6 +160,9 @@ export function AssetsPanel({
   const [kindFilter, setKindFilter] = useState('all');
   const [confirm, setConfirm] = useState(null);
   const [trashed, setTrashed] = useState(null);
+  // P8 round 7 — Rename…: the field ({ rel, draft }) and what was renamed ({ from, to, message }) for its Undo
+  const [renaming, setRenaming] = useState(null);
+  const [renamed, setRenamed] = useState(null);
   const [box, setBox] = useState(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(null);
@@ -420,6 +424,39 @@ export function AssetsPanel({
     if (!r.ok) setErr(r.message);
     await reload();
   };
+  // ── P8 round 7: Rename… — one request; the studio refuses a picture a canvas uses, so no artboard loses its picture ──
+  const renameTo = useCallback(
+    async (rel, name, { undo = false } = {}) => {
+      if (readOnly) return;
+      setErr('');
+      const r = await renameAssetRequest(rel, name, fetchImpl ? { fetchImpl } : {});
+      if (!alive.current) return;
+      setRenaming(null);
+      if (r.keep) return;
+      if (!r.ok) {
+        setErr(r.message);
+        return;
+      }
+      setTrashed(null);
+      setRenamed(
+        undo
+          ? { from: null, to: r.to, message: ASSET_RENAME_WORDS.back(r.to.split('/').pop()) }
+          : { from: rel, to: r.to, message: r.message }
+      );
+      setPicked((p) => (p === rel ? r.to : p));
+      setDetails((d) => (d === rel ? r.to : d));
+      await reload();
+    },
+    [readOnly, fetchImpl, reload]
+  );
+  const startRename = useCallback(
+    (path) => {
+      if (readOnly || !path) return;
+      setRenamed(null);
+      setRenaming({ rel: path, draft: renameDraftOf(path) });
+    },
+    [readOnly]
+  );
   // the tile menu's / the registry's Move to trash: the picked tile, or the picked ones when the tile is among them
   const trashSelection = useCallback(
     (path) => {
@@ -444,6 +481,7 @@ export function AssetsPanel({
     placeMany,
     showDetails,
     trashSelection,
+    startRename,
     readOnly,
   };
   useEffect(
@@ -464,6 +502,11 @@ export function AssetsPanel({
             setBrowse(null);
             l.showDetails(one);
           } else if (l.picked) l.showDetails(l.picked);
+        },
+        rename: () => {
+          const l = live.current;
+          const one = l.browse ? l.browsePicked()[0] : l.picked;
+          if (one) l.startRename(one);
         },
         trash: () => {
           const l = live.current;
@@ -523,7 +566,8 @@ export function AssetsPanel({
       void copyAssetImage(url(path)).then((ok) => {
         if (!ok && alive.current) setErr(COPY_FAILED_LINE);
       });
-    } else if (id === 'trash') trashSelection(path);
+    } else if (id === 'rename') startRename(path);
+    else if (id === 'trash') trashSelection(path);
   };
 
   const detailed = details ? byPath.get(details) : null;
@@ -538,9 +582,54 @@ export function AssetsPanel({
     [tidy, shown]
   );
   // the line under the head: an error, or what was moved with its Undo
-  const note = err ? (
+  const note = renaming ? (
+    <div className="lp-note lp-rename" data-testid="assets-rename">
+      <input
+        // biome-ignore lint/a11y/noAutofocus: the field opens from the menu row the person just chose
+        autoFocus
+        className="lp-rename-in"
+        data-testid="assets-rename-input"
+        aria-label={ASSET_RENAME_WORDS.field(renaming.rel.split('/').pop())}
+        value={renaming.draft}
+        maxLength={120}
+        onChange={(e) => setRenaming({ ...renaming, draft: e.target.value })}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            setRenaming(null);
+          } else if (e.key === 'Enter') {
+            // ↵ renames (and never reaches the panel's ↵ = Place)
+            e.preventDefault();
+            e.stopPropagation();
+            void renameTo(renaming.rel, renaming.draft);
+          }
+        }}
+        onBlur={() => setRenaming(null)}
+      />
+      <span className="lp-rename-ext">{`.${renaming.rel.split('.').pop()}`}</span>
+    </div>
+  ) : err ? (
     <p className="lp-note lp-note--err" role="alert">
       {err}
+    </p>
+  ) : renamed ? (
+    <p className="lp-note lp-note--undo" role="status" data-testid="assets-renamed">
+      <span>{renamed.message}</span>
+      {renamed.from ? (
+        <button
+          type="button"
+          className="lp-undo"
+          data-testid="assets-renamed-undo"
+          onClick={() => {
+            const r = renamed;
+            setRenamed(null);
+            void renameTo(r.to, renameDraftOf(r.from), { undo: true });
+          }}
+        >
+          Undo
+        </button>
+      ) : null}
     </p>
   ) : trashed ? (
     <p className="lp-note lp-note--undo" role="status" data-testid="assets-trashed">
