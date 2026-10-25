@@ -34,7 +34,7 @@ export async function run(h) {
   const send = async (text, wait = 2500, mode) => {
     if (mode) h.mode(mode);
     const input = page.locator('[data-testid="chat-composer"] .chat-input:visible').last();
-    await input.click({ timeout: 6000 });
+    await input.click({ timeout: 6000 }).catch(async (e) => { await page.screenshot({ path: `${process.env.SHOTS_OUT}/03-ai-chat/dbg-send-${Date.now()}.png` }).catch(() => {}); throw e; });
     await page.keyboard.type(text);
     await sleep(200);
     await page.keyboard.press('Enter');
