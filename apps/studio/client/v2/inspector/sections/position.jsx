@@ -66,6 +66,30 @@ const pinsOf = (c) => ({
   bottom: c.v === 'bottom' || c.v === 'both',
 });
 
+/**
+ * 14 ed-lay-free: the card says what a free frame is and what the pins keep —
+ * "Post places things freely — no auto layout. Constraints keep Datum 64 from the top-right corner."
+ * `read` is the object's effective CSS (`right`, `top`…). Nothing when the frame is unknown or the pins are not
+ * one horizontal edge + one vertical edge with a number each.
+ */
+export function freeLine(parent, name, pins, read) {
+  if (!parent) return '';
+  const head = `${parent} places things freely — no auto layout.`;
+  const h = pins.left !== pins.right ? (pins.right ? 'right' : 'left') : null;
+  const v = pins.top !== pins.bottom ? (pins.bottom ? 'bottom' : 'top') : null;
+  const px = (k) => {
+    const m = /^(-?\d*\.?\d+)(px)?$/.exec(String(read?.[k] ?? '').trim());
+    return m ? Math.round(Number.parseFloat(m[1])) : null;
+  };
+  const dh = h ? px(h) : null;
+  const dv = v ? px(v) : null;
+  if (!h || !v || dh == null || dv == null) return head;
+  const who = name || 'It';
+  return dh === dv
+    ? `${head} Constraints keep ${who} ${dh} from the ${v}-${h} corner.`
+    : `${head} Constraints keep ${who} ${dh} from the ${h} and ${dv} from the ${v}.`;
+}
+
 /** The shell → canvas message for one pin change: the canvas runs `object.constrain` (editing/layout-actions.ts). */
 export function constrainMessage(ref, pins, geometry) {
   return {
@@ -212,6 +236,11 @@ export function PositionBody({ el, ctx }) {
               />
             </span>
           </div>
+          {freeLine(ctx?.placement?.parent, ctx?.title, pinsOf(c), read) ? (
+            <Quiet line testid="insp-position-free">
+              {freeLine(ctx?.placement?.parent, ctx?.title, pinsOf(c), read)}
+            </Quiet>
+          ) : null}
           {!geometry ? (
             <Quiet testid="insp-pin-unmeasured">
               Pins show what the file says. Select the object again to change them.

@@ -94,7 +94,8 @@ export function askForPaste(
   asset: string,
   paste: FigmaPaste,
   target: PasteTarget,
-  natural: { w: number; h: number } | null
+  natural: { w: number; h: number } | null,
+  at?: { x: number; y: number } | null
 ): EditOpAsk {
   const params: Record<string, unknown> = {
     asset,
@@ -103,7 +104,32 @@ export function askForPaste(
   };
   if (target.artboard) params.artboard = target.artboard;
   if (natural) params.natural = natural;
+  // onto an artboard (no frame selected): ON its page at the paste point, not a new section under it (14 ed-edge-paste)
+  if (at && target.targets.length === 0) params.at = at;
   return { op: PLACE_ACTION, targets: target.targets, params };
+}
+
+/**
+ * The paste point in the artboard's own px: the middle of the view, kept inside the artboard, the picture centred on it
+ * (so a picture pasted over the hero lands over the hero). null when the artboard is not on screen.
+ */
+export function pastePoint(
+  artboard: string | null,
+  natural: { w: number; h: number } | null,
+  doc: Document = document
+): { x: number; y: number } | null {
+  if (!artboard) return null;
+  const body = doc.querySelector<HTMLElement>(`[data-dc-screen="${artboard}"] .dc-artboard-body`);
+  if (!body || !(body.offsetWidth > 0)) return null;
+  const r = body.getBoundingClientRect();
+  if (!(r.width > 0)) return null;
+  const k = r.width / body.offsetWidth;
+  const view = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  const x = (Math.min(Math.max(view.x, r.left), r.right) - r.left) / k;
+  const y = (Math.min(Math.max(view.y, r.top), r.bottom) - r.top) / k;
+  const w = natural ? Math.min(natural.w, body.offsetWidth) : 0;
+  const h = natural ? natural.h : 0;
+  return { x: Math.max(0, Math.round(x - w / 2)), y: Math.max(0, Math.round(y - h / 2)) };
 }
 
 async function naturalSizeOf(file: Blob): Promise<{ w: number; h: number } | null> {
@@ -224,11 +250,14 @@ export function PasteBar({ readOnly }: { readOnly?: boolean }) {
         return;
       }
       const natural = await naturalSizeOf(file);
-      const result = await runDrop(askForPaste(up.path, paste, target, natural), {
-        toast: (m, kind) => showCanvasToast(m, kind === 'error' ? 'error' : 'info'),
-        record: (rec) => live.current.undo?.record(rec),
-        select: (refs) => selectWhenRendered(refs, (s) => live.current.selSet.replace(s)),
-      });
+      const result = await runDrop(
+        askForPaste(up.path, paste, target, natural, pastePoint(target.artboard, natural)),
+        {
+          toast: (m, kind) => showCanvasToast(m, kind === 'error' ? 'error' : 'info'),
+          record: (rec) => live.current.undo?.record(rec),
+          select: (refs) => selectWhenRendered(refs, (s) => live.current.selSet.replace(s)),
+        }
+      );
       const made = result.ok ? result.created?.[0] : undefined;
       if (made) setBar({ kind: 'placed', line: pastedLine(paste.name), ref: made });
     },

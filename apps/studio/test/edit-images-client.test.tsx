@@ -427,6 +427,28 @@ describe('the paste bar', () => {
     ).toEqual({ asset: 'assets/ab12cd34.png', mode: 'loose', from: {}, artboard: 'a' });
   });
 
+  test('P8 c8 (14 ed-edge-paste): onto an artboard the ask carries the paste point; onto a frame it does not', () => {
+    const paste = { fileKey: 'k', pasteID: 1, dataType: 'scene', name: 'Hero / v3' };
+    expect(
+      askForPaste(
+        'assets/ab12cd34.png',
+        paste,
+        { targets: [], artboard: 'desktop' },
+        { w: 720, h: 400 },
+        { x: 40, y: 90 }
+      ).params.at
+    ).toEqual({ x: 40, y: 90 });
+    expect(
+      askForPaste(
+        'assets/ab12cd34.png',
+        paste,
+        { targets: [{ artboard: 'a', element: 'hero' }], artboard: 'a' },
+        null,
+        { x: 40, y: 90 }
+      ).params.at
+    ).toBeUndefined();
+  });
+
   test('a picture on the clipboard is found as a file or as an item; text alone is not one', () => {
     const png = new File([new Uint8Array([137, 80, 78, 71])], 'a.png', { type: 'image/png' });
     expect(imageFromClipboard({ files: [png], items: [] } as unknown as DataTransfer)).toBe(png);

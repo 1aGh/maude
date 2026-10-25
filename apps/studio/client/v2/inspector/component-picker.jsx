@@ -12,6 +12,10 @@
 //   click a row or a chip   the pick follows the pointer on the canvas until a click places it   (mode 'ghost')
 //   ↵                       places the highlighted pick in the selected frame                        (mode 'selection')
 //   ↑ ↓ move, esc closes. Tokens only (component-picker.css).
+//
+//   P8 c8 (14 ed-comp-pick): while the panel is open the highlighted row is drawn on the canvas as a ghost on the
+//   artboard's centre line (`onPreview` — `place-component` mode 'preview', 'cancel' when the panel closes
+//   without a pick), so the picker and "where it goes" read together.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -123,6 +127,7 @@ export default function ComponentPicker({
   anchor = null,
   canEdit = true,
   onPlace,
+  onPreview,
   onOpenDesignSystem,
   onClose,
   load,
@@ -178,9 +183,29 @@ export default function ComponentPicker({
   const rows = useMemo(() => flatRows(groups), [groups]);
   const at = Math.min(active, Math.max(0, rows.length - 1));
 
+  // P8 c8 (14 ed-comp-pick): the highlighted row rides on the canvas as a ghost; closing without a pick takes it back
+  const previewRef = useRef({ send: onPreview, name: null, placed: false });
+  previewRef.current.send = onPreview;
+  const lit = rows[at]?.item ?? null;
+  const litVariant = lit ? (chosen[lit.name] ?? lit.variants?.[0]?.key ?? null) : null;
+  useEffect(() => {
+    if (!lit || previewRef.current.placed) return;
+    previewRef.current.name = lit.name;
+    previewRef.current.send?.(placeMessage(lit, litVariant, 'preview'));
+  }, [lit, litVariant]);
+  useEffect(
+    () => () => {
+      const p = previewRef.current;
+      if (p.name && !p.placed)
+        p.send?.({ dgn: 'place-component', component: p.name, mode: 'cancel' });
+    },
+    []
+  );
+
   if (canEdit === false) return null;
 
   const place = (item, variantKey, mode) => {
+    previewRef.current.placed = true;
     onPlace?.(placeMessage(item, variantKey, mode));
     onClose?.();
   };

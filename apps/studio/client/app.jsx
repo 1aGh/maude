@@ -3380,6 +3380,7 @@ function ShellTree() {
           canEdit={!viewerMode}
           anchor={componentsReq.anchor ?? null}
           onPlace={(msg) => postToActiveCanvas(msg)}
+          onPreview={(msg) => postToActiveCanvas(msg)}
           onOpenDesignSystem={openSystem}
           onClose={() => setComponentsReq(null)}
         />

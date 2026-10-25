@@ -111,6 +111,19 @@ export function nameTag(label: string, w: number, h: number): string {
   return `${label} · ${Math.round(w)} × ${Math.round(h)}`;
 }
 
+/** 14 ed-lay-auto: while a gap is dragged the tag names what is being laid out — "Services → Auto layout". */
+export function layoutTag(label: string): string {
+  return `${label} → Auto layout`;
+}
+
+/** A name tag as [name, regular-weight tail]: "Brand systems · 400 × 232" → ["Brand systems", " · 400 × 232"]. */
+export function tagParts(text: string): [string, string] {
+  const dot = text.lastIndexOf(' · ');
+  const arrow = text.indexOf(' → ');
+  const at = dot >= 0 ? dot : arrow;
+  return at < 0 ? [text, ''] : [text.slice(0, at), text.slice(at)];
+}
+
 /** The node facts the kind rule reads. */
 export interface KindFacts {
   tag: string;

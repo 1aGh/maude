@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { acceptFromShell } from '../bridge/dgn-protocol.ts';
 import { showCanvasToast } from '../canvas-notifications.tsx';
+import { resolveSelectionEl } from '../dom-selection.ts';
 import type { EditOpResult, ElementRef } from '../edit-ops/types.ts';
 import { isReadOnlyCanvas } from '../read-only-mode.ts';
 import type { CommandRecord } from '../undo-stack.ts';
@@ -43,14 +44,15 @@ export interface PlaceRequest {
   label: string;
   variant: string | null;
   glyph: string | null;
-  mode: 'ghost' | 'selection';
+  mode: 'ghost' | 'selection' | 'preview' | 'cancel';
 }
 
 /** The fields of a `place-component` the parent-gated listener below accepted, or null when malformed. */
 export function requestFrom(m: unknown): PlaceRequest | null {
   const x = m as Record<string, unknown> | null;
   if (typeof x?.component !== 'string') return null;
-  if (x.mode !== 'ghost' && x.mode !== 'selection') return null;
+  if (x.mode !== 'ghost' && x.mode !== 'selection' && x.mode !== 'preview' && x.mode !== 'cancel')
+    return null;
   return {
     component: x.component,
     label: typeof x.label === 'string' && x.label ? x.label : x.component,
@@ -248,6 +250,39 @@ function hoverAt(doc: Document, x: number, y: number): Hover {
   };
 }
 
+/**
+ * 14 ed-comp-pick: the picker's highlighted row, drawn where it would land if it were placed with no pointer — on the
+ * centre line of the artboard the selection is in (else the first artboard on screen), low in the page, snapped.
+ */
+export function previewHover(doc: Document, selected: readonly Selection[]): Hover | null {
+  let body: HTMLElement | null = null;
+  const sel = selected[0];
+  const el = sel ? resolveSelectionEl(doc, sel) : null;
+  if (el) body = el.closest('.dc-artboard-body') as HTMLElement | null;
+  if (!body) {
+    const w = typeof window !== 'undefined' ? window.innerWidth : 0;
+    const h = typeof window !== 'undefined' ? window.innerHeight : 0;
+    for (const b of Array.from(doc.querySelectorAll<HTMLElement>('.dc-artboard-body'))) {
+      const r = b.getBoundingClientRect();
+      if (r.width > 0 && r.right > 0 && r.bottom > 0 && r.left < w && r.top < h) {
+        body = b;
+        break;
+      }
+    }
+  }
+  if (!body) return null;
+  const r = body.getBoundingClientRect();
+  if (!(r.width > 0 && r.height > 0)) return null;
+  const x = r.left + r.width / 2;
+  return {
+    x,
+    y: r.top + r.height * 0.78,
+    box: { left: r.left, top: r.top, width: r.width, height: r.height },
+    snapped: true,
+    inFlow: false,
+  };
+}
+
 export function PlaceGhost({ readOnly }: { readOnly?: boolean }) {
   ensureStyles();
   const selSet = useSelectionSet();
@@ -256,6 +291,8 @@ export function PlaceGhost({ readOnly }: { readOnly?: boolean }) {
   live.current = { selSet, undo };
   const [req, setReq] = useState<PlaceRequest | null>(null);
   const [hover, setHover] = useState<Hover | null>(null);
+  // the picker's highlighted row, ghosted on the artboard (no pointer, never armed)
+  const [preview, setPreview] = useState<{ req: PlaceRequest; hover: Hover } | null>(null);
 
   // stable: it reads the live refs, so the effects below subscribe once per request, not per render
   const deps = useCallback(
@@ -280,6 +317,16 @@ export function PlaceGhost({ readOnly }: { readOnly?: boolean }) {
       if (m?.dgn !== 'place-component' || isReadOnlyCanvas()) return;
       const r = requestFrom(m);
       if (!r) return;
+      if (r.mode === 'cancel') {
+        setPreview(null);
+        return;
+      }
+      if (r.mode === 'preview') {
+        const at = previewHover(document, live.current.selSet.selected);
+        setPreview(at ? { req: r, hover: at } : null);
+        return;
+      }
+      setPreview(null); // a real pick (or ↵) takes over from the preview
       if (r.mode === 'ghost') {
         setHover(null);
         setReq(r);
@@ -341,27 +388,30 @@ export function PlaceGhost({ readOnly }: { readOnly?: boolean }) {
     };
   }, [req, readOnly, deps]);
 
-  if (!req || !hover) return null;
-  const centreX = hover.box ? hover.box.left + hover.box.width / 2 : 0;
+  const shown = req && hover ? { req, hover } : preview;
+  if (!shown) return null;
+  const { req: shownReq, hover: shownHover } = shown;
+  const centreX = shownHover.box ? shownHover.box.left + shownHover.box.width / 2 : 0;
   const GHOST_W = 120;
-  const left = hover.snapped ? centreX - GHOST_W / 2 : hover.x;
+  const left = shownHover.snapped ? centreX - GHOST_W / 2 : shownHover.x;
   return (
     <div aria-hidden="true">
-      {hover.box && !hover.inFlow ? (
+      {shownHover.box && !shownHover.inFlow ? (
         <i
           className="ed-place-guide"
           data-testid="edit-place-guide"
-          data-snapped={hover.snapped ? 'true' : undefined}
-          style={{ left: centreX, top: hover.box.top, height: hover.box.height }}
+          data-snapped={shownHover.snapped ? 'true' : undefined}
+          style={{ left: centreX, top: shownHover.box.top, height: shownHover.box.height }}
         />
       ) : null}
       <span
         className="ed-place-ghost"
         data-testid="edit-place-ghost"
-        data-snapped={hover.snapped ? 'true' : undefined}
-        style={{ left, top: hover.y, minWidth: GHOST_W - 20 }}
+        data-preview={req ? undefined : 'true'}
+        data-snapped={shownHover.snapped ? 'true' : undefined}
+        style={{ left, top: shownHover.y, minWidth: GHOST_W - 20 }}
       >
-        {req.label}
+        {shownReq.label}
       </span>
     </div>
   );

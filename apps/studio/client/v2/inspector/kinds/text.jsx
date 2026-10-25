@@ -469,7 +469,16 @@ const boxOf = (el) => {
 
 const offTextSlots = [
   // a text's Type section is plainly "Type": "text inside" is for a frame or a button whose text it sets
-  registerSlot('type', { id: 'type.style', order: 5, kinds: ['text'], aside: '', Body: StyleBody }),
+  registerSlot('type', {
+    id: 'type.style',
+    order: 5,
+    kinds: ['text', 'frame', 'button'],
+    aside: '',
+    // 14 ed-inspector: a button or frame that holds text of its own wears a style too ("Aa Link")
+    when: ({ selection, kind }) =>
+      kind === 'text' || (!Array.isArray(selection) && !!selection?.textInfo),
+    Body: StyleBody,
+  }),
   registerSlot('type', { id: 'type.font', order: 6, kinds: ['text'], Body: FontBody }),
   registerSlot('type', { id: 'type.paragraph', order: 15, kinds: ['text'], Body: ParagraphBody }),
 ];

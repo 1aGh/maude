@@ -197,6 +197,8 @@ export function InspectorFrame({
     editable: !!el.id,
     // V2-8.5 c6 (14 ed-obj-enter): "In Services · Set by Services · 2 of 3"
     placement: placementOf(layersTree, Array.isArray(selected) ? null : el),
+    // 14 ed-lay-free: the object's own name, for the sentence "Post places things freely … keep Datum 64 from …"
+    title: Array.isArray(selected) ? '' : titleOf(selected, layersTree),
     refreshInstance,
     onOptimistic,
     onRecordEdit,

@@ -370,6 +370,17 @@ describe('the reorder slot', () => {
     expect(document.querySelector('[data-testid="edit-reorder-tag"]')?.textContent).toBe(
       'Small apps · moves to 1 of 3'
     );
+    // P8 c8 (14 ed-lay-reorder): the four things the gesture offers ride as light pills
+    expect(
+      Array.from(document.querySelectorAll('[data-testid="edit-reorder-hints"] .ed-slot-hint')).map(
+        (n) => n.textContent
+      )
+    ).toEqual([
+      'Let go — it moves here',
+      'esc puts it back',
+      '⌥ while dragging — a copy',
+      'Drag out of the frame — place it freely',
+    ]);
     await act(async () => {
       reorderSlot.end();
     });
