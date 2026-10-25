@@ -1,6 +1,6 @@
 #!/bin/bash
 # D6: the extra-impl frames (states the board has no frame for), refreshed from the fetched impl frames.
-cd "$(dirname "$0")/../../../../../.." || exit 1
+cd "$(dirname "$0")/../../../../../../.." || exit 1
 E=.ai/plans/notes/v2-evidence/phase8-fidelity
 S=.scr/d7
 x() { # <dir> <frame>

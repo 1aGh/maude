@@ -2,7 +2,7 @@
 # D6 final re-shoot chain, G2.  usage: chain.sh <03|04|06> [themes]   (run from anywhere; runs at the repo root)
 #   scripts/remote-lane.sh --slot auto --max 3600 --fetch .scr/d7/<NN>-<dir> -- bash .ai/plans/notes/v2-evidence/phase8-fidelity/_d7-harness-g1/g2/chain.sh 03
 # Impl frames land in .scr/d7/<NN>-<dir>/<id>-<theme>.jpg; the pairs are built LOCALLY (mkpairs.sh).
-cd "$(dirname "$0")/../../../../../.." || exit 1
+cd "$(dirname "$0")/../../../../../../.." || exit 1
 H=.ai/plans/notes/v2-evidence/phase8-fidelity/_d7-harness-g1/g2
 NN="${1:?03|04|06}"
 THEMES="${2:-dark,light}"

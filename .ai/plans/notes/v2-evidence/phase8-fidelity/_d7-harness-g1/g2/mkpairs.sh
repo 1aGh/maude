@@ -2,7 +2,7 @@
 # D6, local half: contact sheet for md-edge-mixed (04), then SPEC | IMPL pairs from the fetched frames in .scr/d7.
 #   bash .ai/plans/notes/v2-evidence/phase8-fidelity/_d7-harness-g1/g2/mkpairs.sh <03-ai-chat|04-modes|06-advanced>
 # Needs .scr/spec/<NN>/ (spec PNGs + meta.json, reused: the boards 03/04/06 are unchanged since 2026-10-19).
-cd "$(dirname "$0")/../../../../../.." || exit 1
+cd "$(dirname "$0")/../../../../../../.." || exit 1
 H=.ai/plans/notes/v2-evidence/phase8-fidelity/_d7-harness-g1/g2
 DIR="${1:?canvas dir}"
 export D5_REPO="$PWD"
