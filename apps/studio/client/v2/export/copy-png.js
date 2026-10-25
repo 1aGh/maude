@@ -133,6 +133,9 @@ export function bindCopyPng(read) {
   };
 }
 
+/** What the shell bound — `{ selected, canvasFile, designRel }` — or null (Copy export command reads it too). */
+export const boundCopyState = () => (bound ? bound() : null);
+
 /** Run ⇧⌘C on what the shell is showing. Resolves `{ ok, message }`. */
 export async function runCopyPng(opts = {}) {
   if (!bound) return { ok: false, message: COPY_WORDS.none };

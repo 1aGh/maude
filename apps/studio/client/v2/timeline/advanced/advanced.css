@@ -27,28 +27,28 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* V2-8.5 c4-video (07 ve-advanced): the cards are floating islands ABOVE the timeline — Render settings, the
-     easing curve, the cut as code — not a strip inside it. The timeline keeps its own height; the foot row is all
-     that stays in it. `--tla-lift` (set by foot.jsx) is the distance from the foot up to the island's top edge. */
-  .tla-body {
+  /* V2-8.5 C10 (07 ve-advanced): the cards are islands of the shell body, as the board draws them — Easing at the
+     centre top, Render settings + The cut as code stacked in the inspector's column (right, under the Share
+     cluster). They live in `.st-body` (foot.jsx portals them), so `top` / `right` are the dock slots' own. While
+     they are open the inspector steps aside (decision v2-p8-c10-advanced-cards-replace-inspector): the board
+     frame draws no inspector, the stack stands in its column. */
+  .tla-layer {
     position: absolute;
-    left: calc(-1 * var(--space-2));
-    right: calc(-1 * var(--space-2));
-    /* the tools island (timeline.css `.tla-tools`) sits between the foot and the cards: 28 px + its padding + a gap */
-    bottom: calc(100% + var(--tla-lift, 0px) + var(--space-2) + 44px + var(--space-3));
-    display: flex;
-    align-items: flex-end;
-    justify-content: flex-end;
-    gap: var(--space-4);
-    padding: 0;
+    inset: 0;
+    z-index: 21;
     pointer-events: none;
+    --tla-top: calc(var(--float-gap, 16px) + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
-  .tla-body > .tla-sec {
-    flex: 1 1 0;
-    max-width: 380px;
-    /* a card scrolls inside rather than growing: the canvas keeps ≥ 240 px above the cards (bridge/occlusion.ts MIN_VISIBLE_PX)
-       or it ignores every inset and the video goes back behind them */
-    max-height: min(214px, 24vh);
+  .tla-card {
+    position: absolute;
+    top: var(--tla-top);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+    /* a card scrolls inside rather than growing past the timeline below it */
+    max-height: max(200px, calc(100% - var(--tla-top) - 340px));
     padding: var(--space-3);
     overflow: auto;
     border-radius: var(--island-radius, var(--radius-xl));
@@ -58,6 +58,28 @@
       inset 0 0 0 0.5px var(--island-edge);
     color: var(--fg-0);
     pointer-events: auto;
+  }
+  .tla-card--easing {
+    left: 50%;
+    translate: -50% 0;
+    width: min(380px, 36%);
+  }
+  .tla-card--stack {
+    right: var(--float-gap, 16px);
+    width: 340px;
+  }
+  /* the stack's two parts are one island: no second chrome, a breath between them */
+  .tla-card .tla-sec {
+    flex: none;
+    padding: 0;
+  }
+  .tla-card--stack > .tla-sec + .tla-sec {
+    margin-top: var(--space-2);
+  }
+  /* the inspector steps aside while the cards stand in its column */
+  .st-body:has(.tla-layer) .st-dockslot-inner:has(> .st-rpanel--insp),
+  .st-body:has(.tla-layer) > .st-rpanel--insp {
+    display: none;
   }
   .tla-sec {
     display: flex;
@@ -74,7 +96,7 @@
     font-weight: var(--w-semibold);
     color: var(--fg-2);
   }
-  .tla-body .tla-h {
+  .tla-card .tla-h {
     font-size: var(--type-sm);
     color: var(--fg-0);
   }
@@ -289,8 +311,8 @@
   }
 
   @media (max-width: 880px) {
-    .tla-body {
-      grid-template-columns: minmax(0, 1fr);
+    .tla-card--easing {
+      width: min(380px, 44%);
     }
   }
 

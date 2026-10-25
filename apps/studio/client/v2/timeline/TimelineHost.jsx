@@ -189,16 +189,11 @@ export default function TimelineHost({ children }) {
       const isl0 = document
         .querySelector('[data-testid="timeline-island"]')
         ?.getBoundingClientRect();
-      // Advanced's floating cards sit above the island: they are part of what must stay off the video
-      const cards = document.querySelector('.tla-body')?.getBoundingClientRect();
+      // (Advanced's cards are at the window's top now — the stack declares its own right inset and Easing floats
+      // over the canvas like any island; the timeline island's footprint is all that is left to keep the video off.)
       // (a DOMRect's fields are prototype getters: spreading one drops them, so the box is spelled out)
       const isl = isl0
-        ? {
-            left: isl0.left,
-            right: isl0.right,
-            bottom: isl0.bottom,
-            top: cards ? Math.min(isl0.top, cards.top) : isl0.top,
-          }
+        ? { left: isl0.left, right: isl0.right, bottom: isl0.bottom, top: isl0.top }
         : null;
       const fr = live.current.iframesRef?.current
         ?.get(live.current.activePath)

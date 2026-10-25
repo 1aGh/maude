@@ -265,6 +265,7 @@ export function visibleRows(
     activeArtboard = null, // S1.3 — the artboard in view on the open canvas
     fileNames = false, // S11.9 — Show file names: each canvas row carries `fileName` (a second mono line)
     kind = 'all', // S7.24 — the kind filter ('digital' | 'web' | 'print' | 'video'): only canvases that have it
+    support = null, // 06 ad-left — Show hidden files: `supportIndex(groups)`; the dimmed supporting rows drawn in place
   } = {}
 ) {
   const s = normaliseSort(sort);
@@ -278,6 +279,22 @@ export function visibleRows(
     ...(fileNames && c.type === 'canvas' ? { fileName: basename(c.path) } : null),
     ...extra,
   });
+
+  // 06 ad-left — a canvas's sidecars, a folder's supporting files and the runtime entries, dimmed in place
+  const supportRows = (list, depth, runtime, sidecar = false) =>
+    list.map((f, i) => ({
+      key: `support:${f.path}`,
+      type: 'support',
+      path: f.path,
+      name: f.dir ? `${f.name}/` : f.name,
+      runtime,
+      sidecar,
+      folderLike: !!f.dir,
+      depth,
+      level: depth + 1,
+      posinset: i + 1,
+      setsize: list.length,
+    }));
 
   // S1.3 — the artboards a canvas lists under its row: `list` = [{ id, label, kind, marks? }]
   const boardRows = (c, list, { depth, level, activeBoard }) => {
@@ -520,8 +537,12 @@ export function visibleRows(
               activeBoard: activeArtboard,
             })
           );
+        const side = support?.byCanvas.get(n.path);
+        if (side?.length) rows.push(...supportRows(side, depth + 1, false, true));
       }
     });
+    const loose = support?.byDir.get(f.path);
+    if (loose?.length) rows.push(...supportRows(loose, depth, false));
   };
   if (tree.single) walk(tree.roots[0], 0);
   else {
@@ -544,6 +565,7 @@ export function visibleRows(
       if (open) walk(r, 1);
     });
   }
+  if (support?.runtime?.length) rows.push(...supportRows(support.runtime, 0, true));
   return rows;
 }
 
@@ -667,7 +689,12 @@ export function scrollToReveal(rows, layout, index, scrollTop, viewport) {
 // ── keyboard ────────────────────────────────────────────────────────────────────────────────────────
 
 const isItem = (r) =>
-  r && (r.type === 'folder' || r.type === 'canvas' || r.type === 'board' || r.type === 'ghost');
+  r &&
+  (r.type === 'folder' ||
+    r.type === 'canvas' ||
+    r.type === 'board' ||
+    r.type === 'ghost' ||
+    r.type === 'support');
 
 /**
  * The tree keys the old FileTree answered, on the flat list. Returns what to do:

@@ -97,3 +97,21 @@ Branch `p8-c8-adv` from feat/maude-v2 a428cfee7. Scope: the MUST rows of `critic
 - ad-search: "copy" returns 16 results in the product (the board's 7): the registry has more copy actions than the board; not trimmed.
 - ad-edge-remember draws the "Open now, on this Mac" list inside Reset; ad-settings does not. ad-settings (lead's call) wins; the list's capability is each panel's own fold.
 - ad-edge-syntax provenance clause needs a server signal (unchanged).
+
+---
+
+# Round 10 (p8-c10-advvid) — 06 Advanced MUSTs of critic-bar4b
+
+Branch `p8-c10-advvid` from feat/maude-v2 55850113d. The lead's critic judges the re-shot pairs.
+
+## Done (commit · what · test red → green)
+
+| what | tests |
+|---|---|
+| **ad-inspector** — the v1 Inspect facts (POS / SIZE / FILL / TEXT / FONT) move to the very end of the Advanced fold, under the v1 raw editor (nothing-deleted keeps them reachable); the Element group is Tag / Classes / Selector again | `v2-inspector-advanced` (fold order, red before) |
+| **ad-left** — Show hidden files draws the one canvas tree: file names under the canvases (Show file names), sidecars under their canvas, a folder's loose notes, the runtime entries (`_history/`, `_canvas-state/`) dimmed at the root. The v1 file view is gone; the Project files group still follows as a small FileTree. `file-row-<slug>` / `tree-row-menu-<slug>` / preview-on-click / rename kept | `p8-c10-hidden-tree` (model, red with the old tree-model), `v2-left-panel-render` (render) |
+| **ad-search** — registry action `export.copy-command` "Copy export command" (Export › Advanced): ⌘K "copy" lists it; copies the `maude design export …` line for the selection (else this canvas) | `p8-c10-copy-export-command`, `ai-parity-coverage` (regen) |
+
+## Open
+- ad-left: the folder counts stay canvas counts (the board adds the supporting rows to them); `_history/` is drawn once at the root, not under each canvas.
+- Everything the critic listed as POLISH / SIDE (fixtures, 11 / 09 / 13 owned rows) is untouched.

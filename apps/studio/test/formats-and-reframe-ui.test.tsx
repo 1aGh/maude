@@ -205,6 +205,18 @@ describe('the Formats rows (ve-formats)', () => {
     expect(reqs.filter((r) => r.url.startsWith('/_api/comp-media')).length).toBeGreaterThan(1);
   });
 
+  // 07 ve-formats (P8 C10): the board draws the "Formats" row and no heading above it - the section is named for
+  // screen readers (aria-label) and its heading is hidden, like Safe zones
+  test('the Formats section has no visible heading above the Formats row', async () => {
+    const host = await frame();
+    const sec = must(q(host, 'insp-sec-formats'), 'section');
+    expect(sec.getAttribute('aria-label')).toBe('Formats');
+    expect(sec.querySelector('.insp-sec-t')?.hasAttribute('hidden')).toBe(true);
+    expect(sec.querySelector('[data-testid="insp-row-formats"] .insp-row-k')?.textContent).toBe(
+      'Formats'
+    );
+  });
+
   test('Make an unlinked copy is one video.format.unlink on this artboard', async () => {
     const host = await frame();
     await click(q(host, 'insp-format-unlink'), 'Make an unlinked copy');

@@ -198,9 +198,43 @@ describe('open', () => {
   test('the keyframe markers appear, with their testid', async () => {
     await mount();
     openAdvanced();
+    // P8 C10 (07 ve-advanced): a diamond at each end of the animated window (250–270f), the first one picks it
     expect(all('[data-testid^="timeline-kf-"]').map((e) => e.getAttribute('data-testid'))).toEqual([
       'timeline-kf-1-0',
+      'timeline-kf-1-0-to',
     ]);
+  });
+
+  test('07 ve-advanced (P8 C10): Easing is a card of its own; Render settings and The cut as code are one stack; neither is inside the timeline', async () => {
+    await mount();
+    openAdvanced();
+    const easing = q('[data-testid="timeline-advanced-easing"]') as HTMLElement;
+    const stack = q('[data-testid="timeline-advanced-stack"]') as HTMLElement;
+    expect(easing.querySelector('[data-testid="timeline-keyframe"]')).not.toBeNull();
+    expect([...stack.children].map((c) => c.getAttribute('data-testid'))).toEqual([
+      'timeline-render-settings',
+      'timeline-cut-as-code',
+    ]);
+    // the stack stands in the inspector's column: the canvas fits left of it
+    expect(stack.getAttribute('data-occludes')).toBe('right');
+    expect(easing.getAttribute('data-occludes')).toBeNull();
+    expect(easing.closest('.tl-island, [data-testid="timeline-island"]')).toBeNull();
+    expect(stack.closest('.tl-island, [data-testid="timeline-island"]')).toBeNull();
+  });
+
+  test('a keyframe is a diamond, filled where the playhead is — never a range block', async () => {
+    await mount({ frame: 270 });
+    openAdvanced();
+    const [from, to] = all('[data-testid^="timeline-kf-"]') as HTMLElement[];
+    // the clip runs 240 + 210: 250f is 10/210 in, 270f is 30/210 in — a point each, no width
+    expect(from?.style.width).toBe('');
+    expect(Number.parseFloat(from?.style.left ?? '')).toBeCloseTo((10 / 210) * 100, 1);
+    expect(Number.parseFloat(to?.style.left ?? '')).toBeCloseTo((30 / 210) * 100, 1);
+    expect(from?.classList.contains('is-at')).toBe(false);
+    expect(to?.classList.contains('is-at')).toBe(true);
+    // the other end, clicked, seeks there too
+    click('[data-testid="timeline-kf-1-0"]');
+    expect(q('[data-testid="timeline-easing"]')).not.toBeNull();
   });
 
   test('"+ track" draws Video 2 and Music 2 empty, once each', async () => {

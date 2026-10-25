@@ -1443,69 +1443,60 @@ export function Sidebar({
               onRenameDone={() => setRenamingDs(null)}
             />
           )}
-          {showHidden ? (
-            // Hidden files on = the file view of every group (sidecars, notes, media beside the canvases),
-            // exactly the tree it always was.
-            <>
-              <FileTree aria-label="Project file tree" data-testid="canvas-list">
-                {filteredGroups
-                  .filter((g) => g.label !== 'Design system' || !!search)
-                  .map((g) => renderSection(g))}
-              </FileTree>
-              {newCanvasRow}
-              {/* The panel's last row — the Trash list (C10). A viewer has no trash to open. */}
-              {showTrashRow ? <TrashRow trash={trash} onOpen={() => setTrashOpen(true)} /> : null}
-            </>
-          ) : (
-            <>
-              {/* S1.1 — the canvases, virtualised: Pinned, the project row with Sort, folders with counts. */}
-              <CanvasesPanel
-                groups={groups}
-                search={search}
-                projectLabel={project || cloud?.projectName || ''}
-                activePath={activePath}
-                onOpen={onOpen}
-                expansion={treeExpansion}
-                drag={treeDrag}
-                menu={rowMenu}
-                readOnly={readOnly}
-                onMove={onMoveCanvas}
-                onRename={onRenameCanvas}
-                onDuplicate={onDuplicateCanvas}
-                onTrash={onDeleteBoard}
-                onCopyLink={onCopyLink}
-                dsCfg={dsCfg}
-                onDsAction={readOnly ? undefined : onDsAction}
-                activeArtboard={activeArtboard}
-                commentsByFile={commentsByFile}
-                dirtyByPath={dirtyByPath}
-                canvasKinds={canvasKinds}
-                onNewCanvasIn={(path, name) => {
-                  setNewErr('');
-                  setComposerMode('board');
-                  setComposerTarget({ path, name });
-                  setCreating(true);
-                }}
-              >
-                {({ emptyProject }) => (
-                  <>
-                    {/* an empty project has the panel's own "New canvas" (es-project-new draws exactly one row) */}
-                    {emptyProject ? null : newCanvasRow}
-                    {/* The panel's last row — the Trash list (C10). A viewer has no trash to open. */}
-                    {showTrashRow ? (
-                      <TrashRow trash={trash} onOpen={() => setTrashOpen(true)} />
-                    ) : null}
-                  </>
-                )}
-              </CanvasesPanel>
-              {/* While searching, the Design system's hits follow (never Project or Runtime files). */}
-              {search ? (
-                <FileTree aria-label="Other project files" data-testid="canvases-other-files">
-                  {searchOtherGroups(filteredGroups).map((g) => renderSection(g))}
-                </FileTree>
-              ) : null}
-            </>
-          )}
+          {/* S1.1 — the canvases, virtualised: Pinned, the project row with Sort, folders with counts.
+              06 ad-left: Show hidden files draws the SAME tree with the supporting files dimmed in place
+              (sidecars under their canvas, loose notes after a folder's canvases, the runtime entries at the
+              root) — it no longer swaps in the v1 file view. */}
+          <CanvasesPanel
+            groups={groups}
+            search={search}
+            projectLabel={project || cloud?.projectName || ''}
+            activePath={activePath}
+            onOpen={onOpen}
+            showHidden={showHidden}
+            onPreview={onPreview}
+            previewPath={previewPath}
+            expansion={treeExpansion}
+            drag={treeDrag}
+            menu={rowMenu}
+            readOnly={readOnly}
+            onMove={onMoveCanvas}
+            onRename={onRenameCanvas}
+            onDuplicate={onDuplicateCanvas}
+            onTrash={onDeleteBoard}
+            onCopyLink={onCopyLink}
+            dsCfg={dsCfg}
+            onDsAction={readOnly ? undefined : onDsAction}
+            activeArtboard={activeArtboard}
+            commentsByFile={commentsByFile}
+            dirtyByPath={dirtyByPath}
+            canvasKinds={canvasKinds}
+            onNewCanvasIn={(path, name) => {
+              setNewErr('');
+              setComposerMode('board');
+              setComposerTarget({ path, name });
+              setCreating(true);
+            }}
+          >
+            {({ emptyProject }) => (
+              <>
+                {/* an empty project has the panel's own "New canvas" (es-project-new draws exactly one row) */}
+                {emptyProject ? null : newCanvasRow}
+                {/* The panel's last row — the Trash list (C10). A viewer has no trash to open. */}
+                {showTrashRow ? <TrashRow trash={trash} onOpen={() => setTrashOpen(true)} /> : null}
+              </>
+            )}
+          </CanvasesPanel>
+          {/* While searching, the Design system's hits follow (never Project or Runtime files). With hidden
+              files on, the project's own files (README, tokens…) follow the tree as the file view had them. */}
+          {search || (showHidden && filteredGroups.some((g) => g.kind === 'project')) ? (
+            <FileTree aria-label="Other project files" data-testid="canvases-other-files">
+              {(search
+                ? searchOtherGroups(filteredGroups)
+                : filteredGroups.filter((g) => g.kind === 'project')
+              ).map((g) => renderSection(g))}
+            </FileTree>
+          ) : null}
           <CanvasesAdvanced
             open={advancedOpen}
             onToggle={() => setAdvancedOpen((v) => !v)}
