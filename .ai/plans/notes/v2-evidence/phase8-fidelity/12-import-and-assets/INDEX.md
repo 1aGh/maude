@@ -160,3 +160,20 @@ Re-shot light + dark on the Mac mini (Google Chrome), impl side only; spec reuse
 | --- | --- | --- | --- |
 | `ia-brand-steps` | dark | re-shot | the chosen logo tile is light-fixed (data-theme="light", light token scope) in both themes; also -1 / -2 / -3 |
 | `ia-brand-steps` | light | re-shot | the chosen logo tile is light-fixed (data-theme="light", light token scope) in both themes; also -1 / -2 / -3 |
+
+## FINAL (D7, 0d2eab1d6)
+
+Every reachable id re-shot, light + dark, IMPL side only, on the merged tip `feat/maude-v2` @ `0d2eab1d6` (stage C round 10 merged, release-built client; run from harness commit `c9708768e` = that tip + `_d7-harness-g3/`) on the Mac mini (Google Chrome, `SHOT_CHANNEL=chrome`), harness `_d7-harness-g3/g4` (= `_c10m-harness-g4`, chain `chain12.sh`: s12 s12b s12e s12f s12g s12h s12c7, later scenarios win). Spec frames reused from stage A (the boards `.design/ui/v2/12 Import and Assets.*` have not changed since 2026-10-21). Committed JPEG pairs overwritten. No match judged here.
+
+| artboard id | light | dark | note |
+|---|---|---|---|
+| ia-drop-photos, ia-placed | re-shot | re-shot | `ia-placed`: the first `s12` try logs `no filechooser`; `s12b` re-shoots it (later scenario wins) |
+| ia-assets-panel, ia-assets-keys, ia-assets-browse, ia-assets-find, ia-assets-tidy, ia-asset-details | re-shot | re-shot | `s12`, `s12c7` |
+| ia-photo-inspector, ia-photo-steps | re-shot | re-shot | `s12c7` |
+| ia-gen-ask, ia-figma-sheets, ia-figma-sheets-connect | re-shot | re-shot |  |
+| ia-brand-steps, ia-brand-steps-1, -2, -3 | re-shot | re-shot | `s12g` (website read held by a route stub; opener pair uses the `-1` frame); round 10: logo tile light-fixed |
+| ia-missing-gone | re-shot | re-shot | `s12c7` |
+| ia-advanced | re-shot | re-shot |  |
+| ia-more-ways, ia-gen-placed, ia-figma-arrived, ia-figjam, ia-brand, ia-missing, ia-edges | unreachable | unreachable | unchanged: native picker/paste, BYOK provider, Figma API, a reachable website, synced peer, nine external conditions |
+
+Harness note: picture fixtures are drawn in Chromium (no ImageMagick on the runner). 19 ids x 2 themes = 38 pairs.
