@@ -55,7 +55,7 @@ describe('an earlier reply keeps its result card', () => {
     GlobalRegistrator.unregister();
   });
 
-  async function mount(runs: unknown[]) {
+  async function mount(runs: unknown[], secondTools: unknown[] = []) {
     const React = await import('react');
     const { createRoot } = await import('react-dom/client');
     const { act } = await import('react');
@@ -86,7 +86,7 @@ describe('an earlier reply keeps its result card', () => {
           user('Make a story', T0),
           bot('Done — Story is made.', edit(1), edit(2), edit(3), edit(4)),
           user('Which green?', T0 + 10 * MIN),
-          bot('Club green.'),
+          bot('Club green.', ...secondTools),
           user('Check the poster', T0 + 20 * MIN),
           bot('Both fixes are in.', edit(5)),
         ] as never,
@@ -333,6 +333,23 @@ describe('an earlier reply keeps its result card', () => {
       setText('');
     });
     expect(document.querySelector('[data-testid="ai-suggest"]')).not.toBeNull();
+  });
+
+  test('a turn that changed nothing but took steps keeps the fold alone (no Undo)', async () => {
+    const read = (n: number) => ({ ...edit(n), toolName: 'Read' });
+    const { all } = await mount(
+      [
+        run('r_q', T0 + 10 * MIN + 2_000, {
+          touched: {},
+          scope: { canvas: 'Combine.tsx', artboards: ['post'] },
+        }),
+      ],
+      [read(1), read(2), read(3), read(4)]
+    );
+    const cards = all('[data-testid="ai-turn-result"]');
+    expect(cards).toHaveLength(1);
+    expect(cards[0].querySelector('[data-verb]')).toBeNull();
+    expect(cards[0].querySelector('[data-testid="ai-steps"]')?.textContent).toContain('4 steps');
   });
 
   test('no registry run, no card', async () => {

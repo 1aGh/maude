@@ -15,14 +15,7 @@ import { shellMode } from '../shell/use-canvas-mode-lane.js';
 import { ResultCard } from './Result.jsx';
 import { compareView } from './run-compare.js';
 import { redoRun, undoNote, undoRun } from './run-api.js';
-import {
-  changedSomething,
-  partSteps,
-  foldedSteps,
-  stepsSummary,
-  turnCardVerbs,
-  turnRunFor,
-} from './run-model.js';
+import { partSteps, foldedSteps, stepsSummary, turnCardVerbs, turnRunFor } from './run-model.js';
 import { useRunVersions } from './use-run-versions.js';
 
 const stampOf = (m) => (m.createdAt instanceof Date ? m.createdAt.getTime() : null);
@@ -85,7 +78,7 @@ export function TurnResult({ run, parts, designRel = '.design' }) {
     [run, designRel, versions]
   );
 
-  if (!changedSomething(run) || !(verbs.length || folded.length)) return null;
+  if (!(verbs.length || folded.length)) return null;
   return (
     <div className="ai-turn-result" data-testid="ai-turn-result" data-run={run.runId}>
       <ResultCard

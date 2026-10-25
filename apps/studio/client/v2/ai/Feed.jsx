@@ -402,9 +402,7 @@ export function AssistantMessage() {
           {CANVAS_UNCHANGED}
         </p>
       ) : null}
-      {turnChanged ? (
-        <TurnResult run={turnRun} parts={rawParts} designRel={media?.designRel} />
-      ) : null}
+      {turnRun ? <TurnResult run={turnRun} parts={rawParts} designRel={media?.designRel} /> : null}
       <div className="chat-msg-actions" data-testid="chat-msg-actions">
         <ActionBarPrimitive.Copy
           className="chat-msg-action"

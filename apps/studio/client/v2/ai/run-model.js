@@ -311,7 +311,7 @@ export function dayDividerFor(stamps, id, now = Date.now()) {
 // ── older turns (P8 c10, 03 `ai-long`) ───────────────────────────────────────────────────────────────
 
 /** A run created this long BEFORE its ask's time stamp still belongs to it: the stamp is the panel's clock, the run the server's. */
-const TURN_SKEW_MS = 15_000;
+const TURN_SKEW_MS = 3_000;
 
 /**
  * The run that was one turn of the chat: the ask at `userAt`, the next ask at `nextUserAt` (null = none). It is the
@@ -324,7 +324,7 @@ export function turnRunFor(runs, userAt, nextUserAt) {
   for (const run of Array.isArray(runs) ? runs : []) {
     const at = run?.createdAt;
     if (!Number.isFinite(at) || at < userAt - TURN_SKEW_MS || at >= end) continue;
-    if (!best || at < best.createdAt) best = run;
+    if (!best || Math.abs(at - userAt) < Math.abs(best.createdAt - userAt)) best = run;
   }
   return best;
 }

@@ -1,6 +1,7 @@
 // P8 c10 (03 `ai-long`, `ai-long-pinned`): the result card is drawn on OLDER turns too — each finished turn that
 // changed the canvas keeps its Before / After, Undo / Compare and "What AI did" fold, not only the chat's latest run.
 import { describe, expect, test } from 'bun:test';
+import { beforeAfterOf } from '../client/v2/ai/run-compare.js';
 import {
   changedSomething,
   partSteps,
@@ -8,7 +9,6 @@ import {
   turnCardVerbs,
   turnRunFor,
 } from '../client/v2/ai/run-model.js';
-import { beforeAfterOf } from '../client/v2/ai/run-compare.js';
 import { shortArtboardName } from '../client/v2/ai/scope.js';
 import { reduceRows } from '../client/v2/history/rows';
 
@@ -39,6 +39,12 @@ describe('which run was this turn', () => {
   });
   test('a run created a moment before the ask time stamp still belongs to it (clock skew)', () => {
     expect(turnRunFor([run('r_s', { createdAt: T - 2_000 })], T, null)?.runId).toBe('r_s');
+  });
+  test('two runs near an ask: the one created closest to it, not the previous turn’s tail', () => {
+    const near = [run('r_prev', { createdAt: T - 2_000 }), run('r_own', { createdAt: T + 1_000 })];
+    expect(turnRunFor(near, T, null)?.runId).toBe('r_own');
+    // a run 7 s before the ask is the previous turn's, however close the next ask is
+    expect(turnRunFor([run('r_prev', { createdAt: T - 7_000 })], T, null)).toBeNull();
   });
   test('no time known, no run: nothing is guessed', () => {
     expect(turnRunFor(runs, null, null)).toBeNull();
