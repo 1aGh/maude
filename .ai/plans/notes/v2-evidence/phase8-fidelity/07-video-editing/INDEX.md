@@ -158,3 +158,23 @@ resolves like no kind. Harness changes (`_c7o-harness-g3/`), where a MUST was th
 - ve-play (paused, loop on, two frames stepped) from round 7a.
 
 Not done, and why (see `../06-advanced/fix-c7-oboard.md`): music **Fade in · out** needs a new edit op + a render path (the product has no music fade), the Captions inspector does not replace the video's when a caption chip is selected, ve-text has no "Title · Slide up" tag on the artboard.
+
+## FINAL (D5, e37e7d82a) — p8-d5-g3
+
+Final verification shoot after stage C round 7, on the merged tip (release-built client, Google Chrome channel, Mac mini, light + dark), IMPL side only; spec frames reused unchanged (the 07 board is unchanged since the D4/round-7 spec shots). Harness `_d5-harness-g3/` (`chain.sh 07` = `t07` all reachable ids, then `t07c` for ve-captions + ve-music on a project with its footage and song). Shot at `0ef942d45` (= tip + the D5 harness only). No match judged here.
+
+| artboard id | light | dark |
+|---|---|---|
+| ve-none, ve-select, ve-advanced, ve-fullscreen, ve-move-transition, ve-trim-split (Full timeline, held trim), ve-play, ve-export, ve-text, ve-formats, ve-transition | re-shot | re-shot |
+| ve-captions, ve-music | re-shot (t07c: footage + transcript, song + beats present) | re-shot (t07c) |
+| ve-long | re-shot (24 beats, not 40; no fold-tracks / marker jump in the app) | re-shot (same) |
+| ve-deselect | re-shot (state "Kept open" only; the diagram and rules card are board explanation) | re-shot (same) |
+| ve-drop | re-shot (synthetic drag events; no real Finder drag) | re-shot (same) |
+| ve-footage | re-shot (Missing + Relink state only; no owner line, no preparing bars) | re-shot (same) |
+| ve-reframe | re-shot (the e2e-fixture footage is absent: the window frames a hatch) | re-shot (same) |
+| ve-render | re-shot (job LIST seeded by a route intercept on GET /_api/export-jobs; no render runs) | re-shot (same) |
+| ve-ai-cut, ve-ai-watch, ve-ai-scrub, ve-ai-proposal, ve-ai-adjust | unreachable — needs a live signed-in AI cut run (claude is stubbed signed-out); spec-only frames stand | unreachable (same) |
+| ve-together | unreachable — a second peer on a linked hub | unreachable (same) |
+| ve-fit-fill | unreachable — the vertical-clip ask needs a real vertical file dropped; the lane has no real file drag | unreachable (same) |
+
+Totals: 38 id×theme re-shot (19 ids), 14 unreachable (7 ids). The committed `*-spec-only.jpg` for ve-render-light is stale (ve-render-light is now a pair). Harness note: t07 logs `MEDIA_ELEMENT_ERROR ... aaaa1111.mp4` page errors (the fixture's interview footage is a missing/placeholder file in the t07 lane; t07c replaces it with real media) — not harness-caused.
