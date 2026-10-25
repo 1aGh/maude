@@ -42,3 +42,12 @@ Branch `p8-c7-oboard` from feat/maude-v2 `6f503db82`. Checklist = the MUST rows 
 ## Shoot (stage D)
 02 + 05 re-shot with `_d-harness-g1-d3` repointed to this worktree (`.scr/h`), plus: run.mjs dismisses `.maude-notice-close` right before each shot;
 home2.mjs `es-home-local` registers no project (the board's "No projects on this Mac yet." card).
+
+## Round 8 (p8-c8-misc)
+
+| id | what | where | tests |
+|---|---|---|---|
+| es-home-local | the first-run sign-in card shows on the first launch only: Home keeps a per-Mac flag in its own `home.json` (`GET/POST /_home/first-run`, app-owned state dir, never the project); afterwards a signed-out Mac with no project shows 05's "No projects on this Mac yet." shelf + the quiet "Sign in to cloud.maude.sh" pill, and the pill still opens the card (kg v2-p8-c8-first-run-card-once) | `home/routes.ts`, `home/home-api.js`, `home/home-app.jsx` | `home-first-run`, `home-page`, `p8-c8-misc` |
+| es-arriving (3) | the panel foot carries the board's 4 px progress bar ("41 of 93" as a share) | `empty/arriving.jsx`, `canvases-panel.jsx`, `empty.css` | `v2-arriving-rows` |
+
+Open: es-arriving (1) skeleton artboards + "N artboards on their way" tag. The hub listing carries no artboard sizes, and the board composes a canvas that is PARTLY arrived (one artboard drawn, four skeletons) - the product has no per-artboard arrival state, a canvas file lands whole (Q13 fallback card stays). Needs a sync-layer answer first. Stage D re-shoot of 05 not run (budget); the harness's home2.mjs es-home-local now needs the first-run flag set (state dir) to shoot the shelf.
