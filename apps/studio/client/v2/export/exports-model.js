@@ -10,8 +10,11 @@
 // `{ id, name, status: 'queued' | 'running' | 'ok' | 'failed' | 'waiting', reason? }`.
 
 export const PANEL_TITLE = 'Exports';
-export const PANEL_FOOT =
-  'The last 20 exports stay here. Cloud renders keep going if this Mac sleeps or the window closes.';
+export const PANEL_FOOT = 'The last 20 exports stay here. Also in Search: “Exports”.';
+/** 09 ex-progress: while something runs the foot says what survives a sleeping Mac. */
+export const RUNNING_FOOT =
+  'Cloud renders keep going if this Mac sleeps or the window closes. Exports on this Mac need the window open — images and PDFs take seconds.';
+export const OPEN_FOLDER = 'Open the Downloads folder';
 export const SHOW_IN_FINDER = 'Show in Finder';
 export const DOWNLOAD = 'Download';
 export const EXPORT_AGAIN = 'Export again';
@@ -84,6 +87,51 @@ export function rowState(job) {
 
 const stemOf = (name) => String(name || '').replace(/\.[^./]+$/, '');
 
+const NAMED_FORMATS = { pptx: 'PowerPoint', canva: 'Canva', zip: 'ZIP', html: 'HTML' };
+const VIDEO_FORMATS = new Set(['mp4', 'webm', 'gif']);
+const baseName = (rel) =>
+  String(rel || '')
+    .replace(/^.*\//, '')
+    .replace(/\.tsx$/, '');
+
+/**
+ * 09 ex-progress: what a running row is called — the canvas or folder it is made from, then what it makes
+ * ("Hype trailer · 2 videos · 4K", "social · 115 artboards", "Uniformy-2027 · PowerPoint"). Needs the job's `spec`;
+ * null without one (the row then falls back to the format and scope words).
+ */
+export function specTitle(job) {
+  const spec = job?.spec;
+  if (!spec || typeof spec !== 'object') return null;
+  const t = itemTally(job);
+  const subject =
+    spec.scope === 'folder'
+      ? String(spec.folder || '')
+          .split('/')
+          .pop()
+      : spec.scope === 'project'
+        ? 'Whole project'
+        : baseName(spec.canvas);
+  if (!subject) return null;
+  const fmt = spec.format ?? job.format;
+  const picked = (spec.selection?.artboards ?? []).length;
+  const n = t && t.total > 1 ? t.total : picked > 1 ? picked : 0;
+  const bits = [subject];
+  if (VIDEO_FORMATS.has(fmt)) {
+    if (n > 1) bits.push(`${n} videos`);
+    if ((spec.options?.size?.scale ?? 1) >= 2) bits.push('4K');
+    if (n <= 1 && bits.length === 1) bits.push(FORMAT_LABELS[fmt]);
+  } else if (NAMED_FORMATS[fmt]) {
+    bits.push(NAMED_FORMATS[fmt]);
+  } else if (n > 1) {
+    bits.push(`${n} artboards`);
+  } else bits.push(FORMAT_LABELS[fmt] ?? String(fmt).toUpperCase());
+  return bits.join(' · ');
+}
+
+/** The canvas a row's picture comes from: the one the spec names (a folder or project has none of its own). */
+export const jobCanvasRel = (job) =>
+  typeof job?.spec?.canvas === 'string' && job.spec.canvas ? job.spec.canvas : null;
+
 /** What the row is called: the file when there is one, else what is being made. */
 export function jobTitle(job) {
   const t = itemTally(job);
@@ -91,6 +139,8 @@ export function jobTitle(job) {
     if (t && t.failed.length > 0) return `${stemOf(job.filename)} · ${t.ok} of ${t.total}`;
     return job.filename;
   }
+  const named = specTitle(job);
+  if (named) return named;
   const fmt = formatLabel(job);
   if (t && t.total > 1) return `${fmt} · ${t.total} items`;
   return `${fmt} · ${SCOPE_LABELS[job?.scope] || job?.scope || ''}`.trim();

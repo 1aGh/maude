@@ -120,7 +120,15 @@ function StateWord({ job }) {
  * @param busy     this job's bytes are being fetched or saved
  * @param on       { reveal(job), download(job), again(job), retry(job) }
  */
-export function JobRow({ job, selected = false, native = false, busy = false, on, now }) {
+export function JobRow({
+  job,
+  selected = false,
+  native = false,
+  busy = false,
+  on,
+  now,
+  cover = null,
+}) {
   const ref = useRef(null);
   useEffect(() => {
     if (!selected) return;
@@ -147,6 +155,18 @@ export function JobRow({ job, selected = false, native = false, busy = false, on
       tabIndex={-1}
     >
       <div className="ex-job-main">
+        {/* 09 ex-progress: the row's picture — the canvas it was made from; the format's glyph when it has none */}
+        <span
+          className="ex-job-thumb"
+          data-testid={`export-job-thumb-${job.id}`}
+          aria-hidden="true"
+        >
+          {cover ? (
+            <img src={cover} alt="" loading="lazy" draggable={false} />
+          ) : (
+            <StIcon name="export" size={14} />
+          )}
+        </span>
         <span className="ex-job-t">
           <span className="ex-job-n" title={job.filename || undefined}>
             {jobTitle(job)}

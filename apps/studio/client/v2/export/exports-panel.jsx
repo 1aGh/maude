@@ -14,7 +14,16 @@ import { copy, Empty } from '../empty/index.js';
 import { isNativeApp } from '../../github.js';
 import { openExport } from './use-export-spec.js';
 import { JobRow } from './job-row.jsx';
-import { FOLD_LABEL, PANEL_FOOT, PANEL_TITLE, panelGroups } from './exports-model.js';
+import { useCoverOf } from '../ds/use-covers.js';
+import {
+  FOLD_LABEL,
+  jobCanvasRel,
+  OPEN_FOLDER,
+  PANEL_FOOT,
+  PANEL_TITLE,
+  panelGroups,
+  RUNNING_FOOT,
+} from './exports-model.js';
 
 const EMPTY_ID = 'es-panels-make.exports-none';
 
@@ -23,6 +32,7 @@ export function ExportsPanel({
   native = isNativeApp(),
   onNewExport = openExport,
   projectName = '', // the shell hands over the open project's name (05 · es-panels-make: "of Studio site")
+  coverOf: coverOfProp = null,
 }) {
   const { panelOpen, closePanel, selectedJobId } = center;
   useEffect(() => {
@@ -35,8 +45,15 @@ export function ExportsPanel({
   }, [panelOpen, closePanel]);
 
   const groups = useMemo(() => panelGroups(center.jobs), [center.jobs]);
+  const hookCover = useCoverOf({ active: panelOpen });
+  const coverOf = coverOfProp ?? hookCover;
   const vars = { project: projectName || center.projectName || 'this project' };
   if (!panelOpen) return null;
+  // the folder button opens where the newest finished file landed
+  const newest = [...(center.jobs ?? [])]
+    .filter((j) => j.status === 'done' && !j.deliveredInBrowser && j.filename)
+    .sort((a, b) => String(b.finishedAt || '').localeCompare(String(a.finishedAt || '')))[0];
+  const running = (center.jobs ?? []).some((j) => j.status === 'queued' || j.status === 'running');
 
   const on = {
     reveal: center.reveal,
@@ -55,6 +72,18 @@ export function ExportsPanel({
       <div className="ex-panel-hd">
         <StIcon name="export" size={14} />
         <span id="st-export-panel-title">{PANEL_TITLE}</span>
+        {native && newest ? (
+          <button
+            type="button"
+            className="icon-btn k-icon-sm"
+            data-testid="exports-panel-folder"
+            title={OPEN_FOLDER}
+            aria-label={OPEN_FOLDER}
+            onClick={() => center.reveal(newest)}
+          >
+            <StIcon name="folder" size={14} />
+          </button>
+        ) : null}
         <button
           type="button"
           className="icon-btn k-icon-sm"
@@ -101,6 +130,7 @@ export function ExportsPanel({
                   native={native}
                   selected={job.id === selectedJobId}
                   busy={center.savingIds.has(job.id)}
+                  cover={coverOf(jobCanvasRel(job) ?? '')}
                   on={on}
                 />
               ))}
@@ -108,7 +138,9 @@ export function ExportsPanel({
           ))
         )}
       </div>
-      {groups.length > 0 ? <p className="ex-panel-foot">{PANEL_FOOT}</p> : null}
+      {groups.length > 0 ? (
+        <p className="ex-panel-foot">{running ? RUNNING_FOOT : PANEL_FOOT}</p>
+      ) : null}
     </div>
   );
 }
