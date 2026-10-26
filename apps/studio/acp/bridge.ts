@@ -31,6 +31,7 @@ import {
 
 import { autoAllowRules } from '../actions/verbs.ts';
 import { HANDOFF_RUN_VERBS } from '../handoff/write-scopes.ts';
+import { DEV_SERVER_ROOT } from '../paths.ts';
 import { readUiPrefs } from '../ui-prefs.ts';
 import {
   type AudienceLeak,
@@ -58,6 +59,9 @@ import {
   mayEnv,
   mayKey,
   mayRefusal,
+  readAllowRules,
+  readBoundaryRoots,
+  readVerdict,
 } from './may-scope.ts';
 import { type SdkPluginConfig, suppressionFor } from './plugin-bootstrap.ts';
 import {
@@ -103,6 +107,15 @@ export interface AcpBridgeOptions {
    * Absent → none (tests / non-studio embedders).
    */
   readOnlyRoots?: () => readonly string[];
+  /**
+   * M2 read boundary (decision maude/v2-michal-m2-read-boundary) — the folders THIS chat may read
+   * now: allowed ("Let AI read <folder>?") and attached to it (`GrantStore.chatRoots`). Read live on
+   * every read request that reaches the bridge, so a yes mid-chat counts on the next call and Remove
+   * takes it back the same way — no session restart. Absent / throws → none (fail closed: the card).
+   */
+  readRoots?: () => readonly string[];
+  /** M2 — the read boundary's fixed roots. Absent → `sessionReadRoots(repoRoot, plugins, designRoot)`. */
+  readBoundary?: readonly string[];
   /**
    * S8.10 — this chat's own write scope (a Handoff to production run: its target file only), read
    * live on every write-shaped request. `null` = the project rules alone. A getter that throws
@@ -561,10 +574,15 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | typeof TIMED_OUT
 // `fetch-asset`, …) falls back to Claude Code's own permission card. Maude adds
 // no ask rule (P3): a user who allows `Bash(maude:*)` in their own `~/.claude`
 // settings still gets every verb without prompts — that is their call.
+//
+// ⚠️ SUPERSEDED for reads (decision maude/v2-michal-m2-read-boundary). The bare `Read`/`Glob`/`Grep`
+// names the first bullet describes are GONE: they let the agent read any file on the Mac. A session
+// now carries one `Read(//abs/**)` rule per root of its read boundary (`sessionReadRoots` — the
+// project, the bundled plugins, Maude's own package, the temp folders), and the bridge's gate
+// approves once a read inside a folder this chat was allowed to read (acp/may-scope.ts `readVerdict`).
+// Any other read goes to Claude Code's permission card.
 export const MAUDE_DEFAULT_ALLOWED_TOOLS: readonly string[] = [
-  'Read',
-  'Glob',
-  'Grep',
+  // NO bare 'Read' / 'Glob' / 'Grep' — path-scoped per session (`sessionReadRoots`, above).
   // NO 'Edit' / 'Write' / 'NotebookEdit' — see the comment block above. They are
   // scope-gated in `requestPermission`, not name-allowed here.
   ...autoAllowRules(),
@@ -602,11 +620,44 @@ export function sessionAllowedTools(scope: {
   return scope.audienceGated ? withoutWriterRules(allowed) : { kept: allowed, dropped: [] };
 }
 
+/**
+ * M2 read boundary (decision maude/v2-michal-m2-read-boundary) — the folders a chat's agent reads
+ * without asking, besides the ones the person allowed (those are read live, per request): the project
+ * (repo + design root), the bundled plugin trees, Maude's own package root (the `maude design`
+ * helpers' files) and the temp folders. acp/may-scope.ts `readBoundaryRoots`.
+ */
+export function sessionReadRoots(
+  repoRoot: string,
+  plugins?: readonly SdkPluginConfig[],
+  designRoot?: string
+): string[] {
+  return readBoundaryRoots({
+    repoRoot,
+    designRoot: designRoot ?? join(repoRoot, '.design'),
+    pluginRoots: (plugins ?? []).map((p) => p.path),
+    packageRoot: join(DEV_SERVER_ROOT, '..', '..'),
+  });
+}
+
+/** The allow-list a default chat session is spawned with: its read boundary, then Maude's tools. */
+export function chatAllowedTools(
+  repoRoot: string,
+  plugins?: readonly SdkPluginConfig[],
+  designRoot?: string
+): string[] {
+  return [
+    ...readAllowRules(sessionReadRoots(repoRoot, plugins, designRoot)),
+    ...MAUDE_DEFAULT_ALLOWED_TOOLS,
+  ];
+}
+
 export function newSessionParams(
   repoRoot: string,
   studioBrief?: string,
   plugins?: SdkPluginConfig[],
   scope: {
+    /** M2 — the read boundary's roots (default: `sessionReadRoots(repoRoot, plugins)`). */
+    readRoots?: readonly string[];
     onlyVerbs?: readonly string[] | null;
     /** P8 c7 — Advanced › AI may. Off switches become deny rules + leave the allow-list (may-scope.ts). */
     may?: AiMay;
@@ -636,7 +687,11 @@ export function newSessionParams(
     // the same `_meta.claudeCode.options` spread as `plugins`/`settings` below
     // (`...userProvidedOptions`, acp-agent.js:2333→2455) into the SDK's
     // `allowedTools` (sdk.d.ts:1331). Everything off this list still prompts.
-    allowedTools: sessionAllowedTools(scope).kept,
+    // M2 (decision maude/v2-michal-m2-read-boundary) — reads are allowed per folder, not by name.
+    allowedTools: [
+      ...readAllowRules(scope.readRoots ?? sessionReadRoots(repoRoot, plugins)),
+      ...sessionAllowedTools(scope).kept,
+    ],
   };
   // P8 c7 (decision maude/v2-p8-c7-ai-may-enforced) — an "AI may" switch the person turned off is a
   // DENY rule: it wins over every allow rule (ours and the person's own ~/.claude) and every mode,
@@ -645,7 +700,7 @@ export function newSessionParams(
   // (acp-agent.js:2855).
   // V2-8.9 M2 (decision maude/v2-8.9-lead-m2-deny-credential-reads-only) — plus, on EVERY session, a
   // Read deny for the credential stores (every profile's ~/.config/maude, ~/.ssh, ~/.aws, ~/.gnupg,
-  // the keychains). Reads otherwise stay Claude Code's default (Gate 0 P3).
+  // the keychains). It wins over the read boundary's allow rules above (a deny always does).
   const deny = [
     ...credentialDenyRules(scope.credentials ?? credentialPathsFor()),
     ...mayDenyRules(scope.may ?? MAY_ALL, scope.assetsRoots ?? []),
@@ -900,9 +955,18 @@ export class AcpBridge {
    */
   private reads = new Map<string, TrackedRead>();
   private readonly designRoots: string[];
+  /** M2 — the read boundary's fixed roots (the spawn-time allow rules; `sessionReadRoots`). */
+  private readonly readRoots: string[];
 
   constructor(private readonly opts: AcpBridgeOptions) {
     this.scopeRoot = pinScopeRoot(opts.repoRoot);
+    this.readRoots = opts.readBoundary
+      ? [...opts.readBoundary]
+      : sessionReadRoots(
+          opts.repoRoot,
+          opts.plugins,
+          opts.designRoot ?? join(opts.repoRoot, '.design')
+        );
     this.assetsRoots = assetsRootsFor(
       opts.repoRoot,
       opts.designRoot ?? join(opts.repoRoot, '.design')
@@ -1187,6 +1251,7 @@ export class AcpBridge {
     const may = { ...this.may };
     const gated = this.audienceGatedNow();
     const params = newSessionParams(this.opts.repoRoot, this.opts.studioBrief, this.opts.plugins, {
+      readRoots: this.readRoots,
       onlyVerbs: scoped === null ? null : HANDOFF_RUN_VERBS,
       may,
       assetsRoots: this.assetsRoots,
@@ -1496,6 +1561,12 @@ export class AcpBridge {
         // V2-8.9 round 2 (decision maude/v2-8.9-round2-writer-verbs-audience) — a design-root writer
         // verb the session was spawned without an allow rule for (a hub-linked project): the bridge
         // approves it once, unless the audience check holds it for the person.
+        // M2 read boundary (decision maude/v2-michal-m2-read-boundary) — a read inside the project,
+        // the bundled plugins, Maude's package, the temp folders or a folder this chat was allowed to
+        // read is approved once; any other read is the person's card, without "Always allow" (the
+        // adapter would turn it into a session rule no Remove could take back).
+        const read = this.classifyRead(params);
+        if (read) return read;
         const verb = this.writerVerbHold(params);
         if (verb) return verb;
         const scope = this.classifyWrite(params);
@@ -1946,6 +2017,39 @@ export class AcpBridge {
    * i.e. it would silently restore the unscoped `Write` grant this whole change
    * removes, from inside the code that removed it.
    */
+  /**
+   * M2 read boundary — `null` when the request is not a read (the write gate goes on). Granting is
+   * strict (a confirmed read tool, every path inside, a once-only option on the table); taking
+   * "Always allow" off is generous (a read-shaped call whose name went missing too).
+   */
+  private classifyRead(
+    params: RequestPermissionRequest
+  ): Promise<RequestPermissionResponse> | null {
+    const toolCallId = params.toolCall?.toolCallId;
+    const toolName = typeof toolCallId === 'string' ? this.toolNames.get(toolCallId) : undefined;
+    let consented: readonly string[] = [];
+    try {
+      consented = this.opts.readRoots?.() ?? [];
+    } catch {
+      consented = [];
+    }
+    const verdict = readVerdict(toolName, params.toolCall, this.scopeRoot, [
+      ...this.readRoots,
+      ...consented,
+    ]);
+    if (verdict === 'inside') {
+      const allowOnce = (params.options ?? []).find((o) => o.kind === 'allow_once');
+      if (allowOnce)
+        return Promise.resolve({ outcome: { outcome: 'selected', optionId: allowOnce.optionId } });
+      return this.askPerson(params, { stripAlways: true });
+    }
+    if (verdict === 'outside') return this.askPerson(params, { stripAlways: true });
+    const kind = (params.toolCall as { kind?: unknown } | undefined)?.kind;
+    if (!toolName && (kind === 'read' || kind === 'search'))
+      return this.askPerson(params, { stripAlways: true });
+    return null;
+  }
+
   private classifyWrite(params: RequestPermissionRequest): {
     autoApprove?: string;
     info?: PermissionScopeInfo;

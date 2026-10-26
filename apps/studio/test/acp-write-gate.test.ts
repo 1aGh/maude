@@ -83,6 +83,8 @@ async function runTurn(
   const bridge = new AcpBridge({
     repoRoot,
     readOnlyRoots,
+    // M2 read boundary: the real one holds the temp folders, and both fixture projects live in one.
+    readBoundary: [repoRoot],
     permissionTimeoutMs: 4000,
     onUpdate: (u) => updates.push(u as { content?: { text?: string } }),
     onPermission: (req) => transparency.push(req),
@@ -238,15 +240,15 @@ describe('write gate — fail-closed shapes', () => {
   }, 20000);
 
   test('a READ tool with an out-of-project path is NOT treated as a write', async () => {
-    // Reads are deliberately unscoped (this change closes write egress, not
-    // read). Read isn't on the allow-list in this test's bridge either, so it
-    // prompts — but as an ORDINARY prompt, with no out-of-project write copy
-    // and no option filtering.
+    // It prompts with no out-of-project WRITE copy. Since the M2 read boundary
+    // (decision maude/v2-michal-m2-read-boundary) the card is the read gate's:
+    // no `allow_always` (a name-keyed Read rule would be an unscoped read) —
+    // test/acp-read-boundary.test.ts holds the read side.
     useWriteAgent({ path: join(projectB, 'secret.txt'), tool: 'Read' });
     const r = await runTurn(projectA, () => 'reject');
     expect(r.prompts).toHaveLength(1);
     expect(r.prompts[0].scope).toBeUndefined();
-    expect(r.prompts[0].req.options.map((o) => o.kind)).toContain('allow_always');
+    expect(r.prompts[0].req.options.map((o) => o.kind)).not.toContain('allow_always');
   }, 20000);
 });
 
@@ -311,12 +313,13 @@ describe('write gate — F2: granting is strict, warning is generous', () => {
 
   test('a READ of an out-of-project file is still NOT treated as a write', async () => {
     // The heuristic is `kind:'edit'` / `notebook_path`, deliberately NOT "has a
-    // file_path" — Read carries one too, and would otherwise get the write copy
-    // plus a pointlessly stripped allow_always.
+    // file_path" — Read carries one too, and would otherwise get the write copy.
+    // (M2 read boundary: a read-shaped card loses `allow_always` on the READ
+    // gate's account, not the write gate's.)
     useWriteAgent({ path: join(projectB, 'secret.txt'), tool: 'Read', omitToolCall: true });
     const r = await runTurn(projectA, () => 'reject');
     expect(r.prompts[0].scope).toBeUndefined();
-    expect(r.prompts[0].req.options.map((o) => o.kind)).toContain('allow_always');
+    expect(r.prompts[0].req.options.map((o) => o.kind)).not.toContain('allow_always');
   }, 20000);
 });
 
@@ -346,11 +349,14 @@ describe('write gate — F6: `allow_always` is stripped from EVERY write-shaped 
     expect(r.prompts[0].req.options.map((o) => o.kind)).not.toContain('allow_always');
   }, 20000);
 
-  test('a NON-write tool keeps its `allow_always` — the strip is scoped to writes', async () => {
-    // Guard against over-correcting: stripping everywhere would quietly remove a
-    // legitimate affordance from every ordinary tool card.
+  test('a read-shaped card (unknown name) offers no `allow_always` either — M2 read boundary', async () => {
+    // This used to guard the opposite ("the strip is scoped to writes"). Since the
+    // M2 read boundary (decision maude/v2-michal-m2-read-boundary) a read card's
+    // `allow_always` would make the adapter add a session rule keyed by the tool
+    // NAME — an unscoped Read that no Remove of a folder could take back. Cards
+    // for other tools keep it (acp-may-gate's "web on" card, acp-permission).
     useWriteAgent({ path: join(projectA, 'x.txt'), tool: 'Read', omitToolCall: true });
     const r = await runTurn(projectA, () => 'reject');
-    expect(r.prompts[0].req.options.map((o) => o.kind)).toContain('allow_always');
+    expect(r.prompts[0].req.options.map((o) => o.kind)).not.toContain('allow_always');
   }, 20000);
 });

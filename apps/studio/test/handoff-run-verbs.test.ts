@@ -17,9 +17,13 @@ import {
 import { HANDOFF_RUN_VERBS } from '../handoff/write-scopes.ts';
 
 type Opts = { allowedTools?: string[] };
+// The read boundary's `Read(//abs/**)` rules (M2) are the same for a scoped run; this file is about
+// the rest of the list.
 const toolsOf = (p: ReturnType<typeof newSessionParams>) =>
-  ((p._meta?.claudeCode as { options?: Opts } | undefined)?.options?.allowedTools ??
-    []) as string[];
+  (
+    ((p._meta?.claudeCode as { options?: Opts } | undefined)?.options?.allowedTools ??
+      []) as string[]
+  ).filter((t) => !t.startsWith('Read('));
 
 describe('Handoff to production run — maude verbs', () => {
   test('the hook and the studio name the same verbs', () => {

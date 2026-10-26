@@ -11,6 +11,10 @@
 //     resolved to its real path and checked (`ai/attach-grants.ts` resolveFolder); the first time,
 //     the answer is `needsConsent` and nothing is recorded — only `consent: true` (Let AI read)
 //     records the grant. A granted folder attaches straight away next time (asked once).
+//     The grant is the agent's read boundary outside the project (M2, decision
+//     maude/v2-michal-m2-read-boundary): the ACP read gate re-reads this chat's attached folders on
+//     every read (`chatReadRootsFor`), so a yes counts on the next call and a detach / Reset here
+//     puts the folder back behind the permission card — nothing to restart.
 //
 // MAIN ORIGIN ONLY (`origin: 'main'`): not in CANVAS_SAFE_API, not on the canvas server's routes —
 // the untrusted canvas iframe can neither attach, choose a folder, nor list one. The CSRF +

@@ -23,7 +23,7 @@ import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { buildStudioBrief } from '../../../acp/bootstrap-brief.ts';
-import { MAUDE_DEFAULT_ALLOWED_TOOLS, newSessionParams } from '../../../acp/bridge.ts';
+import { chatAllowedTools, newSessionParams } from '../../../acp/bridge.ts';
 import { computeSessionPlugins } from '../../../acp/plugin-bootstrap.ts';
 import { logDenyIfAny, logTool, REPO } from './common.mjs';
 import { allowOf, answerCard } from './consent.mjs';
@@ -44,7 +44,7 @@ export function planAcp(journey, { project, projectLabel = `journey ${journey.id
     chatId: CHAT_ID,
     brief,
     plugins,
-    allowedTools: [...MAUDE_DEFAULT_ALLOWED_TOOLS],
+    allowedTools: chatAllowedTools(project, plugins),
     allow: allowOf(journey),
     session: newSessionParams(project, brief, plugins),
     turns: journey.turns.map((t) => ({ say: t.say })),

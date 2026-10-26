@@ -48,13 +48,14 @@
 // nested same-origin frame inside a canvas keeps its own prototypes (named, like WebRTC there), and
 // whether the shipping WKWebView honours the meta was not checked on a real Mac.
 //
-// V2-8.9 M2 adds a third, switch-independent part at the bottom of this file: the credential-store
-// deny rules + their live refusal (`credentialDenyRules` / `credentialRefusal`).
+// V2-8.9 M2 adds a third, switch-independent part below: the credential-store deny rules + their live
+// refusal (`credentialDenyRules` / `credentialRefusal`); and a fourth, the read boundary
+// (`readBoundaryRoots` / `readAllowRules` / `readVerdict`, decision maude/v2-michal-m2-read-boundary).
 //
 // Pure + dependency-free (bar node:path and write-scope's path helpers): unit-tested without a session
 // (test/acp-may-scope.test.ts); end to end in test/acp-may-gate.test.ts.
 
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import { isInsideRoot, resolveRealPath } from './write-scope.ts';
@@ -258,10 +259,10 @@ export function mayRefusal(
 
 // ---------------------------------------------------------------------------------------------------
 // V2-8.9 M2 (decision maude/v2-8.9-lead-m2-deny-credential-reads-only) — credential stores are never
-// read by the agent. Reads otherwise stay Claude Code's default (Gate 0 P3, decision
-// maude/v2-lead-ai-reads-stay-claude-code-default): only these folders get a deny rule, on EVERY
-// session whatever the "AI may" switches say, because normal design work never reads them — so no
-// new prompts.
+// read by the agent: these folders get a deny rule, on EVERY session whatever the "AI may" switches
+// say. Any other read outside the project is bounded by the M2 read boundary at the bottom of this
+// file (Michal's decision maude/v2-michal-m2-read-boundary, which superseded P3's "reads stay Claude
+// Code's default"); the deny rules win over its allow rules and over a consented folder.
 //
 //   • Maude's own config: `~/.config/maude/**` AND `$XDG_CONFIG_HOME/maude/**` — every profile's
 //     cloud.json / hubs.json / keys.json / project-links.json (`profiles/<id>/…` sit under it), plus
@@ -379,4 +380,130 @@ function insideAnyFolded(p: string, repoRoot: string, roots: readonly string[]):
     const r = root.toLowerCase();
     return r === lexical || r === real || isInsideRoot(lexical, r) || isInsideRoot(real, r);
   });
+}
+
+// ---------------------------------------------------------------------------------------------------
+// M2 read boundary (decision maude/v2-michal-m2-read-boundary — SUPERSEDES, for reads, Gate 0 P3's
+// maude/v2-lead-ai-reads-stay-claude-code-default). The AI chat's Read / Glob / Grep / NotebookRead are
+// auto-approved ONLY inside:
+//   (a) the project (the repo root and the design root, as named and as they resolve on disk — a
+//       `.design` symlinked to a shared design repo is project content);
+//   (b) the folders the person said yes to ("Let AI read <folder>?", ai/attach-grants.ts) while they
+//       are attached to THIS chat — read live per request, so a yes mid-chat counts at once and Remove
+//       (the chip's ×, Advanced's Reset) puts the folder back behind the card on the very next call;
+//   (c) what the agent needs to work: the bundled plugin trees (their skills and references), Maude's
+//       own package root (the `maude design` helpers, templates, canvas-lib), and the temp folders
+//       ($TMPDIR, /tmp — the skills screenshot to `/tmp/x.png` and read it back).
+// Everything else reaches Claude Code's permission card, with "Always allow" taken off (the adapter
+// turns it into a session-wide rule the folder consent would no longer bound). The credential deny
+// rules above stay and still win: they are checked first and refuse without a card.
+//
+// Two layers, like the switches:
+//   1. Spawn-time ALLOW rules (`readAllowRules` → `allowedTools`): `Read(//abs/**)` per (a)+(c) root,
+//      replacing the bare `Read`/`Glob`/`Grep` names that allowed every path. Claude Code approves those
+//      reads itself (and applies Read rules to Glob/Grep).
+//   2. The live gate (`readVerdict`, AcpBridge.requestPermission): a read that does reach the bridge is
+//      approved once when every path it names lies, as resolved on disk, inside an (a)/(b)/(c) root,
+//      and otherwise goes to the person.
+//
+// Residual, named: under bypassPermissions, or with the person's own `Read` allow rule in ~/.claude
+// (settingSources ['user'], P3), Claude Code approves every read itself — that is the person's call;
+// only the credential deny rules hold there. A symlink INSIDE the project that points elsewhere is
+// read through Claude Code's own working-directory rule. A skill the person installed themselves
+// (outside the bundled plugins) asks before reading its own files.
+
+/** The file-reading tools the boundary covers (bare names, as on `_meta.claudeCode.toolName`). */
+export const READ_TOOL_NAMES: readonly string[] = ['Read', 'Glob', 'Grep', 'NotebookRead'];
+
+export interface ReadBoundaryInput {
+  repoRoot: string;
+  designRoot?: string;
+  /** The bundled plugin trees injected into the session (DDR-143). */
+  pluginRoots?: readonly string[];
+  /** Maude's own package root: the `maude design` helpers' files. Absent → none. */
+  packageRoot?: string | null;
+  /** The agent's temp folders. Default: this process's $TMPDIR (os.tmpdir) and /tmp. */
+  tmpRoots?: readonly string[];
+}
+
+/** The (a)+(c) roots, absolute, each as named and as it resolves (deduped, never the disk root). */
+export function readBoundaryRoots(input: ReadBoundaryInput): string[] {
+  const out = new Set<string>();
+  const add = (p: string | null | undefined) => {
+    if (!p || !isAbsolute(p)) return;
+    const abs = resolve(p);
+    for (const r of [abs, resolveRealPath(abs, abs)]) if (r !== resolve(sep)) out.add(r);
+  };
+  add(input.repoRoot);
+  if (input.designRoot) add(resolve(input.repoRoot, input.designRoot));
+  for (const p of input.pluginRoots ?? []) add(p);
+  add(input.packageRoot ?? null);
+  for (const t of input.tmpRoots ?? [tmpdir(), '/tmp']) add(t);
+  return [...out];
+}
+
+/** The spawn-time allow rules: `Read(//abs/**)` per root (Claude Code's absolute form). */
+export function readAllowRules(roots: readonly string[]): string[] {
+  return roots.map((r) => `Read(/${posixAbs(r)}/**)`);
+}
+
+const climbs = (p: string) => p.split(/[\\/]/).includes('..');
+
+/**
+ * The paths a read tool call touches, resolved against the project root, or `null` when it is not a
+ * read tool / names nothing it can be judged by. A glob is judged by its literal prefix; a pattern
+ * that climbs (`..` anywhere) cannot be judged and is `null` (the card).
+ */
+export function readTargets(
+  toolName: string | undefined,
+  toolCall: ToolCallLike | null | undefined,
+  repoRoot: string
+): string[] | null {
+  if (!toolName || !READ_TOOL_NAMES.includes(toolName)) return null;
+  const raw = (toolCall?.rawInput ?? {}) as Record<string, unknown>;
+  const str = (k: string) => (typeof raw[k] === 'string' && raw[k] ? (raw[k] as string) : '');
+  const abs = (p: string) => (isAbsolute(p) ? resolve(p) : resolve(repoRoot, p));
+  const named: string[] = [];
+  if (toolName === 'Read' || toolName === 'NotebookRead') {
+    const f = str('file_path') || str('notebook_path');
+    if (!f) return null;
+    named.push(f);
+  } else {
+    const base = str('path') || '.';
+    named.push(base);
+    const g = str(toolName === 'Glob' ? 'pattern' : 'glob');
+    if (g) {
+      if (climbs(g)) return null;
+      const joined = isAbsolute(g) ? g : join(base, g);
+      named.push(joined.split(/[*?[{]/)[0] || base);
+    }
+  }
+  if (Array.isArray(toolCall?.locations)) {
+    for (const l of toolCall.locations as Array<{ path?: unknown }>) {
+      if (typeof l?.path === 'string' && l.path) named.push(l.path);
+    }
+  }
+  if (named.some(climbs)) return null;
+  return named.map(abs);
+}
+
+/**
+ * The live gate's read half. `null` — not a read tool, nothing to say. `inside` — every path it names
+ * lies, as RESOLVED on disk (a symlink is judged by where it points), in a boundary root or a folder
+ * this chat may read: approve once. `outside` — the person's card, without "Always allow".
+ */
+export function readVerdict(
+  toolName: string | undefined,
+  toolCall: ToolCallLike | null | undefined,
+  repoRoot: string,
+  roots: readonly string[]
+): 'inside' | 'outside' | null {
+  if (!toolName || !READ_TOOL_NAMES.includes(toolName)) return null;
+  const targets = readTargets(toolName, toolCall, repoRoot);
+  if (!targets?.length) return 'outside';
+  const ok = targets.every((t) => {
+    const real = resolveRealPath(t, repoRoot);
+    return roots.some((r) => r === real || isInsideRoot(real, r));
+  });
+  return ok ? 'inside' : 'outside';
 }

@@ -2,7 +2,8 @@
 // in the scratch project, one `claude -p` per turn on one session (`--session-id`, then `--resume`).
 //
 // Permissions are the AI chat's (S12.15: both lanes run under the same rules): the allow list is
-// acp/bridge.ts `MAUDE_DEFAULT_ALLOWED_TOOLS`, in-project edits are accepted (`acceptEdits`, as the
+// acp/bridge.ts `chatAllowedTools` (the read boundary's `Read(//abs/**)` rules — M2 — then
+// `MAUDE_DEFAULT_ALLOWED_TOOLS`), in-project edits are accepted (`acceptEdits`, as the
 // chat's write-scope gate auto-approves them), and nobody answers a prompt — anything else is
 // denied. The one addition (decision v2-S12.16-lanes-allow-named-prompt-verbs): the prompt-tier
 // verbs the journey JSON names in `allow` are added to the allow list as `Bash(<verb>:*)`. The design plugin's own hooks run (they ship in plugins/design/hooks/hooks.json).
@@ -13,7 +14,7 @@ import { randomUUID } from 'node:crypto';
 import { chmodSync, createWriteStream, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { MAUDE_DEFAULT_ALLOWED_TOOLS } from '../../../acp/bridge.ts';
+import { chatAllowedTools } from '../../../acp/bridge.ts';
 import { CLI, logDenyIfAny, logTool, REPO } from './common.mjs';
 import { allowRules } from './consent.mjs';
 
@@ -50,6 +51,11 @@ export function shimDir(trialDir) {
 }
 
 /** The exact commands this lane would run — pure; `--dry` checks it, a live run executes it. */
+/** The chat's allow-list for this project with the design plugin the lane loads (`--plugin-dir`). */
+export function terminalAllowedTools(project) {
+  return chatAllowedTools(project, [{ type: 'local', path: join(REPO, 'plugins', 'design') }]);
+}
+
 export function planTerminal(
   journey,
   { project, trialDir, env, model = 'claude-opus-5-5', budgetUsd = 4, sessionId = randomUUID() }
@@ -73,7 +79,7 @@ export function planTerminal(
     join(REPO, 'plugins', 'design'),
     // one argv per rule (a variadic flag): a rule like `Bash(maude design open:*)` holds spaces
     '--allowedTools',
-    ...MAUDE_DEFAULT_ALLOWED_TOOLS,
+    ...terminalAllowedTools(project),
     ...allowRules(journey),
     '--permission-mode',
     'acceptEdits',
