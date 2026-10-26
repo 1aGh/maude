@@ -388,7 +388,11 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     // always produces — could never match it, and the step timed out on a state that was already terminal)
     const terminal = async () => {
       said = await note.getText().catch(() => said);
-      return /Synced with|Not reachable|unreachable|were refused by|nothing to sync yet/.test(said);
+      // …and the attention phase (presentation.ts `attention`: "A change needs / N changes need your attention in …"),
+      // which waits for the person — terminal too (r5 full run: "3 media uploads failed" against the local hub)
+      return /Synced with|Not reachable|unreachable|were refused by|nothing to sync yet|needs? your attention in/.test(
+        said
+      );
     };
     await browser.waitUntil(terminal, { timeout: 60_000 }).catch(() => {
       throw new Error(`the connect note never reached a terminal state (it said "${said}")`);
@@ -401,7 +405,10 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     // work out the next step themselves — the whole complaint.
     const title = (await note.getAttribute('title')) ?? '';
     expect(title.length).toBeGreaterThan(text.length - 1);
-    expect(/—|resumes by itself|Reconnect|Open one|Create a canvas/.test(title)).toBe(true);
+    // (the attention phase's move is "Open the Sync panel to see what is waiting and why.")
+    expect(
+      /—|resumes by itself|Reconnect|Open one|Create a canvas|Open the Sync panel/.test(title)
+    ).toBe(true);
     await capture('connect note, terminal state');
   });
 

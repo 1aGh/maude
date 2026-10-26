@@ -295,6 +295,10 @@ describe('Share roles: Can view asks, Can edit is removed, a link is turned off 
 
     // The owner removes him from the project, right away.
     await ownerOpensShare('project');
+    // the sheet can draw itself afresh once its lists load (back on This canvas, its first scope): look again —
+    // on This canvas Lukáš's row is a canvas grant he does not have, and Remove there reached no control-plane change (r5 trace)
+    await browser.pause(1_000);
+    await ownerOpensShare('project');
     const roleButton = await until('Lukáš’s row in Share', () =>
       browser.execute((name) => {
         for (const li of Array.from(document.querySelectorAll('[data-testid^="share-person-"]'))) {
