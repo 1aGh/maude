@@ -9,7 +9,7 @@ export NO_OPEN=1 MAUDE_NO_AUTOBUILD=1
 case "$1" in
   10) bash $H/g4/chain10.sh ;;
   12) bash $H/g4/chain12.sh ;;
-  13) bash $H/g5/chain.sh 13 "${2:?light|dark}" ;;
+  13|13u|13p) bash $H/g5/chain.sh "$1" "${2:?light|dark}" ;;  # 13u / 13p = one scenario alone (random-port retry)
   *) echo "bad canvas"; exit 2 ;;
 esac
 # leave the slot clean for the next user
