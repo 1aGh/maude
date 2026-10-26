@@ -115,6 +115,10 @@ export async function askToEditRequest({ canvas = null } = {}, fetchImpl = fetch
   if (r.status === 429)
     return { ok: false, state: 'limited', words: said(r.body, WORDS.unavailable) };
   if (reason === 'not-linked') return { ok: false, state: 'not-linked', words: WORDS.notLinked };
+  // V2-8.4 — a door the project server does not have (a cell refuses `/_api/share/*` default-closed: 404/405 with a
+  // bare `{ error: 'not found' }`) is a route answering, not the hub speaking. Say it as "not linked", never "not found".
+  if (r.status === 404 || r.status === 405)
+    return { ok: false, state: 'not-linked', words: WORDS.notLinked };
   if (r.status === 0 || r.status >= 500)
     return { ok: false, state: 'unavailable', words: WORDS.unavailable };
   return { ok: false, state: 'refused', words: said(r.body, WORDS.notLinked) };
