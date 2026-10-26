@@ -342,7 +342,7 @@ export function subscribeTrashedOpen(fn) {
 /**
  * The shell handlers for the registry ids (menu-runner spreads them). `d.activePath` is the open tab's repo
  * path and `d.designRel` the design root, so the ask names the canvas the way the hub keys a grant
- * (designRoot-relative); no open canvas = the whole project. `d.toast(text)` says the answer.
+ * (designRoot-relative); no open canvas = the whole project. `d.toast(text, ok)` says the answer (ok = good news).
  * `share.request-approve` / `-decline` take `{ id }`.
  */
 export function createAccessHandlers(d, fetchImpl = (...a) => fetch(...a)) {
@@ -350,7 +350,7 @@ export function createAccessHandlers(d, fetchImpl = (...a) => fetch(...a)) {
     'share.ask-to-edit': async () => {
       const canvas = canvasRel(d.activePath, d.designRel);
       const r = await askToEditRequest({ canvas }, fetchImpl);
-      d.toast?.(r.words);
+      d.toast?.(r.words, r.ok);
       return r;
     },
     'share.request-approve': async (params) => {

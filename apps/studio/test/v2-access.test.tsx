@@ -107,18 +107,19 @@ describe('Ask to edit', () => {
 
   test('the registry handler asks for the open canvas, designRoot-relative, and toasts', async () => {
     const f = fakeFetch({ 'POST /_api/share/requests': { status: 201, body: { id: 'req_1' } } });
-    const said: string[] = [];
+    const said: [string, boolean | undefined][] = [];
     const h = createAccessHandlers(
       {
         activePath: '.design/ui/Combine-kampan.tsx',
         designRel: '.design',
-        toast: (t: string) => said.push(t),
+        toast: (t: string, ok?: boolean) => said.push([t, ok]),
       },
       f.impl
     );
     await h['share.ask-to-edit']();
     expect(f.calls[0]?.body).toEqual({ canvas: 'ui/Combine-kampan.tsx' });
-    expect(said).toEqual([WORDS.asked]);
+    // a sent ask is good news: the shell's toast(text, ok) draws an error unless ok is true
+    expect(said).toEqual([[WORDS.asked, true]]);
     expect(canvasRel('__system__')).toBe(null);
     expect(canvasRel('.design/../x.tsx')).toBe(null);
   });
