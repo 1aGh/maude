@@ -121,13 +121,8 @@ export async function walkProjectMenu(): Promise<{ top: string[]; rows: string[]
       for (const b of btns) {
         if (!b.getAttribute('data-sub')) continue;
         b.click();
-        // a submenu renders on the next frames — on screen (WKWebView in front) that can be well past 80 ms, and a
-        // nested one (Help ▸ Diagnostics) was then read as empty: wait for it, up to a second
-        let child: Element | null | undefined = null;
-        for (let i = 0; i < 25 && !child; i++) {
-          await wait(40);
-          child = b.parentElement?.querySelector(':scope > [role=menu]');
-        }
+        await wait(80);
+        const child = b.parentElement?.querySelector(':scope > [role=menu]');
         if (child) await level(child, depth + 1);
       }
     }

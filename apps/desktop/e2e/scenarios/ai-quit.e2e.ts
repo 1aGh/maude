@@ -277,6 +277,17 @@ describe('ai-quit (native-desktop)', () => {
     await waitForSidecar();
     await openAssistant();
     const divider = await $(tid('ai-stopped-divider'));
+    // The panel reopens on the LAST chat — the ask that waited in line (step 2), which never started, so it has no
+    // divider. A chat that was working when the app quit is in the chat list: open each until one ends with it.
+    if (!(await divider.waitForDisplayed({ timeout: 10_000 }).catch(() => false))) {
+      for (let i = 0; i < 4 && !(await divider.isDisplayed().catch(() => false)); i++) {
+        await (await $('.chat-switch-trigger')).click();
+        const rows = await $$('[data-testid^="ai-chat-row-"]');
+        if (i >= rows.length) break;
+        await rows[i].click();
+        await divider.waitForDisplayed({ timeout: 5_000 }).catch(() => {});
+      }
+    }
     await divider.waitForDisplayed({ timeout: 30_000 });
     expect(await divider.getText()).toMatch(
       /Stopped when the app quit · \d{1,2} \w{3}, \d{2}:\d{2}/
