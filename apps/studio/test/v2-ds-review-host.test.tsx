@@ -341,6 +341,24 @@ describe('the host', () => {
     expect(refused.length).toBe(0);
   });
 
+  // p8-e2e-fix-r2 — ⌘Z on an Update gives the left-out canvas its old revision back on the server (ds/undo-hook.ts),
+  // but the index in `cfg` was never re-read, so its row kept the "update" word (desktop e2e ds-review part 1).
+  // An undo or a redo of any action re-reads it; another kind of action does not.
+  test('an undo or a redo re-reads the project index; another action does not', async () => {
+    const calls: string[] = [];
+    await mount(fakeFetch({}), [], CFG, { reloadTree: () => calls.push('read') });
+    const action = (detail: unknown) =>
+      act(async () => {
+        window.dispatchEvent(new CustomEvent('maude:project-action', { detail }));
+      });
+    await action({ actionId: 'a1', kind: 'edit', canvases: ['ui/Homepage.tsx'] });
+    expect(calls).toEqual([]);
+    await action({ actionId: 'a2', kind: 'undo', canvases: ['ui/Landing page.tsx'] });
+    expect(calls).toEqual(['read']);
+    await action({ actionId: 'a3', kind: 'redo', canvases: ['ui/Landing page.tsx'] });
+    expect(calls).toEqual(['read', 'read']);
+  });
+
   test('a moved head is a refusal in words, and the sheet stays', async () => {
     const f = fakeFetch({ publish: { status: 409, body: { code: 'ds-head-moved' } } });
     await mount(f, []);
