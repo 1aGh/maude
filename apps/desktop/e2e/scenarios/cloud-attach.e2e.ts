@@ -193,6 +193,9 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     const row = await $(tid('project-menu-row-settings.open'));
     await row.waitForDisplayed({ timeout: 10_000 });
     await row.click();
+    // The sheet re-opens on the section it was left on (settings-sheet.jsx `remembered()`) — Connections, after
+    // steps 1–2 — and the Account block with the plan is General's.
+    await (await $(tid('settings-tab-general'))).click();
     const plan = await $(tid('settings-account-plan'));
     await plan.waitForDisplayed({ timeout: 15_000 });
     expect(await plan.getText()).toBe('Free trial · 12 days left');
