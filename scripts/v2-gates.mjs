@@ -62,7 +62,9 @@ function cleanupCheck() {
   ].filter((p) => existsSync(join(ROOT, p)));
   if (leftovers.length) problems.push(`old token layers still present: ${leftovers.join(', ')}`);
   const legacy = sh(
-    "git grep -l -E '\\.st-[a-z]|--u-[a-z]' -- apps/studio/client ':!apps/studio/client/v2/contracts' ':!apps/studio/client/v2/v1-manifest.json'"
+    // the v1 ledgers keep v1 names on purpose (decision v2-p8-ledger-reads-through-rename): the testid
+    // contract's history rows, the nothing-deleted map and the reachability evidence record what v1 had
+    "git grep -l -E '\\.st-[a-z]|--u-[a-z]' -- apps/studio/client ':!apps/studio/client/v2/contracts' ':!apps/studio/client/v2/v1-manifest.json' ':!apps/studio/client/v2/nothing-deleted.json' ':!apps/studio/client/v2/reachability.json' ':!apps/studio/client/TESTIDS.md' ':!apps/studio/client/testids.json'"
   ).stdout.trim();
   if (legacy)
     problems.push(`.st-* / --u-* still used in ${legacy.split('\n').length} client file(s)`);

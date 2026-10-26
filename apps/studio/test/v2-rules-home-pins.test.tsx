@@ -90,19 +90,19 @@ describe('rule: Save status, shown not operated — no dot on the project pill',
         />
       );
     });
-    const pill = host.querySelector('.st-pill') as HTMLElement;
+    const pill = host.querySelector('.sh-pill') as HTMLElement;
     expect(pill).toBeTruthy();
     expect(pill.querySelector('[class*="dot" i], [data-status], [role="status"]')).toBeNull();
     // only the mark, the name, the canvas and the caret are drawn
-    const parts = [...pill.querySelectorAll('[class^="st-pill-"]')].map((e) => e.className);
+    const parts = [...pill.querySelectorAll('[class^="sh-pill-"]')].map((e) => e.className);
     expect(parts.sort()).toEqual(
       [
-        'st-pill-btn',
-        'st-pill-canvas',
-        'st-pill-caret',
-        'st-pill-mark',
-        'st-pill-name',
-        'st-pill-sep',
+        'sh-pill-btn',
+        'sh-pill-canvas',
+        'sh-pill-caret',
+        'sh-pill-mark',
+        'sh-pill-name',
+        'sh-pill-sep',
       ].sort()
     );
   });
