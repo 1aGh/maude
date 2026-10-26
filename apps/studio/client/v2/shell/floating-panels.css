@@ -921,7 +921,7 @@
   /* ─── Command palette (⌘K) ───────────────────────────────────────────────── */
   /* The informational role notice sits BELOW a modal's scrim (9000): it covered
    the preview dialog's own header (S19). Warnings and errors keep
-   .st-banner's 9100 and stay visible over a dialog. */
+   the v1 banner's 9100 and stay visible over a dialog. */
   .sh-scrim {
     position: fixed;
     inset: 0;
@@ -1039,7 +1039,7 @@
   }
 
   /* ─── Export & handoff dialog (Plan C P9/P10) ──────────────────────────────
- * Lifted from Studio.css `.sh-dialog*` / `.st-fmt*`. Rendered inside `.sh-scrim`. */
+ * Lifted from Studio.css `.sh-dialog*` and its format rows. Rendered inside `.sh-scrim`. */
   .sh-dialog {
     width: 540px;
     max-width: 92vw;

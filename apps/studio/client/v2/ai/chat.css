@@ -19,7 +19,7 @@
  *    at the BOTTOM of the sidebar as a compact avatar; the menu opens upward. */
   /* text inputs — the maude DS .input/.textarea recipe (lifted from the canvas-side
  * _components.css, which isn't in the client bundle → my fields fell back to native).
- * Scoped to the github dialogs so it can't collide with the shell's .cv-search/.st-field. */
+ * Scoped to the github dialogs so it can't collide with the shell's .cv-search / the v1 field. */
   .gi-dialog .input,
   .cp-dialog .input,
   .gi-dialog .textarea,

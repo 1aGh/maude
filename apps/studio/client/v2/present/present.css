@@ -12,7 +12,7 @@
 
 /* from styles/3-shell-maude.css */
 @layer shell {
-  /* Top-level banners (.st-banner — SyncBanner + the "repo state changed" notice)
+  /* Top-level banners (the v1 banner — SyncBanner + the "repo state changed" notice)
    are DELIBERATELY left visible in present mode: they're the DDR-102 fail-closed
    sync/divergence warnings, and an untrusted canvas (DDR-054) must not be able to
    silence a security-relevant notice by entering Presentation Mode (phase-28

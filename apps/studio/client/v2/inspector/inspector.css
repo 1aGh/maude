@@ -106,7 +106,7 @@
   /* ─── CSS panel · Phase 12.2 spec (DDR-104) ──────────────────────────────────
  * Hybrid vocabulary (friendly section headers + CSS-named rows), per-field
  * token dropdowns, nested box-model widget, per-row provenance, two-hatch
- * Advanced section. Scoped `.insp-cp-*` (never reuses the cramped `.st-field`).
+ * Advanced section. Scoped `.insp-cp-*` (never reuses the cramped v1 field).
  * Critic iter-1 fixes: live text off the disabled --fg-3 token → --fg-2 (WCAG
  * AA ≥4.5:1); SHAPE-coded provenance (circle/square/ring, not colour alone);
  * colour swatch lives INSIDE the token field so every control shares one left
