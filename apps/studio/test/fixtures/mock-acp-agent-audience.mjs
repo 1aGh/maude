@@ -5,13 +5,23 @@
 // the agent "did"), then one write tool call (MAUDE_TEST_WRITE `{ tool, input }`) and asks for
 // permission; the outcome comes back as an agent text chunk `outcome=<json>`.
 
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { Readable, Writable } from 'node:stream';
 
 import * as acp from '@agentclientprotocol/sdk';
 
 const stream = acp.ndJsonStream(Writable.toWeb(process.stdout), Readable.toWeb(process.stdin));
 
-const READS = JSON.parse(process.env.MAUDE_TEST_READS || '[]');
+// V2-8.9 re-check 2 M-b — `$TMPDIR/<name>` is a file the agent wrote to its temp folder (the chat
+// scratch the bridge handed it): created here, then "read" like any other path.
+const READS = JSON.parse(process.env.MAUDE_TEST_READS || '[]').map((r) => {
+  const p = r.input?.file_path;
+  if (typeof p !== 'string' || !p.startsWith('$TMPDIR/') || !process.env.TMPDIR) return r;
+  const abs = join(process.env.TMPDIR, p.slice('$TMPDIR/'.length));
+  writeFileSync(abs, 'copied from a folder the person let AI read\n');
+  return { ...r, input: { ...r.input, file_path: abs }, locations: [{ path: abs }] };
+});
 const WRITE = JSON.parse(process.env.MAUDE_TEST_WRITE || '{"tool":"Write","input":{}}');
 let n = 0;
 let call = 0;

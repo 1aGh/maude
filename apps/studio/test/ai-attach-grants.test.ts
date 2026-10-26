@@ -250,19 +250,16 @@ describe('B1 — the grants live outside the design root; a planted file grants 
     expect(existsSync(legacyOf(dr))).toBe(false);
   });
 
-  test('a legacy file is migrated once — refused folders dropped — then deleted', () => {
+  test('M-a — a legacy file on a fresh clone (no store yet) is deleted unread: never consent', () => {
     const dr = join(tmp, 'b1c');
     mkdirSync(join(dr, '.design'), { recursive: true });
-    plant(legacyOf(dr), [photos, sep, join(home, '.ssh')]);
+    // the default chat id is `default` (acp/index.ts) — a cloned repo can force-commit this file
+    plant(legacyOf(dr), [photos], 'default');
     const store = createGrantStore(placeOf(dr));
-    expect(store.chatRoots('c1')).toEqual([photos]);
-    expect(store.readOnlyRoots()).toEqual([photos]);
+    expect(store.chatRoots('default')).toEqual([]);
+    expect(store.readOnlyRoots()).toEqual([]);
     expect(existsSync(legacyOf(dr))).toBe(false);
-    // …and once only: a second planted file is not merged.
-    const other = join(home, 'Pictures', 'b1c-other');
-    mkdirSync(other, { recursive: true });
-    plant(legacyOf(dr), [other]);
-    expect(createGrantStore(placeOf(dr)).chatRoots('c1')).toEqual([photos]);
+    expect(existsSync(grantsFileFor(dr))).toBe(false); // nothing was migrated into the store
   });
 
   test('a forged store entry the picker would refuse is never read', () => {

@@ -4,6 +4,7 @@
 // (DDR-123 guardrail #1, verified end-to-end — the mock echoes its own env).
 
 import { afterEach, describe, expect, test } from 'bun:test';
+import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -197,20 +198,33 @@ describe('AcpBridge — round-trip + subscription guardrail', () => {
       chatId: 'c-env',
       readBoundary: [process.cwd()],
       grantsFile: '/idx/ai-grants.json',
+      // V2-8.9 re-check 2 H-a — this session's own server ports (main, canvas, capture)
+      ownPorts: () => [4399, 51000, 51001],
       onUpdate: (u) => updates.push(u),
     });
+    process.env.MAUDE_OWN_PORTS = '4400';
     try {
       await bridge.prompt('hi', 'c-env');
       const s = JSON.stringify(updates);
       expect(s).toContain(`readRoots=${process.cwd()} `);
       expect(s).toContain('grantsFile=/idx/ai-grants.json');
-      expect(s).toContain(`tmpdir=${chatScratchDir(process.cwd(), 'c-env')}/`);
+      expect(s).toContain('ownPorts=4399,51000,51001 ');
+      // re-check 2 M-b — the scratch is this chat's AND this run's (a later `default` chat gets
+      // another one), and it is gone when the chat ends
+      const scratch = bridge.scratchDir;
+      expect(scratch.startsWith(`${chatScratchDir(process.cwd(), 'c-env')}/`)).toBe(true);
+      expect(s).toContain(`tmpdir=${scratch}/`);
       expect(s).not.toContain('/planted.json');
+      expect(existsSync(scratch)).toBe(true);
+      const other = new AcpBridge({ repoRoot: process.cwd(), chatId: 'c-env' });
+      expect(other.scratchDir).not.toBe(scratch);
     } finally {
       await bridge.stop();
       delete process.env.MAUDE_READ_ROOTS;
       delete process.env.MAUDE_GRANTS_FILE;
+      delete process.env.MAUDE_OWN_PORTS;
     }
+    expect(existsSync(bridge.scratchDir)).toBe(false);
   }, 20000);
 });
 

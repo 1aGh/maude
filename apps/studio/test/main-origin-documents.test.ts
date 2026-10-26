@@ -150,6 +150,12 @@ function plant(root: string, designRoot: string, prefs: string) {
   writeFileSync(join(designRoot, 'v.mp4'), new Uint8Array(16));
   for (const name of ['p.htm', 'p.xhtml', 'p.xml'])
     writeFileSync(join(designRoot, name), PLANTED_HTML);
+  // V2-8.9 re-check 2 H-a — dot files outside the design root (never served).
+  writeFileSync(join(root, '.mcp.json'), '{"secret":1}\n');
+  mkdirSync(join(root, '.claude'), { recursive: true });
+  writeFileSync(join(root, '.claude', 'settings.local.json'), '{"secret":1}\n');
+  mkdirSync(join(root, 'sub'), { recursive: true });
+  writeFileSync(join(root, 'sub', '.env'), 'SECRET=1\n');
   const shell = readFileSync(SHELL_TEMPLATE, 'utf8');
   for (const rel of SHELL_COPIES) {
     mkdirSync(dirname(join(root, rel)), { recursive: true });
@@ -176,13 +182,31 @@ describe('no repo document executes on the main origin (V2-2.4b gate F1)', () =>
     try {
       const at = (p: string) => fetch(`http://localhost:${port}${p}`, { redirect: 'manual' });
 
-      for (const p of ['/.design/x.html', '/.design/X.HTML', ...SHELL_COPIES.map((r) => `/${r}`)]) {
+      for (const p of ['/.design/x.html', '/.design/X.HTML', `/${SHELL_COPIES[0]}`]) {
         const r = await at(`${p}?canvas=ui/Probe.tsx`);
         expect(`${p} ${r.status}`).toBe(`${p} 200`);
         const csp = r.headers.get('content-security-policy') ?? '';
         expect(`${p} opaque=${opaqueSandbox(csp)}`).toBe(`${p} opaque=true`);
         expect(`${p} ${csp}`).toContain("connect-src 'none'");
+        // V2-8.9 re-check 2 H-b — nothing loads from (or posts to) anywhere but this server.
+        expect(`${p} ${csp}`).toContain("default-src 'none'");
+        expect(`${p} ${csp}`).toContain("form-action 'none'");
+        expect(`${p} ${csp}`).not.toMatch(/(?:img|media|script|style|font)-src[^;]*(?:\*|https?:)/);
         expect(r.headers.get('x-content-type-options')).toBe('nosniff');
+      }
+
+      // V2-8.9 re-check 2 H-a — no dot path outside the design root, for any request: another
+      // project's agent reached `/.mcp.json`, `/.claude/settings.local.json`, `/.ai/**` here. (The
+      // pnpm store copy of the shell lives under `.pnpm` — refused with the rest.)
+      for (const p of [
+        '/.mcp.json',
+        '/.claude/settings.local.json',
+        '/sub/.env',
+        '/%2Emcp.json',
+        `/${SHELL_COPIES[1]}`,
+      ]) {
+        const r = await at(p);
+        expect(`${p} ${r.status}`).toBe(`${p} 404`);
       }
 
       // The SVG keeps the stricter inert-document policy, verbatim.

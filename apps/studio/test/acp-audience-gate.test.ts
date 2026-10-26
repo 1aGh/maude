@@ -215,6 +215,65 @@ describe('M1 — a read from outside the project, then a hub-linked write', () =
     const { cards } = await run([readOut(notes())], source, [repo]);
     expect(cards).toHaveLength(0);
   });
+  // V2-8.9 re-check 2 M-b — the temp roots are readable but never "own": a consented file copied
+  // to the chat scratch (an auto verb's --out $TMPDIR), or Claude Code's task output, is private.
+  test('M-b — a file in the chat scratch is private (default boundary)', async () => {
+    const { source } = hubSource();
+    const { cards } = await run([readOut('$TMPDIR/copied.txt')], source);
+    expect(cards).toHaveLength(1);
+    expect(cards[0]?.info?.audience?.sources?.[0]).toEndWith('copied.txt');
+  });
+  test('M-b — Claude Code’s task output for this session is private', async () => {
+    const uid = process.getuid?.() ?? 0;
+    const dir = join('/tmp', `claude-${uid}`, repo.replace(/[^A-Za-z0-9]/g, '-'));
+    const out = join(dir, 'audience-session-1', 'tasks', 'a.output');
+    mkdirSync(join(out, '..'), { recursive: true });
+    writeFileSync(out, 'gh auth token output\n');
+    try {
+      const { source } = hubSource();
+      const { cards } = await run([readOut(out)], source);
+      expect(cards).toHaveLength(1);
+      expect(cards[0]?.info?.reason).toBe('audience');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+// V2-8.9 re-check 2 M-c — peers have the repo's TRACKED files; a git-ignored or untracked file (or
+// one named like a secret) is not theirs, so carrying it into a hub-shared canvas asks.
+describe('M-c — ignored, untracked and secret-named repo files are private', () => {
+  const git = (...args: string[]) => {
+    const r = Bun.spawnSync(['git', '-C', repo, ...args], {
+      env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' },
+    });
+    if (r.exitCode !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr.toString()}`);
+  };
+  beforeAll(() => {
+    mkdirSync(join(repo, 'src'), { recursive: true });
+    writeFileSync(join(repo, 'src', 'tracked.ts'), 'export const a = 1;\n');
+    writeFileSync(join(repo, '.gitignore'), 'secret.txt\n');
+    writeFileSync(join(repo, 'secret.txt'), 'ignored\n');
+    writeFileSync(join(repo, 'untracked.md'), 'not committed\n');
+    writeFileSync(join(repo, '.env'), 'TOKEN=1\n');
+    git('init', '-q');
+    git('add', 'src/tracked.ts', '.gitignore', '.env');
+    git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'x');
+  });
+  const readRepo = (rel: string) => ({
+    tool: 'Read',
+    input: { file_path: join(repo, rel) },
+    locations: [{ path: join(repo, rel) }],
+  });
+  test('a tracked file: no card', async () => {
+    const { cards } = await run([readRepo('src/tracked.ts')], hubSource().source, [repo]);
+    expect(cards).toHaveLength(0);
+  });
+  test.each(['secret.txt', 'untracked.md', '.env'])('%s → the card, naming it', async (rel) => {
+    const { cards } = await run([readRepo(rel)], hubSource().source, [repo]);
+    expect(cards).toHaveLength(1);
+    expect(cards[0]?.info?.audience?.sources).toEqual([join(repo, rel)]);
+  });
 });
 
 describe('the pure parts', () => {

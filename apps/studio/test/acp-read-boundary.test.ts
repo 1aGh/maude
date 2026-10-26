@@ -11,9 +11,11 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -32,9 +34,12 @@ import {
 import {
   bashReadsOutside,
   chatScratchDir,
+  claudeCodeTmpFor,
+  ensureChatScratch,
   readAllowRules,
   readBoundaryRoots,
   readVerdict,
+  wipeChatScratch,
 } from '../acp/may-scope.ts';
 import { createGrantStore, resolveFolder } from '../ai/attach-grants.ts';
 import { DEV_SERVER_ROOT } from '../paths.ts';
@@ -109,8 +114,8 @@ describe('the pure rules', () => {
     expect(readAllowRules(['/a/b'])).toEqual(['Read(//a/b/**)']);
   });
 
-  test('a chat session’s default boundary: + Maude’s own files, the chat’s scratch, Claude Code’s folder for this project', () => {
-    const roots = sessionReadRoots(repo, [{ type: 'local', path: plugin }], undefined, 'c1');
+  test('a chat session’s default boundary: + Maude’s own files and the chat’s scratch, never a Claude Code folder', () => {
+    const roots = sessionReadRoots(repo, [{ type: 'local', path: plugin }], undefined, 'c1', 'i1');
     const uid = process.getuid?.() ?? 0;
     expect(roots).toEqual(
       expect.arrayContaining([
@@ -119,10 +124,12 @@ describe('the pure rules', () => {
         plugin,
         DEV_SERVER_ROOT,
         join(DEV_SERVER_ROOT, '..', '..', 'plugins'),
-        chatScratchDir(repo, 'c1'),
-        join('/tmp', `claude-${uid}`, repo.replace(/[^A-Za-z0-9]/g, '-')),
+        chatScratchDir(repo, 'c1', 'i1'),
       ])
     );
+    // V2-8.9 re-check 2 M-b — Claude Code's folder for the project held EVERY session's task
+    // output (the person's own terminal sessions too): only this session's, judged live per request.
+    expect(roots).not.toContain(join('/tmp', `claude-${uid}`, repo.replace(/[^A-Za-z0-9]/g, '-')));
     expect(roots).not.toContain(outside);
     expect(roots).not.toContain(homedir());
     // V2-8.9 L1 — never the package's parent folder (a source checkout's repo root: .env.local, profiles)
@@ -132,47 +139,55 @@ describe('the pure rules', () => {
       expect(roots).not.toContain(t);
       expect(roots).not.toContain(realpathSync(t));
     }
-    // each chat has its own scratch
-    expect(chatScratchDir(repo, 'c1')).not.toBe(chatScratchDir(repo, 'c2'));
+    // each chat — and each run of a chat, `default` included — has its own scratch
+    expect(chatScratchDir(repo, 'c1', 'i1')).not.toBe(chatScratchDir(repo, 'c2', 'i1'));
+    expect(chatScratchDir(repo, 'default', 'i1')).not.toBe(chatScratchDir(repo, 'default', 'i2'));
   });
 
-  test('M2 — another session’s task output under /tmp is outside; this project’s is inside', () => {
-    const roots = sessionReadRoots(repo, [], undefined, 'c1');
+  test('M-b — Claude Code’s temp folder is this session’s only; another session’s is outside', () => {
     const uid = process.getuid?.() ?? 0;
-    const other = join(
-      '/tmp',
-      `claude-${uid}`,
-      '-Users-someone-git-studyfi-x',
-      's',
-      'tasks',
-      'a.output'
-    );
-    expect(readVerdict('Read', call({ file_path: other }), repo, roots)).toBe('outside');
-    const mine = join(
-      '/tmp',
-      `claude-${uid}`,
-      repo.replace(/[^A-Za-z0-9]/g, '-'),
-      's',
-      'tasks',
-      'b.output'
-    );
-    expect(readVerdict('Read', call({ file_path: mine }), repo, roots)).toBe('inside');
-    expect(
-      readVerdict(
-        'Read',
-        call({ file_path: join(chatScratchDir(repo, 'c1'), 'x.png') }),
-        repo,
-        roots
-      )
-    ).toBe('inside');
-    expect(
-      readVerdict(
-        'Read',
-        call({ file_path: join(chatScratchDir(repo, 'c2'), 'x.png') }),
-        repo,
-        roots
-      )
-    ).toBe('outside');
+    const slug = repo.replace(/[^A-Za-z0-9]/g, '-');
+    expect(claudeCodeTmpFor(repo, 'sess-a')).toEqual([
+      join('/tmp', `claude-${uid}`, slug, 'sess-a'),
+    ]);
+    for (const bad of [undefined, '', '..', 'a/b', '.'])
+      expect(claudeCodeTmpFor(repo, bad)).toEqual([]);
+    const roots = [
+      ...sessionReadRoots(repo, [], undefined, 'c1', 'i1'),
+      ...claudeCodeTmpFor(repo, 'sess-a'),
+    ];
+    const at = (...p: string[]) => join('/tmp', `claude-${uid}`, ...p);
+    const verdict = (p: string) => readVerdict('Read', call({ file_path: p }), repo, roots);
+    expect(verdict(at('-Users-someone-git-x', 's', 'tasks', 'a.output'))).toBe('outside');
+    expect(verdict(at(slug, 'sess-b', 'tasks', 'b.output'))).toBe('outside');
+    expect(verdict(at(slug, 'sess-a', 'tasks', 'b.output'))).toBe('inside');
+    const scratch = (c: string, i: string) => join(chatScratchDir(repo, c, i), 'x.png');
+    expect(verdict(scratch('c1', 'i1'))).toBe('inside');
+    expect(verdict(scratch('c2', 'i1'))).toBe('outside');
+    expect(verdict(scratch('c1', 'i2'))).toBe('outside');
+  });
+
+  test('M-b / L3 — the scratch: owner-only, never through a planted link, wiped on Remove', () => {
+    const repoX = join(tmp, 'scratch-repo');
+    mkdirSync(repoX, { recursive: true });
+    const dir = chatScratchDir(repoX, 'c1', 'i1');
+    expect(ensureChatScratch(dir)).toBe(true);
+    expect(statSync(dir).mode & 0o077).toBe(0);
+    writeFileSync(join(dir, 'copied.txt'), 'x');
+    wipeChatScratch(repoX, 'c1');
+    expect(existsSync(dir)).toBe(true); // a live chat keeps its TMPDIR …
+    expect(readdirSync(dir)).toEqual([]); // … emptied
+    writeFileSync(join(dir, 'again.txt'), 'x');
+    wipeChatScratch(repoX); // Reset: every chat of the project
+    expect(readdirSync(dir)).toEqual([]);
+    // L3 — a planted symlink where the scratch goes is never used
+    const planted = chatScratchDir(repoX, 'c9', 'i1');
+    mkdirSync(join(planted, '..'), { recursive: true });
+    const elsewhere = join(tmp, 'elsewhere');
+    mkdirSync(elsewhere, { recursive: true });
+    symlinkSync(elsewhere, planted);
+    expect(ensureChatScratch(planted)).toBe(false);
+    rmSync(join(dir, '..', '..'), { recursive: true, force: true });
   });
 
   test('L2 — a read-only shell command on an outside path is flagged; in-project is not', () => {
@@ -184,6 +199,19 @@ describe('the pure rules', () => {
     expect(bashReadsOutside('cat README.md', repo, roots)).toBe(false);
     expect(bashReadsOutside('ls .design/ui', repo, roots)).toBe(false);
     expect(bashReadsOutside('maude design screenshot --full --out x.png', repo, roots)).toBe(false);
+    // V2-8.9 re-check 2 L5 — more readers lose "Always allow" on an outside path (never auto-allowed)
+    for (const c of [
+      `jq . ${join(outside, 'a.json')}`,
+      `sed -n 1p ${join(outside, 'a.txt')}`,
+      `awk 1 ${join(outside, 'a.txt')}`,
+      `base64 -i ${join(outside, 'a.bin')}`,
+      `cp ${join(outside, 'a.txt')} .design/x.txt`,
+    ])
+      expect(`${c} → ${bashReadsOutside(c, repo, roots)}`).toBe(`${c} → true`);
+    expect(bashReadsOutside('jq . package.json', repo, roots)).toBe(false);
+    // an interpreter's paths live inside its code: never a standing rule
+    expect(bashReadsOutside(`python3 -c "print(open('/etc/hosts').read())"`, repo, roots)).toBe(true);
+    expect(bashReadsOutside('node -e "1"', repo, roots)).toBe(true);
   });
 
   test('inside the project → inside; outside → outside; not a read tool → null', () => {

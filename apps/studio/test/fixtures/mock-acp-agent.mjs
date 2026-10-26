@@ -66,6 +66,7 @@ acp
             `sessionRoot=${process.env.MAUDE_SESSION_ROOT ?? '<unset>'} ` +
             `readRoots=${process.env.MAUDE_READ_ROOTS ?? '<unset>'} ` +
             `grantsFile=${process.env.MAUDE_GRANTS_FILE ?? '<unset>'} ` +
+            `ownPorts=${process.env.MAUDE_OWN_PORTS ?? '<unset>'} ` +
             `tmpdir=${process.env.TMPDIR ?? '<unset>'}`,
         },
       },
