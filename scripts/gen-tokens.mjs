@@ -70,66 +70,12 @@ ${body
 // maude-v2 declaration, emitted onto the shell roots — `<html data-theme>` (so a popover or sheet portalled to
 // <body> resolves it too) and `.maude[data-theme]` (the shell root, the follow view, the token popover). It
 // replaces the two hand-written v1 ladders (1-tokens.css' amber `:root` palette, 1-tokens-maude.css' indigo
-// `.maude` palette) and the additive v2 file that only filled their gaps. Names the v1 chrome still says and
-// maude-v2 does not (`--u-*`, `--rule-*`, `--shadow-focus`, `--tracking-sku`, the chrome dims) are aliases onto
-// v2 names below — never a second value.
+// `.maude` palette) and the additive v2 file that only filled their gaps. The v1-only alias names (`--u-*`,
+// `--rule-*`, `--shadow-focus`, `--tracking-sku`, the chrome dims) were retired in V2-8.0 part C.
 const SHELL_OUT = 'apps/studio/client/styles/1-tokens-shell.css';
 // The one name whose shell value is not the DS literal: the island material is SOLID in the shell (V2-1.8 M1–M3,
 // floating-panels.css) — the panel surface, never the v2 translucent glass.
 const SHELL_SOLID = { '--x-island-bg': 'var(--bg-1)', '--x-island-bg-strong': 'var(--bg-1)' };
-// v1-only names → their v2 equivalent (theme-independent; each re-resolves per element).
-const V1_ALIASES = `
-    /* v1-only names, aliased onto the v2 ladder (the old chrome still says them; V2-8.0 retires them) */
-    --rule-thin: 1px solid var(--border-default);
-    --rule-strong: 1px solid var(--border-strong);
-    --rule-accent: 1px solid var(--accent);
-    --shadow-focus: 0 0 0 var(--focus-ring-width) var(--focus-ring);
-    --tracking-sku: 0.12em;
-    --tracking-eyebrow: 0.18em;
-    --u-bg-0: var(--bg-0);
-    --u-bg-1: var(--bg-1);
-    --u-bg-2: var(--bg-2);
-    --u-bg-3: var(--bg-3);
-    --u-bg-4: var(--bg-4);
-    --u-bg-hover: var(--bg-3);
-    --u-bg-active: var(--bg-4);
-    --u-bg-selected: var(--accent-tint);
-    --u-fg-0: var(--fg-0);
-    --u-fg-1: var(--fg-1);
-    --u-fg-2: var(--fg-2);
-    --u-fg-3: var(--fg-2); /* v1 --fg-3 was text-safe (a11y B2); the v2 --fg-3 is the disabled grade */
-    --u-border: var(--border-default);
-    --u-border-subtle: var(--border-subtle);
-    --u-border-strong: var(--border-strong);
-    --u-accent: var(--accent);
-    --u-accent-bg: var(--accent-tint);
-    --u-accent-line: var(--accent-hover);
-    --u-accent-strong: var(--accent-active);
-    --u-accent-fg: var(--accent-fg);
-    --u-status-success: var(--status-success);
-    --u-status-warn: var(--status-warn);
-    --u-status-error: var(--status-error);
-    --u-status-info: var(--status-info);
-    --u-status-live: var(--presence-online);
-    --u-r-xs: var(--radius-xs);
-    --u-r-sm: var(--radius-sm);
-    --u-r-md: var(--radius-md);
-    --u-r-lg: var(--radius-lg);
-    --u-r-pill: var(--radius-pill);
-    /* the v1 5-step spacing (4 · 8 · 12 · 16 · 24 px) is the v2 ladder's first five steps */
-    --u-s-1: var(--space-1);
-    --u-s-2: var(--space-2);
-    --u-s-3: var(--space-3);
-    --u-s-4: var(--space-4);
-    --u-s-5: var(--space-5);
-    --u-font-display: var(--font-display);
-    --u-font-body: var(--font-body);
-    --u-font-sans: var(--font-body);
-    --u-font-mono: var(--font-mono);
-    --u-sidebar-w: 320px;
-    --u-rsidebar-w: 360px;
-    --u-header-h: 44px;
-    --u-status-h: 28px;`;
 
 /** The maude-v2 source split into its four declaration blocks. */
 function v2Blocks() {
@@ -207,7 +153,6 @@ ${decls(b.dark).replace(/^ {4}/gm, '      ')}
   :root,
   .maude {
 ${decls(b.invariant)}
-${V1_ALIASES}
   }
 
   @media (prefers-reduced-motion: reduce) {

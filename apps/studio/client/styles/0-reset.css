@@ -9,9 +9,9 @@
     margin: 0;
     padding: 0;
     height: 100%;
-    background: var(--u-bg-0);
-    color: var(--u-fg-0);
-    font-family: var(--u-font-sans);
+    background: var(--bg-0);
+    color: var(--fg-0);
+    font-family: var(--font-body);
     font-size: 13px;
     line-height: 1.45;
     -webkit-font-smoothing: antialiased;
@@ -26,7 +26,7 @@
     font: inherit;
   }
   ::selection {
-    background: var(--u-accent-bg);
-    color: var(--u-fg-0);
+    background: var(--accent-tint);
+    color: var(--fg-0);
   }
 }

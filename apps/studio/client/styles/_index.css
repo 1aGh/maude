@@ -2,7 +2,7 @@
  *
  * Layer cascade order (declared once, in this file):
  *   reset      — minimal base + box-sizing.
- *   tokens     — design tokens (--u-*) for the dev-server shell.
+ *   tokens     — design tokens (the generated maude-v2 ladder) for the dev-server shell.
  *   layout     — top-level grid (.app).
  *   shell      — chrome chrome: sidebar, header, status bar, viewport frame.
  *   components — system view, tokens grid, comments, gallery.
