@@ -303,7 +303,9 @@ export function KeyboardLayer({ readOnly = false }: { readOnly?: boolean }) {
           typing,
           readOnly: false,
           mode: canvasModeStore(window).get().mode ?? 'edit',
-          selection: refsOf(selRef.current.selected).length > 0 ? 'object' : 'none',
+          // V2-8.7 — an object the shell just inserted (T then ↵) is selected by id with NO artboard yet, which
+          // `refsOf` does not count; ↵ must still find it, so count a stamped id, not a resolved ref
+          selection: selRef.current.selected.some((s) => !!s.id) ? 'object' : 'none',
           singleKeys: canvasSingleKeys(),
           toolArmed: armed,
         })

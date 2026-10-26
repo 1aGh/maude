@@ -127,7 +127,7 @@ export default function SettingsSheet({
         {/* The rail is a plain wrapper: the tablist inside holds ONLY tabs (WCAG 1.3.1 / aria-required-children),
             the title, version line and Done sit beside it. */}
         <div className="v2s-rail">
-          <p className="v2s-title">Settings</p>
+          <h2 className="v2s-title">Settings</h2>
           <div
             className="v2s-tabs"
             role="tablist"

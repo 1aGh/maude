@@ -268,6 +268,13 @@ const goto = async (id: string) => {
 };
 
 describe('the desktop sheet renders every Settings row', () => {
+  test('heading-order: the sheet is headed by an h2, so each group h3 follows a heading (V2-8.7)', async () => {
+    await mount();
+    const title = document.querySelector('.v2s-title');
+    expect(title?.tagName).toBe('H2');
+    expect(title?.textContent).toBe('Settings');
+  });
+
   test('General: account, look, canvas and view, layout', async () => {
     await mount();
     for (const id of [

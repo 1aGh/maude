@@ -32,7 +32,7 @@ const sel = (id: string) => ({
   artboardId: 'desktop',
 });
 
-async function mountLayer(select: string) {
+async function mountLayer(select: string, artboardId: string | null = 'desktop') {
   const { ENTER_TEXT_EDIT_EVENT } = await import('../editing/click-to-type.ts');
   const { KeyboardLayer } = await import('../editing/focus-model.tsx');
   const { SelectionSetProvider, useSelectionSet } = await import('../use-selection-set.tsx');
@@ -53,7 +53,9 @@ async function mountLayer(select: string) {
       </SelectionSetProvider>
     )
   );
-  await act(async () => (ctx as unknown as { replace: (s: unknown) => void }).replace(sel(select)));
+  await act(async () =>
+    (ctx as unknown as { replace: (s: unknown) => void }).replace({ ...sel(select), artboardId })
+  );
   const typed: Array<Record<string, unknown>> = [];
   const on = (e: Event) => typed.push((e as CustomEvent).detail);
   document.addEventListener(ENTER_TEXT_EDIT_EVENT, on);
@@ -82,6 +84,16 @@ describe('↵ on the canvas (V2-8.7)', () => {
     expect(m.typed[0]).toMatchObject({ clientX: 0, clientY: 0, selectAll: true });
     expect((m.typed[0]?.el as HTMLElement).getAttribute('data-cd-id')).toBe('title');
     expect(e.defaultPrevented).toBe(true);
+  });
+
+  test('a text the shell just inserted (selected by id, its artboard not yet known) types too', async () => {
+    document.body.innerHTML = FIXTURE(true);
+    const m = await mountLayer('title', null);
+    await act(async () => {
+      enter();
+    });
+    m.off();
+    expect(m.typed).toHaveLength(1);
   });
 
   test('on a frame that holds objects: goes inside (the first child is selected)', async () => {
