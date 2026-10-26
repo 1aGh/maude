@@ -58,6 +58,7 @@
 import { homedir, tmpdir } from 'node:os';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
+import { agentPath } from './agent-path.ts';
 import { isInsideRoot, resolveRealPath } from './write-scope.ts';
 
 export interface AiMay {
@@ -364,10 +365,16 @@ export function credentialRefusal(
     }
   }
   for (const g of [raw.pattern, raw.glob]) {
-    if (typeof g === 'string' && isAbsolute(g)) candidates.push(g.split(/[*?[{]/)[0] ?? '');
+    if (typeof g !== 'string') continue;
+    const t = g.trim();
+    if (isAbsolute(t) || t.startsWith('~')) candidates.push(t.split(/[*?[{]/)[0] ?? '');
   }
-  const expand = (p: string) => (p.startsWith('~/') ? join(home, p.slice(2)) : p);
-  return candidates.some((p) => p && insideAnyFolded(expand(p), repoRoot, roots))
+  // V2-8.9 H1 — expanded exactly as Claude Code opens it (agent-path.ts: trimmed, `~` and `~/`), so
+  // `' ~/.SSH/id_rsa'` is the key it is. Odd spellings are judged too: here they can only refuse.
+  return candidates.some((p) => {
+    const a = p ? agentPath(p, repoRoot, home) : null;
+    return !!a && insideAnyFolded(a.abs, repoRoot, roots);
+  })
     ? 'credentials'
     : null;
 }
@@ -457,12 +464,18 @@ const climbs = (p: string) => p.split(/[\\/]/).includes('..');
 export function readTargets(
   toolName: string | undefined,
   toolCall: ToolCallLike | null | undefined,
-  repoRoot: string
+  repoRoot: string,
+  home: string = homedir()
 ): string[] | null {
   if (!toolName || !READ_TOOL_NAMES.includes(toolName)) return null;
   const raw = (toolCall?.rawInput ?? {}) as Record<string, unknown>;
   const str = (k: string) => (typeof raw[k] === 'string' && raw[k] ? (raw[k] as string) : '');
-  const abs = (p: string) => (isAbsolute(p) ? resolve(p) : resolve(repoRoot, p));
+  // V2-8.9 H1 — Claude Code's spelling (agent-path.ts): `~` is the home folder, not `<repo>/~`. A
+  // path spelled so readers may disagree (spaces around it, a leading `~`) or with a NUL → the card.
+  const abs = (p: string): string | null => {
+    const a = agentPath(p, repoRoot, home);
+    return a && !a.odd ? a.abs : null;
+  };
   const named: string[] = [];
   if (toolName === 'Read' || toolName === 'NotebookRead') {
     const f = str('file_path') || str('notebook_path');
@@ -473,9 +486,12 @@ export function readTargets(
     named.push(base);
     const g = str(toolName === 'Glob' ? 'pattern' : 'glob');
     if (g) {
-      if (climbs(g)) return null;
-      const joined = isAbsolute(g) ? g : join(base, g);
-      named.push(joined.split(/[*?[{]/)[0] || base);
+      if (climbs(g) || g !== g.trim() || g.startsWith('~') || g.includes('\0')) return null;
+      const b = abs(base);
+      if (!b) return null;
+      // L3 — an absolute pattern is judged by its own prefix, whatever `path` says.
+      const joined = isAbsolute(g) ? g : join(b, g);
+      named.push(joined.split(/[*?[{]/)[0] || b);
     }
   }
   if (Array.isArray(toolCall?.locations)) {
@@ -484,7 +500,13 @@ export function readTargets(
     }
   }
   if (named.some(climbs)) return null;
-  return named.map(abs);
+  const out: string[] = [];
+  for (const n of named) {
+    const a = abs(n);
+    if (!a) return null;
+    out.push(a);
+  }
+  return out;
 }
 
 /**

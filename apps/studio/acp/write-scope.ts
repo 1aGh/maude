@@ -59,6 +59,8 @@
 import { realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
+import { agentPath } from './agent-path.ts';
+
 /**
  * The tools this gate scopes. Bare names as they arrive on
  * `_meta.claudeCode.toolName`.
@@ -510,8 +512,18 @@ export function resolveWriteTargets(
 
   // Resolve BOTH sources before comparing them. Comparing the raw strings would
   // call `./x.tsx` and `/repo/x.tsx` a disagreement when they are the same file.
-  const resolvedLocations = fromLocations.map((p) => resolveRealPath(p, scopeRoot));
-  const resolvedRawInput = fromRawInput.map((p) => resolveRealPath(p, scopeRoot));
+  // V2-8.9 H1 — Claude Code's spelling first (agent-path.ts): `~/x` is the home folder's x, not
+  // `<project>/~/x`. A NUL names nothing judgeable; a spelling readers may disagree on (spaces
+  // around it, a leading `~`) is never inside.
+  const spelled = [...fromLocations, ...fromRawInput].map((p) => agentPath(p, scopeRoot));
+  if (spelled.some((a) => a === null)) return { inside: false, reason: 'no-target', resolved: [] };
+  const odd = spelled.some((a) => a?.odd);
+  const real = (p: string) => {
+    const a = agentPath(p, scopeRoot);
+    return resolveRealPath(a ? a.abs : p, scopeRoot);
+  };
+  const resolvedLocations = fromLocations.map(real);
+  const resolvedRawInput = fromRawInput.map(real);
 
   // Cross-check (see the header — tautological against today's adapter, kept
   // because a gate whose whole job is fail-closed should not assume a
@@ -547,7 +559,7 @@ export function resolveWriteTargets(
     return { inside: false, reason: 'read-only-grant', resolved };
   }
   // EVERY target must pass — a multi-location write with one escape is an escape.
-  const inside = resolved.every((p) => isInsideRoot(p, scopeRoot));
+  const inside = !odd && resolved.every((p) => isInsideRoot(p, scopeRoot));
   if (!inside) return { inside: false, reason: 'outside', resolved };
   // Inside is NECESSARY but not SUFFICIENT. A write under `.git/` or `.claude/`
   // is in-project and still reaches execution, so it goes to the prompt like any

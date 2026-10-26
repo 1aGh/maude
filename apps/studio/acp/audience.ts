@@ -38,6 +38,7 @@
 
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 
+import { agentPath } from './agent-path.ts';
 import { resolveRealPath } from './write-scope.ts';
 
 /** One canvas-scoped audience of a write target. */
@@ -69,6 +70,12 @@ export interface WriteAudienceSource {
 export interface TrackedRead {
   rel: string;
   dir: boolean;
+  /**
+   * V2-8.9 M1 — read OUTSIDE the project and Maude's own folders (a folder the person let AI read,
+   * the temp folder, home…): `rel` is then the absolute path. Nobody on the hub can see it, so on a
+   * hub-linked project it is a private source for every design-root write (`privateLeak`).
+   */
+  outside?: boolean;
 }
 
 export interface AudienceLeak {
@@ -170,15 +177,17 @@ const insideRoot = (p: string, root: string) => {
 
 /**
  * The design-root files/folders one streamed tool call reads. `exists` tells a folder from a file
- * (and keeps a shell word that names nothing out); paths outside the design root are not tracked —
- * nobody on the hub can see them, and the write gate's audience is a design-root question.
+ * (and keeps a shell word that names nothing out). Paths in the project outside the design root, and
+ * in `ownRoots`, are not tracked; anything else is tracked as an `outside` read (V2-8.9 M1).
  */
 export function readPathsOf(
   toolName: string | undefined,
   toolCall: ToolCallLike | null | undefined,
   repoRoot: string,
   designRoots: readonly string[],
-  kindOf: (abs: string) => 'file' | 'dir' | null
+  kindOf: (abs: string) => 'file' | 'dir' | null,
+  /** V2-8.9 M1 — roots whose files are not private (Maude's plugins/package, this chat's scratch). */
+  ownRoots: readonly string[] = []
 ): TrackedRead[] {
   if (!toolName) return [];
   const raw = (toolCall?.rawInput ?? {}) as Record<string, unknown>;
@@ -202,9 +211,18 @@ export function readPathsOf(
   }
   const out = new Map<string, TrackedRead>();
   const whole = () => out.set('d:', { rel: '', dir: true });
+  const owned = [repoRoot, ...ownRoots];
+  const isOwned = (abs: string, base: string) => {
+    const real = resolveRealPath(abs, base);
+    return owned.some((r) => [abs, real].some((c) => c === r || insideRoot(c, r)));
+  };
   for (const { p, bases } of words) {
+    let outside: TrackedRead | null = null;
     for (const base of bases) {
-      const abs = isAbsolute(p) ? resolve(p) : resolve(base, p);
+      // V2-8.9 H1 — spelled as Claude Code (and a shell) opens it: `~/x` is the home folder's x.
+      const a = agentPath(p, base);
+      if (!a) break;
+      const abs = a.abs;
       const kind = kindOf(abs);
       if (!kind) continue;
       const rel = designRelOf(abs, base, designRoots);
@@ -212,10 +230,14 @@ export function readPathsOf(
         // A folder that holds the design root (a Grep with no path, `cat **/*.tsx`): all of it.
         if (kind === 'dir' && designRoots.some((r) => insideRoot(r, abs))) {
           whole();
+          outside = null;
           break;
         }
+        if (!outside && !isOwned(abs, base))
+          outside = { rel: abs, dir: kind === 'dir', outside: true };
         continue;
       }
+      outside = null;
       if (rel !== '' && isRuntime(rel)) {
         if (isCopyStore(rel)) whole();
         break;
@@ -224,6 +246,7 @@ export function readPathsOf(
       if (!out.has(key)) out.set(key, { rel, dir: kind === 'dir' });
       break;
     }
+    if (outside) out.set(`o:${outside.rel}`, outside);
   }
   if (toolName === 'Bash' && out.size === 0 && PATHLESS_HISTORY_RE.test(String(raw.command)))
     whole();
@@ -250,6 +273,17 @@ export function audienceLeak(
     if (sources.length) return { canvas: a.canvas, who: a.who, sources };
   }
   return null;
+}
+
+/**
+ * V2-8.9 M1 — on a hub-linked project, a file read from outside the project (a folder the person let
+ * AI read, the temp folder…) is something nobody on the hub can see, whatever the canvas grants say.
+ * Writing into a design-root file after such a read is the person's card, naming those sources.
+ */
+export function privateLeak(reads: Iterable<TrackedRead>, canvas: string): AudienceLeak | null {
+  const sources: string[] = [];
+  for (const r of reads) if (r.outside) sources.push(r.dir ? `${r.rel}/` : r.rel);
+  return sources.length ? { canvas, who: [], sources } : null;
 }
 
 /** The local precheck: did this chat read any design-root file other than the targets? */

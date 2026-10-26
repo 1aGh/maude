@@ -94,7 +94,8 @@ function hubSource(opts: { linked?: boolean; down?: boolean } = {}) {
 
 async function run(
   reads: Array<{ tool: string; input: Record<string, unknown>; locations?: unknown }>,
-  source: WriteAudienceSource | undefined
+  source: WriteAudienceSource | undefined,
+  readBoundary?: string[]
 ) {
   process.env.MAUDE_ACP_ADAPTER_ENTRY = FIXTURE;
   process.env.MAUDE_ACP_RUNTIME = process.execPath;
@@ -111,6 +112,7 @@ async function run(
     designRoot: design,
     permissionTimeoutMs: 4000,
     ...(source ? { writeAudience: source } : {}),
+    ...(readBoundary ? { readBoundary } : {}),
     onUpdate: (u) => {
       const t = (u as { content?: { text?: string } }).content?.text;
       if (t) texts.push(t);
@@ -184,6 +186,34 @@ describe('H1 — the owner’s AI and a one-canvas grantee', () => {
     const { cards } = await run([readOf('ui/Campaign.tsx')], source);
     expect(cards).toHaveLength(0);
     expect(calls).toHaveLength(0);
+  });
+});
+
+// V2-8.9 M1 — a file read from outside the project is private: nobody on the hub can see it.
+describe('M1 — a read from outside the project, then a hub-linked write', () => {
+  const notes = () => {
+    const dir = join(tmp, 'Combine');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'notes.txt'), 'private\n');
+    return join(dir, 'notes.txt');
+  };
+  const readOut = (file: string) => ({
+    tool: 'Read',
+    input: { file_path: file },
+    locations: [{ path: file }],
+  });
+  test('→ the card, naming the private file, even with no canvas grantee in sight', async () => {
+    const file = notes();
+    const { source } = hubSource();
+    const { cards } = await run([readOut(file)], source, [repo]);
+    expect(cards).toHaveLength(1);
+    expect(cards[0]?.info?.reason).toBe('audience');
+    expect(cards[0]?.info?.audience?.sources).toEqual([file]);
+  });
+  test('desktop-only (no linked hub): no card', async () => {
+    const { source } = hubSource({ linked: false });
+    const { cards } = await run([readOut(notes())], source, [repo]);
+    expect(cards).toHaveLength(0);
   });
 });
 

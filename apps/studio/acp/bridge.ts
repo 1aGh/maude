@@ -37,6 +37,7 @@ import {
   type AudienceLeak,
   audienceLeak,
   designRelOf,
+  privateLeak,
   readPathsOf,
   readsBeyond,
   shellPathWords,
@@ -1842,14 +1843,22 @@ export class AcpBridge {
     if (!name || !view.rawInput) return;
     let found: TrackedRead[];
     try {
-      found = readPathsOf(name, view, this.opts.repoRoot, this.designRoots, (abs) => {
-        try {
-          const st = statSync(abs);
-          return st.isDirectory() ? 'dir' : st.isFile() ? 'file' : null;
-        } catch {
-          return null;
-        }
-      });
+      found = readPathsOf(
+        name,
+        view,
+        this.opts.repoRoot,
+        this.designRoots,
+        (abs) => {
+          try {
+            const st = statSync(abs);
+            return st.isDirectory() ? 'dir' : st.isFile() ? 'file' : null;
+          } catch {
+            return null;
+          }
+        },
+        // V2-8.9 M1 — Maude's own roots (plugins, package, this chat's scratch) are not private.
+        this.readRoots
+      );
     } catch {
       found = [];
     }
@@ -1947,6 +1956,9 @@ export class AcpBridge {
     }
     const targets = [...rels];
     if (call.implicitTarget || !targets.length) return card('audience-unknown', targets);
+    // V2-8.9 M1 — a file read from outside the project is private on a hub-linked project.
+    const priv = privateLeak(this.reads.values(), targets[0] ?? '');
+    if (priv) return card('audience', targets, priv);
     if (targets.length === 1 && !readsBeyond(this.reads.values(), targets))
       return Promise.resolve(auto);
     const source = this.opts.writeAudience;
@@ -1981,6 +1993,12 @@ export class AcpBridge {
       reason,
       ...(leak ? { audience: leak } : {}),
     });
+    // V2-8.9 M1 — on a hub-linked project, a file read from outside the project (a folder the
+    // person let AI read, the temp folder…) is a private source whatever the canvas grants say.
+    if (this.audienceGatedNow()) {
+      const priv = privateLeak(this.reads.values(), rels[0] ?? '');
+      if (priv) return Promise.resolve(card('audience', priv));
+    }
     return source.audienceOf(rels).then(
       (audiences) => {
         if (audiences === null) return card('audience-unknown');
