@@ -18,6 +18,13 @@
 //     hand them (`mintProjectToken`) is exchanged at the hub's `/auth/login` — except for Can view, which
 //     the desktop door refuses by design (409 browser-door) and the cell's browser lane mints instead
 //     (`peerTokenDoor … browserLane` + `peerSessionFields`, the same functions);
+//   • the LINK VIEWER is what a link viewer really is — a plain browser on the project's CELL door
+//     (decision maude/v2-p8-e2e-link-viewer-on-cell-door). A second hub runs in workspace mode
+//     (fixtures/share-roles-cell.mjs: the studio as its child, the Smoke canvas in its own checkout, the
+//     canvas origin through its door, the same cloud identity), and `/viewer/redeem` walks the control
+//     plane's real link → browser-door → handoff-code redirects and hands back the cell's own
+//     `/auth/browser?code=…`, so the browser's session cookie is minted by the cell itself. The control
+//     plane's notices go to BOTH hubs (they are one project's cell, split in two here);
 //   • one thing is a stand-in: a studio renews its credential through the control plane's project listing,
 //     whose project address is `https://<id>.<zone>` and can never match a loopback hub. So the runner does
 //     that exchange itself when a person's claim changes (`watchClaims`): it re-mints and rewrites that
@@ -214,6 +221,7 @@ export async function standUp(opts = {}) {
     try {
       const { closeTokens } = await imp('apps/hub/src/tokens.mjs');
       closeTokens?.(hubData);
+      closeTokens?.(cellData);
     } catch {
       /* not exported or closed */
     }
@@ -224,6 +232,7 @@ export async function standUp(opts = {}) {
 
   let sqlite = null;
   const hubData = join(work, 'hub-data');
+  const cellData = join(work, 'cell', 'data');
   try {
     // ── the control plane (real worker, in-memory D1) ─────────────────────────────────
     const [{ default: worker }, { d1FromSqlite }, { applySchema }, { SCHEMA_SQL }] =
@@ -360,11 +369,22 @@ export async function standUp(opts = {}) {
 
     // The control plane reaches its cell by name; here the name is the local hub — and nothing else off-box.
     const cellHost = `${PROJECT_ID}.${ZONE}`;
+    /** The link viewer's cell, once it is up (below). */
+    let cell = null;
     globalThis.fetch = (input, init) => {
       const req = input instanceof Request ? input : null;
       const u = new URL(req ? req.url : String(input));
       if (u.hostname === cellHost) {
         const to = `${hubUrl}${u.pathname}${u.search}`;
+        // A notice (`/internal/*`) reaches the link viewer's cell too — the same message, the same secret.
+        if (u.pathname.startsWith('/internal/') && cell) {
+          const toCell = `${cell.http}${u.pathname}${u.search}`;
+          realFetch(req ? new Request(toCell, req.clone()) : toCell, init).then(
+            (r) => log(`trace ${Date.now()} cp→viewer-cell ${u.pathname} → ${r.status}`),
+            (e) =>
+              log(`trace ${Date.now()} cp→viewer-cell ${u.pathname} failed: ${e?.message ?? e}`)
+          );
+        }
         const sent = realFetch(req ? new Request(to, req) : to, init);
         // trace (p8-e2e-fix-r5): the control plane → cell notices (`/internal/access-changed`) and their answers,
         // beside the claim watcher's rewrites — so a missing "raised" is placed on one side or the other
@@ -466,13 +486,11 @@ export async function standUp(opts = {}) {
     const fixture = join(E2E, 'fixtures/project/.design');
     const baseConfig = JSON.parse(readFileSync(join(fixture, 'config.json'), 'utf8'));
     const linkedHub = () => ({ url: hubUrl, linkedAt: Date.now() });
-    function seedProject(root, { canvas, withPrivate = false }) {
+    function seedProject(root, { canvas, withPrivate = false, linked = true }) {
       const design = join(root, '.design');
       mkdirSync(join(design, 'ui'), { recursive: true });
-      writeFileSync(
-        join(design, 'config.json'),
-        `${JSON.stringify({ ...baseConfig, name: PROJECT_NAME, linkedHub: linkedHub() }, null, 2)}\n`
-      );
+      const config = { ...baseConfig, name: PROJECT_NAME, ...(linked ? { linkedHub: linkedHub() } : {}) };
+      writeFileSync(join(design, 'config.json'), `${JSON.stringify(config, null, 2)}\n`);
       if (canvas) {
         cpSync(join(fixture, 'ui/Smoke.tsx'), join(design, 'ui/Smoke.tsx'));
         cpSync(join(fixture, 'ui/Smoke.meta.json'), join(design, 'ui/Smoke.meta.json'));
@@ -593,6 +611,83 @@ export async function standUp(opts = {}) {
 
     await startStudio('lukas');
 
+    // ── the link viewer's cell (workspace mode: the hub is the door, the studio its child) ──
+    {
+      const root = join(work, 'cell');
+      const repo = join(root, 'repo');
+      const home = join(root, 'home');
+      mkdirSync(home, { recursive: true });
+      // The project's own checkout: the same canvases, no linkedHub — a cell IS the project's hub.
+      seedProject(repo, { canvas: true, withPrivate: true, linked: false });
+      const inRepo = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'ignore' });
+      inRepo('init', '-q', '-b', 'main');
+      inRepo('config', 'user.email', 'cell@share-roles.test');
+      inRepo('config', 'user.name', 'Share Roles Cell');
+      inRepo('add', '-A');
+      inRepo('commit', '-q', '-m', 'seed: share-roles cell');
+      const port = await freePort();
+      const studioPort = await freePort();
+      // `*.localhost` is loopback in every Chromium; studio. and canvas. share a site, as on the fleet, so
+      // the canvas capability cookie (SameSite=Strict) flows.
+      const publicUrl = `http://studio.share-roles-cell.localhost:${port}`;
+      const canvasOrigin = `http://canvas.share-roles-cell.localhost:${port}`;
+      const stub = stubClaudeEnv(home, `${dirname(node)}${delimiter}${process.env.PATH ?? ''}`);
+      const cellEnv = {
+        ...hubEnv,
+        // The studio child inherits HOME and PATH only (studio-child.mjs `childEnv`): a throwaway HOME,
+        // the stub `claude` first on PATH.
+        HOME: home,
+        XDG_CONFIG_HOME: join(root, 'config'),
+        ...stub,
+        MAUDE_WORKSPACE_MODE: '1',
+        MAUDE_REPO_DIR: repo,
+        MAUDE_DESIGN_ROOT: '.design',
+        MAUDE_STUDIO_SRC: join(REPO, 'apps/studio'),
+        MAUDE_STUDIO_PORT: String(studioPort),
+        ...(bun.includes('/') ? { MAUDE_BUN_PATH: bun } : {}),
+        HUB_PUBLIC_URL: publicUrl,
+        HUB_INSECURE_HTTP: '1',
+        MAUDE_PUBLIC_CANVAS_ORIGIN: canvasOrigin,
+        MAUDE_EXTRA_SHELL_ORIGINS: publicUrl,
+        MAUDE_WORKSPACE_ALLOW_DEV_MODULES: '1',
+        MAUDE_PROJECT_NAME: PROJECT_NAME,
+        MAUDE_NO_AUTOBUILD: '1',
+      };
+      const up = await new Promise((ok, fail) => {
+        const proc = spawn(
+          node,
+          [join(E2E, 'fixtures/share-roles-cell.mjs'), cellData, String(port)],
+          { env: cellEnv, stdio: ['ignore', 'pipe', 'pipe'] }
+        );
+        children.push(proc);
+        const cellLog = logFd('viewer-cell');
+        let buf = '';
+        const timer = setTimeout(
+          () => fail(new Error(`the viewer's cell did not start in 120 s: ${buf.slice(-600)}`)),
+          120_000
+        );
+        proc.on('exit', (code) => {
+          clearTimeout(timer);
+          fail(new Error(`the viewer's cell exited (${code}) before it served: ${buf.slice(-600)}`));
+        });
+        proc.stdout.on('data', (c) => {
+          writeSync(cellLog, c);
+          buf += c.toString('utf8');
+          const line = buf.split('\n').find((l) => l.startsWith('{"http"'));
+          if (!line) return;
+          clearTimeout(timer);
+          proc.removeAllListeners('exit');
+          ok(JSON.parse(line));
+        });
+        proc.stderr.on('data', (c) => {
+          writeSync(cellLog, c);
+          buf += c.toString('utf8');
+        });
+      });
+      cell = { http: up.http, public: publicUrl, canvasOrigin, data: cellData, repo };
+      log(`viewer's cell ${publicUrl} (loopback ${up.http})`);
+    }
+
     // ── the loopback control the scenario calls ───────────────────────────────────────
     const inFlight = new Map();
     const once = (key, fn) => {
@@ -652,7 +747,24 @@ export async function standUp(opts = {}) {
         body: new URLSearchParams({ link: token }).toString(),
       });
       if (res.status !== 303) throw new Error(`opening the link: ${res.status}`);
-      return startStudio('viewer');
+      // What their browser does next: the control plane's browser door, signed in as them, mints a one-time
+      // code and sends them to the cell's `/auth/browser`. Followed here on the control plane only; the last
+      // hop names the cell, which this rig answers with the viewer's cell's own public address.
+      let at = new URL(res.headers.get('location') ?? '', cpUrl);
+      for (let hop = 0; hop < 5; hop++) {
+        if (at.hostname === cellHost) {
+          if (at.pathname !== '/auth/browser' || !at.searchParams.get('code'))
+            throw new Error(`the control plane sent the viewer to ${at.pathname}, not a sign-in code`);
+          return `${cell.public}${at.pathname}${at.search}`;
+        }
+        if (at.origin !== cpUrl) throw new Error(`the link led off the rig (${at.origin})`);
+        const next = await realFetch(at.href, { redirect: 'manual', headers: asSession('viewer') });
+        const loc = next.headers.get('location');
+        if (next.status < 300 || next.status >= 400 || !loc)
+          throw new Error(`the browser door answered ${next.status} at ${at.pathname}`);
+        at = new URL(loc, cpUrl);
+      }
+      throw new Error('the link redirected too many times');
     }
 
     const control = createServer(async (req, res) => {
@@ -707,6 +819,7 @@ export async function standUp(opts = {}) {
       // for the headless test
       startOwnerStudio,
       hub: { http: hubUrl, data: hubData },
+      cell,
       controlPlane: { url: cpUrl, sql: sqlite, sessions, accountId },
       studios,
       owner: { token: ownerCred.record.token },

@@ -8,8 +8,10 @@
 //      dims behind "You no longer have access to …" and Back to Home.
 //   3. The owner turns off the link a third person came in on: "This link was turned off."
 //
-// Every person but the owner is a studio of their own on the same hub, driven through a headless Chromium page
-// (the multiplayer/ harness's way). The canvas is a separate origin: Chromium reaches it with frameLocator; the
+// Petra and Lukáš are a studio of their own on the same hub, driven through a headless Chromium page (the
+// multiplayer/ harness's way). The link viewer is a plain browser on the project's cell door (a workspace-mode
+// hub, share-roles/stand-up.mjs): `/viewer/redeem` hands back the cell's own sign-in URL, and the link card comes
+// from the cell's 401 `link-off` on that browser's next request (decision maude/v2-p8-e2e-link-viewer-on-cell-door). The canvas is a separate origin: Chromium reaches it with frameLocator; the
 // owner never needs to look inside it. Every step has its own deadline and leaves a screenshot.
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

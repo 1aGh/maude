@@ -18,7 +18,7 @@ let rig;
 let ownerStudio;
 before(
   async () => {
-    rig = await standUp();
+    rig = await standUp(process.env.MAUDE_E2E_OUT ? { out: process.env.MAUDE_E2E_OUT } : {});
     // The native app runs its own sidecar on the owner's project; a studio on the same folder, same
     // credentials, stands in for it so the canvases reach the hub.
     ownerStudio = (await rig.startOwnerStudio()).url;
@@ -226,8 +226,13 @@ describe('Petra: Can view on one canvas, Ask to edit, Let Petra edit', () => {
   });
 });
 
-describe('a link turned off', () => {
-  it('/viewer/redeem opens the owner’s link as a third person; turning it off ends their access', async () => {
+describe('a link turned off: the viewer is a plain browser on the cell door', () => {
+  let chromium = null;
+  after(async () => {
+    await chromium?.close().catch(() => {});
+  });
+
+  it('/viewer/redeem lands a headless browser on the cell; turning the link off shows the link card', async () => {
     const made = await hub('/api/access/links', {
       token: rig.owner.token,
       method: 'POST',
@@ -240,15 +245,48 @@ describe('a link turned off', () => {
     const foreign = await control('/viewer/redeem', { url: 'https://example.com/l/abc.def' });
     assert.notEqual(foreign.status, 200);
 
+    // The control plane's own redirects end at the CELL's sign-in door, with a one-time code.
     const res = await control('/viewer/redeem', { url: link.url });
     const body = await json(res);
     assert.equal(res.status, 200, JSON.stringify(body));
-    assert.equal((await fetch(`${body.url}/_health`)).status, 200);
+    const door = new URL(body.url);
+    assert.equal(door.origin, rig.cell.public);
+    assert.equal(door.pathname, '/auth/browser');
+    assert.ok(door.searchParams.get('code'));
+    assert.equal(rig.studios.viewer, undefined, 'the viewer has no studio of their own');
     const verdict = await rig.loadClaimFor('viewer');
     assert.deepEqual(verdict.grants, [{ c: rig.run.canvas, r: 'observer' }]);
-    const token = hubsOf('viewer').token;
-    assert.equal((await hub('/api/access/me', { token })).status, 200);
 
+    // A plain browser opens it: the cell exchanges the code and mints the session cookie itself.
+    const { chromium: pw } = await import('@playwright/test');
+    chromium = await pw.launch({
+      headless: true,
+      ...(process.env.MAUDE_E2E_CHROMIUM ? { executablePath: process.env.MAUDE_E2E_CHROMIUM } : {}),
+    });
+    const page = await chromium.newPage({ viewport: { width: 1440, height: 900 } });
+    await page.goto(body.url);
+    const session = await until('the cell’s session cookie', async () =>
+      (await page.context().cookies(rig.cell.public)).find((c) => c.name === 'maude_studio')
+    );
+    const inPage = (path) =>
+      page.evaluate(async (p) => {
+        const r = await fetch(p, { cache: 'no-store' });
+        return { status: r.status, body: await r.json().catch(() => null) };
+      }, path);
+    const cfg = await inPage('/_config');
+    assert.equal(cfg.status, 200, JSON.stringify(cfg.body));
+    assert.deepEqual(cfg.body.access, { role: null, grants: [{ c: rig.run.canvas, r: 'observer' }] });
+    // …and it shows the canvas: the tree row, then the canvas through the cell's canvas door.
+    const row = `canvas-row-${rig.run.canvas.replace(/\.tsx$/, '').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
+    await page.locator(`[data-testid="${row}"]`).click({ timeout: 30_000 });
+    await page
+      .frameLocator('[data-testid="canvas-frame"]')
+      .locator('h1')
+      .first()
+      .waitFor({ timeout: 30_000 });
+    await page.screenshot({ path: join(rig.run.out, 'viewer-on-cell.png') });
+
+    // The owner turns it off (the Share sheet's own call).
     const off = await hub(`/api/access/links/${link.id}`, {
       token: rig.owner.token,
       method: 'PATCH',
@@ -256,10 +294,33 @@ describe('a link turned off', () => {
     });
     assert.equal(off.status, 200, JSON.stringify(await json(off.clone())));
     assert.equal((await rig.loadClaimFor('viewer')).ok, false);
-    // The cell was told (control plane → hub), and after its grace the session is gone.
-    await until('the viewer’s session to end', async () => {
-      return (await hub('/api/access/me', { token })).status === 401;
-    });
+
+    // The cell was told; after its grace the browser's next request is refused, and says why.
+    const refused = await until(
+      'the cell to refuse the viewer’s next request',
+      async () => {
+        const r = await inPage('/_health');
+        return r.status === 401 ? r : null;
+      },
+      30_000
+    );
+    assert.deepEqual(refused.body, { error: 'sign in to open this project', reason: 'link-off' });
+    // The shell read that refusal (watchRefusals): the link card, in words.
+    const card = page.locator('[data-testid="access-link-off"]');
+    await card.waitFor({ timeout: 30_000 });
+    const words = ((await card.textContent()) ?? '').replace(/\s+/g, ' ');
+    assert.ok(words.includes('This link was turned off.'), words);
+    await page.screenshot({ path: join(rig.run.out, 'viewer-link-off.png') });
+
+    // The ended session sees nothing of the project any more — not its config, not the canvas source.
+    const asViewer = (path) =>
+      fetch(`${rig.cell.http}${path}`, {
+        headers: { cookie: `maude_studio=${session.value}`, accept: 'application/json' },
+      });
+    for (const path of ['/_config', `/api/access/me`, `/${'.design'}/${rig.run.canvas}`]) {
+      const r = await asViewer(path);
+      assert.equal(r.status, 401, `${path} → ${r.status}`);
+    }
   });
 });
 
