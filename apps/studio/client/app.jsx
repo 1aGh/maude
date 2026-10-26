@@ -874,6 +874,9 @@ function ShellState({ children }) {
           } else if (m.type === 'trash:changed') {
             // S1.7b — the shared Trash moved: the Trash view re-reads `GET /_api/trash`.
             window.dispatchEvent(new CustomEvent(TRASH_CHANGED_EVENT, { detail: m.payload }));
+          } else if (m.type === 'access-changed') {
+            // p8-e2e-rolefix (2) — hubs.json changed (desktop): Viewing / editing follows the new claim.
+            loadServerConfig();
           } else if (m.type === 'access' || m.type === 'access-request') {
             // S9.21b — the hub's access notices (ws.ts: desktop shells only). The access host says them;
             // a raised / narrowed role re-reads /_config (the server re-exchanged first), so the toolbar

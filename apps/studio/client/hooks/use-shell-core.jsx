@@ -47,6 +47,7 @@ import { registerExportOpener } from '../v2/export/use-export-spec.js';
 import { canvasTokenRefreshDelay, setLiveCanvasToken, withCanvasToken } from '../canvas-url.js';
 import { useThemeAuto } from '../v2/settings/theme-auto.js';
 import { canvasTargetOrigin } from '../v2/kinds/kind-dim-relay.js';
+import { viewerModeOn } from '../v2/access/access-client.js';
 
 export function useShellCore({}) {
   const [groups, setGroups] = useState([]);
@@ -488,7 +489,10 @@ export function useShellCore({}) {
   savingIsManagedRef.current = savingIsManaged;
   // Cloud Phase 25 C2 — viewer role, known at boot from /_config. Every
   // editing affordance in the shell gates on this (absent, not hidden).
-  const viewerMode = !!cfg.readOnly;
+  // p8-e2e-rolefix (2) — Viewing follows the OPEN canvas the way the server's doors do: a canvas-only Can
+  // edit grant edits its own canvas and views every other one; a project role or the format gate decide
+  // everywhere (access-client.js `viewerModeOn`; an older server without `access` keeps `readOnly`).
+  const viewerMode = viewerModeOn(cfg, activePath);
   const loadServerConfig = useCallback(() => {
     fetch('/_config')
       .then((r) => r.json())
