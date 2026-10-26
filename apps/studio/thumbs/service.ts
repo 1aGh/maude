@@ -153,6 +153,10 @@ const ARTBOARD_KINDS = new Set<ArtboardKind>(['digital', 'print', 'web', 'video'
 const HIST_WINDOW_MS = 10_000;
 const HIST_MAX = 12; // §5.8: ≤ 12 version renders per 10 s (serveHistoricalCanvas allows 24)
 const MAX_PAGES = 4;
+/** background jobs (the cover sweep, tiles) that render at once — the rest of the pages are for what is on screen */
+const BACKGROUND_PAGES = 2;
+/** the covers `startBackground` treats as on screen: Home's most recent shelf */
+const FIRST_SCREEN = 12;
 const MAX_FAILURES = 3;
 const MAX_REFERENCED = 20_000;
 const NO_BROWSER_EXIT = 3;
@@ -422,7 +426,11 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
     );
     for (const job of ordered) {
       if (running.size >= MAX_PAGES) break;
-      if (job.priority === 1 && [...running].some((r) => r.priority === 1)) continue;
+      if (
+        job.priority === 1 &&
+        [...running].filter((r) => r.priority === 1).length >= BACKGROUND_PAGES
+      )
+        continue;
       if (job.atParam !== null) {
         if (!historicalAllowed()) {
           schedulePump(1000);
@@ -539,12 +547,23 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
         job.rel
       );
       if (job.atParam !== null) url += `&sha=${encodeURIComponent(job.atParam)}`;
+      // A version picture shows ONE artboard: ask the canvas to mount only that one (canvas-lib
+      // `thumbOnly`) — a 21-board canvas otherwise renders and loads the images of 20 boards that
+      // are never shot. Only for a past version: today's render feeds the index its artboard list.
+      const only = new Set(job.targets.map((t) => t.artboard));
+      const [one] = [...only];
+      if (job.atParam !== null && only.size === 1 && typeof one === 'string')
+        url += `&thumb-only=${encodeURIComponent(one)}`;
       reply = await request(
         {
           op: 'render',
           url,
           expectOrigin: capture,
           hasArtboards: job.hasArtboards,
+          // the artboards the index already knows: the renderer stops waiting for late ones at
+          // this count (a version's own source can differ from today's, so only "now" is told)
+          knownArtboards:
+            job.atParam === null ? (o.index.canvas(job.rel)?.artboards.length ?? 0) : 0,
           deadlineMs: 20_000,
           ...metaHints(o.designRoot, job.rel),
           targets: job.targets.map((t) => ({ artboard: t.artboard, px: t.px })),
@@ -555,7 +574,13 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
     }
     if (reply.error === 'no-engine') engineMissing = true;
     if (reply.ok !== true) {
-      for (const t of job.targets) fail(t.key);
+      // the shell refused or failed the mount (access/closure, a build error): the same source
+      // fails the same way, and the key changes when it does — no retries to the failure cap
+      const permanent = reply.error === 'canvas-failed';
+      for (const t of job.targets) {
+        if (permanent) failures.set(t.key, MAX_FAILURES);
+        else fail(t.key);
+      }
       return;
     }
     // re-keyed under us (an edit mid-render): store nothing — the next thumb() names the new key
@@ -753,9 +778,15 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
         (a, b) => (recent.get(b.rel) ?? 0) - (recent.get(a.rel) ?? 0)
       );
       // resolves once every cover is queued (or answered from disk), not when they are rendered
+      // the first screen (Home's most recent 12) is not "background": it renders on all pages
       await Promise.all(
-        rows.map((r) =>
-          svc.thumb({ canvas: r.rel, artboard: null, size: 'card', priority: 'background' })
+        rows.map((r, i) =>
+          svc.thumb({
+            canvas: r.rel,
+            artboard: null,
+            size: 'card',
+            priority: i < FIRST_SCREEN ? 'visible' : 'background',
+          })
         )
       );
     },

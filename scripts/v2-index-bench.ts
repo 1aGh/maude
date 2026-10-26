@@ -5,7 +5,11 @@
 // `_sync.json` / `_state/` (a copied synced project re-links to the live cloud hub).
 //
 //   bun scripts/v2-index-bench.ts --root <copy> [--port 4797] [--skip-artboards] [--skip-assets]
-//                                 [--skip-versions] [--runs 5]
+//                                 [--skip-versions] [--skip-covers] [--whole-canvas] [--versions-of <regex>] [--runs 5] [--only <regex>]
+//
+// --only <regex>: the cover pass asks for just the canvases whose rel matches (instead of the
+// background sweep) and prints the renderer's reply for every one that fails — the way to chase
+// one canvas's cover without the 95-canvas sweep. The run stops after that pass.
 //
 // Everything it writes goes to a throwaway dir: the index/picture cache (MAUDE_INDEX_DIR), the
 // studio's prefs/config (XDG_CONFIG_HOME, MAUDE_UI_PREFS_PATH, MAUDE_CLOUD_CONFIG) and logs —
@@ -34,6 +38,8 @@ const opt = (k: string, d: string) => {
 const root = path.resolve(opt('--root', ''));
 const port = Number(opt('--port', '4797'));
 const RUNS = Number(opt('--runs', '5'));
+const ONLY = opt('--only', '') ? new RegExp(opt('--only', '')) : null;
+const VERSIONS_OF = opt('--versions-of', '') ? new RegExp(opt('--versions-of', '')) : null;
 if (!opt('--root', '')) throw new Error('--root <unlinked copy> is required');
 const designRoot = path.join(root, '.design');
 const cfgRaw = JSON.parse(readFileSync(path.join(designRoot, 'config.json'), 'utf8'));
@@ -72,6 +78,14 @@ const pct = (xs: number[], p: number) => {
   return Math.round(s[Math.min(s.length - 1, Math.floor(p * s.length))] as number);
 };
 const ms = (t0: number) => Math.round(performance.now() - t0);
+/** p50 of each render phase the renderer reported (`phases`: viewport/goto/mount/settle/…). */
+const phasesOf = (rs: Array<Record<string, unknown>>) => {
+  const by: Record<string, number[]> = {};
+  for (const m of rs)
+    for (const [k, v] of Object.entries((m.phases ?? {}) as Record<string, number>))
+      by[k] = [...(by[k] ?? []), Number(v)];
+  return Object.fromEntries(Object.entries(by).map(([k, v]) => [k, pct(v, 0.5)]));
+};
 const out: Record<string, unknown> = { root, at: new Date().toISOString() };
 
 // ---------------------------------------------------------------- index
@@ -173,10 +187,21 @@ try {
 
   // ------------------------------------------------------------ thumbnails
   const replies: Array<Record<string, unknown>> = [];
+  // --whole-canvas: the A/B control for version pictures — strip the `thumb-only` hint so the canvas
+  // mounts every artboard, as before V2-8.14
   const shim = () => {
     const h = spawnRendererShim();
     h.onMessage((m) => replies.push(m));
-    return h;
+    if (!flag('--whole-canvas')) return h;
+    return {
+      ...h,
+      send: (msg: Record<string, unknown>) =>
+        h.send(
+          typeof msg.url === 'string'
+            ? { ...msg, url: msg.url.replace(/&thumb-only=[^&]*/, '') }
+            : msg
+        ),
+    };
   };
   const ready: number[] = [];
   let t0 = performance.now();
@@ -233,47 +258,81 @@ try {
   // covers — cold (first browser launch, nothing cached)
   t0 = performance.now();
   let from = replies.length;
-  await svc.startBackground();
-  await svc.idle();
-  const coldMs = ms(t0);
-  const first12 = ready[11] ?? null;
-  const launchCold = replies.find((m) => typeof m.launchMs === 'number')?.launchMs ?? null;
-  const coldJobs = replies
-    .slice(from)
-    .map((m) => Number(m.ms))
-    .filter(Number.isFinite);
-  out.coversCold = {
-    totalMs: coldMs,
-    first12Ms: first12,
-    budget: { totalMs: 45_000, first12Ms: 3000 },
-    perCanvasMs: { p50: pct(coldJobs, 0.5), p95: pct(coldJobs, 0.95) },
-    ...(await coverStatus()),
-    artboardsAfterHarvest: index.counts().artboards,
-  };
+  if (ONLY) {
+    for (const c of index.snapshot().canvases.filter((x) => ONLY.test(x.rel))) {
+      const t = performance.now();
+      const ask = () =>
+        svc.thumb({ canvas: c.rel, artboard: null, size: 'card', priority: 'visible' });
+      let r = await ask();
+      for (let i = 0; i < 120 && r.status === 'pending'; i++) {
+        await Bun.sleep(250);
+        r = await ask();
+      }
+      const why = (r as { reason?: string }).reason ?? '';
+      console.error(`only ${c.rel}: ${r.status} ${why} ${ms(t)} ms`);
+    }
+    await svc.idle();
+    out.onlyReplies = replies.map((m) => ({
+      ...m,
+      shots: Array.isArray(m.shots)
+        ? (m.shots as Array<Record<string, unknown>>).map((s) => ({
+            ...s,
+            jpeg: typeof s.jpeg === 'string' ? s.jpeg.length : undefined,
+          }))
+        : undefined,
+    }));
+    svc.stop();
+    server.kill();
+    await server.exited;
+    index.stop();
+    rmSync(scratch, { recursive: true, force: true });
+    console.log(JSON.stringify(out, null, 2));
+    process.exit(0);
+  }
+  if (!flag('--skip-covers')) {
+    await svc.startBackground();
+    await svc.idle();
+    const coldMs = ms(t0);
+    const first12 = ready[11] ?? null;
+    const launchCold = replies.find((m) => typeof m.launchMs === 'number')?.launchMs ?? null;
+    const coldJobs = replies
+      .slice(from)
+      .map((m) => Number(m.ms))
+      .filter(Number.isFinite);
+    out.coversCold = {
+      totalMs: coldMs,
+      first12Ms: first12,
+      budget: { totalMs: 45_000, first12Ms: 3000 },
+      perCanvasMs: { p50: pct(coldJobs, 0.5), p95: pct(coldJobs, 0.95) },
+      phasesP50Ms: phasesOf(replies.slice(from)),
+      ...(await coverStatus()),
+      artboardsAfterHarvest: index.counts().artboards,
+    };
 
-  // Chromium launch, warm: a second renderer process on a warm disk cache
-  svc.stop();
-  rmSync(thumbsDir(pid), { recursive: true, force: true });
-  svc = service();
-  ready.length = 0;
-  t0 = performance.now();
-  from = replies.length;
-  await svc.startBackground();
-  await svc.idle();
-  const warmJobs = replies
-    .slice(from)
-    .map((m) => Number(m.ms))
-    .filter(Number.isFinite);
-  out.coversWarm = {
-    totalMs: ms(t0),
-    first12Ms: ready[11] ?? null,
-    perCanvasMs: { p50: pct(warmJobs, 0.5), p95: pct(warmJobs, 0.95) },
-  };
-  out.chromiumLaunchMs = {
-    cold: launchCold,
-    warm: replies.slice(from).find((m) => typeof m.launchMs === 'number')?.launchMs ?? null,
-    budgetWarm: 500,
-  };
+    // Chromium launch, warm: a second renderer process on a warm disk cache
+    svc.stop();
+    rmSync(thumbsDir(pid), { recursive: true, force: true });
+    svc = service();
+    ready.length = 0;
+    t0 = performance.now();
+    from = replies.length;
+    await svc.startBackground();
+    await svc.idle();
+    const warmJobs = replies
+      .slice(from)
+      .map((m) => Number(m.ms))
+      .filter(Number.isFinite);
+    out.coversWarm = {
+      totalMs: ms(t0),
+      first12Ms: ready[11] ?? null,
+      perCanvasMs: { p50: pct(warmJobs, 0.5), p95: pct(warmJobs, 0.95) },
+    };
+    out.chromiumLaunchMs = {
+      cold: launchCold,
+      warm: replies.slice(from).find((m) => typeof m.launchMs === 'number')?.launchMs ?? null,
+      budgetWarm: 500,
+    };
+  }
 
   // every artboard (on demand only): one shot per artboard, card size
   if (!flag('--skip-artboards')) {
@@ -338,6 +397,7 @@ try {
       glyph: shots.filter((s) => s.missing === true).length,
       totalMs: tilesMs,
       perTileMs: { p50: pct(per, 0.5), p95: pct(per, 0.95) },
+      phasesP50Ms: phasesOf(replies.slice(from)),
       avgBytes: Math.round(bytes / Math.max(1, ok)),
       budget: { totalMsFor250: 30_000 },
       contentHashColdMs: hashMs,
@@ -367,6 +427,7 @@ try {
     const rows = index
       .snapshot()
       .canvases.filter((c) => c.artboards.length > 0)
+      .filter((c) => !VERSIONS_OF || VERSIONS_OF.test(c.rel))
       .slice(0, 12);
     const rels = rows.map((c) => c.rel);
     // V2-1.9's shape: a version row pictures one named artboard (its most-changed), row size
@@ -402,6 +463,7 @@ try {
           totalMs: ms(t),
           jobs: per.length,
           perPictureMs: { p50: pct(per, 0.5), p95: pct(per, 0.95) },
+          phasesP50Ms: phasesOf(replies.slice(f)),
         };
       };
       const cold = await pass();

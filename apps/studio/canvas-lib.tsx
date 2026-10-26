@@ -85,6 +85,7 @@ import {
   useReducedMotion as _useReducedMotion,
 } from 'motion/react';
 import {
+  type ComponentProps,
   type CSSProperties,
   createContext,
   Fragment,
@@ -2651,7 +2652,7 @@ ArtboardKindIcon.displayName = 'ArtboardKindIcon';
  * layout has no matching id. Outside DesignCanvas (DS specimens, legacy
  * uses) it renders a plain fixed-size block.
  */
-export function DCArtboard({
+function DCArtboardBody({
   id,
   label,
   width,
@@ -3195,6 +3196,27 @@ export function DCArtboard({
       <ArtboardGapMark id={id} show={artboardEditChrome} />
     </>
   );
+}
+DCArtboardBody.displayName = 'DCArtboardBody';
+
+let thumbOnlyMemo: { search: string; id: string | null } | null = null;
+/**
+ * The thumbnail renderer's hint (`?thumb-only=<artboard id>`, added on the read-only capture origin
+ * for a version picture): mount that one artboard and none of the others (V2-8.14). Absent = no
+ * filtering. Read per render — it is a string compare — so a test can move the URL.
+ */
+function thumbOnly(): string | null {
+  if (typeof window === 'undefined') return null;
+  const search = window.location.search;
+  if (thumbOnlyMemo?.search !== search)
+    thumbOnlyMemo = { search, id: new URLSearchParams(search).get('thumb-only') };
+  return thumbOnlyMemo.id;
+}
+
+export function DCArtboard(props: ComponentProps<typeof DCArtboardBody>) {
+  const only = thumbOnly();
+  if (only !== null && props.id !== only) return null;
+  return <DCArtboardBody {...props} />;
 }
 DCArtboard.displayName = 'DCArtboard';
 

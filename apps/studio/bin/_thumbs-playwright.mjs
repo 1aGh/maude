@@ -65,7 +65,7 @@ async function getBrowser() {
     browserP = launchChromium({ headless: true }).then((b) => {
       lastLaunchMs = Math.round(performance.now() - t0);
       b.on('disconnected', () => {
-        tileHold = null;
+        resetTileLanes();
         browserP = null;
         ctxState = null;
         freePages.length = 0;
@@ -133,7 +133,7 @@ async function context(origin) {
   if (ctxState && ctxState.origin !== origin) {
     // the capture listener moved (a restart): nothing from the old origin is reused
     const old = ctxState.ctx;
-    tileHold = null;
+    resetTileLanes();
     ctxState = null;
     freePages.length = 0;
     openPages = 0;
@@ -179,7 +179,7 @@ function armIdle() {
 }
 
 async function closeBrowser() {
-  tileHold = null;
+  resetTileLanes();
   const b = browserP;
   browserP = null;
   ctxState = null;
@@ -391,6 +391,11 @@ async function render(msg) {
     url: String(msg.url),
     expectOrigin: String(msg.expectOrigin),
     hasArtboards: msg.hasArtboards === true,
+    // how many artboards the server's index already knows (0 = unknown): the cover pick waits for
+    // exactly that many instead of sleeping out the count-settle
+    knownArtboards: Number.isInteger(msg.knownArtboards)
+      ? Math.max(0, Math.min(2000, msg.knownArtboards))
+      : 0,
     coverOrder: Array.isArray(msg.coverOrder) ? msg.coverOrder.filter(SAFE_ID).slice(0, 500) : null,
     posters: msg.posters && typeof msg.posters === 'object' ? msg.posters : {},
     entered: false,
@@ -403,14 +408,41 @@ async function render(msg) {
   lastLaunchMs = null;
   job.page = page;
   jobsByPage.set(page, job);
+  const phases = {};
+  let mark = Date.now();
+  const lap = (name) => {
+    const n = Date.now();
+    phases[name] = n - mark;
+    mark = n;
+  };
   try {
     await page.setViewportSize({ width: 1440, height: 900 });
+    lap('viewport');
     await page.goto(job.url, { waitUntil: 'domcontentloaded', timeout: left() });
+    lap('goto');
     assertOrigin(page, job);
-    await page
-      .locator('#canvas-root > *')
-      .first()
-      .waitFor({ state: 'attached', timeout: Math.min(20_000, left()) });
+    // The shell writes a refused or failed mount into `#canvas-mount-error` and never mounts the
+    // canvas (a module the frame gate refuses — a `_frames.tsx` that renders DesignCanvas — is one):
+    // waiting out the mount timeout for it cost 20 s a try. Fail on the shell's own answer instead.
+    const mounted = await page.waitForFunction(
+      () =>
+        document.querySelector('#canvas-root > *')
+          ? 'mounted'
+          : document.getElementById('canvas-mount-error')?.textContent
+            ? 'failed'
+            : false,
+      null,
+      { timeout: Math.min(20_000, left()) }
+    );
+    if ((await mounted.jsonValue()) === 'failed') {
+      const why = await page
+        .evaluate(() => document.getElementById('canvas-mount-error')?.textContent ?? '')
+        .catch(() => '');
+      const err = new Error(String(why).trim().split('\n')[0] || 'the canvas did not mount');
+      err.code = 'canvas-failed';
+      throw err;
+    }
+    lap('mount');
     const named = targets.map((t) => t?.artboard).filter((a) => typeof a === 'string');
     if (job.hasArtboards && named.length && named.length === targets.length) {
       // every target names its artboard (a version row, an on-demand shot): wait for exactly
@@ -432,18 +464,42 @@ async function render(msg) {
         .first()
         .waitFor({ state: 'attached', timeout: Math.min(10_000, left()) })
         .catch(() => {});
-      await settleCount(page, left);
+      // The count the index knows is on screen and holds across two frames: nothing is left to
+      // mount late, and the 250 ms count-settle below is skipped. Any other count settles as before.
+      const known = job.knownArtboards;
+      const atKnown =
+        known > 0 &&
+        (await bounded(
+          page.waitForFunction(
+            (n) => document.querySelectorAll('[data-dc-screen]').length === n,
+            known,
+            { timeout: Math.min(1500, left()) }
+          ),
+          Math.min(1600, left())
+        )
+          .then((v) => v !== '__timeout__')
+          .catch(() => false));
+      if (atKnown) {
+        await bounded(frames(page), 1000);
+        if ((await page.locator('[data-dc-screen]').count()) !== known)
+          await settleCount(page, left);
+      } else await settleCount(page, left);
     } else {
       await bounded(frames(page), 1000);
     }
+    lap('settle');
     await bounded(
       page.evaluate(() => document.fonts.ready.then(() => true)),
       3000
     );
+    lap('fonts');
     const runtime = await harvest(page);
+    lap('harvest');
     const shots = [];
     for (const [i, t] of targets.entries()) shots.push(await shoot(page, job, i, t, runtime, left));
+    lap('shoot');
     return {
+      phases,
       ok: true,
       runtime: {
         artboards: runtime.map(({ id, label, kind, w, h }) => ({ id, label, kind, w, h })),
@@ -466,12 +522,21 @@ async function render(msg) {
  * scriptable — so ONE such page is held and reused across tiles (a navigation per tile costs
  * ~100 ms); every tile still re-checks the page's origin before it is shot.
  */
-let tileHold = null; // { page, origin, job }
-let tileChain = Promise.resolve();
+// Two lanes: tiles are a background job and the service keeps two of them in flight; one lane
+// held every tile behind the one before it (194 pictures took 43 s).
+const tileLanes = Array.from({ length: 2 }, () => ({
+  hold: null, // { page, origin, job, vp }
+  chain: Promise.resolve(),
+  queued: 0,
+}));
 
-function dropTileHold() {
-  const held = tileHold;
-  tileHold = null;
+function resetTileLanes() {
+  for (const lane of tileLanes) lane.hold = null;
+}
+
+function dropTileHold(lane) {
+  const held = lane.hold;
+  lane.hold = null;
   if (!held) return;
   jobsByPage.delete(held.page);
   held.page
@@ -480,10 +545,27 @@ function dropTileHold() {
     .finally(() => releasePage(held.page));
 }
 
-async function tilePage(msg) {
+async function tilePage(lane, msg) {
   const origin = String(msg.expectOrigin);
-  if (tileHold && (tileHold.page.isClosed() || tileHold.origin !== origin)) dropTileHold();
-  if (tileHold) return tileHold;
+  if (lane.hold && (lane.hold.page.isClosed() || lane.hold.origin !== origin)) dropTileHold(lane);
+  if (lane.hold) {
+    // The held page's capability names the ONE picture its URL was minted for: the frame gate reads
+    // it off the page's own URL (the Referer of what the page loads), so a tile for another picture
+    // re-enters the shell for that picture on the same page. Reusing it as it was left every tile
+    // after the first a 403 -> `missing`: 189 of 194 pictures drew a glyph (V2-8.14).
+    if (lane.hold.job.url === String(msg.url)) return lane.hold;
+    const { page, job } = lane.hold;
+    job.url = String(msg.url);
+    job.entered = false;
+    try {
+      await page.goto(job.url, { waitUntil: 'domcontentloaded', timeout: 10_000 });
+      assertOrigin(page, job);
+    } catch (e) {
+      dropTileHold(lane);
+      throw e;
+    }
+    return lane.hold;
+  }
   const job = {
     url: String(msg.url),
     expectOrigin: origin,
@@ -503,23 +585,33 @@ async function tilePage(msg) {
     releasePage(page);
     throw e;
   }
-  tileHold = { page, origin, job };
-  return tileHold;
+  lane.hold = { page, origin, job, vp: null };
+  return lane.hold;
 }
 
 function tile(msg) {
-  const run = tileChain.then(() => tileOnce(msg));
-  tileChain = run.catch(() => {});
-  return run;
+  const lane = tileLanes.reduce((a, b) => (b.queued < a.queued ? b : a));
+  lane.queued++;
+  const run = lane.chain.then(() => tileOnce(lane, msg));
+  lane.chain = run.catch(() => {});
+  return run.finally(() => {
+    lane.queued--;
+  });
 }
 
-async function tileOnce(msg) {
+async function tileOnce(lane, msg) {
   const t0 = Date.now();
   const px = Math.max(16, Math.min(2048, Math.trunc(Number(msg.px) || 480)));
-  const { page, job } = await tilePage(msg);
+  const hold = await tilePage(lane, msg);
+  const { page, job } = hold;
+  const phases = { nav: Date.now() - t0 };
   try {
     assertOrigin(page, job);
-    await page.setViewportSize({ width: px, height: px });
+    // the viewport only changes when the tile size does (a resize per tile cost ~30 ms)
+    if (msg.video === true && hold.vp !== px) {
+      await page.setViewportSize({ width: px, height: px });
+      hold.vp = px;
+    }
     const box = await bounded(
       page.evaluate(
         async ([src, size, video]) => {
@@ -560,6 +652,26 @@ async function tileOnce(msg) {
           const s = Math.min(1, size / Math.max(w, h));
           const cw = Math.max(1, Math.round(w * s));
           const ch = Math.max(1, Math.round(h * s));
+          if (!video) {
+            // a picture is scaled and encoded in the page: no screenshot, no layout, no paint wait
+            // (the screenshot path cost ~130 ms a tile). White under transparency, as the host had.
+            const cv = document.createElement('canvas');
+            cv.width = cw;
+            cv.height = ch;
+            const g = cv.getContext('2d');
+            if (!g) return null;
+            g.fillStyle = '#fff';
+            g.fillRect(0, 0, cw, ch);
+            g.imageSmoothingQuality = 'high';
+            g.drawImage(el, 0, 0, cw, ch);
+            const blob = await new Promise((res) => cv.toBlob(res, 'image/jpeg', 0.8));
+            if (!blob) return null;
+            const bytes = new Uint8Array(await blob.arrayBuffer());
+            let bin = '';
+            for (let i = 0; i < bytes.length; i += 0x8000)
+              bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+            return { w: cw, h: ch, jpeg: btoa(bin) };
+          }
           el.style.cssText = `display:block;width:${cw}px;height:${ch}px`;
           host.appendChild(el);
           await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -569,9 +681,18 @@ async function tileOnce(msg) {
       ),
       3000
     ).catch(() => null);
+    phases.draw = Date.now() - t0 - phases.nav;
     if (!box || box === '__timeout__')
       return { ok: true, shots: [{ target: 0, missing: true }], ms: Date.now() - t0 };
     assertOrigin(page, job);
+    if (typeof box.jpeg === 'string')
+      return {
+        ok: true,
+        shots: [{ target: 0, jpeg: box.jpeg, partial: false }],
+        blocked: job.blocked,
+        ms: Date.now() - t0,
+        phases,
+      };
     const w = Math.max(1, Math.min(px, Math.floor(box.w)));
     const h = Math.max(1, Math.min(px, Math.floor(box.h)));
     const jpeg = await page.screenshot({
@@ -585,9 +706,10 @@ async function tileOnce(msg) {
       shots: [{ target: 0, jpeg: jpeg.toString('base64'), partial: false }],
       blocked: job.blocked,
       ms: Date.now() - t0,
+      phases: { ...phases, shot: Date.now() - t0 - phases.nav - phases.draw },
     };
   } catch (e) {
-    dropTileHold();
+    dropTileHold(lane);
     throw e;
   }
 }
@@ -608,7 +730,11 @@ async function handle(msg) {
     send({ id, ...(await (msg.op === 'tile' ? tile(msg) : render(msg))) });
   } catch (e) {
     const code =
-      e?.code === 'origin' ? 'origin' : /timeout/i.test(String(e?.message)) ? 'timeout' : 'error';
+      e?.code === 'origin' || e?.code === 'canvas-failed'
+        ? e.code
+        : /timeout/i.test(String(e?.message))
+          ? 'timeout'
+          : 'error';
     send({
       id,
       ok: false,
