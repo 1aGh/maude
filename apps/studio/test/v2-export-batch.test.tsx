@@ -49,6 +49,7 @@ afterAll(() => {
 
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { withoutMovedRules } from './_shell-css';
 
 // ── the batch model ──────────────────────────────────────────────────────────────────────────────
 describe('groups by kind', () => {
@@ -884,8 +885,9 @@ describe('mono only inside the fold (words lint)', () => {
     const offenders = files.filter((p) => {
       const rel = p.slice(EXPORT_DIR.length + 1);
       if (rel.startsWith('advanced/')) return false;
+      // past the rules moved in from the old layers (V2-8.0 D), which predate the fold
       return /font-mono|ex-mono|k-mono|monospace/.test(
-        readFileSync(p, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+        withoutMovedRules(readFileSync(p, 'utf8')).replace(/\/\*[\s\S]*?\*\//g, '')
       );
     });
     expect(offenders).toEqual([]);

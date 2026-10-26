@@ -20,6 +20,15 @@ export function shellCssFiles(): string[] {
   return files;
 }
 
+// The rules V2-8.0 part D moved into an area file from the retired styles/ layer files sit in ONE marked region at
+// the top of that file. A pin about an area's own v2 rules (a contract the old layers never held — tokens only,
+// no mono, --dur durations) reads the file past that region; the moved rules are pinned through shellCss().
+const MOVED =
+  /\/\* ── V2-8\.0: (?:rules moved here|the legacy v1 frame rules)[\s\S]*?\/\* ── end of the moved rules ── \*\//g;
+export function withoutMovedRules(css: string): string {
+  return css.replace(MOVED, '');
+}
+
 export function shellCss(): string {
   if (text != null) return text;
   text = shellCssFiles()
