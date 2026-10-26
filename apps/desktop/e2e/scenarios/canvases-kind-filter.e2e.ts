@@ -55,6 +55,8 @@ describe('canvases-kind-filter — the kind chips over the Canvases list', () =>
   });
 
   it('Video: only canvases that have video, each with "N of M"; the foot says how many', async () => {
+    // The left panel folds to its corner icon once a canvas is being worked on; a person brings it back, so does this.
+    await ensureFilesTab();
     const videos = await settledCount('video');
     const all = await settledCount('all');
     await chip('video').click();
@@ -68,6 +70,7 @@ describe('canvases-kind-filter — the kind chips over the Canvases list', () =>
   });
 
   it('pressing the chip that is on brings the tree back', async () => {
+    await ensureFilesTab();
     await chip('video').click();
     await browser.waitUntil(
       async () => (await chip('all').getAttribute('aria-pressed')) === 'true'

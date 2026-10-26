@@ -93,6 +93,25 @@ function load(): Tree | null {
   }
 }
 
+/**
+ * Runtime state is the one thing the tree restore must not touch under a RUNNING sidecar — and the one thing that
+ * leaks from one session into the next once none is running: `_trash` (a canvas an earlier spec trashed comes back as
+ * an "In the trash" ghost beside the live one, and a click opens the trashed copy read-only — edit-artboards part 2),
+ * `_canvas-state` (the open tabs and selection), `_history`, `_comments`, `_export-history.json`. Every spec session
+ * starts from a project that has never been opened: call this BEFORE the app launches (`beforeSession`), never while
+ * one runs. Returns the names it removed. `designRoot` is a parameter so a test can point it at a temp dir.
+ */
+export function resetFixtureRuntime(designRoot: string = join(TREE_ROOT, '.design')): string[] {
+  if (!existsSync(designRoot)) return [];
+  const removed: string[] = [];
+  for (const name of readdirSync(designRoot)) {
+    if (!name.startsWith('_')) continue;
+    rmSync(join(designRoot, name), { recursive: true, force: true });
+    removed.push(name);
+  }
+  return removed;
+}
+
 /** Launcher, once per lane: repair a killed run's damage, then baseline the tree. */
 export function baselineFixtureTree(): void {
   const stale = load();

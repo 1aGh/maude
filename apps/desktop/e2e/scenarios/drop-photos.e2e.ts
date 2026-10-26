@@ -155,6 +155,8 @@ const useCanvas = async (text: string, ready: string) => {
   await browser.pause(1000); // the drop targets register once the editing layer has mounted over the new canvas
 };
 
+const BOARD = 'Fotky ze zápasu'; // the fixture artboard's label (`NONE_EMPTY` / `SIX_EMPTY` above)
+
 describe('drop from Finder onto an artboard (S8.14)', () => {
   before(async () => {
     await waitForSidecar();
@@ -204,7 +206,8 @@ describe('drop from Finder onto an artboard (S8.14)', () => {
     await useCanvas(NONE_EMPTY, 'note');
     const before = source();
     const over = await dragPhotos(4, 'over');
-    expect(over.hint).toBe('Drop to place 4 photos in a tidy grid');
+    // 12 · ia-drop-photos: the chip names WHERE the photos go — the artboard under the pointer, by its name
+    expect(over.hint).toBe(`Drop to place 4 photos in ${BOARD}`);
     await dragPhotos(4, 'drop');
     await browser.waitUntil(async () => source().split('<img').length === 5, {
       timeout: 15000,
@@ -214,7 +217,7 @@ describe('drop from Finder onto an artboard (S8.14)', () => {
     await capture(report, 'grid');
     await undoTo(before);
     const one = await dragPhotos(1, 'over');
-    expect(one.hint).toBe('Drop to place the photo here');
+    expect(one.hint).toBe(`Drop to place the photo in ${BOARD}`);
   });
 
   it('a drop on bare canvas leaves the canvas file alone: it stays loose', async () => {

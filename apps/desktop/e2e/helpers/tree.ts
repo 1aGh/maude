@@ -22,6 +22,21 @@ export async function expandTree(): Promise<void> {
 }
 
 /**
+ * The left panel yields to a canvas that is being worked on: once an object is selected (or ⌘\ was pressed) it folds
+ * to its corner icon (`panel-icon-left`) and every Files / Layers row is gone. A person brings it back from that
+ * icon — so does a spec. A no-op while the panel is showing.
+ */
+export async function openLeftPanel(): Promise<void> {
+  await browser.execute(() => {
+    document.querySelector<HTMLElement>('[data-testid="panel-icon-left"]')?.click();
+  });
+  await browser.waitUntil(
+    async () => browser.execute(() => !!document.querySelector('[data-testid^="panel-tab-"]')),
+    { timeout: 10_000, timeoutMsg: 'the left panel never came back from its corner icon' }
+  );
+}
+
+/**
  * The default lane drives ONE app process through every spec, so the left dock stays on whatever tab
  * the last spec left it on (Layers, after an unlock). The Files rows only exist on the Files tab.
  */
@@ -32,6 +47,8 @@ export async function ensureFilesTab(): Promise<void> {
     if (!w.__name) w.__name = (f: unknown) => f;
   });
   await browser.execute(() => {
+    // (see openLeftPanel: the panel may be folded to its corner icon)
+    document.querySelector<HTMLElement>('[data-testid="panel-icon-left"]')?.click();
     const tab = document.querySelector<HTMLElement>('[data-testid="panel-tab-tree"]');
     if (tab && tab.getAttribute('aria-selected') !== 'true') tab.click();
   });

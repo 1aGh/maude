@@ -2,7 +2,7 @@ import { $, $$, browser, expect } from '@wdio/globals';
 import { waitForEditChrome } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { waitForSidecar } from '../helpers/sidecar';
-import { canvasRow } from '../helpers/tree';
+import { canvasRow, openLeftPanel } from '../helpers/tree';
 
 /**
  * 08 Artboard Kinds / 05 Empty States — the kind chips in the Layers header (S7.24b, ak-mixed-fit, es-filter): the same
@@ -43,6 +43,7 @@ describe('layers-kind-filter — the kind chips in the Layers header', () => {
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
     await waitForEditChrome();
+    await openLeftPanel();
     await $('[data-testid="panel-tab-layers"]').click();
     await $('[data-testid="layers-kind-chips"]').waitForExist({ timeout: 30_000 });
     const names = await $$('[data-testid^="layers-kind-chip-"]').map((c) =>
@@ -61,16 +62,21 @@ describe('layers-kind-filter — the kind chips in the Layers header', () => {
   });
 
   it('Print on a canvas with no print: the block names the filter, the canvas dims', async () => {
+    await openLeftPanel();
     await chip('print').click();
     const none = $('[data-testid="layers-kind-none"]');
     await none.waitForExist({ timeout: 15_000 });
     expect(await none.getText()).toContain('No print artboards in');
     await browser.waitUntil(dimmed, { timeout: 10_000, timeoutMsg: 'the canvas never dimmed' });
-    expect(await $('[data-testid="layers-kind-foot"]').getText()).toContain('is dimmed.');
+    // V2-8.5 C8: "N other artboards are dimmed. Show all" is the FOOT of the list the filter narrowed — and a kind this
+    // canvas has none of has no list to narrow: the block above REPLACES the foot, whose way out is its Clear filter.
+    expect(await $('[data-testid="layers-kind-foot"]').isExisting()).toBe(false);
+    expect(await $('[data-testid="layers-kind-clear"]').isDisplayed()).toBe(true);
     await capture('layers-kind-none');
   });
 
   it('Clear filter undoes it in one click: the block goes and the canvas is back', async () => {
+    await openLeftPanel();
     await $('[data-testid="layers-kind-clear"]').click();
     await browser.waitUntil(
       async () => !(await $('[data-testid="layers-kind-none"]').isExisting())
