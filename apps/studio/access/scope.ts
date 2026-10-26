@@ -100,6 +100,15 @@ function parseClaim(
   return { role, grants };
 }
 
+/**
+ * p8-e2e-rolefix — what the shell is told about its own session (`/_config.access`): the project role
+ * (null = canvas-only) and the resolved grants, nothing else. Plain data, so it can say only what the
+ * doors already decide; the client turns it into the access word for the open canvas.
+ */
+export function accessView(a: Access): { role: ProjectRole | null; grants: Grant[] } {
+  return { role: a.role, grants: a.grants.map((g) => ({ c: g.c, r: g.r })) };
+}
+
 /** Resolve a claim into the one Access object every door asks. */
 export function resolveAccess(
   claim: AccessClaim | null | undefined,
