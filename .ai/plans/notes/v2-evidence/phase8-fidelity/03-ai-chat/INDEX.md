@@ -528,3 +528,14 @@ Final verification re-shoot of the IMPL side (every artboard id x light + dark) 
 | `ai-history` | re-shot | re-shot |
 
 - D7 harness note: on the merged tip the Version-history step of s03e left the app in Viewing (esc stands down while the composer has focus), which blocked the next ask; s03e now leaves Viewing through the view bar's `vh-viewbar-back` button. The s03e + s03h frames (ai-long, ai-done, ai-hero, ai-history, ai-panel-closed, ai-choice-q, ai-question, ai-adv-edges, ai-quit, ai-chat-list) come from that second run of the same chain (`chain.sh 03x`); the other frames from the first full `chain.sh 03` run.
+
+## Round 11 (p8-r11-03)
+
+Re-shot on the Mac mini with `_r11-harness-g1/` (the D7 harness trimmed to 03): `ai-done`, `ai-question`, `ai-long`, `ai-long-pinned`, both themes; the committed pairs are overwritten. What changed: the folded inspector's corner icon stands beside a full-height chat (`ai-long`); the `ai-six` thumbnail strip is built under the picked-shots reply (`ai-long-pinned`); `ai-done` is shot once the finish has settled into the "Made by AI" label in both themes; `ai-question` comes from the scene with an element picked (spark ring on the date line); `ai-long` has the "What AI did · 6 steps · 41 s" fold in both themes. Done / open per item: `fix-r11-03.md`.
+
+| id | dark | light |
+|---|---|---|
+| `ai-done` | re-shot | re-shot |
+| `ai-question` | re-shot | re-shot |
+| `ai-long` | re-shot | re-shot |
+| `ai-long-pinned` | re-shot | re-shot |
