@@ -46,7 +46,12 @@ describe('advanced-diagnostics', () => {
       'diag-logs-copy-all',
       'diag-logs-show-in-finder',
     ]) {
-      expect({ id, shown: await (await $(tid(id))).isDisplayed() }).toEqual({ id, shown: true });
+      // rows draw a beat after the click that opened them: wait for each; the red still names the missing one
+      const shown = await (await $(tid(id))).waitForDisplayed({ timeout: 5_000 }).then(
+        () => true,
+        () => false
+      );
+      expect({ id, shown }).toEqual({ id, shown: true });
     }
     await capture('01-logs');
   });
@@ -110,7 +115,12 @@ describe('advanced-diagnostics', () => {
       'settings-decision-memory',
       'settings-reset-folds',
     ]) {
-      expect({ id, shown: await (await $(tid(id))).isDisplayed() }).toEqual({ id, shown: true });
+      // rows draw a beat after the click that opened them: wait for each; the red still names the missing one
+      const shown = await (await $(tid(id))).waitForDisplayed({ timeout: 5_000 }).then(
+        () => true,
+        () => false
+      );
+      expect({ id, shown }).toEqual({ id, shown: true });
     }
     await capture('05-settings-advanced');
     await (await $(tid('settings-close'))).click();
@@ -123,7 +133,12 @@ describe('advanced-diagnostics', () => {
     // the fold opens on the next render, not inside the click
     await (await $(tid('canvases-folder'))).waitForDisplayed({ timeout: 5000 });
     for (const id of ['canvases-folder', 'canvases-folder-copy', 'canvases-refresh']) {
-      expect({ id, shown: await (await $(tid(id))).isDisplayed() }).toEqual({ id, shown: true });
+      // rows draw a beat after the click that opened them: wait for each; the red still names the missing one
+      const shown = await (await $(tid(id))).waitForDisplayed({ timeout: 5_000 }).then(
+        () => true,
+        () => false
+      );
+      expect({ id, shown }).toEqual({ id, shown: true });
     }
     expect(await fitsItsPanel('fold-left.canvases-body')).toBe(true);
     await capture('06-canvases-advanced');

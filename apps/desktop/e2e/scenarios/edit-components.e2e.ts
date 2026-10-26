@@ -352,6 +352,15 @@ describe('an instance: override, swap, reset, detach (S2.17)', () => {
 
   it('Detach keeps the look as a plain frame: same classes, same id, same token reference, no import', async () => {
     const report = startReport('edit-components-detach');
+    // Detach writes the subtree the canvas RENDERS (component.detach params.tree): the ⌘Z above restored the file,
+    // and the frame re-renders a beat later — press Detach once the words are back on the canvas, as a person would.
+    await browser.waitUntil(
+      async () =>
+        inFrame((doc) =>
+          (doc.querySelector('[data-cd-id="cta"]')?.textContent ?? '').includes('REGISTRUJ SE')
+        ),
+      { timeout: 8000, timeoutMsg: 'the canvas never showed the restored words' }
+    );
     await (await $('[data-testid="insp-instance-detach"]')).click();
     await browser.waitUntil(async () => !source().includes('@maude/ds'), { timeout: 8000 });
     const out = source();
