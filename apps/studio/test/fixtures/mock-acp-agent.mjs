@@ -63,7 +63,10 @@ acp
             `claudeExe=${process.env.CLAUDE_CODE_EXECUTABLE ?? '<unset>'} ` +
             `actor=${process.env.MAUDE_AGENT_ACTOR ?? '<unset>'} ` +
             `chatId=${process.env.MAUDE_CHAT_ID ?? '<unset>'} ` +
-            `sessionRoot=${process.env.MAUDE_SESSION_ROOT ?? '<unset>'}`,
+            `sessionRoot=${process.env.MAUDE_SESSION_ROOT ?? '<unset>'} ` +
+            `readRoots=${process.env.MAUDE_READ_ROOTS ?? '<unset>'} ` +
+            `grantsFile=${process.env.MAUDE_GRANTS_FILE ?? '<unset>'} ` +
+            `tmpdir=${process.env.TMPDIR ?? '<unset>'}`,
         },
       },
     });

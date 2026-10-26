@@ -39,6 +39,9 @@ export const SESSION_ENV_KEYS = [
   'MAUDE_CHAT_ID',
   'MAUDE_HOOK_SESSION',
   'CLAUDE_PROJECT_DIR',
+  // V2-8.9 H2 — the chat's read boundary for the verbs that read a given path (confine-read.mjs).
+  'MAUDE_READ_ROOTS',
+  'MAUDE_GRANTS_FILE',
 ];
 
 const CHAT_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;

@@ -3,7 +3,7 @@
 Both the read and write verbs need world-coordinate rects for artboards and elements. `.meta.json` alone can't supply them (position-only since DDR-027; no element data exists on disk at all) — the manifest resolves them from a live render:
 
 ```bash
-maude design canvas-rects "<rel-path>" --root "$REPO" > /tmp/rects.json
+maude design canvas-rects "<rel-path>" --root "$REPO" > "$TMPDIR/rects.json"
 ```
 
 Emits `{ artboards: [{id,x,y,w,h}], elements: [{cdId,selector,index,artboard,x,y,w,h,tag,text}], elementsTruncated }`, all in **world coordinates**. An artboard's rect is its **design surface** — the box that exports, at the size the canvas declares (a fixed 1080×1350 artboard reports 1080×1350); the label strip above it is editor chrome and is not part of it. Prefers a live/headless render (via the running dev-server + `agent-browser`, falling back to `playwright`) so element rects reflect actual CSS/content; when no server is reachable it degrades to a **static, artboard-only** manifest (meta positions + JSX `width`/`height`) with `elements: []` and a stderr note — read/write still work, just without element-level resolution. Boot the server first (`maude design server-up`) when you need element context.

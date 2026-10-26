@@ -55,6 +55,7 @@
 // Pure + dependency-free (bar node:path and write-scope's path helpers): unit-tested without a session
 // (test/acp-may-scope.test.ts); end to end in test/acp-may-gate.test.ts.
 
+import { createHash } from 'node:crypto';
 import { homedir, tmpdir } from 'node:os';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
@@ -399,8 +400,10 @@ function insideAnyFolded(p: string, repoRoot: string, roots: readonly string[]):
 //       are attached to THIS chat — read live per request, so a yes mid-chat counts at once and Remove
 //       (the chip's ×, Advanced's Reset) puts the folder back behind the card on the very next call;
 //   (c) what the agent needs to work: the bundled plugin trees (their skills and references), Maude's
-//       own package root (the `maude design` helpers, templates, canvas-lib), and the temp folders
-//       ($TMPDIR, /tmp — the skills screenshot to `/tmp/x.png` and read it back).
+//       own package files (the `maude design` helpers, templates, canvas-lib — listed, not the
+//       checkout's root, L1), the chat's own scratch folder (its TMPDIR — the skills screenshot to
+//       `$TMPDIR/x.png` and read it back) and Claude Code's temp folder for THIS project only (M2:
+//       the rest of /tmp holds every other session's task output, so it asks).
 // Everything else reaches Claude Code's permission card, with "Always allow" taken off (the adapter
 // turns it into a session-wide rule the folder consent would no longer bound). The credential deny
 // rules above stay and still win: they are checked first and refuse without a card.
@@ -413,11 +416,20 @@ function insideAnyFolded(p: string, repoRoot: string, roots: readonly string[]):
 //      approved once when every path it names lies, as resolved on disk, inside an (a)/(b)/(c) root,
 //      and otherwise goes to the person.
 //
+// Every path is spelled as Claude Code opens it first (agent-path.ts, V2-8.9 H1): `~/x` is the home
+// folder's x, and a spelling readers may disagree on (spaces around it, a leading `~`) is outside.
+// The `maude design` verbs that read a path they are given hold to the same roots (MAUDE_READ_ROOTS
+// + the consent store, cli/lib/confine-read.mjs, H2); a read outside the project is a private
+// source for the audience gate (audience.ts, M1).
+//
 // Residual, named: under bypassPermissions, or with the person's own `Read` allow rule in ~/.claude
 // (settingSources ['user'], P3), Claude Code approves every read itself — that is the person's call;
 // only the credential deny rules hold there. A symlink INSIDE the project that points elsewhere is
-// read through Claude Code's own working-directory rule. A skill the person installed themselves
-// (outside the bundled plugins) asks before reading its own files.
+// judged by Claude Code against the resolved target (2.1.89+), and by this gate the same way. A skill
+// the person installed themselves (outside the bundled plugins) asks before reading its own files. A
+// Glob whose absolute pattern leaves the project while its `path` is in-project is judged here by the
+// pattern (L3); whether Claude Code's own allow rule approves it before asking is unprobed. Between
+// this gate's realpath and Claude Code's open a folder can be swapped (L4, accepted).
 
 /** The file-reading tools the boundary covers (bare names, as on `_meta.claudeCode.toolName`). */
 export const READ_TOOL_NAMES: readonly string[] = ['Read', 'Glob', 'Grep', 'NotebookRead'];
@@ -428,9 +440,37 @@ export interface ReadBoundaryInput {
   /** The bundled plugin trees injected into the session (DDR-143). */
   pluginRoots?: readonly string[];
   /** Maude's own package root: the `maude design` helpers' files. Absent → none. */
-  packageRoot?: string | null;
-  /** The agent's temp folders. Default: this process's $TMPDIR (os.tmpdir) and /tmp. */
+  packageRoot?: string | readonly string[] | null;
+  /**
+   * The agent's temp folders. V2-8.9 M2: never all of /tmp or $TMPDIR (every Claude Code session's
+   * task output lives there, other projects' included) — the chat's own scratch (`chatScratchDir`,
+   * exported as the agent's TMPDIR) and Claude Code's folder for THIS project
+   * (`claudeCodeTmpFor`). Default: none.
+   */
   tmpRoots?: readonly string[];
+}
+
+/**
+ * V2-8.9 M2 — the chat's scratch folder: created by the bridge (0700), handed to the agent as
+ * TMPDIR, inside the read boundary. One per project and chat, under this server's own temp dir.
+ */
+export function chatScratchDir(repoRoot: string, chatId: string | undefined): string {
+  const uid = typeof process.getuid === 'function' ? process.getuid() : 0;
+  const project = createHash('sha256').update(resolveRealPath(repoRoot, repoRoot)).digest('hex');
+  const chat = chatId && /^[A-Za-z0-9_-]{1,64}$/.test(chatId) ? chatId : 'session';
+  return join(tmpdir(), `maude-chat-${uid}`, project.slice(0, 16), chat);
+}
+
+/**
+ * Claude Code's own temp folder for a session started in `repoRoot`: `/tmp/claude-<uid>/<slug>`,
+ * the slug being the cwd with every character that is not a letter or digit turned into `-`
+ * (observed on 2.1.x: `/Users/u/git/maude` → `-Users-u-git-maude`). Its task output files live
+ * there; other projects' folders are siblings and stay outside.
+ */
+export function claudeCodeTmpFor(repoRoot: string): string[] {
+  const uid = typeof process.getuid === 'function' ? process.getuid() : 0;
+  const slug = resolve(repoRoot).replace(/[^A-Za-z0-9]/g, '-');
+  return [join('/tmp', `claude-${uid}`, slug)];
 }
 
 /** The (a)+(c) roots, absolute, each as named and as it resolves (deduped, never the disk root). */
@@ -444,8 +484,9 @@ export function readBoundaryRoots(input: ReadBoundaryInput): string[] {
   add(input.repoRoot);
   if (input.designRoot) add(resolve(input.repoRoot, input.designRoot));
   for (const p of input.pluginRoots ?? []) add(p);
-  add(input.packageRoot ?? null);
-  for (const t of input.tmpRoots ?? [tmpdir(), '/tmp']) add(t);
+  const pkg = input.packageRoot ?? null;
+  for (const p of typeof pkg === 'string' || pkg === null ? [pkg] : pkg) add(p);
+  for (const t of input.tmpRoots ?? []) add(t);
   return [...out];
 }
 
@@ -507,6 +548,83 @@ export function readTargets(
     out.push(a);
   }
   return out;
+}
+
+/** V2-8.9 L2 — shell commands that only read. Their "Always allow" becomes `Bash(cat:*)` & co. */
+export const READ_ONLY_BASH: ReadonlySet<string> = new Set([
+  'cat',
+  'head',
+  'tail',
+  'less',
+  'more',
+  'bat',
+  'rg',
+  'grep',
+  'egrep',
+  'fgrep',
+  'ag',
+  'ls',
+  'tree',
+  'find',
+  'fd',
+  'file',
+  'stat',
+  'wc',
+  'du',
+  'xxd',
+  'od',
+  'hexdump',
+  'strings',
+  'nl',
+  'sort',
+  'uniq',
+  'diff',
+  'cmp',
+  'md5',
+  'shasum',
+]);
+const SHELL_WRAPPERS = new Set(['sudo', 'env', 'command', 'nohup', 'time', 'nice', 'xargs']);
+
+/**
+ * V2-8.9 L2 — does a shell command run a read-only reader (`READ_ONLY_BASH`) on a path outside
+ * `roots`? Then its card must not offer "Always allow": the adapter would install a standing
+ * `Bash(cat:*)` rule that reads anywhere, outside the folder consent. Generous on purpose (a pattern
+ * word that looks like an outside path also counts) — this only ever removes the standing option.
+ */
+export function bashReadsOutside(
+  command: string,
+  repoRoot: string,
+  roots: readonly string[],
+  home: string = homedir()
+): boolean {
+  for (const seg of command.split(/[;&|\n]+/)) {
+    const words = seg.trim().split(/\s+/).filter(Boolean);
+    let k = 0;
+    while (
+      k < words.length &&
+      (/^[A-Za-z_]\w*=/.test(words[k] ?? '') || SHELL_WRAPPERS.has(words[k] ?? ''))
+    )
+      k++;
+    const head = (words[k] ?? '').split('/').pop() ?? '';
+    if (!READ_ONLY_BASH.has(head)) continue;
+    for (let w of words.slice(k + 1)) {
+      w = w.replace(/^['"]|['"]$/g, '');
+      if (w.startsWith('-')) {
+        const eq = w.indexOf('=');
+        if (eq < 0) continue;
+        w = w.slice(eq + 1);
+      }
+      w = w.replace(/^\$\{?HOME\}?(?=\/|$)/, '~');
+      if (!w) continue;
+      // any other variable: where it points is unknown here — no standing rule for it
+      if (w.startsWith('$')) return true;
+      const a = agentPath(w, repoRoot, home);
+      if (!a) continue;
+      const real = resolveRealPath(a.abs, repoRoot);
+      if (!roots.some((r) => r === real || isInsideRoot(real, r))) return true;
+    }
+  }
+  return false;
 }
 
 /**

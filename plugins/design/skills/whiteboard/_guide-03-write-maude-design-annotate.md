@@ -29,7 +29,7 @@ An annotations file that exists but isn't readable is **never written over** (ex
 { "ops": [ { "op": "create", "type": "sticky", "text": "make this the primary action" } ] }
 ```
 ```bash
-maude design annotate "ui/Checkout.tsx" --rects /tmp/rects.json --pin a1b2c3d4 --ops -
+maude design annotate "ui/Checkout.tsx" --rects "$TMPDIR/rects.json" --pin a1b2c3d4 --ops -
 ```
 
 ### Ops vocabulary (typed, never raw file content)

@@ -14,6 +14,7 @@ import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { parseArgs } from '../lib/argv.mjs';
 import { outputViolation, violationMessage } from '../lib/confine-out.mjs';
+import { readViolation, readViolationMessage } from '../lib/confine-read.mjs';
 import { rootViolation, rootViolationMessage } from '../lib/confine-root.mjs';
 import { DESIGN_VERB_TIERS_HELP } from '../lib/design-help.gen.mjs';
 import {
@@ -262,6 +263,13 @@ export async function run({ args, pkgRoot }) {
     const elsewhere = rootViolation(args);
     if (elsewhere) {
       process.stderr.write(rootViolationMessage(sub, elsewhere));
+      process.exit(2);
+    }
+    // V2-8.9 H2 — in the Maude chat, a verb that reads a path it is given reads only inside the
+    // chat's read boundary (the project, Maude's own folders, the folders attached to this chat).
+    const unread = readViolation(sub, args.slice(args.indexOf(sub) + 1));
+    if (unread) {
+      process.stderr.write(readViolationMessage(sub, unread));
       process.exit(2);
     }
   }

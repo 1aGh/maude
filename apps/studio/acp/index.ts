@@ -16,7 +16,7 @@ import { projectVisibility } from '../access/filters.ts';
 import { knownCanvasesFor } from '../access/known-canvases.ts';
 import { resolveAccess } from '../access/scope.ts';
 import { isCanvasFile } from '../activity.ts';
-import { chatReadRootsFor, readOnlyRootsFor } from '../ai/attach-grants.ts';
+import { chatReadRootsFor, grantsFileFor, readOnlyRootsFor } from '../ai/attach-grants.ts';
 import {
   ASK_ID_RE,
   type ElementRef,
@@ -672,6 +672,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
           { projectRoot: ctx.paths.repoRoot, designRoot: ctx.paths.designRoot },
           chatId
         ),
+      // V2-8.9 H2 — the same store, read live by the source-reading maude verbs (MAUDE_GRANTS_FILE).
+      grantsFile: grantsFileFor(ctx.paths.repoRoot),
       // S8.10 — a Handoff to production chat writes its target file only (handoff/write-scopes.ts).
       writeOnlyRoots: () => runWriteScope(chatId),
       // V2-8.9 H1 — a write that carries a file this chat read to someone who cannot see it asks.

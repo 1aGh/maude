@@ -37,8 +37,8 @@ A missing annotations file prints `"elements": []` (exit 0). A file that is over
 **Example — understanding a sketch with full context:**
 
 ```bash
-maude design canvas-rects "ui/Checkout.tsx" --root "$REPO" > /tmp/rects.json
-maude design read-annotations "ui/Checkout.tsx" --root "$REPO" --rects /tmp/rects.json
+maude design canvas-rects "ui/Checkout.tsx" --root "$REPO" > "$TMPDIR/rects.json"
+maude design read-annotations "ui/Checkout.tsx" --root "$REPO" --rects "$TMPDIR/rects.json"
 # → { "untrusted": "…", "elements": [{ "id": "s_x", "type": "sticky", "box": [620, 410, 200, 200],
 #      "text": "make this bigger", "artboard": "cart-step",
 #      "element": { "cdId": "a1b2c3d4", "selector": "…", "tag": "button", "text": "Continue" } }] }
