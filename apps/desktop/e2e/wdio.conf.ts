@@ -20,6 +20,7 @@ import { browser } from '@wdio/globals';
 import {
   baselineFixtureTree,
   releaseFixtureTree,
+  resetFixtureRuntime,
   restoreFixtureTree,
 } from './helpers/fixture-tree';
 import { pinCurrentWindow } from './helpers/windows';
@@ -259,6 +260,8 @@ export const config: WebdriverIO.Config = {
     // …and a pristine fixture project: the specs share one, and the app itself writes it (version
     // restores, edits, moves) — see helpers/fixture-tree.ts.
     restoreFixtureTree();
+    // …and no runtime state from an earlier session (a trashed canvas, open tabs): `_*` is outside the tree restore.
+    if (!process.env.MAUDE_E2E_KEEP_STATE) resetFixtureRuntime();
     // The runner can install a newer Undici global dispatcher before WebDriver
     // loads its own copy. Mixing their header representations fails POST /session
     // with UND_ERR_INVALID_ARG (invalid content-length header) on Node 24.

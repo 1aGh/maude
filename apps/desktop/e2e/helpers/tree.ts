@@ -32,6 +32,9 @@ export async function ensureFilesTab(): Promise<void> {
     if (!w.__name) w.__name = (f: unknown) => f;
   });
   await browser.execute(() => {
+    // The left panel yields to a canvas that is being worked on: once an object is selected (or ⌘\ was pressed) it
+    // folds to the corner icon and every Files row is gone. A person brings it back from that icon — so does a spec.
+    document.querySelector<HTMLElement>('[data-testid="panel-icon-left"]')?.click();
     const tab = document.querySelector<HTMLElement>('[data-testid="panel-tab-tree"]');
     if (tab && tab.getAttribute('aria-selected') !== 'true') tab.click();
   });
