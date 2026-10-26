@@ -306,7 +306,7 @@ export function CommandPopover({ items, activeIndex, onPick, onHover }) {
 // textarea renders the same text, wrapping the leading command token in a pill —
 // but ONLY when that token is a command that exists (the badge gate). The mirror
 // MUST match the textarea's box model exactly (see .chat-input / .chat-input-mirror
-// in 6-acp-chat.css) or the pill drifts off the text.
+// in v2/ai/chat.css) or the pill drifts off the text.
 function HighlightedInput({ existsSet, attachmentsRef, onAttachChange, attach, multi, onMulti }) {
   const text = useComposer((c) => c.text);
   const mirrorRef = useRef(null);

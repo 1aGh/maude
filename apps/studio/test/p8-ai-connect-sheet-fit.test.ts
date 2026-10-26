@@ -21,7 +21,7 @@ const rule = (src: string, sel: string): string => {
 
 describe('Connect sheet fits the AI island', () => {
   const needs = css('v2/ai/needs-you.css');
-  const chat = css('styles/6-acp-chat.css');
+  const chat = css('v2/ai/chat.css');
 
   test('the slot yields to the composer instead of pushing it out', () => {
     const slot = rule(needs, '.ai-nc-slot');
