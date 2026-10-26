@@ -167,6 +167,7 @@ import {
 import { resolveInk } from './annotations/ui/tool-prefs.ts';
 import {
   eraseTargetIndex,
+  readChromeTheme,
   useCanvasChromeTheme,
   useToolState,
 } from './annotations/ui/tool-state.ts';
@@ -1152,6 +1153,8 @@ export function AnnotationsLayer() {
         prefersReducedMotion,
         () => getLiveViewport()?.zoom ?? 1
       ),
+      // read at every frame: the theme can flip between two drags
+      defaultInk: () => resolveDefaultInk(readChromeTheme()),
       schedule: (fn) => requestAnimationFrame(fn),
     });
     rideRef.current = ctl;

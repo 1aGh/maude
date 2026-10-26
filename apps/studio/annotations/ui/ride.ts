@@ -29,6 +29,7 @@
 
 import { arrowPrimitives, type SvgPrimitive } from '../../canvas-arrowheads.ts';
 import { artboardMembers } from '../artboard-members.ts';
+import { DEFAULT_INK } from '../constants.ts';
 import { parseHostRef } from '../elements/_shared.ts';
 import { type CanvasHostBind, type HostBox, type HostRects, hostEndpoint } from '../hosts.ts';
 import type { Op } from '../ops.ts';
@@ -430,6 +431,12 @@ export interface RideDeps {
   labelOf(artboardId: string): string;
   router: ArrowRouter;
   sink: RideSink;
+  /**
+   * The theme's default ink (a hex the annotation model resolves — `resolveDefaultInk(theme)` in the
+   * layer). The live route is drawn in an arrow's own colour, but an arrow that stored none, or the
+   * light canvas's black, follows the theme so it still reads on a dark canvas.
+   */
+  defaultInk?: () => string;
   /** Schedules the settle ticks (rAF in the layer). */
   schedule(fn: () => void): void;
   /** How long the overlay waits for the committed board before it lets go (ms). */
@@ -579,14 +586,16 @@ export function createRideController(deps: RideDeps): RideController {
             at: { x: (g.a.x + g.b.x) / 2, y: (g.a.y + g.b.y) / 2 },
           };
       }
-      const prims = g.elbow ? polylinePrims(points, g.el) : primsFor(g.el, g.a, g.b);
+      const ink = rideInk(g.el, deps.defaultInk?.());
+      const inked = { ...g.el, color: ink };
+      const prims = g.elbow ? polylinePrims(points, inked) : primsFor(inked, g.a, g.b);
       const bubbleAt = tag && mode === 'drag' ? routeBubbleAt(points) : null;
       deps.sink.arrow(
         {
           id,
           points,
           prims,
-          color: typeof g.el.color === 'string' ? g.el.color : '#1a1a1a',
+          color: ink,
           width: typeof g.el.width === 'number' ? g.el.width : 2,
           tag,
           route: bubbleAt ? { text: ROUTE_BUBBLE, at: bubbleAt } : null,
@@ -667,6 +676,17 @@ export function createRideController(deps: RideDeps): RideController {
   };
 }
 
+/**
+ * The ink the live route is drawn in: the arrow's own colour, except that no colour at all, or the
+ * default black of a light canvas, takes the theme's default ink (`themed`) — the same ink a freshly
+ * drawn arrow gets on this canvas. A colour somebody picked is theirs in every theme.
+ */
+export function rideInk(el: AnnotationElement, themed?: string): string {
+  const own = typeof el.color === 'string' ? el.color : null;
+  const isDefault = own === null || /^#(1f1f1f|1a1a1a)$/i.test(own);
+  return isDefault && themed ? themed : (own ?? DEFAULT_INK);
+}
+
 export function primsFor(el: AnnotationElement, a: Point, b: Point): SvgPrimitive[] {
   return arrowPrimitives({
     x1: a.x,
@@ -674,7 +694,7 @@ export function primsFor(el: AnnotationElement, a: Point, b: Point): SvgPrimitiv
     x2: b.x,
     y2: b.y,
     width: typeof el.width === 'number' ? el.width : 2,
-    color: typeof el.color === 'string' ? el.color : '#1a1a1a',
+    color: typeof el.color === 'string' ? el.color : DEFAULT_INK,
     ...(typeof el.startHead === 'string' ? { startHead: el.startHead } : {}),
     ...(typeof el.endHead === 'string' ? { endHead: el.endHead } : {}),
     ...(el.dashed === true ? { dashed: true } : {}),
@@ -776,7 +796,14 @@ export function createDomRideSink(
   /** The canvas zoom: the two chips are world-space nodes and keep their screen size by counter-scaling. */
   zoom: () => number = () => 1
 ): RideSink {
-  const unscale = () => 1 / Math.max(zoom(), 0.01);
+  // The world carries the zoom it is drawn at (`--dc-zoom`, written by canvas-lib on every frame);
+  // that is the truth the chips sit under. The injected getter (the live-viewport mirror) only
+  // answers when the world has not been stamped, so a stale mirror cannot leave a chip at world size.
+  const zoomNow = (): number => {
+    const v = Number.parseFloat(world()?.style.getPropertyValue('--dc-zoom') ?? '');
+    return v > 0 ? v : zoom();
+  };
+  const unscale = () => 1 / Math.max(zoomNow(), 0.01);
   const touched = new Set<HTMLElement>();
   const groups = new Map<string, SVGGElement>();
   const tags = new Map<string, HTMLElement>();

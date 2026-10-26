@@ -77,7 +77,7 @@ interface Calls {
   clears: number;
 }
 
-function setup(board: AnnotationElement[] = BOARD) {
+function setup(board: AnnotationElement[] = BOARD, defaultInk?: () => string) {
   const calls: Calls = { translate: [], hide: [], arrows: [], clears: 0 };
   const sink: RideSink = {
     translate: (id, dx, dy) => void calls.translate.push([id, dx, dy]),
@@ -105,6 +105,7 @@ function setup(board: AnnotationElement[] = BOARD) {
     labelOf: (id) => LABELS[id] ?? id,
     router,
     sink,
+    ...(defaultInk ? { defaultInk } : {}),
     schedule: (fn) => void queue.push(fn),
     setTimer: (fn) => {
       timers.push(fn);
@@ -156,6 +157,26 @@ describe('live re-route while the artboard is dragged', () => {
     // p8-r11-15 (an-follow): …and, while the artboard is still in hand, the bubble that says what letting go does.
     expect(last.a.route?.text).toBe('Let go — the shortest clean path');
     expect(h.modes.every((m) => m === 'drag')).toBe(true);
+  });
+
+  test("p8-r12-15: the live route is drawn in the theme's default ink, never the light-canvas literal (dark: #ededed)", () => {
+    const ink = (board: AnnotationElement[], themed: string) => {
+      const h = setup(board, () => themed);
+      h.ctl.onFrame(frame('start', 0, 0));
+      h.ctl.onFrame(frame('move', 1000, -1000));
+      return (h.calls.arrows.at(-1) as { a: LiveArrow }).a;
+    };
+    const arw = BOARD[2] as AnnotationElement;
+    // an arrow with no stored colour, and one that stored the palette's black: both follow the theme
+    for (const stored of [{}, { color: '#1f1f1f' }]) {
+      const a = ink([...BOARD.slice(0, 2), { ...arw, ...stored }], '#ededed');
+      expect(a.color).toBe('#ededed');
+      // the heads carry the same ink - nothing of the literal survives in the primitives
+      expect(JSON.stringify(a.prims)).not.toMatch(/#1f1f1f|#1a1a1a/i);
+    }
+    // a colour somebody picked is theirs in every theme
+    const picked = ink([...BOARD.slice(0, 2), { ...arw, color: '#3b82f6' }], '#ededed');
+    expect(picked.color).toBe('#3b82f6');
   });
 
   test('p8-r11-15: the let-go bubble is a drag-only hint — the settled route has none', () => {
@@ -292,6 +313,33 @@ describe('the DOM sink', () => {
     expect(bubble.style.transform).toContain('scale(4)');
     // 8 screen px above the point at 25 % = 32 world px
     expect(bubble.style.transform).toContain('calc(-100% - 32px)');
+    sink.clear();
+  });
+
+  test('p8-r12-15: the chips read the zoom off the world they sit in, so a stale getter cannot leave them at world size', () => {
+    const world = mountWorld();
+    world.style.setProperty('--dc-zoom', '0.26'); // what canvas-lib writes on every frame
+    const sink = createDomRideSink(
+      () => world,
+      () => false,
+      () => 1 // the stale answer (no live-viewport mirror yet on the first drag)
+    );
+    sink.arrow(
+      {
+        ...live('arw', { text: 'the straight line would cross Mobile', at: { x: 5, y: 5 } }),
+        route: { text: 'Let go — the shortest clean path', at: { x: 7, y: 3 } },
+      },
+      'drag'
+    );
+    const scaleOf = (id: string): number => {
+      const m = /scale\(([\d.]+)\)/.exec(
+        (world.querySelector(`[data-testid="${id}"]`) as HTMLElement).style.transform
+      );
+      return Number(m?.[1]);
+    };
+    // 12 px type at 26 % shows as ~3 px; the counter-scale brings it back to ~12 px
+    expect(12 * 0.26 * scaleOf('annot-cross-tag')).toBeCloseTo(12, 0);
+    expect(12 * 0.26 * scaleOf('annot-route-tag')).toBeCloseTo(12, 0);
     sink.clear();
   });
 
