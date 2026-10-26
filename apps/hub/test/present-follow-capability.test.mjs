@@ -192,7 +192,9 @@ describe('the follow capability', () => {
   // shell of a canvas-only session opens each canvas it holds through this ask.
   test('a canvas-only session: A’s capability is A only; a plain or malformed ask gets nothing', async () => {
     const { proxy, forwarded } = makeProxy();
-    const a = verifyToken((await config(proxy, forwarded, A_ONLY, followUrl(A))).headers[`${H}canvas-token`]);
+    const a = verifyToken(
+      (await config(proxy, forwarded, A_ONLY, followUrl(A))).headers[`${H}canvas-token`]
+    );
     assert.equal(a.ok, true);
     assert.equal(a.follow, A);
     assert.equal(a.readOnly, true);
