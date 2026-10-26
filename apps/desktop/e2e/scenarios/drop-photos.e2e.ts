@@ -101,13 +101,16 @@ const dragPhotos = (n: number, phase: 'over' | 'drop', bare = false) =>
         g.fillRect(0, 0, 8, 8);
         urls.push(c.toDataURL('image/png'));
         const blob = await new Promise<Blob>((r) => c.toBlob((b) => r(b as Blob), 'image/png'));
-        files.push(new File([blob], `IMG_${i}.png`, { type: 'image/png' }));
+        // the frame's own File / DataTransfer, as a real Finder drop hands over: a File built in the shell's realm fails the
+        // canvas's `instanceof Blob` (asset-upload.ts bodyOf) and the upload throws before any /_api call (r2–r5 "(none)")
+        const W = win as unknown as { File: typeof File; DataTransfer: typeof DataTransfer };
+        files.push(new W.File([blob], `IMG_${i}.png`, { type: 'image/png' }));
       }
       const body = doc.querySelector('.dc-artboard-body') as HTMLElement;
       const r = body.getBoundingClientRect();
       const x = off ? 3 : r.left + r.width / 2;
       const y = off ? 3 : r.top + 6;
-      const dt = new DataTransfer();
+      const dt = new (win as unknown as { DataTransfer: typeof DataTransfer }).DataTransfer();
       for (const f of files) dt.items.add(f);
       const at = { bubbles: true, cancelable: true, clientX: x, clientY: y, dataTransfer: dt };
       const target = (off ? doc.body : body) as HTMLElement;

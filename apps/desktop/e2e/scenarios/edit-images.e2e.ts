@@ -267,12 +267,19 @@ describe('images, crop and the Figma paste bar (S2.15)', () => {
 
   it('a Figma copy with a picture lands as Figma’s exact picture; the bar says so and offers no Make editable', async () => {
     const report = startReport('edit-images-figma');
-    await inFrame((doc) => {
+    await inFrame((doc, win) => {
+      // the frame's own DataTransfer / File / ClipboardEvent, as a real paste hands over: a File from the shell's realm
+      // fails the canvas's `instanceof Blob` (asset-upload.ts bodyOf) and the upload throws before any /_api call
+      const W = win as unknown as {
+        DataTransfer: typeof DataTransfer;
+        File: typeof File;
+        ClipboardEvent: typeof ClipboardEvent;
+      };
       const meta = btoa(
         JSON.stringify({ fileKey: 'AbC123xyz', pasteID: 1, dataType: 'scene', name: 'Hero / v3' })
       );
       const html = `<span data-metadata="<!--(figmeta)${meta}(/figmeta)-->"></span><span data-buffer="<!--(figma)AA==(/figma)-->"></span>`;
-      const dt = new DataTransfer();
+      const dt = new W.DataTransfer();
       dt.setData('text/html', html);
       const png = Uint8Array.from(
         atob(
@@ -280,9 +287,9 @@ describe('images, crop and the Figma paste bar (S2.15)', () => {
         ),
         (c) => c.charCodeAt(0)
       );
-      dt.items.add(new File([png], 'hero.png', { type: 'image/png' }));
+      dt.items.add(new W.File([png], 'hero.png', { type: 'image/png' }));
       doc.dispatchEvent(
-        new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })
+        new W.ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })
       );
     });
     await browser.waitUntil(async () => source().includes('data-source="figma"'), {
