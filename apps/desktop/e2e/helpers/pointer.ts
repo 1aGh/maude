@@ -93,6 +93,60 @@ export const pointerMove = (x: number, y: number) => run('move', x, y);
 export const pointerUp = (x: number, y: number) => run('up', x, y);
 
 /**
+ * A window point on an artboard's NAME (its label strip — a click there selects the whole artboard) that nothing of
+ * the shell covers. "box.y - 10 at box.x + 12" lands on the project pill or a panel when the camera has fitted the
+ * artboard against the window's top edge; this walks the label left to right and returns the first point where the
+ * top document hits the canvas frame and the canvas hits the label. When the whole label is covered it pans the
+ * canvas down (a wheel on the canvas) and tries again. Null when it never comes clear.
+ */
+export async function artboardLabelPoint(id: string): Promise<{ x: number; y: number } | null> {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const p = (await browser.execute((artboard) => {
+      const frame = document.querySelector(
+        '[data-testid="canvas-frame"]'
+      ) as HTMLIFrameElement | null;
+      const doc = frame?.contentDocument;
+      if (!frame || !doc) return null;
+      const f = frame.getBoundingClientRect();
+      const label = doc.querySelector(`[data-dc-screen="${artboard}"] .dc-artboard-label`);
+      if (!label) return null;
+      const r = label.getBoundingClientRect();
+      const y = Math.round(f.top + r.top + r.height / 2);
+      for (let x = f.left + r.left + 6; x < f.left + r.right - 4; x += 8) {
+        if (document.elementFromPoint(x, y) !== frame) continue;
+        const inner = doc.elementFromPoint(x - f.left, y - f.top);
+        if (inner && (inner === label || label.contains(inner))) return { x: Math.round(x), y };
+      }
+      return null;
+    }, id)) as { x: number; y: number } | null;
+    if (p) return p;
+    // covered: move the canvas down and to the right a little, the way a trackpad scroll does
+    await browser.execute(() => {
+      const frame = document.querySelector(
+        '[data-testid="canvas-frame"]'
+      ) as HTMLIFrameElement | null;
+      const doc = frame?.contentDocument;
+      const win = frame?.contentWindow as (Window & typeof globalThis) | null | undefined;
+      const target = doc?.querySelector('.dc-canvas') ?? doc?.body;
+      if (!frame || !target || !win) return;
+      const r = frame.getBoundingClientRect();
+      target.dispatchEvent(
+        new win.WheelEvent('wheel', {
+          bubbles: true,
+          cancelable: true,
+          deltaX: -60,
+          deltaY: -90,
+          clientX: r.width / 2,
+          clientY: r.height / 2,
+        })
+      );
+    });
+    await browser.pause(400);
+  }
+  return null;
+}
+
+/**
  * A window point over BARE canvas — under it the top document has the canvas frame (no shell island, panel or
  * Inspector floats there) and the canvas has no artboard. A "click on empty canvas" at a fixed offset from an
  * artboard lands on whatever the shell put there (the Inspector the selection itself opened), so it never
@@ -100,7 +154,9 @@ export const pointerUp = (x: number, y: number) => run('up', x, y);
  */
 export function bareCanvasPoint(near: { x: number; y: number; w: number; h: number }) {
   return browser.execute((b) => {
-    const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement | null;
+    const frame = document.querySelector(
+      '[data-testid="canvas-frame"]'
+    ) as HTMLIFrameElement | null;
     const doc = frame?.contentDocument;
     if (!frame || !doc) return null;
     const f = frame.getBoundingClientRect();

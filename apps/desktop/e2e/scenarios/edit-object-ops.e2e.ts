@@ -164,6 +164,12 @@ describe('object ops on a canvas (S2.6)', () => {
       async () => {
         if (!/data-cd-locked/.test(source())) return true;
         await browser.execute(() => {
+          // the left dock folds to its corner icon once an object is selected: bring it back first
+          if (!document.querySelector('[data-testid="panel-tab-layers"]'))
+            document.querySelector<HTMLElement>('[data-testid="panel-icon-left"]')?.click();
+        });
+        await browser.pause(250);
+        await browser.execute(() => {
           // Layers is a tab of the left dock (Files · Layers · Assets)
           if (!document.querySelector('.sh-layer'))
             document.querySelector<HTMLElement>('[data-testid="panel-tab-layers"]')?.click();

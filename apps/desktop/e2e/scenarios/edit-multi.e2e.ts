@@ -196,9 +196,52 @@ describe('multi-select, align and rotate (S2.7)', () => {
     await browser.waitUntil(async () => (await rectOf('ZAPIŠ SE')) !== null, { timeout: 15000 });
     const p = await rectOf('ZAPIŠ SE');
     await click(p!.x, p!.y);
-    await browser.waitUntil(async () => (await chromeAt('edit-rotate-handle')) !== null, {
-      timeout: 6000,
-    });
+    // P8 C5 (14 R3, "no marks at rest"): the handle shows only while the pointer is by the selection's
+    // bottom-right corner — bring the pointer there, the way a person reaches for it
+    const reach = () =>
+      browser.execute(() => {
+        const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+        const win = frame.contentWindow as Window & typeof globalThis;
+        const el = (frame.contentDocument as Document).querySelector('[data-cd-id="mx-btn"]');
+        const r = el?.getBoundingClientRect();
+        if (!r) return;
+        win.dispatchEvent(
+          new win.PointerEvent('pointermove', {
+            bubbles: true,
+            clientX: r.right + 14,
+            clientY: r.bottom + 14,
+          })
+        );
+      });
+    try {
+      await browser.waitUntil(
+        async () => {
+          await reach();
+          return (await chromeAt('edit-rotate-handle')) !== null;
+        },
+        { timeout: 6000 }
+      );
+    } catch {
+      const state = await browser.execute(
+        (px, py) => {
+          const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+          const d = frame.contentDocument as Document;
+          const hit = d.elementFromPoint(px, py);
+          const h = d.querySelector('[data-testid="edit-rotate-handle"]')?.getBoundingClientRect();
+          return {
+            hit:
+              hit?.getAttribute('data-testid') ?? hit?.getAttribute('data-cd-id') ?? hit?.tagName,
+            count: d.querySelector('[data-testid="edit-align-count"]')?.textContent ?? null,
+            handle: h ? [Math.round(h.left), Math.round(h.top), Math.round(h.width)] : null,
+            at: [Math.round(px), Math.round(py)],
+            view: [frame.clientWidth, frame.clientHeight],
+          };
+        },
+        p!.x,
+        p!.y
+      );
+      throw new Error(`no rotate handle on one selected object ${JSON.stringify(state)}`);
+    }
     const handle = (await chromeAt('edit-rotate-handle'))!;
     // swing the handle 32° about the object's centre, with ⇧: lands on 30°
     const dx = handle.x - p!.x;
