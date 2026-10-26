@@ -10,9 +10,15 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { useFakeAi } from './helpers/fake-ai';
 import { config as base } from './wdio.conf';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+
+// Make three directions SENDS the brief as the person's own message (use-ask-ai.js, origin ds-make): the run must
+// reach the scripted fake agent (it answers "ok."), never a real `claude` — the spec plays the agent's writes itself
+// through /_api/ds/make.
+useFakeAi();
 
 // Evaluated twice (launcher, then worker): copy ONCE, in the launcher, so the spec reads the project the app opened.
 if (!process.env.MAUDE_E2E_DS_MAKE_ROOT) {

@@ -83,16 +83,34 @@ async function openCanvas(slug: 'export' | 'video' | 'print'): Promise<void> {
  * sheet draws one for `id`, else pick it from Other….
  */
 async function pickFormat(id: string): Promise<void> {
-  const inSection = await browser.execute((f: string) => {
-    const b = Array.from(
-      document.querySelectorAll<HTMLElement>(`[data-testid="export-format-${f}"]`)
-    ).find((el) => !el.closest('[data-testid="export-other-menu"]'));
-    b?.click();
-    return !!b;
-  }, id);
-  if (inSection) return;
-  await (await $('[data-testid="export-other"]')).click();
-  await (await $(`[data-testid="export-other-menu"] [data-testid="export-format-${id}"]`)).click();
+  // The section settles a beat after the sheet opens (it can still show the previous canvas's kind, or nothing): a
+  // format the section owns is never listed under Other…, so a decision taken on the unsettled section opened Other…
+  // and found no row. Look again until the format is either a section button or an Other… row, and press it there.
+  await browser.waitUntil(
+    async () => {
+      const where = (await browser.execute((f: string) => {
+        const all = Array.from(
+          document.querySelectorAll<HTMLElement>(`[data-testid="export-format-${f}"]`)
+        );
+        const section = all.find((el) => !el.closest('[data-testid="export-other-menu"]'));
+        if (section) {
+          section.click();
+          return 'section';
+        }
+        const row = all.find((el) => !!el.closest('[data-testid="export-other-menu"]'));
+        if (row) {
+          row.click();
+          return 'other';
+        }
+        // not drawn yet: open Other… (closed) so its rows can be read on the next look
+        if (!document.querySelector('[data-testid="export-other-menu"]'))
+          document.querySelector<HTMLElement>('[data-testid="export-other"]')?.click();
+        return null;
+      }, id)) as string | null;
+      return where !== null;
+    },
+    { timeout: 15_000, interval: 500, timeoutMsg: `the sheet never offered ${id}` }
+  );
 }
 
 /** Open the Export dialog. ⌘⇧E is a shell `window` listener, and the canvas

@@ -199,12 +199,14 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     await capture('Settings › Account — the plan from the cloud');
     await closeSettings();
 
-    // Back to a local folder so step 3's picker still connects from scratch.
-    const detached = await browser.execute(async () => {
-      const r = await fetch('/_api/cloud/detach', { method: 'POST' });
-      return r.status;
-    });
-    expect(detached).toBe(200);
+    // Back to a local folder so step 3's picker still connects from scratch — the way a person does it, the linked
+    // row's Disconnect in Settings › Connections (`connections.cloud-project-disconnect` → POST /_api/cloud/detach).
+    // A detach posted from the page behind the panel's back left the panel's own link state on "Connected", so
+    // step 3 read "Stub Project · Connected · Disconnect" where Connect should be.
+    await openConnections();
+    const disconnect = await $('[data-testid^="cloud-disconnect-"]');
+    await disconnect.waitForDisplayed({ timeout: 15_000 });
+    await disconnect.click();
     await browser.waitUntil(() => !JSON.parse(readFileSync(FIXTURE_CONFIG, 'utf8')).linkedHub, {
       timeout: 20_000,
       timeoutMsg: 'detach left linkedHub in the fixture',

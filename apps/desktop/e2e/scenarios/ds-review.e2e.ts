@@ -379,8 +379,9 @@ part('4')(
         readFileSync(join(ROOT4, '.design', 'system', sysDir(), 'design-system.tsx'), 'utf8')
       ).toContain('ds-dir-a');
       // The brief is handed to AI (search-env.js sendToAskAI): parked as `{ text, origin, send }` until a chat composer
-      // takes it — and the AI chat, once mounted, takes it into its composer (use-ask-ai.js; with no Claude connected
-      // here it is filled, not sent). Read whichever holds it.
+      // takes it; the AI chat, once mounted, fills its composer AND — Make is a design-system origin (S10.16c) — sends it
+      // as the person's own message (use-ask-ai.js; this lane is on the scripted fake agent, wdio.ds-make.conf.ts).
+      // Read whichever holds it: parked, any composer, or the sent message in the thread.
       let handed = '';
       await browser.waitUntil(
         async () => {
@@ -388,10 +389,15 @@ part('4')(
             const p = (window as unknown as { __maudeAskAiPending?: { text?: string } | string })
               .__maudeAskAiPending;
             const parked = typeof p === 'string' ? p : (p?.text ?? '');
-            const box = document.querySelector<HTMLTextAreaElement>(
-              '[data-testid="chat-composer"] .chat-input'
+            const boxes = Array.from(
+              document.querySelectorAll<HTMLTextAreaElement>(
+                '[data-testid="chat-composer"] textarea.chat-input'
+              )
+            ).map((b) => b.value);
+            const sent = Array.from(document.querySelectorAll('.chat-msg--user')).map(
+              (m) => m.textContent ?? ''
             );
-            return parked || box?.value || '';
+            return [parked, ...boxes, ...sent].find((t) => t.includes('"""')) ?? '';
           })) as string;
           return handed !== '';
         },

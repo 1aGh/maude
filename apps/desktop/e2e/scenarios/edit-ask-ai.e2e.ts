@@ -2,7 +2,7 @@ import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
-import { waitForCanvasRects } from '../helpers/canvas-frame';
+import { waitForCanvasRects, waitForCanvasSettled } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -99,6 +99,8 @@ describe('⌘/ on a selection, in place (S2.19)', () => {
 
   async function selectThree(): Promise<void> {
     for (const [i, t] of ['Alfa', 'Beta', 'Gama'].entries()) {
+      // the first pick opens the Inspector and the camera eases aside: read each card where it IS once it stopped
+      await waitForCanvasSettled();
       const p = await rectOf(t);
       expect(p).not.toBeNull();
       await click(p!.x, p!.y, i > 0);

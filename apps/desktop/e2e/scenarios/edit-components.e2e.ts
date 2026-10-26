@@ -2,9 +2,10 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { browser, expect } from '@wdio/globals';
-import { waitForCanvasRects } from '../helpers/canvas-frame';
+import { waitForCanvasRects, waitForCanvasSettled } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { setSelect } from '../helpers/select';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 
@@ -292,10 +293,22 @@ describe('an instance: override, swap, reset, detach (S2.17)', () => {
     await browser.waitUntil(async () => (await $('[data-testid="canvas-frame"]')).isExisting(), {
       timeout: 15000,
     });
-    await inFrame((doc) => {
-      (doc.querySelector('[data-cd-id="cta"]') as HTMLElement).dispatchEvent(
-        new MouseEvent('click', { bubbles: true })
-      );
+    // A person's plain click AT the button: the router selects on pointerdown, by the pointer's position (a bare
+    // `click` event at 0,0 selects nothing — v2 input-router.tsx `onPointerDown`).
+    await waitForCanvasSettled();
+    await inFrame((doc, win) => {
+      const el = doc.querySelector('[data-cd-id="cta"]') as HTMLElement;
+      const r = el.getBoundingClientRect();
+      const at = {
+        bubbles: true,
+        cancelable: true,
+        clientX: r.left + r.width / 2,
+        clientY: r.top + r.height / 2,
+        button: 0,
+      };
+      const hit = doc.elementFromPoint(at.clientX, at.clientY) ?? el;
+      for (const t of ['pointerdown', 'pointerup', 'click'])
+        hit.dispatchEvent(new (win as any).MouseEvent(t, at));
     });
     await browser.waitUntil(
       async () => (await (await $('[data-testid="inspector-kind"]')).getText()) === 'Instance',
@@ -316,11 +329,15 @@ describe('an instance: override, swap, reset, detach (S2.17)', () => {
 
   it('another variant is ONE write: the words and the colour come along; ⌘Z takes it back', async () => {
     const before = source();
-    const select = await $('[data-testid="insp-variant-select"]');
-    const options = await select.$$('option');
-    const values = await Promise.all(options.map((o) => o.getAttribute('value')));
+    await $('[data-testid="insp-variant-select"]').waitForExist({ timeout: 8000 });
+    const values = (await browser.execute(() =>
+      Array.from(
+        document.querySelectorAll<HTMLOptionElement>('[data-testid="insp-variant-select"] option')
+      ).map((o) => o.value)
+    )) as string[];
     const other = values.find((v) => v && v !== 'primary') as string;
-    await select.selectByAttribute('value', other);
+    // the embedded WebDriver's option click does not select in WKWebView: the select's own change (helpers/select.ts)
+    expect(await setSelect('insp-variant-select', other)).toBe(true);
     await browser.waitUntil(async () => source().includes(`variant="${other}"`), { timeout: 8000 });
     expect(source()).toContain('REGISTRUJ SE');
     expect(source()).toContain('var(--accent)');
@@ -340,6 +357,15 @@ describe('an instance: override, swap, reset, detach (S2.17)', () => {
 
   it('Detach keeps the look as a plain frame: same classes, same id, same token reference, no import', async () => {
     const report = startReport('edit-components-detach');
+    // Detach writes the subtree the canvas RENDERS (component.detach params.tree): the ⌘Z above restored the file,
+    // and the frame re-renders a beat later — press Detach once the words are back on the canvas, as a person would.
+    await browser.waitUntil(
+      async () =>
+        inFrame((doc) =>
+          (doc.querySelector('[data-cd-id="cta"]')?.textContent ?? '').includes('REGISTRUJ SE')
+        ),
+      { timeout: 8000, timeoutMsg: 'the canvas never showed the restored words' }
+    );
     await (await $('[data-testid="insp-instance-detach"]')).click();
     await browser.waitUntil(async () => !source().includes('@maude/ds'), { timeout: 8000 });
     const out = source();

@@ -214,8 +214,18 @@ export function DsReviewHost({
   reloadRef.current = reloadTree;
   useEffect(() => {
     const again = () => reloadRef.current?.();
+    // ⌘Z / ⇧⌘Z on an Update moves the revisions back on the server (ds/undo-hook.ts) — and an undo is an action
+    // like any other, so the shell hears it as `maude:project-action` (app.jsx) with kind undo/redo: read again
+    const undone = (e) => {
+      const kind = e?.detail?.kind;
+      if (kind === 'undo' || kind === 'redo') again();
+    };
     window.addEventListener(DS_STATE_CHANGED, again);
-    return () => window.removeEventListener(DS_STATE_CHANGED, again);
+    window.addEventListener('maude:project-action', undone);
+    return () => {
+      window.removeEventListener(DS_STATE_CHANGED, again);
+      window.removeEventListener('maude:project-action', undone);
+    };
   }, []);
   // a canvas left out of an update: the elements that wear what changed get a dot (drawn by the canvas shell)
   useDsUpdateDots({
