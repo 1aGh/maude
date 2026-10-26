@@ -216,19 +216,20 @@
     const mark = stateMark(t);
     if (mark) el.appendChild(mark);
 
-    const close = document.createElement('button');
-    close.type = 'button';
+    // V2-8.7: the × is a POINTER affordance, not a control inside the tab — an ARIA tab may hold no focusable
+    // content (axe nested-interactive). Closing by keyboard is the tab menu (Shift+F10 / Menu → Close Tab) and ⌘W.
+    const close = document.createElement('span');
     close.className = 'close';
     close.setAttribute('data-testid', 'tab-close-' + t.label);
-    close.setAttribute('aria-label', 'Close ' + t.name);
+    close.setAttribute('aria-hidden', 'true');
     close.title = 'Close tab';
-    close.disabled = !!t.closing;
+    if (t.closing) close.setAttribute('data-closing', 'true');
     close.innerHTML =
       '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false">' +
       '<path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
     close.addEventListener('click', (ev) => {
       ev.stopPropagation();
-      closeTab(t.label);
+      if (!t.closing) closeTab(t.label);
     });
     close.addEventListener('mousedown', (ev) => ev.stopPropagation());
     close.addEventListener('pointerdown', (ev) => ev.stopPropagation());

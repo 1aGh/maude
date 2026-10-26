@@ -203,7 +203,7 @@ function PeopleList({ peers, presence, close, now, onPick }) {
   const ref = useRef(null);
   const onKeyDown = useMenuKeys(ref, 'button');
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: the keys rove the buttons inside (↑ ↓ Home End)
+    // biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useSemanticElements: the keys rove the buttons inside (↑ ↓ Home End); a labelled list of people, not a form fieldset
     <div
       ref={ref}
       className="st-pmenu st-plist island"

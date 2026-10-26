@@ -68,7 +68,7 @@ const CURSOR_CSS = `
   font-weight: 500;
   font-size: 10px;
   line-height: 1.4;
-  color: var(--maude-hud-accent-fg, oklch(0.180 0.030 268));
+  color: oklch(0.180 0.030 268);
   border-radius: 999px;
   white-space: nowrap;
   max-width: 180px;
@@ -114,7 +114,7 @@ const CURSOR_CSS = `
   font-weight: 600;
   font-size: 10px;
   line-height: 1.3;
-  color: var(--maude-hud-accent-fg, #fff);
+  color: oklch(0.180 0.030 268);
   border-radius: 2px 2px 0 0;
   white-space: nowrap;
 }

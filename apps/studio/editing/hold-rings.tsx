@@ -209,7 +209,7 @@ const CSS_TEXT = `
   padding: 1px 6px; border-radius: 3px; white-space: nowrap; max-width: 260px; overflow: hidden;
   text-overflow: ellipsis; font: 600 11px/16px system-ui, -apple-system, sans-serif;
 }
-.ed-hold-ring .ed-hold-tag { background: var(--ed-hold-c); color: var(--maude-hud-accent-fg, #fff); }
+.ed-hold-ring .ed-hold-tag { background: var(--ed-hold-c); color: oklch(0.18 0.03 268); }
 .ed-ai-hold--quiet .ed-hold-tag { display: none; }
 .ed-ai-hold .ed-hold-tag { background: var(--ed-hold-spark); color: var(--ed-hold-spark-fg); }
 .ed-ai-tip {

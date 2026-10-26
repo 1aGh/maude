@@ -108,6 +108,7 @@ export function BrowseView({
             </option>
           ))}
         </select>
+        {/* biome-ignore lint/a11y/useSemanticElements: a three-way size toggle, not a form fieldset */}
         <span className="lp-browse-size" role="group" aria-label="Size">
           {SIZES.map((s) => (
             <button
@@ -131,6 +132,7 @@ export function BrowseView({
           </p>
         ) : (
           runs.map((run) => (
+            // biome-ignore lint/a11y/useSemanticElements: a labelled day of tiles, not a form fieldset — a fieldset would bring its own border and min-width
             <div
               key={run.key}
               className="lp-browse-run"

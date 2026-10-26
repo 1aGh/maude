@@ -1608,7 +1608,7 @@ function HomeSearch({
         <kbd className="kbd">⌘K</kbd>
       </button>
       {open ? (
-        // biome-ignore lint/a11y/useKeyWithClickEvents: esc closes from the field; the veil click is the pointer door
+        // biome-ignore lint/a11y/noStaticElementInteractions: esc closes from the field; the veil click is the pointer door
         <div
           className="home-pal-veil"
           data-testid="home-search-veil"

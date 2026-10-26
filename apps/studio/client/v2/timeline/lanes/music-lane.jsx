@@ -100,6 +100,7 @@ export function MusicLaneOverlay({ info, x, speech, fps, finding, name }) {
         preserveAspectRatio="none"
         width="100%"
         height="100%"
+        aria-hidden="true"
       >
         {drawn.small ? (
           <path className="tl-beat-tick" d={drawn.small} data-testid="timeline-beat-ticks" />

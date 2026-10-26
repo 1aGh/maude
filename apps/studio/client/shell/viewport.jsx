@@ -148,7 +148,8 @@ export function Viewport({
           ? 'loading'
           : 'idle';
   return (
-    <div className="viewport st-stage" data-tour="viewport" data-canvas-state={canvasState}>
+    // V2-8.7 — the stage IS the page's main landmark (axe landmark-one-main: with no canvas open the shell had none)
+    <main className="viewport st-stage" data-tour="viewport" data-canvas-state={canvasState}>
       {previewPath && (
         // feature-studio-file-preview — an overlay, not a tab: the canvas
         // iframe (if any) stays mounted underneath so switching back to it
@@ -334,7 +335,7 @@ export function Viewport({
       )}
       {/* S1.15 — Compare two versions: over the canvas while a Compare rides on the Viewing hold */}
       <CompareHost cfg={cfg} />
-    </div>
+    </main>
   );
 }
 

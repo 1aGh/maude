@@ -78,6 +78,7 @@ export function CutAsCode({ canvas, seq, fps, canRead, fetchImpl, open = request
     <section className="tla-sec" data-testid="timeline-cut-as-code">
       <h3 className="tla-h">
         {ADV_WORDS.cutAsCode}
+        {/* biome-ignore lint/a11y/useSemanticElements: a segmented control, not a form fieldset */}
         <span className="tla-seg" role="group" aria-label={ADV_WORDS.cutAsCode}>
           {SEG.map((o) => (
             <button
@@ -94,7 +95,12 @@ export function CutAsCode({ canvas, seq, fps, canRead, fetchImpl, open = request
           ))}
         </span>
       </h3>
-      <pre className="tla-code" data-testid="timeline-cut-text" tabIndex={0}>
+      <pre
+        className="tla-code"
+        data-testid="timeline-cut-text"
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable code block must take focus so the keyboard can scroll it (axe scrollable-region-focusable)
+        tabIndex={0}
+      >
         {body}
       </pre>
       <p className="tla-note">

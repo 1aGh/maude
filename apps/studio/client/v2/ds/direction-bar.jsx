@@ -176,6 +176,7 @@ export function DirectionPanel({ id, ds, model, editable = true, onUse, onMix, o
           {open ? (
             <div className="ds-dirbar-menu" role="menu" data-testid="ds-dir-mix-menu">
               {others.map((o) => (
+                // biome-ignore lint/a11y/useSemanticElements: a labelled group of menu items, not a form fieldset
                 <div key={o.direction} className="ds-dirbar-grp" role="group">
                   <p className="ds-dirbar-gl">
                     From {upper(o.direction)} · {o.label}

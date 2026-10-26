@@ -67,6 +67,7 @@ export function ArtboardLayers({
         ) : null}
       </p>
       {list.length ? (
+        // biome-ignore lint/a11y/useSemanticElements: a labelled list of artboard rows, not a form fieldset
         <div className="ly2-list" role="group" aria-label="Artboards">
           {shown.map((b) => {
             const Icon = ICON[b.kind] ?? DigitalIcon;

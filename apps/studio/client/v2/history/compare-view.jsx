@@ -188,6 +188,7 @@ export function CompareView({ state, cfg, onMode, onFocus, onRetry }) {
         />
       </div>
       <div className="cmp-bar">
+        {/* biome-ignore lint/a11y/useSemanticElements: a two-way segmented control, not a form fieldset */}
         <span className="vh-seg cmp-seg" role="group" aria-label="How to compare">
           {[
             ['side', W.sideBySide],

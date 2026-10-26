@@ -466,6 +466,7 @@ export function PhotoSection({
         </p>
         <div className="ph-looks" role="radiogroup" aria-labelledby="photo-look-l">
           {LOOKS.map((l) => (
+            // biome-ignore lint/a11y/useSemanticElements: a look swatch with a checked state, drawn as a button
             <button
               key={l.id}
               type="button"

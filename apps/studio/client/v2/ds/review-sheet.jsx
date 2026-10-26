@@ -42,6 +42,7 @@ export const safeColour = (v) =>
 
 export function Tick({ state, disabled, label, testid, onToggle, path, folder }) {
   return (
+    // biome-ignore lint/a11y/useSemanticElements: a tri-state (mixed) tick drawn as a button — a native checkbox cannot take the kit's tick look
     <button
       type="button"
       role="checkbox"
@@ -301,6 +302,7 @@ export function DsReviewSheet({
             {grouped ? (
               <span className="dsr-by">{REVIEW_WORDS.byFolder}</span>
             ) : (
+              // biome-ignore lint/a11y/useSemanticElements: a before/after segmented control, not a form fieldset
               <span className="seg dsr-seg" role="group" aria-label="Show the canvases">
                 {['before', 'after'].map((v) => (
                   <button

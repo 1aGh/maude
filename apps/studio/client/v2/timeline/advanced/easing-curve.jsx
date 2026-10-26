@@ -128,6 +128,7 @@ export function EasingCurve({ info, from, to, name, canEdit, onWrite }) {
     read.kind === 'bezier' ? read.css : read.kind === 'other' ? read.text : 'linear';
   const line = info?.values ? valuesLine(info.values) : null;
   return (
+    // biome-ignore lint/a11y/useSemanticElements: a labelled curve editor (svg + readout), not a form fieldset
     <div
       className="tla-curve-wrap"
       role="group"
@@ -135,7 +136,8 @@ export function EasingCurve({ info, from, to, name, canEdit, onWrite }) {
       data-testid="timeline-easing"
     >
       <div className="tla-curve">
-        <svg ref={svgRef} viewBox="0 0 340 150" preserveAspectRatio="none" aria-hidden="false">
+        <svg ref={svgRef} viewBox="0 0 340 150" preserveAspectRatio="none">
+          <title>{ADV_WORDS.easing(name)}</title>
           <path
             className="tla-curve-grid"
             d="M0 37.5H340M0 75H340M0 112.5H340M85 0V150M170 0V150M255 0V150"

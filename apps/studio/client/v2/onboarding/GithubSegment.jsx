@@ -146,6 +146,7 @@ export function useGithubSegment({ profile, invoke, listen, openRoot, onDone, se
             {list.repos.map((r) => {
               const on = !isNew && !link.trim() && picked === r.fullName;
               return (
+                // biome-ignore lint/a11y/useSemanticElements: a repo row with a checked state, drawn as a list button
                 <button
                   key={r.fullName}
                   type="button"

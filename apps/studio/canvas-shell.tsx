@@ -3601,10 +3601,19 @@ function CanvasRouter({
     // `[data-cd-id]` element; canvas-shell owns the DOM/contentEditable side
     // of editing, so it's the one that must act on it.
     const onEnterTextEdit = (e: Event): void => {
-      const detail = (e as CustomEvent<{ el?: HTMLElement; clientX?: number; clientY?: number }>)
-        .detail;
+      const detail = (
+        e as CustomEvent<{
+          el?: HTMLElement;
+          clientX?: number;
+          clientY?: number;
+          selectAll?: boolean;
+        }>
+      ).detail;
       if (!detail?.el || !host.contains(detail.el)) return;
-      enterEditModeAt(detail.el, detail.clientX ?? 0, detail.clientY ?? 0);
+      // V2-8.7 — ↵ on a selected text arrives with selectAll (the keyboard door has no caret point)
+      enterEditModeAt(detail.el, detail.clientX ?? 0, detail.clientY ?? 0, {
+        selectAll: detail.selectAll === true,
+      });
     };
     // The shell rejected the last inline text edit — revert the optimistic
     // contenteditable text so the canvas reflects the true (unsaved) source

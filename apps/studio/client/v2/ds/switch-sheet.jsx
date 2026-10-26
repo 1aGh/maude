@@ -33,6 +33,7 @@ const GROUP_FROM = 12; // as many canvases as review-sheet groups by folder
 
 function Tick({ state, disabled, label, testid, onToggle, path, folder }) {
   return (
+    // biome-ignore lint/a11y/useSemanticElements: a tri-state (mixed) tick drawn as a button — a native checkbox cannot take the kit's tick look
     <button
       type="button"
       role="checkbox"
@@ -199,6 +200,7 @@ export function DsSwitchSheet({
             <span className="dss-scope-k" id="ds-switch-scope-k">
               {SWITCH_WORDS.scope}
             </span>
+            {/* biome-ignore lint/a11y/useSemanticElements: a segmented control, not a form fieldset */}
             <span
               className="seg dss-seg"
               role="group"

@@ -54,7 +54,7 @@ const CHROME_CSS = `
   font-size: 10px;
   line-height: 1;
   letter-spacing: 0.02em;
-  color: var(--maude-hud-accent-fg, #fff);
+  color: oklch(0.180 0.030 268);
   border: 1.5px solid var(--maude-chrome-bg-0, #fff);
   margin-left: -6px;
   cursor: pointer;

@@ -121,6 +121,7 @@ export function VideoPresent({
           data-testid="video-present-formats"
         >
           {formats.map((f) => (
+            // biome-ignore lint/a11y/useSemanticElements: a format option with a checked state, drawn as a button
             <button
               key={f.id}
               type="button"

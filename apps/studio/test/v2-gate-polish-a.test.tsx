@@ -50,6 +50,11 @@ async function mountViewport(props: Record<string, unknown> = {}) {
 }
 
 describe('the no-canvas empty state', () => {
+  test('landmark-one-main: the stage is the page’s main landmark, empty or not (V2-8.7)', async () => {
+    const el = await mountViewport();
+    expect(el.querySelector('main.viewport')).not.toBeNull();
+  });
+
   test('says one true thing in the contract’s words — canvas, never screen', async () => {
     const el = await mountViewport();
     const text = el.textContent ?? '';

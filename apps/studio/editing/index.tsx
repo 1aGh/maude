@@ -40,7 +40,7 @@ import {
 } from './edit-chrome-gate.tsx';
 import { EmptyArtboardReporter } from './empty-reporter.tsx';
 import { FinderDrop } from './finder-drop.tsx';
-import { KeyboardLayer, useKeyboardModality } from './focus-model.tsx';
+import { goInside, KeyboardLayer, useKeyboardModality } from './focus-model.tsx';
 import { GapBands } from './gap-bands.tsx';
 import { HoldRings } from './hold-rings.tsx';
 import { ImageDrop } from './image-drop.tsx';
@@ -73,7 +73,7 @@ import { PinGuides } from './place-freely.tsx';
 import { PlaceGhost } from './place-ghost.tsx';
 import { layoutOpsDeps, ReorderSlot } from './reorder-slot.tsx';
 import { RotateHandle } from './rotate-handle.tsx';
-import { EditingSelection, enterSelection, stampedParent, stepOut } from './selection.tsx';
+import { EditingSelection, stampedParent, stepOut } from './selection.tsx';
 import { INSERT_PRESET_ACTION, SizeGhost } from './size-ghost.tsx';
 import { StickyName } from './sticky-name.tsx';
 import { OrderBadges } from './tab-order.tsx';
@@ -223,9 +223,12 @@ export function EditingLayer() {
             })
           );
       } else if (m.id === 'object.enter') {
-        const one = selSet.selected.length === 1 ? selSet.selected[0] : null;
-        const next = one ? enterSelection(document, one) : null;
-        if (next) selSet.replace(next);
+        // V2-8.7 — inside a frame, or (a text has nothing to go inside) typing in it; the ↵ key runs the same
+        const went = goInside(document, selSet.selected, selSet.replace);
+        if (went === 'code')
+          showCanvasToast(
+            'This text is filled in from code (a variable) — edit it via chat or /design:edit.'
+          );
       }
     };
     window.addEventListener('message', onMessage);

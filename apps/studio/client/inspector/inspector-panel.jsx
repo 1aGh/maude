@@ -652,12 +652,13 @@ export function InspectorPanel({
         'st-rpanel' + (layersOnly ? '' : ' st-rpanel--insp') + (resizing ? ' is-resizing' : '')
       }
       style={width ? { width, flexBasis: width } : undefined}
-      aria-label="Inspector"
+      aria-label={layersOnly ? 'Layers' : 'Inspector'}
       data-tour="inspector"
       data-testid={testId}
     >
       {showViews ? (
         <div className="st-rp-views" data-tour="inspector-tabs">
+          {/* biome-ignore lint/a11y/useSemanticElements: a two-view segmented control, not a form fieldset */}
           <span className="seg k-in-seg" role="group" aria-label="Inspector view">
             {tabBtn('css', kindChipOf(selected) || 'Object')}
             {tabBtn('photo', 'Photo')}

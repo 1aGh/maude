@@ -89,6 +89,7 @@ export default function VoteSheet({ state, onStart, onClose }) {
   };
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: the scrim closes the sheet on a press outside it; Cancel is the keyboard path
     <div
       className="an-vsheet-scrim"
       data-testid="vote-sheet"

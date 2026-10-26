@@ -126,6 +126,7 @@ export function RelinkSheet({ from, canvas, onClose, relink = relinkWithFile, un
     setMessage(r.message);
   };
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: the scrim closes the sheet on a press outside it; the Cancel button is the keyboard path
     <div
       className="st-scrim"
       role="presentation"

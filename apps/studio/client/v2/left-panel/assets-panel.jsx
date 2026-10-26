@@ -711,6 +711,7 @@ export function AssetsPanel({
   };
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: a file drop target is a pointer door; the Upload button is the keyboard path
     <div
       ref={rootRef}
       className="lp-assets"

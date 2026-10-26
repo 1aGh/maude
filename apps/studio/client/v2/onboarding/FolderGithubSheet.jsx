@@ -35,6 +35,7 @@ export function FolderGithubSheet({
         onSubmit={isGithub ? github.onOpen : onOpenFolder}
         onCancel={onCancel}
       >
+        {/* biome-ignore lint/a11y/useSemanticElements: a two-way segmented control, not a form fieldset */}
         <span className="ob-seg" role="group" aria-label="Where it is">
           <button
             type="button"

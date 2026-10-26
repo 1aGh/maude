@@ -153,6 +153,7 @@ export function BatchSection({ state, set, est, setFormat, pictures }) {
   const big = bigWords(est, { summary: summaryWords(est), hasVideo: kinds.includes('video') });
   return (
     <>
+      {/* biome-ignore lint/a11y/useSemanticElements: a labelled run of format groups, not a form fieldset */}
       <div
         className="ex-groups"
         data-testid="export-groups"

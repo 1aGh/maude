@@ -134,6 +134,7 @@ function Row({ row, selected, onPick }) {
 /** "Locked · Unlock ⇧⌘L" — the pill beside a locked selection. Exported for the canvas layer to reuse. */
 export function LockedToolbar({ onUnlock }) {
   return (
+    // biome-ignore lint/a11y/useSemanticElements: a labelled pill (text + button), not a form fieldset
     <span
       className="al-locked"
       role="group"
@@ -183,6 +184,7 @@ export function AnnotationList({
           {list.total}
         </span>
       </p>
+      {/* biome-ignore lint/a11y/useSemanticElements: a labelled run of toggle chips, not a form fieldset */}
       <div className="al-chips" role="group" aria-label="Show annotations by person">
         {list.chips.map((c) => (
           <button
