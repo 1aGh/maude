@@ -15246,7 +15246,7 @@
     "hook": "canvas-row-meta-<slug>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One short word at a canvas row's right, before its badges, published by a slice through `row-slots.js` (\"Needs you\", \"not sent\", \"sending\"). `data-tone` quiet/warn/azure, `data-source` ai/sync/access/trash. The Pinned copy uses `canvas-pinned-meta-<slug>`.",
+    "meaning": "One short word at a canvas row's right, before its badges, published by a slice through `row-slots.js` (\"Needs you\", \"not sent\", \"sending\"). `data-tone` quiet/warn/azure, `data-source` ai/sync/access/ds/trash (`ds`: the quiet \"update\" word on a canvas left out of a design-system update). The Pinned copy uses `canvas-pinned-meta-<slug>`.",
     "producer": {
       "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
       "symbol": "PanelCanvasRow"
