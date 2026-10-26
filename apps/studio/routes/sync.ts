@@ -107,10 +107,12 @@ export function createSyncRoutes(deps: SyncRouteDeps): RouteSpec[] {
       async handle(req) {
         // V2-8.9 defender M1 (decision maude/v2-8.9-sync-link-confirm-needs-fetch-metadata): Connect
         // hands this Mac's hub credential to the folder's hub, so it is the person's act in the
-        // Maude window — the cloud/move gate (routes/cloud-move.ts). Only a browser's own
-        // same-origin fetch carries `Sec-Fetch-Site: same-origin` (a page cannot set it); the
-        // loopback helper an AI session reaches does not (cli/lib/bash-guard.mjs `human-only`).
-        // Checked before access, the gate or the hub.
+        // Maude window — the cloud/move gate (routes/cloud-move.ts). A browser sets
+        // `Sec-Fetch-Site` itself and a page cannot forge it, so this stops cross-origin BROWSER
+        // pages (a canvas, a website). It is not a local boundary: any non-browser client on this
+        // Mac can send the header. Against the AI's own loopback helper the boundary is the
+        // curl-local permission card plus the bash guard (cli/lib/bash-guard.mjs `human-only`,
+        // V2-8.9 round 2 L-R2-1). Checked before access, the gate or the hub.
         if (req.headers.get('sec-fetch-site') !== 'same-origin') {
           return json(403, {
             ok: false,

@@ -255,8 +255,9 @@ export function createShareRoutes(deps: ShareRouteDeps): RouteSpec[] {
       if (gate) return refusal(gate);
       // V2-8.9 round 2 R2-M2 — a share write runs with this Mac's hub credential (an invite, an
       // anyone-link, an approved request): the person's act in the Maude window, like Connect
-      // (routes/sync.ts link confirm). Only the browser's own same-origin fetch carries this header;
-      // the loopback helper an AI session reaches is also refused by its bash guard (human-only).
+      // (routes/sync.ts link confirm). The header stops cross-origin browser pages (a page cannot
+      // forge it); any non-browser client on this Mac could send it, so against the AI the boundary
+      // is the curl-local card (it refuses to forge the header) plus the bash guard (human-only).
       if (method !== 'GET' && req.headers.get('sec-fetch-site') !== 'same-origin') {
         return json(403, {
           ok: false,
