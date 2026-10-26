@@ -5,7 +5,7 @@
 // `_sync.json` / `_state/` (a copied synced project re-links to the live cloud hub).
 //
 //   bun scripts/v2-index-bench.ts --root <copy> [--port 4797] [--skip-artboards] [--skip-assets]
-//                                 [--skip-versions] [--skip-covers] [--runs 5] [--only <regex>]
+//                                 [--skip-versions] [--skip-covers] [--whole-canvas] [--runs 5] [--only <regex>]
 //
 // --only <regex>: the cover pass asks for just the canvases whose rel matches (instead of the
 // background sweep) and prints the renderer's reply for every one that fails — the way to chase
@@ -186,10 +186,21 @@ try {
 
   // ------------------------------------------------------------ thumbnails
   const replies: Array<Record<string, unknown>> = [];
+  // --whole-canvas: the A/B control for version pictures — strip the `thumb-only` hint so the canvas
+  // mounts every artboard, as before V2-8.14
   const shim = () => {
     const h = spawnRendererShim();
     h.onMessage((m) => replies.push(m));
-    return h;
+    if (!flag('--whole-canvas')) return h;
+    return {
+      ...h,
+      send: (msg: Record<string, unknown>) =>
+        h.send(
+          typeof msg.url === 'string'
+            ? { ...msg, url: msg.url.replace(/&thumb-only=[^&]*/, '') }
+            : msg
+        ),
+    };
   };
   const ready: number[] = [];
   let t0 = performance.now();
