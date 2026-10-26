@@ -26137,6 +26137,22 @@
     "v2": "new"
   },
   {
+    "hook": "inspector-view-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The Inspector's two-view switch on a picture (`aria-pressed`): `<id>` is `css` (the object's own view, named by its kind) or `photo` (the Photo section for this one use). Only drawn when the selection is a picture.",
+    "producer": {
+      "file": "apps/studio/client/inspector/inspector-panel.jsx",
+      "symbol": "InspectorPanel"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/desktop/e2e/scenarios/photo-per-use.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "photo-light",
     "kind": "testid",
     "pattern": false,

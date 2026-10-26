@@ -121,9 +121,12 @@ const click = async (id: string) => {
   await browser.pause(700);
 };
 
-/** The Photo tab of the inspector (the tab strip's "Photo" button). */
+/**
+ * The Photo view of the inspector. On a picture the inspector draws a two-view switch — the object's own view and
+ * "Photo" (`inspector-view-photo`, inspector-panel.jsx `tabBtn`); the v1 tab strip (`.sh-rp-tab`) is gone from it.
+ */
 const openPhoto = async () => {
-  const tab = await $('button.sh-rp-tab=Photo');
+  const tab = await $('[data-testid="inspector-view-photo"]');
   await tab.waitForExist({ timeout: 8000 });
   await tab.click();
   await (await $('[data-testid="photo-section"]')).waitForExist({ timeout: 8000 });

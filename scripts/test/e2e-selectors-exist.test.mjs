@@ -67,7 +67,8 @@ function productCorpus() {
 export function dynamicHeads(corpus) {
   const heads = new Set();
   for (const m of corpus.matchAll(/([a-z][a-z0-9]*(?:-[a-z0-9]+)*-)\$\{/g)) heads.add(m[1]);
-  for (const m of corpus.matchAll(/['"]([a-z][a-z0-9]*(?:-[a-z0-9]+)*-)['"]\s*\+/g)) heads.add(m[1]);
+  for (const m of corpus.matchAll(/['"]([a-z][a-z0-9]*(?:-[a-z0-9]+)*-)['"]\s*\+/g))
+    heads.add(m[1]);
   return heads;
 }
 
@@ -96,11 +97,15 @@ export function selectorsIn(text, file = '') {
     }
     for (const m of line.matchAll(/data-tour=\\?["']?([A-Za-z0-9_${}.:-]+)/g)) add('tour', m[1], i);
     // the `tid('x')` / `canvasRow('x')` / `dsRow(...)` helpers specs define or share
-    for (const m of line.matchAll(/\b(?:tid|canvasRow|byTestId|testid)\(\s*(['"`])([A-Za-z0-9_${}.:<>-]+)\1/g)) {
+    for (const m of line.matchAll(
+      /\b(?:tid|canvasRow|byTestId|testid)\(\s*(['"`])([A-Za-z0-9_${}.:<>-]+)\1/g
+    )) {
       add('testid', m[2], i);
     }
     // class selectors inside a selector string: $('.x'), $$('button.x'), querySelector('…'), closest('…'), matches('…')
-    for (const m of line.matchAll(/(?:\$\$?|querySelector(?:All)?|closest|matches)\(\s*(['"`])((?:(?!\1).)*)\1/g)) {
+    for (const m of line.matchAll(
+      /(?:\$\$?|querySelector(?:All)?|closest|matches)\(\s*(['"`])((?:(?!\1).)*)\1/g
+    )) {
       const sel = m[2].replace(/\[[^\]]*\]/g, ' ');
       for (const c of sel.matchAll(/\.([A-Za-z_][A-Za-z0-9_-]*)/g)) {
         if (/^\d/.test(c[1])) continue;
@@ -117,14 +122,38 @@ export function selectorsIn(text, file = '') {
  */
 const ELSEWHERE = [
   // Asserted ABSENT — the spec names a retired hook to prove it is gone:
-  { file: 'scenarios/acp-cold-start.e2e.ts', name: 'acp-not-connected', why: 'asserted absent (the banner was retired)' },
-  { file: 'scenarios/onboarding.e2e.ts', name: 'onboarding-wizard', why: 'asserted absent (the wizard was retired for Home)' },
+  {
+    file: 'scenarios/acp-cold-start.e2e.ts',
+    name: 'acp-not-connected',
+    why: 'asserted absent (the banner was retired)',
+  },
+  {
+    file: 'scenarios/onboarding.e2e.ts',
+    name: 'onboarding-wizard',
+    why: 'asserted absent (the wizard was retired for Home)',
+  },
   // Planted by the spec itself, not by the product:
-  { file: 'scenarios/s20-deployment.e2e.ts', name: 's20-release-check', why: 'the slug of a throwaway canvas the spec writes' },
-  { file: 'multiplayer/surface.e2e.ts', name: 'surface-moved-media', why: 'markup of a canvas the spec seeds' },
-  { file: 'multiplayer/surface.e2e.ts', name: 'surface-dep', why: 'markup of a canvas the spec seeds' },
+  {
+    file: 'scenarios/s20-deployment.e2e.ts',
+    name: 's20-release-check',
+    why: 'the slug of a throwaway canvas the spec writes',
+  },
+  {
+    file: 'multiplayer/surface.e2e.ts',
+    name: 'surface-moved-media',
+    why: 'markup of a canvas the spec seeds',
+  },
+  {
+    file: 'multiplayer/surface.e2e.ts',
+    name: 'surface-dep',
+    why: 'markup of a canvas the spec seeds',
+  },
   // A diagnostic read whose answer may be `null`:
-  { file: 'scenarios/team-project.e2e.ts', name: 'sp-note', why: 'read into a report object; null is a valid answer' },
+  {
+    file: 'scenarios/team-project.e2e.ts',
+    name: 'sp-note',
+    why: 'read into a report object; null is a valid answer',
+  },
 ];
 
 const hooks = JSON.parse(readFileSync(join(ROOT, 'apps/studio/client/testids.json'), 'utf8'));
@@ -133,7 +162,9 @@ const heads = dynamicHeads(corpus);
 
 function hookExists({ kind, name, dynamic, prefixOnly }) {
   if (kind === 'class') {
-    return new RegExp(`(^|[^A-Za-z0-9_-])${name.replace(/[-]/g, '\\-')}([^A-Za-z0-9_-]|$)`).test(corpus);
+    return new RegExp(`(^|[^A-Za-z0-9_-])${name.replace(/[-]/g, '\\-')}([^A-Za-z0-9_-]|$)`).test(
+      corpus
+    );
   }
   if (kind === 'tour') return corpus.includes(name);
   // a literal anywhere in the product (JSX attribute, helper table, template head)…
@@ -162,7 +193,7 @@ test('the scan reads the selector forms specs use', () => {
   const s = selectorsIn(
     [
       `await $('[data-testid="kind-chip-video"]').click();`,
-      "await $$('[data-testid^=\"canvas-row-\"]');",
+      'await $$(\'[data-testid^="canvas-row-"]\');',
       'await $(`[data-testid="canvas-row-${slug}"]`);',
       "const row = await canvasRow('canvas-row-ui-smoke');",
       "await $('button.sh-rp-tab');",
@@ -182,10 +213,22 @@ test('the scan reads the selector forms specs use', () => {
 });
 
 test('a hook nothing produces is not found in the product', () => {
-  assert.equal(hookExists({ kind: 'testid', name: 'zz-no-such-hook', dynamic: false, prefixOnly: false }), false);
-  assert.equal(hookExists({ kind: 'class', name: 'zz-no-such-class', dynamic: false, prefixOnly: false }), false);
-  assert.equal(hookExists({ kind: 'testid', name: 'canvas-row-ui-smoke', dynamic: false, prefixOnly: false }), true);
-  assert.equal(hookExists({ kind: 'class', name: 'cv-meta--count', dynamic: false, prefixOnly: false }), true);
+  assert.equal(
+    hookExists({ kind: 'testid', name: 'zz-no-such-hook', dynamic: false, prefixOnly: false }),
+    false
+  );
+  assert.equal(
+    hookExists({ kind: 'class', name: 'zz-no-such-class', dynamic: false, prefixOnly: false }),
+    false
+  );
+  assert.equal(
+    hookExists({ kind: 'testid', name: 'canvas-row-ui-smoke', dynamic: false, prefixOnly: false }),
+    true
+  );
+  assert.equal(
+    hookExists({ kind: 'class', name: 'cv-meta--count', dynamic: false, prefixOnly: false }),
+    true
+  );
 });
 
 test('every hook a desktop e2e spec or helper names still exists in the product', () => {
@@ -194,8 +237,13 @@ test('every hook a desktop e2e spec or helper names still exists in the product'
     const rel = relative(E2E, f);
     for (const s of selectorsIn(readFileSync(f, 'utf8'), rel)) {
       if (ELSEWHERE.some((e) => e.file === rel && e.name === s.name)) continue;
-      if (!hookExists(s)) missing.push(`${rel}:${s.line}  ${s.kind} "${s.name}"${s.dynamic ? ' (dynamic)' : ''}`);
+      if (!hookExists(s))
+        missing.push(`${rel}:${s.line}  ${s.kind} "${s.name}"${s.dynamic ? ' (dynamic)' : ''}`);
     }
   }
-  assert.deepEqual(missing, [], `selectors the product no longer produces:\n  ${missing.join('\n  ')}`);
+  assert.deepEqual(
+    missing,
+    [],
+    `selectors the product no longer produces:\n  ${missing.join('\n  ')}`
+  );
 });
