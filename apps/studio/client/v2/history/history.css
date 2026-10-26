@@ -809,14 +809,6 @@
     color: var(--fg-0);
   }
 
-  /* the Advanced fold at the foot keeps its own look; only the embedded git body is tamed */
-  .vh-panel .v2-fold-body .gp-panel {
-    width: auto;
-    flex-basis: auto;
-    border: 0;
-    box-shadow: none;
-  }
-
   /* ── name this version ── */
   .vh-scrim {
     position: fixed;

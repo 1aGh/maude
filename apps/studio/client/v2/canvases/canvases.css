@@ -606,12 +606,6 @@
     font-size: var(--type-sm);
     color: var(--fg-2);
   }
-
-  .cv-none {
-    margin: var(--space-3) var(--space-2);
-    font-size: var(--type-sm);
-    color: var(--fg-2);
-  }
   .cv-foot {
     flex: none;
     margin: 0;

@@ -657,8 +657,7 @@
     cursor: pointer;
   }
 
-  .ex-lane,
-  .ex-hand {
+  .ex-lane {
     margin: 0;
     font-size: var(--type-sm, 13px);
     line-height: var(--lh-sm, 1.4);

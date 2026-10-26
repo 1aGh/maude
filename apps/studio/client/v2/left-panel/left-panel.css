@@ -881,12 +881,6 @@
     background: var(--bg-3);
     box-shadow: inset 0 0 0 0.5px var(--k-chrome-edge, var(--border-default));
   }
-  .lp-tile-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: var(--type-xs);
-  }
   /* S8.12 — the picture first; the name and where it's used show over its foot on hover AND keyboard focus */
   .lp-tile {
     position: relative;

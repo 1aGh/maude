@@ -18,9 +18,6 @@
   .sg .sh-dialog-title {
     margin-right: auto;
   }
-  .sg-key {
-    flex: none;
-  }
   .sg .sh-dialog-bd {
     gap: var(--space-3);
   }

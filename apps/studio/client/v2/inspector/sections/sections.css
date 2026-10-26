@@ -757,9 +757,6 @@
     font-size: var(--type-sm);
     font-variant-numeric: tabular-nums;
   }
-  .insp .insp-cp-numin--mini {
-    font-size: var(--type-sm);
-  }
   .insp .insp-nf {
     width: 68px;
     max-width: none;
