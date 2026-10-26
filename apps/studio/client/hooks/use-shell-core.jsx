@@ -44,7 +44,14 @@ import { panelLayout } from '../v2/shell/use-panel-layout.js';
 import { modeShows } from '../../bridge/mode-shows.ts';
 import { useExportCenter } from '../export-center.jsx';
 import { registerExportOpener } from '../v2/export/use-export-spec.js';
-import { canvasTokenRefreshDelay, setLiveCanvasToken, withCanvasToken } from '../canvas-url.js';
+import {
+  canvasCapAsks,
+  canvasCapUrl,
+  canvasTokenRefreshDelay,
+  setCanvasCaps,
+  setLiveCanvasToken,
+  withCanvasToken,
+} from '../canvas-url.js';
 import { useThemeAuto } from '../v2/settings/theme-auto.js';
 import { canvasTargetOrigin } from '../v2/kinds/kind-dim-relay.js';
 import { viewerModeOn } from '../v2/access/access-client.js';
@@ -1231,6 +1238,94 @@ export function useShellCore({}) {
       window.removeEventListener('message', onExpired);
     };
   }, [cfg?.canvasToken, cfg?.canvasOrigin]);
+
+  // p8-e2e-link-viewer (decision v2-p8-canvas-only-browser-opens-via-follow-capability) — a canvas-only
+  // cloud session gets no project-wide capability above; it asks one read-only capability per canvas it
+  // holds (the follow ask) and frames each canvas with its own (canvas-url.js `canvasCapAsks`). Re-minted
+  // on the same cadence; a running frame is handed its own canvas's fresh one, a frame refused as expired
+  // is pointed at it. `canvasCapsAt` re-renders the frames once the first capabilities are in.
+  const capAsks = canvasCapAsks(cfg).join('\n');
+  useEffect(() => {
+    const rels = capAsks ? capAsks.split('\n') : [];
+    if (rels.length === 0) return undefined;
+    let stopped = false;
+    let timer = null;
+    let caps = {};
+    const relOfFrame = (el) => {
+      try {
+        return new URL(el.src, location.href).searchParams.get('canvas');
+      } catch {
+        return null;
+      }
+    };
+    const target = () => {
+      try {
+        return new URL(cfg.canvasOrigin, location.href).origin;
+      } catch {
+        return null;
+      }
+    };
+    async function mint() {
+      const next = {};
+      await Promise.all(
+        rels.map(async (rel) => {
+          try {
+            const res = await fetch(canvasCapUrl(rel), {
+              cache: 'no-store',
+              credentials: 'same-origin',
+            });
+            const t = res.ok ? (await res.json())?.canvasToken : null;
+            if (typeof t === 'string' && t) next[rel] = t;
+          } catch {
+            /* retried on the next tick */
+          }
+        })
+      );
+      if (stopped) return null;
+      const first = Object.keys(caps).length === 0;
+      caps = next;
+      setCanvasCaps(caps);
+      const origin = target();
+      if (origin) {
+        for (const el of iframesRef.current.values()) {
+          const t = caps[relOfFrame(el)];
+          if (!t) continue;
+          try {
+            el.contentWindow?.postMessage({ dgn: 'canvas-cap', t }, origin);
+          } catch {}
+        }
+      }
+      if (first && Object.keys(caps).length > 0)
+        setCfg((prev) => ({ ...prev, canvasCapsAt: Date.now() }));
+      const one = Object.values(caps)[0];
+      clearTimeout(timer);
+      timer = setTimeout(mint, one ? canvasTokenRefreshDelay(one) : 30_000);
+      return caps;
+    }
+    let reviving = false;
+    async function onExpired(e) {
+      if (e.data?.dgn !== 'canvas-expired' || e.origin !== target() || reviving) return;
+      reviving = true;
+      try {
+        const fresh = await mint();
+        if (!fresh) return;
+        for (const el of iframesRef.current.values()) {
+          const t = el.contentWindow === e.source ? fresh[relOfFrame(el)] : null;
+          if (t) el.src = withCanvasToken(el.src, t);
+        }
+      } finally {
+        reviving = false;
+      }
+    }
+    window.addEventListener('message', onExpired);
+    mint();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      window.removeEventListener('message', onExpired);
+      setCanvasCaps({});
+    };
+  }, [capAsks, cfg?.canvasOrigin]);
 
   // Phase 5.1 — postMessage bridge from menubar dropdowns to the canvas iframe.
   // The canvas-shell listens for these `dgn:*` messages and dispatches into the
