@@ -245,3 +245,15 @@ Every reachable id re-shot, light + dark, IMPL side only, on the merged tip `fea
 | co-mention-notify | unreachable | unreachable | OS banner + hub mention e-mail template are not in the lane (unchanged) |
 
 15 reachable ids x 2 themes = 30 pairs.
+
+## Round 11 (p8-r11-10) — after
+
+Shot on the Mac mini (Google Chrome, `SHOT_CHANNEL=chrome`), release-built client of the branch tip, harness `_d7-harness-g3/g4` scenarios `s10r11v` / `s10r11s` (`run-r11-10.sh`). IMPL side re-shot, committed JPEG pairs overwritten (spec frames reused from stage A). No match judged here; the ledger is untouched.
+
+| artboard id | light | dark | what changed in the frame |
+|---|---|---|---|
+| `co-comment-video` | re-shot | re-shot | Preview now draws the read-only comment strip at the foot of the canvas: "0:06 / 0:15 · Hype trailer · 16:9 · 2 comments on this video", a face on each thread's second, the accent ring on the one at the playhead (`s10r11v`; one thread is made through the product, one is an existing one) |
+| `co-sync-offline` | re-shot | re-shot | Canvases rows say "not sent" on the five canvases with a waiting change; the foot "14 changes since yesterday 18:20 — kept on this Mac"; the pin's thread card says "Queued — sends when this Mac is online." (`s10r11s`) |
+| `co-sync-back` | re-shot | re-shot | the same rows say "sending" on the four canvases still waiting; foot "Sending 14 changes · 9 sent"; the toast "Back online. Your changes are going up." |
+
+Real vs faked for `co-sync-*`: the comment is made through the product; `<project>/.design/_state/outbox/` holds 14 real entries in the transaction client's file shape (one on the `comments` lane carrying the real comment) and the rows / foot / "Queued" are derived from `GET /_api/outbox` over those files (`outbox/content.ts`). Still faked, as since round 7: the hub link (`/_sync-status` says linked) and the Mac being offline (`navigator.onLine` flipped, loopback kept up). The board's frame is Preview with the annotate toolbar; the impl frames are Edit chrome (Preview's cluster draws no status word) — 04's, unchanged.
