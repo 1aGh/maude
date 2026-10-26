@@ -14,7 +14,8 @@ import { canvasRow } from '../helpers/tree';
 /**
  * 07 Video Editing — one video, many formats, and framing each its own way (S7.13: ve-formats, ve-reframe).
  *
- *   formats   select the Reels video: the inspector lists "Reels 9:16 · this one"; + Add a format › 16:9 copies the artboard
+ *   formats   select the Reels video: no Formats rows (a lone video, V2-8.5 c4-video); ⌘K Add a format draws them —
+ *             "Reels 9:16 · this one" — with the size list open; + Add a format › 16:9 copies the artboard
  *             at 1920 × 1080 with the SAME comp (one write); the Timeline says "Shared by 2 formats"; ⌘Z takes it away
  *   unlinked  Make an unlinked copy forks the comp as `RecapUnlinked` for the selected artboard (one write);
  *             the canvas tags it "Unlinked copy — its own cut"; ⌘Z puts the bytes back
@@ -76,6 +77,28 @@ const key = (init: Record<string, unknown>) =>
 const text = async (testid: string) =>
   (await (await $(`[data-testid="${testid}"]`)).getText()).trim();
 
+/**
+ * Open "+ Add a format"'s size list. A video with no other format has no Formats rows at all (07 ve-select, V2-8.5
+ * c4-video): ⌘K "Add a format" draws them with the list open. With the rows already drawn, "+ Add a format" opens
+ * the list — unless it is open already (a click would close it).
+ */
+async function openAddList(size: string): Promise<void> {
+  const option = `[data-testid="insp-format-add-${size}"]`;
+  if (await $(option).isExisting()) return;
+  if (await $('[data-testid="insp-format-add"]').isExisting()) {
+    await (await $('[data-testid="insp-format-add"]')).click();
+  } else {
+    await key({ key: 'k', metaKey: true });
+    const input = await $('[data-testid="palette-input"]');
+    await input.waitForExist({ timeout: 10_000 });
+    await input.setValue('Add a format');
+    const row = await $('[data-testid="palette-row-action:video.format.add"]');
+    await row.waitForExist({ timeout: 10_000, timeoutMsg: '⌘K has no "Add a format" row' });
+    await row.click();
+  }
+  await $(option).waitForExist({ timeout: 10_000, timeoutMsg: `the size list has no ${size}` });
+}
+
 describe('video-formats — Add a format, Make an unlinked copy, Re-frame a clip per format', () => {
   before(() => {
     fixtures.snapshot();
@@ -99,18 +122,22 @@ describe('video-formats — Add a format, Make an unlinked copy, Re-frame a clip
       await clickAt(box.x + 12, box.y - 10);
       await $('[data-testid="timeline-island"]').waitForExist({ timeout: 15_000 });
       await dismissNotices(); // first-run notices stack over the island's bottom edge
-      await $('[data-testid="insp-formats"]').waitForExist({
-        timeout: 15_000,
-        timeoutMsg: 'a video artboard pick did not list its formats',
-      });
+      await $('[data-testid="inspector-kind"]').waitForExist({ timeout: 15_000 });
     }, false);
+    // a lone video: the card is Size · Length · Poster · Sound · Export — no Formats rows until they are asked for
+    expect(await $('[data-testid="insp-formats"]').isExisting()).toBe(false);
+    await openAddList('1920x1080');
+    await $('[data-testid="insp-formats"]').waitForExist({
+      timeout: 15_000,
+      timeoutMsg: '⌘K Add a format did not list the video’s formats',
+    });
     expect(await text('insp-fmt-reel')).toContain('this one');
     await capture('video-formats-inspector');
   });
 
   it('+ Add a format › 16:9 is one write, the cut is shared, ⌘Z takes it away', async () => {
     const before = onDisk();
-    await (await $('[data-testid="insp-format-add"]')).click();
+    await openAddList('1920x1080');
     await (await $('[data-testid="insp-format-add-1920x1080"]')).click();
     await browser.waitUntil(async () => onDisk().includes('id="reel-16x9"'), {
       timeout: 15_000,
@@ -137,7 +164,7 @@ describe('video-formats — Add a format, Make an unlinked copy, Re-frame a clip
 
   it('Make an unlinked copy forks the comp for this artboard; the canvas tags it; ⌘Z undoes it', async () => {
     // an unlinked copy needs another format to be a copy of
-    await (await $('[data-testid="insp-format-add"]')).click();
+    await openAddList('1920x1080');
     await (await $('[data-testid="insp-format-add-1920x1080"]')).click();
     await browser.waitUntil(async () => onDisk().includes('id="reel-16x9"'), { timeout: 15_000 });
     const withTwo = onDisk();
