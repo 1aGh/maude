@@ -253,6 +253,10 @@ process.env.MAUDE_E2E_RUN_DIR ??= resolve(
 // Finder stops short of popping Finder over the test window. Lives in the run dir.
 process.env.MAUDE_E2E_SAVE_PATH ??= join(process.env.MAUDE_E2E_RUN_DIR, 'saved', 'native-save.png');
 process.env.MAUDE_E2E_NO_REVEAL ??= '1';
+// The test window floats above the person's apps (tabs.rs `e2e_on_top`, debug builds only): a covered WKWebView is
+// throttled, and the coordinating chat takes the front back mid-lane, so `bringAppToFront` before each test was not
+// enough — a camera that eases mid-test never settled and specs pressed where an element WAS. `0` turns it off.
+process.env.MAUDE_E2E_ON_TOP ??= '1';
 
 // ── App binary path (per platform; override with MAUDE_E2E_APP) ────────────
 function resolveAppPath(): string {

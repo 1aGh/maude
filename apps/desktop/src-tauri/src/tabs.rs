@@ -311,6 +311,13 @@ pub fn caller_strip<R: Runtime>(webview: &tauri::Webview<R>) -> Result<(), Strin
     check_strip(webview.label(), webview.url().ok().as_ref())
 }
 
+/// E2E (debug builds only): does `MAUDE_E2E_ON_TOP` ask the test window to float above the person's apps? Exactly
+/// `"1"` — an unset, empty or other value keeps the normal window level.
+#[cfg(debug_assertions)]
+fn e2e_on_top(v: Option<&str>) -> bool {
+    v == Some("1")
+}
+
 /// The strip's navigation guard: `strip.html` and nothing else.
 fn strip_navigation_allowed(url: &tauri::Url) -> bool {
     windows::is_app_local(url) && url.path() == format!("/{STRIP_PAGE}")
@@ -425,6 +432,14 @@ pub fn ensure_shell(app: &AppHandle) -> Result<tauri::Window, String> {
         builder = builder
             .title_bar_style(tauri::TitleBarStyle::Overlay)
             .hidden_title(true);
+    }
+    // E2E (debug builds only): a covered WKWebView is throttled (timers, rAF, layout — DDR-135's occlusion
+    // ceiling), and the coordinating chat takes the front back every few seconds during a long lane, so a camera
+    // that eases never settles and a spec presses where an element WAS. The test window floats above the person's
+    // apps for the run instead. Never compiled into a release build; only the harness sets the variable.
+    #[cfg(debug_assertions)]
+    if e2e_on_top(std::env::var("MAUDE_E2E_ON_TOP").ok().as_deref()) {
+        builder = builder.always_on_top(true);
     }
     let shell = builder
         .build()
@@ -1374,6 +1389,15 @@ pub fn spawn_root_watch(app: &AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn e2e_on_top_only_for_exactly_one() {
+        assert!(e2e_on_top(Some("1")));
+        assert!(!e2e_on_top(None));
+        assert!(!e2e_on_top(Some("")));
+        assert!(!e2e_on_top(Some("0")));
+        assert!(!e2e_on_top(Some("true")));
+    }
 
     fn project(root: &str) -> Role {
         Role::Project {
