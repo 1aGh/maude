@@ -36,7 +36,7 @@
 #              sticky-only field. Serialized via strokesToSvg (needs bun). Warns
 #              when the v2 board exceeds the 4 MB cap (DDR-242; the v1 1 MB cap bit at ~3750 mixed elements).
 #   --json     Raw JSON (current + previous run) instead of the human report.
-#   --studio   (safari) Measure inside the real studio shell, not the bare canvas
+#   --studio   (chromium: Playwright, dpr-2 page at --window, V2-8.8) (safari) Measure inside the real studio shell, not the bare canvas
 #              page. Makes one real WebDriver click into the canvas frame first and
 #              proves it lifted WebKit's ~30 fps throttle on an untouched
 #              cross-origin frame (idle frame p50 ≈ the studio's), else refuses.
@@ -125,8 +125,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Safari-only levers fail loud on the other lane rather than being ignored: a
 # Chromium row silently measured at the wrong geometry would read as a result.
-if [ "$PROBE_ENGINE" != "safari" ] && { [ -n "$WINDOW" ] || [ -n "$FRAME" ] || [ -n "$COMPARE_FRAME" ] || [ "$STUDIO" = "1" ]; }; then
-  echo "perf.sh: --window / --frame / --compare-frame / --studio need --engine safari" >&2
+# The Chromium STUDIO lane (--engine chromium --studio, V2-8.8) takes --window too (a Retina page at
+# that size); --frame / --compare-frame are the WebKit large-viewport controls and stay Safari-only.
+if [ "$PROBE_ENGINE" != "safari" ] && { [ -n "$FRAME" ] || [ -n "$COMPARE_FRAME" ]; }; then
+  echo "perf.sh: --frame / --compare-frame need --engine safari" >&2
+  exit 2
+fi
+if [ "$PROBE_ENGINE" != "safari" ] && [ "$STUDIO" != "1" ] && [ -n "$WINDOW" ]; then
+  echo "perf.sh: --window needs --engine safari or --studio" >&2
   exit 2
 fi
 if { [ -n "$FRAME" ] || [ -n "$COMPARE_FRAME" ]; } && [ "$STUDIO" != "1" ]; then
@@ -282,6 +288,24 @@ if [ "$PROBE_ENGINE" = "safari" ]; then
   [ -n "$VARIANT" ] && ARGS+=(--variant "$VARIANT")
   [ -n "$INJECT_CSS" ] && ARGS+=(--inject-css "$INJECT_CSS")
   exec "$JS_RUNTIME" "$SCRIPT_DIR/_perf-probe-safari.mjs" "${ARGS[@]}"
+fi
+
+if [ "$PROBE_ENGINE" = "chromium" ] && [ "$STUDIO" = "1" ]; then
+  # Chromium inside the real studio shell (Playwright, Retina page): the canvas iframe, with
+  # whatever the shell draws around it. Same in-frame harness as the other two lanes.
+  SLUG=$(printf '%s' "${REL_FULL#"$DESIGN_REL"/}" \
+    | sed -E 's/\.[A-Za-z]+$//' | tr '[:upper:]' '[:lower:]' \
+    | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
+  ENGINE_TAG="${MAUDE_PERF_ENGINE_TAG:-blink-studio}"
+  echo "→ perf: $REL_FULL | port: $PORT | engine: $ENGINE_TAG" >&2
+  ARGS=(--url "http://localhost:${PORT}/" --studio "$SLUG" --label "$REL_FULL" --history "$HISTORY"
+        --engine-tag "$ENGINE_TAG" --timeout "$TIMEOUT" --pan "$PAN" --zoom "$ZOOM" --repeat "$REPEAT")
+  [ "$FIT_ALL" = "1" ] && ARGS+=(--fit-all)
+  [ "$JSON" = "1" ] && ARGS+=(--json)
+  [ -n "$WINDOW" ] && ARGS+=(--window "$WINDOW")
+  [ -n "$VARIANT" ] && ARGS+=(--variant "$VARIANT")
+  [ -n "$INJECT_CSS" ] && ARGS+=(--inject-css "$INJECT_CSS")
+  exec node "$SCRIPT_DIR/_perf-probe-studio.mjs" "${ARGS[@]}"
 fi
 
 AB="${MAUDE_AGENT_BROWSER:-agent-browser}"

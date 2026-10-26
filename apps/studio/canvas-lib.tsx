@@ -2708,7 +2708,10 @@ export function DCArtboard({
 }) {
   countRender('artboardRenders');
   const ctx = useWorldContext();
-  const _controller = useViewportControllerContext();
+  // No `useViewportControllerContext()` here: its value was never read, and subscribing to it
+  // re-rendered EVERY board each time a gesture burst started, ended or published the viewport
+  // (V2-8.8: 1,785 / 5,440 renders per fit-all gesture at 21 / 64 boards, against 966 / 2,944
+  // before v2). What a board needs from the viewport it takes from `useLiveViewport()` below it.
   const toolMode = useToolModeOptional();
   const chrome = useChromeVisibility();
   const selSet = useSelectionSetOptional();
