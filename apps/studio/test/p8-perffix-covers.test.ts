@@ -226,4 +226,22 @@ describe('asset tiles (P8 perf fix, V2-8.14 asset tiles)', () => {
     }
     expect(out).toEqual(names.map((n) => `${n}:ready`));
   }, 60_000);
+
+  test('tiles asked together (two renderer lanes) all draw their own picture', async () => {
+    const r = await rig(() => ({}));
+    stoppers.push(() => {
+      r.svc.stop();
+      r.proc.kill();
+    });
+    mkdirSync(join(r.designRoot, 'assets'), { recursive: true });
+    const names = Array.from({ length: 8 }, (_, i) => `p${i}.png`);
+    names.forEach((n, i) => {
+      writeFileSync(join(r.designRoot, 'assets', n), Buffer.concat([PNG1, Buffer.from([i])]));
+    });
+    await Promise.all(names.map((n) => r.svc.assetTile(`assets/${n}`, 'card')));
+    await r.svc.idle();
+    const got = await Promise.all(names.map((n) => r.svc.assetTile(`assets/${n}`, 'card')));
+    expect(got.map((t) => t.status)).toEqual(names.map(() => 'ready'));
+    expect(new Set(got.map((t) => (t as { key: string }).key)).size).toBe(names.length);
+  }, 60_000);
 });

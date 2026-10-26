@@ -385,6 +385,7 @@ try {
       glyph: shots.filter((s) => s.missing === true).length,
       totalMs: tilesMs,
       perTileMs: { p50: pct(per, 0.5), p95: pct(per, 0.95) },
+      phasesP50Ms: phasesOf(replies.slice(from)),
       avgBytes: Math.round(bytes / Math.max(1, ok)),
       budget: { totalMsFor250: 30_000 },
       contentHashColdMs: hashMs,
