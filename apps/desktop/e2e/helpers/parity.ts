@@ -120,9 +120,14 @@ export async function walkProjectMenu(): Promise<{ top: string[]; rows: string[]
       }
       for (const b of btns) {
         if (!b.getAttribute('data-sub')) continue;
-        b.click();
-        await wait(80);
-        const child = b.parentElement?.querySelector(':scope > [role=menu]');
+        // open it and wait for its level (a re-render under a parked real pointer can close a submenu between the
+        // click and the look: the r4 walk lost View, Help and Diagnostics that way) — up to ~1 s, clicking again
+        let child: Element | null | undefined = null;
+        for (let t = 0; t < 12 && !child; t++) {
+          if (b.getAttribute('aria-expanded') !== 'true') b.click();
+          await wait(80);
+          child = b.parentElement?.querySelector(':scope > [role=menu]');
+        }
         if (child) await level(child, depth + 1);
       }
     }

@@ -101,7 +101,18 @@ async function ownerOpensShare(scope: 'canvas' | 'project') {
     await $(tid('share-dialog')).waitForDisplayed({ timeout: STEP_MS });
   }
   const seg = $(tid(`share-scope-${scope}`));
-  if (await seg.isExisting()) await seg.click();
+  if (!(await seg.isExisting())) return;
+  // the segment is pressed once the sheet shows that scope: a click that landed while the sheet was still
+  // re-rendering (the request block answered just before) left it on This canvas, where Lukáš's row is his grant
+  await browser.waitUntil(
+    async () => {
+      if ((await seg.getAttribute('aria-pressed')) === 'true') return true;
+      await seg.click();
+      await browser.pause(150);
+      return (await seg.getAttribute('aria-pressed')) === 'true';
+    },
+    { timeout: STEP_MS, timeoutMsg: `Share never showed the ${scope} scope` }
+  );
 }
 async function ownerClosesShare() {
   if (await $(tid('share-close')).isExisting()) await $(tid('share-close')).click();

@@ -284,12 +284,13 @@ describe('ai-quit (native-desktop)', () => {
     // The panel reopens on the LAST chat — the ask that waited in line (step 2), which never started, so it has no
     // divider. A chat that was working when the app quit is in the chat list: open each until one ends with it.
     if (!(await divider.waitForDisplayed({ timeout: 10_000 }).catch(() => false))) {
-      for (let i = 0; i < 4 && !(await divider.isDisplayed().catch(() => false)); i++) {
+      // twice round the list: a relaunched chat reads its history back from disk, which can take longer than one look
+      for (let i = 0; i < 8 && !(await divider.isDisplayed().catch(() => false)); i++) {
         await (await $('.chat-switch-trigger')).click();
         const rows = await $$('[data-testid^="ai-chat-row-"]');
-        if (i >= rows.length) break;
-        await rows[i].click();
-        await divider.waitForDisplayed({ timeout: 5_000 }).catch(() => {});
+        if (!rows.length) break;
+        await rows[i % rows.length].click();
+        await divider.waitForDisplayed({ timeout: 10_000 }).catch(() => {});
       }
     }
     await divider.waitForDisplayed({ timeout: 30_000 });
