@@ -33,6 +33,7 @@ const OPEN = (anchor: unknown = null, panel = 'stickers') => ({
 
 function makeLane(opts: { focused?: () => boolean; canEdit?: boolean } = {}) {
   const opened: Array<{ canvas: string; anchor: any; replace?: string }> = [];
+  let closed = 0;
   const templates: Array<{ canvas: string; anchor: any }> = [];
   let denied = 0;
   let t = 10_000;
@@ -44,6 +45,9 @@ function makeLane(opts: { focused?: () => boolean; canEdit?: boolean } = {}) {
     frameOf: (p: string) => frames.get(p),
     viewport: () => ({ w: 1280, h: 900 }),
     openStickers: (r: any) => opened.push(r),
+    closeStickers: () => {
+      closed++;
+    },
     openTemplates: (r: any) => templates.push(r),
     openAssets: () => {},
     canEdit: () => opts.canEdit !== false,
@@ -54,7 +58,7 @@ function makeLane(opts: { focused?: () => boolean; canEdit?: boolean } = {}) {
     now: () => t,
   });
   lane.onMessage(ev({ dgn: 'toolbar-rect', mode: 'preview', rect: BAR }, activeWin));
-  return { lane, opened, templates, denied: () => denied, clock };
+  return { lane, opened, templates, denied: () => denied, clock, closed: () => closed };
 }
 
 describe('EH-P4-2: the panel opens only for a canvas that has focus', () => {
@@ -205,5 +209,37 @@ describe('S4.3 protocol: replace? and sticker{pack,id}', () => {
     expect(
       spec.parse({ dgn: 'insert-sticker', path: 'assets/a.png', sticker: { pack: 1 } })
     ).toBeNull();
+  });
+});
+
+// 15 an-stamps — "Esc lets go": a person stamps by clicking the canvas, so their Esc reaches the CANVAS, which drops
+// the armed stamp (PlacementGhost onCancel). The Stamps row is the shell's; it hears `stamp-disarmed` and folds away,
+// or it stays up showing a stamp the canvas no longer holds (the desktop e2e red: the row never went).
+describe('stamp-disarmed: the canvas let go of its stamp, the shell puts the Stamps row away', () => {
+  test('from the active canvas it closes the Stickers panel — focus or quiet period aside (closing is never a pop)', () => {
+    const { lane, closed } = makeLane({ focused: () => false });
+    lane.onMessage(ev({ dgn: 'stamp-disarmed' }, activeWin));
+    lane.onMessage(ev({ dgn: 'stamp-disarmed' }, activeWin));
+    expect(closed()).toBe(2);
+  });
+
+  test('a background frame or a foreign origin closes nothing', () => {
+    const { lane, closed } = makeLane();
+    lane.onMessage(ev({ dgn: 'stamp-disarmed' }, { name: 'sibling' }));
+    lane.onMessage(ev({ dgn: 'stamp-disarmed' }, activeWin, 'http://evil.test'));
+    expect(closed()).toBe(0);
+  });
+
+  test('the canvas side posts it to its parent when a stamp pick is let go, and only then', async () => {
+    const { postStampDisarmed } = await import('../annotations/ui/placement.tsx');
+    const sent: unknown[] = [];
+    const parent = { postMessage: (m: unknown) => sent.push(m) };
+    postStampDisarmed({ kind: 'stamp' }, { parent } as unknown as Window);
+    postStampDisarmed({ kind: 'sticker' }, { parent } as unknown as Window);
+    postStampDisarmed(null, { parent } as unknown as Window);
+    const top = {} as { parent?: unknown };
+    top.parent = top;
+    postStampDisarmed({ kind: 'stamp' }, top as unknown as Window); // not framed: no shell to tell
+    expect(sent).toEqual([{ dgn: 'stamp-disarmed' }]);
   });
 });

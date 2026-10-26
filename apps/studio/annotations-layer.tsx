@@ -56,7 +56,7 @@ import {
 } from './annotations/ui/host-view.ts';
 import { LockedDragTip } from './annotations/ui/locked.tsx';
 import { AnnotationPipelineContext } from './annotations/ui/pipeline-context.ts';
-import { PlacementGhost, StickerSizeChip } from './annotations/ui/placement.tsx';
+import { PlacementGhost, postStampDisarmed, StickerSizeChip } from './annotations/ui/placement.tsx';
 import { type Claim, PointerPipeline } from './annotations/ui/pointer-pipeline.ts';
 import {
   type RenderItem,
@@ -4961,7 +4961,10 @@ export function AnnotationsLayer() {
           onPlace={(at) => {
             if (placing && placeRef.current(placing, at)) setPlacing(null);
           }}
-          onCancel={() => setPlacing(null)}
+          onCancel={() => {
+            postStampDisarmed(placing);
+            setPlacing(null);
+          }}
         />
         <AnnotationsInput
           isActive={isActive}
