@@ -9,7 +9,7 @@
 // client/index.html, plus every token in the --also source dirs (default client/v2: a v2 component that is
 // exported but not mounted yet keeps its styles). styles.css is loaded by index.html only (canvas iframes and
 // comment-mount never load it), and the bundle is tree-shaken, so a class that is in neither cannot be on any
-// element styles.css reaches. Dynamic names are honoured: a `foo-${x}` / 'foo-' + x prefix keeps every
+// element styles.css reaches. Dynamic names are honoured: a `foo-${x}` / 'foo-' + x / 'a foo-' + x prefix keeps every
 // `foo-*` class live, a `${x}-bar` suffix keeps `<token>-bar` live.
 //
 // A rule is DEAD when every selector in its list requires a class that is not live (classes inside :not(),
@@ -21,6 +21,7 @@ import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { collectLive } from './lib/css-live-tokens.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const STUDIO = join(ROOT, 'apps/studio');
@@ -47,25 +48,7 @@ const sources = [
   join(STUDIO, 'client/index.html'),
 ];
 for (const d of list(opt('--also', 'client/v2'))) walk(join(STUDIO, d), sources);
-const tokens = new Set();
-const prefixes = new Set();
-const suffixes = new Set();
-for (const f of sources) {
-  const src = readFileSync(f, 'utf8');
-  for (const m of src.matchAll(/[A-Za-z_][A-Za-z0-9_-]*/g)) tokens.add(m[0]);
-  for (const m of src.matchAll(/([A-Za-z][\w-]*-)\$\{/g)) prefixes.add(m[1]);
-  for (const m of src.matchAll(/['"`]([A-Za-z][\w-]*[-_])['"`]\s*\+/g)) prefixes.add(m[1]);
-  for (const m of src.matchAll(/\}(-[A-Za-z][\w-]*)/g)) suffixes.add(m[1]);
-  for (const m of src.matchAll(/\+\s*['"`](-[A-Za-z][\w-]*)['"`]/g)) suffixes.add(m[1]);
-}
-const prefixList = [...prefixes].filter((p) => p.length >= 3);
-function classLive(c) {
-  if (tokens.has(c)) return true;
-  for (const p of prefixList) if (c.startsWith(p) && c.length > p.length) return true;
-  for (const s of suffixes)
-    if (c.endsWith(s) && c.length > s.length && tokens.has(c.slice(0, -s.length))) return true;
-  return false;
-}
+const classLive = collectLive(sources.map((f) => readFileSync(f, 'utf8')));
 function requiredClasses(sel) {
   let s = sel.replace(/\[[^\]]*\]/g, '');
   for (let prev; prev !== s; ) {
@@ -113,6 +96,7 @@ for (const f of cssFiles) {
     partial: trims.length,
     deadBytes,
     deadSelectors: dead.map((r) => r.selector.replace(/\s+/g, ' ')),
+    trimmedSelectors: trims.flatMap(([r, keep]) => r.selectors.filter((x) => !keep.includes(x))),
   });
   if (check.has(f) && (dead.length || trims.length)) checkFailed = true;
   if (apply.has(f) && (dead.length || trims.length)) {
