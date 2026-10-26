@@ -29,7 +29,7 @@ A Maude 2 project carries `"formatVersion": 2` in `.design/config.json`. A proje
 
 | Build | Project is format 1 | Project is format 2 |
 | --- | --- | --- |
-| Maude 1.x (with the compatibility gate) | edits | opens read-only: *This project now uses Maude 2. Update Maude to edit it.* |
+| Maude 1.9.0 or later (the compatibility gate) | edits | opens read-only: *This project now uses Maude 2. Update Maude to edit it.* |
 | Maude 2 | opens view-only: *View only — this project still uses Maude 1.* with the action **Update project** | edits |
 
 ### Updating in the app
@@ -91,7 +91,7 @@ Exit codes:
 
 ## 3. What a person on Maude 1 sees
 
-The compatibility gate ships in Maude 1.x builds, so keep Maude 1 up to date until everyone on a project has moved.
+The compatibility gate ships in Maude 1.9.0 and later, so keep Maude 1 up to date until everyone on a project has moved.
 
 | Peer | What happens in a project that moved to format 2 |
 | --- | --- |
@@ -178,7 +178,7 @@ For existing projects: `maude design ds-check` reports a level (`Conformant`, `M
 | Symptom | What to do |
 | --- | --- |
 | A project is view-only in Maude 2 | Choose **Update project** (owners), or ask the owner. `maude migrate v2` shows the reason as a refusal when it cannot proceed. |
-| A teammate cannot edit after you updated | They need Maude 2, or a Maude 1.x build that has the compatibility gate to see the banner. Until then they can look. |
+| A teammate cannot edit after you updated | They need Maude 2, or Maude 1.9.0 or later to see the banner. Until then they can look. |
 | You want Maude 1's format back | `maude migrate v2 --reverse`. Add `--strip` only when a peer cannot keep Maude 2 fields. The pre-update copy is in `_history/_migrate/`. |
 | A control from Maude 1 is missing | Search for it with ⌘K, then check `nothing-deleted.json`. A feature without a home is a bug: report it from **Menu › Help › Report a bug…**. |
 | The dry run exits `11` | Read the refusal in the output (or the JSON report). Nothing was written. |
