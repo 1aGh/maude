@@ -42,7 +42,8 @@ describe('02: material', () => {
     expect(rule(css, '.ob-seg-b[aria-pressed="true"]')).toContain('var(--accent)');
   });
   test('the offline line is warn text, not grey (ob-edge-offline)', () => {
-    expect(rule(read('client/home/home.css'), '.home-ask-hint--off')).toContain(
+    // biome wraps a `var()` followed by a comment across lines: compare without whitespace
+    expect(rule(read('client/home/home.css'), '.home-ask-hint--off').replace(/\s+/g, '')).toContain(
       'var(--status-warn-text)'
     );
   });

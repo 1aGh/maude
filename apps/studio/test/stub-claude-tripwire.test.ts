@@ -28,6 +28,8 @@ const SKIP_DIR = new Set(['node_modules', 'target', 'dist', '.git']);
 const EXEMPT: Record<string, string> = {
   'apps/studio/test/export-e2e-lanes.test.ts':
     'its HOME env belongs to the apps/render server (no ACP probe); studios boot via bootServer, which inherits the preload stub',
+  'apps/desktop/e2e/wdio.conf.ts':
+    'the default desktop lane keeps the real HOME and the real claude on purpose (acp-ask-user-question needs a signed-in one and skips without it); it isolates only XDG_CONFIG_HOME, and the `server.ts` the heuristic matches is a comment about the studios the app spawns',
   'apps/hub/test/studio-child.test.mjs':
     'unit test of childEnv()/launch() with an injected fake spawn: no process, no claude is ever started',
 };
@@ -110,11 +112,15 @@ describe('the bun suite preload stubs claude process-wide', () => {
   test.skipIf(real)(
     'PATH starts with a stub claude that reports signed out, MAUDE_CLAUDE_BIN is empty',
     () => {
+      // Only `bun test --isolate` re-runs the preload per file; in one shared process an earlier file's
+      // `delete process.env.MAUDE_CLAUDE_BIN` / PATH rewrite reaches this one (the mini's 4612 run).
+      const hint =
+        'an earlier file reset what the preload pinned: run the suite as `bun test --isolate`';
       const first = (process.env.PATH ?? '').split(delimiter)[0] ?? '';
       const stub = join(first, 'claude');
-      expect(readFileSync(stub, 'utf8')).toContain('"loggedIn":false');
+      expect(readFileSync(stub, 'utf8'), hint).toContain('"loggedIn":false');
       expect(statSync(stub).mode & 0o111).not.toBe(0);
-      expect(process.env.MAUDE_CLAUDE_BIN).toBe('');
+      expect(process.env.MAUDE_CLAUDE_BIN, hint).toBe('');
       const r = Bun.spawnSync({ cmd: ['claude', 'auth', 'status'], env: process.env });
       expect(r.stdout.toString()).toContain('"loggedIn":false');
     }

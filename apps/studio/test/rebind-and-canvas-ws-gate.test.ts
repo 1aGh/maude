@@ -42,6 +42,7 @@ function get(p: number, path: string, headers: Record<string, string>): Promise<
 beforeAll(async () => {
   box = makeSandbox();
   writeFileSync(join(box.root, '.env'), 'SECRET=planted\n');
+  writeFileSync(join(box.root, 'notes.txt'), 'plain repo file\n');
   mkdirSync(join(box.designRoot, 'assets'), { recursive: true });
   port = nextPort();
   proc = await bootServer(box.root, port, {
@@ -74,7 +75,11 @@ describe('DNS rebinding: the repo-file lane answers loopback hosts only', () => 
     expect(await get(port, '/assets/planted.png', { Host: `localhost:${port}` })).toBe(200);
   });
   test('the studio itself still reads repo files', async () => {
-    expect(await get(port, '/.env', { Host: `localhost:${port}` })).toBe(200);
+    expect(await get(port, '/notes.txt', { Host: `localhost:${port}` })).toBe(200);
+    expect(await get(port, '/notes.txt', { Host: `attacker.example:${port}` })).toBe(403);
+  });
+  test('…and a dot path outside the design root is not a repo file for anyone (V2-8.9 re-check 2)', async () => {
+    expect(await get(port, '/.env', { Host: `localhost:${port}` })).toBe(404);
   });
 });
 
