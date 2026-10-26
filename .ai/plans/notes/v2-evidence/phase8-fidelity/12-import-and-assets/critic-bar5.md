@@ -62,3 +62,15 @@ Round-10 change checked: ia-brand-steps dark is now closed (logo tile light-fixe
 - ia-brand-steps/site-did-not-answer · column 3 (callout + Try again + Continue with the logo) · reachable, shot, matches both themes
 - ia-missing-gone/second-person-line · "Added by Tereza on 1 Oct…" · unreachable (second person)
 - ia-advanced/terminal-card · "Import the same way from Terminal" · reachable with an original-path fixture, not shot
+
+## Round 11
+
+Re-judged from the round-11 pairs (full-size pairs and the raw impl frames of `agent-afc6dce2d7b3f0533/.scr`, `8484bc005`), both themes, crops zoomed. The D7 mono frames (`agent-a736007e7ade80094/.scr/impl`) were used to confirm the font change.
+
+- ia-assets-find · VERIFIED light, DIFFERS dark · MUST (dark, a11y contrast, NOT fixed): the match-name label on each tile is still dark grey on the dark scrim ("Matchday-01.jpg" etc. barely readable, about the same ~1.5:1 as in D7). Root cause: the fix in `d48530fb2` is scoped `.maude-v2[data-theme='dark'] .lp-tile-match` (`left-panel/left-panel.css:1577`), but the app root is `.maude[data-theme=dark]` (`app.jsx:3078`, tokens in `1-tokens-shell.css`); `.maude-v2` exists in the client only on the brand-sheet logo tile (`import/brand-sheet.jsx:243`), so the rule never matches. The built `dist/styles.css` carries only the base rule (`color:var(--bg-2)`). Fix: scope to `.maude[data-theme='dark'] .lp-tile-match` (or `:root[data-theme=dark]` too, as `1-tokens-shell.css` does), or set the label colour to a token that is light in both themes on the ink scrim. Light is unchanged and fine (white on ink). Rest of state 1 still matches in both themes (group "In the name or tags" with count, three tiles, Turn on... card, From this Mac..., foot "Searched 19 assets").
+- ia-placed · VERIFIED (both) · none. Photo section actions (Replace... / Reset / Apply to every use...) now in the body face in both themes (proportional glyphs, same face as the paragraph above; D7 frame showed mono). Six photos selected as one group with "6 photos" tag, toast "Placed 6 photos in ... They're in Assets too." + Undo, Just added group, Placement / Look / Light / Colour / Only this use changes / Advanced all present.
+- ia-photo-inspector · VERIFIED (both) · none. Same font fix confirmed in light and dark; Placement Fill/Fit/Crop, Look tiles, tracks, Remove background, Replace... / Reset, "Only this use changes" + Apply to every use..., Advanced all present.
+
+New polish rows (round 11):
+- ia-placed · impl shows the "6 objects" align toolbar over the multi-selection and a "Mixed | Photo" tab pair in the inspector; board draws neither (selection chrome of the shell, per 14). Toast sits at the bottom centre of the canvas, board the same. Left panel foot reads "31 assets · 421 KB" (fixture) vs "253 assets · 1.4 GB".
+- ia-photo-inspector · "Remove background" still plain, not accent-outlined, in both themes (same row as before; the inspector header file name is the sha, fixture).
