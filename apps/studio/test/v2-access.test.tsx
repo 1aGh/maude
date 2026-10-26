@@ -90,6 +90,21 @@ describe('Ask to edit', () => {
     }
   });
 
+  // V2-8.4 (cloud viewer on a local cell): the project server answered the door's default-closed refusal —
+  // `404 {"error":"not found"}` — and the toast read "not found". That is a route answering, not the hub speaking:
+  // only the hub's own words may be shown as they are.
+  test('a door that is not there says it in our words, never "not found"', async () => {
+    for (const status of [404, 405]) {
+      const f = fakeFetch({
+        'POST /_api/share/requests': { status, body: { error: 'not found' } },
+      });
+      const r = await askToEditRequest({ canvas: 'ui/board.tsx' }, f.impl);
+      expect(r.ok, String(status)).toBe(false);
+      expect(r.words, String(status)).toBe(WORDS.notLinked);
+      expect(r.words).not.toMatch(/not found/i);
+    }
+  });
+
   test('the registry handler asks for the open canvas, designRoot-relative, and toasts', async () => {
     const f = fakeFetch({ 'POST /_api/share/requests': { status: 201, body: { id: 'req_1' } } });
     const said: string[] = [];
