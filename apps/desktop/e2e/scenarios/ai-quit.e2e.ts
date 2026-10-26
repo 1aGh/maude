@@ -274,6 +274,10 @@ describe('ai-quit (native-desktop)', () => {
 
   it('4 · relaunch: the chat ends "Stopped when the app quit · …" with Keep going', async () => {
     await startApp();
+    // a new WebDriver session starts on Home (the pinned first webview, which also answers on loopback): relaunch
+    // restores project A's tab — wait for it and look at it before asking for its chat
+    await waitWindow(labelA, true, 60_000);
+    await focusTab(labelA);
     await waitForSidecar();
     await openAssistant();
     const divider = await $(tid('ai-stopped-divider'));

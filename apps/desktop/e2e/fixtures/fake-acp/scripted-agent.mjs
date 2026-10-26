@@ -17,6 +17,7 @@
 //   Bash tool … `date`               A shell call that waits for the person (Needs you).
 //   "Step 1" … "Step 40"             Forty slow edits to the first canvas under .design (partial work to publish).
 //   "from 1 to 4000"                 A long streamed reply, until the person stops it.
+//   "Keep going from where you …"    (a resumed run) the forty slow edits again.
 //   anything else                    "ok."
 //
 // The session mode is real state here: `session/set_mode` changes it and answers with the same `config_option_update`
@@ -188,7 +189,9 @@ async function run(ctx) {
   }
 
   // ── forty slow edits: partial work for a stop to keep ──
-  if (/Step 1\b[\s\S]*Step 40/.test(text)) {
+  // Keep going (acp/index.ts KEEP_GOING_TEXT, the prompt of a resumed run) carries on with them: the run a relaunch
+  // resumes is live again until it is stopped, as a real resumed edit run is (ai-quit step 5 quits over it)
+  if (/Step 1\b[\s\S]*Step 40/.test(text) || /Keep going from where you stopped\./.test(text)) {
     const target = firstCanvas(root);
     for (let i = 1; i <= 40; i++) {
       if (s.cancelled) return cancelled();
