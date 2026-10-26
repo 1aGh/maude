@@ -72,10 +72,11 @@ export async function run(h) {
   await page.reload();
   await sleep(3500);
   await h.open('ui-print', 800);
-  await h.click('panel-icon-left').catch(() => {});
-  await sleep(600);
-  await h.click('palette-mode-preview').catch(() => {});
-  await sleep(900);
+  // the Canvases panel open (it is folded on a fresh boot of some fixtures): never toggle it shut
+  if (!(await page.locator('[data-testid="canvas-list"]').first().isVisible().catch(() => false))) {
+    await h.click('panel-icon-left').catch(() => {});
+    await sleep(700);
+  }
   await ctx.setOffline(true);
   await sleep(1500);
   // the pin's thread card: "Queued — sends when this Mac is online."
@@ -84,14 +85,12 @@ export async function run(h) {
   await sleep(1200);
   console.log('QUEUED', await fr.locator('.cm-queued').count());
   await h.step('co-sync-offline', D, 'FAKED hub link + browser offline; REAL _state/outbox (14 changes, one a comment): "not sent" rows, the foot, the cluster word, the queued comment in its thread card', async () => {});
-  // back online: nine of the fourteen have been accepted — the real files are gone, five are still on their way
-  await ctx.setOffline(false);
+  // while offline nine of the fourteen have been accepted (the real files are gone, five wait); then the Mac is back
   const dir = join(project, '.design/_state/outbox');
   const names = readdirSync(dir).sort();
   const keep = new Set(names.filter((n) => /r11(03|04|08|09|12)\.json$/.test(n)));
   for (const n of names) if (!keep.has(n)) rmSync(join(dir, n));
-  await sleep(300);
-  await h.esc(2);
-  await sleep(9500); // the outbox is re-read every 8 s
+  await ctx.setOffline(false);
+  await sleep(1800); // the reconnect re-reads the outbox at once; the toast is up for a few seconds
   await h.step('co-sync-back', D, 'FAKED hub link; REAL _state/outbox with 5 of 14 left: "sending" rows, "Sending 14 changes · 9 sent", the toast', async () => {}, { notice: true });
 }

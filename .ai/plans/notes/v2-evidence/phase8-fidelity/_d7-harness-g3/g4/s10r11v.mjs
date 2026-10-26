@@ -15,7 +15,7 @@ export async function prepare(project) {
   // round 11: ONE existing thread (Jonas at 0:21); the other is made through the product at the playhead, so the strip counts "2 comments on this video" like the board
   const dir = join(project, '.design/_comments');
   mkdirSync(dir, { recursive: true });
-  const list = [mk('c-jonas', 'Jonas', 21, 'Tady by sedělo víc záběrů z tribuny.')];
+  const list = [mk('c-jonas', 'Jonas', 11, 'Tady by sedělo víc záběrů z tribuny.')];
   for (const n of ['ui-matchday']) writeFileSync(join(dir, `${n}.json`), JSON.stringify(list, null, 2));
 }
 
