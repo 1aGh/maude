@@ -197,6 +197,34 @@
     background: var(--bg-3);
     color: var(--fg-2);
   }
+  /* P8 r11 (03 `ai-long-pinned`, `.ai-six`): the shots a reply picked — six 44 px tiles under its words */
+  .ai-six {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: var(--space-1);
+    padding-left: var(--space-1);
+  }
+  .ai-six-btn {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+  }
+  .ai-six-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .ai-six-th {
+    display: block;
+    width: 100%;
+    height: 44px;
+    object-fit: cover;
+    border-radius: var(--radius-xs);
+    background: var(--bg-3);
+  }
   .ai-ach--sent {
     height: 36px;
     background: var(--bg-2);
