@@ -72,19 +72,23 @@ export async function run(h) {
   await page.reload();
   await sleep(3500);
   await h.open('ui-print', 800);
-  // the Canvases panel open (it is folded on a fresh boot of some fixtures): never toggle it shut
-  if (!(await page.locator('[data-testid="canvas-list"]').first().isVisible().catch(() => false))) {
-    await h.click('panel-icon-left').catch(() => {});
-    await sleep(700);
-  }
   await ctx.setOffline(true);
   await sleep(1500);
   // the pin's thread card: "Queued — sends when this Mac is online."
   const fr = page.frameLocator('[data-testid="canvas-frame"]');
   await fr.locator('.cm-pin').first().click({ timeout: 4000 }).catch(() => console.log('no pin'));
   await sleep(1200);
+  // the pin selects the commented frame and the Inspector opens with it: fold it, and keep the Canvases panel open
+  await h.click('panel-fold-right').catch(() => {});
+  await sleep(500);
+  if (!(await page.locator('[data-testid="canvas-list"]').first().isVisible().catch(() => false))) {
+    await h.click('panel-icon-left').catch(() => {});
+    await sleep(800);
+  }
   console.log('QUEUED', await fr.locator('.cm-queued').count());
   await h.step('co-sync-offline', D, 'FAKED hub link + browser offline; REAL _state/outbox (14 changes, one a comment): "not sent" rows, the foot, the cluster word, the queued comment in its thread card', async () => {});
+  await h.esc(1); // the card is put away; the board's co-sync-back draws the pin alone
+  await sleep(500);
   // while offline nine of the fourteen have been accepted (the real files are gone, five wait); then the Mac is back
   const dir = join(project, '.design/_state/outbox');
   const names = readdirSync(dir).sort();
