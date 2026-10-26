@@ -18,12 +18,16 @@ Stripe / Cloudflare; throwaway HOME, stub `claude`.
 | Select an element and inspect it | PASS | PASS | PASS |
 | Leave a comment | PASS | PASS | PASS |
 | Export a PNG | PASS | PASS | PASS |
-| Share sheet | PASS | PASS · GAP | PASS · GAP |
+| Share sheet | PASS | PASS (P8 re-run: gap closed) | PASS (P8 re-run: gap closed) |
 
 **Known gaps** (the step did what a person can see it do; the stand-in cannot reach the rest):
 
-- owner/share: the cloud-tab Share sheet cannot load people/invites on a LOCAL cell: it asks /_api/share/* (refused by the cell proxy) — the sheet says "Sharing is not available right now. Invites you send wait he…" and speaks of "this Mac".
-- viewer/share: Ask to edit cannot reach a hub door from a cloud tab on a LOCAL cell: the tab asks /_api/share/requests (refused by the cell proxy, S9.21) and /api/access/requests takes a bearer, not the session cookie. Says "Ask a project owner for edit access." instead of sending.
+> **Both share gaps are closed (P8 cloud-share, branch `p8-cloudshare`, see "P8 re-run: cloud Share" below).** A cell's
+> hub now answers `/_api/share/*` for a browser tab by the desktop's fixed map (`apps/studio/access/share-map.ts`), as
+> the session the tab carries. The owner's tab loads people and sends an invitation; the viewer's Ask to edit sends.
+
+- (closed) owner/share: the cloud-tab Share sheet cannot load people/invites on a LOCAL cell: it asks /_api/share/* (refused by the cell proxy) — the sheet says "Sharing is not available right now. Invites you send wait he…" and speaks of "this Mac".
+- (closed) viewer/share: Ask to edit cannot reach a hub door from a cloud tab on a LOCAL cell: the tab asks /_api/share/requests (refused by the cell proxy, S9.21) and /api/access/requests takes a bearer, not the session cookie. Says "Ask a project owner for edit access." instead of sending.
 
 ## Parity
 
@@ -189,6 +193,30 @@ What each shell showed at each step (from the live page; the open-project row is
 ![viewer share](shots/viewer-06-share-asked.png)
 ![viewer share](shots/viewer-06-share.png)
 
+### P8 re-run: cloud Share (2026-10-26)
+
+`scripts/v2-verify/p84-cloud-share.sh` on the remote lane (the rig's two cloud shells, LOCAL cell, headless Chromium),
+rev `8e0298bd6` on `p8-cloudshare`. The owner step now also sends one invitation from the tab and reads it back.
+
+**Cloud tab (local cell, owner)** — PASS
+
+- share sheet (invite + people): "Share board local-cell-smoke · syncs to the studio’s own hub Can edit Invite 1 person Y you you@local.test Owner Advanced …"
+- invited from the tab — people list: "1 person · 1 invited Y you you@local.test Owner I invitee@local.test Invited just now · expires in 7 days Resend Can edit"
+
+![owner share, invited](shots/p8cs-owner-06-share-invited.png)
+
+**Cloud tab (viewer — Can comment)** — PASS
+
+- Ask to edit answered: ["Asked. The owner will see your request."] (sent: the hub's `/api/access/requests` took it, 201)
+
+![viewer asked](shots/p8cs-viewer-06-share-asked.png)
+
+Not share, seen in the same run: the viewer's `select-inspect` step counted 15 editable inputs on a read-only Inspector,
+and the owner's once found no selection (passed on the run before). The rig serves the COMMITTED
+`dist/client.bundle.js` (`MAUDE_NO_AUTOBUILD=1`), which predates the frame fieldset fix above (`f336701dd`; dist is not
+committed in phase 8) — re-check after the next release build before reading it as a regression. The "Asked." toast
+carries the warning glyph although the request was sent.
+
 ## Page errors
 
 **browser**
@@ -289,7 +317,8 @@ What each shell showed at each step (from the live page; the open-project row is
 
 ## Recommended follow-ups
 
-- **Decision needed (hand-back to the lead): the cloud tab's Share sheet and Ask to edit have no door on a local cell.**
+- **Done (P8 cloud-share, option (a), lead decision `maude/v2-8.4-lead-cloud-share-via-cell-fixed-map`)** — was:
+  **Decision needed (hand-back to the lead): the cloud tab's Share sheet and Ask to edit have no door on a local cell.**
   The sheet and `askToEditRequest` call `/_api/share/*`; the cell proxy refuses that family (decision S9.21, "REFUSED in
   a cell") and says its browser asks the hub's `/api/access/*` — but the client never does, and `/api/access/*` takes a
   bearer, not the `maude_studio` cookie (401 "Sign in…"). So an owner's cloud tab shows "Sharing is not available right
