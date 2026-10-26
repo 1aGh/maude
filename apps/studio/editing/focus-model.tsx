@@ -28,17 +28,48 @@ import { type Selection, useSelectionSet } from '../use-selection-set.tsx';
 import { useToolModeOptional } from '../use-tool-mode.tsx';
 import { useUndoStackOptional } from '../use-undo-stack.tsx';
 import { selectWhenRendered as selectArtboardsWhenRendered } from './artboard-actions.ts';
+import { typeIntoSelected } from './click-to-type.ts';
 import { CLICK_SIZE, type DrawTool, KIND_OF_TOOL } from './draw-geometry.ts';
 import { beginLive, type DrawDeps, finishDraw, type Live } from './draw-tools.tsx';
 import { selectWhenRendered as selectElementsWhenRendered } from './object-actions.ts';
 import { refsOf } from './object-ops.ts';
+import { enterSelection } from './selection.tsx';
 import { stepSelection } from './tab-order.tsx';
 
 export const NEXT_ACTION = 'object.select-next';
 export const PREV_ACTION = 'object.select-prev';
 export const CREATE_DEFAULT_ACTION = 'tool.create-default';
 
-const KEYS = canvasKeyIndex([NEXT_ACTION, PREV_ACTION, CREATE_DEFAULT_ACTION]);
+export const ENTER_ACTION = 'object.enter';
+
+const KEYS = canvasKeyIndex([NEXT_ACTION, PREV_ACTION, CREATE_DEFAULT_ACTION, ENTER_ACTION]);
+
+/**
+ * V2-8.7 — ↵ on the one selected object (`object.enter`): inside a frame that holds objects (its first child is
+ * selected, tab then walks the children), or typing in a text (the whole text selected, as a double click does).
+ * Until now ↵ had no listener in the canvas — only ⌘K and the menu could say it — so a keyboard-only run could not
+ * go inside a frame or type in a text, though VoiceOver says "Press Return to go inside / to type".
+ * 'code' = a text filled in from code (no inline edit); null = nothing to enter.
+ */
+export function goInside(
+  doc: Document,
+  selected: readonly Selection[],
+  replace: (s: Selection) => void
+): 'inside' | 'type' | 'code' | null {
+  const one = selected.length === 1 ? selected[0] : null;
+  if (!one) return null;
+  const next = enterSelection(doc, one);
+  if (next) {
+    replace(next);
+    return 'inside';
+  }
+  const typed = typeIntoSelected(doc, resolveSelectionEl(doc, one) as HTMLElement | null);
+  return typed === 'edit' ? 'type' : typed;
+}
+
+/** Enter on a focused control (a toolbar button) is the control's own — ↵ here only counts on the bare canvas. */
+export const isBareCanvasTarget = (t: EventTarget | null, doc: Document): boolean =>
+  !t || t === doc.body || t === doc.documentElement;
 
 // ── the tokens ──────────────────────────────────────────────────────────────────────────────
 
@@ -286,6 +317,16 @@ export function KeyboardLayer({ readOnly = false }: { readOnly?: boolean }) {
         e.stopPropagation();
         const next = stepSelection(document, selRef.current.selected, id === NEXT_ACTION ? 1 : -1);
         if (next) selRef.current.replace(next);
+      } else if (id === ENTER_ACTION) {
+        if (readOnly || isReadOnlyCanvas() || !isBareCanvasTarget(e.target, document)) return;
+        const went = goInside(document, selRef.current.selected, selRef.current.replace);
+        if (!went) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (went === 'code')
+          showCanvasToast(
+            'This text is filled in from code (a variable) — edit it via chat or /design:edit.'
+          );
       } else if (id === CREATE_DEFAULT_ACTION && armed && isCreateTool(tool)) {
         e.preventDefault();
         e.stopPropagation();

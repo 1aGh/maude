@@ -27,3 +27,22 @@ export function clickToType(
   );
   return 'edit';
 }
+
+/**
+ * V2-8.7 — ↵ on a selected text object: the keyboard door of the same edit. The announcement says "Press Return to
+ * type" (aria-live.tsx) and a keyboard-only run reaches the text with tab, so ↵ must open it the way a double click
+ * does: in place, the whole text selected (ready to overwrite). A frame that holds objects is not a typing door
+ * (↵ goes inside it — `enterSelection`); text filled in from code says so ('code'), as a click does.
+ */
+export function typeIntoSelected(doc: Document, el: HTMLElement | null): 'edit' | 'code' | null {
+  if (!el) return null;
+  const kids = Array.from(el.childNodes);
+  if (kids.length === 0 || !kids.every((n) => n.nodeType === 3)) return null;
+  if (!el.hasAttribute('data-cd-editable')) return 'code';
+  doc.dispatchEvent(
+    new CustomEvent(ENTER_TEXT_EDIT_EVENT, {
+      detail: { el, clientX: 0, clientY: 0, selectAll: true },
+    })
+  );
+  return 'edit';
+}
