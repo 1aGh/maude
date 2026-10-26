@@ -108,32 +108,55 @@ export async function walkProjectMenu(): Promise<{ top: string[]; rows: string[]
     const rows = new Set<string>();
     const top: string[] = [];
     const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-    async function level(menu: Element, depth: number): Promise<void> {
-      const btns = Array.from(
-        menu.querySelectorAll(':scope > [role=none] > [role^=menuitem]')
-      ) as HTMLElement[];
-      for (const b of btns) {
+    const ROOT = '[data-testid="project-menu"]';
+    const items = (menu: Element) =>
+      Array.from(menu.querySelectorAll(':scope > [role=none] > [role^=menuitem]')) as HTMLElement[];
+    // The menu closes when the WINDOW loses focus (project-pill.jsx: a click into the canvas iframe) — and on a
+    // shared desktop another app can take the focus mid-walk (r7/a2: the walk lost every submenu after Edit). So
+    // each level is reached again from the pill by its path of submenu names, re-opening the menu if it closed.
+    async function openPath(path: string[]): Promise<Element | null> {
+      for (let t = 0; t < 12; t++) {
+        let menu: Element | null = document.querySelector(ROOT);
+        if (!menu) {
+          (document.querySelector('[data-testid="project-pill"]') as HTMLElement | null)?.click();
+          await wait(120);
+          continue;
+        }
+        for (const label of path) {
+          const b = items(menu).find((x) => x.getAttribute('data-sub') === label);
+          if (!b) {
+            menu = null;
+            break;
+          }
+          if (b.getAttribute('aria-expanded') !== 'true') b.click();
+          let child: Element | null | undefined = null;
+          for (let u = 0; u < 6 && !child; u++) {
+            child = b.parentElement?.querySelector(':scope > [role=menu]');
+            if (!child) await wait(80);
+          }
+          menu = child ?? null;
+          if (!menu) break;
+        }
+        if (menu) return menu;
+        await wait(80);
+      }
+      return null;
+    }
+    async function walk(path: string[]): Promise<void> {
+      const menu = await openPath(path);
+      if (!menu) return;
+      const subs: string[] = [];
+      for (const b of items(menu)) {
         const act = b.getAttribute('data-action');
         const sub = b.getAttribute('data-sub');
         if (act) rows.add(act);
-        if (depth === 0) top.push(act ?? `sub-${slug(sub ?? '')}`);
+        if (path.length === 0) top.push(act ?? `sub-${slug(sub ?? '')}`);
+        if (sub) subs.push(sub);
       }
-      for (const b of btns) {
-        if (!b.getAttribute('data-sub')) continue;
-        // open it and wait for its level (a re-render under a parked real pointer can close a submenu between the
-        // click and the look: the r4 walk lost View, Help and Diagnostics that way) — up to ~1 s, clicking again
-        let child: Element | null | undefined = null;
-        for (let t = 0; t < 12 && !child; t++) {
-          if (b.getAttribute('aria-expanded') !== 'true') b.click();
-          await wait(80);
-          child = b.parentElement?.querySelector(':scope > [role=menu]');
-        }
-        if (child) await level(child, depth + 1);
-      }
+      for (const sub of subs) await walk([...path, sub]);
     }
-    const root = document.querySelector('[data-testid="project-menu"]');
-    if (!root) return done({ top, rows: [] });
-    level(root, 0).then(() => done({ top, rows: [...rows] }));
+    if (!document.querySelector(ROOT)) return done({ top, rows: [] });
+    walk([]).then(() => done({ top, rows: [...rows] }));
   })) as { top: string[]; rows: string[] };
   await closeProjectMenu();
   return out;
@@ -167,9 +190,15 @@ export async function readSettings(): Promise<{ tabs: string[]; generalTestids: 
       document.querySelectorAll('[data-testid="settings-panel-general"] [data-testid]')
     ).map((t) => t.getAttribute('data-testid') ?? '')
   )) as string[];
-  await (await $(tid('settings-close'))).click();
-  await (await $(tid('settings-sheet'))).waitForExist({ reverse: true, timeout: 10_000 });
+  await closeSettings();
   return { tabs, generalTestids };
+}
+
+/** Esc closes the sheet (06 draws no Done: `settings-close` is clipped to 1 px until it takes keyboard focus, so a
+ *  browser that hit-tests a click — Chrome in the cloud run — refuses it as covered by the rail). */
+export async function closeSettings(): Promise<void> {
+  await browser.keys([Key.Escape]);
+  await (await $(tid('settings-sheet'))).waitForExist({ reverse: true, timeout: 10_000 });
 }
 
 /** ⌘K, one query typed, the matching palette rows' text and whether they are greyed. */
