@@ -10,6 +10,23 @@ import { acceptFromCanvas } from '../../../bridge/dgn-protocol.ts';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 
 const LABEL_MAX = 120;
+const KEY_MAX = 4000;
+
+/**
+ * A selection's identity for "is this the same pick?": its file + selector per item, '' for nothing selected, or null
+ * when it cannot be read (then it always counts as a new pick). Untrusted canvas data — only strings are read.
+ */
+function pickKey(sel) {
+  if (sel == null) return '';
+  const one = (s) =>
+    s && typeof s === 'object' && typeof s.selector === 'string'
+      ? `${typeof s.file === 'string' ? s.file : ''}\u0000${s.selector}`
+      : null;
+  const parts = (Array.isArray(sel) ? sel : [sel]).map(one);
+  if (parts.some((p) => p === null)) return null;
+  const key = parts.join('\u0001');
+  return key.length > KEY_MAX ? null : key;
+}
 
 /**
  * @param {{ canvasOrigin: () => string, activePath: () => string|null,
@@ -21,20 +38,28 @@ export function createAnchorLane(deps) {
     const p = deps.activePath();
     return p && p !== SYSTEM_TAB ? (deps.frameOf(p)?.contentWindow ?? null) : null;
   };
+  /** What the active canvas last said was selected (selector keys only), to tell a pick from a re-announce. */
+  let lastPick;
   return {
     /** The window `message` handler. */
     onMessage(e) {
       const kind = e?.data?.dgn;
       // S7.10 — the person picked something on the canvas: the clip selected on the Timeline lets go (one thing is
-      // selected at a time). The content of the pick is not read, only that the ACTIVE frame made it.
+      // selected at a time). Only that the ACTIVE frame made it is trusted; of the pick only its selector keys are
+      // compared: a canvas that reloads re-announces the selection it already had, and that is no new pick (the
+      // Inspector's rule too, P8 c6) — it must not take the inspector back from the clip.
       if (kind === 'select' || kind === 'select-set' || kind === 'clear-select') {
         if (
           deps.onCanvasSelect &&
           e.origin === deps.canvasOrigin() &&
           e.source &&
           e.source === activeWin()
-        )
+        ) {
+          const key = kind === 'clear-select' ? '' : pickKey(e.data.selection);
+          if (key !== null && key === lastPick) return;
+          lastPick = key ?? undefined;
           deps.onCanvasSelect();
+        }
         return;
       }
       if (kind !== 'artboard-anchor' && kind !== 'space-tap') return;
