@@ -5,7 +5,11 @@
 // `_sync.json` / `_state/` (a copied synced project re-links to the live cloud hub).
 //
 //   bun scripts/v2-index-bench.ts --root <copy> [--port 4797] [--skip-artboards] [--skip-assets]
-//                                 [--skip-versions] [--runs 5]
+//                                 [--skip-versions] [--runs 5] [--only <regex>]
+//
+// --only <regex>: the cover pass asks for just the canvases whose rel matches (instead of the
+// background sweep) and prints the renderer's reply for every one that fails — the way to chase
+// one canvas's cover without the 95-canvas sweep. The run stops after that pass.
 //
 // Everything it writes goes to a throwaway dir: the index/picture cache (MAUDE_INDEX_DIR), the
 // studio's prefs/config (XDG_CONFIG_HOME, MAUDE_UI_PREFS_PATH, MAUDE_CLOUD_CONFIG) and logs —
@@ -34,6 +38,7 @@ const opt = (k: string, d: string) => {
 const root = path.resolve(opt('--root', ''));
 const port = Number(opt('--port', '4797'));
 const RUNS = Number(opt('--runs', '5'));
+const ONLY = opt('--only', '') ? new RegExp(opt('--only', '')) : null;
 if (!opt('--root', '')) throw new Error('--root <unlinked copy> is required');
 const designRoot = path.join(root, '.design');
 const cfgRaw = JSON.parse(readFileSync(path.join(designRoot, 'config.json'), 'utf8'));
@@ -233,6 +238,37 @@ try {
   // covers — cold (first browser launch, nothing cached)
   t0 = performance.now();
   let from = replies.length;
+  if (ONLY) {
+    for (const c of index.snapshot().canvases.filter((x) => ONLY.test(x.rel))) {
+      const t = performance.now();
+      const ask = () =>
+        svc.thumb({ canvas: c.rel, artboard: null, size: 'card', priority: 'visible' });
+      let r = await ask();
+      for (let i = 0; i < 120 && r.status === 'pending'; i++) {
+        await Bun.sleep(250);
+        r = await ask();
+      }
+      const why = (r as { reason?: string }).reason ?? '';
+      console.error(`only ${c.rel}: ${r.status} ${why} ${ms(t)} ms`);
+    }
+    await svc.idle();
+    out.onlyReplies = replies.map((m) => ({
+      ...m,
+      shots: Array.isArray(m.shots)
+        ? (m.shots as Array<Record<string, unknown>>).map((s) => ({
+            ...s,
+            jpeg: typeof s.jpeg === 'string' ? s.jpeg.length : undefined,
+          }))
+        : undefined,
+    }));
+    svc.stop();
+    server.kill();
+    await server.exited;
+    index.stop();
+    rmSync(scratch, { recursive: true, force: true });
+    console.log(JSON.stringify(out, null, 2));
+    process.exit(0);
+  }
   await svc.startBackground();
   await svc.idle();
   const coldMs = ms(t0);

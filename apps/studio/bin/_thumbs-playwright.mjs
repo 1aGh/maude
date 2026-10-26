@@ -407,10 +407,27 @@ async function render(msg) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(job.url, { waitUntil: 'domcontentloaded', timeout: left() });
     assertOrigin(page, job);
-    await page
-      .locator('#canvas-root > *')
-      .first()
-      .waitFor({ state: 'attached', timeout: Math.min(20_000, left()) });
+    // The shell writes a refused or failed mount into `#canvas-mount-error` and never mounts the
+    // canvas (a module the frame gate refuses — a `_frames.tsx` that renders DesignCanvas — is one):
+    // waiting out the mount timeout for it cost 20 s a try. Fail on the shell's own answer instead.
+    const mounted = await page.waitForFunction(
+      () =>
+        document.querySelector('#canvas-root > *')
+          ? 'mounted'
+          : document.getElementById('canvas-mount-error')?.textContent
+            ? 'failed'
+            : false,
+      null,
+      { timeout: Math.min(20_000, left()) }
+    );
+    if ((await mounted.jsonValue()) === 'failed') {
+      const why = await page
+        .evaluate(() => document.getElementById('canvas-mount-error')?.textContent ?? '')
+        .catch(() => '');
+      const err = new Error(String(why).trim().split('\n')[0] || 'the canvas did not mount');
+      err.code = 'canvas-failed';
+      throw err;
+    }
     const named = targets.map((t) => t?.artboard).filter((a) => typeof a === 'string');
     if (job.hasArtboards && named.length && named.length === targets.length) {
       // every target names its artboard (a version row, an on-demand shot): wait for exactly
@@ -608,7 +625,11 @@ async function handle(msg) {
     send({ id, ...(await (msg.op === 'tile' ? tile(msg) : render(msg))) });
   } catch (e) {
     const code =
-      e?.code === 'origin' ? 'origin' : /timeout/i.test(String(e?.message)) ? 'timeout' : 'error';
+      e?.code === 'origin' || e?.code === 'canvas-failed'
+        ? e.code
+        : /timeout/i.test(String(e?.message))
+          ? 'timeout'
+          : 'error';
     send({
       id,
       ok: false,

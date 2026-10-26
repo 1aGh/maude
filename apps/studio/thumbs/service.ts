@@ -555,7 +555,13 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
     }
     if (reply.error === 'no-engine') engineMissing = true;
     if (reply.ok !== true) {
-      for (const t of job.targets) fail(t.key);
+      // the shell refused or failed the mount (access/closure, a build error): the same source
+      // fails the same way, and the key changes when it does — no retries to the failure cap
+      const permanent = reply.error === 'canvas-failed';
+      for (const t of job.targets) {
+        if (permanent) failures.set(t.key, MAX_FAILURES);
+        else fail(t.key);
+      }
       return;
     }
     // re-keyed under us (an edit mid-render): store nothing — the next thumb() names the new key
