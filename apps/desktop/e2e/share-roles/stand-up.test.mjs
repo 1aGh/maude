@@ -340,7 +340,7 @@ describe('a link turned off: the viewer is a plain browser on the cell door', ()
     // Smoke's capability does not render Private at the canvas origin: the same frame URL, retargeted.
     const other = new URL(src);
     other.searchParams.set('canvas', 'ui/Private.tsx');
-    const probe = await page.context().newPage();
+    const probe = await chromium.newPage();
     await probe.goto(other.href).catch(() => {});
     await new Promise((r) => setTimeout(r, 5000));
     const shown = await probe.evaluate(() => document.body?.innerText ?? '').catch(() => '');
