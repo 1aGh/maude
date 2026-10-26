@@ -74,3 +74,11 @@ Re-judged from the round-11 pairs (full-size pairs and the raw impl frames of `a
 New polish rows (round 11):
 - ia-placed · impl shows the "6 objects" align toolbar over the multi-selection and a "Mixed | Photo" tab pair in the inspector; board draws neither (selection chrome of the shell, per 14). Toast sits at the bottom centre of the canvas, board the same. Left panel foot reads "31 assets · 421 KB" (fixture) vs "253 assets · 1.4 GB".
 - ia-photo-inspector · "Remove background" still plain, not accent-outlined, in both themes (same row as before; the inspector header file name is the sha, fixture).
+
+## Round 11 (p8-r11-15 re-check, ia-assets-find dark only)
+
+Judged from the committed `ia-assets-find-dark.jpg` / `-light.jpg` pair, the full-size pair (last line of `full-size-path.txt`, `agent-ac98b6f3fa3ee10b1/.scr`) and the raw 1440x860 impl frame (shot after `10c7d0b3d`, which rescoped the rule to `.maude[data-theme='dark'] .lp-tile-match`, `left-panel.css:1577`).
+
+- ia-assets-find · VERIFIED (light, dark) · none. Dark: the match-name labels on the three tiles (Matchday-01/-02/-03.jpg) now read light on the ink scrim, same as light; the earlier ~1.5:1 failure is gone. Rest of state 1 unchanged and matching in both themes: search field "Match" with focus ring, All kinds / Not used chips, group "In the name or tags" with count 3, tiles, "Search what's in the pictures too?" card with Turn on..., From this Mac..., foot "Searched 19 assets - names and tags". The MUST in the round-11 section above is closed.
+
+New polish rows: none beyond those already recorded for ia-assets-find (query "Match" with Matchday tiles instead of "touchdown" with two video/clip tiles, fixture; extra sparkle and + buttons beside the chips and shell chrome around the panel, per 14).
