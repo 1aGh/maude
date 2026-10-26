@@ -353,6 +353,7 @@ export function ShellShareCluster() {
         tabs={openTabs}
         project={projectName}
         canEdit={!viewerMode}
+        role={role}
         toast={notify}
         run={(id) => menuRunner.run(id)}
         onOpenTab={openTrashed}

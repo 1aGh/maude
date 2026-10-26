@@ -25,6 +25,7 @@ import {
   canvasName,
   canvasRel,
   REFUSAL_PROBE,
+  roleRank,
   setTrashedOpen,
   shellAccessFrame,
   VIEW_ONLY_EVENT,
@@ -54,6 +55,21 @@ export function accessHostStep(state, frame, { activePath, designRel } = {}) {
   if (n.kind === 'request')
     return { state, toast: { title: n.text, kind: 'info', action: n.action, review: true } };
   return { state, toast: null };
+}
+
+/**
+ * p8-e2e-fix-r6 (decision v2-p8-raise-notice-from-shell-access-widen) — did the role on the OPEN canvas widen
+ * from Can view / Can comment to Can edit or up? `prev` / `next` are `{ rel, role }` (designRoot-relative canvas,
+ * wire role). A Can view desktop holds no hub socket, so the hub's raised notice never reaches it; the shell
+ * says the raise when its own /_config re-read (access-changed) shows it. Never on first load (no `prev`), an
+ * unknown role, a narrowing, or a different canvas. Pure.
+ */
+export function roleWidened(prev, next) {
+  if (!prev || !next || !next.rel || prev.rel !== next.rel) return false;
+  const was = roleRank(prev.role);
+  const now = roleRank(next.role);
+  const edit = roleRank('member');
+  return was !== undefined && now !== undefined && was < edit && now >= edit;
 }
 
 /**
@@ -127,6 +143,7 @@ export function AccessHost({
   tabs,
   project,
   canEdit,
+  role,
   toast,
   run,
   onOpenTab,
@@ -136,6 +153,9 @@ export function AccessHost({
   const [tipAt, setTipAt] = useState(null);
   const live = useRef({ activePath, designRel, toast, run, state });
   live.current = { ...live.current, activePath, designRel, toast, run };
+  // The canvas whose raise was already said: the hub's raised frame and the shell's own widening (below) say it
+  // once between them; a narrowing on that canvas clears it.
+  const raiseSaid = useRef(null);
 
   useEffect(() => {
     const on = (e) => {
@@ -144,6 +164,11 @@ export function AccessHost({
       if (step.state !== prev) {
         live.current.state = step.state;
         setState(step.state);
+      }
+      if (step.toast && step.reread) {
+        const at = canvasRel(a, d) ?? '';
+        if (raiseSaid.current === at) return;
+        raiseSaid.current = at;
       }
       if (step.toast) {
         const { review, action, ...notice } = step.toast;
@@ -205,8 +230,23 @@ export function AccessHost({
     };
   }, []);
 
-  const { items, reload } = useTrash({ enabled: !state.ended });
   const rel = canvasRel(activePath, designRel);
+  const seen = useRef(null);
+  useEffect(() => {
+    const next = { rel: rel ?? null, role };
+    const prev = seen.current;
+    seen.current = next;
+    const at = rel ?? '';
+    if (roleWidened(prev, next)) {
+      if (raiseSaid.current === at) return;
+      raiseSaid.current = at;
+      live.current.toast?.({ title: WORDS.raised(canvasName(at)), kind: 'success' });
+    } else if (raiseSaid.current === at && (roleRank(role) ?? 0) < roleRank('member')) {
+      raiseSaid.current = null;
+    }
+  }, [rel, role]);
+
+  const { items, reload } = useTrash({ enabled: !state.ended });
   const trashedItem = trashedWhileOpen(items, rel);
   useEffect(() => {
     setTrashedOpen(trashedItem ? rel : null);

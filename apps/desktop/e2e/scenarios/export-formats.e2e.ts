@@ -94,8 +94,12 @@ async function pickFormat(id: string): Promise<void> {
         );
         const section = all.find((el) => !el.closest('[data-testid="export-other-menu"]'));
         if (section) {
+          // r6 flake (GIF after MP4, r5 f1): the sheet kept the last pick, the click had not landed in the
+          // sheet's state yet, and submit exported MP4 again — no GIF job ever appeared. Done only once the
+          // section says this format is the picked one (a radio segment, aria-checked).
+          if (section.getAttribute('aria-checked') === 'true') return 'section';
           section.click();
-          return 'section';
+          return null;
         }
         const row = all.find((el) => !!el.closest('[data-testid="export-other-menu"]'));
         if (row) {
