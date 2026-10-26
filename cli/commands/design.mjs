@@ -416,7 +416,11 @@ function runBinDispatch(verb, { args, pkgRoot }) {
   const rest = sv.args;
   // V2-2.8 S4 (contract V2-1.11 §5.3): an output flag lands inside the project or the temp
   // dir, never anywhere else. Auto-tier verbs run without a prompt in the AI chat.
-  const outside = outputViolation(rest);
+  // V2-8.9 B2 — agent-browser-safe takes its screenshot path as a positional, not a flag: the
+  // same rule applies to it.
+  const positionalOut =
+    verb === 'agent-browser-safe' && rest[0] === 'screenshot' && rest[1] ? ['--out', rest[1]] : [];
+  const outside = outputViolation([...rest, ...positionalOut]);
   if (outside) {
     process.stderr.write(violationMessage(verb, outside));
     process.exit(2);

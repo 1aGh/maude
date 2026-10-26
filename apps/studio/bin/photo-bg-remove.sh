@@ -247,6 +247,7 @@ fi
 # only for the nonce this run wrote into the harness (gate-b-c4c). With the split off (no canvas
 # origin) the main origin serves it itself, as before.
 URL="http://localhost:$PORT/_canvas-shell.html?canvas=$REL&nonce=$NONCE"
+. "$SCRIPT_DIR/_url-guard.sh" && maude_url_guard "$URL" || exit 2 # V2-8.9 B2 — http(s) to this Mac only
 SEL="[data-photo-bgremove-status]"
 
 echo "→ driving $URL (session $SESSION)" >&2

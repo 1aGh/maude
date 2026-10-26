@@ -21,7 +21,10 @@ describe('validateArgv — subcommand allow-list', () => {
   for (const sub of ALLOWED_SUBCOMMANDS) {
     test(`accepts "${sub}" with its minimum expected argument count`, () => {
       const [min] = SUBCOMMAND_ARITY[sub];
-      const args = Array.from({ length: min }, (_, i) => `arg${i}`);
+      // `open` takes a URL, and only http(s) to this Mac passes (V2-8.9 B2).
+      const args = Array.from({ length: min }, (_, i) =>
+        sub === 'open' ? 'http://localhost:4399/' : `arg${i}`
+      );
       expect(validateArgv([sub, ...args])).toBeNull();
     });
   }

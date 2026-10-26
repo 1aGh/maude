@@ -120,6 +120,8 @@ test('`maude design <verb> --out /tmp/../etc/x` exits 2 before the helper runs',
       ['svg-optimize', '--out', '/tmp/../etc/maude-confine-probe'],
       ['curl-local', 'http://127.0.0.1:9/', '--output', '/tmp/../etc/maude-confine-probe'],
       ['slug', 'foo', `--out=${join(homedir(), '..', '..', 'etc', 'maude-confine-probe')}`],
+      // V2-8.9 B2 — agent-browser-safe's screenshot path is a positional, not a flag.
+      ['agent-browser-safe', 'screenshot', '/tmp/../etc/maude-confine-probe.png'],
     ];
     for (const args of cases) {
       const r = spawnSync(process.execPath, [MAUDE, 'design', ...args], {

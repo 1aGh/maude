@@ -489,6 +489,7 @@ while IFS= read -r CANVAS; do
   # phase-9.1) — only `/_canvas-shell.html?canvas=<rel>` mounts the canvas
   # (works in both split-on and legacy same-origin modes).
   URL="http://localhost:$PORT/_canvas-shell.html?canvas=$REL_ENC"
+  . "$SCRIPT_DIR/_url-guard.sh" && maude_url_guard "$URL" || exit 2 # V2-8.9 B2 — http(s) to this Mac only
   SLUG=$(bash "$SLUG_HELPER" "$REL" 2>/dev/null || printf '%s' "$REL" | tr '/ ' '__' | tr '[:upper:]' '[:lower:]')
   OUT_PNG="$OUT_DIR/$SLUG.png"
   # DS preview specimens get the computed-style gate; ui/ app canvases don't.

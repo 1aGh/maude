@@ -84,6 +84,7 @@ fi
 # screenshot.sh's URL construction.
 REL_ENC=$(printf '%s' "$DESIGN_REL/$REL" | sed 's/ /%20/g')
 URL="http://localhost:${PORT}/_canvas-shell.html?canvas=${REL_ENC}"
+. "$SCRIPT_DIR/_url-guard.sh" && maude_url_guard "$URL" || exit 2 # V2-8.9 B2 — http(s) to this Mac only
 
 # ---------- engine resolution (mirrors screenshot.sh) ----------
 AB="${MAUDE_AGENT_BROWSER:-agent-browser}"
