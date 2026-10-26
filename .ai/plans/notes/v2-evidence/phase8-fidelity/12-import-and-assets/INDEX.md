@@ -177,3 +177,13 @@ Every reachable id re-shot, light + dark, IMPL side only, on the merged tip `fea
 | ia-more-ways, ia-gen-placed, ia-figma-arrived, ia-figjam, ia-brand, ia-missing, ia-edges | unreachable | unreachable | unchanged: native picker/paste, BYOK provider, Figma API, a reachable website, synced peer, nine external conditions |
 
 Harness note: picture fixtures are drawn in Chromium (no ImageMagick on the runner). 19 ids x 2 themes = 38 pairs.
+
+## Round 11 (p8-r11-1213) — three pairs re-shot after the contrast and font fixes
+
+Re-shot 6 of 38 pairs, 5 changed (ia-assets-find, ia-placed, ia-photo-inspector x light + dark) on the branch tip after D7 (includes `d48530fb2`: dark AA contrast on the Assets search/hint, Photo section buttons in the body font). Everything else in this folder is unchanged. Full-size pairs: last line of `full-size-path.txt` ("round 11: ..."). No match judged here.
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| ia-assets-find | re-shot (pixel-identical to D7: the fix was dark only) | re-shot | `s12` |
+| ia-placed | re-shot | re-shot | `s12h` (the first `s12` try logs `no filechooser`; a later scenario wins) |
+| ia-photo-inspector | re-shot | re-shot | `s12c7` |
