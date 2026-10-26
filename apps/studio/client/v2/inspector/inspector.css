@@ -2711,9 +2711,6 @@
   .insp-err--wide {
     flex: 1 1 100%;
   }
-  .insp-adv-acts--end {
-    justify-content: flex-end;
-  }
 
   /* V2-8.5 C2 — the Inspector is a card per board (14 `.k-insp`): the island hugs its rows (the slot's frame
      is full height; the card is not) and scrolls only past the window; the AI chat island under it does not

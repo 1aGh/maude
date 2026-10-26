@@ -27,12 +27,6 @@
   .chat-thread:has(.ai-conn-sheet) .chat-feed {
     padding-block: 0;
   }
-  /* Claude Code is not ready: the v1 setup list shares the slot with the field below it. */
-  .ai-nc-slot > .chat-disabled {
-    flex: none;
-    min-height: 0;
-    padding: var(--space-3) 0;
-  }
 
   /* ── The card ── */
   .ai-nc {
@@ -228,13 +222,6 @@
   .ai-nc-opt:focus-visible {
     outline: 2px solid var(--accent-text);
     outline-offset: 1px;
-  }
-  .ai-nc-opt-ic {
-    flex: none;
-    display: inline-grid;
-    place-items: center;
-    width: 16px;
-    color: var(--fg-2);
   }
   /* 03 `.ai-sw`: the 18 px colour disc in front of a row (only when the option names a colour) */
   .ai-nc-sw {

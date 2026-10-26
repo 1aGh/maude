@@ -437,12 +437,4 @@
     line-height: var(--lh-xs);
     color: var(--fg-2);
   }
-  .es-conn-veil {
-    position: fixed;
-    inset: 0;
-    z-index: 40;
-    display: grid;
-    place-items: center;
-    background: var(--scrim);
-  }
 }
