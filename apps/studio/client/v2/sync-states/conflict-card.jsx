@@ -245,7 +245,7 @@ export function SyncStatesHost() {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the hub status moving is the re-read cue
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the hub status moving, and this Mac coming back online (round 11: the rows say "sending" at once), are the re-read cues
   useEffect(() => {
     if (!linked) {
       setOutboxView(null);
@@ -267,7 +267,7 @@ export function SyncStatesHost() {
       live = false;
       clearInterval(t);
     };
-  }, [linked, syncStatus?.state, syncStatus?.queuedOps]);
+  }, [linked, online, syncStatus?.state, syncStatus?.queuedOps]);
 
   const pending = (Number(syncStatus?.queuedOps) || 0) + outbox;
   const kind = saveStatus({ linked, online, phase, pending, writeFailed: null }).kind;
