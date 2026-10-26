@@ -2835,7 +2835,8 @@ function DCArtboardBody({
     }
   };
   const articleRef = useRef<HTMLElement | null>(null);
-  const measured = useArtboardBounds(articleRef as RefObject<HTMLElement | null>);
+  // half a CSS px: Blink's zoom re-measures the frame with sub-pixel noise on every pinch frame (V2-8.8)
+  const measured = useArtboardBounds(articleRef as RefObject<HTMLElement | null>, 0.5);
   useEffect(() => {
     // Fixed artboards report too: their frame is label + the declared body,
     // so the model rect must be the measured frame like a hug board's. Never
@@ -4797,8 +4798,17 @@ export function useTheme(): { theme: string; setTheme: (t: string) => void } {
 /**
  * ResizeObserver wrapper. Pass a ref to any element (typically the active
  * artboard); returns its current `{ width, height }` in CSS pixels.
+ *
+ * An unchanged size keeps the same object (no re-render). `minDelta` also
+ * ignores changes smaller than that many CSS px: under Blink's CSS `zoom` the
+ * observer fires on every zoom frame with sub-pixel layout noise
+ * (1279.875 ↔ 1279.92 for a 1280 px board), which re-rendered every artboard
+ * ~2× per frame of a pinch (V2-8.8). Default 0 = every real change.
  */
-export function useArtboardBounds(ref: RefObject<HTMLElement | null>): {
+export function useArtboardBounds(
+  ref: RefObject<HTMLElement | null>,
+  minDelta = 0
+): {
   width: number;
   height: number;
 } {
@@ -4810,11 +4820,15 @@ export function useArtboardBounds(ref: RefObject<HTMLElement | null>): {
       const e = entries[0];
       if (!e) return;
       const r = e.contentRect;
-      setBounds({ width: r.width, height: r.height });
+      setBounds((prev) =>
+        Math.abs(prev.width - r.width) <= minDelta && Math.abs(prev.height - r.height) <= minDelta
+          ? prev
+          : { width: r.width, height: r.height }
+      );
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [ref]);
+  }, [ref, minDelta]);
   return bounds;
 }
 
