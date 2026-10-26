@@ -10,7 +10,7 @@
 
 import { statSync } from 'node:fs';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 
 import {
   type AvailableCommand,
@@ -38,8 +38,11 @@ import {
   designRelOf,
   readPathsOf,
   readsBeyond,
+  shellPathWords,
   type TrackedRead,
   type WriteAudienceSource,
+  withoutWriterRules,
+  writerVerbCall,
 } from './audience.ts';
 import { chatSpawnEnv, scrubAgentEnv, teamsSpawnEnv } from './env.ts';
 import {
@@ -582,6 +585,23 @@ export function scopedAllowedTools(onlyVerbs: readonly string[]): string[] {
   return MAUDE_DEFAULT_ALLOWED_TOOLS.filter((t) => !t.startsWith('Bash(') || ok.has(t));
 }
 
+/**
+ * The allow-list a session is spawned with (`kept`), and — on a hub-linked project — the writer-verb
+ * rules taken off it (`dropped`, V2-8.9 round 2): a call those rules would have covered now reaches
+ * `requestPermission`, where the bridge approves it once unless the audience check holds it.
+ */
+export function sessionAllowedTools(scope: {
+  onlyVerbs?: readonly string[] | null;
+  may?: AiMay;
+  audienceGated?: boolean;
+}): { kept: string[]; dropped: string[] } {
+  const allowed = mayAllowedTools(
+    scope.onlyVerbs ? scopedAllowedTools(scope.onlyVerbs) : MAUDE_DEFAULT_ALLOWED_TOOLS,
+    scope.may ?? MAY_ALL
+  );
+  return scope.audienceGated ? withoutWriterRules(allowed) : { kept: allowed, dropped: [] };
+}
+
 export function newSessionParams(
   repoRoot: string,
   studioBrief?: string,
@@ -593,6 +613,8 @@ export function newSessionParams(
     assetsRoots?: readonly string[];
     /** V2-8.9 M2 — the credential stores (default: this process's env, may-scope.ts). */
     credentials?: CredentialPaths;
+    /** V2-8.9 round 2 — a hub-linked project: the writer verbs leave the allow-list (audience.ts). */
+    audienceGated?: boolean;
   } = {}
 ): { cwd: string; mcpServers: never[]; _meta?: Record<string, unknown> } {
   const meta: Record<string, unknown> = {};
@@ -614,10 +636,7 @@ export function newSessionParams(
     // the same `_meta.claudeCode.options` spread as `plugins`/`settings` below
     // (`...userProvidedOptions`, acp-agent.js:2333→2455) into the SDK's
     // `allowedTools` (sdk.d.ts:1331). Everything off this list still prompts.
-    allowedTools: mayAllowedTools(
-      scope.onlyVerbs ? scopedAllowedTools(scope.onlyVerbs) : MAUDE_DEFAULT_ALLOWED_TOOLS,
-      scope.may ?? MAY_ALL
-    ),
+    allowedTools: sessionAllowedTools(scope).kept,
   };
   // P8 c7 (decision maude/v2-p8-c7-ai-may-enforced) — an "AI may" switch the person turned off is a
   // DENY rule: it wins over every allow rule (ours and the person's own ~/.claude) and every mode,
@@ -869,7 +888,9 @@ export class AcpBridge {
    */
   private may: AiMay = MAY_ALL;
   private readonly assetsRoots: string[];
-  private sessionMay = new Map<string, string>(); // sessionId → mayKey it was spawned with
+  private sessionMay = new Map<string, string>(); // sessionId → spawnKey it was spawned with
+  /** V2-8.9 round 2 — sessionId → the writer-verb allow rules it was spawned without. */
+  private sessionGatedRules = new Map<string, ReadonlySet<string>>();
   /** V2-8.9 M2 — the credential stores, from the server's own env (before the agent's scrub). */
   private readonly credentialPaths: CredentialPaths = credentialPathsFor();
   /**
@@ -1099,7 +1120,8 @@ export class AcpBridge {
     // close would kill; that turn keeps the live gate and the next ask picks the change up.
     if (
       existing &&
-      (this.sessionMay.get(existing) === mayKey(this.may) || this.pendingTurns.size > 0)
+      (this.sessionMay.get(existing) === this.spawnKey(this.may, this.audienceGatedNow()) ||
+        this.pendingTurns.size > 0)
     ) {
       return existing;
     }
@@ -1143,6 +1165,7 @@ export class AcpBridge {
     }
     this.sessions.delete(chatId);
     this.sessionMay.delete(sessionId);
+    this.sessionGatedRules.delete(sessionId);
     if (!closed) {
       await this.appendTranscript({ role: 'bootstrap', kind: 'may-refresh-new-session' });
     }
@@ -1162,11 +1185,13 @@ export class AcpBridge {
       scoped = [];
     }
     const may = { ...this.may };
+    const gated = this.audienceGatedNow();
     const params = newSessionParams(this.opts.repoRoot, this.opts.studioBrief, this.opts.plugins, {
       onlyVerbs: scoped === null ? null : HANDOFF_RUN_VERBS,
       may,
       assetsRoots: this.assetsRoots,
       credentials: this.credentialPaths,
+      audienceGated: gated,
     });
     const persistedId = resume === undefined ? await this.readPersistedSessionId() : resume;
     let sessionId: string | undefined;
@@ -1211,7 +1236,17 @@ export class AcpBridge {
     // current session state (the RPC response), never replayed history, but
     // we still sequence it after the try/finally so nothing fires while a
     // resume is nominally in flight.
-    this.sessionMay.set(sessionId, mayKey(may));
+    this.sessionMay.set(sessionId, this.spawnKey(may, gated));
+    this.sessionGatedRules.set(
+      sessionId,
+      new Set(
+        sessionAllowedTools({
+          onlyVerbs: scoped === null ? null : HANDOFF_RUN_VERBS,
+          may,
+          audienceGated: gated,
+        }).dropped
+      )
+    );
     this.lastModes = modes ?? null;
     this.lastConfigOptions = configOptions ?? [];
     await this.applyDesiredConfigOnce(sessionId);
@@ -1458,6 +1493,11 @@ export class AcpBridge {
         // with no pending entry, no client frame and no prompt — byte-for-byte
         // the DDR-184 experience. Everything else falls through to the real gate
         // that already exists; this deliberately does NOT build a parallel path.
+        // V2-8.9 round 2 (decision maude/v2-8.9-round2-writer-verbs-audience) — a design-root writer
+        // verb the session was spawned without an allow rule for (a hub-linked project): the bridge
+        // approves it once, unless the audience check holds it for the person.
+        const verb = this.writerVerbHold(params);
+        if (verb) return verb;
         const scope = this.classifyWrite(params);
         if (scope.autoApprove) {
           const auto: RequestPermissionResponse = {
@@ -1759,6 +1799,98 @@ export class AcpBridge {
    * nothing to check (no source, no design-root target, or this chat read nothing beyond the targets
    * — no hub call). Otherwise resolves to the card's `info`, or null when the write may go.
    */
+  /** V2-8.9 round 2 — does this project have an audience beyond its own people (a linked hub)? */
+  private audienceGatedNow(): boolean {
+    const source = this.opts.writeAudience;
+    if (!source) return false;
+    try {
+      return source.linked ? source.linked() === true : true;
+    } catch {
+      return true;
+    }
+  }
+
+  /** What a session is spawned under: its "AI may" state and whether the writer verbs are gated. */
+  private spawnKey(may: AiMay, gated: boolean): string {
+    return `${mayKey(may)}|aud:${gated ? 1 : 0}`;
+  }
+
+  /**
+   * V2-8.9 round 2 H-R2-1 — the permission request of a Bash call that names a gated writer verb, or
+   * null (not one: the ordinary path). Only a rule this session was spawned WITHOUT can be approved
+   * here, so a scoped run (S8.10) or an "AI may" switch never gains a verb. Approval is once-only; a
+   * held call is the person's card without `allow_always` (a standing `Bash(maude design …:*)` rule
+   * would undo the gate).
+   */
+  private writerVerbHold(
+    params: RequestPermissionRequest
+  ): Promise<RequestPermissionResponse> | null {
+    const toolCallId = params.toolCall?.toolCallId;
+    const name = typeof toolCallId === 'string' ? this.toolNames.get(toolCallId) : undefined;
+    const command = (params.toolCall?.rawInput as { command?: unknown } | undefined)?.command;
+    if (name !== 'Bash' || typeof command !== 'string') return null;
+    const call = writerVerbCall(command);
+    if (call === null) return null;
+    const gated = this.sessionGatedRules.get(params.sessionId);
+    if (call === 'compound' || !gated?.has(`Bash(maude design ${call.rule}:*)`))
+      return this.askPerson(params, { stripAlways: true });
+    const allowOnce = (params.options ?? []).find((o) => o.kind === 'allow_once');
+    if (!allowOnce) return this.askPerson(params, { stripAlways: true });
+    const auto: RequestPermissionResponse = {
+      outcome: { outcome: 'selected', optionId: allowOnce.optionId },
+    };
+    if (!call.writes || this.reads.size === 0) return Promise.resolve(auto);
+    const card = (
+      reason: 'audience' | 'audience-unknown',
+      targets: string[],
+      leak?: AudienceLeak
+    ): Promise<RequestPermissionResponse> =>
+      this.askPerson(params, {
+        stripAlways: true,
+        info: {
+          outOfProjectWrite: true,
+          resolvedPaths: targets,
+          scopeRoot: this.scopeRoot,
+          reason,
+          ...(leak ? { audience: leak } : {}),
+        },
+      });
+    // The named design files (`ui/x.tsx#artboard` names ui/x.tsx). Every one is a target, and none
+    // is excluded as a source: a verb's argument list is not proof of where its text lands.
+    const rels = new Set<string>();
+    for (const w of shellPathWords(call.args.join(' '))) {
+      const p = w.replace(/#.*$/, '');
+      for (const base of [this.opts.repoRoot, ...this.designRoots]) {
+        const abs = isAbsolute(p) ? resolve(p) : resolve(base, p);
+        let isFile = false;
+        try {
+          isFile = statSync(abs).isFile();
+        } catch {
+          isFile = false;
+        }
+        if (!isFile) continue;
+        const rel = designRelOf(abs, base, this.designRoots);
+        if (rel && !rel.split('/')[0]?.startsWith('_')) rels.add(rel);
+        break;
+      }
+    }
+    const targets = [...rels];
+    if (call.implicitTarget || !targets.length) return card('audience-unknown', targets);
+    if (targets.length === 1 && !readsBeyond(this.reads.values(), targets))
+      return Promise.resolve(auto);
+    const source = this.opts.writeAudience;
+    if (!source) return card('audience-unknown', targets);
+    return source.audienceOf(targets).then(
+      (audiences) => {
+        if (this.stopped) return { outcome: { outcome: 'cancelled' } };
+        if (audiences === null) return card('audience-unknown', targets);
+        const leak = audienceLeak(this.reads.values(), [], audiences);
+        return leak ? card('audience', targets, leak) : auto;
+      },
+      () => card('audience-unknown', targets)
+    );
+  }
+
   private audienceHold(targets: readonly string[]): Promise<PermissionScopeInfo | null> | null {
     const source = this.opts.writeAudience;
     if (!source || this.reads.size === 0) return null;
@@ -2091,6 +2223,7 @@ export class AcpBridge {
     this.conn = null;
     this.sessions.clear();
     this.sessionMay.clear();
+    this.sessionGatedRules.clear();
     // Drop any in-flight sessionFor() promises too — they were bound to the
     // now-dead `conn`; a subsequent sessionFor() for the same chatId must
     // establish fresh against the respawned connection, not await a stale
