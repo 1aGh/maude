@@ -1,6 +1,8 @@
 {
-  "about": "Pre-v2 reference numbers the Phase 8 gates compare against (V2-2.0b). Taken from main @ 8482c9f6 (end of Phase 0 — the split shipped, no v2 chrome).",
+  "about": "Pre-v2 reference numbers the Phase 8 gates compare against (V2-2.0b). Taken from main @ 8482c9f6 (end of Phase 0 \u2014 the split shipped, no v2 chrome).",
   "commit": "8482c9f6",
   "stylesCssBytes": 301090,
-  "clientBundleBytes": 2179230
+  "clientBundleBytes": 2179230,
+  "phase8StartStylesCssBytes": 742100,
+  "phase8StartNote": "V2-8.0 bar (Michal 2026-10-26, decision v2-michal-css-bar-phase8-start): the release CSS must be smaller than at the start of phase 8 (742,100 B, release build at the phase-8 tip before cleanup B); stylesCssBytes stays as the pre-v2 reference only."
 }

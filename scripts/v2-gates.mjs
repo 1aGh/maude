@@ -70,11 +70,21 @@ function cleanupCheck() {
     problems.push(`.st-* / --u-* still used in ${legacy.split('\n').length} client file(s)`);
   const base = existsSync(BASELINES) ? JSON.parse(readFileSync(BASELINES, 'utf8')) : null;
   const css = join(ROOT, 'apps/studio/dist/styles.css');
-  if (!base?.stylesCssBytes) problems.push('no pre-v2 CSS baseline recorded');
-  else if (existsSync(css) && statSync(css).size >= base.stylesCssBytes)
+  // Michal 2026-10-26 (decision v2-michal-css-bar-phase8-start): the bar is "smaller than at the start of
+  // phase 8" — v2's own component CSS (~433 KB) can't fit under the pre-v2 301 KB, so that stays a reference
+  if (!base?.phase8StartStylesCssBytes) problems.push('no phase-8 start CSS baseline recorded');
+  else if (existsSync(css) && statSync(css).size >= base.phase8StartStylesCssBytes)
     problems.push(
-      `CSS bundle ${statSync(css).size} B is not smaller than pre-v2 ${base.stylesCssBytes} B`
+      `CSS bundle ${statSync(css).size} B is not smaller than at the start of phase 8 (${base.phase8StartStylesCssBytes} B)`
     );
+  const idx = join(ROOT, 'apps/studio/client/styles/_index.css');
+  const bundled = existsSync(idx)
+    ? [...readFileSync(idx, 'utf8').matchAll(/@import url\("([^"]+)"\)/g)]
+        .map((m) => join('apps/studio/client/styles', m[1]))
+        .join(',')
+    : '';
+  if (bundled && sh(`node scripts/v2-css-inventory.mjs --check '${bundled}'`).status !== 0)
+    problems.push('dead CSS rules left in the bundle (scripts/v2-css-inventory.mjs --report)');
   if (!existsSync(join(ROOT, 'scripts/check-v2-dead-modules.mjs')))
     problems.push('dead-module check not built yet (scripts/check-v2-dead-modules.mjs)');
   else if (sh('node scripts/check-v2-dead-modules.mjs').status !== 0)

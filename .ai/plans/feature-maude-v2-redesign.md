@@ -501,7 +501,7 @@ Work packages (S1–S11) run on the lanes defined in "How this plan runs" — L1
 
 | ID | Gate | Pass condition |
 | --- | --- | --- |
-| V2-8.0 | **Cleanup** — delete whatever v1 code is still unreferenced and the old token layers (`client/styles.css`, `1-tokens.css`, `*-maude.css`, `5-maude-overrides.css`, leftover menubar/status bar/dock modules). Deleting code is not deleting features: the nothing-deleted test must stay 100 % after it | nothing-deleted 100 %; CSS bundle smaller than before v2; no `.st-*` / `--u-*` left (grep); no dead modules (`knip`-style import check) |
+| V2-8.0 | **Cleanup** — delete whatever v1 code is still unreferenced and the old token layers (`client/styles.css`, `1-tokens.css`, `*-maude.css`, `5-maude-overrides.css`, leftover menubar/status bar/dock modules). Deleting code is not deleting features: the nothing-deleted test must stay 100 % after it | nothing-deleted 100 %; no old token layers, no `.st-*` / `--u-*`, dead-CSS check 0, CSS bundle smaller than at the start of phase 8 (742 KB — Michal 2026-10-26, decision v2-michal-css-bar-phase8-start; the pre-v2 301 KB stays a reference); no `.st-*` / `--u-*` left (grep); no dead modules (`knip`-style import check) |
 | V2-8.1 | Quality gates | `format → lint → typecheck → tests → build` + parity, tarball, tokens, site-content, import coherence — all green |
 | V2-8.2 | Rust | `cargo test` + `clippy -D warnings` |
 | V2-8.3 | Desktop e2e | every scenario (old ones rewritten + new: project-tabs, project-tabs-identity, home, modes-present, annotations-stickers, ds-review, export-sheet, share-roles) green on the debug build, 3 consecutive runs |
