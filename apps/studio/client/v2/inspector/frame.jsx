@@ -14,7 +14,7 @@ import { StIcon } from '../../shell/icons.jsx';
 import { AssetAbsentBox } from '../assets/missing-frame.jsx';
 import { activeDsNameFor } from '../../inspector/ds-tokens.js';
 import { isConfiguredSystem, UsesLink } from '../ds/uses-link.jsx';
-import { copyText, InspectorAdvanced, useAdvancedOpen } from './advanced.jsx';
+import { advancedAccess, copyText, InspectorAdvanced, useAdvancedOpen } from './advanced.jsx';
 import { crumbsFromPath, InspectorCrumbs } from './crumbs.jsx';
 import { blocksFor, blocksVersion, subscribeBlocks } from './blocks.js';
 import { bindInspectorActions } from './inspector-actions.js';
@@ -128,6 +128,10 @@ export function InspectorFrame({
   // S2.18 — someone else holds the selection: view mode (view-mode.jsx)
   const rootRef = useRef(null);
   const hold = viewModeOf(useHoldView({ canvasOrigin: cfg?.canvasOrigin, rootRef }));
+  // V2-8.4 — read-only means cannot CHANGE, not cannot SEE (Cloud Phase 27 C1): a Can-comment / Can-view session reads
+  // every value and opens no field. Without this a viewer typed a new size and saw the heading change on its own canvas
+  // (an optimistic preview of a write the server then refused with 403).
+  const readOnly = advancedAccess(cfg).readOnly;
   const el1 = Array.isArray(selected) ? (selected.length === 1 ? selected[0] : null) : selected;
   // the three registry actions (⌘K) run on what this frame shows; with several objects they say so
   useEffect(() => {
@@ -194,7 +198,7 @@ export function InspectorFrame({
   const ctx = {
     canvasFile,
     cfg,
-    editable: !!el.id,
+    editable: !!el.id && !readOnly,
     // V2-8.5 c6 (14 ed-obj-enter): "In Services · Set by Services · 2 of 3"
     placement: placementOf(layersTree, Array.isArray(selected) ? null : el),
     // 14 ed-lay-free: the object's own name, for the sentence "Post places things freely … keep Datum 64 from …"
@@ -246,7 +250,7 @@ export function InspectorFrame({
       <AssetAbsentBox el={el1} canvas={canvasFile} onReplace={onReplaceMedia} />
       <HoldLine line={hold.line} />
       {/* view mode: every value stays readable, no field opens (a disabled fieldset is the one switch) */}
-      <fieldset className="ed-insp-fields" disabled={hold.view}>
+      <fieldset className="ed-insp-fields" disabled={hold.view || readOnly}>
         {/* S2.17 — what only this kind has (an instance: Component · Content), above the ten sections */}
         {blocksFor(kind.id, 'top').map(({ id, Body }) => (
           <Body key={id} el={el} selection={selected} kind={kind.id} ctx={ctx} />
