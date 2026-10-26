@@ -6672,31 +6672,6 @@
       transform: rotate(360deg);
     }
   }
-  /* fold-back CTA (Task 7) — the one filled action in the Version section. Compact:
- * type-sm title + type-xs sub + tight padding, so it reads as a strong row, not a
- * giant banner. */
-  .rb-fold {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-    width: 100%;
-    text-align: left;
-    margin: var(--space-1) 0;
-    padding: var(--space-1) var(--space-2);
-    border: 0;
-    border-radius: var(--radius-sm);
-    background: var(--accent);
-    color: var(--accent-fg);
-    cursor: pointer;
-    transition: background var(--dur-soft) var(--ease-out);
-  }
-  .rb-fold:hover {
-    background: var(--accent-hover);
-  }
-  .rb-fold:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
   /* new-draft inline form (anchored upward above the dock). Solid bg (not `.panel`). */
   .rb-switcher-err {
     color: var(--status-error);
@@ -6720,12 +6695,6 @@
   @keyframes rb-spin {
     to {
       transform: rotate(360deg);
-    }
-  }
-  /* fold-back confirm sheet (modal over the shell). */
-  @media (prefers-reduced-motion: reduce) {
-    .rb-fold {
-      transition-duration: 1ms;
     }
   }
 }
