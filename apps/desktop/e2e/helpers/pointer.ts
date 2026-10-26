@@ -91,3 +91,33 @@ export const pointerDown = (x: number, y: number) => run('down', x, y);
 export const pointerMove = (x: number, y: number) => run('move', x, y);
 /** Release the held pointer at a window coordinate. */
 export const pointerUp = (x: number, y: number) => run('up', x, y);
+
+/**
+ * A window point over BARE canvas — under it the top document has the canvas frame (no shell island, panel or
+ * Inspector floats there) and the canvas has no artboard. A "click on empty canvas" at a fixed offset from an
+ * artboard lands on whatever the shell put there (the Inspector the selection itself opened), so it never
+ * deselects; this walks rings of candidates around `near` and returns the first bare one, or null.
+ */
+export function bareCanvasPoint(near: { x: number; y: number; w: number; h: number }) {
+  return browser.execute((b) => {
+    const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement | null;
+    const doc = frame?.contentDocument;
+    if (!frame || !doc) return null;
+    const f = frame.getBoundingClientRect();
+    const cx = b.x + b.w / 2;
+    const cy = b.y + b.h / 2;
+    for (const r of [80, 140, 220, 320, 440]) {
+      for (let a = 0; a < 16; a++) {
+        const t = (a / 16) * Math.PI * 2;
+        const x = Math.round(cx + Math.cos(t) * (b.w / 2 + r));
+        const y = Math.round(cy + Math.sin(t) * (b.h / 2 + r));
+        if (x < f.left + 8 || y < f.top + 8 || x > f.right - 8 || y > f.bottom - 8) continue;
+        if (document.elementFromPoint(x, y) !== frame) continue;
+        const inner = doc.elementFromPoint(x - f.left, y - f.top);
+        if (!inner || inner.closest('[data-dc-screen], button, input, [role]')) continue;
+        return { x, y };
+      }
+    }
+    return null;
+  }, near) as Promise<{ x: number; y: number } | null>;
+}
