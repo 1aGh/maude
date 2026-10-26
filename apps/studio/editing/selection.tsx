@@ -194,7 +194,8 @@ const CSS_TEXT = `
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.ed-name-tag > .ed-tag-q { font-weight: 400; opacity: 0.86; }
+/* V2-8.7: regular weight alone says "quiet" — the board's .86 left the size at 3.9:1 on the accent (AA wants 4.5) */
+.ed-name-tag > .ed-tag-q { font-weight: 400; opacity: 1; }
 `;
 
 function place(div: HTMLElement | null, el: Element | null, asTag = false): void {

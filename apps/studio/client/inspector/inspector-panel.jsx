@@ -652,7 +652,7 @@ export function InspectorPanel({
         'st-rpanel' + (layersOnly ? '' : ' st-rpanel--insp') + (resizing ? ' is-resizing' : '')
       }
       style={width ? { width, flexBasis: width } : undefined}
-      aria-label="Inspector"
+      aria-label={layersOnly ? 'Layers' : 'Inspector'}
       data-tour="inspector"
       data-testid={testId}
     >

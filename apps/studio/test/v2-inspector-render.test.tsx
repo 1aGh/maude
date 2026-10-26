@@ -529,6 +529,13 @@ describe('inside the Inspector island', () => {
     expect(layers.querySelector('aside.st-rpanel--insp')).toBeNull();
   });
 
+  test('landmark-unique: the standalone Layers aside is named "Layers" — the inspector card keeps "Inspector" (V2-8.7)', async () => {
+    const insp = await panel({ hideLayersTab: true });
+    expect(insp.querySelector('aside')?.getAttribute('aria-label')).toBe('Inspector');
+    const layers = await panel({ layersOnly: true, tab: 'layers', testId: 'layers-panel' });
+    expect(layers.querySelector('aside')?.getAttribute('aria-label')).toBe('Layers');
+  });
+
   test('the old CSS tab id opens the same frame', async () => {
     const host = await panel({ tab: 'css' });
     expect(q(host, 'inspector-frame')).not.toBeNull();
