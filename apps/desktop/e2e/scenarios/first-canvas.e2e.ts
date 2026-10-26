@@ -6,7 +6,16 @@ import { $, browser, expect } from '@wdio/globals';
 import { waitForCanvasRects, waitForEditChrome } from '../helpers/canvas-frame';
 import { syncStatusText } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
-import { activeTab, focusTab, HOME, handles, labels, waitWindow } from '../helpers/windows';
+import { invokeTauri } from '../helpers/native';
+import {
+  activeTab,
+  closeTab,
+  focusTab,
+  HOME,
+  handles,
+  labels,
+  waitWindow,
+} from '../helpers/windows';
 
 /**
  * The FIRST-CANVAS journey (S6.16 · 01 Create Flow rows cf-select-tweak, cf-add-artboard, cf-duplicate-width,
@@ -171,6 +180,17 @@ describe('first canvas (S6.16) — a sentence on Home to a saved, shared canvas'
     startReport('first-canvas');
     expect(FIXTURES.length).toBe(2);
     await browser.setTimeout({ script: 60_000 });
+    // A Mac lists only the projects it has opened: Home's shelf and its target picker are the app's registry,
+    // and the machine index (what the lane seeds) holds those projects' canvases and pictures. A project the app
+    // never opened is not on the shelf — "No projects on this Mac yet." is the right words for it (home.e2e step 1
+    // asserts `shell_state.projects` is empty on a first launch). So the person of this journey has used Beta
+    // before: open it once, close its tab, and it stays a known project Home can aim a sentence at.
+    await onServer(HOME);
+    await (await $(tid('home-root'))).waitForDisplayed({ timeout: 90_000 });
+    await invokeTauri('open_project', { root: BETA.root });
+    await waitWindow(label(BETA), true, 60_000);
+    await closeTab(label(BETA), HOME);
+    await onServer(HOME);
   });
 
   it('1 · Home: a sentence aimed at a project opens that tab with a NEW canvas, and the fake AI draws three artboards', async () => {
