@@ -62,6 +62,32 @@ const selectArtboard = () =>
       );
   });
 
+const PLACED = 'Placed take 1 in Gameweek 5.';
+const OTHERS = 'The other three are in Assets › Generated.';
+
+/** Start keeping the text of every notice card (`notice-<id>`, notifications.tsx) the shell shows from now on. */
+const watchNotices = () =>
+  browser.execute(() => {
+    const w = window as unknown as { __seenNotices?: string[]; __noticeWatch?: MutationObserver };
+    w.__seenNotices = [];
+    w.__noticeWatch?.disconnect();
+    const grab = () => {
+      for (const n of Array.from(
+        document.querySelectorAll<HTMLElement>('[data-testid^="notice-"]')
+      )) {
+        const text = n.innerText.trim();
+        if (text && !w.__seenNotices?.includes(text)) w.__seenNotices?.push(text);
+      }
+    };
+    w.__noticeWatch = new MutationObserver(grab);
+    w.__noticeWatch.observe(document.body, { childList: true, subtree: true, characterData: true });
+    grab();
+  });
+const noticesSeen = (): Promise<string[]> =>
+  browser.execute(
+    () => (window as unknown as { __seenNotices?: string[] }).__seenNotices ?? []
+  ) as Promise<string[]>;
+
 describe('Generate with N takes (S8.16)', () => {
   before(async () => {
     await waitForSidecar();
@@ -95,6 +121,7 @@ describe('Generate with N takes (S8.16)', () => {
 
   it('Generate places the best take, writes a .gen.json per take and says where the others are', async () => {
     const report = startReport('generate-takes-placed');
+    await watchNotices(); // a notice is a pill that goes by: keep what it said, do not race its dismissal
     await (await $('[data-testid="generate-ask-prompt"]')).setValue('a touchdown at night');
     await (await $('[data-testid="generate-ask-go"]')).click();
     await browser.waitUntil(() => srcOf(source()) !== null, {
@@ -109,9 +136,12 @@ describe('Generate with N takes (S8.16)', () => {
     expect(gen.takes.length).toBe(4);
     for (const sha of gen.takes)
       expect(existsSync(join(DESIGN, `assets/${sha}.gen.json`))).toBe(true);
-    const toast = await $('*=The other three are in Assets › Generated.');
-    await toast.waitForExist({ timeout: 10_000 });
-    expect(await toast.getText()).toContain('Placed take 1 in Gameweek 5.');
+    // `*=text` is WebdriverIO's partial LINK text (anchors only); the toast is a notice card (`notice-<id>`)
+    await browser.waitUntil(async () => (await noticesSeen()).some((t) => t.includes(PLACED)), {
+      timeout: 10_000,
+      timeoutMsg: `no notice said "${PLACED}" — saw ${JSON.stringify(await noticesSeen())}`,
+    });
+    expect((await noticesSeen()).join('\n')).toContain(OTHERS);
     await capture(report, 'placed');
   });
 

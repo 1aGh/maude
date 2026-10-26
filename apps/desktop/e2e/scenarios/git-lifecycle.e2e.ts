@@ -7,6 +7,7 @@ import { $, browser, expect } from '@wdio/globals';
 import { currentBranch, openHistory } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
+import { setSelect } from '../helpers/select';
 import { waitForSidecar } from '../helpers/sidecar';
 
 /**
@@ -59,6 +60,14 @@ async function openAdvanced(): Promise<void> {
   await openHistory();
 }
 
+/** The Branch select is a native `<select>` (git-advanced.jsx): the embedded WebDriver's option click does not select in
+ *  WKWebView (helpers/select.ts), so the pick goes through the select's own `change`. The pick is asserted — a select
+ *  that lacks the branch is a spec/product mismatch, not a quiet no-op that times out a minute later. */
+async function pickBranch(name: string): Promise<void> {
+  await $(tid('vh-git-branch')).waitForDisplayed({ timeout: 20_000 });
+  expect(await setSelect('vh-git-branch', name)).toBe(true);
+}
+
 describe('git-lifecycle (native-desktop)', () => {
   before(async () => {
     startReport('git-lifecycle (native-desktop) — complete git functionality through the UI');
@@ -103,14 +112,14 @@ describe('git-lifecycle (native-desktop)', () => {
 
     // ── 2. SWITCH BRANCHES (the Branch select: main → back) — reload-based, reliable ──
     await openAdvanced();
-    await $(tid('vh-git-branch')).selectByAttribute('value', 'main');
+    await pickBranch('main');
     await browser.waitUntil(async () => (await currentBranch()) === 'main', {
       timeout: 60_000,
       timeoutMsg: 'switch-branches: did not check out main',
     });
     await capture('03-switched-to-main');
     await openAdvanced();
-    await $(tid('vh-git-branch')).selectByAttribute('value', BR);
+    await pickBranch(BR);
     await browser.waitUntil(async () => (await currentBranch()) === BR, {
       timeout: 60_000,
       timeoutMsg: 'switch-branches: did not return to the feature branch',

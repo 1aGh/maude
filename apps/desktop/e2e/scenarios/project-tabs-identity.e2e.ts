@@ -65,6 +65,18 @@ async function waitForProfile(id: string, what: string): Promise<void> {
   });
 }
 
+/** `open_local_project` from the calling tab, with the refusal handed back instead of thrown. */
+async function openLocalProject(path: string): Promise<{ ok: boolean; error: string }> {
+  return browser.executeAsync((p: string, done: (r: { ok: boolean; error: string }) => void) => {
+    // biome-ignore lint/suspicious/noExplicitAny: __TAURI__ is an injected global
+    const tauri = (window as any).__TAURI__;
+    tauri.core.invoke('open_local_project', { path: p }).then(
+      () => done({ ok: true, error: '' }),
+      (e: unknown) => done({ ok: false, error: String(e) })
+    );
+  }, path) as Promise<{ ok: boolean; error: string }>;
+}
+
 function serverGone(root: string): boolean {
   try {
     readServerInfo(root);
@@ -178,8 +190,12 @@ describe('project-tabs-identity (native-desktop)', () => {
     });
   });
 
-  it('an in-tab switch A→B→A keeps each project’s identity', async () => {
-    // Open once: B must not be open elsewhere, or the switch focuses that tab.
+  // S1.22b / V2-3.6 M3 (`windows::in_tab_open_rule`, `home::tab_may_open`): an in-tab switch keeps the tab on ITS
+  // account — a project another profile owns is refused ("That project isn't one this tab can open."), never
+  // adopted by the tab that asks. B belongs to profile Y since its sign-in (step 2), so A (default) cannot switch
+  // onto it; B comes back in a tab of its own, still on Y.
+  it('an in-tab switch never moves a tab onto another account’s project; B reopens on its own', async () => {
+    // Open once: B must not be open elsewhere, or the switch would focus that tab instead of being refused.
     await closeTab(tabB, tabA);
     await browser.waitUntil(async () => serverGone(SECONDARY), {
       timeout: GRACE_MS + 20_000,
@@ -187,14 +203,26 @@ describe('project-tabs-identity (native-desktop)', () => {
       timeoutMsg: "the secondary's server outlived the close grace",
     });
     await focusTab(tabA);
-    await invokeTauri('open_local_project', { path: SECONDARY }).catch(() => undefined);
-    await waitForProfile(profileY, 'tab A on B');
-    expect(await identityOfTab()).toEqual({ profile: profileY, signedIn: true, login: Y });
-    await capture('4-a-switched-to-b');
-
-    await invokeTauri('open_local_project', { path: PRIMARY }).catch(() => undefined);
-    await waitForProfile('default', 'tab A back on A');
+    const refused = await openLocalProject(SECONDARY);
+    expect(refused.ok).toBe(false);
+    expect(refused.error).toContain('one this tab can open');
+    // A did not move: same profile, same server, same sign-in
     expect(await identityOfTab()).toEqual({ profile: 'default', signedIn: true, login: X });
-    await capture('4-a-back-on-a');
+    expect(serverGone(SECONDARY)).toBe(true);
+    await capture('4-a-refused-b');
+
+    // B opened on its own keeps what it signed in as
+    tabB = (await openTab(SECONDARY)).label;
+    await waitWindow(tabB);
+    await focusTab(tabB);
+    await waitForSidecar();
+    await waitForProfile(profileY, 'tab B reopened');
+    expect(await identityOfTab()).toEqual({ profile: profileY, signedIn: true, login: Y });
+    await capture('4-b-reopened-on-y');
+
+    // and A, which never moved, is still on X
+    await focusTab(tabA);
+    expect(await identityOfTab()).toEqual({ profile: 'default', signedIn: true, login: X });
+    await capture('4-a-still-on-a');
   });
 });

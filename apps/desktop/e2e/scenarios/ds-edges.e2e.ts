@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { $, browser, expect } from '@wdio/globals';
 import { waitForCanvasOpened } from '../helpers/canvas-frame';
 import { openInspector } from '../helpers/chrome';
@@ -18,6 +20,14 @@ import { dsRow } from '../helpers/tree';
  * the click is the shell's own DOM. The off-system question needs a git history for "changed lines" and is proven in
  * ds-edges.test.ts / v2-ds-edges.test.tsx, not here.
  */
+const ROOT = process.env.MAUDE_E2E_DS_EDGES_ROOT ?? '';
+/** The tokens with a change waiting, as the engine left them in the system canvas's meta (`dsPending.tokens`). */
+const pendingTokens = (): string[] => {
+  const file = join(ROOT, '.design', 'system', 'acme', 'design-system.meta.json');
+  if (!existsSync(file)) return [];
+  const meta = JSON.parse(readFileSync(file, 'utf8')) as { dsPending?: { tokens?: object } };
+  return Object.keys(meta.dsPending?.tokens ?? {}).sort();
+};
 const swatchCentre = (css: string) =>
   browser.execute((token) => {
     const f = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
@@ -86,6 +96,13 @@ describe('ds-edges — a quiet contrast warning with the fix, and a colour to th
           .then((t) => t === 'ok'),
       { timeout: 20_000, timeoutMsg: 'the contrast line never turned ok after the fix' }
     );
+    // The change waits in the Design system canvas's own meta (`dsPending`, engine.ts withPending) — the disk says
+    // whether the engine took it; the bar says whether the canvas drew it. Two assertions, so a red tells which broke.
+    await browser.waitUntil(() => pendingTokens().includes('--fg-2'), {
+      timeout: 20_000,
+      timeoutMsg: `the engine never recorded the fix as a waiting change (dsPending tokens: ${JSON.stringify(pendingTokens())})`,
+    });
+    expect(pendingTokens()).toEqual(['--fg-2']);
     let barSaid: string | null | undefined;
     try {
       await browser.waitUntil(
@@ -96,11 +113,11 @@ describe('ds-edges — a quiet contrast warning with the fix, and a colour to th
           });
           return barSaid === '1 change waiting';
         },
-        { timeout: 15_000 }
+        { timeout: 30_000 }
       );
     } catch {
       throw new Error(
-        `the fix did not leave exactly one change waiting (the bar said ${JSON.stringify(barSaid)})`
+        `the engine holds one waiting change but the bar does not say so (the bar said ${JSON.stringify(barSaid)} — null is no bar at all)`
       );
     }
     await capture('ds-edges-contrast-fixed');

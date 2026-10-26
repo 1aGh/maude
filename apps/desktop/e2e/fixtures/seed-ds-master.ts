@@ -13,6 +13,7 @@ import {
   makeProject,
   PERSON,
 } from '../../../studio/test/_ds-engine-fixture.ts';
+import { installRealDsCanvas, labelDsGroup } from './real-ds-canvas.ts';
 
 const COMPONENTS = {
   schemaVersion: 1,
@@ -23,6 +24,8 @@ const COMPONENTS = {
 };
 
 const p = await makeProject();
+// the pinned system row and the real Design system canvas (bar, board) are drawn from these two — seed-ds-review.ts
+labelDsGroup(p.root);
 await p.outside(`${DS_PATH}/components.json`, `${JSON.stringify(COMPONENTS, null, 2)}\n`);
 await p.engine.keepOutside(DS, { by: PERSON });
 const add = async (folder: string, names: string[]) => {
@@ -37,6 +40,8 @@ await p.engine.mergePending(DS, {
   components: { Button: { '.btn': { 'border-radius': { value: '6px' } } } },
   by: PERSON,
 });
+// last, after anything the engine records (see seed-ds-review.ts): the swap keeps the meta, `dsPending` included
+installRealDsCanvas(p.root, 'acme');
 // the app opens its own home on this project; ours must not hold the database
 p.home.close();
 console.log(p.root);
