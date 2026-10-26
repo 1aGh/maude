@@ -382,18 +382,17 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     // for it plus the handshake attempts. Any of the four terminal shapes is a
     // pass — which one depends on the fixture, and pinning that would make this
     // a test of the fixture rather than of the pipeline.
-    await browser.waitUntil(
-      async () =>
-        // `Not reachable: <project>.` is the offline sentence `presentation.ts`
-        // actually writes; the lowercase `unreachable` this used to look for
-        // only ever appears as a SUFFIX on the refusal case, so the plain
-        // offline outcome — the one this stub always produces — could never
-        // match and the step timed out on a state that was already terminal.
-        /Synced with|Not reachable|unreachable|were refused by|nothing to sync yet/.test(
-          await note.getText()
-        ),
-      { timeout: 60_000, timeoutMsg: 'the connect note never reached a terminal state' }
-    );
+    let said = '';
+    // `Not reachable: <project>.` is the offline sentence `presentation.ts` actually writes; the lowercase
+    // `unreachable` only ever appears as a SUFFIX on the refusal case (the plain offline outcome — the one this stub
+    // always produces — could never match it, and the step timed out on a state that was already terminal)
+    const terminal = async () => {
+      said = await note.getText().catch(() => said);
+      return /Synced with|Not reachable|unreachable|were refused by|nothing to sync yet/.test(said);
+    };
+    await browser.waitUntil(terminal, { timeout: 60_000 }).catch(() => {
+      throw new Error(`the connect note never reached a terminal state (it said "${said}")`);
+    });
     const text = await note.getText();
     expect(text).not.toContain('Connecting to');
 
