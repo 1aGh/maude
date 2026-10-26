@@ -107,10 +107,12 @@ export default function DiagnosticsHost({ toast }) {
         project: projectName,
         wsConnected,
         report,
-        unreachable: !!error && !data,
+        // a cell never serves /_api/diagnostics, so its failed read says nothing about a cloud tab's server
+        unreachable: !cfg?.cloud && !!error && !data,
+        cloud: cfg?.cloud ?? null,
         info,
       }),
-    [syncStatus, projectName, wsConnected, report, error, data, info]
+    [syncStatus, projectName, wsConnected, report, error, data, info, cfg?.cloud]
   );
 
   const onCopy = useCallback(
