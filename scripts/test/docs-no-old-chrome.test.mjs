@@ -88,6 +88,10 @@ export const ALLOW = {
     why: 'the "where did it go" page names every v1 control so a Maude 1 user can find its new home',
     rules: '*',
   },
+  'design-system-schema.mdx': {
+    why: 'Banner is one of the registry’s extended component names; the page lists it, it does not describe Maude’s own chrome',
+    rules: ['banner'],
+  },
 };
 
 function walk(dir) {
