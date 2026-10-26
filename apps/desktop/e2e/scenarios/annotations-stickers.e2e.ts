@@ -142,6 +142,12 @@ async function inPreview() {
 /** The Stickers slot, pressed in the canvas: the shell answers with the gallery. */
 async function openGallery() {
   await inPreview();
+  // A person's click in the canvas makes the frame the shell's focused element; the shell opens a tool panel
+  // only then (EH-P4-2, use-tool-panels.js `hasFocus`). A synthetic click inside the frame moves no focus, so
+  // put it where the person's click would.
+  await browser.execute(() =>
+    (document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement | null)?.focus()
+  );
   await inFrame((d) => {
     (d.querySelector('[data-testid="toolbar-slot-stickers"]') as HTMLElement).click();
     return true;

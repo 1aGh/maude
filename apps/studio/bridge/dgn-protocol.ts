@@ -375,6 +375,9 @@ export interface CanvasToShell {
   // S7.20: the canvas wrote a size-picker pick (`artboard.insert-preset`) at `world`; the shell closes the picker and
   // remembers the pick in Recent. Only after a write that went through.
   'size-place': { presetId: string; world: { x: number; y: number } };
+  // 15 an-stamps: the canvas let go of an armed stamp (Esc / a right click in the canvas — the shell never hears that
+  // key); the shell puts its Stamps row away (annotations/ui/placement.tsx postStampDisarmed).
+  'stamp-disarmed': Empty;
   // S4.8 — a change to what the annotation tools remember per person (sticky colour, Marker ink / thickness /
   // tip, Highlighter hue / nib): the shell writes prefs.json and tells every canvas (`annotation-prefs`).
   // Only fields that are members of their palette survive `parse` + the receivers' sanitiser.
@@ -1763,6 +1766,12 @@ const c2s: C2S = {
     status: 'live',
     owner: 'editing/size-ghost (S7.20); client/v2/kinds',
     parse: p({ presetId: shortStr(40), world: shape({ x: num, y: num }) }),
+  },
+  'stamp-disarmed': {
+    gate: 'active',
+    status: 'live',
+    owner: 'annotations/ui/placement (15 an-stamps); shell tool panels (use-tool-panels.js)',
+    parse: p({}),
   },
   // S3.2b — Present: the canvas posts its zoom for the pill (present/present-zoom.ts). S3.9 — canvas-lib's
   // ViewportZoomReporter posts it too; the shell's ZoomOnly readout (Preview) listens.

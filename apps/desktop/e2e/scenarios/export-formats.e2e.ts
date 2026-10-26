@@ -77,6 +77,24 @@ async function openCanvas(slug: 'export' | 'video' | 'print'): Promise<void> {
   );
 }
 
+/**
+ * S8.2 — the one Export sheet: the canvas's own formats are buttons in the section (PNG/JPG for a design canvas,
+ * MP4/GIF/Sound only for a video one), every other format is a row under Other…. Click the section's button when the
+ * sheet draws one for `id`, else pick it from Other….
+ */
+async function pickFormat(id: string): Promise<void> {
+  const inSection = await browser.execute((f: string) => {
+    const b = Array.from(
+      document.querySelectorAll<HTMLElement>(`[data-testid="export-format-${f}"]`)
+    ).find((el) => !el.closest('[data-testid="export-other-menu"]'));
+    b?.click();
+    return !!b;
+  }, id);
+  if (inSection) return;
+  await (await $('[data-testid="export-other"]')).click();
+  await (await $(`[data-testid="export-other-menu"] [data-testid="export-format-${id}"]`)).click();
+}
+
 /** Open the Export dialog. ⌘⇧E is a shell `window` listener, and the canvas
  * iframe holds focus once mounted, so dispatch on the shell window directly —
  * focus routing is not what this scenario is about. */
@@ -173,14 +191,7 @@ describe('export-formats (native-desktop)', () => {
       await openExportDialog();
       // S8.2 — the one Export sheet: PNG/JPG sit in the section, every other format is a row under
       // Other…; Scope is a radio group (export-scope-<selection|canvas|folder|project>).
-      if (format.id === 'png' || format.id === 'jpg') {
-        await (await $(`[data-testid="export-format-${format.id}"]`)).click();
-      } else {
-        await (await $('[data-testid="export-other"]')).click();
-        await (
-          await $(`[data-testid="export-other-menu"] [data-testid="export-format-${format.id}"]`)
-        ).click();
-      }
+      await pickFormat(format.id);
       const wantScope = format.scope ?? 'artboard';
       const v2Scope: Record<string, string> = {
         artboard: 'selection',
@@ -251,6 +262,8 @@ describe('export-formats (native-desktop)', () => {
       open = 'export';
     }
     await openExportDialog();
+    // the sheet keeps the last pick for the session (the MP4/GIF cases above): this export is the PNG one
+    await pickFormat('png');
     await browser.execute(() => {
       const seg = document.querySelector(
         '[data-testid="export-scope-project"]'
@@ -281,6 +294,13 @@ describe('export-formats (native-desktop)', () => {
     await openCanvas('print');
     open = null; // the next case re-opens its own canvas
     await openExportDialog();
+    // the sheet keeps the last scope for the session (Whole project, above): this one is the print canvas itself
+    await browser.execute(() => {
+      const seg = document.querySelector(
+        '[data-testid="export-scope-canvas"]'
+      ) as HTMLButtonElement | null;
+      if (seg && !seg.disabled) seg.click();
+    });
     const print = await $('[data-testid="export-print"]');
     await print.waitForDisplayed({ timeout: 30_000 });
     expect(await (await $('[data-testid="export-print-format"]')).getAttribute('data-value')).toBe(

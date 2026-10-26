@@ -30,6 +30,24 @@ export interface PlacementProps {
 
 const GHOST_Z = 2147483000;
 
+/**
+ * 15 an-stamps — "Esc lets go": the Stamps row the stamp was picked from is the SHELL's, and a person who stamped
+ * by clicking the canvas presses Esc into the canvas, which the shell never hears. When a stamp pick is let go here,
+ * tell the shell (`stamp-disarmed`) so the row folds away instead of showing a stamp the canvas no longer holds.
+ * A sticker or template pick is spent by its own click (the gallery already closed): nothing to say.
+ */
+export function postStampDisarmed(
+  was: Pick<Pending, 'kind'> | null,
+  win: Window | undefined = typeof window === 'undefined' ? undefined : window
+): void {
+  if (was?.kind !== 'stamp' || !win || win.parent === win) return;
+  try {
+    win.parent.postMessage({ dgn: 'stamp-disarmed' }, '*');
+  } catch {
+    /* detached */
+  }
+}
+
 const ARROW_STEP: Record<string, [number, number]> = {
   ArrowLeft: [-1, 0],
   ArrowRight: [1, 0],

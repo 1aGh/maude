@@ -173,7 +173,9 @@ describe('timeline — manual cut (select · split · delete · undo · zoom)', 
    * strictly between fit and max with a real expansion, and 0 returns to fit.
    */
   it('zoom slider expands the scaled track (px-per-frame scale)', async () => {
-    const LABEL_GUTTER = 96;
+    // P8 C3 (07 · .ve-tl-labs): the zoom lives in the FULL timeline, whose label gutter is 140 px (Timeline.jsx
+    // FULL_GUTTER; the compact body's 30 px gutter has no zoom). The track is gutter + frames × px/frame wide.
+    const LABEL_GUTTER = 140;
     const TOTAL_FRAMES = 210; // Cut.tsx: 60 + 90 + 60 frames (split/delete/undo keep the total)
     const MAX_PX_PER_FRAME = 40;
     const widthOf = () =>

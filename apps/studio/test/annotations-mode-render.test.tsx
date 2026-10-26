@@ -128,6 +128,27 @@ describe('a section title stays at full ink in Edit (a11y, 15 an-section)', () =
   });
 });
 
+describe('an open text editor takes the pointer even in a quiet (Edit) scene', () => {
+  // A double-click on a sticky opens its editor in Edit too; the quiet rule (`… * { pointer-events: none
+  // !important }`) also caught the editor, so the caret could not land at the clicked character (offsetFromPoint
+  // hit-tests a mirror that carries the editor's class — the page under it answered and the editor fell back to
+  // select-all) and a click inside the open editor could not move the caret either (desktop e2e
+  // canvas-text-editing: "sticky: dblclick at a char offset").
+  test('the editor (and its caret mirror, same class) is exempt from the quiet rule, after it in the sheet', async () => {
+    const src = (await Bun.file(
+      new URL('../annotations-layer.tsx', import.meta.url).pathname
+    ).text()) as string;
+    const quiet = src.indexOf(
+      '.dc-annot-scene[data-an-quiet], .dc-annot-scene[data-an-quiet] * { pointer-events: none !important; }'
+    );
+    const exempt = src.indexOf(
+      '.dc-annot-scene[data-an-quiet] .dc-annot-editor { pointer-events: auto !important; }'
+    );
+    expect(quiet).toBeGreaterThan(-1);
+    expect(exempt).toBeGreaterThan(quiet);
+  });
+});
+
 describe('P8 C7 an-stk-drop: connection dots are not drawn at rest, they appear under the pointer', () => {
   test('a transparent hit circle carries the gesture, the visible dot shows only on hover', async () => {
     const src = (await Bun.file(

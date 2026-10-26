@@ -41,39 +41,20 @@ describe('share-link — addresses, row sharing, same-project open and foreign-p
     });
   });
 
-  it('copies an app link from the Share cluster and shares a different row without opening it', async () => {
+  it('a local project’s Share offers Move to cloud; a row’s Copy link shares it without opening it', async () => {
     await (await canvasRow('canvas-row-ui-smoke')).click();
     await active('.design/ui/Smoke.tsx');
     await (await $(tid('share-cluster-share'))).click();
     await (await $(tid('share-dialog'))).waitForDisplayed();
-    // The raw links sit under Advanced · Other ways in (S9.19) — folded until asked for.
-    if (!(await $(tid('share-app-url')).isExisting())) {
-      await (await $(tid('share-other-ways-toggle'))).click();
-    }
-    expect(await (await $(tid('share-app-url'))).getValue()).toBe(
-      'maude://open/project?open=ui/Smoke.tsx'
-    );
-    // A previous run may have left the same link behind; require a fresh write.
-    if (process.platform === 'darwin') {
-      execFileSync('/usr/bin/pbcopy', { input: 'share-link-before-copy' });
-    } else {
-      await browser.execute(() => navigator.clipboard.writeText('share-link-before-copy'));
-    }
-    await (await $(tid('share-copy-app'))).click();
-    // Verify the real clipboard, independent of the brief "Copied" label.
-    // macOS exposes it without triggering a webview clipboard-read prompt.
-    await browser.waitUntil(
-      async () => {
-        const copied =
-          process.platform === 'darwin'
-            ? execFileSync('/usr/bin/pbpaste', { encoding: 'utf8' })
-            : await browser.execute(() => navigator.clipboard.readText());
-        return copied === 'maude://open/project?open=ui/Smoke.tsx';
-      },
-      { timeout: 5000, timeoutMsg: 'Copy did not write the app link to the clipboard' }
-    );
+    // S9.20: sharing needs the cloud, so a LOCAL project's Share (desktop) is the Move to cloud door — the raw
+    // links (Advanced · Other ways in) belong to a linked project's sheet (share-sheet.jsx `offerMove`).
+    await (await $(tid('share-move'))).waitForDisplayed();
+    expect(await (await $('#share-move-title')).getText()).toBe('Move “e2e-fixture” to the cloud?');
+    expect(await $(tid('share-app-url')).isExisting()).toBe(false);
     await capture('topbar share');
-    await (await $('button[aria-label="Close share dialog"]')).click();
+    // Cancel leaves the project where it is
+    await (await (await $(tid('share-move'))).$('button=Cancel')).click();
+    await (await $(tid('share-dialog'))).waitForExist({ reverse: true, timeout: 5000 });
     // S1.2: another row's link comes from its row menu's "Copy link" (the Share sheet is the open canvas's)
     if (process.platform === 'darwin') {
       execFileSync('/usr/bin/pbcopy', { input: 'share-link-before-copy' });

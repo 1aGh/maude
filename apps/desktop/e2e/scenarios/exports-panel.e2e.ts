@@ -154,7 +154,8 @@ describe('exports-panel (native-desktop)', () => {
     for (const path of [
       '/etc/hosts',
       join(dirname(saved), 'never-written.png'),
-      join(dirname(saved), 'sub', '..', 'Reveal me.png'),
+      // a literal `..` — path.join would normalise `sub/..` away and hand over the saved path itself
+      `${dirname(saved)}/sub/../Reveal me.png`,
       'Reveal me.png',
     ]) {
       expect(await call('reveal_export', { path })).toEqual({ ok: false, why: REFUSED });

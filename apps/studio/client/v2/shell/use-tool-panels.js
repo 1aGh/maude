@@ -39,6 +39,7 @@ import { showRoleDenial } from './role-denial.js';
  * @param deps.viewport () => {w,h}
  * @param deps.openStickers ({canvas, anchor, replace}) => void — `anchor` is a placement or null (centred);
  *   `replace` (S4.13) is the id of the sticker being replaced
+ * @param deps.closeStickers () => void — the canvas let go of its stamp (`stamp-disarmed`): put the Stamps row away
  * @param deps.openTemplates ({canvas, anchor}) => void — optional until the Templates panel exists (S4.4)
  * @param deps.openComponents ({canvas, anchor}) => void — the Component picker (S2.16); optional like Templates
  * @param deps.openSizes ({canvas, anchor}) => void — the F size picker (S7.20); optional like Templates
@@ -58,12 +59,18 @@ export function createToolPanelLane(deps) {
 
   function onMessage(e) {
     const t = e?.data?.dgn;
-    if (t !== 'toolbar-rect' && t !== 'tool-panel-open') return;
+    if (t !== 'toolbar-rect' && t !== 'tool-panel-open' && t !== 'stamp-disarmed') return;
     const m = acceptFromCanvas(e, { canvasOrigin: deps.canvasOrigin(), active: activeWin() });
     if (!m) return;
     const canvas = deps.activePath();
     if (m.dgn === 'toolbar-rect') {
       rects.set(canvas, m.mode, m.rect);
+      return;
+    }
+    // 15 an-stamps — the canvas let go of its stamp (Esc in the canvas): the Stamps row goes too. Closing pops
+    // nothing, so neither the focus gate nor the quiet period applies.
+    if (m.dgn === 'stamp-disarmed') {
+      deps.closeStickers?.();
       return;
     }
     // tool-panel-open — EH-P4-2 first: an unfocused canvas, or a second open inside the quiet period,
@@ -112,6 +119,7 @@ export function useToolPanels({
   cfg,
   canEdit,
   openStickers,
+  closeStickers,
   openTemplates,
   openComponents,
   openSizes,
@@ -124,6 +132,7 @@ export function useToolPanels({
     cfg,
     canEdit,
     openStickers,
+    closeStickers,
     openTemplates,
     openComponents,
     openSizes,
@@ -139,6 +148,7 @@ export function useToolPanels({
       canEdit: () => live.current.canEdit !== false,
       deny: (panel) => showRoleDenial({ panel }),
       openStickers: (req) => live.current.openStickers(req),
+      closeStickers: () => live.current.closeStickers?.(),
       openTemplates: (req) => live.current.openTemplates?.(req),
       openComponents: (req) => live.current.openComponents?.(req),
       openSizes: (req) => live.current.openSizes?.(req),

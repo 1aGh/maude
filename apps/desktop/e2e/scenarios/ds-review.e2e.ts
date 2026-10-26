@@ -378,11 +378,30 @@ part('4')(
       expect(
         readFileSync(join(ROOT4, '.design', 'system', sysDir(), 'design-system.tsx'), 'utf8')
       ).toContain('ds-dir-a');
-      const parked = await browser.execute(
-        () => (window as unknown as { __maudeAskAiPending?: string }).__maudeAskAiPending ?? ''
+      // The brief is handed to AI (search-env.js sendToAskAI): parked as `{ text, origin, send }` until a chat composer
+      // takes it — and the AI chat, once mounted, takes it into its composer (use-ask-ai.js; with no Claude connected
+      // here it is filled, not sent). Read whichever holds it.
+      let handed = '';
+      await browser.waitUntil(
+        async () => {
+          handed = (await browser.execute(() => {
+            const p = (window as unknown as { __maudeAskAiPending?: { text?: string } | string })
+              .__maudeAskAiPending;
+            const parked = typeof p === 'string' ? p : (p?.text ?? '');
+            const box = document.querySelector<HTMLTextAreaElement>(
+              '[data-testid="chat-composer"] .chat-input'
+            );
+            return parked || box?.value || '';
+          })) as string;
+          return handed !== '';
+        },
+        {
+          timeout: 15_000,
+          timeoutMsg: 'the brief was never handed to AI (not parked, not in the composer)',
+        }
       );
-      expect(parked).toContain(`"""${SENTENCE}"""`);
-      expect(parked).toContain(`/design:setup-ds ${sysDir()} --app`);
+      expect(handed).toContain(`"""${SENTENCE}"""`);
+      expect(handed).toContain(`/design:setup-ds ${sysDir()} --app`);
     });
 
     it('the scripted agent drafts two directions: they open as ds-dir-* artboards, the third waits', async () => {

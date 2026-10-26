@@ -7,7 +7,7 @@ import { capture, startReport } from '../helpers/evidence';
 import { invokeTauri, isNativeShell } from '../helpers/native';
 import { appPid, isAlive, startApp, waitGone } from '../helpers/session';
 import { readServerInfo, waitForSidecar } from '../helpers/sidecar';
-import { focusTab, menuState, waitWindow } from '../helpers/windows';
+import { focusTab, menuState, openTab, waitWindow } from '../helpers/windows';
 
 /**
  * S5.14 — quitting while AI works, and Needs you out of sight (03 `ai-quit`, `ai-needs-tab`,
@@ -119,7 +119,9 @@ describe('ai-quit (native-desktop)', () => {
     );
     await (await $(tid('chat-permission-prompt'))).waitForDisplayed({ timeout: 10_000 });
 
-    const b = await invokeTauri<{ label: string }>('open_project', { root: B });
+    // S15-A3: a project tab may not open another project by its folder (`open_project` is Home's); a person
+    // opens B from Home — the debug-only `e2e_open_root` is that open (helpers/windows.ts openTab)
+    const b = await openTab(B);
     await waitWindow(b.label);
     await focusTab(b.label);
     // One poll tick (6 s) later: A's tab mark is the azure "?", and the Dock counts 1.

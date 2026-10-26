@@ -3025,6 +3025,7 @@ function ShellTree() {
     cfg,
     canEdit: !viewerMode,
     openStickers: setStickerPickerReq,
+    closeStickers: () => setStickerPickerReq(null),
     openTemplates: setTemplatesReq,
     openComponents: setComponentsReq,
     openSizes: setSizesReq,

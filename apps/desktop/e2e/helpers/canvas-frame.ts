@@ -1,5 +1,5 @@
-import { execFileSync } from 'node:child_process';
 import { $, browser } from '@wdio/globals';
+import { bringAppToFront } from './app-front';
 
 /**
  * Switch WebDriver context INTO the active canvas iframe (`data-testid="canvas-frame"`).
@@ -56,6 +56,39 @@ export async function waitForCanvasRects(timeout = 30_000): Promise<void> {
       }),
     { timeout, interval: 250, timeoutMsg: 'the canvas never rendered (no elements in its rects)' }
   );
+  await waitForCanvasSettled();
+}
+
+/**
+ * Wait until what the open canvas shows has stopped MOVING: the camera places the first view a beat after the
+ * elements exist (measured: the heading's box jumps ~100 px some 50 ms after `__maudeCanvasRects()` first lists it,
+ * on a freshly launched app). A spec that reads a box and clicks it in that gap presses where the element WAS —
+ * the frame's padding, so the wrapper is selected instead. Three equal readings 150 ms apart = settled.
+ */
+export async function waitForCanvasSettled(timeout = 10_000): Promise<void> {
+  let last = '';
+  let same = 0;
+  await browser.waitUntil(
+    async () => {
+      const now = (await browser.execute(() => {
+        const frame = document.querySelector<HTMLIFrameElement>('[data-testid="canvas-frame"]');
+        const doc = frame?.contentDocument;
+        if (!frame || !doc) return '';
+        const f = frame.getBoundingClientRect();
+        const boxes = Array.from(doc.querySelectorAll('[data-dc-screen], [data-cd-id]'))
+          .slice(0, 6)
+          .map((el) => {
+            const r = el.getBoundingClientRect();
+            return `${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)},${Math.round(r.height)}`;
+          });
+        return `${Math.round(f.width)}x${Math.round(f.height)}|${boxes.join('|')}`;
+      })) as string;
+      same = now !== '' && now === last ? same + 1 : 0;
+      last = now;
+      return same >= 2;
+    },
+    { timeout, interval: 150, timeoutMsg: 'the canvas never stopped moving after it rendered' }
+  );
 }
 
 /**
@@ -75,6 +108,7 @@ export async function waitForArtboard(id: string, timeout = 30_000): Promise<voi
       }, id),
     { timeout, interval: 250, timeoutMsg: `the artboard "${id}" never rendered` }
   );
+  await waitForCanvasSettled();
 }
 
 /**
@@ -93,9 +127,6 @@ export async function waitForEditChrome(timeout = 30_000): Promise<void> {
   );
 }
 
-/** wdio.conf.ts `E2E_BUNDLE_ID` (not imported: a worker re-evaluating the config has side effects). */
-const E2E_BUNDLE_ID = 'com.maude.app.e2e';
-
 /**
  * Put the person's focus IN the canvas: the app is the active app and the canvas frame holds the
  * shell's focus. The shell honours a canvas's `undo-key` (⌘Z / ⇧⌘Z pressed in the canvas, or a
@@ -106,14 +137,7 @@ const E2E_BUNDLE_ID = 'com.maude.app.e2e';
  * the test window to the front (the run already needs it on screen).
  */
 export async function focusCanvasFrame(timeout = 8000): Promise<void> {
-  try {
-    execFileSync('osascript', ['-e', `tell application id "${E2E_BUNDLE_ID}" to activate`], {
-      timeout: 5000,
-      stdio: 'ignore',
-    });
-  } catch {
-    /* the wait below names the failure */
-  }
+  bringAppToFront(); // the wait below names the failure
   await browser.waitUntil(
     async () =>
       browser.execute(() => {

@@ -56,7 +56,7 @@ import {
 } from './annotations/ui/host-view.ts';
 import { LockedDragTip } from './annotations/ui/locked.tsx';
 import { AnnotationPipelineContext } from './annotations/ui/pipeline-context.ts';
-import { PlacementGhost, StickerSizeChip } from './annotations/ui/placement.tsx';
+import { PlacementGhost, postStampDisarmed, StickerSizeChip } from './annotations/ui/placement.tsx';
 import { type Claim, PointerPipeline } from './annotations/ui/pointer-pipeline.ts';
 import {
   type RenderItem,
@@ -662,6 +662,9 @@ const ANNOT_CSS = `
 /* a11y (15 an-section) - a section's title chip is WORDS: it stays at full ink in Edit (a faded chip read 1.5:1);
    its body is already a 7 % wash, so nothing of the section needs fading. */
 .dc-annot-scene[data-an-quiet], .dc-annot-scene[data-an-quiet] * { pointer-events: none !important; }
+/* …except an OPEN text editor (a double-click opens a sticky's words in Edit too): it is where the person types,
+   and its caret-at-the-click mirror (text-editor.tsx offsetFromPoint, same class) must be hit-testable. */
+.dc-annot-scene[data-an-quiet] .dc-annot-editor { pointer-events: auto !important; }
 .dc-annot-input {
   position: absolute;
   inset: 0;
@@ -4961,7 +4964,10 @@ export function AnnotationsLayer() {
           onPlace={(at) => {
             if (placing && placeRef.current(placing, at)) setPlacing(null);
           }}
-          onCancel={() => setPlacing(null)}
+          onCancel={() => {
+            postStampDisarmed(placing);
+            setPlacing(null);
+          }}
         />
         <AnnotationsInput
           isActive={isActive}
