@@ -3,10 +3,13 @@ import { join } from 'node:path';
 import { $, $$, browser, expect } from '@wdio/globals';
 
 import { openAssistant, requireAi, setPermissionMode } from '../helpers/assistant';
+import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { invokeTauri, isNativeShell } from '../helpers/native';
+import { artboardLabelPoint, pointerClick } from '../helpers/pointer';
 import { appPid, isAlive, startApp, waitGone } from '../helpers/session';
 import { readServerInfo, waitForSidecar } from '../helpers/sidecar';
+import { canvasRow } from '../helpers/tree';
 import { focusTab, menuState, openTab, waitWindow } from '../helpers/windows';
 
 /**
@@ -17,7 +20,8 @@ import { focusTab, menuState, openTab, waitWindow } from '../helpers/windows';
  *      azure "?", the Dock counts 1 and stays at 1 when A comes to the front, 0 once answered.
  *      The OS notification's words ("AI needs you on <canvas>" + "<project>", never the
  *      question) are pinned by `cargo test notify::` — a notification is not DOM-reachable.
- *   2. R10: 2 chats running + 1 ask waiting → ⌘Q asks once, "2 chats"; Cancel keeps them.
+ *   2. R10: 2 chats running + 1 ask waiting (a third ask on the artboard the first one holds) → ⌘Q asks once,
+ *      "2 chats"; Cancel keeps them.
  *   3. Quit → the app is gone ≤ 5 s after the click with its sidecar; every run is stopped
  *      `quit`, no lease left; the running two published their partial work.
  *   4. Relaunch → the chat ends "Stopped when the app quit · …" + Keep going, which asks again.
@@ -94,6 +98,24 @@ async function send(text: string): Promise<void> {
   await input.click();
   await input.addValue(text);
   await (await composer.$('[aria-label="Send message"]')).click();
+}
+
+/** The chip of the composer in front ("◆ SMOKE/01", "No canvas"). */
+async function scopeChip(): Promise<string> {
+  const chip = await (await frontComposer()).$(tid('ai-scope-chip'));
+  return (await chip.isExisting()) ? await chip.getText() : '';
+}
+
+/** Narrow the front composer's scope from its chip's menu (`whole`, `none`, `artboard:<id>`). */
+async function chooseScope(id: string): Promise<void> {
+  await (await (await frontComposer()).$(tid('ai-scope-chip'))).click();
+  const item = await $(tid(`ai-scope-item-${id}`));
+  await item.waitForDisplayed({ timeout: 5_000 });
+  await item.click();
+  if (id === 'none')
+    await until('the chip never said No canvas', 5_000, async () =>
+      /no canvas/i.test(await scopeChip())
+    );
 }
 
 async function quitKey(): Promise<void> {
@@ -178,10 +200,27 @@ describe('ai-quit (native-desktop)', () => {
   it('2 · R10: 2 chats running + 1 ask waiting → ⌘Q asks once, naming 2 chats; Cancel keeps them', async () => {
     await browser.switchToWindow(labelA);
     await setPermissionMode('acceptEdits');
+    // A waiting ask is a second ask on an ARTBOARD a run already holds (A4 "one AI per artboard", 03 ai-queue-rule) —
+    // a busy chat's composer takes no second send. So: the first chat edits the Smoke artboard (picked in the canvas,
+    // the chip says it), a second chat asks with no canvas (it runs beside it), a third asks about Smoke again and
+    // waits in line behind the first.
+    await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
+    const label = await artboardLabelPoint('smoke');
+    if (!label) throw new Error('the Smoke artboard’s name never came clear of the shell');
+    await pointerClick(label.x, label.y);
+    await until('the chip never named the Smoke artboard', 15_000, async () =>
+      /smoke/i.test(await scopeChip())
+    );
     await send(EDITING);
     await (await $(tid('ai-chat-new'))).click();
+    await chooseScope('none'); // "No canvas — just ask": runs beside the first
     await send(SLOW);
-    await send(SLOW); // the same chat is busy: this ask waits behind its own run
+    await (await $(tid('ai-chat-new'))).click();
+    await until('the third chat’s chip never named the Smoke artboard', 15_000, async () =>
+      /smoke/i.test(await scopeChip())
+    );
+    await send(SLOW); // Smoke is held by the first chat's run: this ask waits in line
     const live = await until('two chats never ran with one ask waiting', 120_000, async () => {
       const r = await runs();
       const working = r.mine.filter((m) => m.state === 'running' || m.state === 'starting');
