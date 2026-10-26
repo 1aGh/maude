@@ -154,7 +154,8 @@ describe('the pure rules', () => {
       expect(claudeCodeTmpFor(repo, bad)).toEqual([]);
     const roots = [
       ...sessionReadRoots(repo, [], undefined, 'c1', 'i1'),
-      ...claudeCodeTmpFor(repo, 'sess-a'),
+      // as the bridge does: named and resolved (`/tmp` is `/private/tmp` on macOS)
+      ...readBoundaryRoots({ repoRoot: repo, tmpRoots: claudeCodeTmpFor(repo, 'sess-a') }),
     ];
     const at = (...p: string[]) => join('/tmp', `claude-${uid}`, ...p);
     const verdict = (p: string) => readVerdict('Read', call({ file_path: p }), repo, roots);
@@ -194,7 +195,9 @@ describe('the pure rules', () => {
     const roots = [repo, design];
     expect(bashReadsOutside(`cat ${join(outside, 'tax.pdf')}`, repo, roots)).toBe(true);
     expect(bashReadsOutside('head -n 5 ~/maude-p8-probe/x.txt', repo, roots)).toBe(true);
-    expect(bashReadsOutside('cd .design && rg secret $HOME/maude-p8-probe', repo, roots)).toBe(true);
+    expect(bashReadsOutside('cd .design && rg secret $HOME/maude-p8-probe', repo, roots)).toBe(
+      true
+    );
     expect(bashReadsOutside('FOO=1 cat /etc/hosts | wc -l', repo, roots)).toBe(true);
     expect(bashReadsOutside('cat README.md', repo, roots)).toBe(false);
     expect(bashReadsOutside('ls .design/ui', repo, roots)).toBe(false);
@@ -210,7 +213,9 @@ describe('the pure rules', () => {
       expect(`${c} → ${bashReadsOutside(c, repo, roots)}`).toBe(`${c} → true`);
     expect(bashReadsOutside('jq . package.json', repo, roots)).toBe(false);
     // an interpreter's paths live inside its code: never a standing rule
-    expect(bashReadsOutside(`python3 -c "print(open('/etc/hosts').read())"`, repo, roots)).toBe(true);
+    expect(bashReadsOutside(`python3 -c "print(open('/etc/hosts').read())"`, repo, roots)).toBe(
+      true
+    );
     expect(bashReadsOutside('node -e "1"', repo, roots)).toBe(true);
   });
 

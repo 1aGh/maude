@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { AcpBridge } from '../acp/bridge.ts';
+import { ownServerPorts } from '../acp/index.ts';
 import { chatScratchDir } from '../acp/may-scope.ts';
 import {
   getClaudeAuthStatus,
@@ -226,6 +227,23 @@ describe('AcpBridge — round-trip + subscription guardrail', () => {
     }
     expect(existsSync(bridge.scratchDir)).toBe(false);
   }, 20000);
+
+  test('H-a — ownServerPorts: main, canvas and capture loopback ports; a public canvas origin is not one', () => {
+    expect(
+      ownServerPorts({
+        mainOrigin: 'http://localhost:4399 http://127.0.0.1:4399 https://shell.example',
+        canvasOrigin: 'http://localhost:51000',
+        captureOrigin: 'http://localhost:51001',
+      })
+    ).toEqual([4399, 51000, 51001]);
+    expect(
+      ownServerPorts({
+        mainOrigin: 'http://localhost:4399',
+        canvasOrigin: 'https://c-abc.maude.example',
+      })
+    ).toEqual([4399]);
+    expect(ownServerPorts({})).toEqual([]);
+  });
 });
 
 describe('AcpBridge — cross-restart session resume (DDR-125 gap)', () => {

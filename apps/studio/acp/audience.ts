@@ -222,10 +222,9 @@ export function readPathsOf(
     const real = resolveRealPath(abs, base);
     return owned.some((r) => [abs, real].some((c) => c === r || insideRoot(c, r)));
   };
-  // only the project's own files are judged by git; Maude's roots (plugins, package) are not
+  // the project's own files are judged by git (Maude's own files in a source checkout are tracked)
   const isPrivateRepoFile = (abs: string, kind: 'file' | 'dir') => {
     if (!isPrivate || !(abs === repoRoot || insideRoot(abs, repoRoot))) return false;
-    if (ownRoots.some((r) => abs === r || insideRoot(abs, r))) return false;
     try {
       return isPrivate(abs, kind);
     } catch {
