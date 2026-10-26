@@ -24,7 +24,7 @@ import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { browser } from '@wdio/globals';
-import { bringAppToFront } from './helpers/app-front';
+import { bringAppToFront, keepAppInFront } from './helpers/app-front';
 import { stopE2eApp } from './helpers/app-lifecycle';
 import { isE2eConfigHome } from './helpers/config-home';
 import {
@@ -322,6 +322,7 @@ export const config: WebdriverIO.Config = {
   // (helpers/windows.ts `pinCurrentWindow`, the same call specs make).
   async beforeSuite() {
     bringAppToFront();
+    keepAppInFront(); // MAUDE_E2E_KEEP_FRONT=1 only (helpers/app-front.ts)
     await pinCurrentWindow();
   },
   // A red taken while the app was covered is not evidence (helpers/app-front.ts): every test starts with the e2e
