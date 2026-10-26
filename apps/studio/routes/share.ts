@@ -253,6 +253,17 @@ export function createShareRoutes(deps: ShareRouteDeps): RouteSpec[] {
     return async (req: Request, params: Record<string, string>): Promise<Response> => {
       const gate = shareGateRefusal(route.gate, access());
       if (gate) return refusal(gate);
+      // V2-8.9 round 2 R2-M2 — a share write runs with this Mac's hub credential (an invite, an
+      // anyone-link, an approved request): the person's act in the Maude window, like Connect
+      // (routes/sync.ts link confirm). Only the browser's own same-origin fetch carries this header;
+      // the loopback helper an AI session reaches is also refused by its bash guard (human-only).
+      if (method !== 'GET' && req.headers.get('sec-fetch-site') !== 'same-origin') {
+        return json(403, {
+          ok: false,
+          reason: 'window-only',
+          detail: 'Share from the Share sheet in the Maude window.',
+        });
+      }
       const hub = deps.hub();
       if (!hub) return json(409, { error: NOT_LINKED, reason: 'not-linked' });
       const call = route.build({

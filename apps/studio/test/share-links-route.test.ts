@@ -64,7 +64,7 @@ async function call(table: RouteSpec[], method: string, path: string, body?: unk
   const res = await m.spec.handle(
     new Request(url, {
       method,
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     }),
     m.params
@@ -198,6 +198,7 @@ describe('a booted, hub-linked desktop (the real gate)', () => {
       method,
       headers: {
         'content-type': 'application/json',
+        'sec-fetch-site': 'same-origin',
         origin: base,
         'sec-fetch-site': 'same-origin',
       },
