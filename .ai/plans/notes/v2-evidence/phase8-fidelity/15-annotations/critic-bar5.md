@@ -83,3 +83,16 @@ _Inputs: D7 pairs (light + dark read for every id called verified; full-size cro
 - an-print/export-sheet · Export sheet with "Include annotations" · reachable (an-print-export shot)
 - an-vote/start-sheet · Start a vote sheet · reachable (shot)
 - an-layers/filter-footer · "Hidden by the filter: …" footer after choosing a person chip · needs a second author → unreachable in this fixture
+
+## Round 11
+
+Judged fresh from the committed `<id>-<theme>.jpg` pairs, the full-size round-11 pairs (both themes) and the raw impl frames (cropped / levelled to read the dark route). Lead decisions applied: route bubble drag-only; only Elbow arrows route around artboards (S4.10); Layers list follows the selection store; Preview strip carries timed notes.
+
+- an-follow · differs · remaining MUST: (1) dark: the live elbow route over Tablet / Mobile is drawn in the `#1a1a1a` default arrow ink on the dark canvas, so the path the arrow follows is not visible (only faint verticals; board draws it light); (2) light: the "Let go — the shortest clean path" bubble and the "the straight line would cross Tablet" tag are drawn at world scale (about 5 px type at 26 %), unreadable, whereas the dark frame shows both at page size, so the 1/zoom counter-scale is not reliable in both themes. Matching now: bubble and cross tag exist, drag-only; route is an orthogonal elbow round Tablet and Mobile in light; X/Y chip; loose note beside Mobile.
+- an-layers · verified · none (the selected locked sticky's row is lit with the accent tint in both themes, its lock glyph on the row, "Locked · Unlock ⇧⌘L" bar below the list, "Locked — unlock to move it" tip on the canvas; the product bug is gone)
+- an-video · verified · none (real footage; "0:12" pin chip on the note, faded 0:21 note, strip under the picture "0:12 / 0:28 · Trailer … 2 notes · 1 comment", note bars in paper colour, playhead ring on the first note, face at 0:25; both themes; board's ruler ticks and clip lane are the Edit timeline, not the Preview strip, per decision)
+
+New polish rows:
+- an-layers · rows for stickies show neutral swatches and the count reads 11, not 24 (fixture); no section grouping / person chips (fixture, one author)
+- an-follow · the chip names Tablet where the board names Mobile (first artboard the straight line crosses in this fixture); the bubble lacks the board's "over Mobile · 160 ms" suffix; Edit-mode inspector still frames the shot
+- an-video · notes carry the AI spark mark and no author line (fixture); strip omits the board's second-scale ruler
