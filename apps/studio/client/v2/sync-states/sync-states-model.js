@@ -64,6 +64,107 @@ export function backOnlineToast({ conflicts = 0 } = {}) {
   return { title: `${head}; ${look}.`, action: 'Show' };
 }
 
+// ── Round 11 (10 co-sync-offline / co-sync-back) ────────────────────────────────────────────────────
+// What waits to leave this Mac, per canvas and per comment, read off the ONE outbox view
+// (`GET /_api/outbox` → `content.byDoc` / `content.comments`, V2-1.14 §5.10 + fix 5.12c). No second queue.
+
+/** `canvas-slug.ts` `canvasSlugFromRel` for a design-root-relative path. Mirrored, not imported: this
+ *  file ships in the browser bundle; `test/p8-r11-10-sync-words.test.ts` pins it to the server. */
+export function slugOfRel(rel) {
+  let p = String(rel ?? '').replace(/^\/+|\/+$/g, '');
+  try {
+    p = decodeURIComponent(p);
+  } catch {
+    /* keep as is */
+  }
+  return p
+    .replace(/\//g, '-')
+    .replace(/\s+/g, '_')
+    .replace(/\.(tsx|html)$/i, '')
+    .replace(/^\.+/, '')
+    .toLowerCase();
+}
+
+/** `sync/doc-name.ts` `sanitizeComponent` — the slug as it travels in a namespaced document name. */
+export function wireKeyOfSlug(slug) {
+  return String(slug ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^[-.]+|[-.]+$/g, '')
+    .slice(0, 64)
+    .replace(/[-.]+$/g, '');
+}
+
+/** The slug part of a document name: `ws/<workspace>/<branch>/<slug>`, or a legacy flat slug. */
+const slugOfDoc = (doc) => {
+  const parts = String(doc).split('/');
+  return parts.length === 4 && parts[0] === 'ws' ? parts[3] : String(doc);
+};
+
+/**
+ * The Canvases panel's per-row sync words (10 · co-sync-offline "not sent", co-sync-back "sending").
+ * A canvas row gets one only while a change of its own waits in the outbox AND the project is in that
+ * state — offline says "not sent", syncing says "sending", every other state says nothing.
+ * @param {{ kind: string, view: object|null, canvases: Array<{ rel: string }> }} o
+ *   canvases: the project index's rows (`GET /_api/index`), `rel` relative to the design root
+ * @returns {Map<string, { meta: { word: string, tone: 'quiet', title?: string } }>} keyed by `rel`
+ */
+export function rowSyncSlots({ kind, view, canvases } = {}) {
+  const out = new Map();
+  const word = kind === 'offline' ? 'not sent' : kind === 'syncing' ? 'sending' : null;
+  const byDoc = view?.content?.byDoc;
+  if (!word || !byDoc || typeof byDoc !== 'object') return out;
+  const waiting = new Set();
+  for (const [doc, v] of Object.entries(byDoc))
+    if (count(v?.count) > 0) waiting.add(slugOfDoc(doc));
+  if (!waiting.size) return out;
+  for (const c of Array.isArray(canvases) ? canvases : []) {
+    if (!c || typeof c.rel !== 'string') continue;
+    const slug = slugOfRel(c.rel);
+    if (!waiting.has(slug) && !waiting.has(wireKeyOfSlug(slug))) continue;
+    out.set(c.rel, {
+      meta: {
+        word,
+        tone: 'quiet',
+        ...(kind === 'offline' ? { title: 'Kept on this Mac until it is online' } : {}),
+      },
+    });
+  }
+  return out;
+}
+
+/**
+ * Ids of the comments (and replies) the outbox still holds, while the Mac is offline — the ones whose
+ * thread card says "Queued — sends when this Mac is online." Online they are about to be accepted, so
+ * no word flashes.
+ * @returns {Set<string>}
+ */
+export function queuedCommentIds({ kind, view } = {}) {
+  const ids = view?.content?.comments;
+  if (kind !== 'offline' || !Array.isArray(ids)) return new Set();
+  return new Set(ids.filter((x) => typeof x === 'string'));
+}
+
+/** A comment list with `queued: true` on every comment / reply whose id is in `ids`. The list itself and
+ *  every untouched comment are returned as they came, so an unchanged thread does not re-render. */
+export function markQueued(list, ids) {
+  if (!Array.isArray(list) || !ids || !ids.size) return list;
+  let changed = false;
+  const out = list.map((c) => {
+    if (!c || typeof c !== 'object') return c;
+    const self = ids.has(c.id);
+    const thread = Array.isArray(c.thread) ? c.thread : null;
+    const replies = thread?.some((r) => r && ids.has(r.id))
+      ? thread.map((r) => (r && ids.has(r.id) ? { ...r, queued: true } : r))
+      : null;
+    if (!self && !replies) return c;
+    changed = true;
+    return { ...c, ...(self ? { queued: true } : {}), ...(replies ? { thread: replies } : {}) };
+  });
+  return changed ? out : list;
+}
+
 /** Going from "not reachable" to "reachable" — the one moment the toast is said. */
 export function cameBackOnline(prevKind, kind) {
   return prevKind === 'offline' && (kind === 'syncing' || kind === 'saved');

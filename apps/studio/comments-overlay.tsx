@@ -130,6 +130,8 @@ interface OverlayReply {
   authorKind?: 'ai';
   /** S8.17b — written in another tool (Figma): a label, never a member. `author` is the importer. */
   importedFrom?: ImportedFrom;
+  /** Round 11 (10 co-sync-offline) — this reply waits on this Mac (the shell reads the outbox and stamps it). */
+  queued?: boolean;
 }
 
 export interface OverlayComment {
@@ -165,6 +167,8 @@ export interface OverlayComment {
   t?: number;
   mm?: { x: number; y: number };
   authorKind?: 'ai';
+  /** Round 11 (10 co-sync-offline) — the comment waits on this Mac: the thread card says "Queued". */
+  queued?: boolean;
   /** S8.17b — the thread came from another tool (Figma): who wrote it there, as a label. */
   importedFrom?: ImportedFrom;
   /** A converted sticky (S4-S9-votes-comments §3.1). */
@@ -1977,6 +1981,7 @@ export function CommentThread({
             <div className="cm-thread__body">
               {imported ? comment.text : renderBodyWithMentions(comment.text)}
             </div>
+            {comment.queued ? <QueuedLine id={comment.id} /> : null}
           </div>
         </div>
       ) : (
@@ -2029,6 +2034,7 @@ export function CommentThread({
               <div className="cm-thread__reply-body">
                 {ri ? r.body : renderBodyWithMentions(r.body)}
               </div>
+              {r.queued ? <QueuedLine id={r.id} /> : null}
             </div>
           </div>
         );
@@ -2192,6 +2198,16 @@ function ImportedMark(): React.ReactElement {
 }
 
 /** One 16-grid stroke glyph (the board's Resolve check, Reopen arrow) — decorative, the button has words. */
+/** 10 co-sync-offline: a comment (or reply) that has not left this Mac yet. Words are the board's. */
+function QueuedLine({ id }: { id: string }): React.ReactElement {
+  return (
+    <span className="cm-queued" data-testid={`comment-queued-${id}`}>
+      <Glyph d="M8 3.2v5l3 1.8M14 8A6 6 0 1 1 2 8a6 6 0 0 1 12 0Z" />
+      Queued — sends when this Mac is online.
+    </span>
+  );
+}
+
 function Glyph({ d }: { d: string }): React.ReactElement {
   return (
     <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" className="cm-glyph">

@@ -14,7 +14,7 @@ export SHOTS_OUT=$TMPO
 echo "== release build"
 (cd "$ROOT/apps/studio" && MAUDE_SKIP_RUNTIME_BUILD=1 bun run build.ts --release) 2>&1 | tail -3
 cd "$H" || exit 1
-for s in ${SCNS:-s10 s10cm s10c s10d s10e s10m s10k s10v}; do
+for s in ${SCNS:-s10 s10cm s10c s10d s10e s10m s10k s10v s10r11v s10r11s}; do
   echo "== $s"
   node run.mjs $s.mjs ${THEMES:-dark,light} > "$IMPL/$s.log" 2>&1
   tail -4 "$IMPL/$s.log"
