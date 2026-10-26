@@ -450,6 +450,7 @@ try {
           totalMs: ms(t),
           jobs: per.length,
           perPictureMs: { p50: pct(per, 0.5), p95: pct(per, 0.95) },
+          phasesP50Ms: phasesOf(replies.slice(f)),
         };
       };
       const cold = await pass();

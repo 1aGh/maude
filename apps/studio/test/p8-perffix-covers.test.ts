@@ -197,6 +197,58 @@ describe('the cover sweep (P8 perf fix, V2-8.14 covers)', () => {
   }, 60_000);
 });
 
+describe('version pictures (P8 perf fix, V2-8.14 version pictures)', () => {
+  function versionService() {
+    const { root, designRoot } = makeSandbox();
+    writeFiles(designRoot, { 'ui/two.tsx': TWO(7) });
+    const shim = fakeShim(() => ({
+      ok: true,
+      runtime: { artboards: [] },
+      shots: [
+        { target: 0, artboard: 'a', jpeg: Buffer.from(fakeJpeg(160, 100)).toString('base64') },
+      ],
+    }));
+    const svc = createThumbService({
+      pid: pidOf(root),
+      designRoot,
+      index: indexFor(root, designRoot),
+      config: () => ({ theme: 'dark' }),
+      serverOrigin: () => 'http://localhost:1',
+      captureOrigin: () => 'http://localhost:2',
+      // an OLDER source: a version that equals today's file is pictured as today's
+      readVersion: async () => `${TWO(7)}\n// an older save\n`,
+      spawnShim: shim.handle,
+    });
+    stoppers.push(() => svc.stop());
+    return { svc, sent: shim.sent };
+  }
+
+  test('a version picture of one artboard asks the canvas to mount only that artboard', async () => {
+    const { svc, sent } = versionService();
+    await svc.thumb({
+      canvas: 'ui/two.tsx',
+      artboard: 'a',
+      size: 'row',
+      at: { sha: 'abcdef0' },
+      priority: 'visible',
+    });
+    await svc.idle();
+    const url = new URL(String(sent[0]?.url));
+    expect(url.searchParams.get('sha')).toBe('abcdef0');
+    expect(url.searchParams.get('thumb-only')).toBe('a');
+  });
+
+  test('a cover, and a picture of today, always mount the whole canvas', async () => {
+    const { svc, sent } = versionService();
+    await svc.thumb({ canvas: 'ui/two.tsx', artboard: null, size: 'card', priority: 'visible' });
+    await svc.idle();
+    await svc.thumb({ canvas: 'ui/two.tsx', artboard: 'a', size: 'row', priority: 'visible' });
+    await svc.idle();
+    for (const op of sent)
+      expect(new URL(String(op.url)).searchParams.has('thumb-only')).toBe(false);
+  });
+});
+
 // A 1 x 1 PNG; trailing bytes after IEND change the file's hash and not its picture.
 const PNG1 = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',

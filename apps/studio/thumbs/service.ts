@@ -547,6 +547,13 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
         job.rel
       );
       if (job.atParam !== null) url += `&sha=${encodeURIComponent(job.atParam)}`;
+      // A version picture shows ONE artboard: ask the canvas to mount only that one (canvas-lib
+      // `thumbOnly`) — a 21-board canvas otherwise renders and loads the images of 20 boards that
+      // are never shot. Only for a past version: today's render feeds the index its artboard list.
+      const only = new Set(job.targets.map((t) => t.artboard));
+      const [one] = [...only];
+      if (job.atParam !== null && only.size === 1 && typeof one === 'string')
+        url += `&thumb-only=${encodeURIComponent(one)}`;
       reply = await request(
         {
           op: 'render',
