@@ -21,7 +21,9 @@ import { Glyph } from '../share/glyphs.jsx';
 import { Person } from '../share/person.jsx';
 import { outboxPending, saveStatus } from '../shell/save-status.js';
 import { useBackOnline } from './back-online.jsx';
+import { useCanvasIndex } from '../canvases/use-canvas-index.js';
 import { useOfflineFoot } from './offline-foot.jsx';
+import { useOutboxWords } from './row-words.js';
 import { conflictCard, conflictsFor, whenWords } from './sync-states-model.js';
 
 /** The shell opens the card from anywhere (the toast's Show, the mark, ⌘K-less row actions). */
@@ -235,7 +237,10 @@ export function SyncStatesHost() {
       syncPresentation(syncStatus, { project: cfg?.cloud?.projectName || project })?.phase ?? null,
     [syncStatus, cfg?.cloud?.projectName, project]
   );
-  const [outbox, setOutbox] = useState(0);
+  // the one outbox answer: the count feeds the status word + foot, `content.byDoc` / `.comments` the row
+  // words and the "Queued" comment (round 11)
+  const [outboxView, setOutboxView] = useState(null);
+  const outbox = outboxPending(outboxView);
   const [conflicts, setConflicts] = useState([]);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -243,7 +248,7 @@ export function SyncStatesHost() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: the hub status moving is the re-read cue
   useEffect(() => {
     if (!linked) {
-      setOutbox(0);
+      setOutboxView(null);
       setConflicts([]);
       return undefined;
     }
@@ -252,7 +257,7 @@ export function SyncStatesHost() {
       if (document.visibilityState === 'hidden') return;
       fetch('/_api/outbox')
         .then((r) => (r.ok ? r.json() : null))
-        .then((v) => live && setOutbox(outboxPending(v)))
+        .then((v) => live && setOutboxView(v))
         .catch(() => {});
       readConflicts().then((list) => live && list && setConflicts(list));
     };
@@ -267,6 +272,9 @@ export function SyncStatesHost() {
   const pending = (Number(syncStatus?.queuedOps) || 0) + outbox;
   const kind = saveStatus({ linked, online, phase, pending, writeFailed: null }).kind;
   useOfflineFoot({ kind, pending });
+  // round 11 (co-sync-offline / co-sync-back): "not sent" / "sending" on the rows, "Queued" on a comment
+  const indexSnapshot = useCanvasIndex({ stamp: kind });
+  useOutboxWords({ kind, view: outboxView, canvases: indexSnapshot?.canvases });
   useBackOnline({ kind, conflicts: conflicts.length, onShow: () => setOpen(true) });
 
   useEffect(() => {
