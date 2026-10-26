@@ -80,3 +80,21 @@ Round 10 closed the two open MUSTs of bar4: ds-edit-reach no longer draws the ca
 ## Remaining MUST items (3 ids, one root cause)
 
 All three need a re-shoot on a fixture that still has unconverted system folders / a pre-schema system (the D6 harness state). `ds-multi-migrate` and `ds-edge-migrate`: open the Convert sheet (pinned system row → Convert…). `ds-multi-schema`: open Bring it up on the pre-schema system. If the product itself now refuses the sheet for a system that has both the amber dot and a Design system canvas (D7 `maude`), that is the one visible product inconsistency to check.
+
+## Round 11
+
+_2026-10-26 · read-only · the three re-shot ids judged fresh from the full-size pairs (round 11 line of `full-size-path.txt`), light AND dark each. Lead decision honoured: kg `v2-p8-r11-1213-dot-vs-converted-left` (a converted pre-schema system keeps its amber dot and its Bring it up row ends in the "can't update those yet" face; that state is a feature for the post-fidelity list, not a fidelity miss, and is not on these shots)._
+
+The D7 regression was a fixture defect and is gone: all three board sheets are back on the merged-tip shot, both themes, and the surfaces behind them are the app's own (Studio site, Canvases panel with Design systems rows).
+
+- ds-multi-migrate · verified (light + dark) · — · "Convert 3 system folders?" with the board's intro sentence, a three-row table (name, `system/<folder>` + canvas count, Design system canvas / Design system canvas / Draft chip), the footnote ("... stays the default for new canvases. A converted system made before the schema shows an amber dot — Bring it up lines it up. Version history keeps the folder view; Restore undoes the conversion."), Cancel / Convert primary. Layout, controls, CONTRACT copy and tokens match; the amber dot on `alligators-2023` and the "2 in use" header sit behind it.
+- ds-edge-migrate · verified (light + dark) · — · "Convert system/<folder> into its Design system canvas?", "N specimen pages fold into 7 sections. The files stay exactly where they are.", the section map with counts (Brand, Colour, Type, Space & shape, Motion, Components, Own artboards), "Version history keeps the folder view — Restore undoes the conversion.", Cancel / Convert. Matches the board; only the fixture rows differ (see polish).
+- ds-multi-schema · verified (light + dark) · — · "Bring maude up to the schema?" with the board's four rows (Adds N roles, Renames its components, Keeps own tokens vs "Updates 0 canvases"), the "Nothing on the N canvases changes how it looks. Uses your Claude account." line, Cancel / "+ Bring it up"; the amber "Made before the schema" dot is on the `maude` row behind. The "can't update those yet ... Close" variant of D7 is gone. The converted-pre-schema end state is the lead decision above, not judged here. The side frame `ds-multi-schema.row` stays reachable (impl only).
+
+Result for the three: 3 verified (both themes), 0 one theme, 0 differ, 0 unreachable. Canvas 13 now totals 24 verified, 3 -> 0 differ, 6 unreachable (21 + 3).
+
+### New / confirmed polish rows
+
+- ds-multi-migrate · rows read maude / maude-v2 / alligators-2023 ("1 canvas in ui", "no canvas uses it") against the board's Alligators set; footnote names `maude-v2` as default (fixture); the sheet is 490 px wide vs the board's ~430 and sits ~4 px lower (crop / zoom); a grey strip under the impl frame is the crop.
+- ds-edge-migrate · section counts and member lists are the maude-v2 fixture (38 pages, Colour 9, Components 17, "and 12 more" tails); no Patterns row (fixture, existing row); the canvases panel behind shows "Design system · maude-v2" (board "Alligators brand system, used by 3 projects").
+- ds-multi-schema · footnote lacks "Design system › Advanced › Map by hand… if you'd rather choose each one" (feature not built, existing row); roles/components rows are maude's (Bg 0, Bg 1, Fg 0, Accent), "Updates 0 canvases" and "Nothing on the 0 canvases" read oddly at zero (fixture, no canvases to update); empty inspector card top right ("Click an object on the canvas to see its properties here", shell empty state, existing row).
