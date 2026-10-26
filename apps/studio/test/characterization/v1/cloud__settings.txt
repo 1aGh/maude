@@ -116,6 +116,7 @@ div
                             svg .cv-chev [aria-hidden="true"]
                           button .cv-main [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
                             span .cv-thumb [aria-hidden="true"]
+                              img
                             span .cv-name "Home"
                             span .cv-badges
                           span .cv-actions
@@ -138,7 +139,7 @@ div
           svg .sh-grip-dots [aria-hidden="true"]
           span .sh-grip-tip [aria-hidden="true"] "Drag · double-click resets · ← → move 8"
         div .main
-          div .sh-stage.viewport [data-tour="viewport"]
+          main .sh-stage.viewport [data-tour="viewport"]
             iframe .active [data-testid="canvas-frame"] [data-path=".design/ui/Broken.tsx"] [title="Canvas: .design/ui/Broken.tsx"]
             div .sh-canvas-error.sh-canvas-error--v2 [data-testid="canvas-load-error"] [role="alert"]
               section .v2-err [data-testid="canvas-error-card"]
@@ -158,7 +159,7 @@ div
     div .v2s-scrim [data-testid="settings-scrim"] [role="presentation"]
       div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Settings"] [aria-modal="true"]
         div .v2s-rail
-          p .v2s-title "Settings"
+          h2 .v2s-title "Settings"
           div .v2s-tabs [role="tablist"] [aria-label="Settings sections"]
             button .v2s-tab [data-testid="settings-tab-general"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "General"
               svg .v2s-tab-ic [aria-hidden="true"]
@@ -167,7 +168,7 @@ div
           button .v2s-close [data-testid="settings-close"] [type="button"] "Done"
         div .v2s-main
           section .v2s-panel [data-testid="settings-panel-general"] [role="tabpanel"]
-            section .v2s-group [data-testid="settings-account"] [aria-label="Account"]
+            section .v2s-group [data-testid="settings-account"] [aria-label="Account settings"]
               h3 .v2s-group-t "Account"
               div .v2s-row
                 span .v2s-row-t
@@ -202,7 +203,7 @@ div
                   button .row-item.v2s-acct-link [data-testid="settings-account-delete"] [type="button"]
                     span "Delete the account"
                     span [aria-hidden="true"] "↗"
-            section .v2s-group [aria-label="Look"]
+            section .v2s-group [aria-label="Look settings"]
               h3 .v2s-group-t "Look"
               div .v2s-row
                 span .v2s-row-t
@@ -215,7 +216,7 @@ div
                       input .v2s-seg-in [type="radio"] [checked] [value="dark"] [name="maude-theme"] {value="dark"} {on}
                     label .v2s-seg-b "Auto"
                       input .v2s-seg-in [type="radio"] [value="auto"] [name="maude-theme"] {value="auto"} {off}
-            section .v2s-group [data-testid="settings-canvas-view"] [aria-label="Canvas and view"]
+            section .v2s-group [data-testid="settings-canvas-view"] [aria-label="Canvas and view settings"]
               h3 .v2s-group-t "Canvas and view"
               label .v2s-pref-row
                 span .v2s-pref-body
@@ -237,7 +238,7 @@ div
                   span .v2s-pref-label "Auto-open Inspector on select"
                   span .v2s-pref-note "Open the Inspector automatically when you select an element."
                 input .v2s-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
-            section .v2s-group [data-testid="settings-keyboard"] [aria-label="Keyboard"]
+            section .v2s-group [data-testid="settings-keyboard"] [aria-label="Keyboard settings"]
               h3 .v2s-group-t "Keyboard"
               div [data-testid="settings-single-keys"]
                 label .v2s-pref-row
@@ -245,14 +246,14 @@ div
                     span .v2s-pref-label "Single-key shortcuts"
                     span .v2s-pref-note "Keys without ⌘ or ⌥ pick tools and open things: V, H, N, /, ?. Off, only shortcuts with ⌘ or ⌥ work."
                   input .v2s-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
-            section .v2s-group [data-testid="settings-describe"] [aria-label="Search"]
+            section .v2s-group [data-testid="settings-describe"] [aria-label="Search settings"]
               h3 .v2s-group-t "Search"
               label .v2s-pref-row
                 span .v2s-pref-body
                   span .v2s-pref-label "Search in pictures"
                   span .v2s-pref-note "AI describes the pictures in Studio site once, with your Claude account, so search finds what's in them."
                 input .v2s-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-            section .v2s-group [data-testid="settings-layout"] [aria-label="Layout"]
+            section .v2s-group [data-testid="settings-layout"] [aria-label="Layout settings"]
               h3 .v2s-group-t "Layout"
               div .v2s-provider-card
                 div .v2s-provider-hd

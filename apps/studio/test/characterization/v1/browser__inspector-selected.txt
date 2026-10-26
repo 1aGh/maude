@@ -44,7 +44,7 @@ div
           span .sh-zoomundo-div [aria-hidden="true"]
           button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
         div .main
-          div .sh-stage.viewport [data-tour="viewport"]
+          main .sh-stage.viewport [data-tour="viewport"]
             iframe .active [data-testid="canvas-frame"] [data-path=".design/ui/Home.tsx"] [title="Canvas: .design/ui/Home.tsx"]
         div .sh-grip.sh-grip--r [data-testid="panel-grip-right"] [role="separator"] [aria-label="Resize right panel"] [tabindex="0"]
           svg .sh-grip-dots [aria-hidden="true"]

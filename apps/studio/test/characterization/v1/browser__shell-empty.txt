@@ -125,7 +125,7 @@ div
           svg .sh-grip-dots [aria-hidden="true"]
           span .sh-grip-tip [aria-hidden="true"] "Drag · double-click resets · ← → move 8"
         div .main
-          div .sh-stage.viewport [data-tour="viewport"]
+          main .sh-stage.viewport [data-tour="viewport"]
             div .sh-empty
               div .sh-empty-title "No canvas open"
               div .sh-empty-body "Open a canvas from the Canvases panel, or start a new one."

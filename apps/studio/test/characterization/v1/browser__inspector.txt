@@ -149,7 +149,7 @@ div
           svg .sh-grip-dots [aria-hidden="true"]
           span .sh-grip-tip [aria-hidden="true"] "Drag · double-click resets · ← → move 8"
         div .main
-          div .sh-stage.viewport [data-tour="viewport"]
+          main .sh-stage.viewport [data-tour="viewport"]
             iframe .active [data-testid="canvas-frame"] [data-path=".design/ui/Home.tsx"] [title="Canvas: .design/ui/Home.tsx"]
         div .sh-grip.sh-grip--r [data-testid="panel-grip-right"] [role="separator"] [aria-label="Resize right panel"] [tabindex="0"]
           svg .sh-grip-dots [aria-hidden="true"]

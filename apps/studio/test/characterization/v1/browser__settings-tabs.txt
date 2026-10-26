@@ -2,7 +2,7 @@
 ## tab 0
 div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Settings"] [aria-modal="true"]
   div .v2s-rail
-    p .v2s-title "Settings"
+    h2 .v2s-title "Settings"
     div .v2s-tabs [role="tablist"] [aria-label="Settings sections"]
       button .v2s-tab [data-testid="settings-tab-general"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "General"
         svg .v2s-tab-ic [aria-hidden="true"]
@@ -15,7 +15,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
     button .v2s-close [data-testid="settings-close"] [type="button"] "Done"
   div .v2s-main
     section .v2s-panel [data-testid="settings-panel-general"] [role="tabpanel"]
-      section .v2s-group [data-testid="settings-account"] [aria-label="Account"]
+      section .v2s-group [data-testid="settings-account"] [aria-label="Account settings"]
         h3 .v2s-group-t "Account"
         div .v2s-row
           span .v2s-row-t
@@ -35,7 +35,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             span .v2s-hint "Change which e-mails you get — a mention while you’re away, for one."
           span .v2s-val
             button .btn.btn--sm [data-testid="settings-open-emails"] [type="button"] "Open e-mail settings"
-      section .v2s-group [aria-label="Look"]
+      section .v2s-group [aria-label="Look settings"]
         h3 .v2s-group-t "Look"
         div .v2s-row
           span .v2s-row-t
@@ -48,7 +48,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
                 input .v2s-seg-in [type="radio"] [checked] [value="dark"] [name="maude-theme"] {value="dark"} {on}
               label .v2s-seg-b "Auto"
                 input .v2s-seg-in [type="radio"] [value="auto"] [name="maude-theme"] {value="auto"} {off}
-      section .v2s-group [data-testid="settings-canvas-view"] [aria-label="Canvas and view"]
+      section .v2s-group [data-testid="settings-canvas-view"] [aria-label="Canvas and view settings"]
         h3 .v2s-group-t "Canvas and view"
         label .is-disabled.v2s-pref-row
           span .v2s-pref-body
@@ -70,7 +70,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             span .v2s-pref-label "Auto-open Inspector on select"
             span .v2s-pref-note "Open the Inspector automatically when you select an element."
           input .v2s-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
-      section .v2s-group [data-testid="settings-keyboard"] [aria-label="Keyboard"]
+      section .v2s-group [data-testid="settings-keyboard"] [aria-label="Keyboard settings"]
         h3 .v2s-group-t "Keyboard"
         div [data-testid="settings-single-keys"]
           label .v2s-pref-row
@@ -78,14 +78,14 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               span .v2s-pref-label "Single-key shortcuts"
               span .v2s-pref-note "Keys without ⌘ or ⌥ pick tools and open things: V, H, N, /, ?. Off, only shortcuts with ⌘ or ⌥ work."
             input .v2s-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
-      section .v2s-group [data-testid="settings-describe"] [aria-label="Search"]
+      section .v2s-group [data-testid="settings-describe"] [aria-label="Search settings"]
         h3 .v2s-group-t "Search"
         label .v2s-pref-row
           span .v2s-pref-body
             span .v2s-pref-label "Search in pictures"
             span .v2s-pref-note "AI describes the pictures in characterization once, with your Claude account, so search finds what's in them."
           input .v2s-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-      section .v2s-group [data-testid="settings-layout"] [aria-label="Layout"]
+      section .v2s-group [data-testid="settings-layout"] [aria-label="Layout settings"]
         h3 .v2s-group-t "Layout"
         div .v2s-provider-card
           div .v2s-provider-hd
@@ -151,7 +151,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
 ## tab 1
 div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Settings"] [aria-modal="true"]
   div .v2s-rail
-    p .v2s-title "Settings"
+    h2 .v2s-title "Settings"
     div .v2s-tabs [role="tablist"] [aria-label="Settings sections"]
       button .v2s-tab [data-testid="settings-tab-general"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "General"
         svg .v2s-tab-ic [aria-hidden="true"]
@@ -164,7 +164,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
     button .v2s-close [data-testid="settings-close"] [type="button"] "Done"
   div .v2s-main
     section .v2s-panel [data-testid="settings-panel-general"] [role="tabpanel"] [hidden]
-      section .v2s-group [data-testid="settings-account"] [aria-label="Account"]
+      section .v2s-group [data-testid="settings-account"] [aria-label="Account settings"]
         h3 .v2s-group-t "Account"
         div .v2s-row
           span .v2s-row-t
@@ -184,7 +184,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             span .v2s-hint "Change which e-mails you get — a mention while you’re away, for one."
           span .v2s-val
             button .btn.btn--sm [data-testid="settings-open-emails"] [type="button"] "Open e-mail settings"
-      section .v2s-group [aria-label="Look"]
+      section .v2s-group [aria-label="Look settings"]
         h3 .v2s-group-t "Look"
         div .v2s-row
           span .v2s-row-t
@@ -197,7 +197,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
                 input .v2s-seg-in [type="radio"] [checked] [value="dark"] [name="maude-theme"] {value="dark"} {on}
               label .v2s-seg-b "Auto"
                 input .v2s-seg-in [type="radio"] [value="auto"] [name="maude-theme"] {value="auto"} {off}
-      section .v2s-group [data-testid="settings-canvas-view"] [aria-label="Canvas and view"]
+      section .v2s-group [data-testid="settings-canvas-view"] [aria-label="Canvas and view settings"]
         h3 .v2s-group-t "Canvas and view"
         label .is-disabled.v2s-pref-row
           span .v2s-pref-body
@@ -219,7 +219,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             span .v2s-pref-label "Auto-open Inspector on select"
             span .v2s-pref-note "Open the Inspector automatically when you select an element."
           input .v2s-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
-      section .v2s-group [data-testid="settings-keyboard"] [aria-label="Keyboard"]
+      section .v2s-group [data-testid="settings-keyboard"] [aria-label="Keyboard settings"]
         h3 .v2s-group-t "Keyboard"
         div [data-testid="settings-single-keys"]
           label .v2s-pref-row
@@ -227,14 +227,14 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               span .v2s-pref-label "Single-key shortcuts"
               span .v2s-pref-note "Keys without ⌘ or ⌥ pick tools and open things: V, H, N, /, ?. Off, only shortcuts with ⌘ or ⌥ work."
             input .v2s-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
-      section .v2s-group [data-testid="settings-describe"] [aria-label="Search"]
+      section .v2s-group [data-testid="settings-describe"] [aria-label="Search settings"]
         h3 .v2s-group-t "Search"
         label .v2s-pref-row
           span .v2s-pref-body
             span .v2s-pref-label "Search in pictures"
             span .v2s-pref-note "AI describes the pictures in characterization once, with your Claude account, so search finds what's in them."
           input .v2s-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-      section .v2s-group [data-testid="settings-layout"] [aria-label="Layout"]
+      section .v2s-group [data-testid="settings-layout"] [aria-label="Layout settings"]
         h3 .v2s-group-t "Layout"
         div .v2s-provider-card
           div .v2s-provider-hd
@@ -370,7 +370,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
 ## tab 2
 div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Settings"] [aria-modal="true"]
   div .v2s-rail
-    p .v2s-title "Settings"
+    h2 .v2s-title "Settings"
     div .v2s-tabs [role="tablist"] [aria-label="Settings sections"]
       button .v2s-tab [data-testid="settings-tab-general"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "General"
         svg .v2s-tab-ic [aria-hidden="true"]
@@ -383,7 +383,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
     button .v2s-close [data-testid="settings-close"] [type="button"] "Done"
   div .v2s-main
     section .v2s-panel [data-testid="settings-panel-general"] [role="tabpanel"] [hidden]
-      section .v2s-group [data-testid="settings-account"] [aria-label="Account"]
+      section .v2s-group [data-testid="settings-account"] [aria-label="Account settings"]
         h3 .v2s-group-t "Account"
         div .v2s-row
           span .v2s-row-t
@@ -403,7 +403,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             span .v2s-hint "Change which e-mails you get — a mention while you’re away, for one."
           span .v2s-val
             button .btn.btn--sm [data-testid="settings-open-emails"] [type="button"] "Open e-mail settings"
-      section .v2s-group [aria-label="Look"]
+      section .v2s-group [aria-label="Look settings"]
         h3 .v2s-group-t "Look"
         div .v2s-row
           span .v2s-row-t
@@ -416,7 +416,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
                 input .v2s-seg-in [type="radio"] [checked] [value="dark"] [name="maude-theme"] {value="dark"} {on}
               label .v2s-seg-b "Auto"
                 input .v2s-seg-in [type="radio"] [value="auto"] [name="maude-theme"] {value="auto"} {off}
-      section .v2s-group [data-testid="settings-canvas-view"] [aria-label="Canvas and view"]
+      section .v2s-group [data-testid="settings-canvas-view"] [aria-label="Canvas and view settings"]
         h3 .v2s-group-t "Canvas and view"
         label .is-disabled.v2s-pref-row
           span .v2s-pref-body
@@ -438,7 +438,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             span .v2s-pref-label "Auto-open Inspector on select"
             span .v2s-pref-note "Open the Inspector automatically when you select an element."
           input .v2s-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
-      section .v2s-group [data-testid="settings-keyboard"] [aria-label="Keyboard"]
+      section .v2s-group [data-testid="settings-keyboard"] [aria-label="Keyboard settings"]
         h3 .v2s-group-t "Keyboard"
         div [data-testid="settings-single-keys"]
           label .v2s-pref-row
@@ -446,14 +446,14 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               span .v2s-pref-label "Single-key shortcuts"
               span .v2s-pref-note "Keys without ⌘ or ⌥ pick tools and open things: V, H, N, /, ?. Off, only shortcuts with ⌘ or ⌥ work."
             input .v2s-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
-      section .v2s-group [data-testid="settings-describe"] [aria-label="Search"]
+      section .v2s-group [data-testid="settings-describe"] [aria-label="Search settings"]
         h3 .v2s-group-t "Search"
         label .v2s-pref-row
           span .v2s-pref-body
             span .v2s-pref-label "Search in pictures"
             span .v2s-pref-note "AI describes the pictures in characterization once, with your Claude account, so search finds what's in them."
           input .v2s-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-      section .v2s-group [data-testid="settings-layout"] [aria-label="Layout"]
+      section .v2s-group [data-testid="settings-layout"] [aria-label="Layout settings"]
         h3 .v2s-group-t "Layout"
         div .v2s-provider-card
           div .v2s-provider-hd
@@ -589,7 +589,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
     section .v2s-panel [data-testid="settings-panel-advanced"] [role="tabpanel"]
       div .v2s-cols [data-testid="settings-advanced-cols"]
         div .v2s-col
-          section .v2s-group [aria-label="This Mac"]
+          section .v2s-group [aria-label="This Mac settings"]
             h3 .v2s-group-t "This Mac"
             div .v2s-row [data-testid="settings-app-version"]
               span .v2s-row-t
@@ -619,7 +619,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
                 span .v2s-row-k "Keys are kept in"
                 span .v2s-hint "Or ~/.config/maude/keys.json (private to you) when the Keychain is off. An update you skip installs when you next quit."
               span .v2s-val.v2s-val--mono "macOS Keychain"
-          section .v2s-group [aria-label="Claude Code"]
+          section .v2s-group [aria-label="Claude Code settings"]
             h3 .v2s-group-t "Claude Code"
             div .v2s-row [data-testid="settings-plugins"]
               span .v2s-row-t
@@ -653,7 +653,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               span .v2s-val
                 button .btn.btn--ghost.btn--sm [aria-label="Copy command, brand import command"] [title="/design:setup-ds --from-brand"] [type="button"] "Copy command"
                   svg [aria-hidden="true"]
-          section .v2s-group [aria-label="Decision memory"]
+          section .v2s-group [aria-label="Decision memory settings"]
             h3 .v2s-group-t "Decision memory"
             div .v2s-row [data-testid="settings-decision-memory"]
               span .v2s-row-t
@@ -661,7 +661,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
                 span .v2s-hint "Design decisions are kept with the project, so AI remembers why."
               span .v2s-val.v2s-val--mono "Not set up"
         div .v2s-col
-          section .v2s-group [aria-label="Engines — Auto picks for you"]
+          section .v2s-group [aria-label="Engines — Auto picks for you settings"]
             h3 .v2s-group-t "Engines — Auto picks for you"
             div [data-testid="settings-transcription"]
               div .v2s-eng [data-testid="settings-transcription-select"]
@@ -751,7 +751,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
                     span .dg-word "needs mlx-vlm"
                     button .btn.btn--ghost.btn--sm [type="button"] [disabled] "Download"
             p .v2s-hint "Without a model, Auto uses ElevenLabs or Groq for subtitles and ffmpeg scene cuts for keyframes."
-          section .v2s-group [aria-label="Privacy"]
+          section .v2s-group [aria-label="Privacy settings"]
             h3 .v2s-group-t "Privacy"
             label .v2s-row [data-testid="settings-report-logs"]
               span .v2s-row-t
@@ -762,17 +762,17 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
                 option [value="always"] "Always"
                 option [value="never"] "Never"
         div .v2s-col
-          section .v2s-group [data-testid="settings-this-project"] [aria-label="This project"]
+          section .v2s-group [data-testid="settings-this-project"] [aria-label="This project settings"]
             h3 .v2s-group-t "This project"
             p .v2s-hint [data-testid="settings-project-unlinked"] "Not linked to a workspace, so there is nothing to sync yet. Connect this project under Connections and its sync switches appear here."
-          section .v2s-group [aria-label="Experimental"]
+          section .v2s-group [aria-label="Experimental settings"]
             h3 .v2s-group-t "Experimental"
             label .v2s-row.v2s-row--switch [data-testid="settings-experimental-teams"]
               span .v2s-row-t
                 span .v2s-row-k "AI reviews argue it out (teams)"
                 span .v2s-hint "Reviews are argued out by several AI seats that answer each other. Costs more. Takes effect when the AI chat next starts."
               input .v2s-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
-          section .v2s-group [data-testid="settings-reset"] [aria-label="Reset"]
+          section .v2s-group [data-testid="settings-reset"] [aria-label="Reset settings"]
             h3 .v2s-group-t "Reset"
             div .v2s-acts
               span [data-testid="settings-reset-panel-layout"]

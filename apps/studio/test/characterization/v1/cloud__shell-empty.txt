@@ -116,6 +116,7 @@ div
                             svg .cv-chev [aria-hidden="true"]
                           button .cv-main [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
                             span .cv-thumb [aria-hidden="true"]
+                              img
                             span .cv-name "Home"
                             span .cv-badges
                           span .cv-actions
@@ -138,7 +139,7 @@ div
           svg .sh-grip-dots [aria-hidden="true"]
           span .sh-grip-tip [aria-hidden="true"] "Drag · double-click resets · ← → move 8"
         div .main
-          div .sh-stage.viewport [data-tour="viewport"]
+          main .sh-stage.viewport [data-tour="viewport"]
             iframe .active [data-testid="canvas-frame"] [data-path=".design/ui/Broken.tsx"] [title="Canvas: .design/ui/Broken.tsx"]
             div .sh-canvas-error.sh-canvas-error--v2 [data-testid="canvas-load-error"] [role="alert"]
               section .v2-err [data-testid="canvas-error-card"]
