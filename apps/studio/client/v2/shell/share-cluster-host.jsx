@@ -18,7 +18,7 @@ import { SYSTEM_TAB } from '../../shell/constants.js';
 import { shellToast } from '../../shell/util.js';
 import { notify } from '../../../notifications.tsx';
 import { AccessHost } from '../access/access-host.jsx';
-import { getTrashedOpen, subscribeTrashedOpen } from '../access/access-client.js';
+import { getTrashedOpen, sessionRole, subscribeTrashedOpen } from '../access/access-client.js';
 import { indexMeta } from '../canvases/tree-model.js';
 import { useCanvasIndex } from '../canvases/use-canvas-index.js';
 import { usePresenceHost } from '../presence/use-presence-host.js';
@@ -130,7 +130,10 @@ export function ShellShareCluster() {
   // edit. Only the first is an ACCESS question (Can view / Can comment, Ask to edit); the second keeps
   // the normal cluster.
   const roleLimited = !!viewerMode && cfg?.readOnlyReason !== 'format';
-  const access = accessStatus({ canEdit: !roleLimited, role: cfg?.cloud?.role });
+  // p8-e2e-rolefix — the role on the OPEN canvas, as the server resolved it (`/_config.access`): a desktop has
+  // no `cloud.role`, and without it every read-only session read "Can comment" (a Can view invitee included).
+  const role = sessionRole(cfg, activePath ? normalizeOpenPath(activePath, cfg?.designRel) : null);
+  const access = accessStatus({ canEdit: !roleLimited, role });
   // S11.17 — a full disk holds writes: Not saved + "This Mac is out of space — …" until they land.
   const disk = useDiskHold();
   const doors = useMemo(() => nativeDoors(), []);
@@ -159,7 +162,7 @@ export function ShellShareCluster() {
     iframesRef,
     cfg,
     canEdit: !viewerMode && !trashedOpen,
-    role: cfg?.cloud?.role,
+    role,
   });
   const faces = useMemo(
     () => facesOf({ you: gitUser, agentActive, peers: lane.peers, max: 40 }),
@@ -174,10 +177,10 @@ export function ShellShareCluster() {
       menuCtx({
         native: isNativeApp(),
         readOnly: !!viewerMode,
-        observer: cfg?.cloud?.role === 'observer',
+        observer: role === 'observer',
         canvasOpen,
       }),
-    [viewerMode, canvasOpen, cfg?.cloud?.role]
+    [viewerMode, canvasOpen, role]
   );
 
   // S3.2a — the first Present row names the artboard a click would start from: the labels come from the

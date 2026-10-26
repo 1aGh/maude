@@ -528,6 +528,10 @@ export function useShellCore({}) {
           // read-only; canvasUrl() then adds `cm=1` beside `ro=1`, and the Comments panel keeps
           // Resolve / Reopen. Absent (an older server) = no.
           canComment: data.canComment === true,
+          // p8-e2e-rolefix — the session's own access as the server resolved it ({ role, grants }); the
+          // access word and the mode caps read the role on the open canvas from it (access-client.js
+          // `sessionRole`). Absent (an older server) = fall back to a cloud tab's `cloud.role`.
+          access: data.access ?? null,
           // V2-3.4 — the account profile this tab's server runs as ({ id, label? }); the
           // profile chip (V2-3.x) reads it. Older servers send none ⇒ the default profile.
           profile: data.profile ?? { id: 'default' },

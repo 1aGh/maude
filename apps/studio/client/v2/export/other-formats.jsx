@@ -11,18 +11,30 @@ import { matchOther, OTHER_LABEL, OTHER_NONE, OTHER_SEARCH } from './export-copy
 const GAP = 4;
 const EDGE = 16;
 const MENU_MAX = 420;
+const MENU_W = 380; // = `.ex-other-menu` width in export.css
 
 /**
  * Where the Other… list sits, fixed to the window: below the button when it fits, else on the side with more
  * room, and no taller than that room. `rect` is the button's client rect; null (no layout yet) = no style.
  */
-export function menuPlace(rect, viewH) {
+export function menuPlace(rect, viewH, bounds = null) {
   if (!rect) return null;
   const below = viewH - rect.bottom - GAP - EDGE;
   const above = rect.top - GAP - EDGE;
   const side = below >= Math.min(MENU_MAX, 240) || below >= above ? 'below' : 'above';
   const room = Math.max(120, Math.min(MENU_MAX, side === 'below' ? below : above));
   const style = { position: 'fixed', left: Math.round(rect.left), maxHeight: Math.round(room) };
+  // Sideways: the list is MENU_W wide at the button's left edge, and "Other…" can sit near the right of
+  // the sheet (the video section draws it after its formats). Keep the list inside `bounds` (the sheet,
+  // else the window): narrow it when the bounds are tighter than the list, then slide it back.
+  if (bounds) {
+    const span = bounds.right - bounds.left - 2 * EDGE;
+    const width = Math.max(160, Math.min(MENU_W, span));
+    const lo = bounds.left + EDGE;
+    const hi = Math.max(lo, bounds.right - EDGE - width);
+    style.width = Math.round(width);
+    style.left = Math.round(Math.min(Math.max(rect.left, lo), hi));
+  }
   if (side === 'below') style.top = Math.round(rect.bottom + GAP);
   else Object.assign(style, { top: 'auto', bottom: Math.round(viewH - rect.top + GAP) });
   return { side, style };
@@ -46,8 +58,15 @@ export function OtherFormats({ groups, format, onPick, open, setOpen }) {
   // the window has no room below — and never taller than the room it has.
   useLayoutEffect(() => {
     if (!open) return undefined;
-    const measure = () =>
-      setPlace(menuPlace(button.current?.getBoundingClientRect(), window.innerHeight));
+    const measure = () => {
+      // the sheet's edges (clamped to the window) bound the list sideways
+      const sheet = button.current?.closest('.ex-sheet')?.getBoundingClientRect();
+      const bounds = {
+        left: Math.max(0, sheet?.left ?? 0),
+        right: Math.min(window.innerWidth, sheet?.right ?? window.innerWidth),
+      };
+      setPlace(menuPlace(button.current?.getBoundingClientRect(), window.innerHeight, bounds));
+    };
     measure();
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);

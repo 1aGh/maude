@@ -71,7 +71,7 @@ import {
   toDesignRel,
   writeCapability,
 } from './access/request.ts';
-import { type Access, sees as accessSees } from './access/scope.ts';
+import { type Access, sees as accessSees, accessView } from './access/scope.ts';
 import { type AskQueue, createAskQueue, currentAllowanceResetsAt } from './acp/ask-queue.ts';
 import { createConnectedFact } from './acp/connected-fact.ts';
 import {
@@ -2669,6 +2669,12 @@ export function createHttp(
       // like a missing one (project-level `comment` needs a project role); the op door still judges
       // every op on its own canvas (hidden ≠ refused). The client turns it into the canvas URL's `cm=1`.
       canComment: accessOf(req).can('comment', null),
+      // p8-e2e-rolefix — WHO this session is, as the server resolved it: the project role (null = a
+      // canvas-only session) and its canvas grants. The shell's access word ("Can view" / "Can comment")
+      // and the mode switch's caps read it; before it a desktop sent no role at all (only a cloud tab's
+      // `cloud.role`), so every read-only desktop session — a Can view invitee included — read "Can
+      // comment". The session's own claim, main origin only; the gates above stay the lock.
+      access: accessView(accessOf(req)),
       // gate-b-c4 — the key this session's shell mints each frame's capability with
       // (client/frame-cap.js). Only while a canvas origin exists (the split on): with it off the
       // canvas runs on this origin and there is no frame to scope. MAIN ORIGIN ONLY — `/_config`

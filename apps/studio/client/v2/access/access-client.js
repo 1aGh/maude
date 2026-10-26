@@ -21,6 +21,28 @@ export const ACCESS_WORDS = Object.freeze({
 /** The word for a role, '' for anything else (an id is never shown). */
 export const accessWord = (role) => (typeof role === 'string' && ACCESS_WORDS[role]) || '';
 
+const RANK = Object.freeze({ observer: 0, viewer: 1, member: 2, owner: 3 });
+
+/**
+ * p8-e2e-rolefix — this session's role on canvas `rel` (designRoot-relative, `ui/a.tsx`): the higher of the
+ * project role and that canvas's grant, from the server's `/_config.access` (`{ role, grants: [{ c, r }] }`,
+ * access/scope.ts `accessView`) — the same max the server's doors take. A canvas-only session with no
+ * grant on `rel` (nothing open yet) names the highest grant it holds. A server too old to send `access`
+ * falls back to a cloud tab's `cloud.role`; a desktop without either has no role to name (undefined).
+ */
+export function sessionRole(cfg, rel) {
+  const access = cfg?.access;
+  if (!access || typeof access !== 'object') return cfg?.cloud?.role ?? undefined;
+  const higher = (a, b) => (a === null || RANK[b] > RANK[a] ? b : a);
+  const grants = (Array.isArray(access.grants) ? access.grants : []).filter(
+    (g) => typeof g?.r === 'string' && g.r in RANK
+  );
+  let best = typeof access.role === 'string' && access.role in RANK ? access.role : null;
+  const own = grants.filter((g) => rel && g.c === rel);
+  for (const g of own.length || best !== null ? own : grants) best = higher(best, g.r);
+  return best ?? undefined;
+}
+
 export const WORDS = Object.freeze({
   asked: 'Asked. The owner will see your request.',
   queued: 'Queued — sends when this Mac is online.',
