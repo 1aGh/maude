@@ -34,6 +34,10 @@ case "$N" in
 13u) # D7: re-run of s13u alone (ds-multi-schema), same reason as 13p
   echo "== s13u"; run .scr/s13u.mjs $T
   ;;
+13m) # R11: the three sheets that need the PRE-convert system folders (fx5.mjs unconvert): ds-multi-migrate (G=g), ds-edge-migrate (G=k), ds-multi-schema (s13u)
+  for g in g k; do echo "== s13 G=$g $T"; G=$g run .scr/s13.mjs $T; done
+  echo "== s13u"; run .scr/s13u.mjs $T
+  ;;
 13p) # re-run of s13p alone (a random port can collide: EADDRINUSE)
   bun .scr/mk-dsconv.mjs 2>&1 | tail -2
   echo "== s13p"; run .scr/s13p.mjs $T
