@@ -594,3 +594,26 @@ Re-shot light + dark on the Mac mini (Google Chrome), impl side only; spec reuse
 | `ds-multi-panel` | light | re-shot | light re-shot with the two-systems-in-use state ("Design systems . 2 in use", amber dot, "Uses maude") |
 | `ds-edit-review` | dark | re-shot | re-shot with the same chain (unchanged) |
 | `ds-edit-review` | light | re-shot | re-shot with the same chain (unchanged) |
+
+## FINAL (D7, 0d2eab1d6)
+
+Re-shot 56 of 60 pairs (28 ids x 2 themes); 4 unreachable (2 ids x 2 themes). Supersedes every earlier "after" / "FINAL" / "Round" section above: every pair in this folder (`<id>-<theme>.jpg`, JPEG q55, max 1100 px wide) shows the merged product at `0d2eab1d6` (stage C round 10 merged; run from harness commit `c9708768e`/`921220c3b`/`c3bebfb11` = that tip + `_d7-harness-g3/`). The SPEC side is unchanged (the board `.design/ui/v2/13 Design System.*` last changed 2026-10-08), so the stage-A spec PNGs are reused. Full-size pairs: last line of `full-size-path.txt` ("final (D7, ...)"). No match judged here.
+
+Shot on the Mac mini (`scripts/remote-lane.sh`) with its installed Google Chrome (`SHOT_CHANNEL=chrome`), harness `_d7-harness-g3/g5` (= `_d6f-harness-g5` chain `13`, one run per theme): `s13.mjs` groups a-k, `s13p.mjs` (ds-multi-panel), `s13s.mjs` (ds-edge-suggest), `s13u.mjs` (ds-multi-schema), `dsboard.mjs` (the three whole-board crops through the capture origin, both themes, in the light run). `ds-multi-schema` dark hit a browser-blocked random port (`ERR_UNSAFE_PORT`) in the main dark run and was re-run alone (`13u`). Also shot (no spec pair, full-size only): `ds-edit-colour-pending`, `ds-make-entry`, `ds-make-sentence`, `ds-edge-trash-board`, `ds-multi-schema.row`.
+
+| artboard id | light | dark | note |
+|---|---|---|---|
+| ds-advanced | re-shot | re-shot |  |
+| ds-board-dark, ds-board-gator, ds-board-studio | re-shot | re-shot | whole-board crop through the capture origin (`dsboard.mjs`) |
+| ds-edge-contrast, ds-edge-migrate, ds-edge-suggest, ds-edge-trash | re-shot | re-shot |  |
+| ds-edit-colour, ds-edit-instance, ds-edit-master | re-shot | re-shot |  |
+| ds-edit-reach | re-shot | re-shot | round 10: the canvas island is no longer drawn inside the Patterns frame |
+| ds-edit-review | re-shot | re-shot |  |
+| ds-make-directions, ds-make-done, ds-make-filling, ds-make-inputs, ds-make-mix | re-shot | re-shot |  |
+| ds-many-switch | re-shot | re-shot |  |
+| ds-multi-menu, ds-multi-migrate, ds-multi-switch, ds-multi-schema | re-shot | re-shot | `ds-multi-schema` dark re-run alone (blocked random port) |
+| ds-multi-panel | re-shot | re-shot | round 10: two systems in use ("Design systems . 2 in use", amber dot, "Uses maude") |
+| ds-truth-conflict, ds-truth-outside | re-shot | re-shot |  |
+| ds-where-gator, ds-where-studio | re-shot | re-shot |  |
+| ds-many-library | unreachable - a team library lives on a hub; no real hub is booted in this lane (safety rule), so the library rows cannot be drawn | unreachable - same | the pair is the grey "not reachable" card (unchanged) |
+| ds-many-linked | unreachable - a linked team library needs a hub; no real hub is booted in this lane | unreachable - same | the pair is the grey "not reachable" card (unchanged) |
