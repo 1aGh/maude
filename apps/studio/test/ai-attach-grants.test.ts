@@ -9,6 +9,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   renameSync,
@@ -20,6 +21,7 @@ import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 import { notInScopeResponse, runWithAccess } from '../access/request.ts';
 import { resolveAccess } from '../access/scope.ts';
+import { chatScratchDir, ensureChatScratch } from '../acp/may-scope.ts';
 import { isInsideRoot } from '../acp/write-scope.ts';
 import {
   countFiles,
@@ -250,19 +252,16 @@ describe('B1 — the grants live outside the design root; a planted file grants 
     expect(existsSync(legacyOf(dr))).toBe(false);
   });
 
-  test('a legacy file is migrated once — refused folders dropped — then deleted', () => {
+  test('M-a — a legacy file on a fresh clone (no store yet) is deleted unread: never consent', () => {
     const dr = join(tmp, 'b1c');
     mkdirSync(join(dr, '.design'), { recursive: true });
-    plant(legacyOf(dr), [photos, sep, join(home, '.ssh')]);
+    // the default chat id is `default` (acp/index.ts) — a cloned repo can force-commit this file
+    plant(legacyOf(dr), [photos], 'default');
     const store = createGrantStore(placeOf(dr));
-    expect(store.chatRoots('c1')).toEqual([photos]);
-    expect(store.readOnlyRoots()).toEqual([photos]);
+    expect(store.chatRoots('default')).toEqual([]);
+    expect(store.readOnlyRoots()).toEqual([]);
     expect(existsSync(legacyOf(dr))).toBe(false);
-    // …and once only: a second planted file is not merged.
-    const other = join(home, 'Pictures', 'b1c-other');
-    mkdirSync(other, { recursive: true });
-    plant(legacyOf(dr), [other]);
-    expect(createGrantStore(placeOf(dr)).chatRoots('c1')).toEqual([photos]);
+    expect(existsSync(grantsFileFor(dr))).toBe(false); // nothing was migrated into the store
   });
 
   test('a forged store entry the picker would refuse is never read', () => {
@@ -379,8 +378,8 @@ describe('routes/chat-attach — main origin only, server-chosen paths', () => {
       needsConsent: true,
       outsideProject: true,
     });
-    // The store exists from the first open (it marks the one-time migration done), holding nothing.
-    expect(JSON.parse(readFileSync(grantsFileFor(dr), 'utf8')).folders).toEqual([]);
+    // Nothing is recorded without consent (re-check 2 M-a: no migration marker either).
+    expect(existsSync(grantsFileFor(dr))).toBe(false);
 
     const ok = await post(specs, '/_api/ai/attach/folder', {
       path: photos,
@@ -392,6 +391,27 @@ describe('routes/chat-attach — main origin only, server-chosen paths', () => {
       await post(specs, '/_api/ai/attach/folder', { path: photos, chatId: 'c2' })
     ).json();
     expect(again).toMatchObject({ granted: true, attached: true });
+  });
+
+  // V2-8.9 re-check 2 M-b — what a chat copied to its scratch does not outlive Remove / Reset.
+  test('Remove empties that chat’s scratch; Reset empties every chat’s', async () => {
+    const dr = join(tmp, 'rt-wipe');
+    mkdirSync(dr);
+    const specs = routes(dr);
+    const a = chatScratchDir(dr, 'c1', 'run1');
+    const b = chatScratchDir(dr, 'c2', 'run1');
+    for (const d of [a, b]) {
+      expect(ensureChatScratch(d)).toBe(true);
+      writeFileSync(join(d, 'copied.txt'), 'from the folder');
+    }
+    expect(
+      (await post(specs, '/_api/ai/attach/folder/detach', { root: photos, chatId: 'c1' })).status
+    ).toBe(200);
+    expect(readdirSync(a)).toEqual([]);
+    expect(readdirSync(b)).toEqual(['copied.txt']);
+    expect((await post(specs, '/_api/ai/attach/folder/revoke', { root: photos })).status).toBe(200);
+    expect(readdirSync(b)).toEqual([]);
+    rmSync(join(a, '..', '..'), { recursive: true, force: true });
   });
 
   test('a symlinked pick into ~/.ssh is refused even with consent', async () => {

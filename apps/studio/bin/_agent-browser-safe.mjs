@@ -158,6 +158,32 @@ export const CLEARED_ENV_KEYS = Object.freeze([
   'all_proxy',
 ]);
 
+const NO_EGRESS_WEBRTC = '--force-webrtc-ip-handling-policy=disable_non_proxied_udp';
+
+/**
+ * The env agent-browser runs with: every policy/proxy key above cleared, the localhost-only domain
+ * list, and — V2-8.9 re-check 2 H-b (decision maude/v2-p8-agent-browser-safe-no-egress) — with
+ * MAUDE_NO_EGRESS=1 ("Search the web" off) the same dead-proxy rule _no-egress.sh gives the shell
+ * helpers, set AFTER the clearing: a dead loopback proxy for everything that is not loopback, no
+ * bypass lists, WebRTC limited to proxied (= no) UDP, and a session of its own. --allowed-domains
+ * alone never stopped in-page navigation, a meta refresh or an <img> to a website.
+ */
+export function safeEnv(base = process.env) {
+  const env = { ...base };
+  for (const key of CLEARED_ENV_KEYS) delete env[key];
+  env.AGENT_BROWSER_ALLOWED_DOMAINS = 'localhost,127.0.0.1';
+  if (env.MAUDE_NO_EGRESS === '1') {
+    env.AGENT_BROWSER_PROXY = 'http://127.0.0.1:9';
+    for (const k of ['AGENT_BROWSER_PROXY_BYPASS', 'NO_PROXY', 'no_proxy']) delete env[k];
+    const args = (env.AGENT_BROWSER_ARGS ?? '').split(',').filter(Boolean);
+    if (!args.includes(NO_EGRESS_WEBRTC)) args.push(NO_EGRESS_WEBRTC);
+    env.AGENT_BROWSER_ARGS = args.join(',');
+    const session = env.AGENT_BROWSER_SESSION || 'default';
+    env.AGENT_BROWSER_SESSION = session.endsWith('-noegress') ? session : `${session}-noegress`;
+  }
+  return env;
+}
+
 /** Returns a block-reason string if this argv should be refused, else null. */
 export function validateArgv(argv) {
   const sub = argv[0];
@@ -211,9 +237,7 @@ function main() {
     process.exit(2);
   }
   const [sub, ...rest] = argv;
-  const env = { ...process.env };
-  for (const key of CLEARED_ENV_KEYS) delete env[key];
-  env.AGENT_BROWSER_ALLOWED_DOMAINS = 'localhost,127.0.0.1';
+  const env = safeEnv(process.env);
   const result = spawnSync(
     'agent-browser',
     ['--config', EMPTY_CONFIG_PATH, sub, ...rest, '--allowed-domains', 'localhost,127.0.0.1'],

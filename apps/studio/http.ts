@@ -271,6 +271,7 @@ import {
   cacheControlFor,
   documentCsp,
   ext,
+  isRefusedDotPath,
   MIME,
   serveClientAsset,
   serveFile,
@@ -7150,6 +7151,9 @@ export function createHttp(
       if (!isTrustedRequestHost(req)) return new Response('Forbidden', { status: 403 });
       const fp = safePathUnderRoot(req.url, ctx.paths.repoRoot);
       if (!fp) return new Response('Forbidden', { status: 403 });
+      // V2-8.9 re-check 2 H-a — no dot path outside the design root (static-lane.ts).
+      if (isRefusedDotPath(fp, ctx.paths.repoRoot, ctx.paths.designRoot))
+        return new Response('Not found', { status: 404 });
 
       const file = Bun.file(fp);
       const exists = await file.exists();

@@ -56,8 +56,9 @@
 // (test/acp-may-scope.test.ts); end to end in test/acp-may-gate.test.ts.
 
 import { createHash } from 'node:crypto';
+import { chmodSync, lstatSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import { agentPath } from './agent-path.ts';
 import { isInsideRoot, resolveRealPath } from './write-scope.ts';
@@ -402,8 +403,9 @@ function insideAnyFolded(p: string, repoRoot: string, roots: readonly string[]):
 //   (c) what the agent needs to work: the bundled plugin trees (their skills and references), Maude's
 //       own package files (the `maude design` helpers, templates, canvas-lib — listed, not the
 //       checkout's root, L1), the chat's own scratch folder (its TMPDIR — the skills screenshot to
-//       `$TMPDIR/x.png` and read it back) and Claude Code's temp folder for THIS project only (M2:
-//       the rest of /tmp holds every other session's task output, so it asks).
+//       `$TMPDIR/x.png` and read it back) and Claude Code's temp folder for THIS session only (M2 +
+//       re-check 2 M-b: the rest of /tmp holds every other session's task output, so it asks). The
+//       temp folders are readable but not Maude's own: a read there is private for the audience gate.
 // Everything else reaches Claude Code's permission card, with "Always allow" taken off (the adapter
 // turns it into a session-wide rule the folder consent would no longer bound). The credential deny
 // rules above stay and still win: they are checked first and refuse without a card.
@@ -430,6 +432,14 @@ function insideAnyFolded(p: string, repoRoot: string, roots: readonly string[]):
 // Glob whose absolute pattern leaves the project while its `path` is in-project is judged here by the
 // pattern (L3); whether Claude Code's own allow rule approves it before asking is unprobed. Between
 // this gate's realpath and Claude Code's open a folder can be swapped (L4, accepted).
+//
+// The audience half (decision maude/v2-p8-outside-reads-are-private, narrowed by re-check 2 M-c,
+// decision maude/v2-p8-untracked-repo-files-private): a repo file outside the design root counts as
+// one the hub's people have (they have the repo) ONLY when git tracks it. A git-ignored or untracked
+// file — or one named like a secret (.env*, .mcp.json, .claude/*.local.json, .npmrc, *.pem, *.key),
+// tracked or not — is a private source like a read outside the project (acp/repo-private.ts). What
+// stays accepted: a TRACKED repo file peers may not have pulled yet, and a folder read whose untracked
+// content git cannot see (a folder is judged by itself and its untracked files, not each ignored one).
 
 /** The file-reading tools the boundary covers (bare names, as on `_meta.claudeCode.toolName`). */
 export const READ_TOOL_NAMES: readonly string[] = ['Read', 'Glob', 'Grep', 'NotebookRead'];
@@ -450,27 +460,107 @@ export interface ReadBoundaryInput {
   tmpRoots?: readonly string[];
 }
 
-/**
- * V2-8.9 M2 — the chat's scratch folder: created by the bridge (0700), handed to the agent as
- * TMPDIR, inside the read boundary. One per project and chat, under this server's own temp dir.
- */
-export function chatScratchDir(repoRoot: string, chatId: string | undefined): string {
-  const uid = typeof process.getuid === 'function' ? process.getuid() : 0;
+const PLAIN_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+const uidNow = () => (typeof process.getuid === 'function' ? process.getuid() : 0);
+
+/** `<this server's temp dir>/maude-chat-<uid>/<project hash>` — every scratch of one project. */
+function projectScratchBase(repoRoot: string): string {
   const project = createHash('sha256').update(resolveRealPath(repoRoot, repoRoot)).digest('hex');
-  const chat = chatId && /^[A-Za-z0-9_-]{1,64}$/.test(chatId) ? chatId : 'session';
-  return join(tmpdir(), `maude-chat-${uid}`, project.slice(0, 16), chat);
+  return join(tmpdir(), `maude-chat-${uidNow()}`, project.slice(0, 16));
 }
 
 /**
- * Claude Code's own temp folder for a session started in `repoRoot`: `/tmp/claude-<uid>/<slug>`,
- * the slug being the cwd with every character that is not a letter or digit turned into `-`
- * (observed on 2.1.x: `/Users/u/git/maude` → `-Users-u-git-maude`). Its task output files live
- * there; other projects' folders are siblings and stay outside.
+ * V2-8.9 M2 — the chat's scratch folder: created by the bridge (`ensureChatScratch`, 0700), handed
+ * to the agent as TMPDIR, inside the read boundary — readable, but NOT one of Maude's own roots: a
+ * read there is private for the audience gate (re-check 2 M-b). One per project, chat AND run
+ * (`instance`, the bridge's own random id): the default chat id is `default`, and a later default
+ * chat must not find what an earlier one copied there. Wiped when the chat ends and on Remove.
  */
-export function claudeCodeTmpFor(repoRoot: string): string[] {
-  const uid = typeof process.getuid === 'function' ? process.getuid() : 0;
+export function chatScratchDir(
+  repoRoot: string,
+  chatId: string | undefined,
+  instance?: string
+): string {
+  const chat = chatId && PLAIN_ID_RE.test(chatId) ? chatId : 'session';
+  const dir = join(projectScratchBase(repoRoot), chat);
+  return instance && PLAIN_ID_RE.test(instance) ? join(dir, instance) : dir;
+}
+
+/**
+ * V2-8.9 re-check 2 L3 — create the scratch owner-only and use it only when every folder from
+ * `maude-chat-<uid>` down is a real directory (never a symlink) owned by this user: on a shared
+ * /tmp another local user could plant one where it goes. false → the bridge leaves TMPDIR alone.
+ */
+export function ensureChatScratch(dir: string): boolean {
+  try {
+    const top = join(tmpdir(), `maude-chat-${uidNow()}`);
+    if (!dir.startsWith(`${top}${sep}`)) return false;
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    for (let p = dir; ; p = dirname(p)) {
+      const st = lstatSync(p);
+      if (!st.isDirectory() || st.isSymbolicLink() || st.uid !== uidNow()) return false;
+      if ((st.mode & 0o077) !== 0) chmodSync(p, 0o700);
+      if (p === top) return true;
+      if (dirname(p) === p) return false;
+    }
+  } catch {
+    return false;
+  }
+}
+
+/** Empty a folder in place (the agent's TMPDIR must keep existing); links are removed, never followed. */
+function emptyDir(dir: string): void {
+  const st = lstatSync(dir);
+  if (!st.isDirectory() || st.isSymbolicLink()) return;
+  for (const name of readdirSync(dir)) rmSync(join(dir, name), { recursive: true, force: true });
+}
+
+/**
+ * V2-8.9 re-check 2 M-b — Remove (a folder's chip ×) and Reset: what was copied to a chat's scratch
+ * must not outlive the consent. Empties every run's scratch of `chatId`, or of every chat of the
+ * project when none is named. Never throws.
+ */
+export function wipeChatScratch(repoRoot: string, chatId?: string): void {
+  try {
+    const base = projectScratchBase(repoRoot);
+    const chats = chatId
+      ? [chatScratchDir(repoRoot, chatId)]
+      : readdirSync(base).map((c) => join(base, c));
+    for (const chat of chats) {
+      let runs: string[] = [];
+      try {
+        const st = lstatSync(chat);
+        if (!st.isDirectory() || st.isSymbolicLink()) continue;
+        runs = readdirSync(chat).map((r) => join(chat, r));
+      } catch {
+        continue;
+      }
+      for (const run of runs) {
+        try {
+          emptyDir(run);
+        } catch {
+          /* next one */
+        }
+      }
+    }
+  } catch {
+    /* nothing to wipe */
+  }
+}
+
+/**
+ * Claude Code's own temp folder for ONE session started in `repoRoot`:
+ * `/tmp/claude-<uid>/<slug>/<sessionId>`, the slug being the cwd with every character that is not a
+ * letter or digit turned into `-` (observed on 2.1.x: `/Users/u/git/maude` → `-Users-u-git-maude`;
+ * the ACP adapter hands Claude Code its session id, so the ACP session id IS that folder's name).
+ * V2-8.9 re-check 2 M-b: the slug folder holds EVERY session's task output for the project — the
+ * person's own terminal sessions too — so only this session's is readable, judged live per request
+ * (the id is not known when the session's allow rules are written). No plain id → none.
+ */
+export function claudeCodeTmpFor(repoRoot: string, sessionId: string | undefined): string[] {
+  if (!sessionId || !PLAIN_ID_RE.test(sessionId)) return [];
   const slug = resolve(repoRoot).replace(/[^A-Za-z0-9]/g, '-');
-  return [join('/tmp', `claude-${uid}`, slug)];
+  return [join('/tmp', `claude-${uidNow()}`, slug, sessionId)];
 }
 
 /** The (a)+(c) roots, absolute, each as named and as it resolves (deduped, never the disk root). */
@@ -582,6 +672,37 @@ export const READ_ONLY_BASH: ReadonlySet<string> = new Set([
   'cmp',
   'md5',
   'shasum',
+  // V2-8.9 re-check 2 L5 — these read too (cp and sed -i also write: this list only ever takes
+  // `Always allow` off a card, it never approves anything)
+  'jq',
+  'yq',
+  'sed',
+  'awk',
+  'gawk',
+  'cut',
+  'tr',
+  'base64',
+  'cp',
+  'rsync',
+  'zcat',
+  'tar',
+  'unzip',
+  'plutil',
+  'openssl',
+]);
+/**
+ * V2-8.9 re-check 2 L5 — interpreters: the paths they read live inside their code, where no word
+ * test can see them, so a card for one never offers a standing rule.
+ */
+const INTERPRETERS = new Set([
+  'python',
+  'python3',
+  'perl',
+  'ruby',
+  'node',
+  'bun',
+  'deno',
+  'osascript',
 ]);
 const SHELL_WRAPPERS = new Set(['sudo', 'env', 'command', 'nohup', 'time', 'nice', 'xargs']);
 
@@ -606,6 +727,7 @@ export function bashReadsOutside(
     )
       k++;
     const head = (words[k] ?? '').split('/').pop() ?? '';
+    if (INTERPRETERS.has(head)) return true;
     if (!READ_ONLY_BASH.has(head)) continue;
     for (let w of words.slice(k + 1)) {
       w = w.replace(/^['"]|['"]$/g, '');

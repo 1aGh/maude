@@ -472,6 +472,9 @@ test('other project: --root, --design-root, cd and the session env are denied; t
       'MAUDE_READ_ROOTS=/ maude design import-asset /etc/hosts',
       'env -u MAUDE_READ_ROOTS maude design ingest-footage ~/maude-p8-probe',
       'export MAUDE_GRANTS_FILE=/tmp/g.json; maude design import-asset ~/x.png',
+      // V2-8.9 re-check 2 H-a — the session's own server ports are the bridge's too.
+      'MAUDE_OWN_PORTS=4400 maude design screenshot --url http://127.0.0.1:4400/.mcp.json',
+      'env -u MAUDE_OWN_PORTS maude design agent-browser-safe open http://127.0.0.1:4400/',
     ];
     for (const cmd of DENY) assert.equal(c(cmd), 'out-of-project', cmd);
     const PASS = [

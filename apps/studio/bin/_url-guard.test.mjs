@@ -99,3 +99,43 @@ describe('the helpers call it before any browser starts', () => {
     expect(src).toContain('maude_url_guard "$URL" || exit 2');
   });
 });
+
+// V2-8.9 re-check 2 H-a — "loopback" was every Maude server on this Mac: from project X the agent
+// opened http://127.0.0.1:4400/.mcp.json (project Y's terminal server) and read it. In a Maude chat
+// the bridge exports this session's own ports (MAUDE_OWN_PORTS); any other port is refused, and a
+// chat without the key fails closed. A terminal keeps the plain loopback rule.
+describe('H-a — a Maude chat opens only its own server ports', () => {
+  const chat = (extra = {}) => ({ MAUDE_AGENT_ACTOR: 'maude-chat', ...extra });
+  test('own main / canvas / capture ports pass', () => {
+    const env = chat({ MAUDE_OWN_PORTS: '4399,51000,51001' });
+    for (const u of [
+      'http://localhost:4399/_canvas-shell.html',
+      'http://127.0.0.1:51000/',
+      'http://[::1]:51001/x',
+    ])
+      expect(urlRefusal(u, env)).toBeNull();
+  });
+  test('another Maude server on this Mac is refused', () => {
+    const env = chat({ MAUDE_OWN_PORTS: '4399,51000,51001' });
+    expect(urlRefusal('http://127.0.0.1:4400/.mcp.json', env)).toContain('port');
+    expect(urlRefusal('http://localhost/', env)).toContain('port'); // implicit :80
+    expect(urlRefusal('https://localhost/', env)).toContain('port'); // implicit :443
+  });
+  test('a chat with no (or a garbled) port list fails closed', () => {
+    expect(urlRefusal('http://localhost:4399/', chat())).not.toBeNull();
+    expect(urlRefusal('http://localhost:4399/', chat({ MAUDE_OWN_PORTS: 'x,4399' }))).not.toBeNull();
+    expect(
+      urlRefusal('http://localhost:4399/', { MAUDE_CHAT_ID: 'c1', MAUDE_OWN_PORTS: '' })
+    ).not.toBeNull();
+  });
+  test('a terminal (no chat markers) keeps the loopback rule', () => {
+    expect(urlRefusal('http://127.0.0.1:4400/', {})).toBeNull();
+  });
+  test('the CLI reads the env: another port exits 2', () => {
+    const r = spawnSync('node', [join(BIN, '_url-guard.mjs'), 'http://127.0.0.1:4400/.mcp.json'], {
+      encoding: 'utf8',
+      env: { PATH: process.env.PATH, MAUDE_AGENT_ACTOR: 'maude-chat', MAUDE_OWN_PORTS: '4399' },
+    });
+    expect(r.status).toBe(2);
+  });
+});

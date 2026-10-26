@@ -42,6 +42,8 @@ export const SESSION_ENV_KEYS = [
   // V2-8.9 H2 — the chat's read boundary for the verbs that read a given path (confine-read.mjs).
   'MAUDE_READ_ROOTS',
   'MAUDE_GRANTS_FILE',
+  // V2-8.9 re-check 2 H-a — this session's own server ports (apps/studio/bin/_url-guard.mjs).
+  'MAUDE_OWN_PORTS',
 ];
 
 const CHAT_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;

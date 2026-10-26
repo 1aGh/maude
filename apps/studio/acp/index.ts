@@ -309,6 +309,30 @@ interface AgentActivityTracker {
   beginTurn?(prompt: string, runId?: string | null): void;
 }
 
+/**
+ * V2-8.9 re-check 2 H-a — the loopback ports THIS server listens on (main, canvas, capture), from the
+ * origins server.ts sets. A public (cell) canvas origin is not a port on this machine and is skipped.
+ * Exported for tests.
+ */
+export function ownServerPorts(
+  ctx: Pick<Context, 'mainOrigin' | 'canvasOrigin' | 'captureOrigin'>
+): number[] {
+  const ports: number[] = [];
+  const main = ctx.mainOrigin?.split(/\s+/)[0];
+  for (const o of [main, ctx.canvasOrigin, ctx.captureOrigin]) {
+    if (!o) continue;
+    try {
+      const u = new URL(o);
+      if (u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') continue;
+      const p = Number(u.port);
+      if (Number.isInteger(p) && p > 0 && !ports.includes(p)) ports.push(p);
+    } catch {
+      /* not a URL */
+    }
+  }
+  return ports;
+}
+
 /** The registry's run ids (ai/run-lifecycle.ts RUN_ID_RE) — the stage's own id pattern. */
 const STAGE_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
@@ -674,6 +698,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
         ),
       // V2-8.9 H2 — the same store, read live by the source-reading maude verbs (MAUDE_GRANTS_FILE).
       grantsFile: grantsFileFor(ctx.paths.repoRoot),
+      // V2-8.9 re-check 2 H-a — this server's own ports: the browser helpers open no other one.
+      ownPorts: () => ownServerPorts(ctx),
       // S8.10 — a Handoff to production chat writes its target file only (handoff/write-scopes.ts).
       writeOnlyRoots: () => runWriteScope(chatId),
       // V2-8.9 H1 — a write that carries a file this chat read to someone who cannot see it asks.

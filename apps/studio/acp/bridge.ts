@@ -8,7 +8,8 @@
 // (env.ts): the child inherits the environment MINUS `ANTHROPIC_API_KEY`, so
 // auth precedence falls through to the user's Pro/Max subscription.
 
-import { mkdirSync, statSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
+import { rmSync, statSync } from 'node:fs';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { delimiter, dirname, isAbsolute, join, resolve } from 'node:path';
 
@@ -57,6 +58,7 @@ import {
   credentialDenyRules,
   credentialPathsFor,
   credentialRefusal,
+  ensureChatScratch,
   MAY_ALL,
   mayAllowedTools,
   mayDenyRules,
@@ -74,8 +76,10 @@ import {
   resolveAgentRuntime,
   resolveClaudePath,
 } from './probe.ts';
+import { createRepoPrivacy, type RepoPrivacy } from './repo-private.ts';
 import { countTranscriptLinesAt, stripInlineBlobs } from './transcript-io.ts';
 import {
+  isInsideRoot,
   isWriteToolName,
   looksLikeWriteToolCall,
   pinScopeRoot,
@@ -124,6 +128,12 @@ export interface AcpBridgeOptions {
    * (cli/lib/confine-read.mjs). Absent → the verbs see only the fixed roots.
    */
   grantsFile?: string;
+  /**
+   * V2-8.9 re-check 2 H-a — this session's own server ports (main, canvas, capture), read at each
+   * spawn and handed to the agent as MAUDE_OWN_PORTS: the browser helpers open no other port
+   * (bin/_url-guard.mjs). Absent / empty → the key is not set, and the helpers refuse every page.
+   */
+  ownPorts?: () => readonly number[];
   /** M2 — the read boundary's fixed roots. Absent → `sessionReadRoots(repoRoot, plugins, designRoot)`. */
   readBoundary?: readonly string[];
   /**
@@ -640,7 +650,9 @@ export function sessionReadRoots(
   repoRoot: string,
   plugins?: readonly SdkPluginConfig[],
   designRoot?: string,
-  chatId?: string
+  chatId?: string,
+  /** re-check 2 M-b — the bridge's run id: each run of a chat has its own scratch. */
+  instance?: string
 ): string[] {
   return readBoundaryRoots({
     repoRoot,
@@ -650,9 +662,9 @@ export function sessionReadRoots(
     // (templates). Never `../..`: in a source checkout that is the repo root, with its .env.local
     // and browser profiles.
     packageRoot: [DEV_SERVER_ROOT, join(DEV_SERVER_ROOT, '..', '..', 'plugins')],
-    // V2-8.9 M2 — the chat's scratch (its TMPDIR) and Claude Code's folder for this project; never
-    // all of /tmp.
-    tmpRoots: [chatScratchDir(repoRoot, chatId), ...claudeCodeTmpFor(repoRoot)],
+    // V2-8.9 M2 — the chat's scratch (its TMPDIR); never all of /tmp. Claude Code's folder is this
+    // SESSION's only (re-check 2 M-b), judged live by the read gate — its id is not known yet here.
+    tmpRoots: [chatScratchDir(repoRoot, chatId, instance)],
   });
 }
 
@@ -974,17 +986,33 @@ export class AcpBridge {
   private readonly designRoots: string[];
   /** M2 — the read boundary's fixed roots (the spawn-time allow rules; `sessionReadRoots`). */
   private readonly readRoots: string[];
+  /**
+   * re-check 2 M-b — the roots whose files are Maude's own for the audience gate: the read boundary
+   * WITHOUT the temp folders (readable, but a read there is private — a consented file copied to the
+   * scratch must not come back as a shared one).
+   */
+  private readonly ownRoots: string[];
+  /** re-check 2 M-b — this run's scratch (the agent's TMPDIR): per chat AND run, wiped at stop. */
+  private readonly scratch: string;
+  /** re-check 2 M-c — which repo files git does not track (private for the audience gate). */
+  private readonly repoPrivacy: RepoPrivacy;
 
   constructor(private readonly opts: AcpBridgeOptions) {
     this.scopeRoot = pinScopeRoot(opts.repoRoot);
+    const instance = randomBytes(6).toString('hex');
+    this.scratch = chatScratchDir(opts.repoRoot, opts.chatId, instance);
     this.readRoots = opts.readBoundary
       ? [...opts.readBoundary]
       : sessionReadRoots(
           opts.repoRoot,
           opts.plugins,
           opts.designRoot ?? join(opts.repoRoot, '.design'),
-          opts.chatId
+          opts.chatId,
+          instance
         );
+    const tmp = this.tmpSpellings([this.scratch]);
+    this.ownRoots = this.readRoots.filter((r) => !tmp.some((t) => r === t || isInsideRoot(r, t)));
+    this.repoPrivacy = createRepoPrivacy(opts.repoRoot);
     this.assetsRoots = assetsRootsFor(
       opts.repoRoot,
       opts.designRoot ?? join(opts.repoRoot, '.design')
@@ -992,6 +1020,25 @@ export class AcpBridge {
     const design = resolve(opts.repoRoot, opts.designRoot ?? '.design');
     const designReal = resolveRealPath(design, opts.repoRoot);
     this.designRoots = designReal === design ? [design] : [design, designReal];
+  }
+
+  /** re-check 2 M-b — this run's scratch folder (its agent's TMPDIR). */
+  get scratchDir(): string {
+    return this.scratch;
+  }
+
+  /** Each temp root as named and as it resolves (`/tmp` is `/private/tmp` on macOS). */
+  private tmpSpellings(roots: readonly string[]): string[] {
+    const out = new Set<string>();
+    for (const r of roots) for (const s of [r, resolveRealPath(r, r)]) out.add(s);
+    return [...out];
+  }
+
+  /** re-check 2 M-b — Claude Code's temp folder of the session asking (its id names the folder). */
+  private sessionTmpRoots(sessionId: unknown): string[] {
+    return this.tmpSpellings(
+      claudeCodeTmpFor(this.opts.repoRoot, typeof sessionId === 'string' ? sessionId : undefined)
+    );
   }
 
   /**
@@ -1426,15 +1473,21 @@ export class AcpBridge {
     // V2-8.9 H2 — the read boundary of this chat for the verbs that read a path they are given
     // (cli/lib/confine-read.mjs): the fixed roots now, the consented folders live from the store.
     env.MAUDE_READ_ROOTS = this.readRoots.join(delimiter);
-    // V2-8.9 M2 — the agent's temp folder is this chat's own scratch (inside its read boundary), not
-    // the shared /tmp. Created owner-only; a failure leaves TMPDIR as it was (reads there then ask).
+    // V2-8.9 re-check 2 H-a — the ports of THIS session's own server (main, canvas, capture): the
+    // browser helpers open no other loopback port (bin/_url-guard.mjs). Plain ports only; none →
+    // unset, and the helpers refuse every page (fail closed). Scrubbed + bash-guarded like the rest.
     try {
-      const scratch = chatScratchDir(this.opts.repoRoot, this.opts.chatId);
-      mkdirSync(scratch, { recursive: true, mode: 0o700 });
-      env.TMPDIR = `${scratch}/`;
+      const ports = (this.opts.ownPorts?.() ?? []).filter(
+        (p) => Number.isInteger(p) && p > 0 && p < 65536
+      );
+      if (ports.length) env.MAUDE_OWN_PORTS = [...new Set(ports)].join(',');
     } catch {
-      /* no scratch: the agent's temp reads reach the card */
+      /* no list: the helpers open nothing */
     }
+    // V2-8.9 M2 — the agent's temp folder is this chat's own scratch (inside its read boundary), not
+    // the shared /tmp. Owner-only, never through a planted link (re-check 2 L3); a failure leaves
+    // TMPDIR as it was (reads there then ask).
+    if (ensureChatScratch(this.scratch)) env.TMPDIR = `${this.scratch}/`;
     if (this.opts.grantsFile) env.MAUDE_GRANTS_FILE = this.opts.grantsFile;
     const proc = Bun.spawn([runtime.bin, adapterEntry], {
       cwd: this.opts.repoRoot,
@@ -1891,8 +1944,10 @@ export class AcpBridge {
             return null;
           }
         },
-        // V2-8.9 M1 — Maude's own roots (plugins, package, this chat's scratch) are not private.
-        this.readRoots
+        // V2-8.9 M1 — Maude's own roots (plugins, package) are not private; the temp folders are
+        // (re-check 2 M-b), and so is a repo file git does not track (M-c).
+        this.ownRoots,
+        this.repoPrivacy
       );
     } catch {
       found = [];
@@ -2083,7 +2138,11 @@ export class AcpBridge {
     if (name !== 'Bash' || typeof command !== 'string') return false;
     try {
       const consented = this.opts.readRoots?.() ?? [];
-      return bashReadsOutside(command, this.scopeRoot, [...this.readRoots, ...consented]);
+      return bashReadsOutside(command, this.scopeRoot, [
+        ...this.readRoots,
+        ...this.sessionTmpRoots(params.sessionId),
+        ...consented,
+      ]);
     } catch {
       return true;
     }
@@ -2102,6 +2161,8 @@ export class AcpBridge {
     }
     const verdict = readVerdict(toolName, params.toolCall, this.scopeRoot, [
       ...this.readRoots,
+      // re-check 2 M-b — Claude Code's temp folder of THIS session only (its task output)
+      ...this.sessionTmpRoots(params.sessionId),
       ...consented,
     ]);
     if (verdict === 'inside') {
@@ -2412,6 +2473,12 @@ export class AcpBridge {
     this.briefLogged.clear();
     this.toolNames.clear();
     this.currentSession = null;
+    // V2-8.9 re-check 2 M-b — the chat ended: what it copied to its scratch goes with it.
+    try {
+      rmSync(this.scratch, { recursive: true, force: true });
+    } catch {
+      /* best effort */
+    }
   }
 
   private async drainStderr(stderr: ReadableStream<Uint8Array>): Promise<void> {

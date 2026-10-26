@@ -80,6 +80,17 @@ test('outside → refused; `~`, `..` and another chat do not help', () => {
   );
 });
 
+// V2-8.9 re-check 2 L1 — annotate's file-taking flags read any file the agent named.
+test('annotate: --board/--flow/--ops/--rects/--canvas-state hold to the read roots; text does not', () => {
+  for (const flag of ['--board', '--flow', '--ops', '--rects', '--canvas-state']) {
+    assert.equal(check('annotate', ['ui/x.tsx', flag, '/etc/hosts'])?.why, 'outside', flag);
+    assert.equal(check('annotate', ['ui/x.tsx', `${flag}=~/.ssh/id_ed25519`])?.why, 'outside');
+    assert.equal(check('annotate', ['ui/x.tsx', flag, 'board.json']), null);
+  }
+  // a sticker's text that looks like a path is text, not a source
+  assert.equal(check('annotate', ['ui/x.tsx', '--sticker', '/etc/hosts', '--title', '~/x']), null);
+});
+
 test('a Maude chat without MAUDE_READ_ROOTS fails closed; a terminal is not checked', () => {
   assert.equal(
     check('import-asset', ['brief.png'], chat({ MAUDE_READ_ROOTS: '' }))?.why,
