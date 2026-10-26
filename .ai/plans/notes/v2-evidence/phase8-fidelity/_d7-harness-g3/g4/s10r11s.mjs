@@ -33,8 +33,15 @@ function writeOutbox(project, docs, commentsJson) {
   });
 }
 
+// The Mac loses its internet, not its own studio: only `navigator.onLine` flips (+ the window event), so the loopback
+// requests of the panel (covers, kind counts) keep working, as they do on a real offline Mac.
+const setNet = (page, on) => page.evaluate((on) => {
+  Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => on });
+  window.dispatchEvent(new Event(on ? 'online' : 'offline'));
+}, on);
+
 export async function run(h) {
-  const { page, sleep, project, ctx } = h;
+  const { page, sleep, project } = h;
   await fakeLinked(page);
   await page.reload();
   await sleep(2500);
@@ -72,7 +79,7 @@ export async function run(h) {
   await page.reload();
   await sleep(3500);
   await h.open('ui-print', 800);
-  await ctx.setOffline(true);
+  await setNet(page, false);
   await sleep(1500);
   // the pin's thread card: "Queued — sends when this Mac is online."
   const fr = page.frameLocator('[data-testid="canvas-frame"]');
@@ -86,7 +93,7 @@ export async function run(h) {
     await sleep(800);
   }
   console.log('QUEUED', await fr.locator('.cm-queued').count());
-  await h.step('co-sync-offline', D, 'FAKED hub link + browser offline; REAL _state/outbox (14 changes, one a comment): "not sent" rows, the foot, the cluster word, the queued comment in its thread card', async () => {});
+  await h.step('co-sync-offline', D, 'FAKED hub link + navigator.onLine=false; REAL _state/outbox (14 changes, one a comment): "not sent" rows, the foot, the cluster word, the queued comment in its thread card', async () => {});
   await h.esc(1); // the card is put away; the board's co-sync-back draws the pin alone
   await sleep(500);
   // while offline nine of the fourteen have been accepted (the real files are gone, five wait); then the Mac is back
@@ -94,7 +101,7 @@ export async function run(h) {
   const names = readdirSync(dir).sort();
   const keep = new Set(names.filter((n) => /r11(03|04|08|09|12)\.json$/.test(n)));
   for (const n of names) if (!keep.has(n)) rmSync(join(dir, n));
-  await ctx.setOffline(false);
+  await setNet(page, true);
   await sleep(1800); // the reconnect re-reads the outbox at once; the toast is up for a few seconds
   await h.step('co-sync-back', D, 'FAKED hub link; REAL _state/outbox with 5 of 14 left: "sending" rows, "Sending 14 changes · 9 sent", the toast', async () => {}, { notice: true });
 }
