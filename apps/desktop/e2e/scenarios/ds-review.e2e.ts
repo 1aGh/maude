@@ -318,6 +318,47 @@ async function clickInFrame(selector: string) {
     };
   }, selector);
   if (!at) throw new Error(`nothing to click in the canvas for ${selector}`);
+  // The board fits the whole system (a few %), so a direction tile can sit under a shell island (the project pill,
+  // the DS bar) at the window's top edge: zoom in on it first (⌘+ on the canvas, centred where the camera is) until
+  // the top document hits the canvas frame there, the way a person brings it out from under the chrome.
+  for (let i = 0; i < 6; i++) {
+    const p = await browser.execute((sel: string) => {
+      const f = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+      const el = f?.contentDocument?.querySelector(sel) as HTMLElement | null;
+      if (!el || !f) return null;
+      const fr = f.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      const x = Math.round(fr.left + r.left + r.width / 2);
+      const y = Math.round(fr.top + r.top + r.height / 2);
+      return { x, y, bare: document.elementFromPoint(x, y) === f && r.width >= 24 };
+    }, selector);
+    if (!p) break;
+    if (p.bare) {
+      await pointerClick(p.x, p.y);
+      return;
+    }
+    await browser.execute((sel: string) => {
+      const f = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+      const doc = f.contentDocument as Document;
+      const win = f.contentWindow as Window & typeof globalThis;
+      const el = doc.querySelector(sel) as HTMLElement;
+      const r = el.getBoundingClientRect();
+      // a pinch on the tile: the canvas zooms about the pointer, so the tile grows where it is and comes off the edge
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const target = doc.elementFromPoint(cx, Math.max(cy, 1)) ?? doc.body;
+      const wheel = (init: WheelEventInit) =>
+        target.dispatchEvent(
+          new win.WheelEvent('wheel', { bubbles: true, cancelable: true, ...init })
+        );
+      // first a scroll that brings it down/right of the top-left chrome, then a pinch about the tile
+      const dy = cy < 160 ? cy - 200 : 0;
+      const dx = cx < 160 ? cx - 200 : 0;
+      if (dx || dy) wheel({ deltaX: dx, deltaY: dy, clientX: cx, clientY: cy });
+      else wheel({ ctrlKey: true, deltaY: -120, clientX: cx, clientY: cy });
+    }, selector);
+    await browser.pause(400);
+  }
   await pointerClick(at.x, at.y);
 }
 

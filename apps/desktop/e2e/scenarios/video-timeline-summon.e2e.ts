@@ -1,7 +1,7 @@
 import { $, browser, expect } from '@wdio/globals';
 import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
-import { pointerClick } from '../helpers/pointer';
+import { bareCanvasPoint, pointerClick } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 
@@ -128,14 +128,23 @@ describe('video-timeline-summon — the timeline comes with a video artboard', (
   });
 
   it('selecting anything that is not a video slides it back', async () => {
-    const box = await artboardBox('clip');
+    // Empty canvas = a point where the top document hits the canvas frame and the canvas no artboard: a fixed offset
+    // from the artboard lands on the Inspector the selection opened (or the left panel), which deselects nothing.
+    const bare = async () => {
+      const p = await bareCanvasPoint((await artboardBox('clip')) as Box);
+      expect(p).not.toBeNull();
+      return p as { x: number; y: number };
+    };
     // the video is still selected from the cases above and the person hid its island with ⇧⌘T: a click on a thing
     // that is already selected is no new selection, so clear it first, then select the video afresh
-    await clickAt((box as Box).x + (box as Box).w + 250, (box as Box).y - 150);
-    await clickAt((box as Box).x + 12, (box as Box).y - 10);
+    const away = await bare();
+    await clickAt(away.x, away.y);
+    const box = (await artboardBox('clip')) as Box;
+    await clickAt(box.x + 12, box.y - 10);
     await island().waitForExist({ timeout: 15_000 });
-    // empty canvas, away from the artboard (the left panel floats over the frame's own left edge): the selection clears
-    await clickAt((box as Box).x + (box as Box).w + 250, (box as Box).y - 150);
+    // empty canvas, away from the artboard: the selection clears
+    const away2 = await bare();
+    await clickAt(away2.x, away2.y);
     await island().waitForExist({ reverse: true, timeout: 5000, timeoutMsg: 'it never slid back' });
     await capture('timeline-away');
   });

@@ -190,6 +190,18 @@ describe('images, crop and the Figma paste bar (S2.15)', () => {
       timeout: 15000,
       timeoutMsg: 'the written canvas never rendered',
     });
+    // The canvas opens at 100 %: the artboard hugs two 400 px frames, so the picture sits below the window's
+    // bottom edge and a ⌘-click (deep select = the element UNDER the pointer) at its centre hits nothing. Fit it
+    // first (⌘0), the way a person brings the work into view.
+    await frameKey('0', { metaKey: true });
+    await browser.waitUntil(
+      async () =>
+        inFrame((doc, win) => {
+          const r = doc.querySelector('[data-cd-id="photo"]')?.getBoundingClientRect();
+          return !!r && r.top >= 0 && r.top + r.height / 2 < (win as Window).innerHeight - 80;
+        }),
+      { timeout: 10_000, timeoutMsg: '⌘0 never brought the picture into view' }
+    );
   });
   after(() => fixtures.restore());
 
@@ -267,19 +279,15 @@ describe('images, crop and the Figma paste bar (S2.15)', () => {
 
   it('a Figma copy with a picture lands as Figma’s exact picture; the bar says so and offers no Make editable', async () => {
     const report = startReport('edit-images-figma');
-    await inFrame((doc, win) => {
-      // the frame's own DataTransfer / File / ClipboardEvent, as a real paste hands over: a File from the shell's realm
-      // fails the canvas's `instanceof Blob` (asset-upload.ts bodyOf) and the upload throws before any /_api call
-      const W = win as unknown as {
-        DataTransfer: typeof DataTransfer;
-        File: typeof File;
-        ClipboardEvent: typeof ClipboardEvent;
-      };
+    // the clipboard's objects are made in the CANVAS's realm, as a real paste's are: a File built in the shell's
+    // window is no Blob to the canvas (`instanceof Blob` is per realm), and the upload would read it as a stream
+    await inFrame((doc, w) => {
+      const win = w as Window & typeof globalThis;
       const meta = btoa(
         JSON.stringify({ fileKey: 'AbC123xyz', pasteID: 1, dataType: 'scene', name: 'Hero / v3' })
       );
       const html = `<span data-metadata="<!--(figmeta)${meta}(/figmeta)-->"></span><span data-buffer="<!--(figma)AA==(/figma)-->"></span>`;
-      const dt = new W.DataTransfer();
+      const dt = new win.DataTransfer();
       dt.setData('text/html', html);
       const png = Uint8Array.from(
         atob(
@@ -287,9 +295,9 @@ describe('images, crop and the Figma paste bar (S2.15)', () => {
         ),
         (c) => c.charCodeAt(0)
       );
-      dt.items.add(new W.File([png], 'hero.png', { type: 'image/png' }));
+      dt.items.add(new win.File([png], 'hero.png', { type: 'image/png' }));
       doc.dispatchEvent(
-        new W.ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })
+        new win.ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })
       );
     });
     await browser.waitUntil(async () => source().includes('data-source="figma"'), {

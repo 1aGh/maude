@@ -530,6 +530,18 @@ describe('edit-artboards (part 3) — the artboard menu, ⌘D, rename in place',
       timeout: 15_000,
       timeoutMsg: 'one ⌘Z did not take the copy back',
     });
+    // the file is back; the canvas redraws from it a moment later (its module reloads and every artboard remounts,
+    // which would close a name field opened before it) — wait for the canvas to show the copy gone
+    await browser.waitUntil(
+      async () =>
+        inFrame(
+          (d) =>
+            !d.querySelector('[data-dc-screen="a-2"]') &&
+            !!d.querySelector('[data-dc-screen="a"]') &&
+            !!d.querySelector('[data-dc-screen="b"]')
+        ),
+      { timeout: 15_000, timeoutMsg: 'the canvas never redrew without the copy' }
+    );
   });
 
   it('double-click the name, Tab: the next artboard’s name opens', async () => {
@@ -543,10 +555,23 @@ describe('edit-artboards (part 3) — the artboard menu, ⌘D, rename in place',
       );
       return true;
     });
-    await browser.waitUntil(
-      async () => inFrame((d) => !!d.querySelector('[data-testid="artboard-rename-b"]')),
-      { timeout: 10_000, timeoutMsg: 'Tab never opened the next name' }
-    );
+    try {
+      await browser.waitUntil(
+        async () => inFrame((d) => !!d.querySelector('[data-testid="artboard-rename-b"]')),
+        { timeout: 10_000 }
+      );
+    } catch {
+      const state = await inFrame((d) => ({
+        open: [...d.querySelectorAll('[data-testid^="artboard-rename-"]')].map((n) =>
+          n.getAttribute('data-testid')
+        ),
+        boards: [...d.querySelectorAll('[data-dc-screen]')].map((n) =>
+          n.getAttribute('data-dc-screen')
+        ),
+        active: d.activeElement?.getAttribute('data-testid') ?? d.activeElement?.tagName ?? null,
+      }));
+      throw new Error(`Tab never opened the next name (${JSON.stringify(state)})`);
+    }
     await capture('artboard-rename-tab');
     await browser.keys('Escape');
   });

@@ -7,7 +7,7 @@ import { dismissNotices } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { withNetProbe } from '../helpers/net-probe';
-import { pointerClick } from '../helpers/pointer';
+import { artboardLabelPoint, pointerClick } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 
@@ -80,9 +80,28 @@ describe('video-present — a video presents its formats only; the export sheet 
     expect(box).not.toBeNull();
     // the artboard's name strip selects the WHOLE artboard; its body would pick the video player inside it
     await dismissNotices(); // a first-run notice over the artboard's label would take the click
-    await clickAt(box.x + 12, box.y - 10);
-    await withNetProbe(() => $(tid('insp-format-add')).waitForExist({ timeout: 15_000 }), false);
-    await (await $(tid('insp-format-add'))).click();
+    // the fit puts the artboards against the window's top edge, under the project pill: click a bare part of the name
+    const name = await artboardLabelPoint('reel');
+    expect(name).not.toBeNull();
+    await clickAt((name as { x: number }).x, (name as { y: number }).y);
+    await $('[data-testid="inspector-frame"][data-kind="artboard"]').waitForExist({
+      timeout: 15_000,
+      timeoutMsg: 'selecting the video drew no artboard inspector',
+    });
+    // a lone video has no Formats rows (V2-8.5 c4-video): ⌘K "Add a format" draws them with the size list open
+    await withNetProbe(async () => {
+      await key({ key: 'k', metaKey: true });
+      const input = await $(tid('palette-input'));
+      await input.waitForExist({ timeout: 10_000 });
+      await input.setValue('Add a format');
+      const row = await $(tid('palette-row-action:video.format.add'));
+      await row.waitForExist({ timeout: 10_000, timeoutMsg: '⌘K has no "Add a format" row' });
+      await row.click();
+      await $(tid('insp-format-add-1920x1080')).waitForExist({
+        timeout: 15_000,
+        timeoutMsg: '⌘K Add a format opened no size list',
+      });
+    }, false);
     await (await $(tid('insp-format-add-1920x1080'))).click();
     await browser.waitUntil(async () => onDisk().includes('id="reel-16x9"'), { timeout: 15_000 });
   });

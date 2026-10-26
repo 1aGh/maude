@@ -6,7 +6,7 @@ import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { dismissNotices } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
-import { withNetProbe } from '../helpers/net-probe';
+import { lineDiff, withNetProbe } from '../helpers/net-probe';
 import { pointerClick, pointerDown, pointerMove, pointerUp } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
@@ -33,6 +33,23 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, '../fixtures/project/.design/ui/VideoFormats.tsx');
 const fixtures = createFixtureGuard('video-formats', [FIXTURE]);
 const onDisk = () => readFileSync(FIXTURE, 'utf8');
+/** The file once it has stopped changing (a write can land in more than one save) — the state ⌘Z must restore. */
+async function settled(quietMs = 1200): Promise<string> {
+  let last = onDisk();
+  let since = Date.now();
+  await browser.waitUntil(
+    async () => {
+      const now = onDisk();
+      if (now !== last) {
+        last = now;
+        since = Date.now();
+      }
+      return Date.now() - since >= quietMs;
+    },
+    { timeout: 15_000, interval: 200, timeoutMsg: 'the file never stopped changing' }
+  );
+  return last;
+}
 
 type Box = { x: number; y: number; w: number; h: number };
 
@@ -167,7 +184,7 @@ describe('video-formats — Add a format, Make an unlinked copy, Re-frame a clip
     await openAddList('1920x1080');
     await (await $('[data-testid="insp-format-add-1920x1080"]')).click();
     await browser.waitUntil(async () => onDisk().includes('id="reel-16x9"'), { timeout: 15_000 });
-    const withTwo = onDisk();
+    const withTwo = await settled();
     await $('[data-testid="insp-format-unlink"]').waitForExist({ timeout: 10_000 });
     await (await $('[data-testid="insp-format-unlink"]')).click();
     await browser.waitUntil(async () => onDisk().includes('RecapUnlinked'), {
@@ -181,10 +198,14 @@ describe('video-formats — Add a format, Make an unlinked copy, Re-frame a clip
     expect(await canvasText('video-unlinked-reel')).toBe('Unlinked copy — its own cut');
     await capture('video-formats-unlinked');
     await key({ key: 'z', metaKey: true });
-    await browser.waitUntil(async () => onDisk() === withTwo, {
-      timeout: 15_000,
-      timeoutMsg: '⌘Z did not put the file back exactly',
-    });
+    await browser
+      .waitUntil(async () => onDisk() === withTwo, {
+        timeout: 15_000,
+        timeoutMsg: '⌘Z did not put the file back exactly',
+      })
+      .catch((e: Error) => {
+        throw new Error(`${e.message}\n${lineDiff(withTwo, onDisk())}`);
+      });
     await key({ key: 'z', metaKey: true });
     await browser.waitUntil(async () => !onDisk().includes('id="reel-16x9"'), { timeout: 15_000 });
   });
@@ -201,9 +222,14 @@ describe('video-formats — Add a format, Make an unlinked copy, Re-frame a clip
     expect(await text('reframe-title')).toBe('Frame “shot” for');
     // B3: no subject following anywhere on it
     expect(await text('reframe-island')).not.toMatch(/follow|subject/i);
-    expect(await text('reframe-note')).toBe(
-      'Drag the window to frame it. Each format keeps its own.'
-    );
+    // P8-C8: the hint is said once — the count line ("Centred. Drag the window to frame it."); the note under the
+    // buttons is only for someone who cannot edit
+    expect(await $('[data-testid="reframe-note"]').isExisting()).toBe(false);
+    expect(
+      await browser.execute(
+        () => document.querySelector('[data-testid="reframe-count"]')?.textContent?.trim() ?? null
+      )
+    ).toBe('Centred. Drag the window to frame it.');
     await capture('video-formats-reframe');
     const win = await $('[data-testid="reframe-window"]');
     const at = await win.getLocation();

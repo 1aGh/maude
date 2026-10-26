@@ -118,7 +118,9 @@ describe('video-clip-inspector — the clip inspector, the join picker, a title�
     const before = onDisk();
     const titleBlock = await browser.execute(() => {
       const rows = [...document.querySelectorAll<HTMLElement>('[data-testid^="timeline-seq-"]')];
-      const hit = rows.find((r) => /title/i.test(r.textContent ?? ''));
+      // P8 C3 (07 · ve-text): a title block goes by its words, never by the Sequence's name
+      // (aria-label carries the name even when the block is too narrow to print it)
+      const hit = rows.find((r) => /PROČ ALLIGATORS/i.test(r.getAttribute('aria-label') ?? ''));
       return hit?.getAttribute('data-testid') ?? null;
     });
     expect(titleBlock).not.toBeNull();
@@ -128,9 +130,16 @@ describe('video-clip-inspector — the clip inspector, the join picker, a title�
       timeoutMsg: 'the title pick did not fill the inspector',
     });
     expect(await text('inspector-kind')).toBe('Title');
-    expect(await (await $('[data-testid="timeline-inspector-text"]')).getValue()).toBe(
-      'PROČ ALLIGATORS'
-    );
+    // P8-C8 (07 ve-text): the card is Font · Colour · Motion · Length and names the title by its words; the words'
+    // own field moved under Advanced
+    expect(await text('inspector-title')).toBe('PROČ ALLIGATORS');
+    expect(await $('[data-testid="insp-title-motion"]').isExisting()).toBe(true);
+    expect(await $('[data-testid="insp-clip-length"]').isExisting()).toBe(true);
+    const fold = await $('[data-testid="fold-inspector-toggle"]');
+    if ((await fold.getAttribute('aria-expanded')) !== 'true') await fold.click();
+    const words = await $('[data-testid="timeline-inspector-text"]');
+    await words.waitForExist({ timeout: 5000, timeoutMsg: 'Advanced holds no words field' });
+    expect(await words.getValue()).toBe('PROČ ALLIGATORS');
     await capture('video-clip-inspector-title');
     await (await $('[data-testid="insp-title-motion-slide-up"]')).click();
     await browser.waitUntil(async () => onDisk().includes('<TitleMotion preset="slide-up">'), {

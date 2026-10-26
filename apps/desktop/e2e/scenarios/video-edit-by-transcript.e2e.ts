@@ -103,7 +103,16 @@ describe('video-edit-by-transcript — captions from speech, cut by striking a w
 
   it('select "Ehm…" and press ⌫: the clip is shorter, the word is struck, ⌘Z restores the file', async () => {
     const before = onDisk();
-    await (await $('[data-testid="transcript-word-w1"]')).click();
+    // a word is picked on mousedown (a drag across words is a range); WebDriver's element click sends no mousedown
+    // in the embedded driver, so press it as a pointer does
+    const w1 = await $('[data-testid="transcript-word-w1"]');
+    const at = await w1.getLocation();
+    const size = await w1.getSize();
+    await pointerClick(at.x + size.width / 2, at.y + size.height / 2);
+    await browser.waitUntil(async () => (await w1.getAttribute('data-selected')) === 'true', {
+      timeout: 5000,
+      timeoutMsg: 'a press on "Ehm…" did not select it',
+    });
     await key('[data-testid="transcript-panel"]', { key: 'Backspace' });
     await browser.waitUntil(async () => onDisk() !== before, {
       timeout: 15_000,
