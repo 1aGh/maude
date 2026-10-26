@@ -1394,6 +1394,8 @@ export function createHub(config = {}) {
             renderJobs: renderJobsRoutes, // S8.5b-2
             dsLibrary: dsLibraryRoutes, // S10.18a
             dsGrants: dsGrantRoutes, // S10.18a-2
+            // P8 — `/_api/share/*` for a cloud tab (routes-v2/share.mjs): only where a studio is served.
+            share: studioProxy ? { publicUrl } : null,
           },
         })
       ) {

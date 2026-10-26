@@ -389,6 +389,26 @@ const STEPS = [
       note(
         `share sheet (${local ? 'local project: no invite' : invite ? 'invite + people' : 'degraded'}): "${body.slice(0, 170)}"`
       );
+      if (shell === 'owner' && invite) {
+        // P8 cloud-share — send one invitation from the cloud tab (the hub answers /_api/share/*
+        // for the cell by the desktop's fixed map) and read it back in the people list.
+        await page.fill(tid('share-invite-email'), 'invitee@local.test');
+        await page.click(tid('share-invite-submit'));
+        await sleep(2000);
+        const people = (
+          await page
+            .locator(tid('share-people'))
+            .innerText()
+            .catch(() => '')
+        )
+          .replace(/\s+/g, ' ')
+          .trim();
+        note(`invited from the tab — people list: "${people.slice(0, 160)}"`);
+        await shot('invited');
+        if (!/invitee/.test(people))
+          throw new Error('the invitation sent from the tab is not listed');
+        return { local, hasInvite: invite, invited: true };
+      }
       if (shell === 'owner' && !invite)
         gap(
           'the cloud-tab Share sheet cannot load people/invites on a LOCAL cell: it asks /_api/share/* (refused by the cell proxy) — the sheet says "' +

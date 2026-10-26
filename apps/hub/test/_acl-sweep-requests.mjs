@@ -144,6 +144,16 @@ export const SWEEP_REQUESTS = {
   '/api/export': (tg) => [['POST', '/api/export', json({ paths: [tg.path] })]],
 
   // ---- the access API (S9.6, routes-v2/access.mjs) — me / people / requests are canvas doors
+  // P8 — a cloud tab's Share door (routes-v2/share.mjs): the desktop's fixed map, as the session.
+  '/_api/share/*': (tg) => [
+    ['GET', `/_api/share/people${q(tg)}`],
+    ['GET', `/_api/share/people?canvas=${enc(tg.path)}`],
+    ['POST', '/_api/share/requests', json({ canvas: tg.path })],
+    ['POST', '/_api/share/invites', json({ email: 'b@x.test', role: 'viewer', canvas: tg.path })],
+    ['PATCH', `/_api/share/people/${tg.slug}`, json({ role: 'viewer', canvas: tg.path })],
+    ['POST', `/_api/share/people/${tg.slug}/remove`, json({ canvas: tg.path })],
+    ['POST', '/_api/share/links', json({ role: 'viewer', who: 'team', canvas: tg.path })],
+  ],
   '/api/access/me': (tg) => [['GET', `/api/access/me${q(tg)}`]],
   '/api/access/people': (tg) => [
     ['GET', `/api/access/people${q(tg)}`],

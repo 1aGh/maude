@@ -121,6 +121,9 @@ describe('the read-only allowlist is a decision, not a convenience', () => {
   // Doors that authenticate with something other than a peer token answer for
   // themselves, so the gate checks nothing on their write half. Pinned the same way.
   const SELF_AUTHENTICATING = [
+    // P8 — a cloud tab's Share door: the browser session (cookie, same-origin only) — every call
+    // it makes is judged by the /api/access/* row it lands on (routes-v2/share.mjs).
+    '/_api/share/*',
     '/_materialize',
     '/admin',
     '/admin/*',
