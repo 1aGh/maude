@@ -42,7 +42,11 @@
 // (`maude design serve`, a cloud cell) has no shell gate — there the canvas CSP holds fetch/img/media but
 // not navigation; renders the SERVER starts (export, thumbnails) do not carry the session's env; and the
 // shell's flag is per tab as the page last told it, so a page that never loads its bundle (an older client)
-// leaves the default (on).
+// leaves the default (on). Round 2 (L-R2-2): neither the navigation gate nor the CSP covers DNS from a
+// resource hint, so the canvas shell (plugins/design/templates/_shell.html) turns prefetch control off
+// and strips `rel=dns-prefetch|preconnect|prefetch|prerender` in EVERY canvas frame, web on or off; a
+// nested same-origin frame inside a canvas keeps its own prototypes (named, like WebRTC there), and
+// whether the shipping WKWebView honours the meta was not checked on a real Mac.
 //
 // V2-8.9 M2 adds a third, switch-independent part at the bottom of this file: the credential-store
 // deny rules + their live refusal (`credentialDenyRules` / `credentialRefusal`).

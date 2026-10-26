@@ -26,8 +26,93 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta http-equiv="x-dns-prefetch-control" content="off" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Canvas</title>
+    <script>
+      // V2-8.9 round 2 L-R2-2 — no resource hints in a canvas frame, ALWAYS (not only while "Search the
+      // web" is off): the canvas CSP blocks every connection, so a hint has no use here, and
+      // `<link rel=dns-prefetch|preconnect|prefetch|prerender>` can still resolve a host — a DNS
+      // lookup carries data even with the web off. Prefetch control is off above; a hint set through
+      // `rel` / setAttribute loses those tokens before the link reaches the document, and one that
+      // arrives another way (parsed HTML, relList, an Attr) is removed when it lands. Residual: a
+      // nested same-origin frame has its own prototypes (as for WebRTC above).
+      (function (W) {
+        var HINT = /^(?:dns-prefetch|preconnect|prefetch|prerender)$/i;
+        var strip = function (v) {
+          return String(v)
+            .split(/\s+/)
+            .filter(function (t) {
+              return t && !HINT.test(t);
+            })
+            .join(' ');
+        };
+        var hinted = function (el) {
+          if (!el || String(el.tagName).toUpperCase() !== 'LINK') return false;
+          var rel = el.getAttribute('rel') || '';
+          return rel.split(/\s+/).some(function (t) {
+            return HINT.test(t);
+          });
+        };
+        try {
+          var L = W.HTMLLinkElement.prototype;
+          var d = Object.getOwnPropertyDescriptor(L, 'rel');
+          if (d && d.set)
+            Object.defineProperty(L, 'rel', {
+              configurable: false,
+              enumerable: d.enumerable,
+              get: d.get,
+              set: function (v) {
+                d.set.call(this, strip(v));
+              },
+            });
+          var E = W.Element.prototype;
+          var sa = E.setAttribute;
+          var sans = E.setAttributeNS;
+          var isRel = function (el, n) {
+            return el instanceof W.HTMLLinkElement && String(n).toLowerCase() === 'rel';
+          };
+          Object.defineProperty(E, 'setAttribute', {
+            configurable: false,
+            writable: false,
+            value: function (n, v) {
+              return sa.call(this, n, isRel(this, n) ? strip(v) : v);
+            },
+          });
+          Object.defineProperty(E, 'setAttributeNS', {
+            configurable: false,
+            writable: false,
+            value: function (ns, n, v) {
+              return sans.call(this, ns, n, isRel(this, n) ? strip(v) : v);
+            },
+          });
+        } catch (_) {
+          /* best effort; the observer below still removes a hint that lands */
+        }
+        var sweep = function (node) {
+          if (hinted(node)) return node.remove();
+          if (node && node.querySelectorAll)
+            node.querySelectorAll('link[rel]').forEach(function (l) {
+              if (hinted(l)) l.remove();
+            });
+        };
+        try {
+          new W.MutationObserver(function (records) {
+            records.forEach(function (r) {
+              if (r.type === 'attributes') return hinted(r.target) && r.target.remove();
+              r.addedNodes.forEach(sweep);
+            });
+          }).observe(W.document.documentElement, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['rel'],
+          });
+        } catch (_) {
+          /* no observer: the prototype guards above still hold */
+        }
+      })(window);
+    </script>
     <script>
       // T2 (9.1 / DDR-060 F1 re-audit) — best-effort WebRTC denial in the canvas
       // iframe. CSP `webrtc 'block'` is specified but UNIMPLEMENTED in shipping
