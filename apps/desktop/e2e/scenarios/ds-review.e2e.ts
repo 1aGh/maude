@@ -46,6 +46,13 @@ const rowText = (testId: string): Promise<string> =>
     testId
   );
 
+/** A row's quiet right-hand word and who published it (`canvas-row-meta-<slug>`, `data-source`), or null. */
+const dsWord = (slug: string): Promise<{ word: string; source: string | null } | null> =>
+  browser.execute((id: string) => {
+    const m = document.querySelector(`[data-testid="canvas-row-meta-${id}"]`) as HTMLElement | null;
+    return m ? { word: m.innerText.trim(), source: m.getAttribute('data-source') } : null;
+  }, slug);
+
 const metaOf = (rel: string): Record<string, unknown> => {
   const file = join(ROOT, '.design', rel.replace(/\.tsx$/, '.meta.json'));
   return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
@@ -122,22 +129,22 @@ part('1')('ds-review (part 1) — edit, review, untick, Update, dot, ⌘Z', () =
     expect(metaOf('ui/Home.tsx').dsRev).toBeUndefined();
     expect(metaOf('ui/Pricing.tsx').dsRev).toBeUndefined();
     await canvasRow('canvas-row-ui-landing');
-    // the row re-renders when the index arrives with the new revision: look it up fresh each time
-    // the word sits in the row's container, beside the row's own button (`canvas-row-*`)
+    // the row re-renders when the index arrives with the new revision: the quiet word is the row's own slot
+    // (`canvas-row-meta-<slug>`, source `ds` — canvases/row-slots.js: ai > sync > access > ds), look it up fresh
     try {
-      await browser.waitUntil(
-        async () => (await rowText('canvas-row-ui-landing')).includes('update'),
-        {
-          timeout: 15_000,
-        }
-      );
+      await browser.waitUntil(async () => (await dsWord('ui-landing'))?.source === 'ds', {
+        timeout: 15_000,
+      });
     } catch {
       const idx = await browser.execute(async () => {
         const d = await (await fetch('/_index-data', { cache: 'no-store' })).json();
         return JSON.stringify({ revs: d.canvasDsRevs, heads: d.systemHeads, conv: d.dsConverted });
       });
-      throw new Error(`the Landing row never showed the quiet "update" word: ${idx}`);
+      throw new Error(
+        `the Landing row never showed the quiet "update" word (row says ${JSON.stringify(await rowText('canvas-row-ui-landing'))}, slot ${JSON.stringify(await dsWord('ui-landing'))}): ${idx}`
+      );
     }
+    expect((await dsWord('ui-landing'))?.word).toBe('update');
     await capture('ds-review-updated-landing-left-out');
   });
 
@@ -149,6 +156,10 @@ part('1')('ds-review (part 1) — edit, review, untick, Update, dot, ⌘Z', () =
       timeoutMsg: '⌘Z never took the update back',
     });
     await canvasRow('canvas-row-ui-landing');
+    await browser.waitUntil(async () => (await dsWord('ui-landing'))?.source !== 'ds', {
+      timeout: 15_000,
+      timeoutMsg: 'the Landing row still says "update" after ⌘Z',
+    });
     expect(await rowText('canvas-row-ui-landing')).not.toContain('update');
     await capture('ds-review-undone');
   });
@@ -323,9 +334,28 @@ part('4')(
       // P8 C5: a project with no system draws no accent row above its canvases; the door is in Advanced
       const fold = await $('[data-testid="canvases-advanced"]');
       await fold.waitForDisplayed({ timeout: 60_000 });
-      if ((await fold.getAttribute('aria-expanded')) !== 'true') await fold.click();
+      // open the fold if it is shut (a remembered choice may have it open already), and keep looking: the row
+      // is drawn once the project's design systems are known to the panel
+      try {
+        await browser.waitUntil(
+          async () => {
+            if (await $('[data-testid="canvases-ds-make"]').isExisting()) return true;
+            if ((await fold.getAttribute('aria-expanded')) !== 'true') await fold.click();
+            return false;
+          },
+          { timeout: 60_000, interval: 1_000 }
+        );
+      } catch {
+        const held = await browser.execute(() =>
+          Array.from(
+            document.querySelectorAll('[data-testid="fold-left.canvases-body"] [data-testid]')
+          ).map((e) => e.getAttribute('data-testid'))
+        );
+        throw new Error(
+          `no "Make a design system" row in Canvases › Advanced — the fold holds ${JSON.stringify(held)}`
+        );
+      }
       const row = await $('[data-testid="canvases-ds-make"]');
-      await row.waitForExist({ timeout: 60_000 });
       await row.click();
       await (await $('[data-testid="ds-make"]')).waitForExist({ timeout: 15_000 });
       expect(await (await $('[data-testid="ds-make-title"]')).getText()).toContain(

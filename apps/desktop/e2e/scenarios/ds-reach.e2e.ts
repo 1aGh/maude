@@ -73,13 +73,22 @@ describe('ds-reach — Show draws every place ringed, then the review list opens
     expect(await (await $('[data-testid="ds-reach-title"]')).getText()).toBe(
       'One colour, everywhere it lands'
     );
-    await browser.waitUntil(async () => (await $$('[data-testid="ds-reach-frame"]')).length === 2, {
+    // DDR-247 (reach-view.jsx): a converted system draws ITS OWN Patterns first (`data-board`), then a frame per
+    // (canvas, artboard) that holds a place — here Home's and Pricing's desktop boards. Three frames, not two.
+    await browser.waitUntil(async () => (await $$('[data-testid="ds-reach-frame"]')).length === 3, {
       timeout: 15_000,
-      timeoutMsg: 'the view never drew a frame for Home and one for Pricing',
+      timeoutMsg: 'the view never drew the Patterns frame, a frame for Home and one for Pricing',
     });
-    expect(await (await $('[data-testid="ds-reach-tag"]')).getText()).toMatch(
+    const keys = await $$('[data-testid="ds-reach-frame"]').map((f) => f.getAttribute('data-key'));
+    expect(keys.some((k) => /ui\/Home\.tsx#desktop$/.test(k ?? ''))).toBe(true);
+    expect(keys.some((k) => /ui\/Pricing\.tsx#desktop$/.test(k ?? ''))).toBe(true);
+    const patterns = await $('[data-testid="ds-reach-frame"][data-board="true"]');
+    expect(await patterns.isExisting()).toBe(true);
+    // with the Patterns frame up, the whole-view tag is that frame's own: 2 (canvas, artboard) patterns
+    expect(await (await patterns.$('[data-testid="ds-reach-places"]')).getText()).toMatch(
       /^2 patterns · \d+ places$/
     );
+    expect(await $('[data-testid="ds-reach-tag"]').isExisting()).toBe(false);
   });
 
   it('every place is ringed (the canvases answer where the elements are drawn)', async () => {
@@ -87,7 +96,8 @@ describe('ds-reach — Show draws every place ringed, then the review list opens
       timeout: 45_000,
       timeoutMsg: 'the three Accent buttons were never ringed (Home 2, Pricing 1)',
     });
-    expect((await $$('[data-testid="ds-reach-line"]')).length).toBe(2);
+    // a line from the swatch to the tag of each frame: the Patterns frame's and one per canvas
+    expect((await $$('[data-testid="ds-reach-line"]')).length).toBe(3);
     await capture('ds-reach-rings');
   });
 
