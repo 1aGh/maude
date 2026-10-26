@@ -772,8 +772,11 @@ export const RIDE_Z = 6;
 
 export function createDomRideSink(
   world: () => HTMLElement | null,
-  reducedMotion: () => boolean
+  reducedMotion: () => boolean,
+  /** The canvas zoom: the two chips are world-space nodes and keep their screen size by counter-scaling. */
+  zoom: () => number = () => 1
 ): RideSink {
+  const unscale = () => 1 / Math.max(zoom(), 0.01);
   const touched = new Set<HTMLElement>();
   const groups = new Map<string, SVGGElement>();
   const tags = new Map<string, HTMLElement>();
@@ -885,6 +888,9 @@ export function createDomRideSink(
         bubble.textContent = live.route.text;
         bubble.style.left = `${live.route.at.x}px`;
         bubble.style.top = `${live.route.at.y}px`;
+        // bottom-centre on the point, 8 screen px above it, at the size of the page's own chips
+        bubble.style.transformOrigin = '50% 100%';
+        bubble.style.transform = `translate(-50%, calc(-100% - ${8 * unscale()}px)) scale(${unscale()})`;
       }
       let tag = tags.get(live.id);
       if (!live.tag) {
@@ -903,6 +909,7 @@ export function createDomRideSink(
         tag.textContent = live.tag.text;
         tag.style.left = `${live.tag.at.x}px`;
         tag.style.top = `${live.tag.at.y}px`;
+        tag.style.transform = `translate(-50%, -50%) scale(${unscale()})`;
       }
     },
     clear() {

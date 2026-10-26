@@ -272,6 +272,29 @@ describe('the DOM sink', () => {
     expect(world.querySelector('[data-testid="annot-ride"]')).toBeNull();
   });
 
+  test('p8-r11-15: both chips keep their screen size at any zoom (counter-scaled), the bubble sits above its point', () => {
+    const world = mountWorld();
+    const sink = createDomRideSink(
+      () => world,
+      () => false,
+      () => 0.25
+    );
+    sink.arrow(
+      {
+        ...live('arw', { text: 'the straight line would cross Mobile', at: { x: 5, y: 5 } }),
+        route: { text: 'Let go — the shortest clean path', at: { x: 7, y: 3 } },
+      },
+      'drag'
+    );
+    const cross = world.querySelector('[data-testid="annot-cross-tag"]') as HTMLElement;
+    const bubble = world.querySelector('[data-testid="annot-route-tag"]') as HTMLElement;
+    expect(cross.style.transform).toContain('scale(4)');
+    expect(bubble.style.transform).toContain('scale(4)');
+    // 8 screen px above the point at 25 % = 32 world px
+    expect(bubble.style.transform).toContain('calc(-100% - 32px)');
+    sink.clear();
+  });
+
   test('settle eases in on --dur-soft; reduced motion jumps', () => {
     const world = mountWorld();
     const eased = createDomRideSink(
