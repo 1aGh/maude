@@ -128,7 +128,10 @@ const qualityChain = [
   quality.tokens,
   quality['site-content'],
   'bash scripts/check-import-coherence.sh',
-].join(' && ');
+]
+  // each gate in its own subshell from the repo root: quality.tests ends with `cd apps/studio`, which leaked into the next step
+  .map((c) => `(${c})`)
+  .join(' && ');
 
 const GATES = [
   { id: 'V2-8.0', title: 'Cleanup', kind: 'live', check: cleanupCheck },
