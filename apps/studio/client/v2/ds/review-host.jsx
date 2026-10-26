@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { canvasDsSystem } from '../../canvas-url.js';
 import { loadReach } from './reach-data.js';
 import { DsAdvancedHost } from './advanced-host.jsx';
+import { DS_STATE_CHANGED } from './door-write.js';
 import { DsLibraryHost } from './library-host.jsx';
 import { DsReachView } from './reach-view.jsx';
 import { DsReviewSheet } from './review-sheet.jsx';
@@ -196,8 +197,26 @@ export function systemOf(req, cfg, activePath) {
  * @param {{ cfg: any, activePath: string | null, toast?: (m: string) => void, scope?: string,
  *           frameFor?: () => HTMLIFrameElement | null, fetchImpl?: typeof fetch }} props
  */
-export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fetchImpl }) {
+export function DsReviewHost({
+  cfg,
+  activePath,
+  toast,
+  scope = '',
+  frameFor,
+  fetchImpl,
+  reloadTree,
+}) {
   useDsRowDots(cfg);
+  // The rows' "update" word reads the project index in `cfg` (canvasDsRevs / systemHeads). A design-system
+  // write moves it (Update gives a left-out canvas its own revision, a row's Update takes it back), but no
+  // file the tree watches changes — so the shell is asked to re-read it, or the word never showed.
+  const reloadRef = useRef(reloadTree);
+  reloadRef.current = reloadTree;
+  useEffect(() => {
+    const again = () => reloadRef.current?.();
+    window.addEventListener(DS_STATE_CHANGED, again);
+    return () => window.removeEventListener(DS_STATE_CHANGED, again);
+  }, []);
   // a canvas left out of an update: the elements that wear what changed get a dot (drawn by the canvas shell)
   useDsUpdateDots({
     cfg,
@@ -338,6 +357,7 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
             );
             if (!r.ok) return r;
             say(updatedWords(r.updated, r.leftOut));
+            reloadRef.current?.();
             setReach(null);
             return { ok: true };
           }}
@@ -380,6 +400,7 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
           );
           if (!r.ok) return r;
           say(updatedWords(r.updated, r.leftOut));
+          reloadRef.current?.();
           setSheet(null);
           return { ok: true };
         }}
