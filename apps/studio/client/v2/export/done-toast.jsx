@@ -44,7 +44,7 @@ function JobNotice({ job, center, say, native }) {
         <>
           {pending && <ProgressBar pct={progressPct(job)} />}
           {job.status === 'done' && <DegradedNote degraded={job.degraded} compact />}
-          <div className="st-toast-actions">
+          <div className="sh-toast-actions">
             <button
               type="button"
               className="btn btn--primary btn--sm"
@@ -53,7 +53,7 @@ function JobNotice({ job, center, say, native }) {
               disabled={saving}
               onClick={act}
             >
-              {saving && <span className="st-btn-spin" aria-hidden="true" />}
+              {saving && <span className="sh-btn-spin" aria-hidden="true" />}
               {w.label}
             </button>
           </div>

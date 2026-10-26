@@ -577,7 +577,7 @@ export const CSS_ALIASES = Object.freeze({
     '[aria-label="Group selection"]',
   ],
   'Photo tab field labels': ['[aria-label="Brightness"]', '[aria-label="Contrast"]'],
-  'menuitem by name (row menu)': ['.st-dropdown [role="menuitem"]'],
+  'menuitem by name (row menu)': ['.sh-dropdown [role="menuitem"]'],
   '[data-theme] on DS/artboard wrappers': ['[data-theme]:not(html)'],
   '[data-path] on canvas-frame': ['[data-testid="canvas-frame"][data-path]'],
 });

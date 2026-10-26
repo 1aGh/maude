@@ -28,7 +28,7 @@ export const PALETTE = {
   key: 'Meta+k',
   input: tid('palette-input'),
   rowTestid: '[data-testid^="palette-row-"]',
-  label: '.st-pal-ltxt',
+  label: '.sh-pal-ltxt',
 };
 
 const HUB = 'https://hub.example.com';
@@ -1032,14 +1032,14 @@ export const OPENERS = [
     steps: [
       { frameClick: '[data-cd-id="home-hero-title"]' },
       { ensureOpen: tid('fold-inspector-toggle') },
-      { click: 'button.st-rp-tab:has-text("Inspect")', optional: true },
+      { click: 'button.sh-rp-tab:has-text("Inspect")', optional: true },
     ],
   },
   {
     id: 'inspector-layers',
     steps: [
       { frameClick: '[data-cd-id="home-hero-title"]' },
-      { click: 'button.st-rp-tab:has-text("Layers")', optional: true },
+      { click: 'button.sh-rp-tab:has-text("Layers")', optional: true },
       { wait: 1500 },
     ],
   },

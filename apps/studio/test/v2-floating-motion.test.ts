@@ -40,7 +40,7 @@ describe('reduced motion is a cut', () => {
   test('the floating rules drop the keyframes outright under reduced motion', () => {
     const rm =
       /@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n  \}/.exec(FLOAT)?.[1] ?? '';
-    expect(rm).toMatch(/\.st-dockslot-inner/);
+    expect(rm).toMatch(/\.sh-dockslot-inner/);
     expect(rm).toMatch(/\.sh-corner/);
     expect(rm).toMatch(/animation:\s*none/);
   });

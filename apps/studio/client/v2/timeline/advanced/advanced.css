@@ -29,7 +29,7 @@
 
   /* V2-8.5 C10 (07 ve-advanced): the cards are islands of the shell body, as the board draws them — Easing at the
      centre top, Render settings + The cut as code stacked in the inspector's column (right, under the Share
-     cluster). They live in `.st-body` (foot.jsx portals them), so `top` / `right` are the dock slots' own. While
+     cluster). They live in `.sh-body` (foot.jsx portals them), so `top` / `right` are the dock slots' own. While
      they are open the inspector steps aside (decision v2-p8-c10-advanced-cards-replace-inspector): the board
      frame draws no inspector, the stack stands in its column. */
   .tla-layer {
@@ -77,8 +77,8 @@
     margin-top: var(--space-2);
   }
   /* the inspector steps aside while the cards stand in its column */
-  .st-body:has(.tla-layer) .st-dockslot-inner:has(> .st-rpanel--insp),
-  .st-body:has(.tla-layer) > .st-rpanel--insp {
+  .sh-body:has(.tla-layer) .sh-dockslot-inner:has(> .sh-rpanel--insp),
+  .sh-body:has(.tla-layer) > .sh-rpanel--insp {
     display: none;
   }
   .tla-sec {

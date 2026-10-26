@@ -3,7 +3,7 @@
    (the global rule). The thread keeps the v1 `chat-*` classes; this file adds what 03 draws on top. */
 @layer components {
   /* ── The chat list ── */
-  .st-rp-body--list {
+  .sh-rp-body--list {
     padding: 0;
     min-height: 0;
     gap: 0;

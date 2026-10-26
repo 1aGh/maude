@@ -113,7 +113,7 @@ export function PresentControls({
       >
         <button
           type="button"
-          className="st-iconbtn pr-step pr-step--prev"
+          className="sh-iconbtn pr-step pr-step--prev"
           data-testid="present-prev"
           aria-label="Previous artboard"
           title="Previous artboard (←)"
@@ -127,7 +127,7 @@ export function PresentControls({
         </span>
         <button
           type="button"
-          className="st-iconbtn pr-step"
+          className="sh-iconbtn pr-step"
           data-testid="present-next"
           aria-label="Next artboard"
           title="Next artboard (→)"
@@ -234,7 +234,7 @@ export function PresentTransport({ media, onCommand }) {
     <span className="pr-transport" data-testid="present-transport">
       <button
         type="button"
-        className="st-iconbtn"
+        className="sh-iconbtn"
         data-testid="present-media-toggle"
         aria-label={media.playing ? 'Pause' : 'Play'}
         title={media.playing ? 'Pause (click the video)' : 'Play (click the video)'}
@@ -249,7 +249,7 @@ export function PresentTransport({ media, onCommand }) {
       ) : null}
       <button
         type="button"
-        className="st-iconbtn"
+        className="sh-iconbtn"
         data-testid="present-media-sound"
         aria-label="Sound"
         aria-pressed={!media.muted}

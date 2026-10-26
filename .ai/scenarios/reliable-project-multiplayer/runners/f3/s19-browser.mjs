@@ -106,7 +106,7 @@ try {
     });
     // …and no fixed chrome from outside the modal may paint over its scrim.
     const aboveModal = await page.evaluate(() => {
-      const scrim = document.querySelector('[role="dialog"][aria-modal="true"]')?.closest('.st-scrim, [class*="scrim"]');
+      const scrim = document.querySelector('[role="dialog"][aria-modal="true"]')?.closest('.sh-scrim, [class*="scrim"]');
       if (!scrim) return [];
       return [...document.querySelectorAll('body *')]
         .filter((el) => !scrim.contains(el) && getComputedStyle(el).position === 'fixed' && el.getClientRects().length)

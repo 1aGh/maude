@@ -233,19 +233,19 @@ describe('G4 · a floating panel folds toward its corner icon (04 md-motion), it
   };
   const stage = () => {
     const body = document.createElement('div');
-    body.className = 'st-body st-body--float';
+    body.className = 'sh-body sh-body--float';
     withBox(body, { ...BOX, left: 0, top: 0, right: 1000, bottom: 800, width: 1000, height: 800 });
     document.body.append(body);
     return body;
   };
   afterEach(() => {
-    for (const el of document.querySelectorAll('.st-body')) el.remove();
+    for (const el of document.querySelectorAll('.sh-body')) el.remove();
   });
 
   test('the ghost is a picture of the island: no hook, no id, no focus, no click — placed where it was', () => {
     const body = stage();
     const island = document.createElement('div');
-    island.className = 'st-dockslot-inner island';
+    island.className = 'sh-dockslot-inner island';
     island.setAttribute('data-testid', 'dock-slot-left');
     island.innerHTML = '<button id="x" data-testid="canvas-row-a">A</button>';
     body.append(island);

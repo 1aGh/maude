@@ -3,7 +3,7 @@
 //   Presenting the canvas │ 21% │ esc to leave
 //
 // "Today's Presentation mode, kept": no chrome, no pins, no annotations — this pill is the only thing the
-// shell shows. It replaces the v1 exit button (`.st-present-exit`, "Exit presentation mode"): the class,
+// shell shows. It replaces the v1 exit button (`.pv-present-exit`, "Exit presentation mode"): the class,
 // the aria-label and the click are the same, so the characterization run and the contrast gate that name
 // them still hold, and the pill carries its own testid. It is NOT faded — the v1 pill was pinned to AA at
 // full strength (shell-text-contrast.test.ts), and the shell cannot hear a mouse move over the canvas
@@ -17,7 +17,7 @@ export function CanvasPill({ zoom = null, onLeave }) {
   return (
     <button
       type="button"
-      className="st-present-exit pr-pill"
+      className="pv-present-exit pr-pill"
       data-testid="present-pill"
       onClick={onLeave}
       aria-label="Exit presentation mode"
@@ -47,7 +47,7 @@ export function CanvasPill({ zoom = null, onLeave }) {
       ) : null}
       <span className="pr-div" aria-hidden="true" />
       <span className="pr-esc-hint">
-        <kbd className="st-present-exit-kbd">esc</kbd>
+        <kbd className="pv-present-exit-kbd">esc</kbd>
         <span>to leave</span>
       </span>
     </button>

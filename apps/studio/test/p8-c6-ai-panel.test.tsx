@@ -124,7 +124,7 @@ describe('the rest of the panel (03 `.k-dialog`, `.k-iconbtn--ai`, `ai-attach`)'
     const css = read('client/v2/ai/panel.css');
     expect(css).toContain('color: var(--spark)');
     expect(css).toContain('background: var(--presence-agent)');
-    expect(block('client/v2/ai/panel.css', '.st-body--float .st-dockslot-ai')).toContain(
+    expect(block('client/v2/ai/panel.css', '.sh-body--float .sh-dockslot-ai')).toContain(
       'width: 340px'
     );
   });

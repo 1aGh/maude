@@ -1,13 +1,13 @@
 /* client/v2/kinds/size-picker.css — S7.20: the F size picker (08 `ak-picker`, `ak-picker-full`).
  *
- * Rides the `.st-dialog.st-sticker-picker.st-sticker-picker--anchored` shell the tool panels share (tool-panels.css pins
+ * Rides the `.sh-dialog.sh-sticker-picker.sh-sticker-picker--anchored` shell the tool panels share (tool-panels.css pins
  * it to the toolbar) and restyles only what is inside: a 456 px menu — search, Recent chips, five groups of tiles with
  * a badge each ("Fixed size", "Grows as you add", "mm, with bleed", "Has a timeline"), a footer line, and the mm island
  * for Custom size…. Copied from canvas 08's `.ak-*` rules; tokens only; weights stop at 600; reduced motion is the
  * shell's (its animation is none). No scrim: a drag on empty canvas still reaches F's overlay. */
 
 @layer shell {
-  .st-sticker-picker.sz {
+  .sh-sticker-picker.sz {
     /* no scrim to carry the layer (the pointer stays with the canvas): sit where the scrim would */
     z-index: 9000;
     font-family: var(--font-body);
@@ -288,7 +288,9 @@
     width: 340px;
     border-radius: var(--radius-lg);
     background: var(--island-bg-strong, var(--bg-2));
-    box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge, transparent);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge, transparent);
   }
   .sz-island .sz-custom {
     padding: var(--space-4);

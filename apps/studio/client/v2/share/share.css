@@ -29,7 +29,7 @@
     color: var(--fg-0);
     font-size: var(--type-sm);
     line-height: var(--lh-sm);
-    animation: st-pop var(--dur-route) var(--ease-out);
+    animation: sh-pop var(--dur-route) var(--ease-out);
   }
   .v2sh-sheet:focus {
     outline: none;

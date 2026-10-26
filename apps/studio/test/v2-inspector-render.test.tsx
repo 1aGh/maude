@@ -266,8 +266,8 @@ describe('› Advanced holds the unchanged v1 raw editor', () => {
     const body = q(host, 'fold-inspector-body');
     expect(body).not.toBeNull();
     expect(body?.querySelector('[data-tour="css-panel"]')).not.toBeNull();
-    expect(body?.querySelector('.st-cp-idtag')?.textContent).toContain('button');
-    expect(body?.querySelector('.st-cp-idtag')?.textContent).toContain('.cta');
+    expect(body?.querySelector('.insp-cp-idtag')?.textContent).toContain('button');
+    expect(body?.querySelector('.insp-cp-idtag')?.textContent).toContain('.cta');
     // sections of the raw editor are collapsed headers; the nested Advanced one holds the rows
     const adv = body?.querySelector<HTMLElement>('[data-testid="inspector-section-advanced"]');
     expect(adv).not.toBeNull();
@@ -276,7 +276,7 @@ describe('› Advanced holds the unchanged v1 raw editor', () => {
     expect(body?.querySelector('[data-testid="inspector-html-attrs"]')).not.toBeNull();
     // rule 13: Designer is the only default — no Designer/Advanced switch, no designer regroup
     gone(host.querySelector('[data-tour="cp-mode"]'));
-    gone(host.querySelector('.st-cp--designer'));
+    gone(host.querySelector('.insp-cp--designer'));
   });
 
   test('the selector then the element text, the DOM path on hover; the facts the Inspect tab showed', async () => {
@@ -509,24 +509,24 @@ describe('inside the Inspector island', () => {
     expect(
       host.querySelector('[data-testid="inspector-panel"] [data-testid="inspector-frame"]')
     ).not.toBeNull();
-    const tabs = [...host.querySelectorAll('.st-rp-tab')].map((b) => b.textContent?.trim());
+    const tabs = [...host.querySelectorAll('.sh-rp-tab')].map((b) => b.textContent?.trim());
     expect(tabs).not.toContain('CSS');
     expect(tabs).not.toContain('Inspect');
     gone(host.querySelector('[data-tour="cp-mode"]'));
     // V2-8.5 C2 — the card has no ✕ and no title row (14 `.k-insp`): the corner icon is the way back
     gone(host.querySelector('[aria-label="Close inspector"]'));
-    gone(host.querySelector('.st-rp-title'));
+    gone(host.querySelector('.sh-rp-title'));
     expect(closed).toBe(0);
   });
 
   test('the card: no tab strip when Layers is its own panel; the aside is marked as the inspector card', async () => {
     const host = await panel({ hideLayersTab: true });
-    gone(host.querySelector('.st-rp-tabs'));
-    gone(host.querySelector('.st-rp-views'));
-    expect(host.querySelector('aside.st-rpanel--insp')).not.toBeNull();
+    gone(host.querySelector('.sh-rp-tabs'));
+    gone(host.querySelector('.sh-rp-views'));
+    expect(host.querySelector('aside.sh-rpanel--insp')).not.toBeNull();
     // the standalone Layers panel is not the card
     const layers = await panel({ layersOnly: true, tab: 'layers', testId: 'layers-panel' });
-    expect(layers.querySelector('aside.st-rpanel--insp')).toBeNull();
+    expect(layers.querySelector('aside.sh-rpanel--insp')).toBeNull();
   });
 
   test('landmark-unique: the standalone Layers aside is named "Layers" — the inspector card keeps "Inspector" (V2-8.7)', async () => {
@@ -547,8 +547,8 @@ describe('inside the Inspector island', () => {
       tab: 'css',
       selected: { ...BUTTON, tag: 'img', photoAsset: 'assets/0123abcd.png' },
     });
-    gone(host.querySelector('.st-rp-tabs'));
-    const views = [...host.querySelectorAll('.st-rp-views .k-seg-b')].map((b) =>
+    gone(host.querySelector('.sh-rp-tabs'));
+    const views = [...host.querySelectorAll('.sh-rp-views .k-seg-b')].map((b) =>
       b.textContent?.trim()
     );
     expect(views).toEqual(['Image', 'Photo']);
@@ -558,7 +558,7 @@ describe('inside the Inspector island', () => {
     const sel = { ...BUTTON, tag: 'img', photoAsset: 'assets/0123abcd.png', artboardId: 'desktop' };
     const host = await panel({ hideLayersTab: true, tab: 'css', selected: sel });
     const pressed = () =>
-      [...host.querySelectorAll('.st-rp-views .k-seg-b')]
+      [...host.querySelectorAll('.sh-rp-views .k-seg-b')]
         .filter((b) => b.getAttribute('aria-pressed') === 'true')
         .map((b) => b.textContent?.trim());
     expect(pressed()).toEqual(['Photo']);
@@ -579,7 +579,7 @@ describe('inside the Inspector island', () => {
         html: '<img src="assets/0123abcd.png">',
       },
     });
-    gone(host.querySelector('.st-rp-views'));
+    gone(host.querySelector('.sh-rp-views'));
   });
 
   test('a photo does not make a wrapper open on Photo: only the picture itself does', async () => {
@@ -588,7 +588,7 @@ describe('inside the Inspector island', () => {
       tab: 'css',
       selected: { ...BUTTON, tag: 'div', html: '<img src="assets/0123abcd.png">' },
     });
-    const on = [...host.querySelectorAll('.st-rp-views .k-seg-b')]
+    const on = [...host.querySelectorAll('.sh-rp-views .k-seg-b')]
       .filter((b) => b.getAttribute('aria-pressed') === 'true')
       .map((b) => b.textContent?.trim());
     expect(on).toEqual(['Frame']);

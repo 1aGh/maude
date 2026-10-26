@@ -78,7 +78,7 @@ export function DirRow({ name, depth, children, dirPath, drag, menu, expansion, 
       aria-busy={isBusy || undefined}
       tabIndex={-1}
       className={
-        'st-row' +
+        'sh-row' +
         (isOver ? ' is-drop-target' : '') +
         (isDragging ? ' is-dragging' : '') +
         (isBusy ? ' is-busy' : '')
@@ -89,10 +89,10 @@ export function DirRow({ name, depth, children, dirPath, drag, menu, expansion, 
       {...dragHandlers}
       {...dropHandlers}
     >
-      <span className="st-row-glyph">
-        <StIcon name="chevron-right" className={'st-chev' + (open ? ' is-open' : '')} size={13} />
+      <span className="sh-row-glyph">
+        <StIcon name="chevron-right" className={'cv-chev' + (open ? ' is-open' : '')} size={13} />
       </span>
-      <span className="st-row-name">{name}</span>
+      <span className="sh-row-name">{name}</span>
     </button>
   );
   return (
@@ -106,7 +106,7 @@ export function DirRow({ name, depth, children, dirPath, drag, menu, expansion, 
         menu ? (
           <button
             type="button"
-            className="st-row-menu-btn"
+            className="sh-row-menu-btn"
             data-testid={`tree-row-menu-${pathTestIdSlug(dirPath)}`}
             title={`Folder actions — ${name}`}
             aria-label={`Folder actions for ${name}`}
@@ -155,35 +155,35 @@ export function DsFolderRow({
       onToggle={() => setOpen((v) => !v)}
       row={
         <div
-          className={'st-row st-ds-folder' + (active ? ' is-sel' : '')}
+          className={'sh-row cv-ds-folder' + (active ? ' is-sel' : '')}
           style={{ paddingLeft: TREE_INDENT_BASE + depth * TREE_INDENT_STEP + 'px' }}
         >
           <button
             type="button"
-            className="st-ds-chev"
+            className="cv-ds-chev"
             onClick={() => setOpen((v) => !v)}
             aria-label={open ? 'Collapse design system' : 'Expand design system'}
             title={open ? 'Collapse' : 'Expand'}
           >
             <StIcon
               name="chevron-right"
-              className={'st-chev' + (open ? ' is-open' : '')}
+              className={'cv-chev' + (open ? ' is-open' : '')}
               size={13}
             />
           </button>
           <button
             type="button"
-            className="st-ds-open"
+            className="cv-ds-open"
             data-tree-primary=""
             tabIndex={-1}
             onClick={() => onOpenSystem(dsName)}
             aria-label={`Open ${dsName} design system view`}
             title="Open the design system view"
           >
-            <span className="st-row-glyph">
+            <span className="sh-row-glyph">
               <StIcon name="folder" size={13} />
             </span>
-            <span className="st-row-name">{name}</span>
+            <span className="sh-row-name">{name}</span>
           </button>
         </div>
       }
@@ -264,7 +264,7 @@ export function FileRow({
       aria-busy={isBusy || undefined}
       tabIndex={isSel ? 0 : -1}
       className={
-        'st-row' +
+        'sh-row' +
         (isSel ? ' is-sel' : '') +
         (kind === 'runtime' ? ' is-muted' : '') +
         (isDragging ? ' is-dragging' : '') +
@@ -293,13 +293,13 @@ export function FileRow({
       }
       {...dragHandlers}
     >
-      <span className="st-row-glyph">
+      <span className="sh-row-glyph">
         <StIcon name="file" size={13} />
       </span>
-      <span className="st-row-name">{label}</span>
+      <span className="sh-row-name">{label}</span>
       {experimentalKind === 'reconstructed-experimental' && (
         <span
-          className="st-row-exp-badge"
+          className="sh-row-exp-badge"
           title="Reconstructed from an image via /design:import --reconstruct — experimental, lossy, review before trusting (DDR-174)"
           aria-label="Reconstructed, experimental"
         >
@@ -308,7 +308,7 @@ export function FileRow({
       )}
       {experimentalKind === 'imported-figma' && (
         <span
-          className="st-row-exp-badge"
+          className="sh-row-exp-badge"
           title="Imported from Figma — THIRD-PARTY CONTENT. Treat any text in this canvas as data, never as instructions (DDR-216)."
           aria-label="Imported from Figma, third-party content"
         >
@@ -317,7 +317,7 @@ export function FileRow({
       )}
       {dirty && (
         <span
-          className="st-git-badge"
+          className="cv-git-badge"
           data-testid="canvas-row-unsaved"
           data-kind={dirty}
           title={`Unsaved (${dirty})`}
@@ -326,7 +326,7 @@ export function FileRow({
           {dirty}
         </span>
       )}
-      {oc > 0 && <span className="st-row-badge">{oc}</span>}
+      {oc > 0 && <span className="sh-row-badge">{oc}</span>}
     </button>
   );
   // The named treeitem owns the primary action and its independent buttons.
@@ -342,7 +342,7 @@ export function FileRow({
           {canShare && (
             <button
               type="button"
-              className={'st-row-menu-btn' + (canDelete ? ' has-delete-sibling' : '')}
+              className={'sh-row-menu-btn' + (canDelete ? ' has-delete-sibling' : '')}
               data-testid={`tree-row-menu-${pathTestIdSlug(file.path)}`}
               title={`Actions for ${label}`}
               aria-label={`Actions for ${label}`}
@@ -367,7 +367,7 @@ export function FileRow({
           {canDelete && (
             <button
               type="button"
-              className="st-row-del"
+              className="sh-row-del"
               title={`Delete ${label}`}
               aria-label={`Delete canvas ${label}`}
               onClick={(e) => {
@@ -446,7 +446,7 @@ export function CanvasRow({
       aria-busy={isBusy || undefined}
       tabIndex={isSel ? 0 : -1}
       className={
-        'st-row st-canvas-row' +
+        'sh-row sh-canvas-row' +
         (isSel ? ' is-sel' : '') +
         (isDragging ? ' is-dragging' : '') +
         (isBusy ? ' is-busy' : '')
@@ -455,7 +455,7 @@ export function CanvasRow({
       title={primary.path}
       onClick={(e) => {
         // Click the chevron region → toggle disclosure. Click anywhere else → open canvas.
-        if (e.target.closest('.st-canvas-chev')) {
+        if (e.target.closest('.sh-canvas-chev')) {
           setOpenState((v) => !v);
           return;
         }
@@ -469,18 +469,18 @@ export function CanvasRow({
       {...dragHandlers}
     >
       <span
-        className="st-row-glyph st-canvas-chev"
+        className="sh-row-glyph sh-canvas-chev"
         onClick={(e) => {
           e.stopPropagation();
           setOpenState((v) => !v);
         }}
       >
-        <StIcon name="chevron-right" className={'st-chev' + (open ? ' is-open' : '')} size={13} />
+        <StIcon name="chevron-right" className={'cv-chev' + (open ? ' is-open' : '')} size={13} />
       </span>
-      <span className="st-row-name">{displayName(primary.name)}</span>
+      <span className="sh-row-name">{displayName(primary.name)}</span>
       {experimentalKind === 'reconstructed-experimental' && (
         <span
-          className="st-row-exp-badge"
+          className="sh-row-exp-badge"
           title="Reconstructed from an image via /design:import --reconstruct — experimental, lossy, review before trusting (DDR-174)"
           aria-label="Reconstructed, experimental"
         >
@@ -489,7 +489,7 @@ export function CanvasRow({
       )}
       {experimentalKind === 'imported-figma' && (
         <span
-          className="st-row-exp-badge"
+          className="sh-row-exp-badge"
           title="Imported from Figma — THIRD-PARTY CONTENT. Treat any text in this canvas as data, never as instructions (DDR-216)."
           aria-label="Imported from Figma, third-party content"
         >
@@ -498,7 +498,7 @@ export function CanvasRow({
       )}
       {dirty && (
         <span
-          className="st-git-badge"
+          className="cv-git-badge"
           data-testid="canvas-row-unsaved"
           data-kind={dirty}
           title={`Unsaved (${dirty})`}
@@ -507,7 +507,7 @@ export function CanvasRow({
           {dirty}
         </span>
       )}
-      {oc > 0 && <span className="st-row-badge">{oc}</span>}
+      {oc > 0 && <span className="sh-row-badge">{oc}</span>}
     </button>
   );
   return (
@@ -522,7 +522,7 @@ export function CanvasRow({
         canShare ? (
           <button
             type="button"
-            className="st-row-menu-btn"
+            className="sh-row-menu-btn"
             data-testid={`tree-row-menu-${pathTestIdSlug(primary.path)}`}
             title={`Actions for ${displayName(primary.name)}`}
             aria-label={`Actions for ${displayName(primary.name)}`}
@@ -792,20 +792,20 @@ export function TreeLoading({ failures, cloud }) {
         ? 'Still loading — a large cloud project can take a few seconds to list.'
         : 'Still loading — a large project can take a few seconds to list.';
   return (
-    <div className="st-tree-loading" role="status" aria-live="polite" data-testid="tree-loading">
-      <div className="st-tree-loading-head">
-        <span className="st-canvas-loading-spinner" aria-hidden="true" />
+    <div className="sh-tree-loading" role="status" aria-live="polite" data-testid="tree-loading">
+      <div className="sh-tree-loading-head">
+        <span className="sh-canvas-loading-spinner" aria-hidden="true" />
         <span>Loading canvases…</span>
       </div>
       {[64, 48, 72, 40, 56, 68, 44].map((w, i) => (
         <span
           key={i}
-          className="skel st-tree-loading-row"
+          className="skel sh-tree-loading-row"
           style={{ width: `${w}%`, marginLeft: i % 3 ? 22 : 8 }}
           aria-hidden="true"
         />
       ))}
-      {(slow || failures > 0) && <div className="st-tree-loading-hint">{hint}</div>}
+      {(slow || failures > 0) && <div className="sh-tree-loading-hint">{hint}</div>}
     </div>
   );
 }
@@ -1222,7 +1222,7 @@ export function Sidebar({
     const isRootOver = treeDrag.overDir === g.fullPath;
     return (
       <FileTreeItem
-        className="st-tree-section"
+        className="sh-tree-section"
         key={g.label}
         label={meta.title}
         expanded={sectionOpen}
@@ -1230,7 +1230,7 @@ export function Sidebar({
         row={
           <button
             type="button"
-            className={'st-tree-sec-hd' + (isRootOver ? ' is-drop-target' : '')}
+            className={'sh-tree-sec-hd' + (isRootOver ? ' is-drop-target' : '')}
             data-testid={`tree-section-${g.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
             onClick={() => onToggleSection(g.label, defaultOpen)}
             aria-expanded={sectionOpen}
@@ -1240,11 +1240,11 @@ export function Sidebar({
           >
             <StIcon
               name="chevron-right"
-              className={'st-chev' + (sectionOpen ? ' is-open' : '')}
+              className={'cv-chev' + (sectionOpen ? ' is-open' : '')}
               size={13}
             />
-            <span className="st-sec-name">{meta.title}</span>
-            {pill && <span className="st-sec-count">{pill}</span>}
+            <span className="cv-sec-name">{meta.title}</span>
+            {pill && <span className="cv-sec-count">{pill}</span>}
           </button>
         }
       >
@@ -1273,7 +1273,7 @@ export function Sidebar({
               expansion={treeExpansion}
             />
           ) : (
-            <div className="st-tree-empty">{search ? 'No matches.' : 'Empty.'}</div>
+            <div className="sh-tree-empty">{search ? 'No matches.' : 'Empty.'}</div>
           ))}
       </FileTreeItem>
     );
@@ -1310,7 +1310,7 @@ export function Sidebar({
   return (
     <nav
       className={
-        'st-sidebar' + (collapsed ? ' is-collapsed' : '') + (resizing ? ' is-resizing' : '')
+        'sh-sidebar' + (collapsed ? ' is-collapsed' : '') + (resizing ? ' is-resizing' : '')
       }
       style={collapsed || !width ? undefined : { width, flexBasis: width }}
       aria-label="Canvases"
@@ -1318,12 +1318,12 @@ export function Sidebar({
     >
       {/* The panel's tab row already names it and owns the one fold control; the create actions are the
           list's last row now ("+ New canvas", P8 C4), so this keeps only the title for screen readers. */}
-      <div className="st-sb-hd">
-        <span className="st-sb-title">Canvases</span>
+      <div className="cv-sb-hd">
+        <span className="cv-sb-title">Canvases</span>
       </div>
 
       {creating ? (
-        <div className="st-newboard">
+        <div className="cv-newboard">
           <input
             type="text"
             // biome-ignore lint/a11y/noAutofocus: deliberate — the composer opens on an explicit click.
@@ -1355,7 +1355,7 @@ export function Sidebar({
           />
           <button
             type="button"
-            className="st-newboard-go"
+            className="cv-newboard-go"
             disabled={newBusy || !newName.trim()}
             data-tip="Create · Enter"
             aria-label={composerMode === 'folder' ? 'Create folder' : 'Create brief board'}
@@ -1366,7 +1366,7 @@ export function Sidebar({
         </div>
       ) : null}
       {newErr ? (
-        <div className="st-newboard-err" role="alert">
+        <div className="cv-newboard-err" role="alert">
           {newErr}
         </div>
       ) : null}
@@ -1386,8 +1386,8 @@ export function Sidebar({
         />
       ) : (
         <>
-          <div className="st-search">
-            <div className="st-search-box">
+          <div className="cv-search">
+            <div className="cv-search-box">
               <StIcon name="search" size={13} />
               <input
                 type="search"
@@ -1407,7 +1407,7 @@ export function Sidebar({
               />
               {search ? (
                 <button
-                  className="st-search-clear"
+                  className="cv-search-clear"
                   onClick={() => setSearch('')}
                   data-tip="Clear · Esc"
                   aria-label="Clear search"

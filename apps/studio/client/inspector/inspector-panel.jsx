@@ -239,7 +239,7 @@ export function InspectorPanel({
     requestAnimationFrame(() => {
       try {
         document
-          .querySelector(`.st-layer--row[data-layer-key="${matchedKey}"]`)
+          .querySelector(`.sh-layer--row[data-layer-key="${matchedKey}"]`)
           ?.scrollIntoView({ block: 'nearest' });
       } catch {
         /* selector edge case — non-fatal */
@@ -412,7 +412,7 @@ export function InspectorPanel({
       // Visible rows in DOM (== flat) order, minus the dragged one (its rect is
       // floated, so it's meaningless for gap math).
       const rows = [].slice
-        .call(document.querySelectorAll('.st-layer--row[data-layer-key]'))
+        .call(document.querySelectorAll('.sh-layer--row[data-layer-key]'))
         .map((el) => ({
           rect: el.getBoundingClientRect(),
           it: flatByKey.get(el.getAttribute('data-layer-key')),
@@ -649,7 +649,7 @@ export function InspectorPanel({
   return (
     <aside
       className={
-        'st-rpanel' + (layersOnly ? '' : ' st-rpanel--insp') + (resizing ? ' is-resizing' : '')
+        'sh-rpanel' + (layersOnly ? '' : ' sh-rpanel--insp') + (resizing ? ' is-resizing' : '')
       }
       style={width ? { width, flexBasis: width } : undefined}
       aria-label={layersOnly ? 'Layers' : 'Inspector'}
@@ -657,7 +657,7 @@ export function InspectorPanel({
       data-testid={testId}
     >
       {showViews ? (
-        <div className="st-rp-views" data-tour="inspector-tabs">
+        <div className="sh-rp-views" data-tour="inspector-tabs">
           {/* biome-ignore lint/a11y/useSemanticElements: a two-view segmented control, not a form fieldset */}
           <span className="seg k-in-seg" role="group" aria-label="Inspector view">
             {tabBtn('css', kindChipOf(selected) || 'Object')}
@@ -666,17 +666,17 @@ export function InspectorPanel({
         </div>
       ) : null}
       {showTabs && !showViews ? (
-        <div className="st-rp-tabs" data-tour="inspector-tabs">
+        <div className="sh-rp-tabs" data-tour="inspector-tabs">
           <button
             type="button"
-            className={'st-rp-tab' + (effTab === 'css' ? ' is-active' : '')}
+            className={'sh-rp-tab' + (effTab === 'css' ? ' is-active' : '')}
             onClick={() => setTab('css')}
           >
             Inspector
           </button>
           <button
             type="button"
-            className={'st-rp-tab' + (effTab === 'layers' ? ' is-active' : '')}
+            className={'sh-rp-tab' + (effTab === 'layers' ? ' is-active' : '')}
             onClick={() => setTab('layers')}
           >
             Layers
@@ -686,7 +686,7 @@ export function InspectorPanel({
       {/* S11.18: the edit-scope strip (Stage H, INV-3: "Shared · Card · edits N places", Detach) is retired from
           the header. Inspector > Advanced > Used in says the same and keeps Detach (v2/inspector/advanced-rows-default.jsx,
           `adv-used-in`, `adv-detach`); `editScope` and `onDetachInstance` still reach it through the frame below. */}
-      <div className="st-rp-body">
+      <div className="sh-rp-body">
         {effTab === 'layers' ? layersHeader : null}
         {effTab === 'layers' && layersKindNone ? null : effTab === 'photo' &&
           photoTarget &&
@@ -732,8 +732,8 @@ export function InspectorPanel({
           // Advanced) is what it shows when nothing else is waiting (advanced.jsx header)
           <>{dsTruth || dsSystem}</>
         ) : !el && !(effTab === 'layers' && layersTree?.nodes?.length) ? (
-          <div className="st-rp-empty">
-            {/* <p> wrapper — st-rp-empty is a flex column, bare text nodes +
+          <div className="sh-rp-empty">
+            {/* <p> wrapper — sh-rp-empty is a flex column, bare text nodes +
                 kbd would stack as stretched flex items. */}
             <p>Click an object on the canvas to see its properties here.</p>
           </div>
@@ -783,7 +783,7 @@ export function InspectorPanel({
                 </div>
                 {dragState?.target ? (
                   <div
-                    className="st-layer-divider"
+                    className="sh-layer-divider"
                     aria-hidden="true"
                     style={{
                       left: dragState.target.left,
@@ -800,7 +800,7 @@ export function InspectorPanel({
               el.dom_path.map((node, i) => (
                 <div
                   key={i}
-                  className={'st-layer' + (i === el.dom_path.length - 1 ? ' is-sel' : '')}
+                  className={'sh-layer' + (i === el.dom_path.length - 1 ? ' is-sel' : '')}
                   style={{ paddingLeft: 8 + i * 12 }}
                 >
                   <StIcon name="square" size={13} />
@@ -808,7 +808,7 @@ export function InspectorPanel({
                 </div>
               ))
             ) : (
-              <div className="st-rp-empty">
+              <div className="sh-rp-empty">
                 Select an element (⌘-click in the canvas) to see its layer tree.
               </div>
             )

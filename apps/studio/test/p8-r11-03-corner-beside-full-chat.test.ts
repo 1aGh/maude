@@ -11,13 +11,13 @@ const css = readFileSync(join(import.meta.dir, '../client/v2/shell/floating-pane
 describe('P8 r11 — corner icons stand beside a full-height chat', () => {
   test('the right corner icon moves left of a full-height chat in the right slot', () => {
     expect(css).toMatch(
-      /\.st-body--float:has\(> \.st-dockslot--right:not\(\.is-hidden\):not\(\.is-collapsed\) \.st-dockslot-ai:not\(\[hidden\]\) > \.ai-island\[data-full="true"\]\) > \.sh-corner--right\s*\{[^}]*right:\s*calc\([^}]*\}/
+      /\.sh-body--float:has\(> \.sh-dockslot--right:not\(\.is-hidden\):not\(\.is-collapsed\) \.sh-dockslot-ai:not\(\[hidden\]\) > \.ai-island\[data-full="true"\]\) > \.sh-corner--right\s*\{[^}]*right:\s*calc\([^}]*\}/
     );
   });
 
   test('and the left one, for a chat docked on the left', () => {
     expect(css).toMatch(
-      /\.st-body--float:has\(> \.st-dockslot--left:not\(\.is-hidden\):not\(\.is-collapsed\) \.st-dockslot-ai:not\(\[hidden\]\) > \.ai-island\[data-full="true"\]\) > \.sh-corner--left\s*\{[^}]*left:\s*calc\([^}]*\}/
+      /\.sh-body--float:has\(> \.sh-dockslot--left:not\(\.is-hidden\):not\(\.is-collapsed\) \.sh-dockslot-ai:not\(\[hidden\]\) > \.ai-island\[data-full="true"\]\) > \.sh-corner--left\s*\{[^}]*left:\s*calc\([^}]*\}/
     );
   });
 });

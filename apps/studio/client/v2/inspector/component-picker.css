@@ -1,12 +1,12 @@
 /* client/v2/inspector/component-picker.css — S2.16: the Component picker (⇧I; canvas 14 `ed-comp-pick`).
  *
- * Rides on the `.st-scrim` / `.st-dialog.st-sticker-picker` shell the tool panels share (an open modal
+ * Rides on the `.sh-scrim` / `.sh-dialog.sh-sticker-picker` shell the tool panels share (an open modal
  * dialog is what the mode lane's M4 check reads; tool-panels.css pins it to the toolbar) and restyles only
  * what is inside: a 300 px menu with a search field, the system line, grouped rows and variant chips.
  * Tokens only; weights stop at 600; the open/close motion is the shell's. */
 
 @layer shell {
-  .st-sticker-picker.cp {
+  .sh-sticker-picker.cp {
     width: 300px;
     max-width: calc(100vw - 2 * var(--space-2));
     padding: var(--space-1);

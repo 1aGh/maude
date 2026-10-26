@@ -585,7 +585,7 @@ export function usePaletteAndPanels({
   // active canvas, so it is deliberately NOT scoped to the current selection.
   const activeOpenComments = activeCanvasFile ? openCount(commentsByFile[activeCanvasFile]) : 0;
 
-  // Render a panel body by id (width undefined ⇒ fills the .st-dockslot wrapper,
+  // Render a panel body by id (width undefined ⇒ fills the .sh-dockslot wrapper,
   // which owns the resizable width). Assistant is handled separately below as an
   // always-mounted ChatPanel so its stream survives a tab switch.
   const renderPanelBody = (id) => {

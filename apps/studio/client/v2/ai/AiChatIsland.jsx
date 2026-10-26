@@ -85,7 +85,7 @@ export function AiChatIsland({ hidden = false, resizing = false, width, children
   return (
     <aside
       ref={ref}
-      className={`st-rpanel ai-island${resizing ? ' is-resizing' : ''}${big.pinned ? ' ai-island--pinned' : ''}`}
+      className={`sh-rpanel ai-island${resizing ? ' is-resizing' : ''}${big.pinned ? ' ai-island--pinned' : ''}`}
       data-full={big.full ? 'true' : undefined}
       style={{
         ...(width ? { width, flexBasis: width } : {}),

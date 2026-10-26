@@ -638,13 +638,13 @@
   /* ───────── Export notification center — feature-background-export-notification-center ─────────
    Panel shell reuses .help-modal-backdrop (above); list/item/progress are new
    — no prior job-row or progress-bar component existed in the client. */
-  .st-export-item__error {
+  .ex-export-item__error {
     color: var(--status-error);
     font-size: 12px;
   }
   /* A degraded export is `done` but not clean — it must never read as success.
    Overrides --done, so declaration order matters. */
-  .st-export-degraded {
+  .ex-export-degraded {
     font-size: 12px;
     line-height: 1.45;
     color: var(--status-warn, var(--accent));
@@ -652,35 +652,35 @@
     border-radius: var(--radius-sm, 6px);
     background: color-mix(in oklab, var(--status-warn, var(--accent)) 10%, transparent);
   }
-  .st-export-degraded__fix {
+  .ex-export-degraded__fix {
     margin-top: 4px;
     color: var(--fg-2);
     font-family: var(--font-mono, ui-monospace, monospace);
     font-size: 11px;
     overflow-wrap: anywhere;
   }
-  .st-export-progress {
+  .ex-export-progress {
     position: relative;
     height: 4px;
     border-radius: var(--radius-pill, 999px);
     background: var(--bg-3);
     overflow: hidden;
   }
-  .st-export-progress-bar {
+  .ex-export-progress-bar {
     height: 100%;
     background: var(--accent);
     transition: width 0.2s ease-out;
   }
-  .st-export-progress--indeterminate::after {
+  .ex-export-progress--indeterminate::after {
     content: "";
     position: absolute;
     inset: 0;
     width: 40%;
     background: var(--accent);
     border-radius: var(--radius-pill, 999px);
-    animation: st-export-indeterminate 1.2s ease-in-out infinite;
+    animation: ex-export-indeterminate 1.2s ease-in-out infinite;
   }
-  @keyframes st-export-indeterminate {
+  @keyframes ex-export-indeterminate {
     0% {
       transform: translateX(-100%);
     }
@@ -689,17 +689,17 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .st-export-progress--indeterminate::after {
+    .ex-export-progress--indeterminate::after {
       animation-duration: 1ms;
     }
   }
-  .maude-notice .st-export-progress {
+  .maude-notice .ex-export-progress {
     margin-top: 2px;
   }
   /* Busy state for the Save…/Download button — the bytes fetch + (native) the
    OS save-dialog handoff can take several seconds on a large export; without
    this the button just goes silent after the click. */
-  .st-btn-spin {
+  .sh-btn-spin {
     display: inline-block;
     width: 11px;
     height: 11px;
@@ -709,15 +709,15 @@
     border-top-color: transparent;
     border-radius: 50%;
     opacity: 0.75;
-    animation: st-btn-spin 0.7s linear infinite;
+    animation: sh-btn-spin 0.7s linear infinite;
   }
-  @keyframes st-btn-spin {
+  @keyframes sh-btn-spin {
     to {
       transform: rotate(360deg);
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .st-btn-spin {
+    .sh-btn-spin {
       animation-duration: 1ms;
     }
   }
@@ -879,25 +879,25 @@
   }
 
   /* ── Settings — AI generation (feature-ai-media-generation, DDR-16x) ─────── */
-  .st-provider-card {
+  .v2s-provider-card {
     border: 1px solid var(--border-default);
     border-radius: var(--radius-sm);
     background: var(--bg-2);
     padding: 12px;
     margin-bottom: 10px;
   }
-  .st-provider-hd {
+  .v2s-provider-hd {
     display: flex;
     align-items: center;
     gap: 8px;
   }
-  .st-provider-name {
+  .v2s-provider-name {
     font-family: var(--font-mono);
     font-size: var(--type-sm, 13px);
     color: var(--fg-1);
     font-weight: 600;
   }
-  .st-provider-card .st-pill {
+  .v2s-provider-card .sh-pill {
     display: inline-flex;
     align-items: center;
     gap: 3px;
@@ -909,11 +909,11 @@
     border-radius: var(--radius-pill, 999px);
     padding: 1px 7px;
   }
-  .st-provider-card .st-pill.is-local {
+  .v2s-provider-card .sh-pill.is-local {
     color: var(--accent);
     border-color: var(--accent-muted, var(--accent));
   }
-  .st-provider-configured {
+  .v2s-provider-configured {
     display: inline-flex;
     align-items: center;
     gap: 3px;
@@ -921,13 +921,13 @@
     font-size: 11px;
     color: var(--accent);
   }
-  .st-provider-modalities {
+  .v2s-provider-modalities {
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--fg-2);
     margin-top: 4px;
   }
-  .st-provider-notes {
+  .v2s-provider-notes {
     font-size: 11px;
     color: var(--fg-2);
     line-height: 1.5;
@@ -936,16 +936,16 @@
   /* Scout setup (feature-scene-aware-keyframes) — the shortest path as numbered
    steps; every alternative route folds behind one disclosure so the default
    view is two commands, not seven. */
-  .st-setup {
+  .v2s-setup {
     margin-top: 8px;
   }
-  .st-step {
+  .v2s-step {
     display: flex;
     gap: 8px;
     align-items: flex-start;
     margin-top: 8px;
   }
-  .st-step-n {
+  .v2s-step-n {
     flex-shrink: 0;
     width: 18px;
     height: 18px;
@@ -956,43 +956,43 @@
     line-height: 16px;
     text-align: center;
   }
-  .st-step.is-done .st-step-n {
+  .v2s-step.is-done .v2s-step-n {
     border-color: var(--accent);
     color: var(--accent);
   }
-  .st-step-body {
+  .v2s-step-body {
     min-width: 0;
     flex: 1 1 auto;
   }
-  .st-step-title {
+  .v2s-step-title {
     display: block;
     font-size: 11px;
     color: var(--fg-1);
   }
-  .st-step.is-done .st-step-title {
+  .v2s-step.is-done .v2s-step-title {
     color: var(--fg-2);
   }
-  .st-setup-more {
+  .v2s-setup-more {
     margin-top: 10px;
   }
-  .st-setup-more > summary {
+  .v2s-setup-more > summary {
     cursor: pointer;
     font-size: 11px;
     color: var(--fg-2);
   }
-  .st-setup-more > summary:hover {
+  .v2s-setup-more > summary:hover {
     color: var(--fg-1);
   }
-  .st-setup-option {
+  .v2s-setup-option {
     display: block;
     margin-top: 8px;
   }
-  .st-setup-option-label {
+  .v2s-setup-option-label {
     display: block;
     font-size: 11px;
     color: var(--fg-2);
   }
-  .st-provider-keylink {
+  .v2s-provider-keylink {
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -1001,32 +1001,32 @@
     text-decoration: none;
     margin-top: 6px;
   }
-  .st-provider-keylink:hover {
+  .v2s-provider-keylink:hover {
     text-decoration: underline;
   }
-  .st-provider-keyrow {
+  .v2s-provider-keyrow {
     display: flex;
     align-items: center;
     gap: 6px;
     margin-top: 10px;
   }
-  .st-provider-keyinput {
+  .v2s-provider-keyinput {
     flex: 1;
     min-width: 0;
   }
-  .st-provider-status {
+  .v2s-provider-status {
     font-size: 11px;
     margin-top: 6px;
   }
 
   /* ── Transcription-engine selector (Task 2.6) ───────────────────────────── */
-  .st-engine-radios {
+  .v2s-engine-radios {
     display: flex;
     flex-direction: column;
     gap: 6px;
     margin-top: 10px;
   }
-  .st-engine-radio {
+  .v2s-engine-radio {
     display: flex;
     align-items: flex-start;
     gap: 9px;
@@ -1036,42 +1036,42 @@
     background: var(--bg-1);
     cursor: pointer;
   }
-  .st-engine-radio.is-selected {
+  .v2s-engine-radio.is-selected {
     border-color: var(--accent);
     background: var(--bg-2);
   }
-  .st-engine-radio input {
+  .v2s-engine-radio input {
     margin-top: 2px;
     accent-color: var(--accent);
   }
-  .st-engine-radio-body {
+  .v2s-engine-radio-body {
     display: flex;
     flex-direction: column;
     gap: 2px;
   }
-  .st-engine-radio-label {
+  .v2s-engine-radio-label {
     font-size: var(--type-sm, 13px);
     color: var(--fg-1);
     font-weight: 600;
   }
-  .st-engine-radio-note {
+  .v2s-engine-radio-note {
     font-size: 11px;
     color: var(--fg-2);
   }
 
   /* ── Generate dialog (feature-ai-media-generation, DDR-16x) ─────────────── */
-  .st-gen-prompt {
+  .ai-gen-prompt {
     width: 100%;
     resize: vertical;
     min-height: 60px;
     font-family: var(--font-body, system-ui, sans-serif);
     margin-bottom: 10px;
   }
-  .st-gen-go {
+  .ai-gen-go {
     color: var(--accent);
     border-color: var(--accent-muted, var(--accent));
   }
-  .st-gen-result {
+  .ai-gen-result {
     display: flex;
     gap: 10px;
     align-items: flex-start;
@@ -1081,14 +1081,14 @@
     border-radius: var(--radius-sm);
     background: var(--bg-2);
   }
-  .st-gen-thumb {
+  .ai-gen-thumb {
     width: 96px;
     height: 96px;
     object-fit: cover;
     border-radius: var(--radius-sm);
     background: var(--bg-3);
   }
-  .st-gen-result-actions {
+  .ai-gen-result-actions {
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -1100,14 +1100,14 @@
    Track and fill use existing tokens — no new colours enter the system here. */
 
   /* Issue #103: full export diagnostics are opt-in and stay inside the panel. */
-  .st-export-item__error {
+  .ex-export-item__error {
     min-width: 0;
     width: 100%;
   }
-  .st-export-item__error summary {
+  .ex-export-item__error summary {
     cursor: pointer;
   }
-  .st-export-item__error pre {
+  .ex-export-item__error pre {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     max-height: 320px;

@@ -367,7 +367,7 @@ export function ProjectPill({
   return (
     <span
       ref={wrapRef}
-      className="st-pill island"
+      className="sh-pill island"
       // Docked on the pinned left column it covers no canvas, so it declares no edge.
       data-occludes={docked ? undefined : 'top'}
       data-open={open ? 'true' : undefined}
@@ -378,7 +378,7 @@ export function ProjectPill({
       <button
         ref={btnRef}
         type="button"
-        className="st-pill-btn"
+        className="sh-pill-btn"
         // Label in Name (WCAG 2.5.3): the visible text leads, so voice control ("click e2e-fixture") and a
         // screen reader both get the open project and canvas, then what the control is.
         aria-label={`${project || 'maude'}${canvas ? ` / ${canvas}` : ''}, project menu`}
@@ -410,21 +410,21 @@ export function ProjectPill({
           else openMenu();
         }}
       >
-        <span className="st-pill-mark" data-tour="brand">
+        <span className="sh-pill-mark" data-tour="brand">
           <Mark />
         </span>
         {folded ? null : (
           <>
-            <span className="st-pill-name">{project || 'maude'}</span>
+            <span className="sh-pill-name">{project || 'maude'}</span>
             {canvas ? (
               <>
-                <span className="st-pill-sep" aria-hidden="true">
+                <span className="sh-pill-sep" aria-hidden="true">
                   /
                 </span>
-                <span className="st-pill-canvas">{canvas}</span>
+                <span className="sh-pill-canvas">{canvas}</span>
               </>
             ) : null}
-            <span className="st-pill-caret" aria-hidden="true">
+            <span className="sh-pill-caret" aria-hidden="true">
               <StIcon name="chevron-down" size={14} />
             </span>
           </>

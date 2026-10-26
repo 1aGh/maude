@@ -160,19 +160,19 @@ describe('ProjectPill folded (Preview)', () => {
 
   test('unfolded is today: name, canvas and caret', async () => {
     await mount(pill(false));
-    expect(q('.st-pill-name')?.textContent).toBe('Alligators brand');
-    expect(q('.st-pill-canvas')?.textContent).toBe('Combine-kampan');
-    expect(q('.st-pill-caret')).not.toBeNull();
-    expect(q('.st-pill')?.getAttribute('data-folded')).toBeNull();
+    expect(q('.sh-pill-name')?.textContent).toBe('Alligators brand');
+    expect(q('.sh-pill-canvas')?.textContent).toBe('Combine-kampan');
+    expect(q('.sh-pill-caret')).not.toBeNull();
+    expect(q('.sh-pill')?.getAttribute('data-folded')).toBeNull();
   });
 
   test('folded is the mark only, and still named for a screen reader', async () => {
     await mount(pill(true));
-    expect(q('.st-pill-mark')).not.toBeNull();
-    expect(q('.st-pill-name')).toBeNull();
-    expect(q('.st-pill-canvas')).toBeNull();
-    expect(q('.st-pill-caret')).toBeNull();
-    expect(q('.st-pill')?.getAttribute('data-folded')).toBe('true');
+    expect(q('.sh-pill-mark')).not.toBeNull();
+    expect(q('.sh-pill-name')).toBeNull();
+    expect(q('.sh-pill-canvas')).toBeNull();
+    expect(q('.sh-pill-caret')).toBeNull();
+    expect(q('.sh-pill')?.getAttribute('data-folded')).toBe('true');
     expect(q('[data-testid="project-pill"]')?.getAttribute('aria-label')).toBe(
       'Alligators brand / Combine-kampan, project menu'
     );

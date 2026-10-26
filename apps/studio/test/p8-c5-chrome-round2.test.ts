@@ -130,12 +130,12 @@ describe('04 R5 · Present is the island material on an ink mask', () => {
     expect(controls).toContain('border-radius: var(--radius-lg)');
     const shell = src('client/styles/3-shell-maude.css');
     const exit = shell.slice(
-      shell.indexOf('.st-present-exit {'),
-      shell.indexOf('.st-present-exit:hover,')
+      shell.indexOf('.pv-present-exit {'),
+      shell.indexOf('.pv-present-exit:hover,')
     );
     expect(exit).toContain('var(--island-bg)');
     expect(exit).toContain('var(--radius-lg)');
-    const at = shell.indexOf('.st-present-exit-kbd {');
+    const at = shell.indexOf('.pv-present-exit-kbd {');
     const kbd = shell.slice(at, shell.indexOf('}', at));
     expect(kbd).toContain('var(--font-body)');
     expect(kbd).not.toContain('--font-mono');

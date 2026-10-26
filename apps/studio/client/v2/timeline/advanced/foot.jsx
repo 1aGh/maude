@@ -60,7 +60,7 @@ export function AdvancedFoot({
   const [copied, setCopied] = useState(false);
   // V2-8.5 C10 (07 ve-advanced): the cards are islands of the SHELL BODY, not of the timeline — Easing at the centre
   // top, Render settings + The cut as code stacked in the inspector's column (the board's `.ve-panel`s). They are
-  // drawn into `.st-body` (a portal), whose edges are the window's, so the slots' own top / right gaps apply.
+  // drawn into `.sh-body` (a portal), whose edges are the window's, so the slots' own top / right gaps apply.
   const footRef = useRef(null);
   // V2-8.5 c4-video: the tools island floats above the timeline's island; `--tla-lift` is how far up its top edge is
   useLayoutEffect(() => {
@@ -82,7 +82,7 @@ export function AdvancedFoot({
   useLayoutEffect(() => {
     if (!open) return;
     setCardsHost(
-      footRef.current?.closest?.('.st-body') ?? document.querySelector('.st-body') ?? document.body
+      footRef.current?.closest?.('.sh-body') ?? document.querySelector('.sh-body') ?? document.body
     );
   }, [open]);
   const key = trackKey(canvas, artboardId);

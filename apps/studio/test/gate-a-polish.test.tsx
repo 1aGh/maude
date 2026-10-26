@@ -171,7 +171,10 @@ describe("the v1 chrome's meta text grade (--fg-2, was --fg-3) is text-safe (a11
 describe('the visual fixes are in the source', () => {
   test('segmented controls inherit the font (no UA 15px button face)', () => {
     const css = read('client/styles/3-shell-maude.css');
-    const rule = css.slice(css.indexOf('.st-cp-segbtn {'), css.indexOf('.st-cp-segbtn:last-child'));
+    const rule = css.slice(
+      css.indexOf('.insp-cp-segbtn {'),
+      css.indexOf('.insp-cp-segbtn:last-child')
+    );
     expect(rule).toContain('font: inherit');
   });
 

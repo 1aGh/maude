@@ -1,6 +1,6 @@
 /* client/v2/annotations/templates-panel.css — S4.4: the Templates panel (canvas 15 `.an-tpl*`).
  *
- * Rides on the `.st-scrim` / `.st-dialog.st-sticker-picker` shell the Stickers gallery uses (an open
+ * Rides on the `.sh-scrim` / `.sh-dialog.sh-sticker-picker` shell the Stickers gallery uses (an open
  * modal dialog is what the mode lane's M4 check reads; tool-panels.css pins it to the toolbar) and only
  * restyles what is inside: a 640 px panel, a 4-up tile grid with drawn thumbnails, and the Ask field.
  * Tokens only; weights stop at 600. */
@@ -8,22 +8,22 @@
 @layer shell {
   /* Pinned to the toolbar the scrim lets the pointer through to the canvas ("or drag on the canvas for a blank
      one"); the panel itself still takes it. The component closes the panel on a press outside / focus leaving. */
-  .st-scrim.tp-scrim {
+  .sh-scrim.tp-scrim {
     pointer-events: none;
   }
-  .st-scrim.tp-scrim > .st-sticker-picker.tp {
+  .sh-scrim.tp-scrim > .sh-sticker-picker.tp {
     pointer-events: auto;
   }
-  .st-sticker-picker.tp {
+  .sh-sticker-picker.tp {
     width: 640px;
     max-width: calc(100vw - 2 * var(--space-2));
     border-radius: var(--radius-xl);
     font-family: var(--font-body, system-ui, sans-serif);
   }
-  .tp .st-dialog-hd {
+  .tp .sh-dialog-hd {
     gap: var(--space-2);
   }
-  .tp .st-dialog-title {
+  .tp .sh-dialog-title {
     font-size: var(--type-sm);
     font-weight: var(--w-semibold);
   }
@@ -32,7 +32,7 @@
     font-size: var(--type-xs);
     color: var(--fg-2);
   }
-  .tp .st-dialog-bd {
+  .tp .sh-dialog-bd {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);

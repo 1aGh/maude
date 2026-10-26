@@ -23,7 +23,7 @@ export function SwitchRow({ testid, label, note, checked, disabled, onChange }) 
       </span>
       <input
         type="checkbox"
-        className="st-switch"
+        className="v2s-switch"
         role="switch"
         aria-checked={!!checked}
         checked={!!checked}

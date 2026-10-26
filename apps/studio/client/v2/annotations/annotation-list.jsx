@@ -411,7 +411,7 @@ export function AnnotationLayersGate({ panel, file, post, me, artboardLabel, chi
   if (panel !== 'layers' || mode !== 'preview' || !file) return children;
   // Same frame and test id as the Layers panel it replaces, so the dock slot and the parity spec see one panel.
   return (
-    <aside className="st-rpanel al-panel" aria-label="Annotations" data-testid="layers-panel">
+    <aside className="sh-rpanel al-panel" aria-label="Annotations" data-testid="layers-panel">
       <AnnotationListHost
         key={file}
         file={file}

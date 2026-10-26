@@ -20,12 +20,12 @@
   }
 
   /* R2 */
-  .st-step.is-done .st-step-title,
-  .st-provider-card .st-pill,
-  .st-provider-modalities,
-  .st-model-size,
-  .st-model-action-note,
-  .v2s-main .st-pill,
+  .v2s-step.is-done .v2s-step-title,
+  .v2s-provider-card .sh-pill,
+  .v2s-provider-modalities,
+  .v2s-model-size,
+  .v2s-model-action-note,
+  .v2s-main .sh-pill,
   .v2s-main details > summary,
   .rdy-resolved-path {
     color: var(--fg-2);

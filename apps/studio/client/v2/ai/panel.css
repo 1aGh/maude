@@ -5,7 +5,7 @@
 @layer components {
   /* the slot's own width belongs to the panel above (Inspector, Version history); the AI island is its own width and
      grows leftwards out of the slot's right edge */
-  .st-body--float .st-dockslot-ai {
+  .sh-body--float .sh-dockslot-ai {
     flex: 0 1 auto;
     align-self: flex-end;
     width: 340px;
@@ -16,39 +16,41 @@
   /* P8 c5 (03 ai-long-pinned): docked (pinned layout) the slot is the 420 column when the chat shares it; the other
      panel (the Inspector opens by itself on a selection) keeps ITS width, flush to the window edge, instead of
      stretching or letting the chat overrun a 264 slot */
-  .st-body:not(.st-body--float) .st-dockslot.has-ai > .st-dockslot-inner:not(.st-dockslot-ai) > .st-rpanel,
-  .st-body:not(.st-body--float) .st-dockslot.has-ai > .st-rpanel {
+  .sh-body:not(.sh-body--float) .sh-dockslot.has-ai
+    > .sh-dockslot-inner:not(.sh-dockslot-ai)
+    > .sh-rpanel,
+  .sh-body:not(.sh-body--float) .sh-dockslot.has-ai > .sh-rpanel {
     width: var(--dock-main-w, 100%);
     align-self: flex-end;
   }
   /* the pinned column pads like the floating island: bubbles stopped at the window edge with no 12 px gutter */
-  .st-body:not(.st-body--float) .st-dockslot-ai > .ai-island {
+  .sh-body:not(.sh-body--float) .sh-dockslot-ai > .ai-island {
     padding: var(--space-3);
     box-sizing: border-box;
   }
-  .st-body--float .st-dockslot-ai:has(> .ai-island[data-full="true"]) {
+  .sh-body--float .sh-dockslot-ai:has(> .ai-island[data-full="true"]) {
     flex: 1 1 100%;
     width: 420px;
   }
-  .st-body--float .st-dockslot-ai > .ai-island {
+  .sh-body--float .sh-dockslot-ai > .ai-island {
     flex: 0 1 auto;
     min-height: 0;
     padding: var(--space-3);
     box-sizing: border-box;
   }
-  .st-body--float .st-dockslot-ai > .ai-island[data-full="true"] {
+  .sh-body--float .sh-dockslot-ai > .ai-island[data-full="true"] {
     flex: 1 1 auto;
   }
   /* the chain from the island down to the feed hugs and shrinks (the v1 rows were `flex: 1`, basis 0 — which
      collapses inside an auto-height parent) */
-  .ai-island .st-rp-body--chat,
+  .ai-island .sh-rp-body--chat,
   .ai-island .chat-panel,
   .ai-island .chat-thread {
     flex: 0 1 auto;
     min-height: 0;
     padding: 0;
   }
-  .ai-island[data-full="true"] .st-rp-body--chat,
+  .ai-island[data-full="true"] .sh-rp-body--chat,
   .ai-island[data-full="true"] .chat-panel,
   .ai-island[data-full="true"] .chat-thread {
     flex: 1 1 auto;
@@ -68,8 +70,8 @@
 
   /* The folded AI chat (03 `.k-iconbtn--ai`): the spark in the AI's vermilion, and its "working" dot is the agent
      presence colour — not the azure of "your turn". */
-  .sh-corner--ai .st-iconbtn,
-  .sh-corner--ai-left .st-iconbtn {
+  .sh-corner--ai .sh-iconbtn,
+  .sh-corner--ai-left .sh-iconbtn {
     color: var(--spark);
   }
   .sh-corner--ai .sh-corner-dot,

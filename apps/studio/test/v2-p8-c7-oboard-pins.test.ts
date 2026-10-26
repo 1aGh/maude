@@ -9,10 +9,10 @@ describe('05 es-offline-uncached / es-arriving: the card centres on the free can
   test('the viewport hands the free centre to the card, and the card honours it', () => {
     const v = src('client/shell/viewport.jsx');
     expect(v).toContain("'--es-cx': freeCx");
-    expect(v.match(/className="st-not-local active"/g)?.length).toBe(2);
+    expect(v.match(/className="sh-not-local active"/g)?.length).toBe(2);
     const css = src('client/v2/empty/empty.css');
     expect(css).toMatch(
-      /\.st-not-local\s*\{[^}]*padding-left:\s*max\(0px, calc\(2 \* var\(--es-cx, 50%\) - 100%\)\)/s
+      /\.sh-not-local\s*\{[^}]*padding-left:\s*max\(0px, calc\(2 \* var\(--es-cx, 50%\) - 100%\)\)/s
     );
   });
 });

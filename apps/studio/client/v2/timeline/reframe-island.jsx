@@ -243,7 +243,7 @@ export function ReframeIsland({
       <div className="ve-panel-h">
         <Glyph />
         <span data-testid="reframe-title">Frame “{name}” for</span>
-        <div className="st-cp-seg" role="radiogroup" aria-label="Format">
+        <div className="insp-cp-seg" role="radiogroup" aria-label="Format">
           {options.map((o) => (
             // biome-ignore lint/a11y/useSemanticElements: an aspect option with a checked state, drawn as a segment button
             <button
@@ -251,7 +251,7 @@ export function ReframeIsland({
               type="button"
               role="radio"
               aria-checked={o.aspect === format}
-              className={`st-cp-segbtn${o.aspect === format ? ' is-active' : ''}`}
+              className={`insp-cp-segbtn${o.aspect === format ? ' is-active' : ''}`}
               data-testid={`reframe-format-${o.aspect.replace(':', 'x')}`}
               onClick={() => onFormat(o.aspect)}
             >

@@ -42,7 +42,7 @@ export function ChatHeader({
       {connected ? (
         <button
           type="button"
-          className="st-iconbtn"
+          className="sh-iconbtn"
           data-testid="ai-chat-new"
           aria-label="New chat"
           title="New chat"
@@ -54,7 +54,7 @@ export function ChatHeader({
       {pin}
       <button
         type="button"
-        className="st-iconbtn"
+        className="sh-iconbtn"
         data-testid="ai-chat-hide"
         aria-label="Hide the AI chat panel"
         title="Hide the AI chat panel"

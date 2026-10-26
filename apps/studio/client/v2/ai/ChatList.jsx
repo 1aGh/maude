@@ -565,7 +565,7 @@ export function ChatList({
         {onNewChat ? (
           <button
             type="button"
-            className="st-iconbtn ai-cl-new"
+            className="sh-iconbtn ai-cl-new"
             aria-label="New chat"
             title="New chat"
             data-testid="ai-chat-list-new"

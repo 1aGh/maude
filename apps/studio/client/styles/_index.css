@@ -35,7 +35,7 @@
 @import url("./4-components-maude.css");
 /* Plan B — maude redesign of remaining legacy shell surfaces (HelpModal, tour, what's-new, SystemView, CommentBar). */
 @import url("./5-maude-overrides.css");
-/* Phase 31 (DDR-123) — ACP chat sidepanel (chat-* inside the Assistant st-rpanel). */
+/* Phase 31 (DDR-123) — ACP chat sidepanel (chat-* inside the Assistant sh-rpanel). */
 @import url("./6-acp-chat.css");
 /* S5.8 — the AI chat panel host: scope chip + menu, suggestion strip, answer note, azure send. */
 @import url("../v2/ai/ai.css");

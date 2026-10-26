@@ -149,7 +149,7 @@ export function Viewport({
           : 'idle';
   return (
     // V2-8.7 — the stage IS the page's main landmark (axe landmark-one-main: with no canvas open the shell had none)
-    <main className="viewport st-stage" data-tour="viewport" data-canvas-state={canvasState}>
+    <main className="viewport sh-stage" data-tour="viewport" data-canvas-state={canvasState}>
       {previewPath && (
         // feature-studio-file-preview — an overlay, not a tab: the canvas
         // iframe (if any) stays mounted underneath so switching back to it
@@ -157,7 +157,7 @@ export function Viewport({
         // written into `tabs`/`activePath` (see App()'s onPreview).
         <div
           ref={previewRef}
-          className="st-file-preview-overlay"
+          className="sh-file-preview-overlay"
           role="region"
           aria-label={`Preview: ${sanitizeDisplayText(basename(previewPath))}`}
           tabIndex={0}
@@ -169,16 +169,16 @@ export function Viewport({
         // S6.2 (shared): a project with 0 canvases shows the 05 es-project-new card; any other
         // no-tab state keeps the placeholder below as the slot's fallback.
         <EmptyProjectSlot>
-          <div className="st-empty">
-            <div className="st-empty-title">No canvas open</div>
-            <div className="st-empty-body">
+          <div className="sh-empty">
+            <div className="sh-empty-title">No canvas open</div>
+            <div className="sh-empty-body">
               Open a canvas from the Canvases panel, or start a new one.
             </div>
             {showQuickSetup && (
               <button
                 type="button"
                 data-testid="st-empty-start-quick-setup"
-                className="btn btn--primary st-empty-quick-setup"
+                className="btn btn--primary sh-empty-quick-setup"
                 onClick={onStartQuickSetup}
               >
                 Start quick setup
@@ -204,7 +204,7 @@ export function Viewport({
           return (
             <div
               key={`${t.path}#not-local`}
-              className="st-not-local active"
+              className="sh-not-local active"
               style={{ '--es-cx': freeCx }}
             >
               <NotLocalCanvas name={basename(t.path).replace(/\.(tsx|html)$/i, '')} />
@@ -214,7 +214,7 @@ export function Viewport({
           return (
             <div
               key={`${t.path}#arriving`}
-              className="st-not-local active"
+              className="sh-not-local active"
               style={{ '--es-cx': freeCx }}
             >
               <ArrivingCanvas name={basename(t.path).replace(/\.(tsx|html)$/i, '')} />
@@ -272,14 +272,14 @@ export function Viewport({
         // quitting the app (or knowing that switching projects and back
         // re-reads /_config).
         <div
-          className={`st-canvas-error${canvasError.kind === 'server' ? '' : ' st-canvas-error--v2'}`}
+          className={`sh-canvas-error${canvasError.kind === 'server' ? '' : ' sh-canvas-error--v2'}`}
           role="alert"
           data-testid="canvas-load-error"
         >
           {canvasError.kind === 'server' ? (
-            <div className="st-canvas-error-card">
-              <div className="st-canvas-error-title">Maude's server isn't responding</div>
-              <div className="st-canvas-error-body">
+            <div className="sh-canvas-error-card">
+              <div className="sh-canvas-error-title">Maude's server isn't responding</div>
+              <div className="sh-canvas-error-body">
                 The canvas couldn't be reached. This usually means Maude's server restarted
                 underneath this window — your files on disk are untouched.
               </div>
@@ -354,20 +354,20 @@ export function CanvasLoading({ path, cloud }) {
   const name = sanitizeDisplayText(basename(path || '').replace(/\.(tsx|jsx|html?)$/i, ''));
   return (
     <div
-      className="st-canvas-loading"
+      className="sh-canvas-loading"
       role="status"
       aria-live="polite"
       data-testid="canvas-loading"
     >
-      <div className="st-skel-card">
-        <div className="st-canvas-loading-head">
-          <span className="st-canvas-loading-spinner" aria-hidden="true" />
-          <span className="st-canvas-loading-title">Opening {name}…</span>
+      <div className="sh-skel-card">
+        <div className="sh-canvas-loading-head">
+          <span className="sh-canvas-loading-spinner" aria-hidden="true" />
+          <span className="sh-canvas-loading-title">Opening {name}…</span>
         </div>
-        <span className="skel st-skel-thumb" aria-hidden="true" />
-        <span className="skel st-skel-line" style={{ width: '72%' }} aria-hidden="true" />
-        <span className="skel st-skel-line" style={{ width: '46%' }} aria-hidden="true" />
-        <div className={'st-canvas-loading-hint' + (slow ? ' is-shown' : '')}>
+        <span className="skel sh-skel-thumb" aria-hidden="true" />
+        <span className="skel sh-skel-line" style={{ width: '72%' }} aria-hidden="true" />
+        <span className="skel sh-skel-line" style={{ width: '46%' }} aria-hidden="true" />
+        <div className={'sh-canvas-loading-hint' + (slow ? ' is-shown' : '')}>
           {cloud
             ? 'Still working — the first open of a canvas fetches its images and fonts from cloud storage. It is quicker next time.'
             : 'Still working — large canvases take a moment to build.'}

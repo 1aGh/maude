@@ -233,7 +233,7 @@ export default function ComponentPicker({
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the scrim is a click-outside surface; Escape (window listener) closes
     <div
-      className={anchor ? 'st-scrim st-scrim--anchored' : 'st-scrim'}
+      className={anchor ? 'sh-scrim sh-scrim--anchored' : 'sh-scrim'}
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose?.();
@@ -242,8 +242,8 @@ export default function ComponentPicker({
       <div
         className={
           anchor
-            ? 'st-dialog st-sticker-picker cp st-sticker-picker--anchored'
-            : 'st-dialog st-sticker-picker cp'
+            ? 'sh-dialog sh-sticker-picker cp sh-sticker-picker--anchored'
+            : 'sh-dialog sh-sticker-picker cp'
         }
         data-testid="tool-panel-components"
         data-placement={anchor?.placement}

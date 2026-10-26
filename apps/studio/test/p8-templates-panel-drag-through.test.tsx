@@ -46,7 +46,7 @@ async function mount(anchor: unknown) {
 describe('Templates panel pinned to the toolbar', () => {
   test('the scrim is the see-through kind, and the first tile holds the focus', async () => {
     const { host, done } = await mount(ANCHOR);
-    expect(host.querySelector('.st-scrim')?.classList.contains('tp-scrim')).toBe(true);
+    expect(host.querySelector('.sh-scrim')?.classList.contains('tp-scrim')).toBe(true);
     expect(document.activeElement?.getAttribute('data-testid')).toBe('templates-tile-kanban');
     await done();
   });
@@ -76,7 +76,7 @@ describe('Templates panel pinned to the toolbar', () => {
 
   test('the centred dialog keeps its scrim and ignores the outside press listeners', async () => {
     const { host, closed, done } = await mount(null);
-    expect(host.querySelector('.st-scrim')?.classList.contains('tp-scrim')).toBe(false);
+    expect(host.querySelector('.sh-scrim')?.classList.contains('tp-scrim')).toBe(false);
     await act(async () => {
       document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
       window.dispatchEvent(new Event('blur'));
@@ -89,7 +89,7 @@ describe('Templates panel pinned to the toolbar', () => {
     const css = await Bun.file(
       new URL('../client/v2/annotations/templates-panel.css', import.meta.url)
     ).text();
-    expect(css).toMatch(/\.st-scrim\.tp-scrim\s*\{[^}]*pointer-events:\s*none/);
-    expect(css).toMatch(/\.tp-scrim\s*>\s*\.st-sticker-picker\.tp\s*\{[^}]*pointer-events:\s*auto/);
+    expect(css).toMatch(/\.sh-scrim\.tp-scrim\s*\{[^}]*pointer-events:\s*none/);
+    expect(css).toMatch(/\.tp-scrim\s*>\s*\.sh-sticker-picker\.tp\s*\{[^}]*pointer-events:\s*auto/);
   });
 });

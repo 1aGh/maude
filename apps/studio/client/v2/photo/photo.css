@@ -174,8 +174,8 @@
     width: 100%;
     justify-content: center;
   }
-  /* 12 ia-placed / ia-photo-inspector: the section's buttons are body copy (CONTRACT §5); `.st-btn` sets mono */
-  .ph-sec .st-btn {
+  /* 12 ia-placed / ia-photo-inspector: the section's buttons are body copy (CONTRACT §5); `.sh-btn` sets mono */
+  .ph-sec .sh-btn {
     font-family: var(--font-body);
   }
   .ph-sheet {

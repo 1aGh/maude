@@ -439,8 +439,8 @@ describe('the desktop sheet renders every Settings row', () => {
       'ElevenLabs Scribe',
       'Groq Whisper',
     ]);
-    expect(q('settings-transcription')?.querySelector('.st-engine-radios')).toBeNull();
-    expect(q('settings-keyframes')?.querySelector('.st-engine-radios')).toBeNull();
+    expect(q('settings-transcription')?.querySelector('.v2s-engine-radios')).toBeNull();
+    expect(q('settings-keyframes')?.querySelector('.v2s-engine-radios')).toBeNull();
     expect(document.querySelector('[data-testid="settings-transcription"]')?.textContent).toContain(
       'Subtitles'
     );

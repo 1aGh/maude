@@ -225,7 +225,7 @@
   }
   /* what scrolls under the header fades out behind it, so the docked ask bar (11 pn-home) never sits on top of text */
   .home-top::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
@@ -236,7 +236,7 @@
     pointer-events: none;
   }
   /* the Home pill is the project pill (ProjectPill): in the header's row, not floating at the window's corner */
-  .home-top .st-pill.island {
+  .home-top .sh-pill.island {
     position: relative;
     left: auto;
     top: auto;
@@ -1146,7 +1146,9 @@
     gap: var(--space-1);
   }
   .home-ask-hint--off {
-    color: var(--status-warn-text); /* 02 ob-edge-offline: the board's --status-warn-text, not grey */
+    color: var(
+      --status-warn-text
+    ); /* 02 ob-edge-offline: the board's --status-warn-text, not grey */
   }
   .home-empty-canvas {
     margin-top: var(--space-2);

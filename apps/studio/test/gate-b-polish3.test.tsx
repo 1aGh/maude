@@ -189,13 +189,13 @@ describe('08 · Layers by artboard', () => {
   test('the element rows speak the body face; the type word is not 9 px caps', () => {
     const src = css('client/styles/3-shell-maude.css');
     const layer = src.slice(
-      src.indexOf('  .st-layer {'),
-      src.indexOf('}', src.indexOf('  .st-layer {'))
+      src.indexOf('  .sh-layer {'),
+      src.indexOf('}', src.indexOf('  .sh-layer {'))
     );
     expect(layer).toMatch(/font-family:\s*var\(--font-body\)/);
     const type = src.slice(
-      src.indexOf('  .st-layer-type {'),
-      src.indexOf('}', src.indexOf('  .st-layer-type {'))
+      src.indexOf('  .sh-layer-type {'),
+      src.indexOf('}', src.indexOf('  .sh-layer-type {'))
     );
     expect(type).not.toMatch(/9px|uppercase/);
   });

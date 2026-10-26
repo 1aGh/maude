@@ -3,7 +3,7 @@
 // While the shell is presenting (DDR-117 hides everything else), this is the only chrome there is:
 //   Present · Artboards   → <PresentControls> (‹ 3 / 14 › · label · esc to leave)
 //   Present the canvas    → <CanvasPill> (Presenting the canvas · 21% · esc to leave)
-// It replaces the v1 `st-present-exit` button in app.jsx. The mode, the position and the Present spec
+// It replaces the v1 `pv-present-exit` button in app.jsx. The mode, the position and the Present spec
 // come from the ONE store (shellMode, D1); the counter is the canvas's own `present-position` echo, the
 // label is the presented artboard's name from the project index (the Canvases panel reads the same one).
 

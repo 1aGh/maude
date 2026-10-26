@@ -95,7 +95,7 @@ export function AssetTileMenu({ state, items, onSelect, onClose }) {
   return (
     <div
       ref={ref}
-      className="st-dropdown cv-rowmenu"
+      className="sh-dropdown cv-rowmenu"
       role="menu"
       aria-label={`Actions for ${state.asset.name}`}
       data-testid="assets-tile-menu"
@@ -103,17 +103,17 @@ export function AssetTileMenu({ state, items, onSelect, onClose }) {
     >
       {items.map((it) =>
         it.separator ? (
-          <hr key={it.id} className="st-dd-sep" style={{ border: 0 }} />
+          <hr key={it.id} className="sh-dd-sep" style={{ border: 0 }} />
         ) : (
           <button
             key={it.id}
             type="button"
             role="menuitem"
-            className="st-dd-item"
+            className="sh-dd-item"
             data-testid={`assets-menu-${it.id}`}
             onClick={() => onSelect(it.id)}
           >
-            <span className="st-dd-lead">{it.label}</span>
+            <span className="sh-dd-lead">{it.label}</span>
             {it.keys ? <Kbd>{it.keys}</Kbd> : null}
           </button>
         )

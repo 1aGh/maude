@@ -76,12 +76,12 @@ describe('pn-history: the Now row keeps its column; A/B are circles', () => {
 describe('⌘K: esc key, 620 wide, kit glyphs', () => {
   test('the field ends in esc and the card is 620', () => {
     expect(read('client/dialogs/command-palette.jsx')).toContain('<Kbd>esc</Kbd>');
-    expect(rule(read('client/v2/search/search.css'), '.st-palette--search')).toContain('620px');
+    expect(rule(read('client/v2/search/search.css'), '.sh-palette--search')).toContain('620px');
   });
   test('the close-match note is a box with a search glyph', () => {
-    expect(rule(read('client/v2/search/search.css'), '.st-pal-note')).toContain('var(--bg-3)');
+    expect(rule(read('client/v2/search/search.css'), '.sh-pal-note')).toContain('var(--bg-3)');
     expect(read('client/dialogs/command-palette.jsx')).toMatch(
-      /st-pal-note[\s\S]{0,200}StIcon name="search"/
+      /sh-pal-note[\s\S]{0,200}StIcon name="search"/
     );
   });
   test('an artboard wears its kind glyph; a print one the printer', () => {

@@ -1,4 +1,4 @@
-// S4.V4 stamps-1 / stamps-2 - the stamp row and the "N stamps on X" card sit outside `.st-body--float`
+// S4.V4 stamps-1 / stamps-2 - the stamp row and the "N stamps on X" card sit outside `.sh-body--float`
 // and the `.maude-v2` scope: the row drew no island material with a mono 400 label, the card fell to the
 // browser serif. The row takes the v2 scope and the material itself; the card names its face.
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';

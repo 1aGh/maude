@@ -171,7 +171,7 @@ describe('the Canvases panel is the board island', () => {
     const input = q(host, 'canvas-search') as HTMLInputElement;
     expect(input.placeholder).toBe('Search');
     expect(input.getAttribute('aria-label')).toBe('Search canvases');
-    expect(input.closest('.st-search-box')?.querySelector('.kbd')?.textContent).toBe('⌘K');
+    expect(input.closest('.cv-search-box')?.querySelector('.kbd')?.textContent).toBe('⌘K');
   });
 
   test('the project row says how many canvases at rest (the board\'s "6 canvases"); a long list shows its Sort', async () => {

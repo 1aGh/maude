@@ -405,8 +405,8 @@ export default function SizePicker({
       ref={rootRef}
       className={
         anchor
-          ? 'st-dialog st-sticker-picker sz st-sticker-picker--anchored'
-          : 'st-dialog st-sticker-picker sz'
+          ? 'sh-dialog sh-sticker-picker sz sh-sticker-picker--anchored'
+          : 'sh-dialog sh-sticker-picker sz'
       }
       data-testid="tool-panel-sizes"
       data-placement={anchor?.placement}

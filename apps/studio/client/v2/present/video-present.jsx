@@ -156,7 +156,7 @@ export function VideoPresent({
         >
           <button
             type="button"
-            className="st-iconbtn"
+            className="sh-iconbtn"
             data-testid="video-present-toggle"
             aria-label={media.playing ? 'Pause' : 'Play'}
             aria-pressed={media.playing}
@@ -166,7 +166,7 @@ export function VideoPresent({
           </button>
           <button
             type="button"
-            className="st-iconbtn"
+            className="sh-iconbtn"
             data-testid="video-present-loop"
             aria-label="Loop"
             aria-pressed={loop}
@@ -211,7 +211,7 @@ export function VideoPresent({
           <span className="vp-snd">
             <button
               type="button"
-              className="st-iconbtn"
+              className="sh-iconbtn"
               data-testid="video-present-sound"
               aria-label="Sound"
               aria-pressed={!muted}
@@ -233,7 +233,7 @@ export function VideoPresent({
           </span>
           <button
             type="button"
-            className="st-iconbtn"
+            className="sh-iconbtn"
             data-testid="video-present-captions"
             aria-label="Captions"
             aria-pressed={captions}

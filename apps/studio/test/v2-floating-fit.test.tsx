@@ -35,7 +35,7 @@ const PILL_GAP = Number(/--pill-gap:\s*(\d+)px/.exec(PILL)?.[1]);
 const BELOW_PILL = GAP + PILL_H + PILL_GAP; // V2-4.2: the left panel and its corner icon start under the pill
 const PILL_W = 220;
 const CLUSTER_W = 380; // faces + status word + comments + Hide panels + Share (measured on screen)
-const ICON = 28 + 2 * 2; // .sh-corner .st-iconbtn 28px + the island's 2×--space-1 (v1: 2px)
+const ICON = 28 + 2 * 2; // .sh-corner .sh-iconbtn 28px + the island's 2×--space-1 (v1: 2px)
 
 const AI_H = Number(/--ai-h,\s*(\d+)px/.exec(CSS)?.[1]);
 const W = 1440;
@@ -55,7 +55,7 @@ function layout(el: Element, sbW: number, rpW: number): Box {
     return { left: W - rpW, top: H - GAP - AI_H, right: W - GAP, bottom: H - GAP };
   if (isSlot && side === 'right' && el.closest('.has-ai'))
     return { left: W - rpW, top: BELOW_PILL, right: W - GAP, bottom: H - GAP - AI_H - GAP };
-  if (cls0 === 'st-pill island')
+  if (cls0 === 'sh-pill island')
     return { left: GAP, top: GAP, right: GAP + PILL_W, bottom: GAP + PILL_H };
   if (isSlot && side === 'left') return { left: GAP, top: BELOW_PILL, right: sbW, bottom: H - GAP };
   if (cls0 === 'sh-share island')
@@ -81,7 +81,7 @@ function shell(opts: {
   const { floating, hidden, leftActive, rightActive, ai = false } = opts;
   const noop = () => {};
   const html = renderToStaticMarkup(
-    <div className="st-body">
+    <div className="sh-body">
       <div className="main" />
       <ProjectPill
         project="Studio site"
@@ -108,7 +108,7 @@ function shell(opts: {
           floating={floating}
           hidden={hidden}
         >
-          <aside className="st-sidebar" />
+          <aside className="sh-sidebar" />
         </DockSlot>
       )}
       {(rightActive || ai) && (
@@ -122,9 +122,9 @@ function shell(opts: {
           floating={floating}
           hidden={hidden}
           aiShown={ai}
-          ai={<aside className="st-rpanel" />}
+          ai={<aside className="sh-rpanel" />}
         >
-          <aside className="st-rpanel" />
+          <aside className="sh-rpanel" />
         </DockSlot>
       )}
       <CornerIcons
@@ -297,9 +297,9 @@ describe('V2-4.3a — the Share cluster is the top-right island', () => {
   });
   test('the model above matches the CSS: the right slot, grip and corner icon sit under the cluster', () => {
     const below = 'calc(var(--float-gap) + var(--pill-h, 40px) + var(--pill-gap, 12px))';
-    const slot = /\.st-body--float > \.st-dockslot--right \{[^}]*\}/.exec(CSS)?.[0] ?? '';
+    const slot = /\.sh-body--float > \.sh-dockslot--right \{[^}]*\}/.exec(CSS)?.[0] ?? '';
     expect(slot).toContain(`padding-top: ${below}`);
-    const grip = /\.st-body--float > \.st-grip--r \{[^}]*\}/.exec(CSS)?.[0] ?? '';
+    const grip = /\.sh-body--float > \.sh-grip--r \{[^}]*\}/.exec(CSS)?.[0] ?? '';
     expect(grip).toContain(`top: ${below}`);
     const corner = /\.sh-corner--right \{[^}]*\}/.exec(CSS)?.[0] ?? '';
     expect(corner).toContain('var(--pill-h, 40px)');

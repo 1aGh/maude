@@ -17,19 +17,19 @@ const block = (sel: string) => {
 
 describe('⌘K canvas rows (01 cf-search-k)', () => {
   test('the picture and its placeholder are the same 32 × 22 tile', () => {
-    expect(block('.st-pal-thumb')).toMatch(/width: 32px;[\s\S]*height: 22px/);
-    expect(block('.st-palette--search .st-pal-icon--pic')).toMatch(
+    expect(block('.sh-pal-thumb')).toMatch(/width: 32px;[\s\S]*height: 22px/);
+    expect(block('.sh-palette--search .sh-pal-icon--pic')).toMatch(
       /width: 32px;[\s\S]*height: 22px/
     );
     // a canvas row without a cover wears the tile; an action row keeps the 24 px icon square
-    expect(jsx).toContain("item.group === 'canvases' ? ' st-pal-icon--pic'");
+    expect(jsx).toContain("item.group === 'canvases' ? ' sh-pal-icon--pic'");
   });
   test('the meta is a column at the right, not glued to the name', () => {
-    expect(block('.st-pal-meta')).toContain('margin-left: auto');
-    expect(block('.st-pal-label')).toContain('flex: 1');
+    expect(block('.sh-pal-meta')).toContain('margin-left: auto');
+    expect(block('.sh-pal-label')).toContain('flex: 1');
   });
   test('Ask AI is pinned to the foot of the scrolling list, on the palette surface', () => {
-    const b = block('.st-pal-ask');
+    const b = block('.sh-pal-ask');
     expect(b).toContain('position: sticky');
     // p8-c8: the list's own padding is inside the sticky box — reach past it, or the next group's header
     // scrolls through the strip under the row (cf-search-k)

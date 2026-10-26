@@ -313,7 +313,7 @@ function RunListOpen({ view, designRel, onOpenList, ...rest }) {
       const el = listRef.current;
       const anchor = el?.parentElement; // the ✦ N wrapper the list hangs from
       if (!el || !anchor) return;
-      const column = el.closest('.ai-island, .st-rpanel');
+      const column = el.closest('.ai-island, .sh-rpanel');
       // 03 `ai-two-artboards`: the list opens UP over the canvas when there is room, so it never covers the chat
       // (fixed, from the button's rectangle: the dock slot clips everything that hangs outside it)
       const a = anchor.getBoundingClientRect();

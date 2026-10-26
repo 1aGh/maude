@@ -1,6 +1,6 @@
 /* client/v2/comments/comments.css — S9.22: the Comments panel and the mention callout's neighbours.
  * Canvas truth: 10 · co-comment-thread (`.co-cm*`). Namespaced `cmp-` — v1 owns `.st-comment*` and
- * `.st-cm-*`, and a bare reuse collided before (V2-4.3). Tokens are the shell's, as floating-panels.css. */
+ * `.sh-cm-*`, and a bare reuse collided before (V2-4.3). Tokens are the shell's, as floating-panels.css. */
 
 @layer shell {
   .cmp {

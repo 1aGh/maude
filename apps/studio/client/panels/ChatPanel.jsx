@@ -963,7 +963,7 @@ export default function ChatPanel({
       {/* S5.12 — the chat list (03 `ai-chat-list`): the title ⌄ opens it in place of the thread. The threads
           stay MOUNTED underneath (hidden, never unmounted) so a running chat keeps streaming. */}
       {menuOpen && connected ? (
-        <div className="st-rp-body st-rp-body--list">
+        <div className="sh-rp-body sh-rp-body--list">
           <ChatList
             projectName={projectName}
             busy={busyChats}
@@ -994,7 +994,7 @@ export default function ChatPanel({
         </div>
       ) : null}
       <div
-        className="st-rp-body st-rp-body--chat"
+        className="sh-rp-body sh-rp-body--chat"
         style={menuOpen && connected ? { display: 'none' } : undefined}
       >
         {/* S5.13 (rule `ai-not-connected-yet`) + CONTRACT §7: Ask AI looks the same when Claude is not

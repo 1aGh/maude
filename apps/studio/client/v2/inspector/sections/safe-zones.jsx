@@ -55,7 +55,7 @@ function ZonesMenu({ value, onPick }) {
     <span className="insp-zones" ref={ref}>
       <button
         type="button"
-        className="st-cp-nsel insp-zones-trigger"
+        className="insp-cp-nsel insp-zones-trigger"
         data-testid="insp-safe-zones"
         data-value={value}
         aria-label="Safe zones"

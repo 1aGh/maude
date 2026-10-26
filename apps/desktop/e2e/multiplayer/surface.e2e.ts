@@ -1296,7 +1296,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await until(async () => {
             const selected = await p.read(selectedValue);
             return (
-              (await p.read('.st-cp-idtag')) === 'h1' &&
+              (await p.read('.insp-cp-idtag')) === 'h1' &&
               !!selected?.includes(`[data-cd-id="${id}"]`) &&
               selected.includes(headingText) &&
               (await p.read(weight)) !== null
@@ -1318,7 +1318,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             )
           );
           throw new Error(
-            `Inspector did not select current h1 ${id} (selected: ${await p.read(selectedValue)}, tag: ${await p.read('.st-cp-idtag')}): ${String(error)}`
+            `Inspector did not select current h1 ${id} (selected: ${await p.read(selectedValue)}, tag: ${await p.read('.insp-cp-idtag')}): ${String(error)}`
           );
         }
       };
@@ -1541,7 +1541,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           const menu = await from.read('[role="menu"]');
           await from.screenshot(join(run.out, `L01-folder-menu-${from.name}.png`));
           if (!menu?.includes('Rename folder')) {
-            await from.click('.st-sb-title');
+            await from.click('.cv-sb-title');
             throw new Error('Folder menu has no Rename folder');
           }
           await from.promptNext(renamed);
@@ -2461,8 +2461,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             const editRel = assetRel.replace(/\.png$/, '.photo.json');
             const start = performance.now();
             if (brightness) {
-              await from.fill('.st-cp-num input[aria-label="Brightness"]', String(brightness));
-              await from.click('.st-cp-num input[aria-label="Contrast"]');
+              await from.fill('.insp-cp-num input[aria-label="Brightness"]', String(brightness));
+              await from.click('.insp-cp-num input[aria-label="Contrast"]');
             } else {
               await from.click('[aria-label="reset Adjustments section"]');
             }
@@ -2532,9 +2532,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           // what blurs it everywhere: a click on plain text does in Chromium,
           // not in WKWebView (the native rows never committed).
           const setNumber = async (label: string, value: number) => {
-            await from.fill(`.st-cp-num input[aria-label="${label}"]`, String(value));
+            await from.fill(`.insp-cp-num input[aria-label="${label}"]`, String(value));
             const other = label === 'Brightness' ? 'Contrast' : 'Brightness';
-            await from.click(`.st-cp-num input[aria-label="${other}"]`);
+            await from.click(`.insp-cp-num input[aria-label="${other}"]`);
           };
           const steps: Array<{
             id: string;
@@ -2752,8 +2752,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             if (!imageId || !assetRel || !input)
               throw new Unexercised('Photo requires the uploaded image');
             await until(async () => (await from.read(selector('photo-knobs'))) !== null);
-            await from.fill('.st-cp-num input[aria-label="Brightness"]', '0.4');
-            await from.click('.st-cp-num input[aria-label="Contrast"]');
+            await from.fill('.insp-cp-num input[aria-label="Brightness"]', '0.4');
+            await from.click('.insp-cp-num input[aria-label="Contrast"]');
             await until(() => all.every((p) => brightnessOf(p) === 0.4), 30000);
             for (const p of all) await until(async () => bright(p), 30000);
             const before = await Promise.all(all.map(async (p) => (await p.probe(q()))?.rect));
@@ -2781,7 +2781,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             // Photo tab is the one showing, then the shortcut.
             await gesture(from, q(), 'pointer');
             await until(async () => (await from.read(selector('photo-knobs'))) !== null);
-            await from.click('.st-cp-num input[aria-label="Contrast"]');
+            await from.click('.insp-cp-num input[aria-label="Contrast"]');
             const start = performance.now();
             await from.press('Meta+z');
             return observeAll(
@@ -2797,7 +2797,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               throw new Unexercised('Photo requires the uploaded image');
             if (all.some((p) => brightnessOf(p) === 0.4))
               throw new Unexercised('Redo needs the undone adjustment everywhere');
-            await from.click('.st-cp-num input[aria-label="Contrast"]');
+            await from.click('.insp-cp-num input[aria-label="Contrast"]');
             const start = performance.now();
             await from.press('Meta+Shift+z');
             return observeAll(
@@ -2825,7 +2825,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           const replace = '.dc-context-menu [data-action="replace"]';
           await until(async () => !!(await from.probe(replace))?.visible);
           await gesture(from, replace, 'click');
-          const cell = '[aria-label="Choose media"] .st-ap-cell[title^="surface-pattern.png"]';
+          const cell = '[aria-label="Choose media"] .sh-ap-cell[title^="surface-pattern.png"]';
           await until(async () => (await from.read(cell)) !== null);
           const start = performance.now();
           await from.click(cell);
@@ -3052,7 +3052,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           const replace = '.dc-context-menu [data-action="replace"]';
           await until(async () => !!(await from.probe(replace))?.visible);
           await gesture(from, replace, 'click');
-          const cell = '[aria-label="Choose media"] .st-ap-cell[title^="surface-colors.mp4"]';
+          const cell = '[aria-label="Choose media"] .sh-ap-cell[title^="surface-colors.mp4"]';
           await until(async () => (await from.read(cell)) !== null);
           const start = performance.now();
           await from.click(cell);
@@ -6195,7 +6195,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           // pinned next to the toolbar (`tool-panel-stickers`), same dialog label and cells.
           await gesture(from, '[data-testid="toolbar-slot-stickers"]', 'click');
           const firstSticker =
-            '[aria-label="Stickers"] .st-sp-body > div:first-child .st-sp-cell:first-child';
+            '[aria-label="Stickers"] .sh-sp-body > div:first-child .sh-sp-cell:first-child';
           await until(async () => (await from.read(firstSticker)) !== null, 15000);
           const start = performance.now();
           await from.click(firstSticker).catch(async (error) => {
@@ -6282,7 +6282,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           const replace = '.dc-context-menu [data-action="replace"]';
           await until(async () => !!(await from.probe(replace))?.visible);
           await gesture(from, replace, 'click');
-          const cell = '[aria-label="Choose media"] .st-ap-cell[title^="surface-pattern.png"]';
+          const cell = '[aria-label="Choose media"] .sh-ap-cell[title^="surface-pattern.png"]';
           await until(async () => (await from.read(cell)) !== null);
           const start = performance.now();
           await from.click(cell);
@@ -6877,7 +6877,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 async () =>
                   (
                     (await from.shell(
-                      `document.querySelector('.st-prompt')?.getAttribute('aria-label') ?? ''`
+                      `document.querySelector('.sh-prompt')?.getAttribute('aria-label') ?? ''`
                     )) as string
                   ).match(title) !== null,
                 10000
@@ -6909,7 +6909,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 .screenshot(join(run.out, `L15-create-${from.name}-stuck.png`))
                 .catch(() => {});
               const prompt = await from
-                .shell(`document.querySelector('.st-prompt')?.getAttribute('aria-label') ?? null`)
+                .shell(`document.querySelector('.sh-prompt')?.getAttribute('aria-label') ?? null`)
                 .catch(() => 'unreadable');
               const active = await from
                 .shell(

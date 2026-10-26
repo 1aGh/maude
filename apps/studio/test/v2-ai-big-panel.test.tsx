@@ -52,9 +52,9 @@ describe('the island’s height and pin', () => {
     }
     document.body.innerHTML = '';
     const grip = document.createElement('div');
-    grip.className = 'st-grip st-grip--r';
+    grip.className = 'sh-grip sh-grip--r';
     const slot = document.createElement('div');
-    slot.className = 'st-dockslot st-dockslot--right';
+    slot.className = 'sh-dockslot sh-dockslot--right';
     const host = document.createElement('div');
     slot.append(host);
     document.body.append(grip, slot);
@@ -127,7 +127,7 @@ describe('the island’s height and pin', () => {
     }
     document.body.innerHTML = '';
     const slot = document.createElement('div');
-    slot.className = 'st-dockslot st-dockslot--right';
+    slot.className = 'sh-dockslot sh-dockslot--right';
     const host = document.createElement('div');
     slot.append(host);
     document.body.append(slot);

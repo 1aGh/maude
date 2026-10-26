@@ -26,7 +26,7 @@ describe('07 · Advanced stays inside the island (ve-advanced)', () => {
 
   // P8 C10 (07 ve-advanced) supersedes c4-video's "cards above the island" (decision v2-p8-c10-advanced-cards-in-body):
   // Easing at the centre top, Render settings + The cut as code stacked in the inspector's column, both islands of the
-  // shell body (a portal into `.st-body`); the timeline keeps its own height and the tracks keep a floor
+  // shell body (a portal into `.sh-body`); the timeline keeps its own height and the tracks keep a floor
   test('the cards are islands of the shell body: Easing centre-top, the stack in the right column, each with chrome', () => {
     const layer = rule(adv, '.tla-layer');
     expect(layer).toMatch(/position:\s*absolute/);
@@ -50,7 +50,7 @@ describe('07 · Advanced stays inside the island (ve-advanced)', () => {
     expect(src).not.toMatch(/minHeight: height/);
     expect(client('v2/timeline/advanced/foot.jsx')).toMatch(/data-occludes="right"/);
     expect(adv).toMatch(
-      /\.st-body:has\(\.tla-layer\) \.st-dockslot-inner:has\(> \.st-rpanel--insp\)[^{]*\{[^}]*display:\s*none/
+      /\.sh-body:has\(\.tla-layer\) \.sh-dockslot-inner:has\(> \.sh-rpanel--insp\)[^{]*\{[^}]*display:\s*none/
     );
   });
 

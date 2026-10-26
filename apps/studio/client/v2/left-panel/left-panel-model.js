@@ -122,7 +122,7 @@ export const CAPABILITY_HOMES = [
     feature: 'Inline composer',
     home: 'opens under the Canvases head from the + New canvas row / its folder button',
     file: 'client/tree/tree.jsx',
-    label: 'st-newboard',
+    label: 'cv-newboard',
   },
   {
     row: 'G0-D/D5',

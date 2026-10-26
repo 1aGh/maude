@@ -318,7 +318,7 @@ export default function FollowView() {
   return (
     <div className="maude" data-theme={theme}>
       <div
-        className={`st-body--float pv-follow-root${audience ? ' pv-follow-root--audience' : ''}`}
+        className={`sh-body--float pv-follow-root${audience ? ' pv-follow-root--audience' : ''}`}
         data-testid="follow-view"
         data-audience={audience ? '1' : undefined}
       >

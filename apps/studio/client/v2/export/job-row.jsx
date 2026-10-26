@@ -53,18 +53,18 @@ export function etaLabel(job, now = Date.now()) {
 export function ProgressBar({ pct }) {
   if (pct === null || pct === undefined) {
     return (
-      <div className="st-export-progress st-export-progress--indeterminate" aria-hidden="true" />
+      <div className="ex-export-progress ex-export-progress--indeterminate" aria-hidden="true" />
     );
   }
   return (
     <div
-      className="st-export-progress"
+      className="ex-export-progress"
       role="progressbar"
       aria-valuenow={pct}
       aria-valuemin={0}
       aria-valuemax={100}
     >
-      <div className="st-export-progress-bar" style={{ width: `${pct}%` }} />
+      <div className="ex-export-progress-bar" style={{ width: `${pct}%` }} />
     </div>
   );
 }
@@ -85,10 +85,10 @@ export function DegradedNote({ degraded, compact = false }) {
       ? `Fonts a print shop will reject: ${fonts.join(', ')}.`
       : 'Exported with reduced fidelity.';
   return (
-    <div className="st-export-degraded" data-testid="export-degraded-note">
+    <div className="ex-export-degraded" data-testid="export-degraded-note">
       <span aria-hidden="true">!</span> {compact ? summarizeNoticeText(headline) : headline}
       {degraded.remedy ? (
-        <div className="st-export-degraded__fix">
+        <div className="ex-export-degraded__fix">
           {compact ? summarizeNoticeText(degraded.remedy) : degraded.remedy}
         </div>
       ) : null}
@@ -154,7 +154,7 @@ function RowMenu({ job, native, on, anchorRef, onClose }) {
   return (
     <div
       ref={ref}
-      className="st-dropdown ex-job-menu"
+      className="sh-dropdown ex-job-menu"
       role="menu"
       aria-label={`Actions for ${jobTitle(job)}`}
       data-testid={`export-job-menu-${job.id}`}
@@ -167,18 +167,18 @@ function RowMenu({ job, native, on, anchorRef, onClose }) {
     >
       {items.map((it) =>
         it.separator ? (
-          <hr key={it.id} className="st-dd-sep" style={{ border: 0 }} />
+          <hr key={it.id} className="sh-dd-sep" style={{ border: 0 }} />
         ) : (
           <button
             key={it.id}
             type="button"
             role="menuitem"
-            className="st-dd-item"
+            className="sh-dd-item"
             disabled={it.disabled}
             data-testid={`export-job-menu-${it.id}-${job.id}`}
             onClick={() => run(it.id)}
           >
-            <span className="st-dd-lead">
+            <span className="sh-dd-lead">
               {it.icon ? <StIcon name={it.icon} size={14} /> : null}
               {it.label}
             </span>
@@ -348,7 +348,7 @@ export function JobRow({
       </div>
       {job.status === 'done' ? <DegradedNote degraded={job.degraded} /> : null}
       {job.status === 'failed' ? (
-        <details className="st-export-item__error">
+        <details className="ex-export-item__error">
           <summary>Show error details</summary>
           <pre>{job.error ?? 'Export failed.'}</pre>
         </details>

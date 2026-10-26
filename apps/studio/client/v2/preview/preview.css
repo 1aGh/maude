@@ -16,10 +16,10 @@
       opacity var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1)),
       translate var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
   }
-  /* Pinned layout: the island chrome that `.st-body--float .island` gives is not applied. */
-  .st-body:not(.st-body--float) .sh-pbar,
-  .st-body:not(.st-body--float) .sh-zoomundo,
-  .st-body:not(.st-body--float) .sh-zoomonly {
+  /* Pinned layout: the island chrome that `.sh-body--float .island` gives is not applied. */
+  .sh-body:not(.sh-body--float) .sh-pbar,
+  .sh-body:not(.sh-body--float) .sh-zoomundo,
+  .sh-body:not(.sh-body--float) .sh-zoomonly {
     background: var(--bg-1);
     border-radius: 14px;
     box-shadow: var(--shadow-md);
@@ -127,8 +127,10 @@
   }
   /* Pinned (View › Advanced › Pin panels to the side): the island sits in the CANVAS column, clear of the docked
      Canvases column (06 ad-pinned draws it in the centre column's bottom-left). */
-  .st-body:not(.st-body--float):has(> .st-dockslot--left:not(.is-collapsed):not(.is-hidden)) .sh-zoomundo.island,
-  .st-body:not(.st-body--float):has(> .st-dockslot--left:not(.is-collapsed):not(.is-hidden)) .sh-zoomonly.island {
+  .sh-body:not(.sh-body--float):has(> .sh-dockslot--left:not(.is-collapsed):not(.is-hidden))
+  .sh-zoomundo.island,
+  .sh-body:not(.sh-body--float):has(> .sh-dockslot--left:not(.is-collapsed):not(.is-hidden))
+    .sh-zoomonly.island {
     left: calc(var(--sb-w, 0px) + var(--float-gap, 16px));
   }
   .sh-zoomundo-div {
@@ -160,7 +162,7 @@
     animation: sh-zoomonly-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
     transition: opacity var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
   }
-  .st-body:not(.st-body--float) .sh-openapp {
+  .sh-body:not(.sh-body--float) .sh-openapp {
     background: var(--bg-1);
     border-radius: 14px;
     box-shadow: var(--shadow-md);

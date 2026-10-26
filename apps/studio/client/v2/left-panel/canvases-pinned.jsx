@@ -194,7 +194,7 @@ export function NewCanvasRow({ onNew, onNewFolder, boardOpen = false, folderOpen
       {onNewFolder ? (
         <button
           type="button"
-          className="st-iconbtn lp-newrow-folder"
+          className="sh-iconbtn lp-newrow-folder"
           data-tip="New folder"
           aria-label="New folder"
           data-testid="tree-new-folder"

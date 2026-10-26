@@ -19,7 +19,7 @@
     gap: var(--space-1, 4px);
     animation: sh-inspect-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
   }
-  .st-body:not(.st-body--float) .sh-inspect {
+  .sh-body:not(.sh-body--float) .sh-inspect {
     background: var(--bg-1);
     border-radius: 14px;
     box-shadow: var(--shadow-md);

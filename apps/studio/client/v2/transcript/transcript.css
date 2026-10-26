@@ -5,7 +5,7 @@
  * which reduced motion collapses to 1 ms. */
 
 @layer shell {
-  .st-body--float > .tx-panel {
+  .sh-body--float > .tx-panel {
     position: absolute;
     z-index: 22;
     left: var(--float-gap, 16px);
@@ -23,7 +23,7 @@
     overflow-y: auto;
     animation: tx-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
   }
-  .st-body:not(.st-body--float) > .tx-panel {
+  .sh-body:not(.sh-body--float) > .tx-panel {
     position: absolute;
     z-index: 22;
     left: var(--space-3, 12px);
@@ -41,8 +41,8 @@
     }
   }
   /* the Canvases / Layers / Assets slot returns when the transcript closes */
-  .st-body--float:has(> .tx-panel) > .st-dockslot--left,
-  .st-body--float:has(> .tx-panel) > .st-grip--l {
+  .sh-body--float:has(> .tx-panel) > .sh-dockslot--left,
+  .sh-body--float:has(> .tx-panel) > .sh-grip--l {
     display: none;
   }
 

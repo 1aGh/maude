@@ -145,7 +145,7 @@ export default function TemplatesPanel({
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the scrim is a click-outside surface; Escape (window listener) and the Close button are the keyboard routes
     <div
-      className={anchor ? 'st-scrim st-scrim--anchored tp-scrim' : 'st-scrim'}
+      className={anchor ? 'sh-scrim sh-scrim--anchored tp-scrim' : 'sh-scrim'}
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -155,8 +155,8 @@ export default function TemplatesPanel({
         ref={dialogRef}
         {...v2Scope(
           anchor
-            ? 'st-dialog st-sticker-picker tp st-sticker-picker--anchored'
-            : 'st-dialog st-sticker-picker tp'
+            ? 'sh-dialog sh-sticker-picker tp sh-sticker-picker--anchored'
+            : 'sh-dialog sh-sticker-picker tp'
         )}
         data-testid="tool-panel-templates"
         data-placement={anchor?.placement}
@@ -165,11 +165,11 @@ export default function TemplatesPanel({
         aria-modal="true"
         aria-label="Templates"
       >
-        <div className="st-dialog-hd">
-          <span className="st-dialog-title">Templates</span>
+        <div className="sh-dialog-hd">
+          <span className="sh-dialog-title">Templates</span>
           <span className="tp-hint">or drag on the canvas for a blank one</span>
         </div>
-        <div className="st-dialog-bd">
+        <div className="sh-dialog-bd">
           {/* biome-ignore lint/a11y/useSemanticElements: a CSS grid of tile buttons; a fieldset would bring its own border and legend */}
           <div
             className="tp-grid"

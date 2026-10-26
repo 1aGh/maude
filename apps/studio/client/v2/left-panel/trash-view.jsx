@@ -114,7 +114,7 @@ export function TrashView({
       <div className="lp-trash-hd">
         <button
           type="button"
-          className="st-iconbtn lp-back"
+          className="sh-iconbtn lp-back"
           data-testid="canvases-trash-back"
           aria-label="Back to Canvases"
           onClick={onBack}

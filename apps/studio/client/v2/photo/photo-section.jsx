@@ -518,7 +518,7 @@ export function PhotoSection({
         {cut === null ? (
           <button
             type="button"
-            className="st-btn ph-ai"
+            className="sh-btn ph-ai"
             data-testid="photo-ai-remove-bg"
             disabled={bgBusy || !onRemoveBackground}
             aria-busy={bgBusy || undefined}
@@ -543,7 +543,7 @@ export function PhotoSection({
         <span className="ph-acts">
           <button
             type="button"
-            className="st-btn"
+            className="sh-btn"
             data-testid="photo-replace"
             disabled={!onReplaceMedia}
             onClick={() => onReplaceMedia?.(el)}
@@ -552,7 +552,7 @@ export function PhotoSection({
           </button>
           <button
             type="button"
-            className="st-btn ph-ghost"
+            className="sh-btn ph-ghost"
             data-testid="photo-reset"
             onClick={() => void reset()}
           >
@@ -578,7 +578,7 @@ export function PhotoSection({
         </p>
         <button
           type="button"
-          className="st-btn ph-wide"
+          className="sh-btn ph-wide"
           data-testid="photo-every-use-open"
           disabled={!everyUse}
           onClick={() => setSheet(true)}

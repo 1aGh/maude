@@ -23,7 +23,7 @@ describe('pure-CSS fixes', () => {
 
   test('the list is as tall as its rows, so "+ New canvas" ends it; Trash rides the panel bottom', () => {
     expect(rule(cv, '.cv-listwrap')).toContain('flex: 0 1 auto');
-    expect(rule(cv, '.cv-tree.st-tree')).toContain('flex: 0 1 auto');
+    expect(rule(cv, '.cv-tree.sh-tree')).toContain('flex: 0 1 auto');
     expect(rule(lp, '.lp-trashrow')).toContain('margin: auto');
   });
 });

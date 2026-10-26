@@ -29,7 +29,7 @@ describe('the sticker gallery headings (canvas 15: body face, xs, semibold, fg-2
     expect(css).toMatch(/\.sg-ph span\s*{[^}]*tabular-nums/);
   });
   test('the whole island is set in the body face, so no row falls back to the v1 mono', () => {
-    expect(block(css, '.st-sticker-picker.sg')).toContain('font-family: var(--font-body)');
+    expect(block(css, '.sh-sticker-picker.sg')).toContain('font-family: var(--font-body)');
   });
 });
 

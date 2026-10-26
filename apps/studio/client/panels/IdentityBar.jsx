@@ -4,7 +4,7 @@
 // (signed out), docked at the bottom of the sidebar. Clicking the avatar opens an
 // account menu UPWARD (New project / Pull a copy / Share / Sign out). Sign-in runs
 // GitHub's device flow (code modal). All chrome is the shell maude DS — solid
-// surfaces, the .st-dialog scrim+card treatment, no canvas-side `.panel`. In a
+// surfaces, the .sh-dialog scrim+card treatment, no canvas-side `.panel`. In a
 // plain browser (no Tauri shell) the rail renders nothing.
 
 import { useEffect, useRef, useState } from 'react';

@@ -1,10 +1,10 @@
 # tauri/menu-file
-span .island.st-pill [data-testid="repo-switcher-trigger"]
-  button .st-pill-btn [data-testid="project-pill"] [aria-label="characterization, project menu"] [aria-expanded="true"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
-    span .st-pill-mark [data-tour="brand"]
+span .island.sh-pill [data-testid="repo-switcher-trigger"]
+  button .sh-pill-btn [data-testid="project-pill"] [aria-label="characterization, project menu"] [aria-expanded="true"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
+    span .sh-pill-mark [data-tour="brand"]
       svg [aria-hidden="true"]
-    span .st-pill-name "characterization"
-    span .st-pill-caret [aria-hidden="true"]
+    span .sh-pill-name "characterization"
+    span .sh-pill-caret [aria-hidden="true"]
       svg [aria-hidden="true"]
   div .sh-pm-root
     div .sh-pm [data-testid="project-menu"] [role="menu"] [aria-label="Project menu"]

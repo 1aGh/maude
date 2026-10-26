@@ -12,7 +12,7 @@ export function PresenterViewButton() {
   return (
     <button
       type="button"
-      className="st-iconbtn"
+      className="sh-iconbtn"
       data-testid="present-presenter-view"
       aria-label="Presenter view"
       aria-pressed={pv.wanted}

@@ -450,24 +450,24 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
   const canPreview = description.trim().length > 0;
 
   return (
-    <div className="st-scrim" onClick={close} data-testid="report-bug-dialog">
+    <div className="sh-scrim" onClick={close} data-testid="report-bug-dialog">
       <div
-        className="st-dialog rb-dialog"
+        className="sh-dialog rb-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="rb-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="st-dialog-hd">
-          <span className="st-dialog-title" id="rb-title">
+        <div className="sh-dialog-hd">
+          <span className="sh-dialog-title" id="rb-title">
             Report a bug
           </span>
-          <button type="button" className="st-iconbtn" onClick={close} aria-label="Close">
+          <button type="button" className="sh-iconbtn" onClick={close} aria-label="Close">
             ×
           </button>
         </div>
 
-        <div className="st-dialog-bd rb-body">
+        <div className="sh-dialog-bd rb-body">
           {step === 'describe' && (
             <>
               <label className="rb-label" htmlFor="rb-desc">
@@ -487,12 +487,12 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                 Next you'll see exactly what gets attached — nothing is sent until you approve it.
               </p>
               <footer className="rb-actions">
-                <button type="button" className="st-btn" onClick={close}>
+                <button type="button" className="sh-btn" onClick={close}>
                   Cancel
                 </button>
                 <button
                   type="button"
-                  className="st-btn rb-primary"
+                  className="sh-btn rb-primary"
                   data-testid="report-bug-preview"
                   disabled={!canPreview}
                   onClick={() => setStep('preview')}
@@ -649,12 +649,12 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                 repository only maintainers can open.
               </p>
               <footer className="rb-actions">
-                <button type="button" className="st-btn" onClick={() => setStep('describe')}>
+                <button type="button" className="sh-btn" onClick={() => setStep('describe')}>
                   Back
                 </button>
                 <button
                   type="button"
-                  className="st-btn rb-primary"
+                  className="sh-btn rb-primary"
                   data-testid="report-bug-send"
                   onClick={send}
                 >
@@ -703,7 +703,7 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                 </p>
               )}
               <footer className="rb-actions">
-                <button type="button" className="st-btn rb-primary" onClick={close}>
+                <button type="button" className="sh-btn rb-primary" onClick={close}>
                   Done
                 </button>
               </footer>
@@ -721,10 +721,10 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                 them by hand.
               </p>
               <footer className="rb-actions">
-                <button type="button" className="st-btn" onClick={() => setStep('preview')}>
+                <button type="button" className="sh-btn" onClick={() => setStep('preview')}>
                   Back
                 </button>
-                <button type="button" className="st-btn rb-primary" onClick={saveFallback}>
+                <button type="button" className="sh-btn rb-primary" onClick={saveFallback}>
                   Save locally &amp; open GitHub
                 </button>
               </footer>

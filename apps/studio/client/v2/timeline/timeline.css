@@ -1,6 +1,6 @@
 /* client/v2/timeline/timeline.css — S7.7: the timeline island (07 Video Editing · `.ve-tl`, lifted).
  *
- * A floating panel in the shell's own material (`.st-body--float .island`, `--island-bg-strong`: a large
+ * A floating panel in the shell's own material (`.sh-body--float .island`, `--island-bg-strong`: a large
  * island over a busy canvas), 900 wide and centred under the selected video artboard with a notch pointing
  * at it, or edge to edge. Tokens only — no hex, no raw durations; reduced motion collapses --dur-panel to
  * 1 ms, so the slide becomes a cut. */
@@ -24,7 +24,7 @@
     pointer-events: auto;
     animation: tl-island-in var(--dur-panel) var(--ease-out) both;
   }
-  .st-body--float .tl-island {
+  .sh-body--float .tl-island {
     background: var(--island-bg-strong);
   }
   .tl-island.is-leaving {

@@ -369,7 +369,7 @@
   }
 
   /* ─── S11.4 (A6c): a canvas that is not on this Mac — the card where the frame would be ─── */
-  .viewport > .st-not-local {
+  .viewport > .sh-not-local {
     position: absolute;
     inset: 0;
     display: grid;

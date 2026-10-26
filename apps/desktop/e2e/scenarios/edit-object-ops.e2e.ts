@@ -162,10 +162,10 @@ describe('object ops on a canvas (S2.6)', () => {
         if (!/data-cd-locked/.test(source())) return true;
         await browser.execute(() => {
           // Layers is a tab of the left dock (Files · Layers · Assets)
-          if (!document.querySelector('.st-layer'))
+          if (!document.querySelector('.sh-layer'))
             document.querySelector<HTMLElement>('[data-testid="panel-tab-layers"]')?.click();
-          const lock = document.querySelector('.st-layer-lock[data-on="true"]');
-          (lock?.closest('.st-layer') as HTMLElement | null)?.click();
+          const lock = document.querySelector('.sh-layer-lock[data-on="true"]');
+          (lock?.closest('.sh-layer') as HTMLElement | null)?.click();
         });
         await chord('L', { metaKey: true, shiftKey: true });
         await browser.pause(400);

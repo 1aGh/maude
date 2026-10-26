@@ -174,7 +174,7 @@ describe('Share roles: Can view asks, Can edit is removed, a link is turned off 
     const { url } = await lifecycle('/petra/accept');
     const petra = await person(url);
     await petra.locator(tid(rowId(run.canvas))).waitFor({ timeout: 60_000 });
-    expect(await petra.locator('.st-sidebar [data-testid^="canvas-row-"]').count()).toBe(1);
+    expect(await petra.locator('.sh-sidebar [data-testid^="canvas-row-"]').count()).toBe(1);
     await openCanvas(petra, run.canvas);
 
     // Her access in words, Ask to edit in place of Share; Viewing and no toolbar.

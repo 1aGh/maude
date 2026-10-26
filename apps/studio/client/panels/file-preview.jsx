@@ -56,27 +56,27 @@ function useFetchedText(url, enabled) {
 
 function TextPreview({ url, name, as }) {
   const { loading, error, text, tooLarge } = useFetchedText(url, true);
-  if (loading) return <div className="st-file-preview-status">Loading {name}…</div>;
+  if (loading) return <div className="sh-file-preview-status">Loading {name}…</div>;
   if (error)
     return (
-      <div className="st-file-preview-status st-file-preview-error">
+      <div className="sh-file-preview-status sh-file-preview-error">
         Couldn't load {name}: {error}
       </div>
     );
   if (tooLarge) {
     return (
-      <div className="st-file-preview-status">
+      <div className="sh-file-preview-status">
         {name} is {Math.round(tooLarge / 1024)} KB — too large to preview inline.
       </div>
     );
   }
   if (as === 'markdown')
     return (
-      <div className="st-file-preview-markdown">
+      <div className="sh-file-preview-markdown">
         <Markdown text={text} />
       </div>
     );
-  return <pre className="st-file-preview-text">{text}</pre>;
+  return <pre className="sh-file-preview-text">{text}</pre>;
 }
 
 // CSS-string-literal escape for a value interpolated inside url("...") —
@@ -96,14 +96,14 @@ function cssStringEscape(s) {
 }
 
 function FontPreview({ url, name }) {
-  const family = `st-preview-font-${name.replace(/[^a-z0-9]+/gi, '-')}`;
+  const family = `sh-preview-font-${name.replace(/[^a-z0-9]+/gi, '-')}`;
   return (
-    <div className="st-file-preview-font">
+    <div className="sh-file-preview-font">
       <style>{`@font-face { font-family: "${family}"; src: url("${cssStringEscape(url)}"); }`}</style>
-      <div className="st-file-preview-font-specimen" style={{ fontFamily: family }}>
-        <div className="st-file-preview-font-lg">The quick brown fox</div>
-        <div className="st-file-preview-font-md">jumps over the lazy dog</div>
-        <div className="st-file-preview-font-sm">ABCDEFGHIJKLM abcdefghijklm 0123456789</div>
+      <div className="sh-file-preview-font-specimen" style={{ fontFamily: family }}>
+        <div className="sh-file-preview-font-lg">The quick brown fox</div>
+        <div className="sh-file-preview-font-md">jumps over the lazy dog</div>
+        <div className="sh-file-preview-font-sm">ABCDEFGHIJKLM abcdefghijklm 0123456789</div>
       </div>
     </div>
   );
@@ -139,21 +139,21 @@ function ImagePreview({ url, name }) {
     setAttempt((a) => a + 1);
   };
   return (
-    <div className={'st-file-preview-image-wrap is-' + state} aria-busy={state === 'loading'}>
+    <div className={'sh-file-preview-image-wrap is-' + state} aria-busy={state === 'loading'}>
       {state !== 'error' && (
         <img
           key={src}
           src={src}
           alt={`Preview: ${name}`}
-          className="st-file-preview-image"
+          className="sh-file-preview-image"
           decoding="async"
           onLoad={() => setState('loaded')}
           onError={onError}
         />
       )}
       {state === 'loading' && (
-        <div className="st-file-preview-loading" role="status" aria-live="polite">
-          <span className="st-file-preview-spinner" aria-hidden="true" />
+        <div className="sh-file-preview-loading" role="status" aria-live="polite">
+          <span className="sh-file-preview-spinner" aria-hidden="true" />
           <span>
             {attempt === 0
               ? `Loading ${name}…`
@@ -162,7 +162,7 @@ function ImagePreview({ url, name }) {
         </div>
       )}
       {state === 'error' && (
-        <div className="st-file-preview-loading st-file-preview-error" role="alert">
+        <div className="sh-file-preview-loading sh-file-preview-error" role="alert">
           <span>Couldn't load {name}.</span>
           <button type="button" className="btn btn--ghost" onClick={retry}>
             Try again
@@ -209,17 +209,17 @@ export function FilePreview({ path, kind }) {
   const url = `/${path}`;
   const name = sanitizeDisplayText(basename(path));
   return (
-    <div className="st-file-preview" data-kind={kind}>
-      <h2 className="st-file-preview-header">{sanitizeDisplayText(path)}</h2>
-      <div className="st-file-preview-body">
+    <div className="sh-file-preview" data-kind={kind}>
+      <h2 className="sh-file-preview-header">{sanitizeDisplayText(path)}</h2>
+      <div className="sh-file-preview-body">
         {kind === 'markdown' && <TextPreview url={url} name={name} as="markdown" />}
         {kind === 'text' && <TextPreview url={url} name={name} as="text" />}
         {kind === 'image' && <ImagePreview url={url} name={name} />}
         {kind === 'video' && (
-          <video key={url} src={url} controls className="st-file-preview-media" />
+          <video key={url} src={url} controls className="sh-file-preview-media" />
         )}
         {kind === 'audio' && (
-          <audio key={url} src={url} controls className="st-file-preview-audio" />
+          <audio key={url} src={url} controls className="sh-file-preview-audio" />
         )}
         {kind === 'font' && <FontPreview url={url} name={name} />}
       </div>

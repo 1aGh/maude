@@ -53,7 +53,7 @@
     "region": "menubar",
     "consumers": [],
     "v2": "retired",
-    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. The project pill carries the project name (`project-pill`, `.st-pill-name`)."
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. The project pill carries the project name (`project-pill`, `.sh-pill-name`)."
   },
   {
     "hook": "view-only-stamp",
@@ -243,7 +243,7 @@
     "hook": "canvas-list",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The project file tree (`FileTree`, `role=\"tree\"`, class `st-tree`) in the sidebar.",
+    "meaning": "The project file tree (`FileTree`, `role=\"tree\"`, class `sh-tree`) in the sidebar.",
     "producer": {
       "file": "apps/studio/client/app.jsx",
       "symbol": "Sidebar"
@@ -326,7 +326,7 @@
       "apps/studio/test/export-e2e-lanes.test.ts"
     ],
     "v2": "stable",
-    "notes": "Built inline in `FileRow` (same rule as `pathTestIdSlug`). A canvas with sidecars rendered by `CanvasRow` while \"show hidden files\" is on gets NO `canvas-row-*` id. `App()` clicks `.st-sidebar [data-testid^=\"canvas-row-\"]` to open the first canvas."
+    "notes": "Built inline in `FileRow` (same rule as `pathTestIdSlug`). A canvas with sidecars rendered by `CanvasRow` while \"show hidden files\" is on gets NO `canvas-row-*` id. `App()` clicks `.sh-sidebar [data-testid^=\"canvas-row-\"]` to open the first canvas."
   },
   {
     "hook": "file-row-<slug>",
@@ -437,7 +437,7 @@
     "hook": "sidebar",
     "kind": "data-tour",
     "pattern": false,
-    "meaning": "The whole left sidebar `aside.st-sidebar`.",
+    "meaning": "The whole left sidebar `aside.sh-sidebar`.",
     "producer": {
       "file": "apps/studio/client/app.jsx",
       "symbol": "Sidebar"
@@ -544,7 +544,7 @@
     "hook": "viewport",
     "kind": "data-tour",
     "pattern": false,
-    "meaning": "The viewport stage `div.viewport.st-stage`; also carries `data-canvas-state` (e.g. `ready`).",
+    "meaning": "The viewport stage `div.viewport.sh-stage`; also carries `data-canvas-state` (e.g. `ready`).",
     "producer": {
       "file": "apps/studio/client/app.jsx",
       "symbol": "Viewport"
@@ -841,7 +841,7 @@
     "hook": "css-panel",
     "kind": "data-tour",
     "pattern": false,
-    "meaning": "The CSS tab body for the selected element (`.st-cp`). Exists only with a selection.",
+    "meaning": "The CSS tab body for the selected element (`.insp-cp`). Exists only with a selection.",
     "producer": {
       "file": "apps/studio/client/app.jsx",
       "symbol": "CssKnobs"
@@ -6113,7 +6113,7 @@
     "hook": "present-pill",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Present the canvas: \"Presenting the canvas · 21% · esc to leave\". Replaces the v1 exit button and keeps its `.st-present-exit` class and `aria-label=\"Exit presentation mode\"`.",
+    "meaning": "Present the canvas: \"Presenting the canvas · 21% · esc to leave\". Replaces the v1 exit button and keeps its `.pv-present-exit` class and `aria-label=\"Exit presentation mode\"`.",
     "producer": {
       "file": "apps/studio/client/v2/present/canvas-pill.jsx",
       "symbol": "CanvasPill"
@@ -7188,7 +7188,7 @@
     "hook": "dock-slot-<side>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "The MAIN panel island of a dock slot (`.st-dockslot-inner`); `<side>` ∈ left (Canvases · Layers · Assets), right (Inspector / Comments / Changes / Sync — one at a time, no tab strip). The AI chat is its own island, `dock-ai-<side>` (V2-4.4b). Floating, it is the `.island` that carries `data-occludes` (V2-4.1); pinned, `display: contents`.",
+    "meaning": "The MAIN panel island of a dock slot (`.sh-dockslot-inner`); `<side>` ∈ left (Canvases · Layers · Assets), right (Inspector / Comments / Changes / Sync — one at a time, no tab strip). The AI chat is its own island, `dock-ai-<side>` (V2-4.4b). Floating, it is the `.island` that carries `data-occludes` (V2-4.1); pinned, `display: contents`.",
     "producer": {
       "file": "apps/studio/client/shell/dock.jsx",
       "symbol": "DockSlot"
@@ -7676,7 +7676,7 @@
     "hook": "shell-prompt-input",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Input of the shell's own prompt dialog (`.st-prompt`, replaces `window.prompt`).",
+    "meaning": "Input of the shell's own prompt dialog (`.sh-prompt`, replaces `window.prompt`).",
     "producer": {
       "file": "apps/studio/client/app.jsx",
       "symbol": "App"
@@ -7848,10 +7848,10 @@
     "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. See `menubar`. Was: Source-text consumer only (see `.st-menus`)."
   },
   {
-    "hook": ".st-dd-item",
+    "hook": ".sh-dd-item",
     "kind": "selector",
     "pattern": false,
-    "meaning": "A dropdown row in the tree row menu (`.st-dropdown`). The menubar dropdowns that shared it are deleted (V2-4.8a).",
+    "meaning": "A dropdown row in the tree row menu (`.sh-dropdown`). The menubar dropdowns that shared it are deleted (V2-4.8a).",
     "producer": {
       "file": "apps/studio/client/tree-row-menu.jsx",
       "symbol": "TreeRowMenu"
@@ -7872,7 +7872,7 @@
     "region": "menubar",
     "consumers": [],
     "v2": "retired",
-    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. The project pill's name is `.st-pill-name`. Was: CSS consumer: `test/shell-text-contrast.test.ts` reads the rule in `styles/3-shell-maude.css`, not the DOM."
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. The project pill's name is `.sh-pill-name`. Was: CSS consumer: `test/shell-text-contrast.test.ts` reads the rule in `styles/3-shell-maude.css`, not the DOM."
   },
   {
     "hook": ".st-cloudwho-out",
@@ -7915,7 +7915,7 @@
     "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. The same rows are reached in the project pill's menu by role=menuitem and name: \"File\", \"Edit\", \"Advanced\", \"New artboard\" (submenus), \"Close canvas\", \"New artboard: Mobile\" (rows) — `surface.e2e.ts` `Surface.menu(text)`. Was: `surface.e2e.ts` `Surface.menu(text)` = Playwright `getByRole('menuitem', { name, exact: true })`."
   },
   {
-    "hook": ".st-tree",
+    "hook": ".sh-tree",
     "kind": "selector",
     "pattern": false,
     "meaning": "The file tree element (same element as `canvas-list`).",
@@ -7930,7 +7930,7 @@
     "v2": "stable"
   },
   {
-    "hook": ".st-sb-title",
+    "hook": ".cv-sb-title",
     "kind": "selector",
     "pattern": false,
     "meaning": "The sidebar title row (clicked to dismiss an open row menu). \"sb\" means sidebar here, not status bar.",
@@ -8097,7 +8097,7 @@
     "v2": "stable"
   },
   {
-    "hook": ".st-search input",
+    "hook": ".cv-search input",
     "kind": "selector",
     "pattern": false,
     "meaning": "The sidebar search input (focused by keyboard handlers in `App()`).",
@@ -8113,7 +8113,7 @@
     "notes": "Internal cross-component consumer: `App()`."
   },
   {
-    "hook": ".st-sidebar [data-testid^=\"canvas-row-\"]",
+    "hook": ".sh-sidebar [data-testid^=\"canvas-row-\"]",
     "kind": "selector",
     "pattern": false,
     "meaning": "First canvas row inside the sidebar; `App()` clicks it to open a canvas.",
@@ -8191,7 +8191,7 @@
     "notes": "`test/shell-accessibility.test.ts` also asserts (source text) that this iframe's `title` is the template literal \"Canvas: \" + `t.path`."
   },
   {
-    "hook": ".st-canvas-loading",
+    "hook": ".sh-canvas-loading",
     "kind": "selector",
     "pattern": false,
     "meaning": "The canvas loading skeleton (same element as `canvas-loading`).",
@@ -8236,7 +8236,7 @@
     "v2": "moves"
   },
   {
-    "hook": ".st-cp-row",
+    "hook": ".insp-cp-row",
     "kind": "selector",
     "pattern": false,
     "meaning": "One property row in the CSS tab.",
@@ -8257,7 +8257,7 @@
     "v2": "moves"
   },
   {
-    "hook": ".st-cp-tokbtn",
+    "hook": ".insp-cp-tokbtn",
     "kind": "selector",
     "pattern": false,
     "meaning": "The \"bind a design token\" button on a property row.",
@@ -8278,7 +8278,7 @@
     "v2": "moves"
   },
   {
-    "hook": ".st-cp-sechd-row",
+    "hook": ".insp-cp-sechd-row",
     "kind": "selector",
     "pattern": false,
     "meaning": "A CSS-tab section header row.",
@@ -8303,7 +8303,7 @@
     "v2": "moves"
   },
   {
-    "hook": ".st-layer-eye",
+    "hook": ".sh-layer-eye",
     "kind": "selector",
     "pattern": false,
     "meaning": "Visibility toggle on a Layers row.",
@@ -8318,7 +8318,7 @@
     "v2": "moves"
   },
   {
-    "hook": ".st-cp-idtag",
+    "hook": ".insp-cp-idtag",
     "kind": "selector",
     "pattern": false,
     "meaning": "The element id tag in the CSS tab header.",
@@ -8333,7 +8333,7 @@
     "v2": "moves"
   },
   {
-    "hook": ".st-cp-num",
+    "hook": ".insp-cp-num",
     "kind": "selector",
     "pattern": false,
     "meaning": "A numeric property input.",
@@ -8354,7 +8354,7 @@
     "v2": "moves"
   },
   {
-    "hook": ".st-cp-box--inset / .st-cp-boxv[aria-label=\"<side>\"]",
+    "hook": ".insp-cp-box--inset / .insp-cp-boxv[aria-label=\"<side>\"]",
     "kind": "selector",
     "pattern": false,
     "meaning": "The inner ring of the box-model widget and its side inputs (`aria-label` = top/right/bottom/left).",
@@ -8369,10 +8369,10 @@
     "v2": "moves"
   },
   {
-    "hook": ".st-rpanel / .st-rp-tab",
+    "hook": ".sh-rpanel / .sh-rp-tab",
     "kind": "selector",
     "pattern": false,
-    "meaning": "Right-panel container and its tab buttons (`.st-rp-tab.is-active` = current tab).",
+    "meaning": "Right-panel container and its tab buttons (`.sh-rp-tab.is-active` = current tab).",
     "producer": {
       "file": "apps/studio/client/app.jsx",
       "symbol": "InspectorPanel"
@@ -8853,10 +8853,10 @@
     "v2": "stable"
   },
   {
-    "hook": ".st-dialog-hd / .st-iconbtn",
+    "hook": ".sh-dialog-hd / .sh-iconbtn",
     "kind": "selector",
     "pattern": false,
-    "meaning": "A dialog header and its close (×) icon button; `report-bug-dialog` closes via `[data-testid=\"report-bug-dialog\"] .st-dialog-hd .st-iconbtn`.",
+    "meaning": "A dialog header and its close (×) icon button; `report-bug-dialog` closes via `[data-testid=\"report-bug-dialog\"] .sh-dialog-hd .sh-iconbtn`.",
     "producer": {
       "file": "apps/studio/client/report-bug.jsx",
       "symbol": "ReportBugDialog"
@@ -8868,7 +8868,7 @@
     "v2": "stable"
   },
   {
-    "hook": ".st-scrim",
+    "hook": ".sh-scrim",
     "kind": "selector",
     "pattern": false,
     "meaning": "Modal backdrop shared by shell dialogs.",
@@ -8883,7 +8883,7 @@
     "v2": "stable"
   },
   {
-    "hook": ".st-prompt",
+    "hook": ".sh-prompt",
     "kind": "selector",
     "pattern": false,
     "meaning": "The shell prompt dialog (holds `shell-prompt-input` / `shell-prompt-ok`).",
@@ -8913,7 +8913,7 @@
     "v2": "stable"
   },
   {
-    "hook": "[aria-label=\"Choose media\"] / .st-ap-cell",
+    "hook": "[aria-label=\"Choose media\"] / .sh-ap-cell",
     "kind": "selector",
     "pattern": false,
     "meaning": "Replace-media asset picker dialog and one asset cell.",
@@ -8928,7 +8928,7 @@
     "v2": "stable"
   },
   {
-    "hook": ".st-sp-body / .st-sp-cell",
+    "hook": ".sh-sp-body / .sh-sp-cell",
     "kind": "selector",
     "pattern": false,
     "meaning": "The Stickers gallery body and one sticker cell (S4.3; the V2-4.5c picker's hooks, re-emitted).",
@@ -10408,10 +10408,10 @@
     "dangling": true
   },
   {
-    "hook": ".st-skel-cap",
+    "hook": ".sh-skel-cap",
     "kind": "selector",
     "pattern": false,
-    "meaning": "A skeleton caption whose CSS rule is contrast-tested; no component renders the class (`CanvasLoading` renders `.st-skel-card/-thumb/-line`).",
+    "meaning": "A skeleton caption whose CSS rule is contrast-tested; no component renders the class (`CanvasLoading` renders `.sh-skel-card/-thumb/-line`).",
     "producer": null,
     "region": "viewport",
     "consumers": [

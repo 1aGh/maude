@@ -1,9 +1,9 @@
 /* client/v2/shell/floating-panels.css — V2-4.1: the window body is the canvas, edge to edge.
  *
- * Floating (the default, `.st-body--float`): the left / right dock slots are `.island`s laid over the
+ * Floating (the default, `.sh-body--float`): the left / right dock slots are `.island`s laid over the
  * canvas viewport (`.main`, which keeps the whole body), and a panel that is not showing leaves its
  * corner icon (`.sh-corner`). Pinned (View › Advanced › "Pin panels to the side") is today's docked
- * column layout — no rule here applies, `.st-dockslot-inner` is `display: contents`. ⌘\ (`.is-hidden`)
+ * column layout — no rule here applies, `.sh-dockslot-inner` is `display: contents`. ⌘\ (`.is-hidden`)
  * takes every slot out of the layout in both; the corner icons are the way back.
  *
  * Geometry is the kit's: islands sit 16px in from the window edge (`.k-cp` left/top `--space-4`),
@@ -12,7 +12,7 @@
  *
  * MATERIAL (V2-1.8 M1–M3). Solid, global, never keyed on engine / shell / setting: `.island` below is
  * the ONE rule that applies it, and `--island-backdrop` is the only thing allowed in a
- * `backdrop-filter`. The three tokens are set on `.st-body--float` because this shell still resolves
+ * `backdrop-filter`. The three tokens are set on `.sh-body--float` because this shell still resolves
  * the v1 `.maude` ladder; when the shell mounts under `.maude-v2` (later Phase 4) the DS' own
  * `--island-bg` / `--island-backdrop: none` replace them and this block shrinks to nothing.
  *
@@ -20,22 +20,22 @@
  * collapses it) — and the keyframes are dropped outright there: reduced motion is a cut. */
 
 @layer shell {
-  .st-body {
+  .sh-body {
     position: relative; /* the corner icons position against it in either layout */
   }
-  .st-body--float {
+  .sh-body--float {
     --float-gap: 16px; /* kit: left/top var(--space-4) of the v2 ladder (v1's --space-4 is 12) */
     --island-radius: 14px; /* kit: --radius-lg of the v2 ladder (v1's is 10) */
     --island-bg: var(--bg-1);
     --island-bg-strong: var(--bg-1);
     --island-backdrop: none;
   }
-  .maude[data-theme="light"] .st-body--float {
+  .maude[data-theme="light"] .sh-body--float {
     --island-edge: oklch(0.24 0.014 250 / 0.1);
     --island-shadow:
       0 2px 10px oklch(0.24 0.03 250 / 0.07), 0 0.5px 1.5px oklch(0.24 0.03 250 / 0.06);
   }
-  .maude[data-theme="dark"] .st-body--float {
+  .maude[data-theme="dark"] .sh-body--float {
     --island-edge: oklch(1 0 0 / 0.09);
     --island-shadow: 0 4px 14px oklch(0 0 0 / 0.3), 0 0.5px 1.5px oklch(0 0 0 / 0.26);
   }
@@ -46,7 +46,7 @@
     padding: var(--space-3);
   }
 
-  .st-body--float .island {
+  .sh-body--float .island {
     background: var(--island-bg);
     -webkit-backdrop-filter: var(--island-backdrop);
     backdrop-filter: var(--island-backdrop);
@@ -61,7 +61,7 @@
    * The slot is a transparent, click-through frame whose padding is the 16px gap, so its inline width
    * (the user's panel width) ends exactly at the island's inner edge — the seam the grip sits on and
    * the drag math in use-shell-core measures from. */
-  .st-body--float > .st-dockslot {
+  .sh-body--float > .sh-dockslot {
     position: absolute;
     top: 0;
     bottom: 0;
@@ -71,7 +71,7 @@
     pointer-events: none;
     padding: var(--float-gap);
   }
-  .st-body--float > .st-dockslot--left {
+  .sh-body--float > .sh-dockslot--left {
     left: 0;
     padding-right: 0;
     /* 12 · the left panel stops above the bottom row (kit `.k-cp`: max-height calc(100% - 68px - 72px)) — the zoom pill
@@ -81,10 +81,10 @@
     padding-top: calc(var(--float-gap) + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
   /* a chat docked under the panel keeps the bottom edge: it IS the bottom row */
-  .st-body--float > .st-dockslot--left.has-ai {
+  .sh-body--float > .sh-dockslot--left.has-ai {
     padding-bottom: var(--float-gap);
   }
-  .st-body--float > .st-dockslot--right {
+  .sh-body--float > .sh-dockslot--right {
     right: 0;
     padding-left: 0;
     /* V2-4.3a: the Share cluster is the top-right island; the panel starts below it (kit: 68px). */
@@ -93,13 +93,13 @@
   /* A folded AI chat leaves its icon in the slot's bottom corner (.sh-corner--ai): the panel above stops short of
      it, or the icon sat on the panel's last row (P8 B1: Version history's "Advanced · Branch, git, changed fi…").
      28px button + the corner's own padding, and a gap. */
-  .st-body--float:has(> .sh-corner--ai) > .st-dockslot--right {
+  .sh-body--float:has(> .sh-corner--ai) > .sh-dockslot--right {
     padding-bottom: calc(var(--float-gap) + 44px);
   }
-  .st-body--float:has(> .sh-corner--ai-left) > .st-dockslot--left {
+  .sh-body--float:has(> .sh-corner--ai-left) > .sh-dockslot--left {
     padding-bottom: max(72px, calc(var(--float-gap) + 44px));
   }
-  .st-body--float .st-dockslot-inner {
+  .sh-body--float .sh-dockslot-inner {
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
@@ -108,8 +108,8 @@
     pointer-events: auto;
     animation: sh-island-in var(--dur-panel) var(--ease-out);
   }
-  .st-body--float .st-dockslot-inner > .st-sidebar,
-  .st-body--float .st-dockslot-inner > .st-rpanel {
+  .sh-body--float .sh-dockslot-inner > .sh-sidebar,
+  .sh-body--float .sh-dockslot-inner > .sh-rpanel {
     flex: 1 1 auto;
     width: 100%;
     background: transparent;
@@ -121,22 +121,22 @@
    * The chat is its own island in the slot, under the main panel (kit: bottom corner, `.k-ai`). Alone it
    * sits at the bottom edge at a chat's height; with a main panel above it the two share the column and
    * the main panel gives way first. Hidden, it stays mounted (the stream survives — DDR-123). */
-  .st-dockslot > .st-dockslot-inner.st-dockslot-ai[hidden] {
+  .sh-dockslot > .sh-dockslot-inner.sh-dockslot-ai[hidden] {
     display: none;
   }
-  .st-body--float > .st-dockslot {
+  .sh-body--float > .sh-dockslot {
     gap: var(--float-gap);
   }
-  .st-body--float .st-dockslot-ai {
+  .sh-body--float .sh-dockslot-ai {
     flex: 0 1 var(--ai-h, 460px);
     min-height: min(260px, 100%);
     margin-top: auto;
   }
-  .st-body--float > .st-dockslot.has-ai > .st-dockslot-inner:not(.st-dockslot-ai) {
+  .sh-body--float > .sh-dockslot.has-ai > .sh-dockslot-inner:not(.sh-dockslot-ai) {
     flex: 1 1 0;
     min-height: 120px;
   }
-  .st-body--float .st-dockslot-ai > .st-rpanel {
+  .sh-body--float .sh-dockslot-ai > .sh-rpanel {
     flex: 1 1 auto;
     width: 100%;
     background: transparent;
@@ -146,47 +146,47 @@
   /* P8 C3 — the Canvases panel (left) and Version history (right) are content-height islands per board (01 `k-cp`,
      11 `pn-vh`, 06 `ad-vh`): the slot's frame is full height, the island is not. It hugs its rows and scrolls only
      past the window; a chat docked under it does not stretch it either. */
-  .st-body--float .st-dockslot-inner:has(> .st-sidebar),
-  .st-body--float > .st-dockslot.has-ai > .st-dockslot-inner:has(> .st-sidebar),
-  .st-body--float .st-dockslot-inner:has(> .vh-panel),
-  .st-body--float > .st-dockslot.has-ai > .st-dockslot-inner:has(> .vh-panel) {
+  .sh-body--float .sh-dockslot-inner:has(> .sh-sidebar),
+  .sh-body--float > .sh-dockslot.has-ai > .sh-dockslot-inner:has(> .sh-sidebar),
+  .sh-body--float .sh-dockslot-inner:has(> .vh-panel),
+  .sh-body--float > .sh-dockslot.has-ai > .sh-dockslot-inner:has(> .vh-panel) {
     flex: 0 1 auto;
     min-height: 0;
   }
 
   /* Pinned: the inner steps out of the box tree, so the panel is today's direct child of the slot. */
-  .st-body:not(.st-body--float) .st-dockslot-inner {
+  .sh-body:not(.sh-body--float) .sh-dockslot-inner {
     display: contents;
   }
   /* ⌘\ — out of the layout, still mounted (the AI chat keeps its stream). */
-  .st-dockslot.is-hidden {
+  .sh-dockslot.is-hidden {
     display: none;
   }
-  .st-body--float > .st-dockslot.is-collapsed {
+  .sh-body--float > .sh-dockslot.is-collapsed {
     display: none;
   }
 
   /* ── resize grips: on the island's inner edge ── */
-  .st-body--float > .st-grip {
+  .sh-body--float > .sh-grip {
     position: absolute;
     top: var(--float-gap);
     bottom: var(--float-gap);
     margin: 0;
     z-index: 25;
   }
-  .st-body--float > .st-grip--l {
+  .sh-body--float > .sh-grip--l {
     left: calc(var(--sb-w) - 4px);
     top: calc(var(--float-gap) + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
-  .st-body--float > .st-grip--r {
+  .sh-body--float > .sh-grip--r {
     right: calc(var(--rp-w) - 4px);
     top: calc(var(--float-gap) + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
 
   /* P8 C3 (06 ad-pinned) — the handle in use: a 6 × 32 accent pill on the seam (the dots are its hover form) and the
      chip that says what it does, on the canvas side of the seam. Shown while held, focused or hovered. */
-  .st-grip.is-active::after,
-  .st-grip:focus-visible::after {
+  .sh-grip.is-active::after,
+  .sh-grip:focus-visible::after {
     content: "";
     position: absolute;
     top: 50%;
@@ -197,11 +197,11 @@
     border-radius: var(--radius-pill, 999px);
     background: var(--accent);
   }
-  .st-grip.is-active .st-grip-dots,
-  .st-grip:focus-visible .st-grip-dots {
+  .sh-grip.is-active .sh-grip-dots,
+  .sh-grip:focus-visible .sh-grip-dots {
     opacity: 0;
   }
-  .st-grip-tip {
+  .sh-grip-tip {
     position: absolute;
     top: 50%;
     z-index: 26;
@@ -217,14 +217,14 @@
     opacity: 0;
     transition: opacity var(--dur-flip) var(--ease-out);
   }
-  .st-grip--l .st-grip-tip {
+  .sh-grip--l .sh-grip-tip {
     left: calc(100% + var(--space-2, 8px));
   }
-  .st-grip--r .st-grip-tip {
+  .sh-grip--r .sh-grip-tip {
     right: calc(100% + var(--space-2, 8px));
   }
-  .st-grip.is-active .st-grip-tip,
-  .st-grip:focus-visible .st-grip-tip {
+  .sh-grip.is-active .sh-grip-tip,
+  .sh-grip:focus-visible .sh-grip-tip {
     opacity: 1;
   }
 
@@ -248,10 +248,20 @@
   /* P8 r11 (03 `ai-long`): a full-height AI chat (`data-full`, AiChatIsland) reaches the top of its slot, so a folded
      panel's icon at that corner stood on the chat's header and hid its Hide chevron. It stands beside the chat, on
      the canvas side: the chat is 420 wide (or the slot, when wider — --rp-w / --sb-w) plus the slot's own gap. */
-  .st-body--float:has(> .st-dockslot--right:not(.is-hidden):not(.is-collapsed) .st-dockslot-ai:not([hidden]) > .ai-island[data-full="true"]) > .sh-corner--right {
+  .sh-body--float:has(
+    > .sh-dockslot--right:not(.is-hidden):not(.is-collapsed)
+      .sh-dockslot-ai:not([hidden])
+      > .ai-island[data-full="true"]
+  )
+  > .sh-corner--right {
     right: calc(max(var(--rp-w, 0px), 420px + var(--float-gap, 16px)) + var(--space-2, 8px));
   }
-  .st-body--float:has(> .st-dockslot--left:not(.is-hidden):not(.is-collapsed) .st-dockslot-ai:not([hidden]) > .ai-island[data-full="true"]) > .sh-corner--left {
+  .sh-body--float:has(
+      > .sh-dockslot--left:not(.is-hidden):not(.is-collapsed)
+        .sh-dockslot-ai:not([hidden])
+        > .ai-island[data-full="true"]
+    )
+    > .sh-corner--left {
     left: calc(max(var(--sb-w, 0px), 420px + var(--float-gap, 16px)) + var(--space-2, 8px));
   }
   .sh-corner--ai {
@@ -262,7 +272,7 @@
     left: var(--float-gap, 16px);
     bottom: var(--float-gap, 16px);
   }
-  .sh-corner .st-iconbtn {
+  .sh-corner .sh-iconbtn {
     position: relative;
     width: 28px;
     height: 28px;
@@ -278,52 +288,54 @@
     box-shadow: 0 0 0 2px var(--island-bg, var(--bg-1));
   }
   /* Pinned + ⌘\: the icons float over the canvas with the same material. */
-  .st-body:not(.st-body--float) .sh-corner {
+  .sh-body:not(.sh-body--float) .sh-corner {
     background: var(--bg-1);
     border-radius: 14px;
     box-shadow: var(--shadow-md);
   }
-  .st-body:not(.st-body--float) .sh-corner--left,
-  .st-body:not(.st-body--float) .sh-corner--ai-left {
+  .sh-body:not(.sh-body--float) .sh-corner--left,
+  .sh-body:not(.sh-body--float) .sh-corner--ai-left {
     left: 16px;
   }
-  .st-body:not(.st-body--float) .sh-corner--right,
-  .st-body:not(.st-body--float) .sh-corner--ai {
+  .sh-body:not(.sh-body--float) .sh-corner--right,
+  .sh-body:not(.sh-body--float) .sh-corner--ai {
     right: 16px;
   }
-  .st-body:not(.st-body--float) .sh-corner--right {
+  .sh-body:not(.sh-body--float) .sh-corner--right {
     top: calc(16px + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
-  .st-body:not(.st-body--float) .sh-corner--left {
+  .sh-body:not(.sh-body--float) .sh-corner--left {
     top: calc(16px + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
-  .st-body:not(.st-body--float) .sh-corner--ai,
-  .st-body:not(.st-body--float) .sh-corner--ai-left {
+  .sh-body:not(.sh-body--float) .sh-corner--ai,
+  .sh-body:not(.sh-body--float) .sh-corner--ai-left {
     bottom: 16px;
   }
   /* 06 ad-pinned (a11y V4) — a folded panel's icon floats over the CANVAS: with a pinned column open on its side
      (the AI chat alone keeps the right slot shown) it stands beside that column, not over its header. */
-  .st-body:not(.st-body--float):has(> .st-dockslot--right:not(.is-collapsed):not(.is-hidden)) .sh-corner--right {
+  .sh-body:not(.sh-body--float):has(> .sh-dockslot--right:not(.is-collapsed):not(.is-hidden))
+  .sh-corner--right {
     right: calc(var(--rp-w, 0px) + 16px);
   }
-  .st-body:not(.st-body--float):has(> .st-dockslot--left:not(.is-collapsed):not(.is-hidden)) .sh-corner--left {
+  .sh-body:not(.sh-body--float):has(> .sh-dockslot--left:not(.is-collapsed):not(.is-hidden))
+    .sh-corner--left {
     left: calc(var(--sb-w, 0px) + 16px);
   }
 
   /* S3.14 (G4, 04 md-motion): a panel that stops showing shrinks toward its corner icon. The ghost is a picture
      of it (fold-ghost.js) — no hook, no focus, no clicks — gone when the animation ends. */
-  .st-body .sh-fold-ghost {
+  .sh-body .sh-fold-ghost {
     z-index: 20;
     transform-origin: top left;
     animation: sh-island-fold var(--dur-panel) var(--ease-out) forwards;
   }
-  .st-body .sh-fold-ghost[data-fold="top-right"] {
+  .sh-body .sh-fold-ghost[data-fold="top-right"] {
     transform-origin: top right;
   }
-  .st-body .sh-fold-ghost[data-fold="bottom-left"] {
+  .sh-body .sh-fold-ghost[data-fold="bottom-left"] {
     transform-origin: bottom left;
   }
-  .st-body .sh-fold-ghost[data-fold="bottom-right"] {
+  .sh-body .sh-fold-ghost[data-fold="bottom-right"] {
     transform-origin: bottom right;
   }
   @keyframes sh-island-fold {
@@ -347,11 +359,11 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .st-body--float .st-dockslot-inner,
+    .sh-body--float .sh-dockslot-inner,
     .sh-corner {
       animation: none;
     }
-    .st-body .sh-fold-ghost {
+    .sh-body .sh-fold-ghost {
       display: none; /* a cut (and fold-ghost.js spawns none at 1 ms) */
     }
   }

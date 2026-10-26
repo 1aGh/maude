@@ -65,7 +65,7 @@ describe('color-contrast', () => {
 
   test("a match inside a palette row's meta is full-strength text, not --fg-2 on the accent tint (4.24:1)", () => {
     const css = read('../client/v2/search/search.css');
-    expect(rule(css, '.st-pal-meta .st-pal-mark')).toMatch(/color:\s*var\(--fg-0\)/);
+    expect(rule(css, '.sh-pal-meta .sh-pal-mark')).toMatch(/color:\s*var\(--fg-0\)/);
   });
 
   test("the chord on the empty canvas's Ask button is not dimmed by opacity (4.0:1 on the accent)", () => {

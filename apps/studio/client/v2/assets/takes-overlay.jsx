@@ -30,7 +30,7 @@ export function TakesIsland({ label, madeByAi, canStep, onStep }) {
         <span className="v2-takes-pill" data-testid="takes-pill">
           <button
             type="button"
-            className="st-iconbtn v2-takes-b v2-takes-b--prev"
+            className="sh-iconbtn v2-takes-b v2-takes-b--prev"
             data-testid="takes-prev"
             aria-label="Previous take"
             disabled={!canStep}
@@ -43,7 +43,7 @@ export function TakesIsland({ label, madeByAi, canStep, onStep }) {
           </span>
           <button
             type="button"
-            className="st-iconbtn v2-takes-b"
+            className="sh-iconbtn v2-takes-b"
             data-testid="takes-next"
             aria-label="Next take"
             disabled={!canStep}

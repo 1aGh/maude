@@ -90,7 +90,7 @@ describe('the pill', () => {
 
   test('the mark is the DS Mark (azure tile + white star), never the AI spark glyph', async () => {
     await mount();
-    const paths = [...(host?.querySelectorAll('.st-pill-mark svg path') ?? [])];
+    const paths = [...(host?.querySelectorAll('.sh-pill-mark svg path') ?? [])];
     expect(paths.length).toBe(2);
     // the kit `Mark`, verbatim: the tile (round on three corners), then the star on it
     expect(paths[0].getAttribute('d')).toBe(

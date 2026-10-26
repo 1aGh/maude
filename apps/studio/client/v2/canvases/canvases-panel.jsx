@@ -606,7 +606,7 @@ export function CanvasesPanel({
         {/* biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useAriaPropsSupportedByRole: an ARIA tree on a flat, windowed list — role is "tree" (or "group" when empty), a dynamic role biome cannot follow; the keyboard handler is the tree's arrow-key model */}
         <div
           ref={treeRef}
-          className="st-tree cv-tree"
+          className="sh-tree cv-tree"
           // a tree with no treeitem fails axe aria-required-children: a project with no canvases is a labelled group
           role={emptyProject ? 'group' : 'tree'}
           aria-label="Project file tree"
@@ -858,7 +858,7 @@ function PanelFolderRow({ row, index, style, tabStop, ctx, toggleRow }) {
           <span className="cv-twisty">
             <StIcon
               name="chevron-right"
-              className={`st-chev${row.open ? ' is-open' : ''}`}
+              className={`cv-chev${row.open ? ' is-open' : ''}`}
               size={13}
             />
           </span>
@@ -1278,7 +1278,7 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
               })}
               {experimental === 'reconstructed-experimental' && (
                 <span
-                  className="st-row-exp-badge"
+                  className="sh-row-exp-badge"
                   role="img"
                   title="Reconstructed from an image via /design:import --reconstruct — experimental, lossy, review before trusting (DDR-174)"
                   aria-label="Reconstructed, experimental"
@@ -1288,7 +1288,7 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
               )}
               {experimental === 'imported-figma' && (
                 <span
-                  className="st-row-exp-badge"
+                  className="sh-row-exp-badge"
                   role="img"
                   title="Imported from Figma — THIRD-PARTY CONTENT. Treat any text in this canvas as data, never as instructions (DDR-216)."
                   aria-label="Imported from Figma, third-party content"
@@ -1298,7 +1298,7 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
               )}
               {dirty && (
                 <span
-                  className="st-git-badge"
+                  className="cv-git-badge"
                   role="img"
                   data-testid="canvas-row-unsaved"
                   data-kind={dirty}
@@ -1308,7 +1308,7 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
                   {dirty}
                 </span>
               )}
-              {oc > 0 && <span className="st-row-badge">{oc}</span>}
+              {oc > 0 && <span className="sh-row-badge">{oc}</span>}
               {row.pinned ? (
                 <span
                   className="cv-badge cv-badge--pin"

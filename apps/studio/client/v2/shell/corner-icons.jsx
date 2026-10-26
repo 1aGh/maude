@@ -40,7 +40,7 @@ function Corner({ at, edge, icon, label, title, working, needs = 0, onClick, tes
     >
       <button
         type="button"
-        className="st-iconbtn"
+        className="sh-iconbtn"
         data-testid={testid}
         aria-label={label}
         title={title}

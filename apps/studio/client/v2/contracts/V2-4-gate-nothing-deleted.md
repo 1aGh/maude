@@ -176,7 +176,7 @@ Other openers: `dialog-report-bug` (⌘K run → describe → preview), `dialog-
 `run` steps use ⌘K to pick one action by its row testid.
 
 **⌘K as V2-4.6 draws it.** The probe types an action's label and looks for `palette-row-action:<id>` or
-`palette-row-tool:<id>` (the exact id), falling back to the row's `.st-pal-ltxt` text.
+`palette-row-tool:<id>` (the exact id), falling back to the row's `.sh-pal-ltxt` text.
 
 **The "?" sheet is a surface for key-only actions.** ⌘K leaves out nudge, annotation, `object.*` and `*-hold`
 by design (search-model `NOT_SEARCHABLE`). Such an action is reached when its `shortcuts-row-<id>` row is on the

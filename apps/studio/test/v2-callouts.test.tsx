@@ -5,7 +5,7 @@
 //  · render (happy-dom + React, the REAL host over a shell store): every trigger state draws its callout
 //    with ONE action, the action does what the banner's button did, a close hides one event only;
 //  · the old components are gone: status-bar.jsx, SyncBanner / CloudRoleBanner / UpdateBanner, the inline
-//    repo notice, and the stack is mounted OUTSIDE `.st-body` (Presentation mode must not hide a warning).
+//    repo notice, and the stack is mounted OUTSIDE `.sh-body` (Presentation mode must not hide a warning).
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -289,11 +289,11 @@ describe('the old chrome is gone', () => {
       /<(SyncBanner|CloudRoleBanner|UpdateBanner)|Repo state changed/
     );
   });
-  test('the stack is a child of .maude, before .st-shell — Presentation mode must not hide it', () => {
+  test('the stack is a child of .maude, before .sh-shell — Presentation mode must not hide it', () => {
     const app = read('app.jsx');
     const at = app.indexOf('<ShellCallouts />');
     expect(at).toBeGreaterThan(0);
-    expect(at).toBeLessThan(app.indexOf('<div className="st-shell">'));
+    expect(at).toBeLessThan(app.indexOf('<div className="sh-shell">'));
   });
 });
 

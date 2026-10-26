@@ -30,7 +30,7 @@
     box-shadow:
       var(--shadow-lg),
       inset 0 0 0 0.5px var(--island-edge);
-    animation: st-pop var(--dur-route) var(--ease-out);
+    animation: sh-pop var(--dur-route) var(--ease-out);
   }
   /* Body copy is the body font; mono is for keys, paths, commands and tabular numbers only (CONTRACT §5). The
      sheet's own classes inherit this; the v1 cards inside it set their own mono in the components layer,
@@ -411,7 +411,7 @@
 /* The v1 cards Settings reuses (provider keys, engines, theme radios, model list, readiness) carry
    `font-family: var(--font-mono)` in the components layer, which a shell-layer rule cannot beat. Same
    layer, one class more of specificity; `:where()` keeps the list from adding any. Commands, paths and
-   sizes (`code`, `.rdy-cmd-tx`, `.st-model-size`, `.v2s-val--mono`) stay mono. */
+   sizes (`code`, `.rdy-cmd-tx`, `.v2s-model-size`, `.v2s-val--mono`) stay mono. */
 @layer components {
   /* Reset all settings…: the board's `.btn.ad-btn-warn`. `.btn` sets its ink in this layer (above `shell`), so the rule
      lives here, one class up, and reads the text-grade error token (AA on the sheet in both themes). */
@@ -422,22 +422,22 @@
   .v2s-sheet
     .v2s-main
     :where(
-      .st-provider-name,
-      .st-provider-notes,
-      .st-provider-configured,
-      .st-provider-keylink,
-      .st-settings-intro,
-      .st-engine-radio-label,
-      .st-engine-radio-note,
-      .st-pref-label,
-      .st-pref-note,
-      .st-sidebtn,
-      .st-btn,
-      .st-step-title,
-      .st-model-label,
-      .st-model-action-note,
-      .st-pill,
-      .st-setup-option-label,
+      .v2s-provider-name,
+      .v2s-provider-notes,
+      .v2s-provider-configured,
+      .v2s-provider-keylink,
+      .v2s-settings-intro,
+      .v2s-engine-radio-label,
+      .v2s-engine-radio-note,
+      .v2s-pref-label,
+      .v2s-pref-note,
+      .v2s-sidebtn,
+      .sh-btn,
+      .v2s-step-title,
+      .v2s-model-label,
+      .v2s-model-action-note,
+      .sh-pill,
+      .v2s-setup-option-label,
       .rdy-copy,
       summary
     ) {
@@ -446,12 +446,12 @@
 
   /* S11.18 (a11y): a row that cannot be used dims its label and its switch, not its note — the note says WHY, so it
      keeps the full note colour (the old whole-row opacity left it at 2.5:1). */
-  .v2s-sheet .st-pref-row.is-disabled {
+  .v2s-sheet .v2s-pref-row.is-disabled {
     opacity: 1;
   }
-  .v2s-sheet .st-pref-row.is-disabled .st-pref-label,
-  .v2s-sheet .st-pref-row.is-disabled .st-switch,
-  .v2s-sheet .st-pref-row.is-disabled input {
+  .v2s-sheet .v2s-pref-row.is-disabled .v2s-pref-label,
+  .v2s-sheet .v2s-pref-row.is-disabled .v2s-switch,
+  .v2s-sheet .v2s-pref-row.is-disabled input {
     opacity: 0.6;
   }
 

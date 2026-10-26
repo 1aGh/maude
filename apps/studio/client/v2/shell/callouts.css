@@ -7,7 +7,7 @@
  *
  * z-order keeps the v1 rule: informational callouts sit BELOW a modal's scrim (9000), warnings and
  * errors above it — a fail-closed sync warning (DDR-102) must stay visible over a dialog. The stack is
- * a child of `.maude`, not of `.st-body`, so Presentation mode does not hide it (an untrusted canvas
+ * a child of `.maude`, not of `.sh-body`, so Presentation mode does not hide it (an untrusted canvas
  * must not be able to silence a security-relevant notice by entering it — phase-28 audit F-1).
  * Tone colours the icon and the plate's edge, never the words. No motion beyond the shell's own. */
 

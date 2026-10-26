@@ -1159,7 +1159,7 @@
     font-size: var(--type-xs);
   }
   /* Show tags and ids: the tag and id after a layer's name. */
-  .st-layer-tag {
+  .sh-layer-tag {
     flex: none;
     margin-left: var(--space-1);
     font-family: var(--font-mono);
@@ -1574,7 +1574,7 @@
     text-overflow: ellipsis;
   }
   /* the scrim is --object-ink in both themes, so the name stays light: in dark --bg-2 is dark (1.5:1), --fg-0 is light */
-  .maude[data-theme='dark'] .lp-tile-match {
+  .maude[data-theme="dark"] .lp-tile-match {
     color: var(--fg-0);
   }
   /* 12 · ia-assets-browse: a pick circle on every thumb — an empty ring, or accent with its check (`.ia-tile-pick`) */

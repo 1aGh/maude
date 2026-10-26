@@ -364,11 +364,11 @@ export function CssKnobs({
       // handoff — a proper inspector row: "Width sizing" / "Height sizing" label
       // in the label column, the shared Segmented right-aligned in the control
       // column (aligned with the number inputs below), input-matching height.
-      <div className="st-cp-moderow" key={`mode-${axis}`}>
-        <span className="st-cp-modelabel">
+      <div className="insp-cp-moderow" key={`mode-${axis}`}>
+        <span className="insp-cp-modelabel">
           {axis === 'width' ? 'Width sizing' : 'Height sizing'}
         </span>
-        <div className="st-cp-modeseg" role="group" aria-label={`${axis} sizing mode`}>
+        <div className="insp-cp-modeseg" role="group" aria-label={`${axis} sizing mode`}>
           <Segmented
             value={cur}
             ariaLabel={`${axis} sizing`}
@@ -447,11 +447,11 @@ export function CssKnobs({
 
   if (!editable) {
     return (
-      <div className="st-cp">
-        <div className="st-cp-id">
-          <span className="st-cp-idtag">{el.tag || 'element'}</span>
+      <div className="insp-cp">
+        <div className="insp-cp-id">
+          <span className="insp-cp-idtag">{el.tag || 'element'}</span>
         </div>
-        <div className="st-css-disabled">
+        <div className="insp-css-disabled">
           This can’t be edited here. Ask AI in the chat to change it.
         </div>
       </div>
@@ -460,7 +460,7 @@ export function CssKnobs({
 
   const PROVLABEL = { bound: 'token-bound', raw: 'raw override', inherit: 'inherited' };
   const prov = (p) => (
-    <span className={`st-cp-prov st-cp-prov--${p}`} role="img" aria-label={PROVLABEL[p]} />
+    <span className={`insp-cp-prov insp-cp-prov--${p}`} role="img" aria-label={PROVLABEL[p]} />
   );
 
   // Phase 12.3 (#4) — the LEADING dot carries it all: provenance (shape) + save
@@ -487,7 +487,7 @@ export function CssKnobs({
     return (
       <button
         type="button"
-        className={`st-cp-prov st-cp-prov--${k}${stCls}${canReset ? ' is-resettable' : ''}`}
+        className={`insp-cp-prov insp-cp-prov--${k}${stCls}${canReset ? ' is-resettable' : ''}`}
         aria-label={tip}
         title={tip}
         tabIndex={canReset ? 0 : -1}
@@ -517,12 +517,12 @@ export function CssKnobs({
     const unset = provKind === undefined && !authored[prop];
     const label = labelOverride ?? prop;
     return (
-      <div className={`st-cp-row${unset ? ' is-unset' : ''}`} key={prop}>
+      <div className={`insp-cp-row${unset ? ' is-unset' : ''}`} key={prop}>
         {provDot(prop, provKind)}
-        <label className="st-cp-label" title={label}>
+        <label className="insp-cp-label" title={label}>
           {label}
         </label>
-        <div className="st-cp-ctl">{control}</div>
+        <div className="insp-cp-ctl">{control}</div>
       </div>
     );
   };
@@ -602,16 +602,16 @@ export function CssKnobs({
   const sec = (name, body) => {
     const dirty = (SECTION_PROPS[name] || []).some((p) => authored[p]);
     return (
-      <section className="st-cp-sec" key={name}>
-        <div className="st-cp-sechd-row">
+      <section className="insp-cp-sec" key={name}>
+        <div className="insp-cp-sechd-row">
           <button
             type="button"
-            className="st-cp-sechd"
+            className="insp-cp-sechd"
             data-testid={`inspector-section-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
             aria-expanded={!!open[name]}
             onClick={() => setOpen((o) => ({ ...o, [name]: !o[name] }))}
           >
-            <span className="st-cp-caret" aria-hidden="true">
+            <span className="insp-cp-caret" aria-hidden="true">
               {open[name] ? '▾' : '▸'}
             </span>
             {name}
@@ -619,7 +619,7 @@ export function CssKnobs({
           {/* handoff — reset always present (design), dimmed when nothing to reset. */}
           <button
             type="button"
-            className={`st-cp-secreset${dirty ? '' : ' is-quiet'}`}
+            className={`insp-cp-secreset${dirty ? '' : ' is-quiet'}`}
             aria-label={`reset ${name} section to original`}
             title={`reset ${name}`}
             disabled={!dirty}
@@ -630,16 +630,16 @@ export function CssKnobs({
         </div>
         {/* animated collapse — grid-rows 0fr→1fr keeps the DOM + interpolates
             height (feature-inspector-controls-redesign handoff). */}
-        <div className={`st-cp-sec-anim${open[name] ? ' is-open' : ''}`}>
-          <div className="st-cp-sec-inner">{body}</div>
+        <div className={`insp-cp-sec-anim${open[name] ? ' is-open' : ''}`}>
+          <div className="insp-cp-sec-inner">{body}</div>
         </div>
       </section>
     );
   };
 
   // DDR-171 — Designer mode's cluster wrapper. Mirrors `sec()`'s exact chrome
-  // (caret, reset, animated collapse — reuses `.st-cp-sec`/`.st-cp-sechd`/
-  // `.st-cp-sec-anim` verbatim, no new CSS shape) but takes an explicit
+  // (caret, reset, animated collapse — reuses `.insp-cp-sec`/`.insp-cp-sechd`/
+  // `.insp-cp-sec-anim` verbatim, no new CSS shape) but takes an explicit
   // `props` reset-list instead of looking one up in `SECTION_PROPS`, because
   // Designer clusters cut across Advanced-mode section boundaries and don't
   // map 1:1 onto it (e.g. "Auto layout" pulls from both Layout and Size).
@@ -651,22 +651,22 @@ export function CssKnobs({
     const isOpen = open[key] === undefined ? defaultOpen : open[key];
     const dirty = props.some((p) => authored[p]);
     return (
-      <section className="st-cp-sec" key={key}>
-        <div className="st-cp-sechd-row">
+      <section className="insp-cp-sec" key={key}>
+        <div className="insp-cp-sechd-row">
           <button
             type="button"
-            className="st-cp-sechd"
+            className="insp-cp-sechd"
             aria-expanded={isOpen}
             onClick={() => setOpen((o) => ({ ...o, [key]: !isOpen }))}
           >
-            <span className="st-cp-caret" aria-hidden="true">
+            <span className="insp-cp-caret" aria-hidden="true">
               {isOpen ? '▾' : '▸'}
             </span>
             {name}
           </button>
           <button
             type="button"
-            className={`st-cp-secreset${dirty ? '' : ' is-quiet'}`}
+            className={`insp-cp-secreset${dirty ? '' : ' is-quiet'}`}
             aria-label={`reset ${name} to original`}
             title={`reset ${name}`}
             disabled={!dirty}
@@ -679,8 +679,8 @@ export function CssKnobs({
             <Lu as={LuRotateCw} size={12} />
           </button>
         </div>
-        <div className={`st-cp-sec-anim${isOpen ? ' is-open' : ''}`}>
-          <div className="st-cp-sec-inner">{body}</div>
+        <div className={`insp-cp-sec-anim${isOpen ? ' is-open' : ''}`}>
+          <div className="insp-cp-sec-inner">{body}</div>
         </div>
       </section>
     );
@@ -691,7 +691,7 @@ export function CssKnobs({
   const moreBtn = (key) => (
     <button
       type="button"
-      className="st-cp-clustermore"
+      className="insp-cp-clustermore"
       aria-expanded={!!designerMore[key]}
       aria-label={designerMore[key] ? `${key} — fewer options` : `${key} — more options`}
       title={designerMore[key] ? 'fewer' : 'more'}
@@ -704,7 +704,7 @@ export function CssKnobs({
   // native <select> committing a CSS value directly
   const csel = (prop, list) => (
     <select
-      className="st-cp-nsel"
+      className="insp-cp-nsel"
       aria-label={prop}
       value={list.includes(authored[prop]) ? authored[prop] : ''}
       onChange={(e) => commit(prop, e.target.value)}
@@ -818,10 +818,10 @@ export function CssKnobs({
   // Advanced-mode Appearance row inline JSX so Designer mode's "Stroke"
   // cluster (Task 6) can reuse the exact same control, not a re-implementation.
   const borderControl = () => (
-    <div className="st-cp-border">
+    <div className="insp-cp-border">
       {num('border-width', null, { fixedUnit: 'px' })}
       <select
-        className="st-cp-nsel st-cp-nsel--mini"
+        className="insp-cp-nsel insp-cp-nsel--mini"
         aria-label="border-style"
         value={CSS_BORDER_STYLES.includes(authored['border-style']) ? authored['border-style'] : ''}
         onChange={(e) => commit('border-style', e.target.value)}
@@ -859,7 +859,7 @@ export function CssKnobs({
     };
     return (
       <div
-        className="st-cp-num"
+        className="insp-cp-num"
         style={{ border: 0, background: 'transparent', gap: 'var(--space-1)' }}
       >
         <AngleDial value={deg} onChange={setDeg} />
@@ -871,7 +871,7 @@ export function CssKnobs({
           lead={<Lu as={LuRotateCw} />}
           steppers={false}
           unitSlot={
-            <span className="st-cp-numsuffix" aria-hidden="true">
+            <span className="insp-cp-numsuffix" aria-hidden="true">
               °
             </span>
           }
@@ -901,7 +901,7 @@ export function CssKnobs({
         min={0}
         ariaLabel="filter blur"
         unitSlot={
-          <span className="st-cp-numsuffix" aria-hidden="true">
+          <span className="insp-cp-numsuffix" aria-hidden="true">
             px
           </span>
         }
@@ -1031,7 +1031,7 @@ export function CssKnobs({
   // free text input — raw value or var(--token), commits on blur/Enter
   const text = (prop) => (
     <input
-      className="st-cp-fin"
+      className="insp-cp-fin"
       key={`${prop}:${authored[prop] ?? ''}`}
       aria-label={prop}
       defaultValue={authored[prop] ?? ''}
@@ -1111,7 +1111,7 @@ export function CssKnobs({
         swatch={
           <TokenPopover
             kind="color"
-            swatchClassName="st-cp-cf-sw"
+            swatchClassName="insp-cp-cf-sw"
             groups={tokenGroups('color')}
             current={authored[prop]}
             activeDs={_activeDs}
@@ -1157,10 +1157,10 @@ export function CssKnobs({
       onInput: (n, activeSides) => {
         if (node) node.value = String(n);
         if (activeSides) {
-          const box = node?.closest('.st-cp-box');
+          const box = node?.closest('.insp-cp-box');
           for (const p of activeSides) {
             if (p === prop) continue;
-            const sib = box?.querySelector(`.st-cp-boxv[aria-label="${p}"]`);
+            const sib = box?.querySelector(`.insp-cp-boxv[aria-label="${p}"]`);
             if (sib) sib.value = String(n);
           }
         }
@@ -1193,7 +1193,7 @@ export function CssKnobs({
     const all = [`${group}-top`, `${group}-right`, `${group}-bottom`, `${group}-left`];
     return (
       <input
-        className={`st-cp-boxv st-cp-scrub st-cp-boxv--${group[0]}${prop.split('-').pop()[0]}${
+        className={`insp-cp-boxv insp-cp-scrub insp-cp-boxv--${group[0]}${prop.split('-').pop()[0]}${
           isZero ? ' is-zero' : ''
         }`}
         key={`${prop}:${a ?? ''}`}
@@ -1231,7 +1231,7 @@ export function CssKnobs({
     const all = ['top', 'right', 'bottom', 'left'];
     return (
       <input
-        className={`st-cp-boxv st-cp-scrub st-cp-boxv--i${prop[0]}${isZero ? ' is-zero' : ''}`}
+        className={`insp-cp-boxv insp-cp-scrub insp-cp-boxv--i${prop[0]}${isZero ? ' is-zero' : ''}`}
         key={`${prop}:${a ?? ''}`}
         aria-label={prop}
         defaultValue={shown}
@@ -1284,8 +1284,12 @@ export function CssKnobs({
   const mediaBody = (canReplace) => (
     <>
       {canReplace && (
-        <div className="st-cp-mediabtn">
-          <button type="button" className="st-btn st-cp-replace" onClick={() => onReplaceMedia(el)}>
+        <div className="insp-cp-mediabtn">
+          <button
+            type="button"
+            className="sh-btn insp-cp-replace"
+            onClick={() => onReplaceMedia(el)}
+          >
             Replace…
           </button>
         </div>
@@ -1295,7 +1299,7 @@ export function CssKnobs({
       {row(
         'aspect-ratio',
         <select
-          className="st-cp-nsel"
+          className="insp-cp-nsel"
           aria-label="aspect-ratio"
           value={
             CSS_ASPECT_RATIO.includes(authored['aspect-ratio']) ? authored['aspect-ratio'] : ''
@@ -1325,15 +1329,15 @@ export function CssKnobs({
 
   return (
     <div
-      className={`st-cp${mode === 'designer' ? ' st-cp--designer' : ''}`}
+      className={`insp-cp${mode === 'designer' ? ' insp-cp--designer' : ''}`}
       key={el.id}
       data-tour="css-panel"
       onKeyDown={onKnobKeyDown}
     >
-      <div className="st-cp-id">
-        <span className="st-cp-idtag">
+      <div className="insp-cp-id">
+        <span className="insp-cp-idtag">
           {el.tag || 'element'}
-          {el.classes ? <span className="st-cp-idcls">.{el.classes.split(/\s+/)[0]}</span> : null}
+          {el.classes ? <span className="insp-cp-idcls">.{el.classes.split(/\s+/)[0]}</span> : null}
         </span>
         {/* DDR-171 — vocabulary mode toggle, tucked into the id row's corner
             slot (was a full-width Segmented row — read as too heavy; a
@@ -1346,7 +1350,7 @@ export function CssKnobs({
         {/* S2.2 (rule 13) — the Inspector frame mounts this panel in Advanced with no `onSetMode`: Designer is the
             only default there, so the switch is not drawn. Settings › Look keeps the setting for a mount that passes one. */}
         {setMode ? (
-          <span className="st-cp-idmode" data-tour="cp-mode">
+          <span className="insp-cp-idmode" data-tour="cp-mode">
             <IconButtonGroup
               value={mode}
               ariaLabel="panel vocabulary mode"
@@ -1406,12 +1410,12 @@ export function CssKnobs({
                     'Alignment'
                   )}
                   {row('gap', vtok('gap', 'space'), undefined, 'Gap')}
-                  <div className="st-cp-modes">
+                  <div className="insp-cp-modes">
                     {sizeModeSeg('width')}
                     {sizeModeSeg('height')}
                   </div>
-                  <div className="st-cp-box" aria-label="padding">
-                    <span className="st-cp-boxtag st-cp-boxtag--p">
+                  <div className="insp-cp-box" aria-label="padding">
+                    <span className="insp-cp-boxtag insp-cp-boxtag--p">
                       {prov(provOf('padding-top'))}padding
                     </span>
                     {side('padding-top', 'padding')}
@@ -1419,7 +1423,7 @@ export function CssKnobs({
                     {side('padding-bottom', 'padding')}
                     {side('padding-left', 'padding')}
                   </div>
-                  <div className="st-cp-clustermore-row">{moreBtn('Auto layout')}</div>
+                  <div className="insp-cp-clustermore-row">{moreBtn('Auto layout')}</div>
                   {designerMore['Auto layout']
                     ? row(
                         'flex-wrap',
@@ -1439,7 +1443,7 @@ export function CssKnobs({
               ) : (
                 <button
                   type="button"
-                  className="st-cp-makeflex"
+                  className="insp-cp-makeflex"
                   disabled={!editable}
                   onClick={() => commit('display', 'flex')}
                 >
@@ -1455,7 +1459,7 @@ export function CssKnobs({
             <>
               {row('width', num('width'), undefined, 'Width')}
               {row('height', num('height'), undefined, 'Height')}
-              <div className="st-cp-clustermore-row">{moreBtn('Size')}</div>
+              <div className="insp-cp-clustermore-row">{moreBtn('Size')}</div>
               {designerMore.Size ? (
                 <>
                   {row('min-width', num('min-width'), undefined, 'Min width')}
@@ -1473,25 +1477,25 @@ export function CssKnobs({
             <>
               {row('position', csel('position', CSS_POSITION), undefined, 'Position')}
               <div
-                className="st-cp-box st-cp-box--inset"
+                className="insp-cp-box insp-cp-box--inset"
                 aria-label="position inset (top / right / bottom / left)"
               >
-                <span className="st-cp-boxtag st-cp-boxtag--i">{prov(provOf('top'))}inset</span>
+                <span className="insp-cp-boxtag insp-cp-boxtag--i">{prov(provOf('top'))}inset</span>
                 {inset('top')}
                 {inset('right')}
                 {inset('bottom')}
                 {inset('left')}
-                <div className="st-cp-boxcore st-cp-boxcore--pos">
+                <div className="insp-cp-boxcore insp-cp-boxcore--pos">
                   {authored.position || cssHint(computed.position) || 'static'}
                 </div>
               </div>
               {(authored.position || cssHint(computed.position) || 'static') === 'static' ? (
-                <div className="st-cp-note">
+                <div className="insp-cp-note">
                   top / right / bottom / left apply once position is relative, absolute, fixed, or
                   sticky
                 </div>
               ) : null}
-              <div className="st-cp-clustermore-row">{moreBtn('Position')}</div>
+              <div className="insp-cp-clustermore-row">{moreBtn('Position')}</div>
               {designerMore.Position
                 ? row('z-index', num('z-index'), undefined, 'Layer order')
                 : null}
@@ -1561,7 +1565,7 @@ export function CssKnobs({
               {row('font-weight', csel('font-weight', CSS_WEIGHTS), undefined, 'Weight')}
               {row('line-height', num('line-height', 'lh'), undefined, 'Line height')}
               {row('text-align', iconseg('text-align', TEXTALIGN_OPTS), undefined, 'Align')}
-              <div className="st-cp-clustermore-row">{moreBtn('Text')}</div>
+              <div className="insp-cp-clustermore-row">{moreBtn('Text')}</div>
               {designerMore.Text ? (
                 <>
                   {row(
@@ -1591,8 +1595,8 @@ export function CssKnobs({
           {dsec(
             'Spacing',
             ['margin-top', 'margin-right', 'margin-bottom', 'margin-left'],
-            <div className="st-cp-box" aria-label="margin">
-              <span className="st-cp-boxtag st-cp-boxtag--m">
+            <div className="insp-cp-box" aria-label="margin">
+              <span className="insp-cp-boxtag insp-cp-boxtag--m">
                 {prov(provOf('margin-top'))}margin
               </span>
               {side('margin-top', 'margin')}
@@ -1656,7 +1660,7 @@ export function CssKnobs({
                   ) : (
                     <button
                       type="button"
-                      className="st-cp-makeflex"
+                      className="insp-cp-makeflex"
                       disabled={!editable}
                       onClick={() => commit('display', 'flex')}
                     >
@@ -1694,7 +1698,7 @@ export function CssKnobs({
                     onChange={(next) => commit('grid-template-columns', serializeTrackList(next))}
                   />
                 ) : (
-                  <div className="st-cp-note">
+                  <div className="insp-cp-note">
                     Columns use <code>{colsRaw}</code> — not editable as tracks here (repeat()/
                     minmax()/subgrid); use /design:edit for these.
                   </div>
@@ -1707,7 +1711,7 @@ export function CssKnobs({
                     onChange={(next) => commit('grid-template-rows', serializeTrackList(next))}
                   />
                 ) : (
-                  <div className="st-cp-note">
+                  <div className="insp-cp-note">
                     Rows use <code>{rowsRaw}</code> — not editable as tracks here
                     (repeat()/minmax()/ subgrid); use /design:edit for these.
                   </div>
@@ -1721,20 +1725,20 @@ export function CssKnobs({
             <>
               {row('position', csel('position', CSS_POSITION))}
               <div
-                className="st-cp-box st-cp-box--inset"
+                className="insp-cp-box insp-cp-box--inset"
                 aria-label="position inset (top / right / bottom / left)"
               >
-                <span className="st-cp-boxtag st-cp-boxtag--i">{prov(provOf('top'))}inset</span>
+                <span className="insp-cp-boxtag insp-cp-boxtag--i">{prov(provOf('top'))}inset</span>
                 {inset('top')}
                 {inset('right')}
                 {inset('bottom')}
                 {inset('left')}
-                <div className="st-cp-boxcore st-cp-boxcore--pos">
+                <div className="insp-cp-boxcore insp-cp-boxcore--pos">
                   {authored.position || cssHint(computed.position) || 'static'}
                 </div>
               </div>
               {(authored.position || cssHint(computed.position) || 'static') === 'static' ? (
-                <div className="st-cp-note">
+                <div className="insp-cp-note">
                   top / right / bottom / left apply once position is relative, absolute, fixed, or
                   sticky
                 </div>
@@ -1747,7 +1751,7 @@ export function CssKnobs({
             sec(
               'Grid item',
               <>
-                <div className="st-cp-note">
+                <div className="insp-cp-note">
                   Manual cell placement — <code>start / end</code> or <code>start / span N</code>.
                 </div>
                 {row('grid-column', text('grid-column'))}
@@ -1777,23 +1781,23 @@ export function CssKnobs({
           {sec(
             'Spacing',
             <>
-              <div className="st-cp-box" aria-label="margin and padding">
-                <span className="st-cp-boxtag st-cp-boxtag--m">
+              <div className="insp-cp-box" aria-label="margin and padding">
+                <span className="insp-cp-boxtag insp-cp-boxtag--m">
                   {prov(provOf('margin-top'))}margin
                 </span>
                 {side('margin-top', 'margin')}
                 {side('margin-right', 'margin')}
                 {side('margin-bottom', 'margin')}
                 {side('margin-left', 'margin')}
-                <div className="st-cp-boxpad">
-                  <span className="st-cp-boxtag st-cp-boxtag--p">
+                <div className="insp-cp-boxpad">
+                  <span className="insp-cp-boxtag insp-cp-boxtag--p">
                     {prov(provOf('padding-top'))}padding
                   </span>
                   {side('padding-top', 'padding')}
                   {side('padding-right', 'padding')}
                   {side('padding-bottom', 'padding')}
                   {side('padding-left', 'padding')}
-                  <div className="st-cp-boxcore">
+                  <div className="insp-cp-boxcore">
                     {/* handoff — prefer the AUTHORED size (updates live as you edit
                     width/height); el.bounds is stale until the canvas re-measures. */}
                     {Math.round(Number.parseFloat(authored.width) || el.bounds?.w || 0)} ×{' '}
@@ -1809,7 +1813,7 @@ export function CssKnobs({
             <>
               {/* Stage M1 — per-axis Fixed / Hug / Fill sizing mode (Figma parity). The
               Fixed case leaves the numeric width/height knobs below in control. */}
-              <div className="st-cp-modes">
+              <div className="insp-cp-modes">
                 {sizeModeSeg('width')}
                 {sizeModeSeg('height')}
               </div>
@@ -1825,7 +1829,7 @@ export function CssKnobs({
               basis are the main-axis behavior the Fill mode writes for you. */}
               {parentIsFlexChild ? (
                 <>
-                  <div className="st-cp-subhd">In flex parent</div>
+                  <div className="insp-cp-subhd">In flex parent</div>
                   {row('align-self', csel('align-self', CSS_ALIGN_SELF))}
                   {row('flex-grow', num('flex-grow', null, { unitless: true }))}
                   {row('flex-shrink', num('flex-shrink', null, { unitless: true }))}
@@ -1870,7 +1874,7 @@ export function CssKnobs({
               ([, s]) => typeof s === 'string' && s.startsWith('err:')
             );
             return err ? (
-              <div className="st-cp-save is-err" role="status">
+              <div className="insp-cp-save is-err" role="status">
                 <StIcon name="x" size={12} />
                 {err[0]}: {err[1].slice(4)}
               </div>
@@ -1879,20 +1883,20 @@ export function CssKnobs({
 
           {sec(
             'Advanced',
-            <div className="st-cp-advbody">
+            <div className="insp-cp-advbody">
               {customStyleRows.length ? (
                 <>
-                  <div className="st-cp-advgrp">Custom CSS properties</div>
+                  <div className="insp-cp-advgrp">Custom CSS properties</div>
                   {customStyleRows.map(([p, v]) => (
-                    <div className="st-cp-kv" key={`cs:${p}`}>
+                    <div className="insp-cp-kv" key={`cs:${p}`}>
                       <input
-                        className="st-cp-fin st-cp-fin--ro"
+                        className="insp-cp-fin insp-cp-fin--ro"
                         readOnly
                         value={p}
                         aria-label={`custom property ${p} name`}
                       />
                       <input
-                        className="st-cp-fin"
+                        className="insp-cp-fin"
                         key={`cs:${p}:${v}`}
                         defaultValue={v}
                         aria-label={`${p} value`}
@@ -1903,7 +1907,7 @@ export function CssKnobs({
                       />
                       <button
                         type="button"
-                        className="st-cp-kvx"
+                        className="insp-cp-kvx"
                         aria-label={`remove ${p}`}
                         title="remove"
                         onClick={() => resetCustom(p)}
@@ -1914,22 +1918,22 @@ export function CssKnobs({
                   ))}
                 </>
               ) : null}
-              <div className="st-cp-advgrp">Add CSS property</div>
+              <div className="insp-cp-advgrp">Add CSS property</div>
               <RawKnob commit={commitCustom} />
-              <div className="st-cp-note">applied as-is — not token-bound</div>
+              <div className="insp-cp-note">applied as-is — not token-bound</div>
               {attrRows.length ? (
                 <>
-                  <div className="st-cp-advgrp">Custom HTML attributes</div>
+                  <div className="insp-cp-advgrp">Custom HTML attributes</div>
                   {attrRows.map(([a, v]) => (
-                    <div className="st-cp-kv" key={`at:${a}`}>
+                    <div className="insp-cp-kv" key={`at:${a}`}>
                       <input
-                        className="st-cp-fin st-cp-fin--ro"
+                        className="insp-cp-fin insp-cp-fin--ro"
                         readOnly
                         value={a}
                         aria-label={`attribute ${a} name`}
                       />
                       <input
-                        className="st-cp-fin"
+                        className="insp-cp-fin"
                         key={`at:${a}:${v}`}
                         defaultValue={v}
                         aria-label={`${a} value`}
@@ -1940,7 +1944,7 @@ export function CssKnobs({
                       />
                       <button
                         type="button"
-                        className="st-cp-kvx"
+                        className="insp-cp-kvx"
                         aria-label={`remove ${a}`}
                         title="remove"
                         onClick={() => resetAttr(a)}
@@ -1951,24 +1955,24 @@ export function CssKnobs({
                   ))}
                 </>
               ) : null}
-              <div className="st-cp-advgrp">Add HTML attribute</div>
+              <div className="insp-cp-advgrp">Add HTML attribute</div>
               <AttrKnob commit={commitAttr} />
             </div>
           )}
         </>
       )}
 
-      <div className="st-cp-legend">
+      <div className="insp-cp-legend">
         <span>
-          <i className="st-cp-prov st-cp-prov--bound" aria-hidden="true" />
+          <i className="insp-cp-prov insp-cp-prov--bound" aria-hidden="true" />
           token
         </span>
         <span>
-          <i className="st-cp-prov st-cp-prov--raw" aria-hidden="true" />
+          <i className="insp-cp-prov insp-cp-prov--raw" aria-hidden="true" />
           override
         </span>
         <span>
-          <i className="st-cp-prov st-cp-prov--inherit" aria-hidden="true" />
+          <i className="insp-cp-prov insp-cp-prov--inherit" aria-hidden="true" />
           inherited
         </span>
       </div>
@@ -1988,16 +1992,16 @@ export function RawKnob({ commit }) {
     }
   };
   return (
-    <div className="st-cp-kv" data-testid="inspector-custom-css">
+    <div className="insp-cp-kv" data-testid="inspector-custom-css">
       <input
-        className="st-cp-fin"
+        className="insp-cp-fin"
         aria-label="custom property name"
         placeholder="property"
         value={prop}
         onChange={(e) => setProp(e.target.value)}
       />
       <input
-        className="st-cp-fin"
+        className="insp-cp-fin"
         aria-label="custom property value"
         placeholder="value"
         value={val}
@@ -2023,16 +2027,16 @@ export function AttrKnob({ commit }) {
     }
   };
   return (
-    <div className="st-cp-kv" data-testid="inspector-html-attrs">
+    <div className="insp-cp-kv" data-testid="inspector-html-attrs">
       <input
-        className="st-cp-fin"
+        className="insp-cp-fin"
         aria-label="custom attribute name"
         placeholder="data-…"
         value={attr}
         onChange={(e) => setAttr(e.target.value)}
       />
       <input
-        className="st-cp-fin"
+        className="insp-cp-fin"
         aria-label="custom attribute value"
         placeholder="value"
         value={val}

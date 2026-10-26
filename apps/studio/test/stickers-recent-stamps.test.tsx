@@ -167,12 +167,12 @@ describe('after one stamp the gallery folds to the Stamps row', () => {
   test('the first stamp is handed to the canvas and the gallery becomes one row; no scrim', async () => {
     const { host, stamped } = await mount({});
     expect(q(host, 'stickers-stamp-yes')).not.toBeNull();
-    expect(host.querySelector('.st-scrim')).not.toBeNull();
+    expect(host.querySelector('.sh-scrim')).not.toBeNull();
     await act(async () => q(host, 'stickers-stamp-yes')?.click());
     expect(stamped).toEqual(['yes']);
     const row = q(host, 'tool-panel-stickers') as HTMLElement;
     expect(row.dataset.folded).toBe('stamps');
-    expect(host.querySelector('.st-scrim')).toBeNull(); // the clicks that stamp must reach the canvas
+    expect(host.querySelector('.sh-scrim')).toBeNull(); // the clicks that stamp must reach the canvas
     expect(q(host, 'stickers-search')).toBeNull();
     expect(
       row.querySelectorAll('[data-testid^="stamps-row-"][aria-label]').length

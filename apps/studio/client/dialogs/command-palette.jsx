@@ -48,7 +48,7 @@ function Marked({ text, marks }) {
     if (a < at) continue;
     if (a > at) out.push(text.slice(at, a));
     out.push(
-      <mark className="st-pal-mark" key={a}>
+      <mark className="sh-pal-mark" key={a}>
         {text.slice(a, b)}
       </mark>
     );
@@ -193,7 +193,7 @@ export function CommandPalette({ open, onClose, actions }) {
 
   // Keep the keyboard-active row visible while arrowing through a scrolled list.
   useEffect(() => {
-    listRef.current?.querySelector('.st-pal-item.is-active')?.scrollIntoView({ block: 'nearest' });
+    listRef.current?.querySelector('.sh-pal-item.is-active')?.scrollIntoView({ block: 'nearest' });
   }, [active, items.length]);
   useEffect(() => {
     if (active >= items.length) setActive(0);
@@ -218,42 +218,42 @@ export function CommandPalette({ open, onClose, actions }) {
         aria-disabled={item.disabled ? true : undefined}
         tabIndex={-1}
         data-testid={`palette-row-${item.id}`}
-        className={`st-pal-item${i === active ? ' is-active' : ''}${item.disabled ? ' is-dim' : ''}${item.quiet ? ' is-quiet' : ''}`}
+        className={`sh-pal-item${i === active ? ' is-active' : ''}${item.disabled ? ' is-dim' : ''}${item.quiet ? ' is-quiet' : ''}`}
         onMouseEnter={() => setActive(i)}
         onClick={() => go(item)}
       >
         {item.thumb ? (
-          <img className="st-pal-thumb" src={item.thumb} alt="" />
+          <img className="sh-pal-thumb" src={item.thumb} alt="" />
         ) : (
           <span
-            className={`st-pal-icon${group === 'ask-ai' ? ' st-pal-icon--spark' : ''}${item.group === 'canvases' ? ' st-pal-icon--pic' : ''}`}
+            className={`sh-pal-icon${group === 'ask-ai' ? ' sh-pal-icon--spark' : ''}${item.group === 'canvases' ? ' sh-pal-icon--pic' : ''}`}
           >
             <StIcon name={iconFor(item, group)} size={15} />
           </span>
         )}
-        <span className="st-pal-label">
-          <span className="st-pal-ltxt">
+        <span className="sh-pal-label">
+          <span className="sh-pal-ltxt">
             <Marked text={item.name} marks={item.marks} />
           </span>
           {item.meta ? (
-            <span className="st-pal-meta">
+            <span className="sh-pal-meta">
               <Marked text={item.meta} marks={item.metaMarks} />
             </span>
           ) : null}
         </span>
         {item.project ? (
           // another project's row in "Did you mean" (S15-A2): which project ↵ goes to, and where it is
-          <span className="st-pal-where st-pal-proj" data-testid="palette-project-label">
-            <span className={`st-pal-sq st-pal-sq--${item.project.square.tone}`} aria-hidden="true">
+          <span className="sh-pal-where sh-pal-proj" data-testid="palette-project-label">
+            <span className={`sh-pal-sq sh-pal-sq--${item.project.square.tone}`} aria-hidden="true">
               {item.project.square.initial}
             </span>
             {item.project.name} · {item.project.aside}
           </span>
         ) : item.where ? (
-          <span className="st-pal-where">{item.where}</span>
+          <span className="sh-pal-where">{item.where}</span>
         ) : null}
         {item.keys ? (
-          <span className="st-pal-kbd">
+          <span className="sh-pal-kbd">
             <Kbd>{item.keys}</Kbd>
           </span>
         ) : null}
@@ -276,7 +276,7 @@ export function CommandPalette({ open, onClose, actions }) {
       return run.heading ? (
         // biome-ignore lint/a11y/useSemanticElements: an ARIA listbox may only own option or group children; a <fieldset> is a form grouping and would break the listbox tree
         <div key={hd} role="group" aria-labelledby={hd}>
-          <div className="st-pal-group" id={hd} role="presentation">
+          <div className="sh-pal-group" id={hd} role="presentation">
             {run.heading}
           </div>
           {run.rows.map((item) => rowButton(item, 'short'))}
@@ -289,12 +289,12 @@ export function CommandPalette({ open, onClose, actions }) {
     body = view.dayOne ? (
       <>
         <div role="presentation">
-          <div className="st-pal-group" role="presentation">
+          <div className="sh-pal-group" role="presentation">
             Recent
           </div>
-          <p className="st-pal-recent-none" data-testid="palette-recent-empty">
-            <span className="st-pal-sit">{RECENT_EMPTY.headline}</span>
-            <span className="st-pal-next">{RECENT_EMPTY.next}</span>
+          <p className="sh-pal-recent-none" data-testid="palette-recent-empty">
+            <span className="sh-pal-sit">{RECENT_EMPTY.headline}</span>
+            <span className="sh-pal-next">{RECENT_EMPTY.next}</span>
           </p>
         </div>
         {shortRuns}
@@ -306,15 +306,15 @@ export function CommandPalette({ open, onClose, actions }) {
     const copy = emptyCopy(q, canAskAI);
     body = (
       <div
-        className="st-pal-none st-pal-none--spot"
+        className="sh-pal-none sh-pal-none--spot"
         data-testid="palette-empty"
         data-copy="es-search-k.search-none"
         role={items.length > 0 ? 'presentation' : 'status'}
       >
         <Spot name="none" w={150} />
-        <span className="st-pal-txt">
-          <strong className="st-pal-sit">{copy.headline}</strong>
-          <span className="st-pal-next">{copy.next}</span>
+        <span className="sh-pal-txt">
+          <strong className="sh-pal-sit">{copy.headline}</strong>
+          <span className="sh-pal-next">{copy.next}</span>
         </span>
       </div>
     );
@@ -322,7 +322,7 @@ export function CommandPalette({ open, onClose, actions }) {
     // The close-matches note is a status line, not an option: it sits above the listbox.
     note =
       view.closeOnly && !view.didYouMean ? (
-        <div className="st-pal-note" data-testid="palette-close-note" role="status">
+        <div className="sh-pal-note" data-testid="palette-close-note" role="status">
           <StIcon name="search" size={12} />
           <span>
             Nothing called “{(view.closeTyped ?? q).trim()}”.
@@ -345,10 +345,10 @@ export function CommandPalette({ open, onClose, actions }) {
         role="group"
         aria-labelledby={`${baseId}-g-${g.id}`}
       >
-        <div className="st-pal-group" id={`${baseId}-g-${g.id}`} role="presentation">
+        <div className="sh-pal-group" id={`${baseId}-g-${g.id}`} role="presentation">
           {g.square ? (
             <span
-              className={`st-pal-sq st-pal-sq--${g.square.tone}`}
+              className={`sh-pal-sq sh-pal-sq--${g.square.tone}`}
               data-testid="palette-project-square"
               aria-hidden="true"
             >
@@ -356,7 +356,7 @@ export function CommandPalette({ open, onClose, actions }) {
             </span>
           ) : null}
           {g.title}
-          {g.aside ? <span className="st-pal-aside">{g.aside}</span> : null}
+          {g.aside ? <span className="sh-pal-aside">{g.aside}</span> : null}
         </div>
         {g.rows.map((row) =>
           rowButton(row, g.id === 'did-you-mean' || g.square ? row.group : g.id)
@@ -366,15 +366,15 @@ export function CommandPalette({ open, onClose, actions }) {
     body = copy ? (
       <>
         <div
-          className="st-pal-none st-pal-none--spot"
+          className="sh-pal-none sh-pal-none--spot"
           data-testid="palette-did-you-mean-note"
           data-copy="es-search-k.search-none"
           role="presentation"
         >
           <Spot name="none" w={150} />
-          <span className="st-pal-txt">
-            <strong className="st-pal-sit">{copy.headline}</strong>
-            <span className="st-pal-next">{copy.next}</span>
+          <span className="sh-pal-txt">
+            <strong className="sh-pal-sit">{copy.headline}</strong>
+            <span className="sh-pal-next">{copy.next}</span>
           </span>
         </div>
         {groupsBody}
@@ -386,28 +386,28 @@ export function CommandPalette({ open, onClose, actions }) {
 
   // Ask AI is the LAST row (after the body, so its arrow-key index is the last one too).
   const askRow = view.ask ? (
-    <div className="st-pal-ask" data-testid="palette-ask-ai" role="presentation">
+    <div className="sh-pal-ask" data-testid="palette-ask-ai" role="presentation">
       {rowButton(view.ask, 'ask-ai')}
     </div>
   ) : null;
 
   return (
     <div
-      className="st-scrim"
+      className="sh-scrim"
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="st-palette st-palette--search"
+        className="sh-palette sh-palette--search"
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
         ref={dialogRef}
         tabIndex={-1}
       >
-        <div className="st-pal-search">
+        <div className="sh-pal-search">
           <StIcon name="search" size={18} />
           <input
             ref={inputRef}
@@ -452,7 +452,7 @@ export function CommandPalette({ open, onClose, actions }) {
         </div>
         {note}
         <div
-          className="st-pal-list"
+          className="sh-pal-list"
           ref={listRef}
           id={listId}
           data-testid="palette-list"
@@ -461,8 +461,8 @@ export function CommandPalette({ open, onClose, actions }) {
           {body}
           {askRow}
         </div>
-        <div className="st-pal-foot">
-          <span className="st-pal-hints">
+        <div className="sh-pal-foot">
+          <span className="sh-pal-hints">
             <span>
               <Kbd>↑</Kbd>
               <Kbd>↓</Kbd> move

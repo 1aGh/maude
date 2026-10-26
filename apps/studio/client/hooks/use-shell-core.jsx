@@ -355,7 +355,7 @@ export function useShellCore({}) {
   const bodyRef = useRef(null);
 
   // Pointer drag for the panel grips — window listeners while dragging (the
-  // grip also pointer-captures, and `.st-body.is-resizing iframe` drops pointer
+  // grip also pointer-captures, and `.sh-body.is-resizing iframe` drops pointer
   // events so the canvas iframe can't swallow the move stream mid-drag).
   useEffect(() => {
     if (!dragSide) return;
@@ -1079,7 +1079,7 @@ export function useShellCore({}) {
         openPanelExclusive('tree');
         setTimeout(() => {
           try {
-            document.querySelector('.st-sidebar [data-testid^="canvas-row-"]')?.click();
+            document.querySelector('.sh-sidebar [data-testid^="canvas-row-"]')?.click();
           } catch {}
         }, 80);
       }

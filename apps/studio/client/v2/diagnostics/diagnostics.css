@@ -469,7 +469,7 @@
   }
 
   /* ── Sync: today's panel, whole, inside the sheet ── */
-  .dg-sync .st-rpanel {
+  .dg-sync .sh-rpanel {
     border-left: 0;
     animation: none;
     background: transparent;

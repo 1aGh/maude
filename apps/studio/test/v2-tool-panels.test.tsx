@@ -263,7 +263,7 @@ describe('the Stickers gallery hosted as a shell panel', () => {
     expect(dlg.style.left).toBe('280px');
     expect(dlg.style.bottom).toBe('140px');
     expect(dlg.style.top).toBe('');
-    expect(host.querySelector('.st-scrim--anchored')).not.toBeNull();
+    expect(host.querySelector('.sh-scrim--anchored')).not.toBeNull();
     await act(async () => root.unmount());
     host.remove();
   });
@@ -273,7 +273,7 @@ describe('the Stickers gallery hosted as a shell panel', () => {
     const dlg = host.querySelector('[data-testid="tool-panel-stickers"]') as HTMLElement;
     expect(dlg.getAttribute('data-placement')).toBeNull();
     expect(dlg.getAttribute('style')).toBeNull();
-    expect(host.querySelector('.st-scrim--anchored')).toBeNull();
+    expect(host.querySelector('.sh-scrim--anchored')).toBeNull();
     await act(async () => root.unmount());
     host.remove();
   });

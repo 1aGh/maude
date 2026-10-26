@@ -184,7 +184,7 @@ export function LayerRow({
     <>
       <div
         className={
-          'st-layer st-layer--row' +
+          'sh-layer sh-layer--row' +
           (isSel ? ' is-sel' : '') +
           (isHidden ? ' is-hidden' : '') +
           (isSynthetic ? ' is-group' : '') +
@@ -233,7 +233,7 @@ export function LayerRow({
         {hasKids ? (
           <button
             type="button"
-            className="st-layer-caret"
+            className="sh-layer-caret"
             tabIndex={-1}
             aria-label={isCollapsed ? 'Expand' : 'Collapse'}
             onClick={(e) => {
@@ -244,20 +244,20 @@ export function LayerRow({
             <StIcon name={isCollapsed ? 'submenu' : 'chevron'} size={12} />
           </button>
         ) : (
-          <span className="st-layer-caret" aria-hidden="true" />
+          <span className="sh-layer-caret" aria-hidden="true" />
         )}
         {inst ? (
           // feature-4 T7a — Figma vocabulary: ◆ the component's own frame root,
           // ◇ an inner member of an instance. Purple via .is-instance CSS.
-          <span className="st-layer-inst-glyph" aria-hidden="true">
+          <span className="sh-layer-inst-glyph" aria-hidden="true">
             {inst.root ? '◆' : '◇'}
           </span>
         ) : (
-          <StIcon name={LAYER_TYPE_ICON[node.type] || 'box'} size={12} className="st-layer-ticon" />
+          <StIcon name={LAYER_TYPE_ICON[node.type] || 'box'} size={12} className="sh-layer-ticon" />
         )}
         {renaming ? (
           <input
-            className="st-layer-rename"
+            className="sh-layer-rename"
             value={renameDraft}
             autoFocus
             aria-label={`Rename ${node.label}`}
@@ -274,7 +274,7 @@ export function LayerRow({
           />
         ) : (
           <span
-            className="st-layer-label"
+            className="sh-layer-label"
             onDoubleClick={
               onRename && !isSynthetic
                 ? (e) => {
@@ -291,14 +291,14 @@ export function LayerRow({
           </span>
         )}
         {showTags && tagLabel(node) ? (
-          <span className="st-layer-tag" data-testid="layer-tag">
+          <span className="sh-layer-tag" data-testid="layer-tag">
             {tagLabel(node)}
           </span>
         ) : null}
         {/* gate-b-polish3 — the type word is developer chrome: a component instance names its component, and
             Layers › Advanced › Show tags and ids brings the type back (the row's tooltip always says it) */}
         {inst || showTags ? (
-          <span className="st-layer-type">{inst ? inst.component : node.type}</span>
+          <span className="sh-layer-type">{inst ? inst.component : node.type}</span>
         ) : null}
         {!isSynthetic ? (
           <LayerRowTools

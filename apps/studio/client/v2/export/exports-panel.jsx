@@ -84,12 +84,12 @@ export function ExportsPanel({
     <div
       className="island island--pad ex-panel"
       role="dialog"
-      aria-labelledby="st-export-panel-title"
+      aria-labelledby="ex-export-panel-title"
       data-testid="exports-panel"
     >
       <div className="ex-panel-hd">
         <StIcon name="export" size={14} />
-        <span id="st-export-panel-title">{PANEL_TITLE}</span>
+        <span id="ex-export-panel-title">{PANEL_TITLE}</span>
         {native && newest ? (
           <button
             type="button"

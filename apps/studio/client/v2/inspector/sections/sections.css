@@ -1,6 +1,6 @@
 /* client/v2/inspector/sections/sections.css — S2.3: Position · Size · Layout bodies (14 Editing, ed-inspector).
  * `insp-` namespaced, tokens only — no hex, weights stop at --w-semibold. The v1 controls (number field, segmented
- * control, select, switch, align pad) keep their own `st-cp-*` styling; this file lays them out and draws what is new:
+ * control, select, switch, align pad) keep their own `insp-cp-*` styling; this file lays them out and draws what is new:
  * rows, the token chip and its menu, Bind, the constraints picture. */
 
 @layer shell {
@@ -37,9 +37,9 @@
     min-width: 0;
   }
   /* the kit's control widths (`.k-in-select` 140, `.k-num` 68, `.k-num--one` 140) */
-  .insp-row-v > .st-cp-nsel,
-  .insp-row-v > [data-testid] > .st-cp-nsel,
-  .insp-row-ctl .st-cp-nsel {
+  .insp-row-v > .insp-cp-nsel,
+  .insp-row-v > [data-testid] > .insp-cp-nsel,
+  .insp-row-ctl .insp-cp-nsel {
     width: 140px;
     max-width: 100%;
   }
@@ -644,16 +644,16 @@
     min-width: 140px;
     max-width: 180px;
   }
-  [data-testid="insp-music-volume"] .st-cp-track {
+  [data-testid="insp-music-volume"] .insp-cp-track {
     height: 4px;
     border: 0;
     border-radius: var(--radius-pill);
     background: var(--bg-4);
   }
-  [data-testid="insp-music-volume"] .st-cp-fill {
+  [data-testid="insp-music-volume"] .insp-cp-fill {
     border-radius: inherit;
   }
-  [data-testid="insp-music-volume"] .st-cp-thumb {
+  [data-testid="insp-music-volume"] .insp-cp-thumb {
     background: var(--bg-2);
     border: 0;
     box-shadow:
@@ -714,10 +714,10 @@
     color: var(--fg-2);
   }
 
-  /* ── V2-8.5 C2: the card's controls are the kit's (`.k-num`, `.ed-n`, `.ed-tok`), not v1's `st-cp-*` ──
+  /* ── V2-8.5 C2: the card's controls are the kit's (`.k-num`, `.ed-n`, `.ed-tok`), not v1's `insp-cp-*` ──
      A number field: a filled bg-3 well, no border, 28 px, the body face (mono is Advanced-only, CONTRACT §5),
      the unit/lead as a small fg-2 word INSIDE the well, not a bordered cell. */
-  .insp .st-cp-num {
+  .insp .insp-cp-num {
     flex: 0 1 auto;
     align-items: center;
     gap: 6px;
@@ -730,18 +730,18 @@
     box-shadow: inset 0 0 0 0.5px var(--border-subtle);
     overflow: hidden;
   }
-  .insp .st-cp-num:hover {
+  .insp .insp-cp-num:hover {
     border-color: transparent;
     box-shadow: inset 0 0 0 0.5px var(--border-default);
   }
-  .insp .st-cp-num:focus-within {
+  .insp .insp-cp-num:focus-within {
     border-color: transparent;
     background: var(--bg-2);
     box-shadow:
       0 0 0 3px var(--accent-tint),
       inset 0 0 0 1px var(--focus-ring);
   }
-  .insp .st-cp-numlead {
+  .insp .insp-cp-numlead {
     width: auto;
     padding: 0;
     border: 0;
@@ -751,13 +751,13 @@
     font-weight: var(--w-medium);
     color: var(--fg-2);
   }
-  .insp .st-cp-numin {
+  .insp .insp-cp-numin {
     padding: 0;
     font-family: var(--font-body);
     font-size: var(--type-sm);
     font-variant-numeric: tabular-nums;
   }
-  .insp .st-cp-numin--mini {
+  .insp .insp-cp-numin--mini {
     font-size: var(--type-sm);
   }
   .insp .insp-nf {
@@ -850,7 +850,9 @@
     width: 224px;
     padding: var(--space-1);
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge, transparent);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge, transparent);
     font-size: var(--type-sm);
   }
   .insp-zmenu-h {
@@ -963,7 +965,7 @@
     margin-left: auto;
     min-width: 0;
   }
-  [data-testid="insp-row-type-size"] .st-cp-nsel {
+  [data-testid="insp-row-type-size"] .insp-cp-nsel {
     flex: 0 1 96px;
     width: 96px;
     min-width: 72px;

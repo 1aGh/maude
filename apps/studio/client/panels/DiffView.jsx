@@ -75,13 +75,13 @@ function Icon({ name, size = 16 }) {
 /** The real app brand mark (same as the menubar — bordered message-bubble spark). */
 function Brand() {
   return (
-    <span className="st-brand">
-      <span className="st-brand-mark">
+    <span className="sh-brand">
+      <span className="sh-brand-mark">
         <svg viewBox="0 0 32 32" width="100%" height="100%" fill="none" aria-hidden="true">
           <path d="M16 5l2.8 8.2L27 16l-8.2 2.8L16 27l-2.8-8.2L5 16l8.2-2.8z" fill="currentColor" />
         </svg>
       </span>
-      <span className="st-brand-name">Maude</span>
+      <span className="sh-brand-name">Maude</span>
     </span>
   );
 }
@@ -343,7 +343,7 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
 
   return (
     <div
-      className="st-scrim dv-scrim"
+      className="sh-scrim dv-scrim"
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
