@@ -8,7 +8,6 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { measureShellInsets } from '../shell/occlusion-insets.js';
-import { usePanelLayout } from '../shell/use-panel-layout.js';
 import { shellMode } from '../shell/use-canvas-mode-lane.js';
 import { placeCompact } from './anchor.js';
 import { CommentStrip } from './comment-strip.jsx';
@@ -31,7 +30,6 @@ export function CommentStripHost() {
     },
   } = useShellStore();
   const mode = useSyncExternalStore(shellMode.subscribe, modeNow, modeNow);
-  const { hidden: panelsHidden } = usePanelLayout();
   const canvasOpen = !!activePath && activePath !== SYSTEM_TAB;
   const comments = canvasOpen ? commentsByFile?.[activePath] : null;
   const strip = useMemo(
@@ -68,11 +66,11 @@ export function CommentStripHost() {
     [activeComps, strip?.artboardId, postToActiveCanvas, setTimelineFrame]
   );
 
-  if (!strip || panelsHidden) return null;
+  if (!strip) return null;
   // the free canvas, between the open panels (the same measure the timeline island takes)
   const f = iframesRef?.current?.get(activePath);
   const r = f?.getBoundingClientRect?.();
-  const ins = r ? measureShellInsets(f, document, { presenting: panelsHidden }) : null;
+  const ins = r ? measureShellInsets(f, document, { presenting: false }) : null;
   const minX = r && ins ? r.left + ins.left : 0;
   const maxX = r && ins ? r.right - ins.right : vw;
   const placement = placeCompact({
