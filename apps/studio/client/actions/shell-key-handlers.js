@@ -98,7 +98,7 @@ function undoRedo(d, e, redo) {
 }
 
 const focusSearch = () => {
-  const inp = document.querySelector('.st-search input');
+  const inp = document.querySelector('.cv-search input');
   if (inp) inp.focus();
 };
 

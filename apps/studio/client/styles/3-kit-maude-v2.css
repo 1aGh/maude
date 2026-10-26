@@ -77,7 +77,8 @@
   }
   :where(.maude) .seg > button,
   /* a segmented control living inside a form row (AI › Advanced effort): hugs its options instead of filling */
-  :where(.maude) .seg.k-in-seg {
+    :where(.maude)
+    .seg.k-in-seg {
     width: auto;
     justify-self: start;
   }
@@ -244,11 +245,11 @@
 
   /* ─── Switch (_components.css .switch) — Phase 8 C1-kit: ONE switch ───
      The shell had four (Canvases `.lp-switch` 30×18 with an fg-0 knob — black in light; Settings
-     `.st-switch` with a 14 px fg-2 off knob; the Inspector Toggle `.st-cp-switch` 34×18; Export's
+     `.v2s-switch` with a 14 px fg-2 off knob; the Inspector Toggle `.insp-cp-switch` 34×18; Export's
      `.ex-switch` edged --border-strong at 2.1:1). The DS switch: 34×20 pill, off track --control-off
      (3.3:1, the 1.4.11 floor), a 16 px bg-2 knob with shadow-sm, on = accent. Markup stays per surface:
      a button[role=switch][aria-checked], a checkbox (:checked), or Export's span knob ([data-on]). */
-  :where(.maude) :is(.switch, .lp-switch, .st-switch, .st-cp-switch, .ex-switch) {
+  :where(.maude) :is(.switch, .lp-switch, .v2s-switch, .insp-cp-switch, .ex-switch) {
     appearance: none;
     -webkit-appearance: none;
     position: relative;
@@ -265,7 +266,7 @@
     cursor: pointer;
     transition: background var(--dur-flip) var(--ease-out);
   }
-  :where(.maude) :is(.switch, .lp-switch, .st-switch, .st-cp-switch)::after,
+  :where(.maude) :is(.switch, .lp-switch, .v2s-switch, .insp-cp-switch)::after,
   :where(.maude) .ex-switch-k {
     content: "";
     position: absolute;
@@ -279,7 +280,7 @@
     transition: transform var(--dur-flip) var(--ease-out);
   }
   :where(.maude)
-    :is(.switch, .lp-switch, .st-switch, .st-cp-switch, .ex-switch):is(
+    :is(.switch, .lp-switch, .v2s-switch, .insp-cp-switch, .ex-switch):is(
       [aria-checked="true"],
       :checked,
       [data-on]
@@ -287,21 +288,24 @@
     background: var(--accent);
   }
   :where(.maude)
-    :is(.switch, .lp-switch, .st-switch, .st-cp-switch):is([aria-checked="true"], :checked)::after,
+    :is(.switch, .lp-switch, .v2s-switch, .insp-cp-switch):is(
+      [aria-checked="true"],
+      :checked
+    )::after,
   :where(.maude) .ex-switch[data-on] .ex-switch-k {
     transform: translateX(14px);
   }
-  :where(.maude) :is(.switch, .lp-switch, .st-switch, .st-cp-switch, .ex-switch):focus-visible {
+  :where(.maude) :is(.switch, .lp-switch, .v2s-switch, .insp-cp-switch, .ex-switch):focus-visible {
     outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
   }
-  :where(.maude) :is(.switch, .lp-switch, .st-switch, .st-cp-switch, .ex-switch):disabled {
+  :where(.maude) :is(.switch, .lp-switch, .v2s-switch, .insp-cp-switch, .ex-switch):disabled {
     cursor: default;
     opacity: 0.5;
   }
   @media (prefers-reduced-motion: reduce) {
-    :where(.maude) :is(.switch, .lp-switch, .st-switch, .st-cp-switch, .ex-switch),
-    :where(.maude) :is(.switch, .lp-switch, .st-switch, .st-cp-switch)::after,
+    :where(.maude) :is(.switch, .lp-switch, .v2s-switch, .insp-cp-switch, .ex-switch),
+    :where(.maude) :is(.switch, .lp-switch, .v2s-switch, .insp-cp-switch)::after,
     :where(.maude) .ex-switch-k {
       transition-duration: 1ms;
     }
@@ -313,7 +317,7 @@
   :where(
     .maude
       input[type="checkbox"]:not(
-        :is(.switch, .lp-switch, .st-switch, .st-cp-switch, [role="switch"])
+        :is(.switch, .lp-switch, .v2s-switch, .insp-cp-switch, [role="switch"])
       ),
     .maude input[type="radio"]
   ) {
@@ -342,7 +346,7 @@
   :where(
     .maude
       input[type="checkbox"]:not(
-        :is(.switch, .lp-switch, .st-switch, .st-cp-switch, [role="switch"])
+        :is(.switch, .lp-switch, .v2s-switch, .insp-cp-switch, [role="switch"])
       )
   )::after {
     content: "";
@@ -365,7 +369,7 @@
   :where(
     .maude
       input[type="checkbox"]:not(
-        :is(.switch, .lp-switch, .st-switch, .st-cp-switch, [role="switch"])
+        :is(.switch, .lp-switch, .v2s-switch, .insp-cp-switch, [role="switch"])
       ):is(:checked, :indeterminate),
     .maude input[type="radio"]:checked
   ) {
@@ -375,7 +379,7 @@
   :where(
     .maude
       input[type="checkbox"]:not(
-        :is(.switch, .lp-switch, .st-switch, .st-cp-switch, [role="switch"])
+        :is(.switch, .lp-switch, .v2s-switch, .insp-cp-switch, [role="switch"])
       ):checked
   )::after {
     transform: rotate(-45deg) scale(1);
@@ -387,7 +391,7 @@
   :where(
     .maude
       input[type="checkbox"]:not(
-        :is(.switch, .lp-switch, .st-switch, .st-cp-switch, [role="switch"])
+        :is(.switch, .lp-switch, .v2s-switch, .insp-cp-switch, [role="switch"])
       ):indeterminate
   )::after {
     width: 8px;

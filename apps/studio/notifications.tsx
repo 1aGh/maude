@@ -286,7 +286,7 @@ const NOTICE_CSS = `
 .maude-notice-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
   padding-right: var(--space-2, 8px); }
 .maude-notice-title { font-weight: 500; }
-.maude-notice-summary, .maude-notice-title, .maude-notice .st-export-degraded {
+.maude-notice-summary, .maude-notice-title, .maude-notice .ex-export-degraded {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
   overflow-wrap: anywhere; }
 .maude-notice-summary { color: var(--fg-1, #ddd); font-size: var(--type-xs, 12px); }
@@ -301,7 +301,7 @@ const NOTICE_CSS = `
   cursor: pointer; padding: 4px var(--space-2, 8px); min-height: 26px; }
 .maude-notice-action:hover { background: var(--bg-3, #333); }
 .maude-notice button:focus-visible { outline: 2px solid var(--focus-ring, var(--accent, #d63b1f)); outline-offset: 2px; }
-.maude-notice .st-toast-actions { flex-wrap: wrap; }
+.maude-notice .sh-toast-actions { flex-wrap: wrap; }
 @media (prefers-reduced-motion: reduce) {
   .maude-notifications [data-sonner-toast], .maude-notifications [data-sonner-toaster] {
     animation: none !important; transition: none !important;
