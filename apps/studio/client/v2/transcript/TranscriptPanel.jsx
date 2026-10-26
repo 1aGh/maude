@@ -179,10 +179,11 @@ export function TranscriptPanel({
   const onKeyDown = (e) => {
     if (editing) return;
     if (e.key === 'Backspace' || e.key === 'Delete') {
-      if (ui.selection.length && canEdit) {
-        e.preventDefault();
-        onCut();
-      }
+      // ⌫ in the transcript is about its words, never the canvas: the shell's `object.remove` listens on the
+      // window and would trash the selected video artboard too (and in the desktop app an unhandled ⌫ navigates back)
+      e.preventDefault();
+      e.stopPropagation();
+      if (ui.selection.length && canEdit) onCut();
     } else if (e.key === 'Escape') {
       if (ui.selection.length) onSelect([], null);
       else onClose();

@@ -192,6 +192,25 @@ describe('select, cut, fix', () => {
     expect(rec.cuts).toBe(1);
   });
 
+  test('⌫ / ⌦ in the transcript never reach the shell: the selected video artboard is not trashed with the word', async () => {
+    // The shell's `object.remove` listens on the window: an ⌫ that bubbled out of the panel also deleted the video
+    // artboard the transcript belongs to (V2-8.3 e2e r3 — the cut and an `artboard.trash` left together).
+    const { host, rec } = await mountPanel(media());
+    const panel = q(host, 'transcript-panel') as HTMLElement;
+    const heard: string[] = [];
+    const onWin = (e: KeyboardEvent) => heard.push(e.key);
+    window.addEventListener('keydown', onWin);
+    try {
+      await key(panel, 'Backspace'); // nothing selected: nothing is cut, and nothing else runs either
+      await down(word(host, 'w3'));
+      await key(panel, 'Delete');
+    } finally {
+      window.removeEventListener('keydown', onWin);
+    }
+    expect(rec.cuts).toBe(1);
+    expect(heard).toEqual([]);
+  });
+
   test('double-click a word, type over it, Enter: that word is fixed; Esc leaves it alone', async () => {
     const { host, rec } = await mountPanel(media());
     await act(async () => void word(host, 'w1').dispatchEvent(mouse('dblclick')));
