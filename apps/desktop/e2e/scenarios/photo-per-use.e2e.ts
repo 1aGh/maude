@@ -214,6 +214,14 @@ describe('photo edits change one use (S8.15)', () => {
     const edit8 = attrOn('photo');
     await (await $('[data-testid="photo-reset"]')).click();
     await browser.waitUntil(async () => attrOn('photo') === null, { timeout: 8000 });
+    // The file lands before the write's answer reaches the panel, and the undo step is recorded with that answer
+    // (photo-section.jsx `reset`: setCurrent(null) and onRecordEdit in one callback) — a ⌘Z sent in between undid
+    // the Mono step instead (r7fix/a2). `data-edit` leaving the section is that answer.
+    await browser.waitUntil(
+      async () =>
+        (await (await $('[data-testid="photo-section"]')).getAttribute('data-edit')) === null,
+      { timeout: 8000, timeoutMsg: 'the Photo tab never heard the Reset answer' }
+    );
     await browser.keys(['Meta', 'z']);
     await browser.waitUntil(async () => attrOn('photo') === edit8, {
       timeout: 10000,
