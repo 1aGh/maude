@@ -133,14 +133,23 @@ describe(`shell parity (${target()})`, () => {
     const conditional = Object.keys(table.conditional);
 
     // nothing the table does not list
-    const extra = rows.filter((r) => !menu.rows.includes(r));
+    // …bar the pill's own "Switch project" submenu (P8-c4-navpanels): its rows are the switcher's, not registry
+    // actions (`switch:<project path>`, `switch:open-team`, `switch:open-folder`), and only the desktop draws it.
+    const switcher = rows.filter((r) => r.startsWith('switch:'));
+    const extra = rows.filter((r) => !menu.rows.includes(r) && !r.startsWith('switch:'));
     eq(`${shell.id}: rows the table does not list`, extra, []);
+    eq(
+      `${shell.id}: the Switch project submenu is the desktop's alone`,
+      switcher.includes('switch:open-team') && switcher.includes('switch:open-folder'),
+      target() === 'native'
+    );
     // everything it lists, bar the rows that depend on state the fixture does not have (a linked project,
     // a signed-in account, a dashboard address)
     const missing = menu.rows.filter((r) => !conditional.includes(r) && !rows.includes(r));
     eq(`${shell.id}: rows the table lists but the menu lacks`, missing, []);
     // the pill menu's own level, in order (a conditional row may be missing; the rest keep their places)
-    expect(top.filter((t) => !conditional.includes(t))).toEqual(
+    // (the desktop's "Switch project" submenu heads the list; it is asserted above and is not in the table)
+    expect(top.filter((t) => !conditional.includes(t) && t !== 'sub-switch-project')).toEqual(
       menu.top.filter((t) => !conditional.includes(t))
     );
 
