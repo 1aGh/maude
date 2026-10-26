@@ -34,10 +34,14 @@ import { activeTab, HOME, labels, pinCurrentWindow, waitWindow } from '../helper
  *      when it returns
  *   8. access removed: the app says to sign in again (not "check your
  *      connection"), and signing in again delivers the change it kept
- *   9. (S11.12) the same canvas changed offline here and meanwhile at the teammate:
- *      Diagnostics > Sync > Sync details holds both versions, Compare shows what differs, and
- *      Keep both makes the teammate's version the canvas and this Mac's a sibling canvas
- *      "<name> this Mac" - on BOTH copies
+ *  9a. (S11.12, accepted revisions) the save queued while the server was away is accepted first;
+ *      a LATER overlapping save is the one refused - held on its author's side with the notice
+ *      `source-conflict-<slug>`, a conflict record and the project's version as a recovery copy.
+ *      Here: this Mac saves offline, the teammate right after - the teammate holds it, nothing here.
+ *   9. the same race the other way round, so the held side is THIS Mac: the teammate saved while
+ *      the server was away, this Mac right after. Diagnostics > Sync > Sync details holds both
+ *      versions, Compare shows what differs, and Keep both makes the project's version the canvas
+ *      and this Mac's a sibling canvas "<name> this Mac" - on BOTH copies
  *  9b. the reverse race: the teammate is the one who loses - no card, nothing held here
  *  10. (S11.11) Resync from Diagnostics > Advanced: the trace "Resyncing... n of m", then the
  *      result sentence, then the log line in Diagnostics > Logs
@@ -436,24 +440,33 @@ describe('team-project (native-desktop)', () => {
     await capture('11-signed-in-again-edit-delivered');
   });
 
-  it('9 · the same canvas changed here offline and at the teammate: Sync details holds both, Keep both keeps both', async () => {
-    // S11.12 (06 ad-syncd). The file-level conflict of the sync plane: this Mac's change is queued while
-    // the server is away, the teammate's reaches the project first, and the designer's outbox then
-    // meets a newer head. Nothing is overwritten: the runtime holds `source-conflict-<slug>` and the
-    // card sits under Needs you until the person chooses. Keep both = theirs becomes the canvas, this
-    // Mac's version becomes a new canvas "<name> this Mac" (S9.24's Keep both is per sticky, on the board).
+  it('9a · this Mac saved offline, the teammate right after: the teammate’s save is the one held, with a notice and a recovery copy', async () => {
+    // Accepted revisions (DDR-241; apps/studio/test/sync-accepted-offline-resume.test.ts): the proposal queued while
+    // the server was away is accepted when it comes back; the teammate's later, overlapping save meets a newer head
+    // and is refused - kept on the TEAMMATE's disk, `source-conflict-<slug>` + a conflict record in its sync status,
+    // the project's version saved beside it as `_history/<slug>/sync-recovery/incoming.tsx`. Never two silently
+    // different copies. A canvas of its own (screens/home), so the conflict it leaves held does not touch step 9.
     const t = TEAM as NonNullable<typeof TEAM>;
-    const ui = (root: string) => join(root, '.design', 'ui');
-    const mine = join(ui(t.managedDir), 'welcome.tsx');
-    const theirs = join(ui(t.teammate), 'welcome.tsx');
-    const copyAt = (root: string) =>
-      readdirSync(ui(root)).find((f) => /^welcome this Mac.*\.tsx$/.test(f)) ?? null;
+    const rel = join('screens', 'home.tsx');
+    const slug = 'screens-home';
+    const mine = join(t.managedDir, '.design', rel);
+    const theirs = join(t.teammate, '.design', rel);
+    const teammateStatus = () => {
+      try {
+        return JSON.parse(readFileSync(join(t.teammate, '.design', '_sync.json'), 'utf8')) as {
+          notices?: { id?: string }[];
+          conflicts?: { slug?: string }[];
+        };
+      } catch {
+        return null;
+      }
+    };
     await closeDiagnostics();
     await settleMotion();
 
     process.kill(t.hubPid, 'SIGSTOP');
     try {
-      writeFileSync(mine, canvas('Welcome, mine while offline'));
+      writeFileSync(mine, canvas('Home, mine while offline'));
       await eventually(
         'the change to be waiting on this machine',
         async () => {
@@ -465,8 +478,57 @@ describe('team-project (native-desktop)', () => {
     } finally {
       process.kill(t.hubPid, 'SIGCONT');
     }
-    // the teammate's change reaches the project before this Mac's outbox drains
-    writeFileSync(theirs, canvas('Welcome, theirs from the teammate'));
+    writeFileSync(theirs, canvas('Home, theirs right after'));
+
+    // the teammate's side holds it: the notice, the record, and the project's version (this Mac's) beside its own
+    await eventually(
+      'the teammate to hold its refused save (notice + conflict record)',
+      () => {
+        const st = teammateStatus();
+        return (
+          !!st?.notices?.some((n) => n.id === `source-conflict-${slug}`) &&
+          !!st?.conflicts?.some((c) => c.slug === slug)
+        );
+      },
+      120_000
+    );
+    const recovery = join(t.teammate, '.design', '_history', slug, 'sync-recovery', 'incoming.tsx');
+    await eventually('the recovery copy at the teammate', () => existsSync(recovery), 30_000);
+    expect(read(recovery) ?? '').toContain('mine while offline');
+    expect(read(theirs) ?? '').toContain('theirs right after'); // its own save is kept, not overwritten
+    // this Mac's save is the project's: it stays here, and nothing is held on this side
+    expect(read(mine) ?? '').toContain('mine while offline');
+    await openSyncDetails();
+    expect(await (await $(tid(`diag-sync-conflict-${slug}`))).isExisting()).toBe(false);
+    await capture('12a-offline-first-wins-held-at-teammate');
+    await closeDiagnostics();
+  });
+
+  it('9 · the teammate saved offline, this Mac right after: Sync details holds both here, Keep both keeps both', async () => {
+    // S11.12 (06 ad-syncd). The file-level conflict of the sync plane, on THIS side: the teammate's change was queued
+    // while the server was away and is accepted first; this Mac's overlapping save then meets a newer head. Nothing is
+    // overwritten: the runtime holds `source-conflict-<slug>` and the card sits under Needs you until the person
+    // chooses. Keep both = the project's version becomes the canvas, this Mac's becomes a new canvas "<name> this Mac"
+    // (S9.24's Keep both is per sticky, on the board).
+    const t = TEAM as NonNullable<typeof TEAM>;
+    const ui = (root: string) => join(root, '.design', 'ui');
+    const mine = join(ui(t.managedDir), 'welcome.tsx');
+    const theirs = join(ui(t.teammate), 'welcome.tsx');
+    const copyAt = (root: string) =>
+      readdirSync(ui(root)).find((f) => /^welcome this Mac.*\.tsx$/.test(f)) ?? null;
+    await closeDiagnostics();
+    await settleMotion();
+
+    process.kill(t.hubPid, 'SIGSTOP');
+    try {
+      writeFileSync(theirs, canvas('Welcome, theirs while offline'));
+      // the teammate's studio has no status line to read: give its watcher the outage the unit lane gives it
+      await browser.pause(6_000);
+    } finally {
+      process.kill(t.hubPid, 'SIGCONT');
+    }
+    // this Mac saves right after the server is back
+    writeFileSync(mine, canvas('Welcome, mine right after'));
 
     await openSyncDetails();
     const card = await $(tid('diag-sync-conflict-ui-welcome'));
@@ -481,34 +543,34 @@ describe('team-project (native-desktop)', () => {
     const lines = await $(tid('diag-sync-compare-lines-ui-welcome'));
     await lines.waitForDisplayed({ timeout: 10_000 });
     const compared = await lines.getText();
-    expect(compared).toContain('mine while offline');
-    expect(compared).toContain('theirs from the teammate');
-    expect(read(mine) ?? '').toContain('mine while offline'); // still only looking
+    expect(compared).toContain('mine right after');
+    expect(compared).toContain('theirs while offline');
+    expect(read(mine) ?? '').toContain('mine right after'); // still only looking
     await capture('13-sync-details-compare');
 
     await (await $(tid('diag-sync-keep-both-ui-welcome'))).click();
     await card.waitForDisplayed({ reverse: true, timeout: 30_000 });
 
-    // theirs is the canvas, mine is a sibling canvas - here ...
+    // the project's (the teammate's) is the canvas, mine is a sibling canvas - here ...
     await eventually(
       'the teammate’s version as the canvas on this Mac',
-      () => (read(mine) ?? '').includes('theirs from the teammate'),
+      () => (read(mine) ?? '').includes('theirs while offline'),
       60_000
     );
     await eventually('a "this Mac" copy beside it', () => copyAt(t.managedDir) !== null, 60_000);
     expect(read(join(ui(t.managedDir), copyAt(t.managedDir) as string)) ?? '').toContain(
-      'mine while offline'
+      'mine right after'
     );
     // ... and, the asymmetric direction, at the teammate: the copy is a new canvas there too
     await eventually(
       'the "this Mac" copy at the teammate',
       () => {
         const f = copyAt(t.teammate);
-        return !!f && (read(join(ui(t.teammate), f)) ?? '').includes('mine while offline');
+        return !!f && (read(join(ui(t.teammate), f)) ?? '').includes('mine right after');
       },
       120_000
     );
-    expect(read(theirs) ?? '').toContain('theirs from the teammate');
+    expect(read(theirs) ?? '').toContain('theirs while offline');
     // the canvas list names the copy (a new row, the original untouched)
     await closeDiagnostics();
     await (await canvasRow('canvas-row-ui-welcome')).waitForDisplayed({ timeout: 30_000 });
