@@ -213,12 +213,7 @@ function whyRowAbsent(rowId, ctx) {
 
 function shareClusterPart(shell, { readOnly, role }) {
   const access = accessStatus({ canEdit: !readOnly, role });
-  const parts = [
-    'share-cluster-status',
-    'share-cluster-comments',
-    'share-cluster-mode',
-    'share-cluster-panels',
-  ];
+  const parts = ['share-cluster-status', 'share-cluster-mode', 'share-cluster-panels'];
   parts.push(access ? 'share-cluster-ask' : 'share-cluster-share');
   return {
     present: true,
@@ -226,6 +221,9 @@ function shareClusterPart(shell, { readOnly, role }) {
     // Only after something happened — never asserted present, only never asserted absent-by-mistake.
     when: {
       'share-cluster-exports': 'once any export exists',
+      // P8 C3 (10 S1): the host draws it only once the canvas has comments (or while the panel is open)
+      'share-cluster-comments':
+        'once the open canvas has a comment (or while the Comments panel shows)',
       'share-cluster-faces': 'when other people (or Claude) are in the project',
       // S1.22a — the account chip: the desktop's Mac accounts (a cloud tab's account is the hub's).
       ...(shell.id === 'desktop'

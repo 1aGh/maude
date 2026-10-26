@@ -279,6 +279,47 @@ describe('the Share cluster, rendered per shell', () => {
     }
   });
 
+  // V2-8.4 (found by the cross-shell run): the host draws the Comments icon only once the canvas has a
+  // comment (P8 C3 · 10 S1, `commentsShown`), so a table that lists it as always on screen sends the
+  // parity e2e looking for a button a fresh project does not have. What the table lists as present must
+  // be on screen in a project with no comments; the icon belongs under `when`.
+  test('a project with no comments draws every testid the table lists as present; the comments icon is conditional', () => {
+    for (const id of NOT_EMBED) {
+      const by = parityFor(id).by as {
+        native: boolean;
+        cloudRole: string | null;
+        readOnly: boolean;
+      };
+      const role = by.cloudRole ?? undefined;
+      const caps = capsFor({ canEdit: !by.readOnly, role });
+      const html = renderToStaticMarkup(
+        <ShareCluster
+          faces={[]}
+          status={saveStatus({ linked: !!by.cloudRole })}
+          access={accessStatus({ canEdit: !by.readOnly, role })}
+          ctx={menuCtx({
+            native: by.native,
+            cloudTab: !!by.cloudRole,
+            readOnly: by.readOnly,
+            canvasOpen: true,
+          })}
+          run={noop}
+          canShare
+          commentsShown={false}
+          mode={initialMode(caps)}
+          modeSlot={<ModeSwitch mode={initialMode(caps)} caps={caps} onSelect={noop} canPresent />}
+        />
+      );
+      const sc = part(id, 'share-cluster') as unknown as {
+        testids: string[];
+        when: Record<string, string>;
+      };
+      for (const t of sc.testids) expect(has(html, t), `${id} ${t}`).toBe(true);
+      expect(sc.testids, id).not.toContain('share-cluster-comments');
+      expect(sc.when['share-cluster-comments'], id).toBeTruthy();
+    }
+  });
+
   test('a viewer says what it can do (Can comment) and has Viewing, not a greyed Edit', () => {
     for (const id of VIEWERS) {
       const html = cluster(id);

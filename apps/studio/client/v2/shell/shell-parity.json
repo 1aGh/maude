@@ -332,13 +332,13 @@
           "testids": [
             "share-cluster",
             "share-cluster-status",
-            "share-cluster-comments",
             "share-cluster-mode",
             "share-cluster-panels",
             "share-cluster-share"
           ],
           "when": {
             "share-cluster-exports": "once any export exists",
+            "share-cluster-comments": "once the open canvas has a comment (or while the Comments panel shows)",
             "share-cluster-faces": "when other people (or Claude) are in the project",
             "share-cluster-account": "signed in, with two or more accounts on this Mac"
           },
@@ -718,13 +718,13 @@
           "testids": [
             "share-cluster",
             "share-cluster-status",
-            "share-cluster-comments",
             "share-cluster-mode",
             "share-cluster-panels",
             "share-cluster-share"
           ],
           "when": {
             "share-cluster-exports": "once any export exists",
+            "share-cluster-comments": "once the open canvas has a comment (or while the Comments panel shows)",
             "share-cluster-faces": "when other people (or Claude) are in the project"
           },
           "access": null,
@@ -1100,13 +1100,13 @@
           "testids": [
             "share-cluster",
             "share-cluster-status",
-            "share-cluster-comments",
             "share-cluster-mode",
             "share-cluster-panels",
             "share-cluster-share"
           ],
           "when": {
             "share-cluster-exports": "once any export exists",
+            "share-cluster-comments": "once the open canvas has a comment (or while the Comments panel shows)",
             "share-cluster-faces": "when other people (or Claude) are in the project"
           },
           "access": null,
@@ -1366,13 +1366,13 @@
           "testids": [
             "share-cluster",
             "share-cluster-status",
-            "share-cluster-comments",
             "share-cluster-mode",
             "share-cluster-panels",
             "share-cluster-share"
           ],
           "when": {
             "share-cluster-exports": "once any export exists",
+            "share-cluster-comments": "once the open canvas has a comment (or while the Comments panel shows)",
             "share-cluster-faces": "when other people (or Claude) are in the project"
           },
           "access": null,
@@ -1640,13 +1640,13 @@
           "testids": [
             "share-cluster",
             "share-cluster-status",
-            "share-cluster-comments",
             "share-cluster-mode",
             "share-cluster-panels",
             "share-cluster-ask"
           ],
           "when": {
             "share-cluster-exports": "once any export exists",
+            "share-cluster-comments": "once the open canvas has a comment (or while the Comments panel shows)",
             "share-cluster-faces": "when other people (or Claude) are in the project"
           },
           "access": "Can comment",
@@ -1900,13 +1900,13 @@
           "testids": [
             "share-cluster",
             "share-cluster-status",
-            "share-cluster-comments",
             "share-cluster-mode",
             "share-cluster-panels",
             "share-cluster-ask"
           ],
           "when": {
             "share-cluster-exports": "once any export exists",
+            "share-cluster-comments": "once the open canvas has a comment (or while the Comments panel shows)",
             "share-cluster-faces": "when other people (or Claude) are in the project"
           },
           "access": "Can comment",
