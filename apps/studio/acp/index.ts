@@ -16,7 +16,7 @@ import { projectVisibility } from '../access/filters.ts';
 import { knownCanvasesFor } from '../access/known-canvases.ts';
 import { resolveAccess } from '../access/scope.ts';
 import { isCanvasFile } from '../activity.ts';
-import { readOnlyRootsFor } from '../ai/attach-grants.ts';
+import { chatReadRootsFor, readOnlyRootsFor } from '../ai/attach-grants.ts';
 import {
   ASK_ID_RE,
   type ElementRef,
@@ -662,6 +662,9 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
       chatId,
       // S5.10 — a folder AI may read is never a write path (acp/write-scope `read-only-grant`).
       readOnlyRoots: options.readOnlyRoots ?? (() => readOnlyRootsFor(ctx.paths.designRoot)),
+      // M2 (decision maude/v2-michal-m2-read-boundary) — the folders THIS chat may read: allowed and
+      // attached (Remove takes one back on the next read). Read live per request by the read gate.
+      readRoots: () => chatReadRootsFor(ctx.paths.designRoot, chatId),
       // S8.10 — a Handoff to production chat writes its target file only (handoff/write-scopes.ts).
       writeOnlyRoots: () => runWriteScope(chatId),
       // V2-8.9 H1 — a write that carries a file this chat read to someone who cannot see it asks.

@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { MAUDE_DEFAULT_ALLOWED_TOOLS } from '../../acp/bridge.ts';
+import { chatAllowedTools } from '../../acp/bridge.ts';
 import { GRADERS, gradeJourney, observe } from './graders.mjs';
 import { planAcp, runAcp } from './lanes/acp.mjs';
 import {
@@ -30,7 +30,7 @@ import {
   writeJson,
 } from './lanes/common.mjs';
 import { allowRules, answerCard, lintAllow } from './lanes/consent.mjs';
-import { planTerminal, runTerminal, shimDir } from './lanes/terminal.mjs';
+import { planTerminal, runTerminal, shimDir, terminalAllowedTools } from './lanes/terminal.mjs';
 import { faultRecipe, plantAll } from './plant.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -88,7 +88,7 @@ function checkPlans(j, project) {
   const env = harnessEnv({ PATH: process.env.PATH }, '/dev/null');
   const t = planTerminal(j, { project, trialDir: join(OUT, '_plan'), env });
   const a = planAcp(j, { project });
-  const allow = JSON.stringify([...MAUDE_DEFAULT_ALLOWED_TOOLS, ...allowRules(j)]);
+  const allow = JSON.stringify([...terminalAllowedTools(project), ...allowRules(j)]);
   if (t.turns.length !== j.turns.length || a.turns.length !== j.turns.length)
     why.push('a lane drops a turn');
   if (!t.turns.every((x) => x.args.includes(join(REPO, 'plugins', 'design'))))
@@ -98,15 +98,17 @@ function checkPlans(j, project) {
     return JSON.stringify(args.slice(i + 1, args.indexOf('--permission-mode')));
   };
   if (!t.turns.every((x) => allowOf(x.args) === allow))
-    why.push('terminal: allow list ≠ MAUDE_DEFAULT_ALLOWED_TOOLS + the journey allow rules');
+    why.push(
+      'terminal: allow list ≠ the chat’s (read boundary + defaults) + the journey allow rules'
+    );
   if (t.env.NO_OPEN !== '1' || t.env.MAUDE_NO_AUTOBUILD !== '1' || !t.env.MAUDE_MACHINE_FILE)
     why.push('terminal: env lacks NO_OPEN / MAUDE_NO_AUTOBUILD / MAUDE_MACHINE_FILE');
   if ('ANTHROPIC_API_KEY' in t.env) why.push('terminal: ANTHROPIC_API_KEY reaches the agent');
   if (!a.plugins.some((p) => p.path === join(REPO, 'plugins', 'design')))
     why.push('acp: the design plugin is not injected');
   const o = a.session._meta?.claudeCode?.options ?? {};
-  if (JSON.stringify(o.allowedTools) !== JSON.stringify([...MAUDE_DEFAULT_ALLOWED_TOOLS]))
-    why.push('acp: allow list ≠ MAUDE_DEFAULT_ALLOWED_TOOLS');
+  if (JSON.stringify(o.allowedTools) !== JSON.stringify(chatAllowedTools(project, a.plugins)))
+    why.push('acp: allow list ≠ the chat’s (read boundary + MAUDE_DEFAULT_ALLOWED_TOOLS)');
   if (JSON.stringify(o.settingSources) !== '["user"]')
     why.push('acp: settingSources is not ["user"]');
   if (!a.brief || a.session._meta?.systemPrompt?.append !== a.brief)

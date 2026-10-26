@@ -1,7 +1,9 @@
 // client/v2/ai/Consent.jsx — S5.10: a folder from disk asks once (03 AI Chat `Consent`). AI may read it,
 // never write to it. The title verb is the button verb (CONTRACT §4): "Let AI read “…”?" · Let AI read.
 // A folder outside this project names its full path, so the person sees exactly what they allow.
-// Not now keeps the chip and sends without it.
+// Not now keeps the chip and sends without it. M2 (decision maude/v2-michal-m2-read-boundary): the yes
+// IS the boundary — outside this project AI reads only the folders it was allowed, and asks for
+// anything else (acp/may-scope.ts readVerdict), so the card says so.
 
 import { FolderGlyph } from './AChip.jsx';
 import { chipMeta } from './attach.js';
@@ -10,7 +12,8 @@ export function consentWords(c) {
   const files = chipMeta({ kind: 'folder', count: c.count, countCapped: c.countCapped });
   return {
     title: `Let AI read “${c.name}” (${files})?`,
-    detail: 'Asked once for this folder. AI only reads it — nothing on disk changes.',
+    detail:
+      'Asked once for this folder. AI only reads it — nothing on disk changes. Outside this project, AI reads nothing else without asking.',
     where: c.outsideProject ? c.root : '',
   };
 }

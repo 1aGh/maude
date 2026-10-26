@@ -32,7 +32,7 @@ import { describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { MAUDE_DEFAULT_ALLOWED_TOOLS, newSessionParams } from '../acp/bridge.ts';
+import { chatAllowedTools, MAUDE_DEFAULT_ALLOWED_TOOLS, newSessionParams } from '../acp/bridge.ts';
 import type { SdkPluginConfig } from '../acp/plugin-bootstrap.ts';
 import { WRITE_TOOL_NAMES } from '../acp/write-scope.ts';
 
@@ -54,7 +54,11 @@ const PLUGINS: SdkPluginConfig[] = [
 describe('newSessionParams — allowedTools carrier shape (DDR-184)', () => {
   test('the allow-list rides _meta.claudeCode.options.allowedTools', () => {
     const opts = (newSessionParams('/repo', undefined)._meta as Meta).claudeCode?.options;
-    expect(opts?.allowedTools).toEqual([...MAUDE_DEFAULT_ALLOWED_TOOLS]);
+    // M2 — the read boundary's `Read(//abs/**)` rules first, then Maude's tools.
+    expect(opts?.allowedTools).toEqual(chatAllowedTools('/repo'));
+    expect(opts?.allowedTools?.slice(-MAUDE_DEFAULT_ALLOWED_TOOLS.length)).toEqual([
+      ...MAUDE_DEFAULT_ALLOWED_TOOLS,
+    ]);
   });
 
   test('allowedTools is a COPY, not the shared module constant (no accidental mutation)', () => {
@@ -66,13 +70,13 @@ describe('newSessionParams — allowedTools carrier shape (DDR-184)', () => {
     const opts = (newSessionParams('/repo', 'BRIEF', PLUGINS)._meta as Meta).claudeCode?.options;
     expect(opts?.settingSources).toEqual(['user']);
     expect(opts?.plugins).toEqual(PLUGINS);
-    expect(opts?.allowedTools).toEqual([...MAUDE_DEFAULT_ALLOWED_TOOLS]);
+    expect(opts?.allowedTools).toEqual(chatAllowedTools('/repo', PLUGINS));
   });
 
   test('present even with no plugins (npm / web / power-user path)', () => {
     const opts = (newSessionParams('/repo', 'BRIEF', [])._meta as Meta).claudeCode?.options;
     expect(opts?.plugins).toBeUndefined();
-    expect(opts?.allowedTools).toEqual([...MAUDE_DEFAULT_ALLOWED_TOOLS]);
+    expect(opts?.allowedTools).toEqual(chatAllowedTools('/repo', []));
   });
 });
 
@@ -169,9 +173,11 @@ const STILL_AUTO = [
 describe('MAUDE_DEFAULT_ALLOWED_TOOLS — source-of-truth guard (DDR-184 / DDR-062)', () => {
   const bashRules = MAUDE_DEFAULT_ALLOWED_TOOLS.filter((t) => t.startsWith('Bash'));
 
-  test('the READ-ONLY file tools are present', () => {
-    for (const t of ['Read', 'Glob', 'Grep']) {
-      expect(MAUDE_DEFAULT_ALLOWED_TOOLS).toContain(t);
+  test('the read tools are NOT name-allowed — reads are scoped per folder (M2 read boundary)', () => {
+    // Decision maude/v2-michal-m2-read-boundary: a bare name let the agent read any file on the Mac.
+    // The session carries `Read(//abs/**)` per boundary root instead (test/acp-read-boundary.test.ts).
+    for (const t of ['Read', 'Glob', 'Grep', 'NotebookRead']) {
+      expect(MAUDE_DEFAULT_ALLOWED_TOOLS).not.toContain(t);
     }
   });
 

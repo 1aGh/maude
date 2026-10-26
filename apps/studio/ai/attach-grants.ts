@@ -13,10 +13,11 @@
 //   • every use re-resolves the stored path: a folder that is now a symlink, or moved, or deleted,
 //     no longer matches its realpath and drops out (`moved`) — a grant never follows a swap.
 //
-// WHAT IT IS NOT (said plainly so nobody reads more into it): Claude Code's own `Read`/`Glob`/
-// `Grep` are on `MAUDE_DEFAULT_ALLOWED_TOOLS` unscoped (DDR-184, acp/bridge.ts). The grant bounds
-// what MAUDE hands the agent and what Maude's own routes list; it is not a sandbox on the agent's
-// Read tool. Scoping Read is a separate decision (hand-back of S5.10).
+// IT IS THE READ BOUNDARY (M2, decision maude/v2-michal-m2-read-boundary): outside the project (and
+// the bundled plugins, Maude's own package and the temp folders), the agent's Read / Glob / Grep are
+// approved only inside a folder attached to its chat (`chatReadRootsFor`, read live by the ACP read
+// gate, acp/may-scope.ts `readVerdict`); any other read reaches Claude Code's permission card. It is
+// not a sandbox under bypassPermissions or the person's own `Read` allow rule in ~/.claude.
 //
 // Paths come from the desktop shell's native folder picker on the MAIN origin (the routes are
 // main-origin only, `routes/chat-attach.ts`); the canvas origin can neither choose nor see one.
@@ -417,6 +418,18 @@ export function createGrantStore(designRoot: string, now: () => number = Date.no
     // AI may only read. Over-including here only ever adds a prompt.
     readOnlyRoots: () => readGrants(file).folders.map((f) => f.root),
   };
+}
+
+/**
+ * For the ACP read gate (M2, decision maude/v2-michal-m2-read-boundary): the folders one chat may read
+ * now — allowed, attached to it, still the same folder. Never throws (a broken file allows nothing).
+ */
+export function chatReadRootsFor(designRoot: string, chatId: string): string[] {
+  try {
+    return createGrantStore(designRoot).chatRoots(chatId);
+  } catch {
+    return [];
+  }
 }
 
 /** For the ACP write gate: cheap, and never throws (a broken file grants nothing). */

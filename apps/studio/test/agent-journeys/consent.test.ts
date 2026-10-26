@@ -3,11 +3,10 @@
 // `allow`. No model, no studio: the pure answer, the lane plans, and the journeys' own lists.
 import { expect, test } from 'bun:test';
 
-import { MAUDE_DEFAULT_ALLOWED_TOOLS } from '../../acp/bridge.ts';
 import { GRADERS } from './graders.mjs';
 import { planAcp } from './lanes/acp.mjs';
 import { allowRules, answerCard, commandAllowed, lintAllow } from './lanes/consent.mjs';
-import { planTerminal } from './lanes/terminal.mjs';
+import { planTerminal, terminalAllowedTools } from './lanes/terminal.mjs';
 import { lintJourney, loadJourneys } from './run.mjs';
 
 const card = (command: string | null, kinds = ['allow_once', 'allow_always', 'reject_once']) => ({
@@ -71,7 +70,7 @@ test('the four journeys name their verbs; the lanes carry exactly that list', ()
     const args = t.turns[0].args;
     const from = args.indexOf('--allowedTools') + 1;
     expect(args.slice(from, args.indexOf('--permission-mode')), j.id).toEqual([
-      ...MAUDE_DEFAULT_ALLOWED_TOOLS,
+      ...terminalAllowedTools('/p'),
       ...allowRules(j),
     ]);
     expect(planAcp(j, { project: '/p' }).allow, j.id).toEqual(j.allow ?? []);

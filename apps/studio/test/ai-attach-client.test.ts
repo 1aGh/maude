@@ -141,8 +141,9 @@ describe('the consent card', () => {
   test('title verb = button verb; outside the project names the full path', () => {
     const w = consentWords({ ...folder, outsideProject: true });
     expect(w.title).toBe('Let AI read “Combine 2026 fotky” (48 files)?');
+    // M2 read boundary: the yes is the boundary, and the card says nothing else outside is read unasked
     expect(w.detail).toBe(
-      'Asked once for this folder. AI only reads it — nothing on disk changes.'
+      'Asked once for this folder. AI only reads it — nothing on disk changes. Outside this project, AI reads nothing else without asking.'
     );
     expect(w.where).toBe('/Users/m/Pictures/Combine 2026 fotky');
     expect(consentWords({ ...folder, outsideProject: false }).where).toBe('');
