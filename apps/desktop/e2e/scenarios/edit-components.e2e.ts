@@ -5,6 +5,7 @@ import { browser, expect } from '@wdio/globals';
 import { waitForCanvasRects, waitForCanvasSettled } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { setSelect } from '../helpers/select';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 
@@ -328,11 +329,15 @@ describe('an instance: override, swap, reset, detach (S2.17)', () => {
 
   it('another variant is ONE write: the words and the colour come along; ⌘Z takes it back', async () => {
     const before = source();
-    const select = await $('[data-testid="insp-variant-select"]');
-    const options = await select.$$('option');
-    const values = await Promise.all(options.map((o) => o.getAttribute('value')));
+    await $('[data-testid="insp-variant-select"]').waitForExist({ timeout: 8000 });
+    const values = (await browser.execute(() =>
+      Array.from(
+        document.querySelectorAll<HTMLOptionElement>('[data-testid="insp-variant-select"] option')
+      ).map((o) => o.value)
+    )) as string[];
     const other = values.find((v) => v && v !== 'primary') as string;
-    await select.selectByAttribute('value', other);
+    // the embedded WebDriver's option click does not select in WKWebView: the select's own change (helpers/select.ts)
+    expect(await setSelect('insp-variant-select', other)).toBe(true);
     await browser.waitUntil(async () => source().includes(`variant="${other}"`), { timeout: 8000 });
     expect(source()).toContain('REGISTRUJ SE');
     expect(source()).toContain('var(--accent)');

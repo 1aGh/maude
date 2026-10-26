@@ -1,8 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { $, browser, expect } from '@wdio/globals';
+import { $, $$, browser, expect } from '@wdio/globals';
 
-import { clearComposer, openAssistant, requireAi, setPermissionMode } from '../helpers/assistant';
+import { openAssistant, requireAi, setPermissionMode } from '../helpers/assistant';
 import { capture, startReport } from '../helpers/evidence';
 import { invokeTauri, isNativeShell } from '../helpers/native';
 import { appPid, isAlive, startApp, waitGone } from '../helpers/session';
@@ -57,14 +57,43 @@ async function runs(): Promise<Runs> {
   });
 }
 
+/**
+ * The composer of the chat in front. A second chat (+ New chat) keeps the first one mounted and hidden (use-ask-ai.js
+ * "the chats stay mounted"), so the FIRST `chat-composer` in the document is the hidden one once there are two.
+ */
+async function frontComposer(): Promise<WebdriverIO.Element> {
+  let found: WebdriverIO.Element | null = null;
+  await browser.waitUntil(
+    async () => {
+      for (const c of await $$(tid('chat-composer')))
+        if (await c.isDisplayed()) {
+          found = c as unknown as WebdriverIO.Element;
+          return true;
+        }
+      return false;
+    },
+    { timeout: 30_000, timeoutMsg: 'no chat composer on screen' }
+  );
+  return found as unknown as WebdriverIO.Element;
+}
+
 async function send(text: string): Promise<void> {
-  const composer = await $(tid('chat-composer'));
-  await composer.waitForDisplayed({ timeout: 30_000 });
-  await clearComposer();
+  const composer = await frontComposer();
   const input = await composer.$('.chat-input');
+  // empty it the way the UI is told (React tracks the value): the setter, then `input`
+  await browser.execute(
+    (ta: HTMLTextAreaElement) => {
+      Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set?.call(
+        ta,
+        ''
+      );
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+    },
+    input as unknown as HTMLTextAreaElement
+  );
   await input.click();
   await input.addValue(text);
-  await (await $('[aria-label="Send message"]')).click();
+  await (await composer.$('[aria-label="Send message"]')).click();
 }
 
 async function quitKey(): Promise<void> {
