@@ -3,7 +3,7 @@
 //
 // H1 — the bridge and Claude Code must name the same file. Claude Code 2.1.x expandPath trims, turns
 // `~` / `~/x` into the home folder, and resolves the rest against the session cwd; the bridge used
-// to read `~/Documents/x` as `<repo>/~/Documents/x` (inside → approved), a Grep/Glob path `~`
+// to read `~/maude-p8-probe/x` as `<repo>/~/maude-p8-probe/x` (inside → approved), a Grep/Glob path `~`
 // searched the whole home, and `' ~/.SSH/id_rsa'` slipped past the credential check. One normalizer
 // (acp/agent-path.ts) now feeds every gate, and a path spelled so readers may disagree is outside.
 //
@@ -33,8 +33,8 @@ beforeAll(() => {
   mkdirSync(join(design, 'ui'), { recursive: true });
   writeFileSync(join(design, 'ui', 'a.tsx'), '// a\n');
   // A literal `~` folder inside the project: what the old resolution judged.
-  mkdirSync(join(repo, '~', 'Documents'), { recursive: true });
-  writeFileSync(join(repo, '~', 'Documents', 'x.txt'), 'x');
+  mkdirSync(join(repo, '~', 'maude-p8-probe'), { recursive: true });
+  writeFileSync(join(repo, '~', 'maude-p8-probe', 'x.txt'), 'x');
   consented = join(tmp, 'Combine');
   mkdirSync(consented, { recursive: true });
   writeFileSync(join(consented, 'notes.txt'), 'private');
@@ -49,8 +49,8 @@ const call = (rawInput: Record<string, unknown>) => ({ rawInput });
 describe('agentPath — Claude Code’s expandPath', () => {
   test('trim, ~, ~/, relative to the session cwd; NUL and empty → null', () => {
     expect(agentPath('~', '/repo', '/Users/u')).toEqual({ abs: '/Users/u', odd: true });
-    expect(agentPath('~/Documents/x', '/repo', '/Users/u')).toEqual({
-      abs: '/Users/u/Documents/x',
+    expect(agentPath('~/maude-p8-probe/x', '/repo', '/Users/u')).toEqual({
+      abs: '/Users/u/maude-p8-probe/x',
       odd: true,
     });
     expect(agentPath(' ~/.SSH/id_rsa', '/repo', '/Users/u')).toEqual({
@@ -72,8 +72,8 @@ describe('agentPath — Claude Code’s expandPath', () => {
 });
 
 describe('H1 — the read gate', () => {
-  test('`~/Documents/x` is the home folder’s, never `<repo>/~/Documents/x`', () => {
-    expect(readVerdict('Read', call({ file_path: '~/Documents/x.txt' }), repo, [repo])).toBe(
+  test('`~/maude-p8-probe/x` is the home folder’s, never `<repo>/~/maude-p8-probe/x`', () => {
+    expect(readVerdict('Read', call({ file_path: '~/maude-p8-probe/x.txt' }), repo, [repo])).toBe(
       'outside'
     );
   });
@@ -119,9 +119,9 @@ describe('H1 — the write gate', () => {
   const write = (file_path: string) =>
     resolveWriteTargets({ toolCallId: 't', rawInput: { file_path } }, repo);
   test('`~/x` is a write outside the project, not into `<repo>/~/x`', () => {
-    const v = write('~/Documents/x.txt');
+    const v = write('~/maude-p8-probe/x.txt');
     expect(v.inside).toBe(false);
-    expect(v.resolved).toEqual([join(homedir(), 'Documents', 'x.txt')]);
+    expect(v.resolved).toEqual([join(homedir(), 'maude-p8-probe', 'x.txt')]);
   });
   test('a spaced spelling is never auto-approved; a NUL names nothing', () => {
     expect(write(' .design/ui/a.tsx').inside).toBe(false);
@@ -154,7 +154,7 @@ describe('M1 — a read from outside the project is a private source', () => {
       ]),
       ...readPathsOf(
         'Read',
-        call({ file_path: join(repo, '~', 'Documents', 'x.txt') }),
+        call({ file_path: join(repo, '~', 'maude-p8-probe', 'x.txt') }),
         repo,
         [design],
         kind,

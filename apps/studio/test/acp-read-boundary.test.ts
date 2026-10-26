@@ -178,8 +178,8 @@ describe('the pure rules', () => {
   test('L2 — a read-only shell command on an outside path is flagged; in-project is not', () => {
     const roots = [repo, design];
     expect(bashReadsOutside(`cat ${join(outside, 'tax.pdf')}`, repo, roots)).toBe(true);
-    expect(bashReadsOutside('head -n 5 ~/Documents/x.txt', repo, roots)).toBe(true);
-    expect(bashReadsOutside('cd .design && rg secret $HOME/Documents', repo, roots)).toBe(true);
+    expect(bashReadsOutside('head -n 5 ~/maude-p8-probe/x.txt', repo, roots)).toBe(true);
+    expect(bashReadsOutside('cd .design && rg secret $HOME/maude-p8-probe', repo, roots)).toBe(true);
     expect(bashReadsOutside('FOO=1 cat /etc/hosts | wc -l', repo, roots)).toBe(true);
     expect(bashReadsOutside('cat README.md', repo, roots)).toBe(false);
     expect(bashReadsOutside('ls .design/ui', repo, roots)).toBe(false);
