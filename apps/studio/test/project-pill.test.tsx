@@ -90,7 +90,7 @@ describe('the pill', () => {
 
   test('the mark is the DS Mark (azure tile + white star), never the AI spark glyph', async () => {
     await mount();
-    const paths = [...(host?.querySelectorAll('.st-pill-mark svg path') ?? [])];
+    const paths = [...(host?.querySelectorAll('.sh-pill-mark svg path') ?? [])];
     expect(paths.length).toBe(2);
     // the kit `Mark`, verbatim: the tile (round on three corners), then the star on it
     expect(paths[0].getAttribute('d')).toBe(
@@ -335,7 +335,7 @@ describe('a submenu inside a submenu (View › Advanced, p8-bugs3 #2)', () => {
     Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
     HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
       if (this.matches('[data-testid="project-menu-sub-advanced"]')) return rect(0, 0, 272, 260);
-      if (this.classList.contains('st-pm-li')) return rect(276, 574, 264, 28);
+      if (this.classList.contains('sh-pm-li')) return rect(276, 574, 264, 28);
       return rect(0, 0, 0, 0);
     };
     await openAdvanced();
@@ -354,7 +354,7 @@ describe('a submenu inside a submenu (View › Advanced, p8-bugs3 #2)', () => {
     Object.defineProperty(window, 'innerWidth', { value: 700, configurable: true });
     HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
       if (this.matches('[data-testid="project-menu-sub-advanced"]')) return rect(0, 0, 272, 260);
-      if (this.classList.contains('st-pm-li')) return rect(276, 574, 264, 28);
+      if (this.classList.contains('sh-pm-li')) return rect(276, 574, 264, 28);
       return rect(0, 0, 0, 0);
     };
     await openAdvanced();

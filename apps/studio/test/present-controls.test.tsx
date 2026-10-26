@@ -305,7 +305,7 @@ describe('<CanvasPill>', () => {
       />
     );
     const pill = q('present-pill');
-    expect(pill?.classList.contains('st-present-exit')).toBe(true);
+    expect(pill?.classList.contains('pv-present-exit')).toBe(true);
     expect(pill?.getAttribute('aria-label')).toBe('Exit presentation mode');
     expect(pill?.textContent).toContain('Presenting the canvas');
     expect(pill?.textContent).toContain('21%');

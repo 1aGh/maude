@@ -99,7 +99,7 @@ test('prose label sets and selector-plus-words hooks resolve to selectors a page
     '.chat-perm .btn--danger',
     '[data-testid="chat-permission-prompt"] .btn--danger',
   ]);
-  assert.deepEqual(css('menuitem by name (row menu)'), ['.st-dropdown [role="menuitem"]']);
+  assert.deepEqual(css('menuitem by name (row menu)'), ['.sh-dropdown [role="menuitem"]']);
 });
 
 test('the Changes panel, deep links and the embed shell are required only where they are drawn', () => {

@@ -10,7 +10,7 @@
 // Words are CONTRACT §3–§4: "Stickers", "Search stickers…", "Recent", "Stamps", "Packs from the Figma
 // Community". Placing at 160 px / Replace / Flip / the stamps themselves are S4.13 (`onPickStamp`).
 //
-// The dialog keeps `.st-scrim` / `.st-dialog.st-sticker-picker` and the `tool-panel-stickers` testid so
+// The dialog keeps `.sh-scrim` / `.sh-dialog.sh-sticker-picker` and the `tool-panel-stickers` testid so
 // the mode lane's M4 check (an open modal dialog) and the e2e hooks read it unchanged.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -69,13 +69,13 @@ function Cell({ sticker, label, onPick, on = false }) {
   return (
     <button
       type="button"
-      className={label ? 'st-sp-cell sg-cell sg-cell--kw' : 'st-sp-cell sg-cell'}
+      className={label ? 'sh-sp-cell sg-cell sg-cell--kw' : 'sh-sp-cell sg-cell'}
       title={word}
       data-testid={`sticker-${sticker.pack}-${sticker.file}`}
       data-on={on ? 'true' : undefined}
       onClick={() => onPick(sticker)}
     >
-      <img className="st-sp-thumb" src={sticker.url} alt={word} loading="lazy" />
+      <img className="sh-sp-thumb" src={sticker.url} alt={word} loading="lazy" />
       {label ? <em>{label}</em> : null}
     </button>
   );
@@ -184,7 +184,7 @@ export default function StickersGallery({
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the scrim is a click-outside surface; Escape (window listener) and the Close button are the keyboard routes
     <div
-      className={anchor ? 'st-scrim st-scrim--anchored' : 'st-scrim'}
+      className={anchor ? 'sh-scrim sh-scrim--anchored' : 'sh-scrim'}
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -193,8 +193,8 @@ export default function StickersGallery({
       <div
         className={
           anchor
-            ? 'st-dialog st-sticker-picker sg st-sticker-picker--anchored'
-            : 'st-dialog st-sticker-picker sg'
+            ? 'sh-dialog sh-sticker-picker sg sh-sticker-picker--anchored'
+            : 'sh-dialog sh-sticker-picker sg'
         }
         data-testid="tool-panel-stickers"
         data-placement={anchor?.placement}
@@ -205,7 +205,7 @@ export default function StickersGallery({
       >
         {/* 15 an-stk-gallery: the board's panel opens straight on the search — no header, no ×. Esc, a press outside
             and the sticker's own pick close it. */}
-        <div className="st-dialog-bd">
+        <div className="sh-dialog-bd">
           <label className="sg-q">
             <Icon name="search" />
             <input
@@ -238,9 +238,9 @@ export default function StickersGallery({
             ) : null}
           </label>
 
-          <div className="st-sp-body sg-body">
+          <div className="sh-sp-body sg-body">
             {packs == null ? (
-              <div className="st-sp-empty">Loading…</div>
+              <div className="sh-sp-empty">Loading…</div>
             ) : result ? (
               <SearchView
                 result={result}
@@ -263,7 +263,7 @@ export default function StickersGallery({
           </div>
         </div>
         {packs && packs.length > 0 && (
-          <div className="st-sp-ft sg-credits" data-testid="stickers-credits">
+          <div className="sh-sp-ft sg-credits" data-testid="stickers-credits">
             <span>Packs from the Figma Community:</span>
             {packs.map((pack) => (
               <span key={pack.slug}>
@@ -289,7 +289,7 @@ export default function StickersGallery({
 }
 
 function BrowseView({ packs, recent, open, onOpen, onPick, onPickStamp }) {
-  if (packs.length === 0) return <div className="st-sp-empty">No stickers bundled</div>;
+  if (packs.length === 0) return <div className="sh-sp-empty">No stickers bundled</div>;
   return (
     <>
       <section className="sg-pk" data-testid="stickers-stamps">

@@ -3080,7 +3080,7 @@ function ShellTree() {
       onContextMenu={onShellContextMenu}
     >
       {/* V2-4.8b — the top banners (sync diverged / rejected, role, update, repo changed, format gate) are
-          callouts now, ONE stack. A child of `.maude`, not of `.st-body`: Presentation mode must not hide a
+          callouts now, ONE stack. A child of `.maude`, not of `.sh-body`: Presentation mode must not hide a
           fail-closed sync warning (DDR-102, phase-28 audit F-1). */}
       <ShellCallouts />
       <ShellMentionCallouts />
@@ -3094,14 +3094,14 @@ function ShellTree() {
       />
       <WhatsNewToast wn={whatsNew} />
       <ExportToast center={exportCenter} />
-      <div className="st-shell">
+      <div className="sh-shell">
         {/* V2-4.1 — the canvas is the whole window body. Floating (default): the dock slots are
             `.island`s over it and the folded corner icons are the way back; pinned (View › Advanced):
             today's docked columns. ⌘\ hides every panel either way. Every island root carries
             `data-occludes` and the insets reach the canvas through useOccludedInsets. */}
         <div
           className={
-            'st-body' + (floating ? ' st-body--float' : '') + (dragSide ? ' is-resizing' : '')
+            'sh-body' + (floating ? ' sh-body--float' : '') + (dragSide ? ' is-resizing' : '')
           }
           ref={bodyRef}
           style={{ '--sb-w': `${sbSize.w}px`, '--rp-w': `${rpW}px` }}
@@ -3243,7 +3243,7 @@ function ShellTree() {
         </div>
       </div>
       {/* S3.2b — the only chrome Present shows: the controls (Artboards) or the pill (the canvas). It replaces
-          the v1 `st-present-exit` button; the pill keeps that class. */}
+          the v1 `pv-present-exit` button; the pill keeps that class. */}
       {presentMode && <ShellPresentChrome />}
       {/* S3.6b — Presenter view on the Mac (only when the person turned it on and another display exists). */}
       {presentMode && <PresenterViewHost />}
@@ -3254,24 +3254,24 @@ function ShellTree() {
       />
       {shellPromptState && (
         <div
-          className="st-scrim"
+          className="sh-scrim"
           role="presentation"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) settleShellPrompt(null);
           }}
         >
           <div
-            className="st-dialog st-prompt"
+            className="sh-dialog sh-prompt"
             role="dialog"
             aria-modal="true"
             aria-label={shellPromptState.title}
           >
-            <div className="st-dialog-hd">
-              <span className="st-dialog-title">{shellPromptState.title}</span>
+            <div className="sh-dialog-hd">
+              <span className="sh-dialog-title">{shellPromptState.title}</span>
             </div>
-            <div className="st-dialog-bd">
+            <div className="sh-dialog-bd">
               <input
-                className="st-input"
+                className="sh-input"
                 data-testid="shell-prompt-input"
                 autoFocus
                 defaultValue={shellPromptState.value}
@@ -3291,7 +3291,7 @@ function ShellTree() {
                   data-testid="shell-prompt-ok"
                   onClick={(e) =>
                     settleShellPrompt(
-                      e.currentTarget.closest('.st-dialog')?.querySelector('input')?.value ?? ''
+                      e.currentTarget.closest('.sh-dialog')?.querySelector('input')?.value ?? ''
                     )
                   }
                 >

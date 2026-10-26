@@ -77,13 +77,13 @@ export function FormatGateBanner() {
     <div
       role="status"
       aria-live="polite"
-      className="st-callout st-callout--info"
+      className="sh-callout sh-callout--info"
       data-testid="format-gate-banner"
     >
-      <span className="st-callout-ic" aria-hidden="true">
+      <span className="sh-callout-ic" aria-hidden="true">
         <StIcon name="problem" size={16} />
       </span>
-      <span className="st-callout-t">{state.line}</span>
+      <span className="sh-callout-t">{state.line}</span>
       {state.action && (
         <button
           type="button"

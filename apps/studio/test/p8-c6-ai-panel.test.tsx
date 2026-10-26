@@ -46,7 +46,7 @@ describe('the header (03 `.k-ai-hd`)', () => {
   });
 
   test('the header spark is the AI colour, vermilion --spark, not --accent', () => {
-    const css = read('client/styles/6-acp-chat.css');
+    const css = read('client/v2/ai/chat.css');
     const rule = css.slice(css.indexOf('.chat-bar--v2 .chat-hd-spark'));
     expect(rule.slice(0, rule.indexOf('}'))).toContain('var(--spark)');
     expect(rule.slice(0, rule.indexOf('}'))).not.toContain('var(--accent)');
@@ -66,7 +66,7 @@ describe('the empty chat (03 `.ai-hint`)', () => {
 });
 
 describe('the transcript (03 `.k-ai-msg`)', () => {
-  const css = read('client/styles/6-acp-chat.css');
+  const css = read('client/v2/ai/chat.css');
   const rule = (sel: string) => {
     const at = css.indexOf(`${sel} {`);
     return at < 0 ? '' : css.slice(at, css.indexOf('}', at));
@@ -124,7 +124,7 @@ describe('the rest of the panel (03 `.k-dialog`, `.k-iconbtn--ai`, `ai-attach`)'
     const css = read('client/v2/ai/panel.css');
     expect(css).toContain('color: var(--spark)');
     expect(css).toContain('background: var(--presence-agent)');
-    expect(block('client/v2/ai/panel.css', '.st-body--float .st-dockslot-ai')).toContain(
+    expect(block('client/v2/ai/panel.css', '.sh-body--float .sh-dockslot-ai')).toContain(
       'width: 340px'
     );
   });

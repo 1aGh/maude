@@ -77,7 +77,7 @@
     background: var(--bg-2);
     box-shadow: var(--shadow-lg);
   }
-  .maude .vp-bar .st-iconbtn[aria-pressed="true"] {
+  .maude .vp-bar .sh-iconbtn[aria-pressed="true"] {
     color: var(--accent);
   }
   .maude .vp-time {

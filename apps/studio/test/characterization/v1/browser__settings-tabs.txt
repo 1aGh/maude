@@ -50,104 +50,104 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
                 input .v2s-seg-in [type="radio"] [value="auto"] [name="maude-theme"] {value="auto"} {off}
       section .v2s-group [data-testid="settings-canvas-view"] [aria-label="Canvas and view"]
         h3 .v2s-group-t "Canvas and view"
-        label .is-disabled.st-pref-row
-          span .st-pref-body
-            span .st-pref-label "Minimap"
-            span .st-pref-note "Open a canvas to use this."
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
-        label .is-disabled.st-pref-row
-          span .st-pref-body
-            span .st-pref-label "Zoom controls"
-            span .st-pref-note "Open a canvas to use this."
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
-        label .st-pref-row
-          span .st-pref-body
-            span .st-pref-label "Annotations"
-            span .st-pref-note "Show annotation pins and overlays on the canvas."
-          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
-        label .st-pref-row
-          span .st-pref-body
-            span .st-pref-label "Auto-open Inspector on select"
-            span .st-pref-note "Open the Inspector automatically when you select an element."
-          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+        label .is-disabled.v2s-pref-row
+          span .v2s-pref-body
+            span .v2s-pref-label "Minimap"
+            span .v2s-pref-note "Open a canvas to use this."
+          input .v2s-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .is-disabled.v2s-pref-row
+          span .v2s-pref-body
+            span .v2s-pref-label "Zoom controls"
+            span .v2s-pref-note "Open a canvas to use this."
+          input .v2s-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .v2s-pref-row
+          span .v2s-pref-body
+            span .v2s-pref-label "Annotations"
+            span .v2s-pref-note "Show annotation pins and overlays on the canvas."
+          input .v2s-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+        label .v2s-pref-row
+          span .v2s-pref-body
+            span .v2s-pref-label "Auto-open Inspector on select"
+            span .v2s-pref-note "Open the Inspector automatically when you select an element."
+          input .v2s-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
       section .v2s-group [data-testid="settings-keyboard"] [aria-label="Keyboard"]
         h3 .v2s-group-t "Keyboard"
         div [data-testid="settings-single-keys"]
-          label .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Single-key shortcuts"
-              span .st-pref-note "Keys without ⌘ or ⌥ pick tools and open things: V, H, N, /, ?. Off, only shortcuts with ⌘ or ⌥ work."
-            input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+          label .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Single-key shortcuts"
+              span .v2s-pref-note "Keys without ⌘ or ⌥ pick tools and open things: V, H, N, /, ?. Off, only shortcuts with ⌘ or ⌥ work."
+            input .v2s-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
       section .v2s-group [data-testid="settings-describe"] [aria-label="Search"]
         h3 .v2s-group-t "Search"
-        label .st-pref-row
-          span .st-pref-body
-            span .st-pref-label "Search in pictures"
-            span .st-pref-note "AI describes the pictures in characterization once, with your Claude account, so search finds what's in them."
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-pref-row
+          span .v2s-pref-body
+            span .v2s-pref-label "Search in pictures"
+            span .v2s-pref-note "AI describes the pictures in characterization once, with your Claude account, so search finds what's in them."
+          input .v2s-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
       section .v2s-group [data-testid="settings-layout"] [aria-label="Layout"]
         h3 .v2s-group-t "Layout"
-        div .st-provider-card
-          div .st-provider-hd
-            span .st-provider-name "Layers panel"
-          div .st-provider-notes "Show Layers as its own dockable panel, or as a tab inside the Inspector."
-          div .st-engine-radios [role="radiogroup"] [aria-label="Layers mode"]
-            label .is-selected.st-engine-radio
+        div .v2s-provider-card
+          div .v2s-provider-hd
+            span .v2s-provider-name "Layers panel"
+          div .v2s-provider-notes "Show Layers as its own dockable panel, or as a tab inside the Inspector."
+          div .v2s-engine-radios [role="radiogroup"] [aria-label="Layers mode"]
+            label .is-selected.v2s-engine-radio
               input [type="radio"] [checked] [name="layers-mode"] {value="on"} {on}
-              span .st-engine-radio-body
-                span .st-engine-radio-label "Separate panel"
-                span .st-engine-radio-note "Layers docks on its own (default: left)."
-            label .st-engine-radio
+              span .v2s-engine-radio-body
+                span .v2s-engine-radio-label "Separate panel"
+                span .v2s-engine-radio-note "Layers docks on its own (default: left)."
+            label .v2s-engine-radio
               input [type="radio"] [name="layers-mode"] {value="on"} {off}
-              span .st-engine-radio-body
-                span .st-engine-radio-label "Inside Inspector"
-                span .st-engine-radio-note "Layers is a tab within the Inspector."
-        div .st-provider-card
-          div .st-provider-hd
-            span .st-provider-name "Panel positions"
-          div .st-provider-notes "Put each panel on the left or the right. The AI chat is its own panel and shows beside the rest; Canvases, Layers and Assets share one panel"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Canvases"
-            span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"]
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Layers"
-            span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"]
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Assets"
-            span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"]
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Inspector"
-            span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Comments"
-            span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Version history"
-            span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "AI chat panel"
-            span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
+              span .v2s-engine-radio-body
+                span .v2s-engine-radio-label "Inside Inspector"
+                span .v2s-engine-radio-note "Layers is a tab within the Inspector."
+        div .v2s-provider-card
+          div .v2s-provider-hd
+            span .v2s-provider-name "Panel positions"
+          div .v2s-provider-notes "Put each panel on the left or the right. The AI chat is its own panel and shows beside the rest; Canvases, Layers and Assets share one panel"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Canvases"
+            span .v2s-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"]
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Layers"
+            span .v2s-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"]
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Assets"
+            span .v2s-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"]
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Inspector"
+            span .v2s-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"]
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Comments"
+            span .v2s-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"]
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Version history"
+            span .v2s-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"]
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "AI chat panel"
+            span .v2s-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"]
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
 ## tab 1
 div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Settings"] [aria-modal="true"]
   div .v2s-rail
@@ -199,104 +199,104 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
                 input .v2s-seg-in [type="radio"] [value="auto"] [name="maude-theme"] {value="auto"} {off}
       section .v2s-group [data-testid="settings-canvas-view"] [aria-label="Canvas and view"]
         h3 .v2s-group-t "Canvas and view"
-        label .is-disabled.st-pref-row
-          span .st-pref-body
-            span .st-pref-label "Minimap"
-            span .st-pref-note "Open a canvas to use this."
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
-        label .is-disabled.st-pref-row
-          span .st-pref-body
-            span .st-pref-label "Zoom controls"
-            span .st-pref-note "Open a canvas to use this."
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
-        label .st-pref-row
-          span .st-pref-body
-            span .st-pref-label "Annotations"
-            span .st-pref-note "Show annotation pins and overlays on the canvas."
-          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
-        label .st-pref-row
-          span .st-pref-body
-            span .st-pref-label "Auto-open Inspector on select"
-            span .st-pref-note "Open the Inspector automatically when you select an element."
-          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+        label .is-disabled.v2s-pref-row
+          span .v2s-pref-body
+            span .v2s-pref-label "Minimap"
+            span .v2s-pref-note "Open a canvas to use this."
+          input .v2s-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .is-disabled.v2s-pref-row
+          span .v2s-pref-body
+            span .v2s-pref-label "Zoom controls"
+            span .v2s-pref-note "Open a canvas to use this."
+          input .v2s-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .v2s-pref-row
+          span .v2s-pref-body
+            span .v2s-pref-label "Annotations"
+            span .v2s-pref-note "Show annotation pins and overlays on the canvas."
+          input .v2s-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+        label .v2s-pref-row
+          span .v2s-pref-body
+            span .v2s-pref-label "Auto-open Inspector on select"
+            span .v2s-pref-note "Open the Inspector automatically when you select an element."
+          input .v2s-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
       section .v2s-group [data-testid="settings-keyboard"] [aria-label="Keyboard"]
         h3 .v2s-group-t "Keyboard"
         div [data-testid="settings-single-keys"]
-          label .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Single-key shortcuts"
-              span .st-pref-note "Keys without ⌘ or ⌥ pick tools and open things: V, H, N, /, ?. Off, only shortcuts with ⌘ or ⌥ work."
-            input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+          label .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Single-key shortcuts"
+              span .v2s-pref-note "Keys without ⌘ or ⌥ pick tools and open things: V, H, N, /, ?. Off, only shortcuts with ⌘ or ⌥ work."
+            input .v2s-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
       section .v2s-group [data-testid="settings-describe"] [aria-label="Search"]
         h3 .v2s-group-t "Search"
-        label .st-pref-row
-          span .st-pref-body
-            span .st-pref-label "Search in pictures"
-            span .st-pref-note "AI describes the pictures in characterization once, with your Claude account, so search finds what's in them."
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-pref-row
+          span .v2s-pref-body
+            span .v2s-pref-label "Search in pictures"
+            span .v2s-pref-note "AI describes the pictures in characterization once, with your Claude account, so search finds what's in them."
+          input .v2s-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
       section .v2s-group [data-testid="settings-layout"] [aria-label="Layout"]
         h3 .v2s-group-t "Layout"
-        div .st-provider-card
-          div .st-provider-hd
-            span .st-provider-name "Layers panel"
-          div .st-provider-notes "Show Layers as its own dockable panel, or as a tab inside the Inspector."
-          div .st-engine-radios [role="radiogroup"] [aria-label="Layers mode"]
-            label .is-selected.st-engine-radio
+        div .v2s-provider-card
+          div .v2s-provider-hd
+            span .v2s-provider-name "Layers panel"
+          div .v2s-provider-notes "Show Layers as its own dockable panel, or as a tab inside the Inspector."
+          div .v2s-engine-radios [role="radiogroup"] [aria-label="Layers mode"]
+            label .is-selected.v2s-engine-radio
               input [type="radio"] [checked] [name="layers-mode"] {value="on"} {on}
-              span .st-engine-radio-body
-                span .st-engine-radio-label "Separate panel"
-                span .st-engine-radio-note "Layers docks on its own (default: left)."
-            label .st-engine-radio
+              span .v2s-engine-radio-body
+                span .v2s-engine-radio-label "Separate panel"
+                span .v2s-engine-radio-note "Layers docks on its own (default: left)."
+            label .v2s-engine-radio
               input [type="radio"] [name="layers-mode"] {value="on"} {off}
-              span .st-engine-radio-body
-                span .st-engine-radio-label "Inside Inspector"
-                span .st-engine-radio-note "Layers is a tab within the Inspector."
-        div .st-provider-card
-          div .st-provider-hd
-            span .st-provider-name "Panel positions"
-          div .st-provider-notes "Put each panel on the left or the right. The AI chat is its own panel and shows beside the rest; Canvases, Layers and Assets share one panel"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Canvases"
-            span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"]
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Layers"
-            span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"]
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Assets"
-            span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"]
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Inspector"
-            span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Comments"
-            span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Version history"
-            span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "AI chat panel"
-            span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
+              span .v2s-engine-radio-body
+                span .v2s-engine-radio-label "Inside Inspector"
+                span .v2s-engine-radio-note "Layers is a tab within the Inspector."
+        div .v2s-provider-card
+          div .v2s-provider-hd
+            span .v2s-provider-name "Panel positions"
+          div .v2s-provider-notes "Put each panel on the left or the right. The AI chat is its own panel and shows beside the rest; Canvases, Layers and Assets share one panel"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Canvases"
+            span .v2s-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"]
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Layers"
+            span .v2s-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"]
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Assets"
+            span .v2s-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"]
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Inspector"
+            span .v2s-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"]
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Comments"
+            span .v2s-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"]
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Version history"
+            span .v2s-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"]
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "AI chat panel"
+            span .v2s-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"]
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
     section .v2s-panel [data-testid="settings-panel-connections"] [role="tabpanel"]
       div .v2s-conns [data-testid="settings-connections"]
         section .v2s-conn [data-testid="settings-cloud"] [aria-label="cloud.maude.sh"]
@@ -418,104 +418,104 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
                 input .v2s-seg-in [type="radio"] [value="auto"] [name="maude-theme"] {value="auto"} {off}
       section .v2s-group [data-testid="settings-canvas-view"] [aria-label="Canvas and view"]
         h3 .v2s-group-t "Canvas and view"
-        label .is-disabled.st-pref-row
-          span .st-pref-body
-            span .st-pref-label "Minimap"
-            span .st-pref-note "Open a canvas to use this."
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
-        label .is-disabled.st-pref-row
-          span .st-pref-body
-            span .st-pref-label "Zoom controls"
-            span .st-pref-note "Open a canvas to use this."
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
-        label .st-pref-row
-          span .st-pref-body
-            span .st-pref-label "Annotations"
-            span .st-pref-note "Show annotation pins and overlays on the canvas."
-          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
-        label .st-pref-row
-          span .st-pref-body
-            span .st-pref-label "Auto-open Inspector on select"
-            span .st-pref-note "Open the Inspector automatically when you select an element."
-          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+        label .is-disabled.v2s-pref-row
+          span .v2s-pref-body
+            span .v2s-pref-label "Minimap"
+            span .v2s-pref-note "Open a canvas to use this."
+          input .v2s-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .is-disabled.v2s-pref-row
+          span .v2s-pref-body
+            span .v2s-pref-label "Zoom controls"
+            span .v2s-pref-note "Open a canvas to use this."
+          input .v2s-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .v2s-pref-row
+          span .v2s-pref-body
+            span .v2s-pref-label "Annotations"
+            span .v2s-pref-note "Show annotation pins and overlays on the canvas."
+          input .v2s-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+        label .v2s-pref-row
+          span .v2s-pref-body
+            span .v2s-pref-label "Auto-open Inspector on select"
+            span .v2s-pref-note "Open the Inspector automatically when you select an element."
+          input .v2s-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
       section .v2s-group [data-testid="settings-keyboard"] [aria-label="Keyboard"]
         h3 .v2s-group-t "Keyboard"
         div [data-testid="settings-single-keys"]
-          label .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Single-key shortcuts"
-              span .st-pref-note "Keys without ⌘ or ⌥ pick tools and open things: V, H, N, /, ?. Off, only shortcuts with ⌘ or ⌥ work."
-            input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+          label .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Single-key shortcuts"
+              span .v2s-pref-note "Keys without ⌘ or ⌥ pick tools and open things: V, H, N, /, ?. Off, only shortcuts with ⌘ or ⌥ work."
+            input .v2s-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
       section .v2s-group [data-testid="settings-describe"] [aria-label="Search"]
         h3 .v2s-group-t "Search"
-        label .st-pref-row
-          span .st-pref-body
-            span .st-pref-label "Search in pictures"
-            span .st-pref-note "AI describes the pictures in characterization once, with your Claude account, so search finds what's in them."
-          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-pref-row
+          span .v2s-pref-body
+            span .v2s-pref-label "Search in pictures"
+            span .v2s-pref-note "AI describes the pictures in characterization once, with your Claude account, so search finds what's in them."
+          input .v2s-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
       section .v2s-group [data-testid="settings-layout"] [aria-label="Layout"]
         h3 .v2s-group-t "Layout"
-        div .st-provider-card
-          div .st-provider-hd
-            span .st-provider-name "Layers panel"
-          div .st-provider-notes "Show Layers as its own dockable panel, or as a tab inside the Inspector."
-          div .st-engine-radios [role="radiogroup"] [aria-label="Layers mode"]
-            label .is-selected.st-engine-radio
+        div .v2s-provider-card
+          div .v2s-provider-hd
+            span .v2s-provider-name "Layers panel"
+          div .v2s-provider-notes "Show Layers as its own dockable panel, or as a tab inside the Inspector."
+          div .v2s-engine-radios [role="radiogroup"] [aria-label="Layers mode"]
+            label .is-selected.v2s-engine-radio
               input [type="radio"] [checked] [name="layers-mode"] {value="on"} {on}
-              span .st-engine-radio-body
-                span .st-engine-radio-label "Separate panel"
-                span .st-engine-radio-note "Layers docks on its own (default: left)."
-            label .st-engine-radio
+              span .v2s-engine-radio-body
+                span .v2s-engine-radio-label "Separate panel"
+                span .v2s-engine-radio-note "Layers docks on its own (default: left)."
+            label .v2s-engine-radio
               input [type="radio"] [name="layers-mode"] {value="on"} {off}
-              span .st-engine-radio-body
-                span .st-engine-radio-label "Inside Inspector"
-                span .st-engine-radio-note "Layers is a tab within the Inspector."
-        div .st-provider-card
-          div .st-provider-hd
-            span .st-provider-name "Panel positions"
-          div .st-provider-notes "Put each panel on the left or the right. The AI chat is its own panel and shows beside the rest; Canvases, Layers and Assets share one panel"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Canvases"
-            span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"]
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Layers"
-            span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"]
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Assets"
-            span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"]
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Inspector"
-            span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Comments"
-            span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "Version history"
-            span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
-          div .st-pref-row
-            span .st-pref-body
-              span .st-pref-label "AI chat panel"
-            span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
+              span .v2s-engine-radio-body
+                span .v2s-engine-radio-label "Inside Inspector"
+                span .v2s-engine-radio-note "Layers is a tab within the Inspector."
+        div .v2s-provider-card
+          div .v2s-provider-hd
+            span .v2s-provider-name "Panel positions"
+          div .v2s-provider-notes "Put each panel on the left or the right. The AI chat is its own panel and shows beside the rest; Canvases, Layers and Assets share one panel"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Canvases"
+            span .v2s-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"]
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Layers"
+            span .v2s-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"]
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Assets"
+            span .v2s-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"]
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Inspector"
+            span .v2s-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"]
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Comments"
+            span .v2s-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"]
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "Version history"
+            span .v2s-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"]
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
+          div .v2s-pref-row
+            span .v2s-pref-body
+              span .v2s-pref-label "AI chat panel"
+            span .v2s-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"]
+              button .v2s-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.v2s-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
     section .v2s-panel [data-testid="settings-panel-connections"] [role="tabpanel"] [hidden]
       div .v2s-conns [data-testid="settings-connections"]
         section .v2s-conn [data-testid="settings-cloud"] [aria-label="cloud.maude.sh"]
@@ -629,12 +629,12 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               span .v2s-row-t
                 span .v2s-row-k "Use my own plugin copy"
                 span .v2s-hint "Load the plugins you installed yourself instead of the ones Maude brings. Takes effect when the AI chat next starts."
-              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+              input .v2s-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
             label .v2s-row.v2s-row--switch [data-testid="settings-claude-autosetup"]
               span .v2s-row-t
                 span .v2s-row-k "Install and sign in automatically"
                 span .v2s-hint "Needs the Maude desktop app."
-              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+              input .v2s-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
             div .v2s-row
               span .v2s-row-t
                 span .v2s-row-k "maude in the terminal"
@@ -690,15 +690,15 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
                   span .v2s-model-st
                     span .dg-word "Not downloaded"
                     button .btn.btn--ghost.btn--sm [type="button"] "Download"
-                div .st-setup
-                  div .is-done.st-step
-                    span .st-step-n "✓"
-                    div .st-step-body
-                      span .st-step-title "whisper.cpp engine is installed"
-                  div .st-step
-                    span .st-step-n "2"
-                    div .st-step-body
-                      span .st-step-title "Download a model (above)"
+                div .v2s-setup
+                  div .is-done.v2s-step
+                    span .v2s-step-n "✓"
+                    div .v2s-step-body
+                      span .v2s-step-title "whisper.cpp engine is installed"
+                  div .v2s-step
+                    span .v2s-step-n "2"
+                    div .v2s-step-body
+                      span .v2s-step-title "Download a model (above)"
             div [data-testid="settings-keyframes"]
               div .v2s-eng [data-testid="settings-keyframe-select"]
                 label .v2s-row
@@ -710,29 +710,29 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
                     option [title="Scene cuts + endpoints. Needs ffmpeg. No model download."] [value="ffmpeg"] "ffmpeg scene-detect"
                     option [title="Chromium fallback — works with neither ffmpeg nor Gemma."] [value="blind"] "Blind (even-spaced)"
               div .v2s-models [data-testid="settings-gemma-models"]
-                div .st-setup
-                  div .st-step
-                    span .st-step-n "1"
-                    div .st-step-body
-                      span .st-step-title "Start Ollama"
+                div .v2s-setup
+                  div .v2s-step
+                    span .v2s-step-n "1"
+                    div .v2s-step-body
+                      span .v2s-step-title "Start Ollama"
                       span .rdy-cmd
                         code .rdy-cmd-tx "ollama serve"
                         button .rdy-copy [aria-label="Copy the install command"] [type="button"] "Copy"
-                  div .st-step
-                    span .st-step-n "2"
-                    div .st-step-body
-                      span .st-step-title "Download the model"
+                  div .v2s-step
+                    span .v2s-step-n "2"
+                    div .v2s-step-body
+                      span .v2s-step-title "Download the model"
                       span .rdy-cmd
                         code .rdy-cmd-tx "ollama pull gemma3:4b"
                         button .rdy-copy [aria-label="Copy the model pull command"] [type="button"] "Copy"
-                  details .st-setup-more
+                  details .v2s-setup-more
                     summary "Other ways to install"
-                    div .st-setup-option
-                      span .st-setup-option-label "mlx-vlm instead of Ollama — faster, Apple Silicon only"
+                    div .v2s-setup-option
+                      span .v2s-setup-option-label "mlx-vlm instead of Ollama — faster, Apple Silicon only"
                       span .rdy-cmd
                         code .rdy-cmd-tx "python3 -m venv '<work>/home/.maude/mlx-venv' && '<work>/home/.maude/mlx-venv/bin/pip' install -U mlx-vlm"
                         button .rdy-copy [aria-label="Copy the mlx-vlm install command"] [type="button"] "Copy"
-                      span .st-provider-notes "Then download a model below. Models live in your HuggingFace cache."
+                      span .v2s-provider-notes "Then download a model below. Models live in your HuggingFace cache."
                 p .v2s-hint "Active tier on this machine:"
                   strong "ffmpeg scene-detect"
                 label .v2s-row
@@ -771,7 +771,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               span .v2s-row-t
                 span .v2s-row-k "AI reviews argue it out (teams)"
                 span .v2s-hint "Reviews are argued out by several AI seats that answer each other. Costs more. Takes effect when the AI chat next starts."
-              input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+              input .v2s-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
           section .v2s-group [data-testid="settings-reset"] [aria-label="Reset"]
             h3 .v2s-group-t "Reset"
             div .v2s-acts

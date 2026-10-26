@@ -6,23 +6,23 @@
  * has no bar and no pointer. Motion: none of its own. */
 
 @layer shell {
-  .st-follow-root {
+  .pv-follow-root {
     position: fixed;
     inset: 0;
     overflow: hidden;
     background: var(--bg-0);
   }
-  .st-follow-root--audience,
-  .st-follow-root--audience .st-follow-frame {
+  .pv-follow-root--audience,
+  .pv-follow-root--audience .pv-follow-frame {
     cursor: none;
   }
-  .st-follow-frame {
+  .pv-follow-frame {
     width: 100%;
     height: 100%;
     border: 0;
     display: block;
   }
-  .st-follow {
+  .pv-follow {
     position: absolute;
     left: 50%;
     top: var(--space-4);
@@ -37,30 +37,30 @@
     color: var(--fg-0);
     white-space: nowrap;
   }
-  .st-follow strong {
+  .pv-follow strong {
     font-weight: var(--w-semibold);
   }
-  .st-follow-live {
+  .pv-follow-live {
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
     font-size: var(--type-xs);
     font-weight: var(--w-semibold);
   }
-  .st-follow-live i {
+  .pv-follow-live i {
     width: 8px;
     height: 8px;
     border-radius: var(--radius-pill);
     background: var(--presence-online);
   }
-  .st-follow-live--off {
+  .pv-follow-live--off {
     color: var(--fg-2);
   }
-  .st-follow-live--off i {
+  .pv-follow-live--off i {
     background: transparent;
     box-shadow: inset 0 0 0 1.5px var(--presence-online);
   }
-  .st-follow-av {
+  .pv-follow-av {
     display: inline-grid;
     place-items: center;
     width: 24px;
@@ -71,7 +71,7 @@
     font-size: var(--type-xs);
     font-weight: var(--w-semibold);
   }
-  .st-follow-watch {
+  .pv-follow-watch {
     position: absolute;
     right: var(--space-4);
     top: var(--space-5);
@@ -79,7 +79,7 @@
     font-size: var(--type-xs);
     color: var(--fg-2);
   }
-  .st-follow-note {
+  .pv-follow-note {
     position: absolute;
     inset: 0;
     display: grid;

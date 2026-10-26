@@ -150,7 +150,7 @@ function ImageBody({ el, ctx }) {
         </span>
         <button
           type="button"
-          className="st-btn"
+          className="sh-btn"
           data-testid="insp-image-replace"
           disabled={!editable || !ctx?.onReplaceMedia}
           onClick={() => ctx?.onReplaceMedia?.(el)}
@@ -211,7 +211,7 @@ function AdjustBody({ el, ctx }) {
       <Row k="Look" name="image-adjust">
         <button
           type="button"
-          className="st-btn"
+          className="sh-btn"
           data-testid="insp-image-adjust"
           disabled={!editable}
           onClick={() => ctx?.onOpenPhoto?.('adjust')}
@@ -222,7 +222,7 @@ function AdjustBody({ el, ctx }) {
       <Row k="Background" name="image-remove-bg">
         <button
           type="button"
-          className="st-btn"
+          className="sh-btn"
           data-testid="insp-image-remove-bg"
           disabled={!editable}
           onClick={() => ctx?.onOpenPhoto?.('remove-background')}

@@ -1,124 +1,124 @@
 # browser/menu-selection
-span .island.st-pill
-  button .st-pill-btn [data-testid="project-pill"] [aria-label="characterization, project menu"] [aria-expanded="true"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
-    span .st-pill-mark [data-tour="brand"]
+span .island.sh-pill
+  button .sh-pill-btn [data-testid="project-pill"] [aria-label="characterization, project menu"] [aria-expanded="true"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
+    span .sh-pill-mark [data-tour="brand"]
       svg [aria-hidden="true"]
-    span .st-pill-name "characterization"
-    span .st-pill-caret [aria-hidden="true"]
+    span .sh-pill-name "characterization"
+    span .sh-pill-caret [aria-hidden="true"]
       svg [aria-hidden="true"]
-  div .st-pm-root
-    div .st-pm [data-testid="project-menu"] [role="menu"] [aria-label="Project menu"]
-      div .st-pm-li [role="none"]
-        button .st-pm-row [data-testid="project-menu-row-sub-file"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
-          span .st-pm-ic [aria-hidden="true"]
-          span .st-pm-lab "File"
-          span .st-pm-ch [aria-hidden="true"]
+  div .sh-pm-root
+    div .sh-pm [data-testid="project-menu"] [role="menu"] [aria-label="Project menu"]
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-sub-file"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "File"
+          span .sh-pm-ch [aria-hidden="true"]
             svg [aria-hidden="true"]
-      div .st-pm-li [role="none"]
-        button .st-pm-row [data-testid="project-menu-row-sub-edit"] [role="menuitem"] [aria-expanded="true"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
-          span .st-pm-ic [aria-hidden="true"]
-          span .st-pm-lab "Edit"
-          span .st-pm-ch [aria-hidden="true"]
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-sub-edit"] [role="menuitem"] [aria-expanded="true"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Edit"
+          span .sh-pm-ch [aria-hidden="true"]
             svg [aria-hidden="true"]
-        div .st-pm.st-pm--sub [data-testid="project-menu-sub-edit"] [role="menu"] [aria-label="Edit"]
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-edit.undo"] [role="menuitem"] [type="button"] [tabindex="0"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Undo"
+        div .sh-pm.sh-pm--sub [data-testid="project-menu-sub-edit"] [role="menu"] [aria-label="Edit"]
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-edit.undo"] [role="menuitem"] [type="button"] [tabindex="0"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Undo"
               span .kbd "⌘Z"
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-edit.redo"] [role="menuitem"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Redo"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-edit.redo"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Redo"
               span .kbd "⇧⌘Z"
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-edit.undo-history"] [role="menuitem"] [aria-disabled="true"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Undo history…"
-          hr .st-pm-sep
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-edit.cut"] [role="menuitem"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Cut"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-edit.undo-history"] [role="menuitem"] [aria-disabled="true"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Undo history…"
+          hr .sh-pm-sep
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-edit.cut"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Cut"
               span .kbd "⌘X"
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-edit.copy"] [role="menuitem"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Copy"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-edit.copy"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Copy"
               span .kbd "⌘C"
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-edit.paste"] [role="menuitem"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Paste"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-edit.paste"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Paste"
               span .kbd "⌘V"
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-edit.copy-properties"] [role="menuitem"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Copy properties"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-edit.copy-properties"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Copy properties"
               span .kbd "⌥⌘C"
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-edit.paste-properties"] [role="menuitem"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Paste properties"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-edit.paste-properties"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Paste properties"
               span .kbd "⌥⌘V"
-          hr .st-pm-sep
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-select.all"] [role="menuitem"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Select all"
+          hr .sh-pm-sep
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-select.all"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Select all"
               span .kbd "⌘A"
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-select.none"] [role="menuitem"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Deselect all"
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-select.all-annotations"] [role="menuitem"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Select all annotations"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-select.none"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Deselect all"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-select.all-annotations"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Select all annotations"
               span .kbd "⇧⌘A"
-          hr .st-pm-sep
-          div .st-pm-li [role="none"]
-            button .st-pm-row.st-pm-row--adv [data-testid="project-menu-row-sub-advanced"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Advanced"
-              span .st-pm-ch [aria-hidden="true"]
+          hr .sh-pm-sep
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row.sh-pm-row--adv [data-testid="project-menu-row-sub-advanced"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Advanced"
+              span .sh-pm-ch [aria-hidden="true"]
                 svg [aria-hidden="true"]
-      div .st-pm-li [role="none"]
-        button .st-pm-row [data-testid="project-menu-row-sub-view"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
-          span .st-pm-ic [aria-hidden="true"]
-          span .st-pm-lab "View"
-          span .st-pm-ch [aria-hidden="true"]
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-sub-view"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "View"
+          span .sh-pm-ch [aria-hidden="true"]
             svg [aria-hidden="true"]
-      div .st-pm-li [role="none"]
-        button .st-pm-row [data-testid="project-menu-row-sub-help"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
-          span .st-pm-ic [aria-hidden="true"]
-          span .st-pm-lab "Help"
-          span .st-pm-ch [aria-hidden="true"]
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-sub-help"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Help"
+          span .sh-pm-ch [aria-hidden="true"]
             svg [aria-hidden="true"]
-      hr .st-pm-sep
-      div .st-pm-li [role="none"]
-        button .st-pm-row [data-testid="project-menu-row-history.open"] [role="menuitemcheckbox"] [aria-checked="false"] [type="button"] [tabindex="-1"]
-          span .st-pm-ic [aria-hidden="true"]
-          span .st-pm-lab "Version history"
+      hr .sh-pm-sep
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-history.open"] [role="menuitemcheckbox"] [aria-checked="false"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Version history"
           span .kbd "⌥⌘H"
-      div .st-pm-li [role="none"]
-        button .st-pm-row [data-testid="project-menu-row-share.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
-          span .st-pm-ic [aria-hidden="true"]
-          span .st-pm-lab "Share…"
-      div .st-pm-li [role="none"]
-        button .st-pm-row [data-testid="project-menu-row-export.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
-          span .st-pm-ic [aria-hidden="true"]
-          span .st-pm-lab "Export…"
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-share.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Share…"
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-export.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Export…"
           span .kbd "⇧⌘E"
-      hr .st-pm-sep
-      div .st-pm-li [role="none"]
-        button .st-pm-row [data-testid="project-menu-row-sub-diagnostics"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
-          span .st-pm-ic [aria-hidden="true"]
-          span .st-pm-lab "Diagnostics"
-          span .st-pm-ch [aria-hidden="true"]
+      hr .sh-pm-sep
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-sub-diagnostics"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Diagnostics"
+          span .sh-pm-ch [aria-hidden="true"]
             svg [aria-hidden="true"]
-      div .st-pm-li [role="none"]
-        button .st-pm-row [data-testid="project-menu-row-settings.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
-          span .st-pm-ic [aria-hidden="true"]
-          span .st-pm-lab "Settings…"
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-settings.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Settings…"
           span .kbd "⌘,"

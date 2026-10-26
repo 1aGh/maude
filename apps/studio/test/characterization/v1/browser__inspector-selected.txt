@@ -1,58 +1,58 @@
 # browser/inspector-selected
 div
   div .maude
-    div .st-callouts [data-testid="callouts"]
+    div .sh-callouts [data-testid="callouts"]
     div .maude-notifications
       section [aria-label="Notifications alt+T"] [tabindex="-1"]
-    div .st-shell
-      div .st-body.st-body--float
-        span .island.st-pill
-          button .st-pill-btn [data-testid="project-pill"] [aria-label="characterization / Home, project menu"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
-            span .st-pill-mark [data-tour="brand"]
+    div .sh-shell
+      div .sh-body.sh-body--float
+        span .island.sh-pill
+          button .sh-pill-btn [data-testid="project-pill"] [aria-label="characterization / Home, project menu"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
+            span .sh-pill-mark [data-tour="brand"]
               svg [aria-hidden="true"]
-            span .st-pill-name "characterization"
-            span .st-pill-sep [aria-hidden="true"] "/"
-            span .st-pill-canvas "Home"
-            span .st-pill-caret [aria-hidden="true"]
+            span .sh-pill-name "characterization"
+            span .sh-pill-sep [aria-hidden="true"] "/"
+            span .sh-pill-canvas "Home"
+            span .sh-pill-caret [aria-hidden="true"]
               svg [aria-hidden="true"]
-        div .island.st-share [data-testid="share-cluster"] [data-tour="status"]
-          span .st-faces-host
-            ul .st-faces [data-testid="share-cluster-faces"] [aria-label="People here"]
-              li .is-you.st-face [aria-label="You"] [title="You"] "Y"
-          span .st-saved [data-testid="share-cluster-status"] [role="status"]
+        div .island.sh-share [data-testid="share-cluster"] [data-tour="status"]
+          span .sh-faces-host
+            ul .sh-faces [data-testid="share-cluster-faces"] [aria-label="People here"]
+              li .is-you.sh-face [aria-label="You"] [title="You"] "Y"
+          span .sh-saved [data-testid="share-cluster-status"] [role="status"]
             svg [aria-hidden="true"]
-            span .st-saved-w "Local project"
-          div .st-modes [data-testid="share-cluster-mode"] [role="group"] [aria-label="Mode"]
-            button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
-              svg .st-mode-g [aria-hidden="true"]
-            button .st-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="false"] [title="Preview"] [type="button"]
-              svg .st-mode-g [aria-hidden="true"]
-            span .st-mode-b.st-mode-b--menu
-              button .st-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="false"] [title="Present"] [type="button"]
-                svg .st-mode-g [aria-hidden="true"]
-              button .st-mode-ch [data-testid="mode-present-menu"] [aria-label="Present options"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"]
+            span .sh-saved-w "Local project"
+          div .sh-modes [data-testid="share-cluster-mode"] [role="group"] [aria-label="Mode"]
+            button .sh-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
+              svg .sh-mode-g [aria-hidden="true"]
+            button .sh-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="false"] [title="Preview"] [type="button"]
+              svg .sh-mode-g [aria-hidden="true"]
+            span .sh-mode-b.sh-mode-b--menu
+              button .sh-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="false"] [title="Present"] [type="button"]
+                svg .sh-mode-g [aria-hidden="true"]
+              button .sh-mode-ch [data-testid="mode-present-menu"] [aria-label="Present options"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"]
                 svg [aria-hidden="true"]
-          button .st-share-ic [data-testid="share-cluster-panels"] [aria-label="Hide panels"] [title="Hide panels ⌘\\"] [type="button"]
+          button .sh-share-ic [data-testid="share-cluster-panels"] [aria-label="Hide panels"] [title="Hide panels ⌘\\"] [type="button"]
             svg [aria-hidden="true"]
-          button .btn.btn--primary.btn--sm.st-share-btn [data-testid="share-cluster-share"] [type="button"] "Share"
+          button .btn.btn--primary.btn--sm.sh-share-btn [data-testid="share-cluster-share"] [type="button"] "Share"
             svg [aria-hidden="true"]
-        div .island.st-zoomundo [data-testid="zoom-undo"]
+        div .island.sh-zoomundo [data-testid="zoom-undo"]
           button .icon-btn [data-testid="zoom-undo-undo"] [aria-label="Undo"] [title="Undo ⌘Z"] [type="button"]
             svg [aria-hidden="true"]
           button .icon-btn [data-testid="zoom-undo-redo"] [aria-label="Redo"] [title="Redo ⇧⌘Z"] [type="button"]
             svg [aria-hidden="true"]
-          span .st-zoomundo-div [aria-hidden="true"]
-          button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
+          span .sh-zoomundo-div [aria-hidden="true"]
+          button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
         div .main
-          div .st-stage.viewport [data-tour="viewport"]
+          div .sh-stage.viewport [data-tour="viewport"]
             iframe .active [data-testid="canvas-frame"] [data-path=".design/ui/Home.tsx"] [title="Canvas: .design/ui/Home.tsx"]
-        div .st-grip.st-grip--r [data-testid="panel-grip-right"] [role="separator"] [aria-label="Resize right panel"] [tabindex="0"]
-          svg .st-grip-dots [aria-hidden="true"]
-          span .st-grip-tip [aria-hidden="true"] "Drag · double-click resets · ← → move 8"
-        div .st-dockslot.st-dockslot--right
-          div .island.st-dockslot-inner [data-testid="dock-slot-right"]
-            aside .st-rpanel.st-rpanel--insp [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
-              div .st-rp-body
+        div .sh-grip.sh-grip--r [data-testid="panel-grip-right"] [role="separator"] [aria-label="Resize right panel"] [tabindex="0"]
+          svg .sh-grip-dots [aria-hidden="true"]
+          span .sh-grip-tip [aria-hidden="true"] "Drag · double-click resets · ← → move 8"
+        div .sh-dockslot.sh-dockslot--right
+          div .island.sh-dockslot-inner [data-testid="dock-slot-right"]
+            aside .sh-rpanel.sh-rpanel--insp [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
+              div .sh-rp-body
                 div .insp [data-testid="inspector-frame"]
                   nav .insp-crumbs [data-testid="inspector-crumbs"] [aria-label="Where this is"]
                     span .insp-crumb-wrap
@@ -82,21 +82,21 @@ div
                         span .insp-row-v
                           span .insp-pair
                             span [data-testid="insp-num-x"] [title="Placed by its frame’s layout"]
-                              div .insp-nf.st-cp-num
-                                span .st-cp-numlead [aria-hidden="true"] "X"
-                                input .st-cp-numin [role="spinbutton"] [aria-label="X"] [value="0"] {value="0"}
+                              div .insp-cp-num.insp-nf
+                                span .insp-cp-numlead [aria-hidden="true"] "X"
+                                input .insp-cp-numin [role="spinbutton"] [aria-label="X"] [value="0"] {value="0"}
                             span [data-testid="insp-num-y"] [title="Placed by its frame’s layout"]
-                              div .insp-nf.st-cp-num
-                                span .st-cp-numlead [aria-hidden="true"] "Y"
-                                input .st-cp-numin [role="spinbutton"] [aria-label="Y"] [value="0"] {value="0"}
+                              div .insp-cp-num.insp-nf
+                                span .insp-cp-numlead [aria-hidden="true"] "Y"
+                                input .insp-cp-numin [role="spinbutton"] [aria-label="Y"] [value="0"] {value="0"}
                       div .insp-row [data-testid="insp-row-rotation"]
                         span .insp-row-k "Rotation"
                         span .insp-row-v
                           span [data-testid="insp-num-rotation"]
-                            div .insp-nf.st-cp-num
-                              span .st-cp-numlead [aria-hidden="true"]
+                            div .insp-cp-num.insp-nf
+                              span .insp-cp-numlead [aria-hidden="true"]
                                 svg .lucide.lucide-rotate-cw [aria-hidden="true"]
-                              input .st-cp-numin [role="spinbutton"] [aria-label="Rotation"] [value="0°"] {value="0°"}
+                              input .insp-cp-numin [role="spinbutton"] [aria-label="Rotation"] [value="0°"] {value="0°"}
                       p .insp-quiet [data-testid="insp-position-auto"] "It sits where its frame’s layout puts it. Place freely makes X and Y yours."
                     section .insp-sec [data-testid="insp-sec-size"] [aria-label="Size"]
                       p .insp-sec-t
@@ -106,9 +106,9 @@ div
                         span .insp-row-v
                           span .insp-pair
                             span [data-testid="insp-num-width"]
-                              div .insp-nf.st-cp-num
-                                input .st-cp-numin [role="spinbutton"] [aria-label="Width"] [value="800"] {value="800"}
-                            select .st-cp-nsel.st-cp-nsel--mini [data-testid="insp-mode-width"] [aria-label="Width sizing"] {value="fixed"}
+                              div .insp-cp-num.insp-nf
+                                input .insp-cp-numin [role="spinbutton"] [aria-label="Width"] [value="800"] {value="800"}
+                            select .insp-cp-nsel.insp-cp-nsel--mini [data-testid="insp-mode-width"] [aria-label="Width sizing"] {value="fixed"}
                               option [value="hug"] "Hug"
                               option [value="fill"] "Fill"
                               option [value="fixed"] "Fixed"
@@ -117,9 +117,9 @@ div
                         span .insp-row-v
                           span .insp-pair
                             span [data-testid="insp-num-height"]
-                              div .insp-nf.st-cp-num
-                                input .st-cp-numin [role="spinbutton"] [aria-label="Height"] [value="217"] {value="217"}
-                            select .st-cp-nsel.st-cp-nsel--mini [data-testid="insp-mode-height"] [aria-label="Height sizing"] {value="fixed"}
+                              div .insp-cp-num.insp-nf
+                                input .insp-cp-numin [role="spinbutton"] [aria-label="Height"] [value="217"] {value="217"}
+                            select .insp-cp-nsel.insp-cp-nsel--mini [data-testid="insp-mode-height"] [aria-label="Height sizing"] {value="fixed"}
                               option [value="hug"] "Hug"
                               option [value="fill"] "Fill"
                               option [value="fixed"] "Fixed"
@@ -127,8 +127,8 @@ div
                         span .insp-row-k "Clip content"
                         span .insp-row-v
                           span [data-testid="insp-ctl-clip"]
-                            label .st-cp-toggle
-                              input .st-cp-switch [aria-label="Clip content"] [type="checkbox"] {value="on"} {off}
+                            label .insp-cp-toggle
+                              input .insp-cp-switch [aria-label="Clip content"] [type="checkbox"] {value="on"} {off}
                     section .insp-sec [data-testid="insp-sec-layout"] [aria-label="Layout"]
                       p .insp-sec-t
                         span .insp-sec-name [title="Auto layout: direction, gap, spacing (Packed or Space between), padding H and V,"] "Layout"
@@ -139,7 +139,7 @@ div
                         span .insp-row-k "Direction"
                         span .insp-row-v
                           span [data-testid="insp-ctl-direction"]
-                            div .st-cp-iconseg [role="radiogroup"] [aria-label="Direction"]
+                            div .insp-cp-iconseg [role="radiogroup"] [aria-label="Direction"]
                               button [role="radio"] [aria-label="Row"] [aria-checked="false"] [title="Row"] [type="button"]
                                 svg .lucide.lucide-arrow-right [aria-hidden="true"]
                               button [role="radio"] [aria-label="Column"] [aria-checked="false"] [title="Column"] [type="button"]
@@ -202,16 +202,16 @@ div
                         span .insp-row-k "Shadow"
                         span .insp-row-v
                           span [data-testid="insp-ctl-shadow"]
-                            div .st-cp-seg [role="radiogroup"] [aria-label="Shadow"]
-                              button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "Flat"
+                            div .insp-cp-seg [role="radiogroup"] [aria-label="Shadow"]
+                              button .insp-cp-segbtn.is-active [role="radio"] [aria-checked="true"] [type="button"] "Flat"
                       p .insp-quiet [data-testid="insp-shadow-none"] "This system has no shadow steps."
                       div .insp-row [data-testid="insp-row-opacity"]
                         span .insp-row-k "Opacity"
                         span .insp-row-v
                           span .insp-pair
                             span [data-testid="insp-num-opacity"]
-                              div .insp-nf.st-cp-num
-                                input .st-cp-numin [role="spinbutton"] [aria-label="Opacity"] [value="100 %"] {value="100 %"}
+                              div .insp-cp-num.insp-nf
+                                input .insp-cp-numin [role="spinbutton"] [aria-label="Opacity"] [value="100 %"] {value="100 %"}
                     section .insp-sec [data-testid="insp-sec-type"] [aria-label="Type"]
                       p .insp-sec-t
                         span .insp-sec-name [title="For the text inside. The style first; size and weight override it, with a dot."] "Type"
@@ -223,7 +223,7 @@ div
                             button .insp-chip [aria-label="Text size"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"]
                               span .insp-chip-face.insp-chip-face--none [data-testid="insp-chip-font-size"] "Inherited"
                               svg [aria-hidden="true"]
-                          select .st-cp-nsel.st-cp-nsel--mini [data-testid="insp-weight"] [aria-label="Weight"]
+                          select .insp-cp-nsel.insp-cp-nsel--mini [data-testid="insp-weight"] [aria-label="Weight"]
                             option [value] "Inherited"
                             option [value="400"] "Regular"
                             option [value="500"] "Medium"
@@ -244,12 +244,12 @@ div
                       div .insp-row [data-testid="insp-row-click"]
                         span .insp-row-k "On click"
                         span .insp-row-v
-                          select .st-cp-nsel [data-testid="insp-ctl-click"] [aria-label="On click"] [disabled] {value="current"}
+                          select .insp-cp-nsel [data-testid="insp-ctl-click"] [aria-label="On click"] [disabled] {value="current"}
                             option [value="current"] "None"
                       div .insp-row [data-testid="insp-row-hover"]
                         span .insp-row-k "On hover"
                         span .insp-row-v
-                          select .st-cp-nsel [data-testid="insp-ctl-hover"] [aria-label="On hover"] {value="none"}
+                          select .insp-cp-nsel [data-testid="insp-ctl-hover"] [aria-label="On hover"] {value="none"}
                             option [value="none"] "None"
                             option [value="lift-resting"] "Lift to Resting"
                             option [value="lift-floating"] "Lift to Floating"
@@ -279,6 +279,6 @@ div
                         span .k-adv-ch.v2-fold-ch
                           svg [aria-hidden="true"]
                         span .k-adv-count.v2-fold-hint "Code, tokens, CSS"
-        span .island.st-corner.st-corner--left
-          button .st-iconbtn [data-testid="panel-icon-left"] [aria-label="Open Canvases"] [title="Canvases"] [type="button"]
+        span .island.sh-corner.sh-corner--left
+          button .sh-iconbtn [data-testid="panel-icon-left"] [aria-label="Open Canvases"] [title="Canvases"] [type="button"]
             svg [aria-hidden="true"]

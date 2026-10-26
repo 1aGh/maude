@@ -1,5 +1,5 @@
 /* @layer components — S5.8: the AI chat panel host (03 AI Chat). Tokens only: no hex, weights ≤ 600.
-   The v1 `chat-*` classes still style the thread (6-acp-chat.css); this file adds what 03 draws on top —
+   The v1 `chat-*` classes still style the thread (chat.css); this file adds what 03 draws on top —
    the scope chip + menu, the suggestion strip with its why line, the answer note — and pins the send
    button to azure with a white spark (rule `send-and-ask-ai-are-azure`: an AI action is still an action;
    vermilion is only for AI presence). */

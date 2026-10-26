@@ -148,9 +148,9 @@ describe('⌘K, the real palette', () => {
     const first = el.querySelector('[data-testid="palette-row-action:view.print-guides"]');
     expect(first).not.toBeNull();
     expect(first?.classList.contains('is-active')).toBe(true);
-    expect(first?.querySelector('.st-pal-where')?.textContent).toBe('Menu › View › Advanced');
+    expect(first?.querySelector('.sh-pal-where')?.textContent).toBe('Menu › View › Advanced');
     expect(
-      el.querySelector('[data-testid="palette-group-actions"] .st-pal-aside')?.textContent
+      el.querySelector('[data-testid="palette-group-actions"] .sh-pal-aside')?.textContent
     ).toBe('1 hidden tool');
     await key(input, 'Enter');
     expect(spies.ran).toEqual(['view.print-guides']);
@@ -162,8 +162,8 @@ describe('⌘K, the real palette', () => {
     const el = await mount(actions, spies);
     const input = await type(el, 'add a team server');
     const ids = rowIds(el);
-    const row = el.querySelector('.st-pal-item.is-active');
-    expect(row?.querySelector('.st-pal-where')?.textContent).toMatch(/^Settings › /);
+    const row = el.querySelector('.sh-pal-item.is-active');
+    expect(row?.querySelector('.sh-pal-where')?.textContent).toMatch(/^Settings › /);
     await key(input, 'Enter');
     expect(spies.ran).toEqual(['settings:connections']);
     expect(ids[ids.length - 1]).toBe('ask-ai');
@@ -250,7 +250,7 @@ describe('⌘K, the real palette', () => {
     expect(ids[ids.length - 1]).toBe('ask-ai');
     expect(
       el.querySelector(
-        '[data-testid="palette-row-artboard:ui/2026/LetakA6.tsx#front"] .st-pal-meta'
+        '[data-testid="palette-row-artboard:ui/2026/LetakA6.tsx#front"] .sh-pal-meta'
       )?.textContent
     ).toBe('artboard in LetakA6');
     const board = el.querySelector(
@@ -383,9 +383,9 @@ describe('⌘K words (S1.4)', () => {
       [...el.querySelectorAll(`[data-testid="palette-row-${id}"] ${where} mark`)].map(
         (m) => m.textContent
       );
-    expect(marks('canvas:ui/Uniformy-2027.tsx', '.st-pal-ltxt')).toEqual(['Uniformy', '2027']);
-    expect(marks('artboard:ui/Uniformy-2027.tsx#h', '.st-pal-ltxt')).toEqual(['2027']);
-    expect(marks('artboard:ui/Uniformy-2027.tsx#h', '.st-pal-meta')).toEqual(['Uniformy']);
+    expect(marks('canvas:ui/Uniformy-2027.tsx', '.sh-pal-ltxt')).toEqual(['Uniformy', '2027']);
+    expect(marks('artboard:ui/Uniformy-2027.tsx#h', '.sh-pal-ltxt')).toEqual(['2027']);
+    expect(marks('artboard:ui/Uniformy-2027.tsx#h', '.sh-pal-meta')).toEqual(['Uniformy']);
     expect(el.querySelector('[data-testid="palette-count"]')?.textContent).toBe('2 close matches');
   });
 
@@ -525,7 +525,7 @@ describe('⌘K across projects (S1.5 · pn-k-across)', () => {
       `palette-group-project-${CLOSED}`,
     ]);
     const head = (id: string) =>
-      el.querySelector(`[data-testid="palette-group-${id}"] .st-pal-group`)?.textContent;
+      el.querySelector(`[data-testid="palette-group-${id}"] .sh-pal-group`)?.textContent;
     expect(head('project-self')).toBe('AAlligators brandthis tab');
     expect(head(`project-${OTHER}`)).toBe('SStudio sitein another tab');
     expect(head(`project-${CLOSED}`)).toBe('PPortfolio 2026not open — opens a tab');

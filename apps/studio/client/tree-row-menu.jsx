@@ -4,8 +4,8 @@
 // reach on its own — WCAG 2.1.1 (keyboard operability) makes this a hard-stop
 // for the a11y gate, not optional polish. A focusable "⋯" button + Enter/click
 // opens a small menu; Move to… drills into a flat destination-folder list.
-// Reuses the existing menubar dropdown visual language (`.st-dropdown` /
-// `.st-dd-item` from 3-shell-maude.css) rather than inventing new chrome —
+// Reuses the existing menubar dropdown visual language (`.sh-dropdown` /
+// `.sh-dd-item` from 3-shell-maude.css) rather than inventing new chrome —
 // only `position` is overridden inline since this menu anchors to an
 // arbitrary row, not the menubar's fixed offset.
 
@@ -136,10 +136,10 @@ export function TreeRowMenu({ state, onClose, rootItems, destinations, onPickDes
 
   if (state.view === 'move-to') {
     return (
-      <div ref={ref} className="st-dropdown" role="menu" aria-label="Move to…" style={style}>
-        <div className="st-dd-hd">Move to…</div>
+      <div ref={ref} className="sh-dropdown" role="menu" aria-label="Move to…" style={style}>
+        <div className="sh-dd-hd">Move to…</div>
         {destinations.length === 0 ? (
-          <div className="st-dd-item" aria-disabled="true">
+          <div className="sh-dd-item" aria-disabled="true">
             No other folders
           </div>
         ) : (
@@ -148,13 +148,13 @@ export function TreeRowMenu({ state, onClose, rootItems, destinations, onPickDes
               key={d.path}
               type="button"
               role="menuitem"
-              className="st-dd-item"
+              className="sh-dd-item"
               onClick={() => {
                 onPickDestination(d.path);
                 onClose();
               }}
             >
-              <span className="st-dd-lead">{d.label}</span>
+              <span className="sh-dd-lead">{d.label}</span>
             </button>
           ))
         )}
@@ -163,21 +163,21 @@ export function TreeRowMenu({ state, onClose, rootItems, destinations, onPickDes
   }
 
   return (
-    <div ref={ref} className="st-dropdown" role="menu" style={style}>
+    <div ref={ref} className="sh-dropdown" role="menu" style={style}>
       {rootItems.map((item) => (
         <button
           key={item.id}
           type="button"
           role="menuitem"
           disabled={item.disabled}
-          className="st-dd-item"
+          className="sh-dd-item"
           style={item.destructive ? { color: 'var(--status-error)' } : undefined}
           onClick={() => {
             if (item.disabled) return;
             item.onSelect();
           }}
         >
-          <span className="st-dd-lead">{item.label}</span>
+          <span className="sh-dd-lead">{item.label}</span>
           {item.note ? <span className="lp-dd-note">{item.note}</span> : null}
         </button>
       ))}

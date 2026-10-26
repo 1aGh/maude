@@ -373,7 +373,7 @@ export function AssetsPanel({
     const measure = () => {
       // 12 · ia-assets-browse — the wide view IS the panel widened: it takes the island's box (tabs row included), so it
       // stops where the island stops (above the bottom row) and not at the window foot
-      const island = rootRef.current?.closest?.('.st-dockslot-inner');
+      const island = rootRef.current?.closest?.('.sh-dockslot-inner');
       const r = (island ?? rootRef.current)?.getBoundingClientRect?.();
       if (!r || !r.width) return;
       const width = Math.max(r.width, Math.min(820, window.innerWidth - 48));
@@ -763,7 +763,7 @@ export function AssetsPanel({
             <span className="lp-bar-icons">
               <button
                 type="button"
-                className="st-iconbtn lp-add lp-gen"
+                className="sh-iconbtn lp-add lp-gen"
                 data-testid="assets-generate"
                 aria-label="Generate an image"
                 data-tip="Generate an image"
@@ -774,7 +774,7 @@ export function AssetsPanel({
               </button>
               <button
                 type="button"
-                className="st-iconbtn lp-add"
+                className="sh-iconbtn lp-add"
                 data-testid="assets-add"
                 aria-label="Add files…"
                 data-tip="Add files…"

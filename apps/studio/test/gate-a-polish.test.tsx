@@ -158,20 +158,23 @@ describe("the v1 chrome's meta text grade (--fg-2, was --fg-3) is text-safe (a11
   });
   test('the v1 chrome files never use the disabled grade for text', () => {
     for (const f of [
-      '3-shell-maude',
-      '4-components',
-      '4-components-maude',
-      '5-maude-overrides',
-      '6-acp-chat',
+      'styles/3-shell-maude',
+      'styles/4-components',
+      'styles/4-components-maude',
+      'styles/5-maude-overrides',
+      'v2/ai/chat',
     ])
-      expect(textUsesOfDisabledGrade(read(`client/styles/${f}.css`))).toEqual([]);
+      expect(textUsesOfDisabledGrade(read(`client/${f}.css`))).toEqual([]);
   });
 });
 
 describe('the visual fixes are in the source', () => {
   test('segmented controls inherit the font (no UA 15px button face)', () => {
     const css = read('client/styles/3-shell-maude.css');
-    const rule = css.slice(css.indexOf('.st-cp-segbtn {'), css.indexOf('.st-cp-segbtn:last-child'));
+    const rule = css.slice(
+      css.indexOf('.insp-cp-segbtn {'),
+      css.indexOf('.insp-cp-segbtn:last-child')
+    );
     expect(rule).toContain('font: inherit');
   });
 

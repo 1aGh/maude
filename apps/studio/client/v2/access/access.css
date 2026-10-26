@@ -18,7 +18,7 @@
     line-height: var(--lh-sm);
     box-shadow: var(--shadow-md);
     pointer-events: none;
-    animation: st-pop var(--dur-soft) var(--ease-out);
+    animation: sh-pop var(--dur-soft) var(--ease-out);
   }
   .v2ac-tip-s {
     opacity: 0.72;
@@ -82,7 +82,7 @@
     box-shadow:
       var(--shadow-lg),
       inset 0 0 0 0.5px var(--island-edge, var(--border-subtle));
-    animation: st-pop var(--dur-route) var(--ease-out);
+    animation: sh-pop var(--dur-route) var(--ease-out);
   }
   /* `.co-card-ic` — a 36 px round chip, not a 28 px square */
   .v2ac-card-ic {
@@ -157,7 +157,7 @@
     font-size: var(--type-xs);
     line-height: var(--lh-xs);
   }
-  body:has(.v2ac-banner) .st-pbar.island {
+  body:has(.v2ac-banner) .sh-pbar.island {
     display: none;
   }
 }

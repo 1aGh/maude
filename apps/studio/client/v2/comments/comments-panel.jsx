@@ -215,7 +215,7 @@ export function CommentsPanel({
 
   return (
     <aside
-      className={`st-rpanel cmp${resizing ? ' is-resizing' : ''}`}
+      className={`sh-rpanel cmp${resizing ? ' is-resizing' : ''}`}
       style={width ? { width, flexBasis: width } : undefined}
       aria-label="Comments"
       data-testid="comments-panel"

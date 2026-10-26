@@ -80,14 +80,14 @@ export function withSlot(nodes, slot) {
 export function LayerSlotRow({ node, depth }) {
   return (
     <div
-      className="st-layer st-layer--row st-layer-slot"
+      className="sh-layer sh-layer--row sh-layer-slot"
       role="presentation"
       aria-hidden="true"
       style={{ paddingLeft: 6 + depth * 14 }}
       data-testid="layers-slot"
       data-n={node.n}
     >
-      <span className="st-layer-slot-n">{node.n}</span>
+      <span className="sh-layer-slot-n">{node.n}</span>
     </div>
   );
 }

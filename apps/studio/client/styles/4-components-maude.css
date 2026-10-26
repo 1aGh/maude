@@ -57,7 +57,7 @@
   }
 
   /* ── Report-a-Bug dialog (feature-bug-report-button) ─────────────────────────
- * Rides the shared .st-scrim/.st-dialog shell (3-shell-maude.css); rb-* covers
+ * Rides the shared .sh-scrim/.sh-dialog shell (3-shell-maude.css); rb-* covers
  * only what the shell doesn't: the consent checklist, screenshot tiles, and
  * the redaction overlay. Same DS voice as the generate/github dialogs —
  * body-font copy, mono uppercase section heads, accent focus rings. */
@@ -233,8 +233,8 @@
     background: var(--accent-hover, var(--accent));
     border-color: var(--accent-hover, var(--accent));
   }
-  .rb-dialog .st-btn:focus-visible,
-  .rb-dialog .st-iconbtn:focus-visible {
+  .rb-dialog .sh-btn:focus-visible,
+  .rb-dialog .sh-iconbtn:focus-visible {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px var(--accent-tint);

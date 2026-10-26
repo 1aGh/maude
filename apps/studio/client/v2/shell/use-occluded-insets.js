@@ -12,7 +12,7 @@ import { createInsetsPump, measureShellInsets, seedOnLadder } from './occlusion-
 export const insetsLane = { flushNow: () => {} };
 
 /**
- * @param bodyRef the `.st-body` element — the islands' positioning context
+ * @param bodyRef the `.sh-body` element — the islands' positioning context
  * @param iframesRef Map<path, HTMLIFrameElement> (the shell's registered canvas frames)
  * @param presenting Present mode → zeros
  * @param layoutKey changes whenever the layout does (pinned / hidden / which panels are open) — re-measures

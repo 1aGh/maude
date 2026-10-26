@@ -68,7 +68,7 @@ describe('Layers: the tree container is the one tab stop', () => {
   test('only the selected row’s Lock and Hide buttons are tab stops', () => {
     const tree = node({ children: [node({ id: 'b' })] });
     const html = renderToStaticMarkup(<LayerRow {...(props(tree, 0, 'b') as never)} />);
-    const buttons = html.match(/<button[^>]*(?:st-layer-lock|st-layer-eye)[^>]*>/g) ?? [];
+    const buttons = html.match(/<button[^>]*(?:sh-layer-lock|sh-layer-eye)[^>]*>/g) ?? [];
     expect(buttons).toHaveLength(4);
     expect(count(buttons.join(''), /tabindex="0"/g)).toBe(2);
     expect(count(buttons.join(''), /tabindex="-1"/g)).toBe(2);
@@ -99,8 +99,8 @@ describe('panels hidden: one "Show panels" button', () => {
 describe('Settings: a disabled row keeps its note readable', () => {
   test('the whole-row opacity is gone; the label and the switch dim instead', () => {
     const css = read('client/v2/settings/settings.css');
-    expect(css).toMatch(/\.v2s-sheet \.st-pref-row\.is-disabled \{\s*opacity: 1;/);
-    expect(css).toMatch(/\.st-pref-row\.is-disabled \.st-pref-label,/);
+    expect(css).toMatch(/\.v2s-sheet \.v2s-pref-row\.is-disabled \{\s*opacity: 1;/);
+    expect(css).toMatch(/\.v2s-pref-row\.is-disabled \.v2s-pref-label,/);
   });
 });
 

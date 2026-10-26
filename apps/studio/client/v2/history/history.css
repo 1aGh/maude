@@ -366,7 +366,7 @@
     height: 40px;
     padding: 0 var(--space-2) 0 var(--space-3);
     font-size: var(--type-sm);
-    animation: st-island-in var(--dur-panel) var(--ease-out);
+    animation: sh-island-in var(--dur-panel) var(--ease-out);
   }
   .vh-viewbar > svg {
     color: var(--accent-text, var(--accent));
@@ -525,7 +525,7 @@
       max(var(--space-4), var(--cmp-in-b, 0px)) max(var(--space-4), var(--cmp-in-l, 0px));
     background: var(--bg-1);
     color: var(--fg-1);
-    animation: st-island-in var(--dur-panel) var(--ease-out);
+    animation: sh-island-in var(--dur-panel) var(--ease-out);
   }
   .cmp-stage {
     position: relative;

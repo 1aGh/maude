@@ -105,20 +105,20 @@ export function UndoHistory(p) {
   return (
     <div
       ref={ref}
-      className="st-pm st-uh"
+      className="sh-pm sh-uh"
       role="menu"
       aria-label="Undo history"
       data-testid="undo-history"
       onKeyDown={onKey}
       onMouseLeave={() => p.onPreview(null)}
     >
-      <p className="st-uh-t">
+      <p className="sh-uh-t">
         Undo history<span>newest first</span>
       </p>
       {/* 14 `ed-edge-undo`: the popover says where it was opened from (S2.24) */}
-      <p className="st-uh-from">Opened from Menu › Edit › Undo history</p>
+      <p className="sh-uh-from">Opened from Menu › Edit › Undo history</p>
       {p.rows.length === 0 ? (
-        <p className="st-uh-empty" data-testid="undo-history-empty">
+        <p className="sh-uh-empty" data-testid="undo-history-empty">
           Nothing to undo on this canvas yet.
         </p>
       ) : null}
@@ -129,7 +129,7 @@ export function UndoHistory(p) {
             key={row.actionId ?? row.pendingTx ?? i}
             type="button"
             role="menuitem"
-            className="st-pm-row st-uh-r"
+            className="sh-pm-row sh-uh-r"
             data-testid={`undo-history-row-${i}`}
             data-row={i}
             data-who={row.who}
@@ -148,10 +148,10 @@ export function UndoHistory(p) {
               p.onUndoTo(i);
             }}
           >
-            <span className="st-uh-ic" data-who={row.who} aria-hidden="true">
+            <span className="sh-uh-ic" data-who={row.who} aria-hidden="true">
               {row.who === 'ai' ? <StIcon name="sparkle" size={11} /> : initialsOf(p.you || 'You')}
             </span>
-            <span className="st-uh-txt">
+            <span className="sh-uh-txt">
               <span>{rowText(row)}</span>
               <em>
                 {row.who === 'ai' ? 'AI' : 'You'} · {agoText(row.madeAt, p.now)}
@@ -161,16 +161,16 @@ export function UndoHistory(p) {
           </button>
         );
       })}
-      <hr className="st-pm-sep" />
+      <hr className="sh-pm-sep" />
       {foot ? (
-        <p className="st-uh-foot" data-testid="undo-history-foot">
+        <p className="sh-uh-foot" data-testid="undo-history-foot">
           {foot}
         </p>
       ) : null}
       <button
         type="button"
         role="menuitem"
-        className="st-pm-row"
+        className="sh-pm-row"
         data-testid="undo-history-version"
         tabIndex={-1}
         onClick={() => {
@@ -178,10 +178,10 @@ export function UndoHistory(p) {
           p.onVersionHistory();
         }}
       >
-        <span className="st-pm-ic" aria-hidden="true">
+        <span className="sh-pm-ic" aria-hidden="true">
           <StIcon name="reload" size={14} />
         </span>
-        <span className="st-pm-lab">Version history</span>
+        <span className="sh-pm-lab">Version history</span>
         <Kbd>{p.versionKeys ?? '⌥⌘H'}</Kbd>
       </button>
     </div>
@@ -235,7 +235,7 @@ export function UndoHistoryHost(p) {
   }, [open, activePath]);
   if (!open || !activePath) return null;
   return (
-    <div className="st-uh-root">
+    <div className="sh-uh-root">
       <UndoHistory
         rows={store.rows(activePath)}
         now={(p.now ?? Date.now)()}

@@ -360,14 +360,14 @@
     user-select: none;
   }
 
-  /* The viewport slot the card sits in (client/shell/viewport.jsx keeps `.st-canvas-error` and its testid). */
-  .st-canvas-error--v2 {
+  /* The viewport slot the card sits in (client/shell/viewport.jsx keeps `.sh-canvas-error` and its testid). */
+  .sh-canvas-error--v2 {
     overflow: auto;
     padding: var(--space-4);
   }
   @media (prefers-reduced-motion: no-preference) {
     .v2-err {
-      animation: st-pop var(--dur-panel) var(--ease-out);
+      animation: sh-pop var(--dur-panel) var(--ease-out);
     }
   }
 }

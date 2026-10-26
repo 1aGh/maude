@@ -1,6 +1,6 @@
 /* client/v2/layers/layers.css — gate-b-polish3: the Layers tab by artboard (08 · ak-mixed-fit, 14 · the Layers tab).
  * Kit `.k-cp-t` / `.k-ly` / `.k-ly-ic` / `.k-cp-name`: body face, sentence case, the kind glyph in --fg-2, the
- * current artboard's glyph in the accent ink. The element tree under it keeps its own rows (.st-layer). */
+ * current artboard's glyph in the accent ink. The element tree under it keeps its own rows (.sh-layer). */
 @layer components {
   .ly2 {
     display: flex;

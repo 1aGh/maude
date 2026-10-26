@@ -345,7 +345,7 @@ describe('Settings › Connections, rendered (06 ad-edge-hub)', () => {
     expect(q('settings-conn-ai-status')?.textContent).toBe('2 keys · Gemini, ElevenLabs');
     expect(q('settings-conn-figma-status')?.textContent).toBe('Connected · for imports');
     // the v1 rows are not mounted any more
-    expect(document.querySelector('.cb-settings, .gi-settings, .st-provider-card')).toBeNull();
+    expect(document.querySelector('.cb-settings, .gi-settings, .v2s-provider-card')).toBeNull();
     // the address and the token are Advanced-only: nothing of them before the fold opens
     expect(document.body.textContent).not.toContain('hub.studio-brno.cz');
     expect(document.body.textContent).not.toContain('a91f');

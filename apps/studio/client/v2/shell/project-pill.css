@@ -13,15 +13,15 @@
  * Motion: the menu is a cut — it appears and disappears; reduced motion has nothing to collapse. */
 
 @layer shell {
-  .st-body {
+  .sh-body {
     --pill-h: 40px;
     --pill-gap: 12px;
   }
 
-  /* `.st-pill.island`, not bare `.st-pill`: other surfaces use `st-pill` for a small badge (Settings'
+  /* `.sh-pill.island`, not bare `.sh-pill`: other surfaces use `sh-pill` for a small badge (Settings'
      provider cards; the tree's group count did until V2-4.gate) and must not inherit an absolutely
      positioned island. */
-  .st-pill.island {
+  .sh-pill.island {
     position: absolute;
     left: var(--float-gap, 16px);
     top: var(--float-gap, 16px);
@@ -30,31 +30,31 @@
     height: var(--pill-h);
     max-width: min(440px, calc(100% - 2 * var(--float-gap, 16px)));
   }
-  /* Pinned: the island chrome that `.st-body--float .island` gives is not applied, so give it here. */
-  .st-body:not(.st-body--float) .st-pill {
+  /* Pinned: the island chrome that `.sh-body--float .island` gives is not applied, so give it here. */
+  .sh-body:not(.sh-body--float) .sh-pill {
     background: var(--bg-1);
     border-radius: 14px;
     box-shadow: var(--shadow-md);
   }
-  .st-pill[data-open="true"] {
+  .sh-pill[data-open="true"] {
     background: var(--bg-2);
   }
   /* "Opening <project>…" / a failed switch: a quiet line under the pill (the switcher moved here, P8 C4) */
-  .st-pill > .rb-switching,
-  .st-pill > .rb-switcher-err {
+  .sh-pill > .rb-switching,
+  .sh-pill > .rb-switcher-err {
     position: absolute;
     left: 0;
     top: calc(100% + var(--space-1));
     white-space: nowrap;
   }
-  .st-body:not(.st-body--float) .st-pill[data-docked="true"] {
+  .sh-body:not(.sh-body--float) .sh-pill[data-docked="true"] {
     left: var(--space-2, 8px);
     top: var(--space-2, 8px);
     background: transparent;
     box-shadow: none;
   }
 
-  .st-pill-btn {
+  .sh-pill-btn {
     appearance: none;
     border: 0;
     background: transparent;
@@ -71,43 +71,43 @@
     cursor: pointer;
     white-space: nowrap;
   }
-  .st-pill-btn:focus-visible {
+  .sh-pill-btn:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: -2px;
   }
-  .st-pill-mark {
+  .sh-pill-mark {
     display: grid;
     flex: none;
     color: var(--accent);
   }
-  .st-pill-name {
+  .sh-pill-name {
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .st-pill-sep {
+  .sh-pill-sep {
     color: var(--fg-2);
     font-weight: var(--w-regular, 400);
   }
-  .st-pill-canvas {
+  .sh-pill-canvas {
     max-width: 280px;
     overflow: hidden;
     text-overflow: ellipsis;
     color: var(--fg-1);
     font-weight: var(--w-medium, 500);
   }
-  .st-pill-caret {
+  .sh-pill-caret {
     display: inline-grid;
     flex: none;
     color: var(--fg-2);
   }
 
   /* ── the menu ── */
-  .st-pm-root {
+  .sh-pm-root {
     position: absolute;
     left: 0;
     top: calc(100% + 6px);
   }
-  .st-pm {
+  .sh-pm {
     display: flex;
     flex-direction: column;
     width: 252px;
@@ -121,7 +121,7 @@
     font-size: var(--type-sm, 13px);
     text-align: left;
   }
-  .st-pm--sub {
+  .sh-pm--sub {
     position: absolute;
     left: calc(100% + var(--space-2, 8px));
     top: -4px;
@@ -131,11 +131,11 @@
     /* a scroll box never scrolls sideways: the panel nested in it is placed on the window (placeNested) */
     overflow-x: hidden;
   }
-  .st-pm-li {
+  .sh-pm-li {
     position: relative;
     display: block;
   }
-  .st-pm-row {
+  .sh-pm-row {
     appearance: none;
     border: 0;
     background: transparent;
@@ -152,38 +152,38 @@
     white-space: nowrap;
     cursor: default;
   }
-  .st-pm-row:hover,
-  .st-pm-row:focus-visible,
-  .st-pm-row[aria-expanded="true"] {
+  .sh-pm-row:hover,
+  .sh-pm-row:focus-visible,
+  .sh-pm-row[aria-expanded="true"] {
     background: var(--accent-muted, var(--bg-3));
     outline: none;
   }
-  .st-pm-row[aria-disabled="true"] {
+  .sh-pm-row[aria-disabled="true"] {
     color: var(--fg-3, var(--fg-2));
   }
-  .st-pm-row--adv {
+  .sh-pm-row--adv {
     min-height: 26px;
     font-size: var(--type-xs, 12px);
     font-weight: var(--w-semibold, 600);
     color: var(--fg-1);
   }
-  .st-pm-ic {
+  .sh-pm-ic {
     display: grid;
     place-items: center;
     width: 16px;
     flex: none;
     color: var(--fg-2);
   }
-  .st-pm-lab {
+  .sh-pm-lab {
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .st-pm-ch {
+  .sh-pm-ch {
     display: grid;
     color: var(--fg-2);
   }
-  .st-pm-sep {
+  .sh-pm-sep {
     display: block;
     flex: none;
     border: 0;
@@ -191,14 +191,14 @@
     margin: var(--space-1, 4px) var(--space-2, 8px);
     background: var(--border-subtle);
   }
-  .st-pm-row .kbd {
+  .sh-pm-row .kbd {
     margin-left: auto;
     font-size: var(--type-xs, 12px);
     color: var(--fg-2);
   }
 
   /* Pinned: the left column leaves room for the pill above its first panel. */
-  .st-body:not(.st-body--float) > .st-dockslot--left {
+  .sh-body:not(.sh-body--float) > .sh-dockslot--left {
     padding-top: calc(var(--pill-h) + var(--space-2, 8px) * 2);
     box-sizing: border-box;
     background: var(--bg-1);
@@ -207,7 +207,7 @@
 
 /* S3.9 - Preview folds the pill to its mark (04 md-preview `ProjectPill folded`): a 40px square island. */
 @layer shell {
-  .st-pill[data-folded="true"] .st-pill-btn {
+  .sh-pill[data-folded="true"] .sh-pill-btn {
     padding: 0 var(--space-2, 8px);
   }
 }

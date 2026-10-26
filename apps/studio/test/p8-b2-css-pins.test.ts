@@ -26,9 +26,9 @@ describe('pinned panels', () => {
   test('the sidebar and right panel fill the slot through the display:contents wrapper (Canvases list was 6 px tall)', () => {
     const shell = css('styles/3-shell-maude.css');
     expect(shell).toMatch(
-      /\.st-dockslot > \.st-dockslot-inner > \.st-sidebar\s*\{\s*flex:\s*1 1 auto/
+      /\.sh-dockslot > \.sh-dockslot-inner > \.sh-sidebar\s*\{\s*flex:\s*1 1 auto/
     );
-    expect(shell).toMatch(/\.st-dockslot > \.st-dockslot-inner > \.st-rpanel,/);
+    expect(shell).toMatch(/\.sh-dockslot > \.sh-dockslot-inner > \.sh-rpanel,/);
   });
 });
 

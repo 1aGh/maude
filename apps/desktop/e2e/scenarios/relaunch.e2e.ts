@@ -220,7 +220,7 @@ describe('relaunch (native-desktop)', () => {
       await capture('relaunch-4-crash-report-bug');
       await browser.keys(['Escape']);
       if (await dialog.isDisplayed().catch(() => false))
-        await (await $('[data-testid="report-bug-dialog"] .st-dialog-hd .st-iconbtn')).click();
+        await (await $('[data-testid="report-bug-dialog"] .sh-dialog-hd .sh-iconbtn')).click();
     }
     // Once: a second ask (a reload) hears nothing.
     expect(await invokeTauri('take_crash_notice')).toBe(null);

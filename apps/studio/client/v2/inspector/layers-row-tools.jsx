@@ -49,7 +49,7 @@ export function LayerRowTools({
       {onToggleLock ? (
         <button
           type="button"
-          className="st-layer-lock"
+          className="sh-layer-lock"
           tabIndex={tabbable ? 0 : -1}
           data-on={isLocked ? 'true' : undefined}
           aria-label={isLocked ? `Unlock ${node.label}` : `Lock ${node.label}`}
@@ -66,7 +66,7 @@ export function LayerRowTools({
       {onToggleVisibility ? (
         <button
           type="button"
-          className="st-layer-eye"
+          className="sh-layer-eye"
           tabIndex={tabbable ? 0 : -1}
           data-on={isHidden ? 'true' : undefined}
           aria-label={isHidden ? `Show ${node.label}` : `Hide ${node.label}`}

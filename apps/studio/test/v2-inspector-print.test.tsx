@@ -169,7 +169,7 @@ describe('the print rows speak paper', () => {
     // V2-8.5 C4 (08 ak-print-letak): Paper reads "A6" — the millimetres are the next row's — and mm fields have no grip
     expect(sel.options[sel.selectedIndex]?.textContent).toBe('A6');
     for (const row of ['insp-row-ab-bleed', 'insp-row-pr-margin'])
-      expect(q(host, row)?.querySelector('.st-cp-grip'), row).toBeNull();
+      expect(q(host, row)?.querySelector('.insp-cp-grip'), row).toBeNull();
     const w = must(
       q(host, 'insp-num-pr-w')?.querySelector('input') ?? null,
       'w'

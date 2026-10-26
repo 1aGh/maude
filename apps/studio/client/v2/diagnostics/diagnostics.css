@@ -1,12 +1,12 @@
 /* client/v2/diagnostics/diagnostics.css — V2-4.7b: Menu › Diagnostics (06 Advanced ad-diag · ad-logs ·
- * ad-syncd). Two things: the status word / value a Diagnostics menu row carries (.st-pm-status), and the
+ * ad-syncd). Two things: the status word / value a Diagnostics menu row carries (.sh-pm-status), and the
  * sheet it opens (.dg-*). The sheet is the POPOVER plane — opaque, the large shadow, no backdrop-filter
  * (V2-1.8 M1) — laid over the canvas under the Share cluster. Mono is allowed here: this is the Advanced
  * side of the app. No motion beyond what the shell already has. */
 
 @layer shell {
   /* ── a menu row's status word / value ── */
-  .st-pm-status {
+  .sh-pm-status {
     margin-left: auto;
     padding-left: var(--space-3, 12px);
     font-size: var(--type-xs, 12px);
@@ -18,23 +18,23 @@
   }
   /* a row that carries a value keeps its label whole ("Project folder", not "Project fo…") — the value is what
      gives way (ellipsis at its max-width), 06 ad-diag ③ */
-  .st-pm-row:has(.st-pm-status) .st-pm-lab {
+  .sh-pm-row:has(.sh-pm-status) .sh-pm-lab {
     flex: 0 0 auto;
     overflow: visible;
   }
-  .st-pm-status--mono {
+  .sh-pm-status--mono {
     font-family: var(--font-mono);
   }
   /* the kit status word (_kit.css .k-sw, Phase 8 C1-kit): a 7 px status dot + the word in fg-1 — never a
      coloured word alone (06 R7; colour is not the only carrier). A neutral value (a version) has no dot. */
-  .st-pm-status:is([data-tone="ok"], [data-tone="warn"], [data-tone="error"], [data-tone="info"]),
+  .sh-pm-status:is([data-tone="ok"], [data-tone="warn"], [data-tone="error"], [data-tone="info"]),
   .dg-word:is([data-tone], [data-state]) {
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
     color: var(--fg-1);
   }
-  .st-pm-status:is(
+  .sh-pm-status:is(
     [data-tone="ok"],
     [data-tone="warn"],
     [data-tone="error"],
@@ -48,20 +48,20 @@
     border-radius: var(--radius-pill);
     background: var(--fg-3);
   }
-  :is(.st-pm-status, .dg-word)[data-tone="ok"]::before {
+  :is(.sh-pm-status, .dg-word)[data-tone="ok"]::before {
     background: var(--status-success);
   }
-  :is(.st-pm-status, .dg-word):is([data-tone="warn"], [data-state="warn"])::before {
+  :is(.sh-pm-status, .dg-word):is([data-tone="warn"], [data-state="warn"])::before {
     background: var(--status-warn);
   }
-  :is(.st-pm-status, .dg-word)[data-tone="error"]::before {
+  :is(.sh-pm-status, .dg-word)[data-tone="error"]::before {
     background: var(--status-error);
   }
-  :is(.st-pm-status, .dg-word)[data-tone="info"]::before {
+  :is(.sh-pm-status, .dg-word)[data-tone="info"]::before {
     background: var(--status-info);
   }
   /* the key hint stays right of the word */
-  .st-pm-status + .kbd {
+  .sh-pm-status + .kbd {
     margin-left: var(--space-2, 8px);
   }
 
@@ -469,7 +469,7 @@
   }
 
   /* ── Sync: today's panel, whole, inside the sheet ── */
-  .dg-sync .st-rpanel {
+  .dg-sync .sh-rpanel {
     border-left: 0;
     animation: none;
     background: transparent;

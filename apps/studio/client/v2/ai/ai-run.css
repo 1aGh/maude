@@ -259,7 +259,7 @@
   }
 
   /* Full height: the AI island takes the whole slot (floating layout; pinned is already a column). */
-  .st-body--float .st-dockslot-ai:has(> .ai-island[data-full="true"]) {
+  .sh-body--float .sh-dockslot-ai:has(> .ai-island[data-full="true"]) {
     flex: 1 1 100%;
   }
 

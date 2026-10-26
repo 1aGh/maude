@@ -130,7 +130,7 @@ async function turnState() {
   return browser.execute(() => ({
     busy:
       !!document.querySelector('[data-testid="ai-chat-count"]') ||
-      !!document.querySelector('[data-testid="panel-icon-assistant"] .st-corner-dot'),
+      !!document.querySelector('[data-testid="panel-icon-assistant"] .sh-corner-dot'),
     stop: !!document.querySelector('[data-testid="chat-composer"] [aria-label="Stop"]'),
     messages: document.querySelectorAll('[data-testid="chat-msg-actions"]').length,
   }));

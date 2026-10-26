@@ -123,7 +123,7 @@ const click = async (id: string) => {
 
 /** The Photo tab of the inspector (the tab strip's "Photo" button). */
 const openPhoto = async () => {
-  const tab = await $('button.st-rp-tab=Photo');
+  const tab = await $('button.sh-rp-tab=Photo');
   await tab.waitForExist({ timeout: 8000 });
   await tab.click();
   await (await $('[data-testid="photo-section"]')).waitForExist({ timeout: 8000 });

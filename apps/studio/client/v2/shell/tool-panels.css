@@ -7,32 +7,32 @@
  * tints the canvas nor centres anything, so the work stays visible behind the panel. */
 
 @layer shell {
-  .st-scrim.st-scrim--anchored {
+  .sh-scrim.sh-scrim--anchored {
     background: transparent;
     display: block;
     padding-top: 0;
   }
-  .st-sticker-picker.st-sticker-picker--anchored {
+  .sh-sticker-picker.sh-sticker-picker--anchored {
     position: fixed;
     max-width: none;
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
   }
-  .st-sticker-picker--anchored .st-dialog-bd {
+  .sh-sticker-picker--anchored .sh-dialog-bd {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
     min-height: 0;
     flex: 1;
   }
-  .st-sticker-picker--anchored .st-sp-body {
+  .sh-sticker-picker--anchored .sh-sp-body {
     max-height: none;
     flex: 1;
     min-height: 0;
   }
   @media (prefers-reduced-motion: reduce) {
-    .st-sticker-picker--anchored {
+    .sh-sticker-picker--anchored {
       animation: none;
     }
   }

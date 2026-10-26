@@ -124,7 +124,7 @@ describe('Export sheet › Recent › Export again', () => {
   test('every Recent row has an "Export again" button', async () => {
     stubFetch();
     await mountSheet();
-    const rows = document.querySelectorAll('[data-testid="export-recent"] .st-export-recent-row');
+    const rows = document.querySelectorAll('[data-testid="export-recent"] .ex-export-recent-row');
     expect(rows.length).toBe(HISTORY.length);
     for (let i = 0; i < HISTORY.length; i++) {
       const btn = $(`[data-testid="export-recent-again-${i}"]`);

@@ -623,17 +623,17 @@ describe('the folded spark (03 ai-needs-hidden, ai-panel-closed)', () => {
       store.resetNeedsYou();
       return <CornerIcons {...props} assistant={busy} />;
     });
-    expect(v.host.querySelector('.st-corner-dot')).not.toBeNull();
+    expect(v.host.querySelector('.sh-corner-dot')).not.toBeNull();
     expect(v.q('ai-fold-needs')).toBeNull();
     await v.act(async () => v.store.setLocalNeedsYou('c1', 2));
     expect(v.q('ai-fold-needs')?.textContent).toBe('2');
-    expect(v.host.querySelector('.st-corner-dot')).toBeNull();
+    expect(v.host.querySelector('.sh-corner-dot')).toBeNull();
     expect(v.q('panel-icon-assistant')?.getAttribute('aria-label')).toBe(
       'Ask AI ⌘/ — AI needs you'
     );
     await v.act(async () => v.store.setLocalNeedsYou('c1', 0));
     expect(v.q('ai-fold-needs')).toBeNull();
-    expect(v.host.querySelector('.st-corner-dot')).not.toBeNull();
+    expect(v.host.querySelector('.sh-corner-dot')).not.toBeNull();
     v.store.resetNeedsYou();
   });
 });

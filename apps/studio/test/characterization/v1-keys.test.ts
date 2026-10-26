@@ -26,7 +26,7 @@
 // bare T no longer toggles the Files panel — ⌘\ hides / shows ALL panels (`view.panels`) and T stays
 // unbound until V2-4.5 binds Text, so every `shell key="t"` case is `default` (not PREVENTED) and the
 // tree stays as it was. Also in this refresh, none of them a key change: (1) the shell DOM is the
-// floating layout (`.st-body--float`, `.st-dockslot-inner` islands, corner icons instead of the rail);
+// floating layout (`.sh-body--float`, `.sh-dockslot-inner` islands, corner icons instead of the rail);
 // (2) the shell now sends the canvas `occluded-insets` (V2-1.2 §5.6) — on `loaded`, on `canvas-rendered`
 // and whenever a panel opens or closes — so `to-canvas` lists gain `parent occluded-insets`; (3) with
 // the left panel floating over the canvas the first Fit lands in the visible area, so the `@world
@@ -52,7 +52,7 @@
 // values derived from the zoom (height, transform-origin) moved with it. No key or write changed.
 // Lead refresh (V2-4.2, decision:maude/v2-4.2-project-pill-and-menu): the project pill is a top island
 // (data-occludes=top, 56 px), so every boot `@world translate` moved down ~50 px (the inset-aware fit),
-// a reloaded shell lists the pill's `.st-pill-sep`, and one case sends a second `occluded-insets`. No key
+// a reloaded shell lists the pill's `.sh-pill-sep`, and one case sends a second `occluded-insets`. No key
 // or write changed. (One alone run showed a one-off inspector variant, +19 −25; the refresh and the verify
 // run both match the old golden there.)
 // Lead refresh (V2-4.3a, decision:maude/v2-4.3a-cluster-via-registry-runner): shell lists gain the Share
@@ -861,7 +861,7 @@ async function runSetup(page: Page, lane: Lane, c: Case): Promise<void> {
     await page.locator('[data-testid="project-pill"]').click();
     await page.locator('[data-testid="project-menu-row-sub-view"]').click();
     await page.locator('[data-testid="project-menu-row-present.canvas"]').click();
-    await page.waitForSelector('.st-present-exit', { timeout: 8000 });
+    await page.waitForSelector('.pv-present-exit', { timeout: 8000 });
   }
   await settle(page, 600);
 }
@@ -1248,7 +1248,7 @@ async function runCase(browser: Browser, lane: Lane, c: Case): Promise<string> {
         ? {
             ...d,
             lines: d.lines.map((l) =>
-              /spinbutton|insp-num|st-cp-numin/.test(l)
+              /spinbutton|insp-num|insp-cp-numin/.test(l)
                 ? l.replace(/\{value="[^"]*"\}/, '{value}')
                 : l
             ),

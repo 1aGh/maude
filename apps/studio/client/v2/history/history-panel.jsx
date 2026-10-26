@@ -372,7 +372,7 @@ export function VersionHistoryPanel({
 
   return (
     <aside
-      className={`st-rpanel vh-panel${resizing ? ' is-resizing' : ''}`}
+      className={`sh-rpanel vh-panel${resizing ? ' is-resizing' : ''}`}
       aria-label={W.title}
       data-testid="vh-panel"
     >

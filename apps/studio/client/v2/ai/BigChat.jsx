@@ -34,7 +34,7 @@ export function PinButton({ pinned, onToggle }) {
   return (
     <button
       type="button"
-      className={`st-iconbtn ai-pinbtn${pinned ? ' is-pressed' : ''}`}
+      className={`sh-iconbtn ai-pinbtn${pinned ? ' is-pressed' : ''}`}
       data-testid="ai-chat-pin"
       aria-label={label}
       aria-pressed={pinned}
@@ -77,14 +77,14 @@ export function useBigPanel(ref, hidden) {
   useEffect(() => {
     if (hidden || pinned) return undefined;
     const island = ref.current;
-    const slot = island?.closest('.st-dockslot');
+    const slot = island?.closest('.sh-dockslot');
     if (!slot) return undefined;
-    const side = slot.classList.contains('st-dockslot--right') ? 'r' : 'l';
-    const grip = document.querySelector(`.st-grip--${side}`);
+    const side = slot.classList.contains('sh-dockslot--right') ? 'r' : 'l';
+    const grip = document.querySelector(`.sh-grip--${side}`);
     const prevTitle = grip?.getAttribute('title') ?? null;
     grip?.setAttribute('title', EDGE_TIP);
     const onDouble = (e) => {
-      const hit = e.target?.closest?.(`.st-grip--${side}`);
+      const hit = e.target?.closest?.(`.sh-grip--${side}`);
       if (!hit) return;
       e.preventDefault();
       e.stopPropagation();

@@ -144,7 +144,7 @@ export function InteractionBody({ el, ctx }) {
     <>
       <Row k="On click" name="click">
         <select
-          className="st-cp-nsel"
+          className="insp-cp-nsel"
           aria-label="On click"
           data-testid="insp-ctl-click"
           value="current"
@@ -159,7 +159,7 @@ export function InteractionBody({ el, ctx }) {
       </Row>
       <Row k="On hover" name="hover">
         <select
-          className="st-cp-nsel"
+          className="insp-cp-nsel"
           aria-label="On hover"
           data-testid="insp-ctl-hover"
           value={face}

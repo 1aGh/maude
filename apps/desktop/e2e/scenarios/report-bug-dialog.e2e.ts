@@ -67,7 +67,7 @@ describe('report-bug-dialog', () => {
     // The menu closed when the row ran; the dialog closes via its × button.
     const dialog = await $(tid('report-bug-dialog'));
     if (await dialog.isDisplayed().catch(() => false)) {
-      await (await $('[data-testid="report-bug-dialog"] .st-dialog-hd .st-iconbtn')).click();
+      await (await $('[data-testid="report-bug-dialog"] .sh-dialog-hd .sh-iconbtn')).click();
     }
     await browser.waitUntil(
       async () => !(await (await $(tid('report-bug-dialog'))).isDisplayed().catch(() => false)),

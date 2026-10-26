@@ -10,7 +10,7 @@
    rules (statusbar text-overflow: ellipsis, menubar overflow: hidden) win. */
   .app {
     display: grid;
-    grid-template-columns: var(--u-sidebar-w) minmax(0, 1fr);
+    grid-template-columns: 320px minmax(0, 1fr);
     width: 100vw;
     height: 100vh;
     overflow: hidden;

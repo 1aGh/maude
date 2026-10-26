@@ -40,14 +40,24 @@ export async function copyText(text) {
 }
 
 /** A button that runs `produce()` (text, or a promise of `{ok, code|message}`), copies, and says so. */
-function CopyButton({ testid, label, text, done = 'Copied', primary = false, icon = false, onNote }) {
+function CopyButton({
+  testid,
+  label,
+  text,
+  done = 'Copied',
+  primary = false,
+  icon = false,
+  onNote,
+}) {
   const [state, setState] = useState('idle');
   const timer = useRef(0);
   useEffect(() => () => clearTimeout(timer.current), []);
   return (
     <button
       type="button"
-      className={icon ? 'icon-btn k-icon-sm' : `btn btn--sm insp-btn${primary ? ' btn--primary' : ''}`}
+      className={
+        icon ? 'icon-btn k-icon-sm' : `btn btn--sm insp-btn${primary ? ' btn--primary' : ''}`
+      }
       data-testid={testid}
       // 06 ad-inspector: the board's Element id row ends in the quiet copy glyph, not a "Copy id" button
       {...(icon ? { 'aria-label': label, title: state === 'done' ? done : label } : {})}
@@ -68,7 +78,15 @@ function CopyButton({ testid, label, text, done = 'Copied', primary = false, ico
         timer.current = setTimeout(() => setState('idle'), 1600);
       }}
     >
-      {icon ? <StIcon name={state === 'done' ? 'done' : 'duplicate'} size={14} /> : state === 'done' ? done : state === 'failed' ? 'Not copied' : label}
+      {icon ? (
+        <StIcon name={state === 'done' ? 'done' : 'duplicate'} size={14} />
+      ) : state === 'done' ? (
+        done
+      ) : state === 'failed' ? (
+        'Not copied'
+      ) : (
+        label
+      )}
     </button>
   );
 }
@@ -87,14 +105,14 @@ export function Row({ k, mono = false, testid, title, children }) {
 export function InspectFacts({ el }) {
   const b = el?.bounds || null;
   const row = (label, fields) => (
-    <div className="st-insp-row">
-      <span className="st-insp-label">{label}</span>
-      <div className="st-insp-fields">{fields}</div>
+    <div className="sh-insp-row">
+      <span className="sh-insp-label">{label}</span>
+      <div className="sh-insp-fields">{fields}</div>
     </div>
   );
   const mini = (tag, value, aria) => (
-    <span className="st-fmini">
-      <span className="st-mtag">{tag}</span>
+    <span className="insp-fmini">
+      <span className="insp-mtag">{tag}</span>
       <input value={b ? Math.round(value) : '—'} readOnly aria-label={aria} />
     </span>
   );
@@ -191,7 +209,9 @@ function ElementId({ el, layersTree, canvasFile, onRename }) {
             }
           }}
         />
-        {usable ? <CopyButton testid="inspector-copy-id" label="Copy id" text={el.id} icon /> : null}
+        {usable ? (
+          <CopyButton testid="inspector-copy-id" label="Copy id" text={el.id} icon />
+        ) : null}
       </div>
       {error ? (
         <p

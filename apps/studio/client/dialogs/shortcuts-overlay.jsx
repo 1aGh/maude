@@ -71,7 +71,7 @@ export function ShortcutsOverlay({ open, onClose, readOnly = false }) {
   const others = shown.groups.flatMap((g) => g.rows).filter((r) => r.alt.length > 0);
   return (
     <div
-      className="st-scrim"
+      className="sh-scrim"
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();

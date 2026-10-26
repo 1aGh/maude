@@ -23,9 +23,9 @@ export function canvasImportsText(imports, componentDir) {
 export function CanvasImportsCard({ imports, componentDir }) {
   const { title, body } = canvasImportsText(imports, componentDir);
   return (
-    <div className="st-canvas-error-card" data-testid="canvas-imports-card">
-      <div className="st-canvas-error-title">{title}</div>
-      <div className="st-canvas-error-body">{body}</div>
+    <div className="sh-canvas-error-card" data-testid="canvas-imports-card">
+      <div className="sh-canvas-error-title">{title}</div>
+      <div className="sh-canvas-error-body">{body}</div>
     </div>
   );
 }

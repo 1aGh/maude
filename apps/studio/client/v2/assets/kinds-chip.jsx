@@ -55,14 +55,14 @@ export function KindsChip({ value, onChange }) {
         <StIcon name="chevron" size={11} />
       </button>
       {open ? (
-        <div className="lp-kinds-menu st-dropdown" role="menu" aria-label="Kinds">
+        <div className="lp-kinds-menu sh-dropdown" role="menu" aria-label="Kinds">
           {KINDS.map((k) => (
             <button
               key={k.id}
               type="button"
               role="menuitemradio"
               aria-checked={value === k.id}
-              className="st-dd-item"
+              className="sh-dd-item"
               data-testid={`assets-kinds-${k.id}`}
               onClick={() => {
                 onChange(k.id);
@@ -70,7 +70,7 @@ export function KindsChip({ value, onChange }) {
                 btn.current?.focus();
               }}
             >
-              <span className="st-dd-lead">{k.label}</span>
+              <span className="sh-dd-lead">{k.label}</span>
               {value === k.id ? <StIcon name="check" size={12} /> : null}
             </button>
           ))}

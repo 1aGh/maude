@@ -1,52 +1,52 @@
 /* client/v2/search/search.css — V2-4.6: Search ⌘K (01 cf-search-k, 05 es-search-k, 06 ad-search) and the
- * "?" sheet. Extends the v1 `.st-palette` / `.so-overlay` looks in 3-shell-maude.css (loaded earlier, so
+ * "?" sheet. Extends the v1 `.sh-palette` / `.so-overlay` looks in 3-shell-maude.css (loaded earlier, so
  * equal-specificity rules here win). Tokens are the shell's (maude-v2 since P8 C0). */
 
 @layer shell {
   /* ── ⌘K ── */
   /* 11 pn-pal: 620 wide, field at --type-md with the search glyph in accent-text and an esc key, rows 36 px
      on --radius-md, the selected row accent-muted + semibold with its tile staying --bg-3 */
-  .st-palette--search {
+  .sh-palette--search {
     width: 620px;
   }
-  .st-palette--search .st-pal-search {
+  .sh-palette--search .sh-pal-search {
     color: var(--accent-text);
   }
-  .st-palette--search .st-pal-search input {
+  .sh-palette--search .sh-pal-search input {
     font-size: var(--type-md);
   }
-  .st-palette--search .st-pal-item {
+  .sh-palette--search .sh-pal-item {
     min-height: 36px;
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-md);
   }
-  .st-palette--search .st-pal-item.is-active {
+  .sh-palette--search .sh-pal-item.is-active {
     background: var(--accent-muted);
     font-weight: var(--w-semibold);
   }
-  .st-palette--search .st-pal-icon {
+  .sh-palette--search .sh-pal-icon {
     width: 24px;
     height: 24px;
     background: var(--bg-3);
   }
-  .st-palette--search .st-pal-item.is-active .st-pal-icon {
+  .sh-palette--search .sh-pal-item.is-active .sh-pal-icon {
     background: var(--bg-3);
     color: var(--fg-0);
   }
-  .st-palette--search .st-pal-item.is-active .st-pal-icon--spark {
+  .sh-palette--search .sh-pal-item.is-active .sh-pal-icon--spark {
     background: var(--spark);
     color: var(--spark-fg, var(--accent-fg));
   }
-  .st-palette--search .st-pal-list {
+  .sh-palette--search .sh-pal-list {
     max-height: min(480px, 62vh);
   }
-  .st-pal-group {
+  .sh-pal-group {
     display: flex;
     align-items: baseline;
     gap: var(--space-2);
   }
   /* S1.5 · pn-k-across: the project's square on its group header (Home's tones, same id → same tone) */
-  .st-pal-sq {
+  .sh-pal-sq {
     display: inline-grid;
     place-items: center;
     flex: none;
@@ -62,26 +62,26 @@
     text-transform: none;
     color: var(--object-ink);
   }
-  .st-pal-sq--lilac {
+  .sh-pal-sq--lilac {
     background: var(--object-lilac);
   }
-  .st-pal-sq--yellow {
+  .sh-pal-sq--yellow {
     background: var(--object-yellow);
   }
-  .st-pal-sq--sky {
+  .sh-pal-sq--sky {
     background: var(--object-sky);
   }
-  .st-pal-sq--green {
+  .sh-pal-sq--green {
     background: var(--object-green);
   }
-  .st-pal-sq--coral {
+  .sh-pal-sq--coral {
     background: var(--object-coral);
   }
-  .st-pal-sq--grey {
+  .sh-pal-sq--grey {
     background: var(--object-grey);
   }
   /* another project's canvas wears its picture where a row has its icon */
-  .st-pal-thumb {
+  .sh-pal-thumb {
     width: 32px;
     height: 22px;
     flex: none;
@@ -89,13 +89,13 @@
     object-fit: cover;
     background: var(--bg-4);
   }
-  .st-pal-aside {
+  .sh-pal-aside {
     font-family: var(--font-body);
     letter-spacing: 0;
     text-transform: none;
     color: var(--fg-2);
   }
-  .st-pal-label {
+  .sh-pal-label {
     display: flex;
     align-items: baseline;
     gap: var(--space-2);
@@ -106,28 +106,28 @@
   }
   /* 01 cf-search-k: a canvas row wears a picture (32 × 22, the kit's k-thumb--pal); one without a cover yet keeps the
      same tile with the page glyph, so the rows do not shift when the pictures arrive */
-  .st-palette--search .st-pal-icon--pic {
+  .sh-palette--search .sh-pal-icon--pic {
     width: 32px;
     height: 22px;
     border-radius: var(--radius-sm);
   }
-  .st-pal-ltxt {
+  .sh-pal-ltxt {
     overflow: hidden;
     text-overflow: ellipsis;
   }
   /* the meta is its own column at the right (the kit's k-pal-meta), not glued to the name */
-  .st-pal-meta {
+  .sh-pal-meta {
     flex: none;
     margin-left: auto;
     font-size: var(--type-xs);
     color: var(--fg-2);
   }
   /* a11y gate B4: --fg-2 on the highlighted row (--accent-muted) was 4.24:1 */
-  [role="option"][aria-selected="true"] .st-pal-meta {
+  [role="option"][aria-selected="true"] .sh-pal-meta {
     color: var(--fg-1);
   }
   /* where it lives — the path a person learns the way back by */
-  .st-pal-where {
+  .sh-pal-where {
     flex: none;
     max-width: 46%;
     overflow: hidden;
@@ -145,45 +145,45 @@
     color: var(--fg-1);
   }
   /* S15-A2: the project on another project's row in "Did you mean" (square · name · where it is) */
-  .st-pal-proj {
+  .sh-pal-proj {
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
   }
-  .st-pal-item.is-active .st-pal-where {
+  .sh-pal-item.is-active .sh-pal-where {
     background: var(--bg-2);
     color: var(--fg-1);
   }
   /* 06 .k-pal-row / .k-pal-ic: 36 px rows, radius-md, accent-muted when selected; the glyph tile is a quiet 24 px
      bg-3 square that does NOT turn accent when the row is active (only the Ask-AI spark tile is accent). */
-  .st-palette--search .st-pal-item {
+  .sh-palette--search .sh-pal-item {
     min-height: 36px;
     gap: var(--space-3);
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-md);
   }
-  .st-palette--search .st-pal-item.is-active {
+  .sh-palette--search .sh-pal-item.is-active {
     background: var(--accent-muted);
   }
-  .st-palette--search .st-pal-icon {
+  .sh-palette--search .sh-pal-icon {
     width: 24px;
     height: 24px;
     background: var(--bg-3);
     color: var(--fg-1);
   }
-  .st-palette--search .st-pal-item.is-active .st-pal-icon {
+  .sh-palette--search .sh-pal-item.is-active .sh-pal-icon {
     background: var(--bg-3);
     color: var(--fg-1);
   }
-  .st-pal-item.is-dim .st-pal-ltxt {
+  .sh-pal-item.is-dim .sh-pal-ltxt {
     color: var(--fg-3);
   }
   /* S1.4 · 11 pn-k-close: a near miss among rows that have a word right — quieter, never dimmed out */
-  .st-pal-item.is-quiet .st-pal-ltxt {
+  .sh-pal-item.is-quiet .sh-pal-ltxt {
     color: var(--fg-1);
   }
   /* S1.4 · 05 es-search-more: Recent on a Mac where nothing was opened yet */
-  .st-pal-recent-none {
+  .sh-pal-recent-none {
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -192,15 +192,15 @@
     border-radius: var(--radius-md);
     background: var(--bg-1);
   }
-  .st-pal-recent-none .st-pal-sit {
+  .sh-pal-recent-none .sh-pal-sit {
     font-size: var(--type-base);
     line-height: var(--lh-base);
   }
-  .st-pal-recent-none .st-pal-next {
+  .sh-pal-recent-none .sh-pal-next {
     font-size: var(--type-xs);
     line-height: var(--lh-xs);
   }
-  .st-pal-mark {
+  .sh-pal-mark {
     background: var(--accent-tint);
     color: inherit;
     border-radius: var(--radius-xs);
@@ -208,18 +208,18 @@
   }
   /* gate-b-a11y: a match inside the quiet meta ("Video" in "Video · ui") sits on the accent tint — --fg-2 there
      was 4.24:1 (wave-A B4's twin: it fixed the selected row's meta, not the marks inside every row's meta) */
-  .st-pal-meta .st-pal-mark {
+  .sh-pal-meta .sh-pal-mark {
     color: var(--fg-0);
   }
-  .st-pal-icon--spark,
-  .st-pal-item.is-active .st-pal-icon--spark,
-  .st-palette--search .st-pal-icon--spark,
-  .st-palette--search .st-pal-item.is-active .st-pal-icon--spark {
+  .sh-pal-icon--spark,
+  .sh-pal-item.is-active .sh-pal-icon--spark,
+  .sh-palette--search .sh-pal-icon--spark,
+  .sh-palette--search .sh-pal-item.is-active .sh-pal-icon--spark {
     background: var(--accent);
     color: var(--accent-fg);
   }
   /* Ask AI is always the last row AND always in view: pinned to the foot of a long list (01 cf-search-k) */
-  .st-pal-ask {
+  .sh-pal-ask {
     position: sticky;
     /* the list keeps a --space-1 padding all round and sticky measures inside it: -padding reaches the scrollport
        edge, else the next group's header scrolls through the 4 px strip under the row (cf-search-k critic bar3) */
@@ -231,37 +231,37 @@
     background: var(--bg-2);
     border-top: 1px solid var(--border-subtle);
   }
-  .st-pal-none {
+  .sh-pal-none {
     display: grid;
     gap: var(--space-1);
     padding: var(--space-5) var(--space-4);
     text-align: left;
   }
   /* S11.3 — 05 · es-search-k: the spot beside the two lines (a palette is wide, not tall) */
-  .st-pal-none--spot {
+  .sh-pal-none--spot {
     display: flex;
     align-items: center;
     gap: var(--space-4);
     padding: var(--space-3) var(--space-5) var(--space-2) var(--space-3);
   }
-  .st-pal-txt {
+  .sh-pal-txt {
     display: flex;
     flex-direction: column;
     gap: 2px;
   }
   /* 05 es-search-k: the situation line is the kit's Rounded type-md semibold, the next line fg-1 */
-  .st-pal-sit {
+  .sh-pal-sit {
     font-family: var(--font-rounded);
     font-size: var(--type-md);
     font-weight: var(--w-semibold);
     color: var(--fg-0);
   }
-  .st-pal-next {
+  .sh-pal-next {
     font-size: var(--type-sm);
     color: var(--fg-1);
   }
   /* 11 pn-pal-note: the close-match note is a bg-3 box with a search glyph */
-  .st-pal-note {
+  .sh-pal-note {
     display: flex;
     align-items: center;
     gap: var(--space-2);
@@ -272,11 +272,11 @@
     font-size: var(--type-xs);
     color: var(--fg-1);
   }
-  .st-pal-note strong {
+  .sh-pal-note strong {
     color: var(--fg-0);
     font-weight: var(--w-semibold);
   }
-  .st-pal-foot {
+  .sh-pal-foot {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -287,11 +287,11 @@
     font-size: var(--type-xs);
     color: var(--fg-2);
   }
-  .st-pal-hints {
+  .sh-pal-hints {
     display: flex;
     gap: var(--space-3);
   }
-  .st-pal-hints > span {
+  .sh-pal-hints > span {
     display: inline-flex;
     align-items: center;
     gap: 2px;

@@ -278,7 +278,7 @@ describe('focus never drops to BODY when its element vanishes (W3)', () => {
     const toggle = document.createElement('button');
     toggle.setAttribute('data-testid', 'share-cluster-panels');
     const slot = document.createElement('div');
-    slot.className = 'st-dockslot';
+    slot.className = 'sh-dockslot';
     const row = document.createElement('button');
     slot.append(row);
     document.body.append(toggle, slot);

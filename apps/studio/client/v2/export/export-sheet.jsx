@@ -683,10 +683,10 @@ export function ExportSheet({
           ) : null}
 
           {recent.length > 0 ? (
-            <div className="st-export-recent ex-recent" data-testid="export-recent">
+            <div className="ex-export-recent ex-recent" data-testid="export-recent">
               <p className="ex-recent-h">{RECENT_LABEL}</p>
               {recent.map((h, i) => (
-                <div className="st-export-recent-row ex-recent-row" key={`${h.at ?? ''}-${i}`}>
+                <div className="ex-export-recent-row ex-recent-row" key={`${h.at ?? ''}-${i}`}>
                   <span>
                     {String(h.format || '').toUpperCase()} ·{' '}
                     {ENGINE_SCOPE_LABEL[h.scope] || SCOPE_LABEL[h.scope] || h.scope}

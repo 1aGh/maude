@@ -12,7 +12,7 @@
     gap: var(--space-1);
     min-width: 0;
   }
-  .insp-framing .st-cp-nsel {
+  .insp-framing .insp-cp-nsel {
     width: 140px;
     max-width: 100%;
   }

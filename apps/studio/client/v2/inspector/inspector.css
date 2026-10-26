@@ -4,7 +4,7 @@
 
 @layer shell {
   /* V2-8.5 C2 — the card (14 Editing `.k-insp`): 264 px, hugs its content, 2 px between rows. The panel's own
-     padding (`.st-rp-body`) is the island padding; the frame adds none. */
+     padding (`.sh-rp-body`) is the island padding; the frame adds none. */
   .insp {
     display: flex;
     flex-direction: column;
@@ -461,12 +461,12 @@
   /* V2-8.5 C2 — the Inspector is a card per board (14 `.k-insp`): the island hugs its rows (the slot's frame
      is full height; the card is not) and scrolls only past the window; the AI chat island under it does not
      stretch it either. */
-  .st-body--float .st-dockslot-inner:has(> .st-rpanel--insp),
-  .st-body--float > .st-dockslot.has-ai > .st-dockslot-inner:has(> .st-rpanel--insp) {
+  .sh-body--float .sh-dockslot-inner:has(> .sh-rpanel--insp),
+  .sh-body--float > .sh-dockslot.has-ai > .sh-dockslot-inner:has(> .sh-rpanel--insp) {
     flex: 0 1 auto;
     min-height: 0;
   }
-  .st-rpanel--insp > .st-rp-body {
+  .sh-rpanel--insp > .sh-rp-body {
     flex: 0 1 auto;
     min-height: 0;
     gap: 0;
@@ -480,7 +480,7 @@
     gap: var(--space-1);
     padding: 0 var(--space-1);
   }
-  .insp .insp-export-size .st-cp-nsel {
+  .insp .insp-export-size .insp-cp-nsel {
     width: 100%;
   }
   .insp .insp-export-go.btn {
@@ -501,15 +501,15 @@
   }
 
   /* the one place a title strip survives: a photo is an Image AND a Photo card (a seg, no tabs) */
-  .st-rp-views {
+  .sh-rp-views {
     flex: none;
     display: flex;
     padding: var(--space-3) var(--space-3) 0;
   }
-  .st-rp-views .seg {
+  .sh-rp-views .seg {
     width: 100%;
   }
-  .st-rp-views .k-seg-b {
+  .sh-rp-views .k-seg-b {
     flex: 1;
     justify-content: center;
   }
@@ -565,13 +565,13 @@
 
   /* S2.11b — the numbered slot a lifted card would land in (Layers draws what the canvas draws).
      Reduced motion collapses the fade to 1 ms: the place still shows, it just does not animate. */
-  .st-layer-slot {
+  .sh-layer-slot {
     border: 1px dashed var(--accent);
     background: color-mix(in oklch, var(--accent) 10%, transparent);
     pointer-events: none;
-    animation: st-layer-slot-in var(--dur-panel) var(--ease-out);
+    animation: sh-layer-slot-in var(--dur-panel) var(--ease-out);
   }
-  .st-layer-slot-n {
+  .sh-layer-slot-n {
     min-width: var(--space-4);
     padding: 0 var(--space-1);
     border-radius: 999px;
@@ -581,7 +581,7 @@
     font-weight: var(--w-semibold);
     text-align: center;
   }
-  @keyframes st-layer-slot-in {
+  @keyframes sh-layer-slot-in {
     from {
       opacity: 0;
     }
@@ -590,7 +590,7 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .st-layer-slot {
+    .sh-layer-slot {
       animation-duration: 1ms;
     }
   }

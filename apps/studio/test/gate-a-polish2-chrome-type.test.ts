@@ -29,7 +29,7 @@ describe('the sticker gallery headings (canvas 15: body face, xs, semibold, fg-2
     expect(css).toMatch(/\.sg-ph span\s*{[^}]*tabular-nums/);
   });
   test('the whole island is set in the body face, so no row falls back to the v1 mono', () => {
-    expect(block(css, '.st-sticker-picker.sg')).toContain('font-family: var(--font-body)');
+    expect(block(css, '.sh-sticker-picker.sg')).toContain('font-family: var(--font-body)');
   });
 });
 
@@ -49,7 +49,7 @@ describe('the selection tag and the size tag are sans on chrome tokens', () => {
 
 describe('the Inspect colour swatch has an edge that shows on a dark panel', () => {
   test('a 1px token border, strong enough for #111 on the dark island', () => {
-    const b = block(read('client/v2/inspect/inspect.css'), '.st-inspect-sw');
+    const b = block(read('client/v2/inspect/inspect.css'), '.sh-inspect-sw');
     expect(b).toContain('var(--border-strong)');
     expect(b).toMatch(/inset 0 0 0 1px/);
   });

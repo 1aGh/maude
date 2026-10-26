@@ -143,7 +143,7 @@ export default function ConvertDialog({
           <label className="kcv-switch">
             <input
               type="checkbox"
-              className="st-cp-switch"
+              className="insp-cp-switch"
               checked={keep}
               data-testid="convert-keep"
               onChange={(e) => setKeep(e.target.checked)}

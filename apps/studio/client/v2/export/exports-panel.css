@@ -176,17 +176,17 @@
     z-index: 9100;
     width: 260px;
   }
-  .ex-job-menu .st-dd-item:disabled {
+  .ex-job-menu .sh-dd-item:disabled {
     color: var(--fg-3, var(--fg-2));
     cursor: default;
   }
-  .ex-job .st-export-progress {
+  .ex-job .ex-export-progress {
     margin: 0;
   }
-  .ex-job .st-export-item__error {
+  .ex-job .ex-export-item__error {
     margin: 0 var(--space-1);
   }
-  .ex-job .st-export-degraded {
+  .ex-job .ex-export-degraded {
     margin: 0 var(--space-1);
   }
 }

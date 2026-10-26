@@ -474,8 +474,8 @@ describe('Layers row tools', () => {
         />
       )
     );
-    const lock = host.querySelector('.st-layer-lock') as HTMLButtonElement;
-    const eye = host.querySelector('.st-layer-eye') as HTMLButtonElement;
+    const lock = host.querySelector('.sh-layer-lock') as HTMLButtonElement;
+    const eye = host.querySelector('.sh-layer-eye') as HTMLButtonElement;
     expect(lock.getAttribute('aria-label')).toBe('Unlock Logo');
     expect(lock.getAttribute('aria-pressed')).toBe('true');
     expect(eye.getAttribute('aria-label')).toBe('Hide Logo');

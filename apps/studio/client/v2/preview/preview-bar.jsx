@@ -50,7 +50,7 @@ function PreviewGlyph() {
 export function PreviewBar({ name, hint = 'to edit', back, onBack, state = 'in' }) {
   return (
     <div
-      className="st-pbar island"
+      className="sh-pbar island"
       data-testid="preview-bar"
       data-occludes="top"
       data-state={state}
@@ -58,26 +58,26 @@ export function PreviewBar({ name, hint = 'to edit', back, onBack, state = 'in' 
       {back ? (
         <button
           type="button"
-          className="st-pbar-back"
+          className="sh-pbar-back"
           data-testid="preview-bar-back"
           aria-label={`Back to ${back}`}
           onClick={onBack}
         >
-          <span className="st-pbar-flip" aria-hidden="true">
+          <span className="sh-pbar-flip" aria-hidden="true">
             <StIcon name="chevron-right" size={12} />
           </span>
           {back}
         </button>
       ) : (
-        <span className="st-pbar-ic">
+        <span className="sh-pbar-ic">
           <PreviewGlyph />
         </span>
       )}
-      <span className="st-pbar-t" data-testid="preview-bar-title">
+      <span className="sh-pbar-t" data-testid="preview-bar-title">
         Previewing <strong>{name}</strong>
       </span>
-      <span className="st-pbar-div" aria-hidden="true" />
-      <span className="st-pbar-esc" data-testid="preview-bar-esc">
+      <span className="sh-pbar-div" aria-hidden="true" />
+      <span className="sh-pbar-esc" data-testid="preview-bar-esc">
         <Kbd>esc</Kbd> {hint}
       </span>
     </div>

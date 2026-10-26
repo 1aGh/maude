@@ -32,7 +32,7 @@
   .ph-chip {
     font-size: var(--type-xs);
     color: var(--fg-2);
-    border: var(--rule-thin);
+    border: 1px solid var(--border-default);
     border-radius: var(--radius-sm);
     padding: 0 var(--space-1);
   }
@@ -152,7 +152,7 @@
     flex-direction: column;
     gap: var(--space-1);
     padding: var(--space-2);
-    border: var(--rule-thin);
+    border: 1px solid var(--border-default);
     border-radius: var(--radius-sm);
     background: var(--bg-2);
   }
@@ -174,8 +174,8 @@
     width: 100%;
     justify-content: center;
   }
-  /* 12 ia-placed / ia-photo-inspector: the section's buttons are body copy (CONTRACT §5); `.st-btn` sets mono */
-  .ph-sec .st-btn {
+  /* 12 ia-placed / ia-photo-inspector: the section's buttons are body copy (CONTRACT §5); `.sh-btn` sets mono */
+  .ph-sec .sh-btn {
     font-family: var(--font-body);
   }
   .ph-sheet {
@@ -194,7 +194,7 @@
     justify-content: space-between;
     gap: var(--space-2);
     padding: var(--space-1) var(--space-2);
-    border: var(--rule-thin);
+    border: 1px solid var(--border-default);
     border-radius: var(--radius-sm);
   }
   .ph-use strong {

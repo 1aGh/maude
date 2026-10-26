@@ -55,9 +55,9 @@ describe('04 X1 - Preview draws no Edit chrome', () => {
 describe('04 X7 - the Present menu', () => {
   test('352 wide, the first row (Present from the selection) carries the accent-muted highlight', () => {
     const css = src('client/v2/shell/share-cluster.css');
-    const menu = css.slice(css.indexOf('.st-mode-menu {'), css.indexOf('.st-mode-menu-hd {'));
+    const menu = css.slice(css.indexOf('.sh-mode-menu {'), css.indexOf('.sh-mode-menu-hd {'));
     expect(menu).toContain('width: 352px');
-    expect(css).toContain('.st-mode-menu .st-pm-row[data-hl="true"]');
+    expect(css).toContain('.sh-mode-menu .sh-pm-row[data-hl="true"]');
     expect(src('client/v2/shell/mode-switch.jsx')).toContain(
       "data-hl={row.kind === 'selection' ? 'true' : undefined}"
     );

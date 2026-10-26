@@ -38,7 +38,7 @@ export function MoveSheet({ name, targets, onPick, onBack }) {
   };
   return (
     <div className="cv-move" data-testid="canvas-move-sheet">
-      <div className="st-dd-hd">Move “{name}” to</div>
+      <div className="sh-dd-hd">Move “{name}” to</div>
       <input
         ref={inputRef}
         className="cv-move-filter"
@@ -73,14 +73,14 @@ export function MoveSheet({ name, targets, onPick, onBack }) {
                 role="option"
                 aria-selected={i === at}
                 tabIndex={-1}
-                className={`st-dd-item cv-move-item${i === at ? ' is-hover' : ''}`}
+                className={`sh-dd-item cv-move-item${i === at ? ' is-hover' : ''}`}
                 data-testid={`canvas-move-target-${slug}`}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => onPick(t)}
                 onKeyDown={undefined}
                 style={{ paddingLeft: `calc(var(--space-3) + ${t.depth} * var(--space-3))` }}
               >
-                <span className="st-dd-lead">{query.trim() ? t.label : t.name}</span>
+                <span className="sh-dd-lead">{query.trim() ? t.label : t.name}</span>
               </div>
             );
           })

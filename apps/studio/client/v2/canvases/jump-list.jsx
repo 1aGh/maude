@@ -45,7 +45,7 @@ export function JumpToggle({ open, slug, name, onToggle, left }) {
         onToggle();
       }}
     >
-      <StIcon name="chevron-right" className={`st-chev${open ? ' is-open' : ''}`} size={12} />
+      <StIcon name="chevron-right" className={`cv-chev${open ? ' is-open' : ''}`} size={12} />
     </button>
   );
 }

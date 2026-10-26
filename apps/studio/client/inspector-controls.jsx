@@ -25,7 +25,7 @@
 //   • Field — the label + control [+ help] inspector row.
 //
 // Runs on the MAIN origin (studio shell), so it's plain React with the shell's
-// `.st-cp-*` classes (styled in client/styles/3-shell-maude.css). Value model is
+// `.insp-cp-*` classes (styled in client/styles/3-shell-maude.css). Value model is
 // numeric-first; NumberField accepts optional parse/format hooks so CssKnobs can
 // adapt its CSS-unit strings without the library learning about units.
 
@@ -121,7 +121,7 @@ export function makeScrubHandler({
       if (!scrubbing && Math.abs(dx) < 3) return;
       if (!scrubbing) {
         scrubbing = true;
-        document.body.classList.add('st-scrubbing');
+        document.body.classList.add('insp-scrubbing');
       }
       ev.preventDefault();
       const modifier = sides ? 1 : ev.shiftKey ? 10 : ev.altKey ? 0.1 : 1;
@@ -132,7 +132,7 @@ export function makeScrubHandler({
       document.removeEventListener('pointermove', move);
       document.removeEventListener('pointerup', up);
       if (!scrubbing) return;
-      document.body.classList.remove('st-scrubbing');
+      document.body.classList.remove('insp-scrubbing');
       onCommit?.(last, activeSidesFor(ev));
     };
     document.addEventListener('pointermove', move);
@@ -264,25 +264,25 @@ export function NumberField({
   };
 
   return (
-    <div className={`st-cp-num ${className}`.trim()}>
+    <div className={`insp-cp-num ${className}`.trim()}>
       {scrub ? (
         <span
-          className="st-cp-numlead st-cp-handle"
+          className="insp-cp-numlead insp-cp-handle"
           role="presentation"
           aria-hidden="true"
           title="Drag to change · Shift ×10 · Alt fine"
           onPointerDown={onScrub}
         >
-          {lead ?? <span className="st-cp-grip" />}
+          {lead ?? <span className="insp-cp-grip" />}
         </span>
       ) : lead ? (
-        <span className="st-cp-numlead" aria-hidden="true">
+        <span className="insp-cp-numlead" aria-hidden="true">
           {lead}
         </span>
       ) : null}
       <input
         ref={ref}
-        className="st-cp-numin"
+        className="insp-cp-numin"
         role="spinbutton"
         aria-label={ariaLabel}
         aria-valuenow={numOf(value)}
@@ -295,10 +295,10 @@ export function NumberField({
         onBlur={onBlur}
       />
       {steppers ? (
-        <span className="st-cp-step">
+        <span className="insp-cp-step">
           <button
             type="button"
-            className="st-cp-stepb"
+            className="insp-cp-stepb"
             tabIndex={-1}
             aria-label={`increase ${ariaLabel || 'value'}`}
             onClick={() => bump(1, 1)}
@@ -307,7 +307,7 @@ export function NumberField({
           </button>
           <button
             type="button"
-            className="st-cp-stepb"
+            className="insp-cp-stepb"
             tabIndex={-1}
             aria-label={`decrease ${ariaLabel || 'value'}`}
             onClick={() => bump(-1, 1)}
@@ -323,7 +323,7 @@ export function NumberField({
 
 // ── Slider (real track/thumb) ────────────────────────────────────────────────
 //
-// WAI-ARIA slider. Reuses the .st-cp-slider/track/fill/thumb CSS. Bipolar ranges
+// WAI-ARIA slider. Reuses the .insp-cp-slider/track/fill/thumb CSS. Bipolar ranges
 // (min<0<max) fill from the zero-point, not from min. Keyboard: Arrow ±step
 // (Shift ×10), PageUp/Down large, Home/End → min/max. Pointer drag previews via
 // onInput and commits on release.
@@ -378,10 +378,10 @@ export function Slider({ value, min = 0, max = 1, step = 0.01, onInput, onCommit
   };
 
   return (
-    <div className="st-cp-slider">
+    <div className="insp-cp-slider">
       <div
         ref={trackRef}
-        className="st-cp-track"
+        className="insp-cp-track"
         role="slider"
         tabIndex={0}
         aria-label={ariaLabel}
@@ -392,13 +392,13 @@ export function Slider({ value, min = 0, max = 1, step = 0.01, onInput, onCommit
         onKeyDown={onKeyDown}
       >
         {min < 0 && max > 0 ? (
-          <span className="st-cp-zero" style={{ left: `${zeroFrac * 100}%` }} />
+          <span className="insp-cp-zero" style={{ left: `${zeroFrac * 100}%` }} />
         ) : null}
         <span
-          className="st-cp-fill"
+          className="insp-cp-fill"
           style={{ left: `${fillLeft * 100}%`, width: `${fillWidth * 100}%` }}
         />
-        <span className="st-cp-thumb" style={{ left: `${frac * 100}%` }} />
+        <span className="insp-cp-thumb" style={{ left: `${frac * 100}%` }} />
       </div>
     </div>
   );
@@ -422,7 +422,7 @@ export function SliderField({
 }) {
   const v = value ?? (min < 0 ? 0 : min);
   return (
-    <div className="st-cp-sfield">
+    <div className="insp-cp-sfield">
       <Slider
         value={v}
         min={min}
@@ -433,7 +433,7 @@ export function SliderField({
         ariaLabel={ariaLabel}
       />
       <NumberField
-        className="st-cp-num--compact"
+        className="insp-cp-num--compact"
         value={v}
         min={min}
         max={max}
@@ -442,7 +442,7 @@ export function SliderField({
         steppers={false}
         unitSlot={
           unit ? (
-            <span className="st-cp-numsuffix" aria-hidden="true">
+            <span className="insp-cp-numsuffix" aria-hidden="true">
               {unit}
             </span>
           ) : null
@@ -457,7 +457,7 @@ export function SliderField({
 
 // ── UnitSelect (the unit suffix on a CSS length NumberField) ─────────────────
 //
-// A thin `.st-cp-unitsel` wrapper generalizing the inline unit `<select>` that
+// A thin `.insp-cp-unitsel` wrapper generalizing the inline unit `<select>` that
 // used to live inside `CssKnobs`' `num()` factory — passed as a `NumberField`
 // `unitSlot`. `onChange` receives the raw unit string (e.g. 'rem'); the caller
 // owns recombining it with the numeric part (unit conversion is CSS-specific,
@@ -465,7 +465,7 @@ export function SliderField({
 export function UnitSelect({ value, units, onChange, ariaLabel }) {
   return (
     <select
-      className="st-cp-unitsel"
+      className="insp-cp-unitsel"
       aria-label={ariaLabel}
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -482,7 +482,7 @@ export function UnitSelect({ value, units, onChange, ariaLabel }) {
 // ── Segmented (≤5 options, all visible) ──────────────────────────────────────
 export function Segmented({ value, options, onChange, ariaLabel }) {
   return (
-    <div className="st-cp-seg" role="radiogroup" aria-label={ariaLabel}>
+    <div className="insp-cp-seg" role="radiogroup" aria-label={ariaLabel}>
       {options.map((o) => {
         const val = typeof o === 'string' ? o : o.value;
         const label = typeof o === 'string' ? o : (o.label ?? o.value);
@@ -492,7 +492,7 @@ export function Segmented({ value, options, onChange, ariaLabel }) {
             type="button"
             role="radio"
             aria-checked={value === val}
-            className={`st-cp-segbtn${value === val ? ' is-active' : ''}`}
+            className={`insp-cp-segbtn${value === val ? ' is-active' : ''}`}
             onClick={() => onChange(val)}
           >
             {label}
@@ -507,7 +507,7 @@ export function Segmented({ value, options, onChange, ariaLabel }) {
 export function Select({ value, options, onChange, ariaLabel, mini = false, testId }) {
   return (
     <select
-      className={`st-cp-nsel${mini ? ' st-cp-nsel--mini' : ''}`}
+      className={`insp-cp-nsel${mini ? ' insp-cp-nsel--mini' : ''}`}
       aria-label={ariaLabel}
       data-testid={testId}
       value={value}
@@ -529,15 +529,15 @@ export function Select({ value, options, onChange, ariaLabel, mini = false, test
 // ── Toggle (immediate-effect boolean) ────────────────────────────────────────
 export function Toggle({ checked, onChange, label, ariaLabel }) {
   return (
-    <label className="st-cp-toggle">
+    <label className="insp-cp-toggle">
       <input
         type="checkbox"
-        className="st-cp-switch"
+        className="insp-cp-switch"
         checked={!!checked}
         aria-label={ariaLabel || label}
         onChange={(e) => onChange(e.target.checked)}
       />
-      {label ? <span className="st-cp-toggle-lbl">{label}</span> : null}
+      {label ? <span className="insp-cp-toggle-lbl">{label}</span> : null}
     </label>
   );
 }
@@ -552,7 +552,7 @@ export function Swatch({ value, fallback = '#000000', label, onApply, render }) 
   if (render) return render({ hex, label, onApply });
   return (
     <label
-      className="st-cp-swatch st-cp-swatch--mini st-cp-swatch--trigger"
+      className="insp-cp-swatch insp-cp-swatch--mini insp-cp-swatch--trigger"
       style={{ background: hex }}
       title={label}
     >
@@ -570,10 +570,10 @@ export function Swatch({ value, fallback = '#000000', label, onApply, render }) 
 // ── Field (the inspector row: label + control [+ help]) ──────────────────────
 export function Field({ label, help, children, wide = false }) {
   return (
-    <div className={`st-cp-row${wide ? ' st-cp-row--wide' : ''}`}>
-      {label ? <span className="st-cp-label">{label}</span> : null}
-      <span className="st-cp-ctl">{children}</span>
-      {help ? <span className="st-cp-help">{help}</span> : null}
+    <div className={`insp-cp-row${wide ? ' insp-cp-row--wide' : ''}`}>
+      {label ? <span className="insp-cp-label">{label}</span> : null}
+      <span className="insp-cp-ctl">{children}</span>
+      {help ? <span className="insp-cp-help">{help}</span> : null}
     </div>
   );
 }
@@ -585,7 +585,7 @@ export function Field({ label, help, children, wide = false }) {
 // `[{ value, node, label }]` where `node` is a lucide icon element.
 export function IconButtonGroup({ value, options, ariaLabel, onChange }) {
   return (
-    <div className="st-cp-iconseg" role="radiogroup" aria-label={ariaLabel}>
+    <div className="insp-cp-iconseg" role="radiogroup" aria-label={ariaLabel}>
       {options.map((o) => (
         <button
           key={o.value}
@@ -605,7 +605,7 @@ export function IconButtonGroup({ value, options, ariaLabel, onChange }) {
 }
 export function IconToggleGroup({ value, options, ariaLabel, onToggle }) {
   return (
-    <div className="st-cp-iconseg" role="group" aria-label={ariaLabel}>
+    <div className="insp-cp-iconseg" role="group" aria-label={ariaLabel}>
       {options.map((o) => (
         <button
           key={o.value}
@@ -625,17 +625,17 @@ export function IconToggleGroup({ value, options, ariaLabel, onToggle }) {
 // ── Checkbox (custom box + check, in the DS accent language) ──────────────────
 export function Checkbox({ checked, label, ariaLabel, onChange }) {
   return (
-    <label className="st-cp-check">
+    <label className="insp-cp-check">
       <input
         type="checkbox"
         checked={!!checked}
         aria-label={ariaLabel}
         onChange={(e) => onChange(e.target.checked)}
       />
-      <span className="st-cp-check-box">
+      <span className="insp-cp-check-box">
         <Ic as={Check} size={11} />
       </span>
-      {label ? <span className="st-cp-check-lbl">{label}</span> : null}
+      {label ? <span className="insp-cp-check-lbl">{label}</span> : null}
     </label>
   );
 }
@@ -644,7 +644,7 @@ export function Checkbox({ checked, label, ariaLabel, onChange }) {
 const ALIGN_CELLS = ['tl', 'tc', 'tr', 'cl', 'cc', 'cr', 'bl', 'bc', 'br'];
 export function AlignPad({ value, onChange, ariaLabel = 'alignment' }) {
   return (
-    <div className="st-cp-alignpad" role="radiogroup" aria-label={ariaLabel}>
+    <div className="insp-cp-alignpad" role="radiogroup" aria-label={ariaLabel}>
       {ALIGN_CELLS.map((c) => (
         <button
           key={c}
@@ -675,13 +675,13 @@ export function AngleDial({ value, onChange, ariaLabel = 'rotation' }) {
   const onPointerDown = (e) => {
     if (e.button !== 0) return;
     e.preventDefault();
-    document.body.classList.add('st-scrubbing', 'st-scrubbing--dial');
+    document.body.classList.add('insp-scrubbing', 'insp-scrubbing--dial');
     onChange(angleAt(e.clientX, e.clientY));
     const move = (ev) => onChange(angleAt(ev.clientX, ev.clientY));
     const up = () => {
       document.removeEventListener('pointermove', move);
       document.removeEventListener('pointerup', up);
-      document.body.classList.remove('st-scrubbing', 'st-scrubbing--dial');
+      document.body.classList.remove('insp-scrubbing', 'insp-scrubbing--dial');
     };
     document.addEventListener('pointermove', move);
     document.addEventListener('pointerup', up);
@@ -708,7 +708,7 @@ export function AngleDial({ value, onChange, ariaLabel = 'rotation' }) {
     <button
       ref={ref}
       type="button"
-      className="st-cp-dial"
+      className="insp-cp-dial"
       role="slider"
       aria-label={ariaLabel}
       aria-valuemin={0}
@@ -719,7 +719,7 @@ export function AngleDial({ value, onChange, ariaLabel = 'rotation' }) {
       onPointerDown={onPointerDown}
       onKeyDown={onKeyDown}
     >
-      <span className="st-cp-dial-needle" style={{ '--angle': `${value}deg` }} />
+      <span className="insp-cp-dial-needle" style={{ '--angle': `${value}deg` }} />
     </button>
   );
 }
@@ -731,15 +731,15 @@ export function AngleDial({ value, onChange, ariaLabel = 'rotation' }) {
 export function PanelSection({ title, defaultOpen = true, onReset, right, children }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <section className="st-cp-sec">
-      <div className="st-cp-sechd-row">
+    <section className="insp-cp-sec">
+      <div className="insp-cp-sechd-row">
         <button
           type="button"
-          className="st-cp-sechd"
+          className="insp-cp-sechd"
           aria-expanded={open}
           onClick={() => setOpen((o) => !o)}
         >
-          <span className="st-cp-caret" aria-hidden="true">
+          <span className="insp-cp-caret" aria-hidden="true">
             <Ic as={ChevronDown} size={12} />
           </span>
           {title}
@@ -748,7 +748,7 @@ export function PanelSection({ title, defaultOpen = true, onReset, right, childr
         {onReset ? (
           <button
             type="button"
-            className="st-cp-secreset"
+            className="insp-cp-secreset"
             aria-label={`reset ${title} section`}
             title={`reset ${title}`}
             onClick={onReset}
@@ -757,8 +757,8 @@ export function PanelSection({ title, defaultOpen = true, onReset, right, childr
           </button>
         ) : null}
       </div>
-      <div className={`st-cp-sec-anim${open ? ' is-open' : ''}`}>
-        <div className="st-cp-sec-inner">{children}</div>
+      <div className={`insp-cp-sec-anim${open ? ' is-open' : ''}`}>
+        <div className="insp-cp-sec-inner">{children}</div>
       </div>
     </section>
   );
@@ -783,10 +783,10 @@ export function ColorField({
   onVisible,
 }) {
   return (
-    <span className="st-cp-cf">
+    <span className="insp-cp-cf">
       {swatch}
       <input
-        className={`st-cp-cf-in${bound ? ' is-bound' : ''}`}
+        className={`insp-cp-cf-in${bound ? ' is-bound' : ''}`}
         aria-label={ariaLabel}
         value={displayValue}
         onChange={(e) => onValue?.(e.target.value)}
@@ -795,7 +795,7 @@ export function ColorField({
       />
       {onAlpha ? (
         <input
-          className="st-cp-cf-alpha"
+          className="insp-cp-cf-alpha"
           aria-label={`${ariaLabel || 'colour'} alpha`}
           value={`${alpha}`}
           onChange={(e) => onAlpha(clampTo(Number.parseFloat(e.target.value) || 0, 0, 100))}
@@ -805,7 +805,7 @@ export function ColorField({
       {onVisible ? (
         <button
           type="button"
-          className={`st-cp-cf-eye${visible ? '' : ' is-off'}`}
+          className={`insp-cp-cf-eye${visible ? '' : ' is-off'}`}
           aria-pressed={visible}
           aria-label={`${ariaLabel || 'colour'} visibility`}
           onClick={() => onVisible(!visible)}
@@ -855,18 +855,18 @@ export function ValueTokenField({
     ? tokens.filter((t) => pretty(t.name).includes(q) || (t.value || '').toLowerCase().includes(q))
     : tokens;
   return (
-    <div className="st-cp-tokfield">
+    <div className="insp-cp-tokfield">
       {bound ? (
-        <div className="st-cp-boundchip" title={`${tokenName} = ${resolved}`}>
+        <div className="insp-cp-boundchip" title={`${tokenName} = ${resolved}`}>
           {lead ? (
-            <span className="st-cp-boundchip-lead" aria-hidden="true">
+            <span className="insp-cp-boundchip-lead" aria-hidden="true">
               {lead}
             </span>
           ) : null}
-          <span className="st-cp-boundchip-name">{pretty(tokenName)}</span>
+          <span className="insp-cp-boundchip-name">{pretty(tokenName)}</span>
           <button
             type="button"
-            className="st-cp-boundchip-x"
+            className="insp-cp-boundchip-x"
             aria-label="detach token"
             title="detach — back to a raw value"
             onClick={() => onChange(Number.parseFloat(resolved) || 0)}
@@ -886,7 +886,7 @@ export function ValueTokenField({
           unitSlot={
             unitSlot ??
             (unit ? (
-              <span className="st-cp-numsuffix" aria-hidden="true">
+              <span className="insp-cp-numsuffix" aria-hidden="true">
                 {unit}
               </span>
             ) : null)
@@ -897,7 +897,7 @@ export function ValueTokenField({
       <span ref={wrapRef} style={{ position: 'relative', display: 'inline-flex' }}>
         <button
           type="button"
-          className={`st-cp-tokbtn${bound ? ' is-bound' : ''}`}
+          className={`insp-cp-tokbtn${bound ? ' is-bound' : ''}`}
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-label={`${ariaLabel} — bind a design token`}
@@ -908,12 +908,12 @@ export function ValueTokenField({
         </button>
         {open ? (
           <div
-            className="st-cp-pop"
+            className="insp-cp-pop"
             role="dialog"
             aria-label="design tokens"
             style={{ left: 'auto', right: 0 }}
           >
-            <div className="st-cp-pop-search">
+            <div className="insp-cp-pop-search">
               <Ic as={Search} size={12} />
               <input
                 value={q}
@@ -927,18 +927,18 @@ export function ValueTokenField({
                 <button
                   key={t.name}
                   type="button"
-                  className={`st-cp-pop-row${tokenName === t.name ? ' is-on' : ''}`}
+                  className={`insp-cp-pop-row${tokenName === t.name ? ' is-on' : ''}`}
                   onClick={() => {
                     onChange(`var(${t.name})`);
                     setOpen(false);
                   }}
                 >
-                  <span className="st-cp-pop-name">{pretty(t.name)}</span>
-                  <span className="st-cp-pop-val">{t.value}</span>
+                  <span className="insp-cp-pop-name">{pretty(t.name)}</span>
+                  <span className="insp-cp-pop-val">{t.value}</span>
                 </button>
               ))
             ) : (
-              <div className="st-cp-pop-empty">No match</div>
+              <div className="insp-cp-pop-empty">No match</div>
             )}
           </div>
         ) : null}
@@ -957,8 +957,8 @@ export function RadiusControl({ corners, lead, onCorners }) {
   const [split, setSplit] = useState(false);
   const setAll = (v) => onCorners({ tl: v, tr: v, bl: v, br: v });
   const cell = (k) => (
-    <label className="st-cp-corner">
-      <span className={`st-cp-cnr st-cp-cnr--${k}`} aria-hidden="true" />
+    <label className="insp-cp-corner">
+      <span className={`insp-cp-cnr insp-cp-cnr--${k}`} aria-hidden="true" />
       <input
         aria-label={`${k} radius`}
         value={corners[k]}
@@ -968,8 +968,8 @@ export function RadiusControl({ corners, lead, onCorners }) {
     </label>
   );
   return (
-    <div className="st-cp-radius">
-      <div className="st-cp-radius-main">
+    <div className="insp-cp-radius">
+      <div className="insp-cp-radius-main">
         <NumberField
           value={corners.tl}
           min={0}
@@ -978,7 +978,7 @@ export function RadiusControl({ corners, lead, onCorners }) {
           lead={lead}
           steppers={false}
           unitSlot={
-            <span className="st-cp-numsuffix" aria-hidden="true">
+            <span className="insp-cp-numsuffix" aria-hidden="true">
               px
             </span>
           }
@@ -986,7 +986,7 @@ export function RadiusControl({ corners, lead, onCorners }) {
         />
         <button
           type="button"
-          className={`st-cp-splitbtn${split ? ' is-on' : ''}`}
+          className={`insp-cp-splitbtn${split ? ' is-on' : ''}`}
           aria-pressed={split}
           aria-label="detach corners"
           title="detach corners — edit each independently"
@@ -996,7 +996,7 @@ export function RadiusControl({ corners, lead, onCorners }) {
         </button>
       </div>
       {split ? (
-        <div className="st-cp-corners">
+        <div className="insp-cp-corners">
           {cell('tl')}
           {cell('tr')}
           {cell('bl')}

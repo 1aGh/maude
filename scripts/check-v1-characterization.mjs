@@ -41,8 +41,8 @@
 // The tour anchor `data-tour="sidebar"` is still there. Verified identical on a second run.
 //
 // Approved delta (V2-4.1, decision:maude/v2-4.1-floating-panels): 21 of the 30 states changed, all in
-// the same two places — the shell body is the floating layout (`div.st-body.st-body--float`; the left
-// dock slot `.st-dockslot` › `.island.st-dockslot-inner` replaces the always-present `.st-rail`, a right
+// the same two places — the shell body is the floating layout (`div.sh-body.sh-body--float`; the left
+// dock slot `.sh-dockslot` › `.island.sh-dockslot-inner` replaces the always-present `.st-rail`, a right
 // slot or the top-right corner icon `[data-testid="panel-icon-right"]` stands where the closed right
 // slot was) and the View menu's first row is "Hide panels  ⌘ \" (was "Project Tree  T") with a new
 // last row "Pin panels to the side". `browser/menu-view` shows the second; the other 20 the first. The
@@ -55,21 +55,21 @@
 // `browser/menu-view` and the sheet's "Fit · actual size" second combo in `browser/shortcuts` read
 // "⇧ 0". Only those two states were refreshed (`--update --only`).
 // Approved delta (V2-4.2, decision:maude/v2-4.2-project-pill-and-menu): 20 of the 30 states (every one that shows the
-// shell body) gain ONE element as the first child of `div.st-body` — the project pill
-// `span.st-pill.island[data-occludes="top"]` › `button[data-testid="project-pill"]` ("Project menu",
+// shell body) gain ONE element as the first child of `div.sh-body` — the project pill
+// `span.sh-pill.island[data-occludes="top"]` › `button[data-testid="project-pill"]` ("Project menu",
 // mark + project name [+ open canvas]). Nothing else in the DOM moved: the left dock slot and the
 // left corner icon sit 52px lower (CSS only), the menubar stays until V2-4.8. The ⌘K palette's list
 // with nothing typed is unchanged (the menu's rows join it once something is typed).
 // Approved delta (V2-4.3a, decision:maude/v2-4.3a-share-cluster-and-status-machine): all 21 states that show the
 // shell body gain ONE element after the project pill — the Share cluster
-// `div.island.st-share[data-testid="share-cluster"]`: `ul.st-faces` (you), the status word
-// `span.st-saved[data-testid="share-cluster-status"]` ("Local project" in the local fixture, "Offline — kept on this
+// `div.island.sh-share[data-testid="share-cluster"]`: `ul.sh-faces` (you), the status word
+// `span.sh-saved[data-testid="share-cluster-status"]` ("Local project" in the local fixture, "Offline — kept on this
 // Mac" in `sync-offline/`, "Can comment" in the viewer shells), the comments button, Hide panels, and Share (Ask to
 // edit for the viewer shells). The right panel and the right corner icon sit 52px lower (CSS only). `browser/palette-query`
 // also gains the registered "Exports" row under View (`view.exports`: Menu › View › Exports, ⌘K "Exports"). The
 // menubar and the status bar stay until V2-4.8.
 // Approved delta (V2-4.3b, decision:maude/v2-4.3b-shell-owns-mode-switch — V2-1.2 §8 step 7): the 21 shell states gain
-// the mode switch inside the Share cluster, after Comments — `div.st-modes[data-testid="share-cluster-mode"]` ›
+// the mode switch inside the Share cluster, after Comments — `div.sh-modes[data-testid="share-cluster-mode"]` ›
 // `palette-mode-edit` (Edit, pressed) or, in `viewer/` and `cloud-viewer/`, `palette-mode-viewing` with
 // `palette-mode-preview` pressed (a view-only link boots Preview, DDR-223), then Preview and the Present slot
 // (`palette-mode-present` + the `mode-present-menu` chevron; both [disabled] with no canvas open). `browser/palette-open`
@@ -79,8 +79,8 @@
 // Approved delta (V2-4.4a, decision:maude/v2-4.4a-left-panel-tabs): the 20 states that show the left panel read
 // Canvases · Layers · Assets. In every one: the dock tab `dock-tab-tree` says "Canvases" (was "Files") and a third
 // tab `dock-tab-assets` "Assets" follows Layers; the sidebar `nav` is `aria-label="Canvases"`, its title
-// `span.st-sb-title` "Canvases", the search input `aria-label="Filter canvases"`. The header loses the Refresh button
-// (`.st-refresh`) and the live "4 / 4" count — both moved under Canvases › Advanced (`canvases-refresh`, the foot's
+// `span.cv-sb-title` "Canvases", the search input `aria-label="Filter canvases"`. The header loses the Refresh button
+// (`.sh-refresh`) and the live "4 / 4" count — both moved under Canvases › Advanced (`canvases-refresh`, the foot's
 // "N of M shown"). The DESIGN SYSTEM section (`tree-section-design-system` + its `demo` DsFolderRow) is gone from the
 // default list: the project's system is the pinned row `div.lp-pinned › button[data-testid="canvases-ds-row"]` ("Design
 // system") above the list (19 states; `browser/system-view` shows it `.is-sel[aria-current]`), and its files render
@@ -96,15 +96,15 @@
 // states open the project pill's menu instead (see `MENU_SECTION`). Goldens are refreshed by the lead.
 //
 // Approved delta (wave-B gate, 2026-10-20, decision:maude/v2-waveB-gate-v1-goldens): all 30 states move with shipped
-// wave-A/B slices and nothing else. The Share cluster wraps the faces in `span.st-faces-host` and marks the session's
-// own face `.is-you` (S9); the project pill's menu gains `hr.st-pm-sep` group separators (S11.18); ⌘K opens on a
+// wave-A/B slices and nothing else. The Share cluster wraps the faces in `span.sh-faces-host` and marks the session's
+// own face `.is-you` (S9); the project pill's menu gains `hr.sh-pm-sep` group separators (S11.18); ⌘K opens on a
 // "Recent" group (`palette-recent-empty` "Nothing opened yet." on a fresh fixture, S1.4) and a near-miss row reads
-// `.is-quiet` with its `.st-pal-where` place (S1.4/S11.18); the remaining states carry the same cluster/menu rows.
+// `.is-quiet` with its `.sh-pal-where` place (S1.4/S11.18); the remaining states carry the same cluster/menu rows.
 // Refreshed with `--build --update`, then `--build --repeat` all 30 identical.
 //
 // Approved delta (wave-B gate, Ready to try (7), 2026-10-22, decision:maude/v2-waveB-gate-v1-goldens-2): 21 states
 // move with the gate's own fixes and nothing else. No tour offer in the callout stack (polish2: tours stay at
-// Menu › Help); a shell with no canvas shows the `st-empty` "No canvas open" card with Start quick setup
+// Menu › Help); a shell with no canvas shows the `sh-empty` "No canvas open" card with Start quick setup
 // (polish2); the AI panel is a normal conversation (`chat-feed` labelled Conversation, tabindex 0 — a11y) and the
 // v1 "AI editing isn't ready yet" readiness list (`acp-not-connected`, `rdy-*`) is gone from it — it lives at
 // Menu › Diagnostics › AI setup (polish2 RC-C); Settings › General › Look is one Theme segmented row Light · Dark ·
@@ -122,6 +122,11 @@
 // slices, not from C0: the no-selection export sheet is the whole-project sheet grouped by kind, the handoff sheet
 // is not reachable without a canvas, the project menu's canvas rows read aria-disabled with no canvas open, and a
 // Settings row reads "Version history" (was "Changes"). `--build --update`, then `--build --repeat`: all 30 identical.
+//
+// Approved delta (V2-8.0 part C, decision:maude/v2-p8-st-rename-by-family): class names only. Every `st-<family>…`
+// class moves to its area's v2 namespace (the share family → `sh-share…`, follow → `pv-follow…`, …); the
+// goldens were rewritten with the same rename map and re-sorted (the snapshot sorts classes). No structure, text or
+// attribute moved.
 //
 // Usage (from the repo root):
 //   node scripts/check-v1-characterization.mjs [--update] [--only <state-prefix>]
@@ -667,7 +672,7 @@ const afterKeys =
   };
 
 // V2-4.8a — the in-app menubar is gone; the six `menu-*` states now open the SAME sections in the project
-// pill's one menu (its snapshot root is the pill, `.st-pill`, which holds the open menu). Selection and
+// pill's one menu (its snapshot root is the pill, `.sh-pill`, which holds the open menu). Selection and
 // Tools are not menus any more: Selection's two rows ("Deselect all", "Select all annotations") are rows of
 // Edit, and Tools are the canvas toolbar's slots — so `menu-selection` shows Edit (the section that holds
 // them) and `menu-tools` shows the menu's top level with no section open (the old Tools position has no
@@ -696,7 +701,7 @@ const STATES = [
     'browser',
     async (page) => {
       await openProjectMenu(page, MENU_SECTION[m]);
-      return '.st-pill';
+      return '.sh-pill';
     },
   ]),
   [
@@ -704,7 +709,7 @@ const STATES = [
     'browser',
     async (page) => {
       await press(page, 'Meta+k');
-      return '[role="dialog"], .st-palette, .cmdk, [data-testid*="palette"]';
+      return '[role="dialog"], .sh-palette, .cmdk, [data-testid*="palette"]';
     },
   ],
   [
@@ -714,7 +719,7 @@ const STATES = [
       await press(page, 'Meta+k');
       await page.keyboard.type('export');
       await settle(page);
-      return '[role="dialog"], .st-palette, .cmdk, [data-testid*="palette"]';
+      return '[role="dialog"], .sh-palette, .cmdk, [data-testid*="palette"]';
     },
   ],
   ['browser/shortcuts', 'browser', afterKeys('Shift+Slash')],
@@ -725,7 +730,7 @@ const STATES = [
     'browser',
     async (page) => {
       await press(page, 'Meta+Comma');
-      const tabs = page.locator('[role="dialog"] [role="tab"], .st-settings [role="tab"]');
+      const tabs = page.locator('[role="dialog"] [role="tab"], .v2s-settings [role="tab"]');
       const n = await tabs.count();
       const snaps = [];
       for (let i = 0; i < n; i++) {
@@ -807,7 +812,7 @@ const STATES = [
     'tauri',
     async (page) => {
       await openProjectMenu(page, MENU_SECTION.file);
-      return '.st-pill';
+      return '.sh-pill';
     },
   ],
   ['viewer/shell-empty', 'viewer', async () => '#root'],
@@ -846,7 +851,10 @@ async function runState([name, shell, drive]) {
     // The Settings "Local server port" row shows this run's own port (4400, 4403 …) as bare digits.
     const text = (
       typeof r === 'string' ? await page.evaluate(snapshotInPage, snapArg(page, r)) : r.text
-    ).replace(/(data-testid="settings-server-port"\][^"]*(?:"[^"]*"[^"]*)*?v2s-val--mono ")\d{2,5}"/g, '$1<port>"');
+    ).replace(
+      /(data-testid="settings-server-port"\][^"]*(?:"[^"]*"[^"]*)*?v2s-val--mono ")\d{2,5}"/g,
+      '$1<port>"'
+    );
     let shot = null;
     if (SHOTS && SHOT_STATES.has(name)) {
       await page.evaluate(() => document.fonts?.ready);

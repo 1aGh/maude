@@ -53,7 +53,7 @@ function CalloutFold({ kind, fold }) {
   const [open, setOpen] = useState(false);
   const { rows = [], waiting = null, hint = '' } = fold;
   return (
-    <div className="st-callout-fold">
+    <div className="sh-callout-fold">
       <AdvancedFold
         panel="callout.sync"
         open={open}
@@ -62,14 +62,14 @@ function CalloutFold({ kind, fold }) {
         buttonTestid={`callout-${kind}-fold-toggle`}
       >
         {rows.map((r) => (
-          <div className="st-callout-row" key={r.id} data-testid={`callout-${kind}-row-${r.id}`}>
+          <div className="sh-callout-row" key={r.id} data-testid={`callout-${kind}-row-${r.id}`}>
             <span>{r.k}</span>
-            <span className="st-callout-mono">{r.v}</span>
+            <span className="sh-callout-mono">{r.v}</span>
           </div>
         ))}
         {waiting ? (
           <>
-            <div className="st-callout-row st-callout-row--sub">
+            <div className="sh-callout-row sh-callout-row--sub">
               <span>Waiting · {waiting.count}</span>
               <button
                 type="button"
@@ -80,7 +80,7 @@ function CalloutFold({ kind, fold }) {
                 Copy
               </button>
             </div>
-            <div className="st-callout-files st-callout-mono">
+            <div className="sh-callout-files sh-callout-mono">
               {waiting.files.map((f, i) => (
                 <span key={f} data-testid={`callout-${kind}-file-${i}`}>
                   {f}
@@ -90,7 +90,7 @@ function CalloutFold({ kind, fold }) {
             </div>
           </>
         ) : null}
-        {hint ? <p className="st-callout-hint">{hint}</p> : null}
+        {hint ? <p className="sh-callout-hint">{hint}</p> : null}
       </AdvancedFold>
     </div>
   );
@@ -102,16 +102,16 @@ export function Callout({ item, onAction, onDismiss, busy = false }) {
   const closable = !!onDismiss && action?.id !== 'got-it';
   return (
     <div
-      className={`st-callout st-callout--${tone}${fold ? ' st-callout--fold' : ''}`}
+      className={`sh-callout sh-callout--${tone}${fold ? ' sh-callout--fold' : ''}`}
       role="status"
       aria-live="polite"
       data-testid={`callout-${kind}`}
       data-tone={tone}
     >
-      <span className="st-callout-ic" aria-hidden="true">
+      <span className="sh-callout-ic" aria-hidden="true">
         <StIcon name={icon} size={16} />
       </span>
-      <span className="st-callout-t">
+      <span className="sh-callout-t">
         {title}
         {detail ? <span>{detail}</span> : null}
       </span>
@@ -129,7 +129,7 @@ export function Callout({ item, onAction, onDismiss, busy = false }) {
       {closable ? (
         <button
           type="button"
-          className="st-callout-x"
+          className="sh-callout-x"
           aria-label="Dismiss"
           title="Dismiss"
           data-testid={`callout-${kind}-dismiss`}
@@ -146,7 +146,7 @@ export function Callout({ item, onAction, onDismiss, busy = false }) {
 export function CalloutStack({ items = [], onAction, onDismiss, busyKey = null, children = null }) {
   const modalOpen = useModalOpen();
   return (
-    <div className="st-callouts" data-testid="callouts" inert={modalOpen}>
+    <div className="sh-callouts" data-testid="callouts" inert={modalOpen}>
       {children}
       {items.map((item) => (
         <Callout

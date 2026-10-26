@@ -236,7 +236,7 @@ describe('v2 token scope', () => {
     const dialog = host.querySelector('[role="dialog"]') as HTMLElement;
     expect(dialog.classList.contains('maude-v2')).toBe(true);
     expect(dialog.getAttribute('data-theme')).toBe('dark');
-    expect((host.querySelector('.st-scrim') as HTMLElement).classList.contains('maude-v2')).toBe(
+    expect((host.querySelector('.sh-scrim') as HTMLElement).classList.contains('maude-v2')).toBe(
       false
     );
     await done();
@@ -247,6 +247,6 @@ describe('v2 token scope', () => {
     const css = await Bun.file(
       new URL('../client/v2/annotations/templates-panel.css', import.meta.url)
     ).text();
-    expect(css).toMatch(/\.st-sticker-picker\.tp\s*\{[^}]*font-family:\s*var\(--font-body/);
+    expect(css).toMatch(/\.sh-sticker-picker\.tp\s*\{[^}]*font-family:\s*var\(--font-body/);
   });
 });

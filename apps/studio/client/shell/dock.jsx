@@ -84,7 +84,7 @@ export function PanelTabs({ side, ids, activeId, onPick, onFold, labels = null }
       </div>
       <button
         type="button"
-        className="st-iconbtn lp-fold"
+        className="sh-iconbtn lp-fold"
         data-testid={`panel-fold-${side}`}
         aria-label={`Hide ${label(activeId)}`}
         title={`Hide ${label(activeId)}`}
@@ -105,7 +105,7 @@ export function PanelTabs({ side, ids, activeId, onPick, onFold, labels = null }
 // it, shown or hidden independently. The slot is a transparent frame; `.has-ai` says both are showing.
 //
 // V2-4.1 — the DOM is the same in both layouts, so pinning / unpinning never remounts the panels (the AI
-// chat keeps its stream, DDR-123): `.st-dockslot` is the positioned slot, `.st-dockslot-inner` an island's
+// chat keeps its stream, DDR-123): `.sh-dockslot` is the positioned slot, `.sh-dockslot-inner` an island's
 // surface. Pinned (today's docked column) the inner is `display: contents`; floating it is the `.island`
 // and carries `data-occludes` (V2-1.2 §5.6) so the shell can tell the canvas what it covers. `hidden`
 // (⌘\) takes the slot out of the layout but leaves it mounted.
@@ -144,7 +144,7 @@ export function DockSlot({
     mainNode.current = null;
     const { floating: fl, side: sd, hidden: hid } = live.current;
     if (gone?.isConnected && fl && !hid)
-      spawnFoldGhost(gone, gone.closest('.st-body'), sd === 'left' ? 'top-left' : 'top-right');
+      spawnFoldGhost(gone, gone.closest('.sh-body'), sd === 'left' ? 'top-left' : 'top-right');
   }, []);
   // The islands that stay MOUNTED when they stop showing - the whole slot folded away (`hidden`: Preview folds
   // the panels, and ⌘\), or the chat island (`hidden` attribute; its stream survives) - fold from the rect they
@@ -159,7 +159,7 @@ export function DockSlot({
   useLayoutEffect(() => {
     const main = mainNode.current;
     const ai = aiNode.current;
-    const host = (main ?? ai)?.closest('.st-body');
+    const host = (main ?? ai)?.closest('.sh-body');
     const foldAi = () =>
       ai &&
       aiBox.current &&
@@ -181,7 +181,7 @@ export function DockSlot({
   return (
     <div
       className={
-        'st-dockslot st-dockslot--' +
+        'sh-dockslot sh-dockslot--' +
         side +
         (shown ? '' : ' is-collapsed') +
         (open && aiShown ? ' has-ai' : '') +
@@ -197,7 +197,7 @@ export function DockSlot({
       {open && (
         <div
           ref={foldMain}
-          className={'st-dockslot-inner' + (floating ? ' island' : '')}
+          className={'sh-dockslot-inner' + (floating ? ' island' : '')}
           data-testid={`dock-slot-${side}`}
           data-occludes={floating && !hidden ? side : undefined}
         >
@@ -217,7 +217,7 @@ export function DockSlot({
       {ai && (
         <div
           ref={aiNode}
-          className={'st-dockslot-inner st-dockslot-ai' + (floating ? ' island' : '')}
+          className={'sh-dockslot-inner sh-dockslot-ai' + (floating ? ' island' : '')}
           data-testid={`dock-ai-${side}`}
           data-occludes={floating && aiShown && !hidden ? side : undefined}
           hidden={!aiShown}
@@ -271,7 +271,7 @@ export function PanelGrip({ label, size, onPointerDown, active, dir = 'ltr' }) {
   return (
     <div
       className={
-        'st-grip' + (dir === 'rtl' ? ' st-grip--r' : ' st-grip--l') + (active ? ' is-active' : '')
+        'sh-grip' + (dir === 'rtl' ? ' sh-grip--r' : ' sh-grip--l') + (active ? ' is-active' : '')
       }
       role="separator"
       data-testid={dir === 'rtl' ? 'panel-grip-right' : 'panel-grip-left'}
@@ -300,13 +300,13 @@ export function PanelGrip({ label, size, onPointerDown, active, dir = 'ltr' }) {
         }
       }}
     >
-      <svg className="st-grip-dots" viewBox="0 0 6 18" aria-hidden="true">
+      <svg className="sh-grip-dots" viewBox="0 0 6 18" aria-hidden="true">
         <circle cx="3" cy="3" r="1.1" fill="currentColor" />
         <circle cx="3" cy="9" r="1.1" fill="currentColor" />
         <circle cx="3" cy="15" r="1.1" fill="currentColor" />
       </svg>
       {/* P8 C3 (06 ad-pinned `.ad-handle-tip`) — what the handle does, beside it while it is held or focused */}
-      <span className="st-grip-tip" aria-hidden="true">
+      <span className="sh-grip-tip" aria-hidden="true">
         {GRIP_TIP}
       </span>
     </div>

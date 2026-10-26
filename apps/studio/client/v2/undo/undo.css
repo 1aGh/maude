@@ -1,18 +1,18 @@
 /* S2.20 — Menu › Edit › Undo history… (client/v2/undo/undo-history.jsx; 14 `ed-edge-undo`).
-   The popover wears the one menu's skin (.st-pm, project-pill.css); only its rows differ. */
+   The popover wears the one menu's skin (.sh-pm, project-pill.css); only its rows differ. */
 @layer shell {
-  .st-uh-root {
+  .sh-uh-root {
     position: fixed;
     left: var(--space-4, 16px);
     bottom: 72px;
     z-index: 60;
   }
-  .st-uh {
+  .sh-uh {
     width: 340px;
     max-height: calc(100vh - 120px);
     overflow-y: auto;
   }
-  .st-uh-t {
+  .sh-uh-t {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
@@ -21,34 +21,34 @@
     font-size: var(--type-sm, 13px);
     font-weight: var(--w-semibold, 600);
   }
-  .st-uh-t span,
-  .st-uh-from,
-  .st-uh-empty,
-  .st-uh-foot {
+  .sh-uh-t span,
+  .sh-uh-from,
+  .sh-uh-empty,
+  .sh-uh-foot {
     font-size: var(--type-xs, 12px);
     font-weight: var(--w-regular, 400);
     color: var(--fg-2);
   }
-  .st-uh-empty,
-  .st-uh-foot {
+  .sh-uh-empty,
+  .sh-uh-foot {
     margin: 0;
     padding: var(--space-1, 4px) var(--space-2, 8px);
   }
-  .st-uh-from {
+  .sh-uh-from {
     margin: 0;
     padding: 0 var(--space-2, 8px) var(--space-1, 4px);
   }
-  .st-uh-r {
+  .sh-uh-r {
     min-height: 42px;
   }
-  .st-uh-r[data-top="true"] {
+  .sh-uh-r[data-top="true"] {
     background: var(--accent-muted, var(--bg-3));
   }
-  .st-uh-r[aria-disabled="true"] .st-uh-txt > span {
+  .sh-uh-r[aria-disabled="true"] .sh-uh-txt > span {
     color: var(--fg-3, var(--fg-2));
     text-decoration: line-through;
   }
-  .st-uh-ic {
+  .sh-uh-ic {
     display: grid;
     place-items: center;
     width: 20px;
@@ -59,21 +59,21 @@
     font-size: 9px;
     font-weight: var(--w-semibold, 600);
   }
-  .st-uh-ic[data-who="ai"] {
+  .sh-uh-ic[data-who="ai"] {
     background: var(--spark-muted, var(--accent-muted));
   }
-  .st-uh-txt {
+  .sh-uh-txt {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
   }
-  .st-uh-txt > span {
+  .sh-uh-txt > span {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .st-uh-txt em {
+  .sh-uh-txt em {
     font-style: normal;
     font-size: var(--type-xs, 12px);
     color: var(--fg-2);

@@ -81,23 +81,23 @@ function Level({ nodes, depth, trail, openPath, cur, setCur, onRow, onHover, lab
       ref={ref}
       role="menu"
       aria-label={label}
-      className={`st-pm${depth > 0 ? ' st-pm--sub' : ''}`}
+      className={`sh-pm${depth > 0 ? ' sh-pm--sub' : ''}`}
       data-testid={
         depth === 0 ? 'project-menu' : (popupTestid ?? `project-menu-sub-${slug(label)}`)
       }
     >
       {nodes.map((n, i) => {
         // biome-ignore lint/suspicious/noArrayIndexKey: separators have no identity but position
-        if (n.type === 'sep') return <hr key={`s${i}`} className="st-pm-sep" />;
+        if (n.type === 'sep') return <hr key={`s${i}`} className="sh-pm-sep" />;
         if (n.type === 'sub') {
           const key = `${trail}/${n.label}`;
           const open = openPath[depth] === n.label;
           return (
-            <div role="none" key={key} className="st-pm-li">
+            <div role="none" key={key} className="sh-pm-li">
               <button
                 type="button"
                 role="menuitem"
-                className={`st-pm-row${n.advanced ? ' st-pm-row--adv' : ''}`}
+                className={`sh-pm-row${n.advanced ? ' sh-pm-row--adv' : ''}`}
                 tabIndex={cur === key ? 0 : -1}
                 aria-haspopup="menu"
                 aria-expanded={open}
@@ -108,9 +108,9 @@ function Level({ nodes, depth, trail, openPath, cur, setCur, onRow, onHover, lab
                 onMouseEnter={(e) => onHover(depth, n.label, e.currentTarget)}
                 onClick={() => onRow(depth, n, key)}
               >
-                <span className="st-pm-ic" aria-hidden="true" />
-                <span className="st-pm-lab">{n.label}</span>
-                <span className="st-pm-ch" aria-hidden="true">
+                <span className="sh-pm-ic" aria-hidden="true" />
+                <span className="sh-pm-lab">{n.label}</span>
+                <span className="sh-pm-ch" aria-hidden="true">
                   <StIcon name="chevron-right" size={12} />
                 </span>
               </button>
@@ -134,14 +134,14 @@ function Level({ nodes, depth, trail, openPath, cur, setCur, onRow, onHover, lab
         const key = `${trail}/${n.id}`;
         const check = n.checked !== undefined;
         return (
-          <div role="none" key={key} className="st-pm-li">
+          <div role="none" key={key} className="sh-pm-li">
             {/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: role is menuitemcheckbox whenever aria-checked is set (a dynamic role biome can't follow) */}
             <button
               type="button"
               role={check ? 'menuitemcheckbox' : 'menuitem'}
               aria-checked={check ? n.checked : undefined}
               aria-disabled={n.disabled ? 'true' : undefined}
-              className="st-pm-row"
+              className="sh-pm-row"
               tabIndex={cur === key ? 0 : -1}
               data-testid={n.testid ?? `project-menu-row-${n.id}`}
               data-key={key}
@@ -150,14 +150,14 @@ function Level({ nodes, depth, trail, openPath, cur, setCur, onRow, onHover, lab
               onMouseEnter={(e) => onHover(depth, null, e.currentTarget)}
               onClick={() => onRow(depth, n, key)}
             >
-              <span className="st-pm-ic" aria-hidden="true">
+              <span className="sh-pm-ic" aria-hidden="true">
                 {n.checked ? <StIcon name="check" size={13} /> : null}
               </span>
-              <span className="st-pm-lab">{n.label}</span>
+              <span className="sh-pm-lab">{n.label}</span>
               {n.status ? (
                 // V2-4.7b: Diagnostics rows say their state in one word (CONTRACT §1), or show a value.
                 <span
-                  className={`st-pm-status${n.status.mono ? ' st-pm-status--mono' : ''}`}
+                  className={`sh-pm-status${n.status.mono ? ' sh-pm-status--mono' : ''}`}
                   data-tone={n.status.tone}
                   data-testid={`project-menu-status-${n.id}`}
                 >
@@ -355,7 +355,7 @@ export function ProjectPill({
       const ch = e.key.toLowerCase();
       const order = [...rows.slice(i + 1), ...rows.slice(0, i + 1)];
       const hit = order.find((r) =>
-        r.querySelector('.st-pm-lab')?.textContent?.trim().toLowerCase().startsWith(ch)
+        r.querySelector('.sh-pm-lab')?.textContent?.trim().toLowerCase().startsWith(ch)
       );
       if (hit) {
         e.preventDefault();
@@ -367,7 +367,7 @@ export function ProjectPill({
   return (
     <span
       ref={wrapRef}
-      className="st-pill island"
+      className="sh-pill island"
       // Docked on the pinned left column it covers no canvas, so it declares no edge.
       data-occludes={docked ? undefined : 'top'}
       data-open={open ? 'true' : undefined}
@@ -378,7 +378,7 @@ export function ProjectPill({
       <button
         ref={btnRef}
         type="button"
-        className="st-pill-btn"
+        className="sh-pill-btn"
         // Label in Name (WCAG 2.5.3): the visible text leads, so voice control ("click e2e-fixture") and a
         // screen reader both get the open project and canvas, then what the control is.
         aria-label={`${project || 'maude'}${canvas ? ` / ${canvas}` : ''}, project menu`}
@@ -410,21 +410,21 @@ export function ProjectPill({
           else openMenu();
         }}
       >
-        <span className="st-pill-mark" data-tour="brand">
+        <span className="sh-pill-mark" data-tour="brand">
           <Mark />
         </span>
         {folded ? null : (
           <>
-            <span className="st-pill-name">{project || 'maude'}</span>
+            <span className="sh-pill-name">{project || 'maude'}</span>
             {canvas ? (
               <>
-                <span className="st-pill-sep" aria-hidden="true">
+                <span className="sh-pill-sep" aria-hidden="true">
                   /
                 </span>
-                <span className="st-pill-canvas">{canvas}</span>
+                <span className="sh-pill-canvas">{canvas}</span>
               </>
             ) : null}
-            <span className="st-pill-caret" aria-hidden="true">
+            <span className="sh-pill-caret" aria-hidden="true">
               <StIcon name="chevron-down" size={14} />
             </span>
           </>
@@ -432,7 +432,7 @@ export function ProjectPill({
       </button>
       {open ? (
         // biome-ignore lint/a11y/noStaticElementInteractions: key events bubble from the menu's rows
-        <div ref={menuRef} className="st-pm-root" onKeyDown={onMenuKey}>
+        <div ref={menuRef} className="sh-pm-root" onKeyDown={onMenuKey}>
           <Level
             nodes={model}
             depth={0}

@@ -250,7 +250,7 @@ function visible(el) {
 
 /** A control inside a hidden panel → the Hide / Show panels toggle; anything else → the shell landmark. */
 export function defaultRescueTarget(lost, doc = document) {
-  const inPanel = lost?.closest?.('.st-dockslot, [data-occludes]');
+  const inPanel = lost?.closest?.('.sh-dockslot, [data-occludes]');
   if (inPanel) {
     const toggle = doc.querySelector('[data-testid="share-cluster-panels"]');
     if (toggle) return toggle;

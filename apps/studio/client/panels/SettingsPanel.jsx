@@ -107,10 +107,10 @@ export function ProviderCard({ provider, onChanged }) {
   }
 
   return (
-    <div className="st-provider-card">
-      <div className="st-provider-hd">
-        <span className="st-provider-name">{provider.label}</span>
-        <span className={'st-pill' + (provider.kind === 'local' ? ' is-local' : '')}>
+    <div className="v2s-provider-card">
+      <div className="v2s-provider-hd">
+        <span className="v2s-provider-name">{provider.label}</span>
+        <span className={'sh-pill' + (provider.kind === 'local' ? ' is-local' : '')}>
           {provider.kind === 'local' ? (
             'Local'
           ) : (
@@ -120,22 +120,22 @@ export function ProviderCard({ provider, onChanged }) {
           )}
         </span>
         {configured && (
-          <span className="st-provider-configured">
+          <span className="v2s-provider-configured">
             <Icon name="check" size={12} /> configured
           </span>
         )}
       </div>
-      <div className="st-provider-modalities">{provider.modalities.join(' · ')}</div>
-      {provider.notes && <div className="st-provider-notes">{provider.notes}</div>}
+      <div className="v2s-provider-modalities">{provider.modalities.join(' · ')}</div>
+      {provider.notes && <div className="v2s-provider-notes">{provider.notes}</div>}
       {provider.keyUrl && (
-        <a className="st-provider-keylink" href={provider.keyUrl} target="_blank" rel="noreferrer">
+        <a className="v2s-provider-keylink" href={provider.keyUrl} target="_blank" rel="noreferrer">
           Get a key <Icon name="external" size={12} />
         </a>
       )}
       {provider.auth === 'api-key' && (
-        <div className="st-provider-keyrow">
+        <div className="v2s-provider-keyrow">
           <input
-            className="input st-provider-keyinput"
+            className="input v2s-provider-keyinput"
             type="password"
             autoComplete="off"
             spellCheck={false}
@@ -149,14 +149,14 @@ export function ProviderCard({ provider, onChanged }) {
           />
           <button
             type="button"
-            className="st-btn"
+            className="sh-btn"
             disabled={busy || !keyInput.trim()}
             onClick={save}
           >
             <Icon name="key" size={13} /> Save
           </button>
           {configured && (
-            <button type="button" className="st-btn" disabled={busy} onClick={remove}>
+            <button type="button" className="sh-btn" disabled={busy} onClick={remove}>
               Remove
             </button>
           )}
@@ -164,7 +164,7 @@ export function ProviderCard({ provider, onChanged }) {
       )}
       {status && (
         <div
-          className="st-provider-status"
+          className="v2s-provider-status"
           style={{ color: status.ok ? 'var(--accent)' : 'var(--danger, #e5484d)' }}
         >
           {status.msg}
@@ -464,11 +464,11 @@ export function WhisperModelCard() {
         }}
       </ModelPicker>
       {state && (
-        <div className="st-setup">
-          <div className={`st-step${state.setup?.installed ? ' is-done' : ''}`}>
-            <span className="st-step-n">{state.setup?.installed ? '✓' : '1'}</span>
-            <div className="st-step-body">
-              <span className="st-step-title">
+        <div className="v2s-setup">
+          <div className={`v2s-step${state.setup?.installed ? ' is-done' : ''}`}>
+            <span className="v2s-step-n">{state.setup?.installed ? '✓' : '1'}</span>
+            <div className="v2s-step-body">
+              <span className="v2s-step-title">
                 {state.setup?.installed
                   ? 'whisper.cpp engine is installed'
                   : 'Install the whisper.cpp engine'}
@@ -480,32 +480,32 @@ export function WhisperModelCard() {
                 opt.kind === 'command' ? (
                   <CopyCommand key={opt.id} command={opt.command} label={`Copy: ${opt.label}`} />
                 ) : (
-                  <span key={opt.id} className="st-provider-notes">
+                  <span key={opt.id} className="v2s-provider-notes">
                     {opt.note}
                   </span>
                 )
               )}
             </div>
           </div>
-          <div className={`st-step${modelsReady ? ' is-done' : ''}`}>
-            <span className="st-step-n">{modelsReady ? '✓' : '2'}</span>
-            <div className="st-step-body">
-              <span className="st-step-title">
+          <div className={`v2s-step${modelsReady ? ' is-done' : ''}`}>
+            <span className="v2s-step-n">{modelsReady ? '✓' : '2'}</span>
+            <div className="v2s-step-body">
+              <span className="v2s-step-title">
                 {modelsReady ? 'Model ready' : 'Download a model (above)'}
               </span>
             </div>
           </div>
           {(state.setup?.options || []).length > 1 && (
-            <details className="st-setup-more">
+            <details className="v2s-setup-more">
               <summary>Other ways to get the engine</summary>
               {state.setup.options.slice(1).map((opt) => (
-                <div key={opt.id} className="st-setup-option">
-                  <span className="st-setup-option-label">{opt.label}</span>
+                <div key={opt.id} className="v2s-setup-option">
+                  <span className="v2s-setup-option-label">{opt.label}</span>
                   <CopyCommand
                     command={opt.kind === 'command' ? opt.command : opt.url}
                     label={`Copy: ${opt.label}`}
                   />
-                  {opt.note ? <span className="st-provider-notes">{opt.note}</span> : null}
+                  {opt.note ? <span className="v2s-provider-notes">{opt.note}</span> : null}
                 </div>
               ))}
             </details>
@@ -664,11 +664,11 @@ function SetupSteps({ state }) {
   const step1 = step1Done || primary?.id === 'pull' ? null : primary;
 
   return (
-    <div className="st-setup">
-      <div className={`st-step${step1Done ? ' is-done' : ''}`}>
-        <span className="st-step-n">{step1Done ? '✓' : '1'}</span>
-        <div className="st-step-body">
-          <span className="st-step-title">
+    <div className="v2s-setup">
+      <div className={`v2s-step${step1Done ? ' is-done' : ''}`}>
+        <span className="v2s-step-n">{step1Done ? '✓' : '1'}</span>
+        <div className="v2s-step-body">
+          <span className="v2s-step-title">
             {step1Done ? 'Ollama is running' : ollama.installed ? 'Start Ollama' : 'Install Ollama'}
           </span>
           {step1?.kind === 'command' ? (
@@ -676,10 +676,10 @@ function SetupSteps({ state }) {
           ) : null}
         </div>
       </div>
-      <div className={`st-step${step2Done ? ' is-done' : ''}`}>
-        <span className="st-step-n">{step2Done ? '✓' : '2'}</span>
-        <div className="st-step-body">
-          <span className="st-step-title">
+      <div className={`v2s-step${step2Done ? ' is-done' : ''}`}>
+        <span className="v2s-step-n">{step2Done ? '✓' : '2'}</span>
+        <div className="v2s-step-body">
+          <span className="v2s-step-title">
             {step2Done ? `Model ready (${ollama.model})` : 'Download the model'}
           </span>
           {step2Done ? null : (
@@ -687,11 +687,11 @@ function SetupSteps({ state }) {
           )}
         </div>
       </div>
-      <details className="st-setup-more">
+      <details className="v2s-setup-more">
         <summary>Other ways to install</summary>
         {alternatives.map((opt) => (
-          <div key={opt.id} className="st-setup-option">
-            <span className="st-setup-option-label">{opt.label}</span>
+          <div key={opt.id} className="v2s-setup-option">
+            <span className="v2s-setup-option-label">{opt.label}</span>
             {/* A link is rendered as a copyable URL, not a button: the desktop
                 shell has no general URL opener by design (DDR-054). */}
             <CopyCommand
@@ -700,20 +700,20 @@ function SetupSteps({ state }) {
             />
           </div>
         ))}
-        <div className="st-setup-option">
-          <span className="st-setup-option-label">
+        <div className="v2s-setup-option">
+          <span className="v2s-setup-option-label">
             mlx-vlm instead of Ollama — faster, Apple Silicon only
           </span>
           {state.mlx?.supported ? (
             <>
               <CopyCommand command={state.mlx.command} label="Copy the mlx-vlm install command" />
-              <span className="st-provider-notes">
+              <span className="v2s-provider-notes">
                 Then download a model below. Models live in your HuggingFace cache.
               </span>
             </>
           ) : (
             // Never show a command that would fail here — say why instead.
-            <span className="st-provider-notes">{state.mlx?.reason}</span>
+            <span className="v2s-provider-notes">{state.mlx?.reason}</span>
           )}
         </div>
       </details>
@@ -945,33 +945,33 @@ export function FigmaConnectCard() {
   const configured = Boolean(status?.configured);
 
   return (
-    <div className="st-provider-card" data-testid="figma-connect-card">
-      <div className="st-provider-hd">
-        <span className="st-provider-name">Figma</span>
+    <div className="v2s-provider-card" data-testid="figma-connect-card">
+      <div className="v2s-provider-hd">
+        <span className="v2s-provider-name">Figma</span>
         {configured && (
-          <span className="st-provider-configured">
+          <span className="v2s-provider-configured">
             <Icon name="check" size={12} /> connected
           </span>
         )}
       </div>
-      <p className="st-settings-intro">
+      <p className="v2s-settings-intro">
         Import real Figma documents — frames become editable canvases, FigJam boards become the
         whiteboard, and paint/text/effect styles become design tokens. The translation is plain
         code: no AI reads your file.
       </p>
-      <p className="st-settings-intro">
+      <p className="v2s-settings-intro">
         Create a personal access token with the{' '}
         <code>{status?.requiredScope || 'file_content:read'}</code> scope. It is stored on this
         machine only and is never sent anywhere but Figma.
       </p>
       {status?.tokenUrl && (
-        <a className="st-provider-keylink" href={status.tokenUrl} target="_blank" rel="noreferrer">
+        <a className="v2s-provider-keylink" href={status.tokenUrl} target="_blank" rel="noreferrer">
           Get a token <Icon name="external" size={12} />
         </a>
       )}
-      <div className="st-provider-keyrow">
+      <div className="v2s-provider-keyrow">
         <input
-          className="st-provider-keyinput"
+          className="v2s-provider-keyinput"
           type="password"
           autoComplete="off"
           spellCheck={false}
@@ -986,7 +986,7 @@ export function FigmaConnectCard() {
         />
         <button
           type="button"
-          className="st-btn"
+          className="sh-btn"
           disabled={busy || !tokenInput.trim()}
           onClick={connect}
           data-testid="figma-connect-save"
@@ -996,7 +996,7 @@ export function FigmaConnectCard() {
         {configured && (
           <button
             type="button"
-            className="st-btn"
+            className="sh-btn"
             disabled={busy}
             onClick={disconnect}
             data-testid="figma-disconnect"
@@ -1008,7 +1008,7 @@ export function FigmaConnectCard() {
       {configured && (
         <button
           type="button"
-          className="st-btn"
+          className="sh-btn"
           disabled={busy}
           onClick={probe}
           data-testid="figma-test"
@@ -1017,12 +1017,12 @@ export function FigmaConnectCard() {
         </button>
       )}
       {handle !== null && (
-        <div className="st-provider-status" data-testid="figma-connected-as">
+        <div className="v2s-provider-status" data-testid="figma-connected-as">
           Connected as {handle || 'your Figma account'}
         </div>
       )}
       {msg && (
-        <div className="st-provider-status" data-testid="figma-connect-error">
+        <div className="v2s-provider-status" data-testid="figma-connect-error">
           {msg}
         </div>
       )}
@@ -1064,7 +1064,7 @@ export function SideToggle({ value, disabled, onChange, testId, labelledBy }) {
   return (
     // biome-ignore lint/a11y/useSemanticElements: a two-state segmented control, not a form field
     <span
-      className="st-sidetoggle"
+      className="v2s-sidetoggle"
       role="radiogroup"
       aria-labelledby={labelledBy}
       aria-label={labelledBy ? undefined : 'Panel side'}
@@ -1079,7 +1079,7 @@ export function SideToggle({ value, disabled, onChange, testId, labelledBy }) {
           aria-checked={value === s}
           tabIndex={value === s ? 0 : -1}
           disabled={disabled}
-          className={'st-sidebtn' + (value === s ? ' is-active' : '')}
+          className={'v2s-sidebtn' + (value === s ? ' is-active' : '')}
           onClick={() => onChange(s)}
         >
           {s === 'left' ? 'Left' : 'Right'}
@@ -1096,18 +1096,18 @@ const LAYERS_MODE_OPTIONS = [
 export function LayoutTab({ panelSide, onSetPanelSide, layersMode, onSetLayersMode }) {
   return (
     <>
-      <div className="st-provider-card">
-        <div className="st-provider-hd">
-          <span className="st-provider-name">Layers panel</span>
+      <div className="v2s-provider-card">
+        <div className="v2s-provider-hd">
+          <span className="v2s-provider-name">Layers panel</span>
         </div>
-        <div className="st-provider-notes">
+        <div className="v2s-provider-notes">
           Show Layers as its own dockable panel, or as a tab inside the Inspector.
         </div>
-        <div className="st-engine-radios" role="radiogroup" aria-label="Layers mode">
+        <div className="v2s-engine-radios" role="radiogroup" aria-label="Layers mode">
           {LAYERS_MODE_OPTIONS.map((o) => (
             <label
               key={o.id}
-              className={'st-engine-radio' + (layersMode === o.id ? ' is-selected' : '')}
+              className={'v2s-engine-radio' + (layersMode === o.id ? ' is-selected' : '')}
             >
               <input
                 type="radio"
@@ -1115,32 +1115,32 @@ export function LayoutTab({ panelSide, onSetPanelSide, layersMode, onSetLayersMo
                 checked={layersMode === o.id}
                 onChange={() => onSetLayersMode(o.id)}
               />
-              <span className="st-engine-radio-body">
-                <span className="st-engine-radio-label">{o.label}</span>
-                <span className="st-engine-radio-note">{o.note}</span>
+              <span className="v2s-engine-radio-body">
+                <span className="v2s-engine-radio-label">{o.label}</span>
+                <span className="v2s-engine-radio-note">{o.note}</span>
               </span>
             </label>
           ))}
         </div>
       </div>
-      <div className="st-provider-card">
-        <div className="st-provider-hd">
-          <span className="st-provider-name">Panel positions</span>
+      <div className="v2s-provider-card">
+        <div className="v2s-provider-hd">
+          <span className="v2s-provider-name">Panel positions</span>
         </div>
-        <div className="st-provider-notes">
+        <div className="v2s-provider-notes">
           Put each panel on the left or the right. The AI chat is its own panel and shows beside the
           rest; Canvases, Layers and Assets share one panel with tabs.
         </div>
         {LAYOUT_PANELS.map((p) => {
           const disabled = p.id === 'layers' && layersMode !== 'separate';
           return (
-            <div key={p.id} className={'st-pref-row' + (disabled ? ' is-disabled' : '')}>
-              <span className="st-pref-body">
-                <span className="st-pref-label" id={`panel-side-label-${p.id}`}>
+            <div key={p.id} className={'v2s-pref-row' + (disabled ? ' is-disabled' : '')}>
+              <span className="v2s-pref-body">
+                <span className="v2s-pref-label" id={`panel-side-label-${p.id}`}>
                   {p.label}
                 </span>
                 {disabled && (
-                  <span className="st-pref-note">
+                  <span className="v2s-pref-note">
                     Layers is inside the Inspector — choose “Separate panel” above to dock it.
                   </span>
                 )}
@@ -1164,16 +1164,16 @@ export function LayoutTab({ panelSide, onSetPanelSide, layersMode, onSetLayersMo
 // (single source of truth) so the modal and the View menu never diverge.
 export function PrefToggleRow({ label, note, checked, disabled, reason, onChange }) {
   return (
-    <label className={'st-pref-row' + (disabled ? ' is-disabled' : '')}>
-      <span className="st-pref-body">
-        <span className="st-pref-label">{label}</span>
+    <label className={'v2s-pref-row' + (disabled ? ' is-disabled' : '')}>
+      <span className="v2s-pref-body">
+        <span className="v2s-pref-label">{label}</span>
         {(reason || note) && (
-          <span className="st-pref-note">{disabled && reason ? reason : note}</span>
+          <span className="v2s-pref-note">{disabled && reason ? reason : note}</span>
         )}
       </span>
       <input
         type="checkbox"
-        className="st-switch"
+        className="v2s-switch"
         role="switch"
         aria-checked={!!checked}
         checked={!!checked}
@@ -1210,16 +1210,16 @@ const CP_MODE_OPTIONS = [
 export function AppearanceTab({ theme, onSetTheme, cpMode, onSetCpMode }) {
   return (
     <>
-      <div className="st-provider-card">
-        <div className="st-provider-hd">
-          <span className="st-provider-name">Theme</span>
+      <div className="v2s-provider-card">
+        <div className="v2s-provider-hd">
+          <span className="v2s-provider-name">Theme</span>
         </div>
-        <div className="st-provider-notes">
+        <div className="v2s-provider-notes">
           Sets the look of the panels, toolbar and canvas background. Artboards keep their own
           design system.
         </div>
         <div
-          className="st-engine-radios"
+          className="v2s-engine-radios"
           role="radiogroup"
           aria-label="Theme"
           data-testid="settings-theme"
@@ -1227,7 +1227,7 @@ export function AppearanceTab({ theme, onSetTheme, cpMode, onSetCpMode }) {
           {THEME_OPTIONS.map((o) => (
             <label
               key={o.id}
-              className={'st-engine-radio' + (theme === o.id ? ' is-selected' : '')}
+              className={'v2s-engine-radio' + (theme === o.id ? ' is-selected' : '')}
             >
               <input
                 type="radio"
@@ -1236,24 +1236,24 @@ export function AppearanceTab({ theme, onSetTheme, cpMode, onSetCpMode }) {
                 checked={theme === o.id}
                 onChange={() => onSetTheme?.(o.id)}
               />
-              <span className="st-engine-radio-body">
-                <span className="st-engine-radio-label">{o.label}</span>
-                <span className="st-engine-radio-note">{o.note}</span>
+              <span className="v2s-engine-radio-body">
+                <span className="v2s-engine-radio-label">{o.label}</span>
+                <span className="v2s-engine-radio-note">{o.note}</span>
               </span>
             </label>
           ))}
         </div>
       </div>
-      <div className="st-provider-card">
-        <div className="st-provider-hd">
-          <span className="st-provider-name">Inspector vocabulary</span>
+      <div className="v2s-provider-card">
+        <div className="v2s-provider-hd">
+          <span className="v2s-provider-name">Inspector vocabulary</span>
         </div>
-        <div className="st-provider-notes">
+        <div className="v2s-provider-notes">
           How the inspector names its controls. The small toggle in the inspector’s corner flips it
           too — this choice is remembered.
         </div>
         <div
-          className="st-engine-radios"
+          className="v2s-engine-radios"
           role="radiogroup"
           aria-label="Inspector vocabulary"
           data-testid="settings-inspector-vocabulary"
@@ -1261,7 +1261,7 @@ export function AppearanceTab({ theme, onSetTheme, cpMode, onSetCpMode }) {
           {CP_MODE_OPTIONS.map((o) => (
             <label
               key={o.id}
-              className={'st-engine-radio' + (cpMode === o.id ? ' is-selected' : '')}
+              className={'v2s-engine-radio' + (cpMode === o.id ? ' is-selected' : '')}
             >
               <input
                 type="radio"
@@ -1270,9 +1270,9 @@ export function AppearanceTab({ theme, onSetTheme, cpMode, onSetCpMode }) {
                 checked={cpMode === o.id}
                 onChange={() => onSetCpMode?.(o.id)}
               />
-              <span className="st-engine-radio-body">
-                <span className="st-engine-radio-label">{o.label}</span>
-                <span className="st-engine-radio-note">{o.note}</span>
+              <span className="v2s-engine-radio-body">
+                <span className="v2s-engine-radio-label">{o.label}</span>
+                <span className="v2s-engine-radio-note">{o.note}</span>
               </span>
             </label>
           ))}
@@ -1307,22 +1307,24 @@ export function ProviderKeys() {
 
   return (
     <>
-      <p className="st-settings-intro">
+      <p className="v2s-settings-intro">
         Bring your own API keys to generate images (and, soon, audio + video) inside Maude. Keys are
         stored on this machine only — in your OS keychain or a private{' '}
         <code>~/.config/maude/keys.json</code> (mode 0600) — sent straight to the provider, and
         never committed, logged, or exposed to a canvas.
       </p>
       {error && (
-        <div className="st-provider-status" style={{ color: 'var(--danger, #e5484d)' }}>
+        <div className="v2s-provider-status" style={{ color: 'var(--danger, #e5484d)' }}>
           {error}
         </div>
       )}
-      {providers === null && !error && <div className="st-settings-intro">Loading…</div>}
+      {providers === null && !error && <div className="v2s-settings-intro">Loading…</div>}
       {providers?.map((p) => (
         <ProviderCard key={p.id} provider={p} onChanged={load} />
       ))}
-      {providers?.length === 0 && <div className="st-settings-intro">No providers registered.</div>}
+      {providers?.length === 0 && (
+        <div className="v2s-settings-intro">No providers registered.</div>
+      )}
     </>
   );
 }

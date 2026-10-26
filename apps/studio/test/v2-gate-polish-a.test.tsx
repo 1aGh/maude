@@ -2,7 +2,7 @@
 // wiring (the contrast pairs live in shell-text-contrast.test.ts).
 //
 //   - the no-canvas empty state speaks the contract's words and exposes no port or version
-//   - the project pill's absolute-island rule cannot leak onto other `.st-pill` badges
+//   - the project pill's absolute-island rule cannot leak onto other `.sh-pill` badges
 //   - a modal sheet / panel stacks above the informational callouts, below scrims and warnings
 //   - the "?" sheet's grid cannot blow out (`minmax(0, 1fr)`), and Settings body copy is not mono
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
@@ -58,8 +58,8 @@ describe('the no-canvas empty state', () => {
   test('says one true thing in the contract’s words — canvas, never screen', async () => {
     const el = await mountViewport();
     const text = el.textContent ?? '';
-    expect(el.querySelector('.st-empty-title')?.textContent).toBe('No canvas open');
-    expect(el.querySelector('.st-empty-body')?.textContent).toBe(
+    expect(el.querySelector('.sh-empty-title')?.textContent).toBe('No canvas open');
+    expect(el.querySelector('.sh-empty-body')?.textContent).toBe(
       'Open a canvas from the Canvases panel, or start a new one.'
     );
     // the v1 words and facts that were wrong or private to a terminal
@@ -85,30 +85,30 @@ describe('the no-canvas empty state', () => {
 });
 
 describe('class collisions and stacking (CSS wiring)', () => {
-  test('the project pill’s island rule is scoped to `.st-pill.island`, never bare `.st-pill`', () => {
+  test('the project pill’s island rule is scoped to `.sh-pill.island`, never bare `.sh-pill`', () => {
     const css = read('../client/v2/shell/project-pill.css');
-    expect(css).toMatch(/\.st-pill\.island\s*\{\s*position:\s*absolute/);
-    expect(css).not.toMatch(/(^|\n)\s*\.st-pill\s*\{/);
+    expect(css).toMatch(/\.sh-pill\.island\s*\{\s*position:\s*absolute/);
+    expect(css).not.toMatch(/(^|\n)\s*\.sh-pill\s*\{/);
   });
 
-  test('the tree group count uses its own class, not `.st-pill`', () => {
+  test('the tree group count uses its own class, not `.sh-pill`', () => {
     const tree = read('../client/tree/tree.jsx');
     const css = read('../client/styles/3-shell-maude.css');
-    expect(tree).toContain('className="st-sec-count"');
-    expect(tree).not.toMatch(/className="st-pill"/);
-    expect(css).not.toMatch(/\.st-tree-sec-hd \.st-pill/);
+    expect(tree).toContain('className="cv-sec-count"');
+    expect(tree).not.toMatch(/className="sh-pill"/);
+    expect(css).not.toMatch(/\.sh-tree-sec-hd \.sh-pill/);
   });
 
   test('Diagnostics stacks above the informational callouts and below scrims and warnings', () => {
     const dg = read('../client/v2/diagnostics/diagnostics.css');
     const co = read('../client/v2/shell/callouts.css');
     const sheet = Number(dg.match(/\.dg-sheet\s*\{[^}]*?z-index:\s*(\d+)/)?.[1]);
-    const info = Number(co.match(/\.st-callouts\s*\{[^}]*?z-index:\s*(\d+)/)?.[1]);
+    const info = Number(co.match(/\.sh-callouts\s*\{[^}]*?z-index:\s*(\d+)/)?.[1]);
     const warn = Number(
-      co.match(/\.st-callouts:has\(\.st-callout--warn[^{]*\{[^}]*?z-index:\s*(\d+)/)?.[1]
+      co.match(/\.sh-callouts:has\(\.sh-callout--warn[^{]*\{[^}]*?z-index:\s*(\d+)/)?.[1]
     );
     const scrim = Number(
-      read('../client/styles/3-shell-maude.css').match(/\.st-scrim\s*\{[^}]*?z-index:\s*(\d+)/)?.[1]
+      read('../client/styles/3-shell-maude.css').match(/\.sh-scrim\s*\{[^}]*?z-index:\s*(\d+)/)?.[1]
     );
     expect(sheet).toBeGreaterThan(info);
     expect(sheet).toBeLessThan(scrim);
@@ -139,8 +139,8 @@ describe('class collisions and stacking (CSS wiring)', () => {
     const rule = (css: string, sel: string) =>
       css.slice(css.indexOf(`${sel} {`), css.indexOf('}', css.indexOf(`${sel} {`)));
     for (const [css, sel] of [
-      [shell, '.st-tree-sec-hd .st-sec-name'],
-      [shell, '.st-pal-group'],
+      [shell, '.sh-tree-sec-hd .cv-sec-name'],
+      [shell, '.sh-pal-group'],
       [shell, '.so-section-hd'],
       [search, '.so-sub'],
     ] as const) {
@@ -163,12 +163,12 @@ describe('class collisions and stacking (CSS wiring)', () => {
 
   test('row actions reveal on hover or keyboard focus only', () => {
     const css = read('../client/styles/3-shell-maude.css');
-    for (const sel of ['.st-row-del', '.st-row-menu-btn']) {
+    for (const sel of ['.sh-row-del', '.sh-row-menu-btn']) {
       const rest = css.slice(css.indexOf(`${sel} {`), css.indexOf('}', css.indexOf(`${sel} {`)));
       expect(rest, sel).toMatch(/opacity:\s*0/);
-      expect(css).toContain(`.st-row-wrap:hover ${sel}`);
+      expect(css).toContain(`.sh-row-wrap:hover ${sel}`);
       // keyboard focus on the row reveals it; a mouse click (which focuses without :focus-visible) does not
-      expect(css).toContain(`.st-row-wrap:has(:focus-visible) ${sel}`);
+      expect(css).toContain(`.sh-row-wrap:has(:focus-visible) ${sel}`);
     }
   });
 });

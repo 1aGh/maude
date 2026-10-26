@@ -1,7 +1,7 @@
 // Phase 28 (epic E3) Task 6 — start / pull / share a project.
 //
 // Opened from the IdentityBar account menu. Three views, all in the shell maude DS
-// dialog treatment (solid var(--bg-1) surface + .st-dialog scrim — NOT the canvas
+// dialog treatment (solid var(--bg-1) surface + .sh-dialog scrim — NOT the canvas
 // `.panel`; inputs use the DS .input/.textarea recipe defined in 3-shell-maude.css):
 //   • new   — name + Private(default)/Public + description → POST create-repo.
 //   • get   — "Pull a local copy": pick one of your GitHub projects, choose WHERE on

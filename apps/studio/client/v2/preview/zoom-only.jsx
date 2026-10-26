@@ -15,13 +15,13 @@ export function zoomLabel(zoom) {
 export function ZoomOnly({ zoom, state = 'in' }) {
   return (
     <div
-      className="st-zoomonly island"
+      className="sh-zoomonly island"
       data-testid="zoom-only"
       data-occludes="bottom"
       data-state={state}
     >
       <span
-        className="st-zoomonly-v"
+        className="sh-zoomonly-v"
         role="status"
         aria-live="off"
         aria-label={`Zoom ${zoomLabel(zoom)}`}

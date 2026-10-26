@@ -49,15 +49,15 @@ describe('one switch', () => {
   test('the four local switches have no rule of their own; the kit one uses --control-off', () => {
     for (const [file, cls] of [
       ['v2/left-panel/left-panel.css', '.lp-switch'],
-      ['styles/3-shell-maude.css', '.st-switch'],
-      ['styles/3-shell-maude.css', '.st-cp-switch'],
+      ['styles/3-shell-maude.css', '.v2s-switch'],
+      ['styles/3-shell-maude.css', '.insp-cp-switch'],
       ['v2/export/advanced/advanced.css', '.ex-switch'],
     ] as const) {
       expect(() => rule(css(file), cls)).toThrow();
     }
     const r = rule(
       KIT,
-      ':where(.maude) :is(.switch, .lp-switch, .st-switch, .st-cp-switch, .ex-switch)'
+      ':where(.maude) :is(.switch, .lp-switch, .v2s-switch, .insp-cp-switch, .ex-switch)'
     );
     expect(r).toMatch(/background:\s*var\(--control-off\)/);
     expect(r).toMatch(/width:\s*34px/);
@@ -75,7 +75,7 @@ describe('a pressed segment carries the accent ring', () => {
     ['v2/history/history.css', '.vh-seg-b[aria-pressed="true"]'],
     ['v2/diagnostics/diagnostics.css', '.dg-seg-b[aria-pressed="true"]'],
     ['v2/left-panel/left-panel.css', '.lp-browse-size-b[aria-pressed="true"]'],
-    ['styles/3-shell-maude.css', '.st-cp-segbtn[aria-checked="true"]'],
+    ['styles/3-shell-maude.css', '.insp-cp-segbtn[aria-checked="true"]'],
   ] as const) {
     test(`${file} ${sel}`, () => {
       const r = rule(css(file), sel);

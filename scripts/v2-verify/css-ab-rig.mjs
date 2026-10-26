@@ -3,7 +3,7 @@
 //
 //   node scripts/v2-verify/css-ab-rig.mjs (--a <styles.css> | --a-rev <rev>) (--b <styles.css> | --b-rev <rev>)
 //        [--out <dir>]
-//        [--states home,shell,...] [--themes dark,light] [--keep]
+//        [--states home,shell,...] [--themes dark,light] [--keep] [--a-rename] [--ignore-props '^--(u-|…)']
 //
 // Boots this tree's studio (its built dist/, release) on a scratch copy of the desktop e2e fixture project, and a
 // Home server, in a throwaway HOME/XDG with the stub `claude` (no keychain, no real CLI, no real cloud). Every
@@ -32,6 +32,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stubClaudeEnv } from '../lib/stub-claude.mjs';
+import { PLAN_PATH, renameText } from './st-rename.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, '../..');
@@ -68,8 +69,17 @@ function cssAtRev(rev) {
 }
 const cssFor = (n) =>
   opt(`--${n}-rev`) ? cssAtRev(opt(`--${n}-rev`)) : readFileSync(resolve(opt(`--${n}`)), 'utf8');
-const cssA = cssFor('a');
+// --a-rename: the DOM under test is this tree's (renamed) bundle, so A's stylesheet gets the same st-* family
+// rename first (scripts/v2-verify/st-rename-plan.json) — A then differs from B only by where the rules live.
+const cssA = args.includes('--a-rename')
+  ? renameText(cssFor('a'), JSON.parse(readFileSync(PLAN_PATH, 'utf8')))
+  : cssFor('a');
 const cssB = cssFor('b');
+// --ignore-props <regex>: computed-style names left out of the fingerprint — only for custom properties a change
+// retires on purpose (e.g. the v1 `--u-*` aliases), never for a real property.
+const IGNORE_PROPS = opt('--ignore-props', '');
+if (IGNORE_PROPS && !/^\^--/.test(IGNORE_PROPS))
+  throw new Error('--ignore-props must match custom properties only (^--…)');
 const out = resolve(opt('--out', join(tmpdir(), `css-ab-${Date.now()}`)));
 const onlyStates = opt('--states')?.split(',');
 const themes = opt('--themes', 'dark,light').split(',');
@@ -164,7 +174,8 @@ async function useCss(page, which) {
   );
   await page.waitForTimeout(250);
 }
-const FINGERPRINT = () => {
+const FINGERPRINT = (ignore) => {
+  const ig = ignore ? new RegExp(ignore) : null;
   const h = (s) => {
     let x = 2166136261;
     for (let i = 0; i < s.length; i++) x = Math.imul(x ^ s.charCodeAt(i), 16777619);
@@ -187,9 +198,12 @@ const FINGERPRINT = () => {
     for (const ps of [null, '::before', '::after']) {
       const cs = getComputedStyle(el, ps);
       if (ps && (cs.content === 'none' || cs.content === 'normal')) continue;
-      let s = '';
-      for (let i = 0; i < cs.length; i++) s += `${cs[i]}:${cs.getPropertyValue(cs[i])};`;
-      res[k + (ps || '')] = h(s);
+      // sorted: Chromium enumerates custom properties in hash order, which reshuffles when the SET of declared
+      // custom properties changes — the order is not style.
+      const decl = [];
+      for (let i = 0; i < cs.length; i++)
+        if (!ig?.test(cs[i])) decl.push(`${cs[i]}:${cs.getPropertyValue(cs[i])};`);
+      res[k + (ps || '')] = h(decl.sort().join(''));
     }
   }
   return res;
@@ -222,7 +236,7 @@ const PROPS = (keys) => {
 async function capture(page, which) {
   await useCss(page, which);
   const png = await page.screenshot({ animations: 'disabled', caret: 'hide' });
-  const fp = await page.evaluate(FINGERPRINT);
+  const fp = await page.evaluate(FINGERPRINT, IGNORE_PROPS);
   return { png, fp };
 }
 async function pixelDiff(page, a, b) {
@@ -267,11 +281,14 @@ const tid = (page, id) => page.locator(`[data-testid="${id}"]`).first();
 async function leftTab(page, id) {
   const icon = tid(page, 'panel-icon-left');
   const tab = tid(page, `panel-tab-${id}`);
-  for (let i = 0; i < 4 && !(await tab.isVisible().catch(() => false)); i++) {
-    if (await icon.isVisible().catch(() => false)) await icon.click();
-    await page.waitForTimeout(1000);
+  // one click, then wait: re-clicking on a timer toggled a slow-opening panel shut again (part B's "not reached")
+  if (!(await tab.isVisible().catch(() => false)) && (await icon.isVisible().catch(() => false))) {
+    await icon.click();
+    await tab.waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
   }
-  await tab.click({ timeout: 5000 });
+  // clicking the tab that is already selected folds the panel again — only pick another tab
+  if ((await tab.getAttribute('aria-selected', { timeout: 5000 })) !== 'true')
+    await tab.click({ timeout: 5000 });
   await page.waitForTimeout(600);
 }
 const frame = (page) => page.frameLocator('[data-testid="canvas-frame"] iframe, iframe').first();
@@ -313,8 +330,15 @@ async function openCanvas(page, slug, name) {
     .waitFor({ timeout: 10000 });
   await page.waitForTimeout(1200);
 }
-async function reset(page, url) {
+// native: boot the shell as the desktop app (the AI chat is desktop-only — `ai.chat` needs the `native` fact) by
+// planting the same rejecting Tauri stub the client-boot gate uses; every other state boots as a browser tab.
+async function reset(page, url, { native = false } = {}) {
   await page.goto(url);
+  const was = await page.evaluate(() => sessionStorage.getItem('ab-native') === '1');
+  if (was !== native) {
+    await page.evaluate((n) => sessionStorage.setItem('ab-native', n ? '1' : '0'), native);
+    await page.goto(url);
+  }
   await tid(page, 'share-cluster').waitFor({ timeout: 20000 });
   await page.waitForTimeout(1200);
 }
@@ -332,9 +356,9 @@ const STATES = [
   ],
   [
     'canvases-panel',
+    // before any canvas opens: with a canvas open the folded left panel would not reopen headless (part B)
     async (page, u) => {
       await reset(page, u.project);
-      await openCanvas(page, 'ui-smoke', 'Smoke');
       await leftTab(page, 'tree');
     },
     '[data-testid="canvas-list"]',
@@ -419,11 +443,11 @@ const STATES = [
   [
     'ai-chat',
     async (page, u) => {
-      await reset(page, u.project);
+      await reset(page, u.project, { native: true });
       await openCanvas(page, 'ui-smoke', 'Smoke');
-      await shellKey(page, 'Meta+k');
-      await tid(page, 'palette-input').fill('make the title bigger');
-      await tid(page, 'palette-ask-ai').click({ timeout: 5000 });
+      const icon = tid(page, 'panel-icon-assistant');
+      if (await icon.isVisible().catch(() => false)) await icon.click();
+      else await shellKey(page, 'Meta+/');
     },
     '[data-testid="ai-chat-island"]',
   ],
@@ -481,6 +505,18 @@ try {
       },
       [homeSecret]
     );
+    await ctx.addInitScript(() => {
+      try {
+        if (sessionStorage.getItem('ab-native') === '1')
+          window.__TAURI__ = {
+            core: { invoke: (cmd) => Promise.reject(new Error(`css-ab-rig: ${cmd}`)) },
+            event: { listen: () => Promise.resolve(() => {}) },
+            window: {},
+            path: {},
+            app: {},
+          };
+      } catch {}
+    });
     await ctx.route('**/_client/styles.css*', (route) =>
       route.fulfill({
         status: 200,
@@ -535,7 +571,7 @@ try {
             const a = pa[k] || {},
               b = pb[k] || {};
             const props = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(
-              (p) => a[p] !== b[p]
+              (p) => a[p] !== b[p] && !(IGNORE_PROPS && new RegExp(IGNORE_PROPS).test(p))
             );
             return {
               el: k.split('>').slice(-3).join('>'),

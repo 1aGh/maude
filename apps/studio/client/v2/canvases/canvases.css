@@ -32,7 +32,7 @@
     display: flex;
     align-items: center;
   }
-  .cv-tree.st-tree {
+  .cv-tree.sh-tree {
     flex: 0 1 auto;
     min-height: 0;
     overflow-y: auto;

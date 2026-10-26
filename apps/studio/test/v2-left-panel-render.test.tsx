@@ -128,27 +128,27 @@ describe('Canvases tab', () => {
   test('header says Canvases, never Files; the old header Refresh and live count are gone', async () => {
     installFetch({ '/_api/sync/trash': TRASH });
     const { host } = await sidebar();
-    expect(host.querySelector('.st-sb-title')?.textContent).toBe('Canvases');
+    expect(host.querySelector('.cv-sb-title')?.textContent).toBe('Canvases');
     expect(host.querySelector('nav')?.getAttribute('aria-label')).toBe('Canvases');
-    expect(host.querySelector('.st-sb-hd .st-refresh')).toBeNull();
-    expect(host.querySelector('.st-sb-hd .st-live')).toBeNull();
+    expect(host.querySelector('.cv-sb-hd .sh-refresh')).toBeNull();
+    expect(host.querySelector('.cv-sb-hd .st-live')).toBeNull();
   });
 
-  // V2-4.gate (design-critic blockers 1 + warnings): the group count was `.st-pill`, which the project
+  // V2-4.gate (design-critic blockers 1 + warnings): the group count was `.sh-pill`, which the project
   // pill's `position:absolute` island rule also matched — it floated over the header. The header row
   // repeated the tab name and carried a second fold control.
   // S1.1: the section header became the project row (11 · pn-organise) — the project's name and its Sort,
   // with the count in words under the list; hidden files on brings the old section headers back.
-  test('the project row replaces the section header; the count is words under the list, never an `.st-pill`', async () => {
+  test('the project row replaces the section header; the count is words under the list, never an `.sh-pill`', async () => {
     installFetch({ '/_api/sync/trash': TRASH });
     const { host } = await sidebar({ project: 'Alligators brand' });
     const hd = q(host, 'canvases-head-project') as HTMLElement;
-    expect(hd.querySelector('.st-pill')).toBeNull();
+    expect(hd.querySelector('.sh-pill')).toBeNull();
     expect(hd.textContent).toContain('Alligators brand');
     // P8 C5: the count is on the project row ("1 canvas"), not a foot line the board does not draw
     expect(q(host, 'canvases-foot')).toBeNull();
     expect(q(host, 'canvases-sort')?.textContent).toBe('1 canvas');
-    expect(host.querySelector('.st-tree-sec-hd')).toBeNull();
+    expect(host.querySelector('.sh-tree-sec-hd')).toBeNull();
   });
 
   // P8 C10 (06 ad-left): Show hidden files is the SAME tree with the supporting files dimmed in place — no
@@ -179,7 +179,7 @@ describe('Canvases tab', () => {
       },
     ];
     const { host } = await sidebar({ showHidden: true, groups });
-    expect(host.querySelector('.st-tree-sec-hd')).toBeNull();
+    expect(host.querySelector('.sh-tree-sec-hd')).toBeNull();
     const names = [...host.querySelectorAll('[data-testid^="file-row-"] .cv-name')].map(
       (n) => n.textContent
     );
@@ -212,7 +212,7 @@ describe('Canvases tab', () => {
   test('the header row carries no create buttons; "+ New canvas" ends the list and keeps the hooks', async () => {
     installFetch({ '/_api/sync/trash': TRASH });
     const { host } = await sidebar();
-    const hd = host.querySelector('.st-sb-hd') as HTMLElement | null;
+    const hd = host.querySelector('.cv-sb-hd') as HTMLElement | null;
     expect(hd?.querySelectorAll('button').length ?? 0).toBe(0);
     expect(host.querySelector('[aria-label="Collapse sidebar"]')).toBeNull();
     const row = q(host, 'canvases-new-row') as HTMLElement;

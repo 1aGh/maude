@@ -3,8 +3,8 @@
 //   Changes chip (`open-changes`)   → Menu › Version history  → `git-panel` is its root
 //   hub sync chip (`open-sync`)     → Menu › Diagnostics › Sync (Sync details, S11.12; the v1 Sync panel is retired)
 //   Resync (`sync-resync`)          → Menu › Diagnostics › Advanced › Resync now; its trace card is `diag-resync`
-//   chip text (`.st-sb-sync`)       → the Share cluster word `share-cluster-status`
-//   theme toggle (`.st-sb-theme`)   → Settings › General › Look › Theme
+//   chip text (`.cv-sb-sync`)       → the Share cluster word `share-cluster-status`
+//   theme toggle (`.cv-sb-theme`)   → Settings › General › Look › Theme
 //
 // A scenario that needs one of them goes through these, so the path lives in one place.
 

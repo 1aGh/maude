@@ -7,12 +7,12 @@
  *
  * z-order keeps the v1 rule: informational callouts sit BELOW a modal's scrim (9000), warnings and
  * errors above it — a fail-closed sync warning (DDR-102) must stay visible over a dialog. The stack is
- * a child of `.maude`, not of `.st-body`, so Presentation mode does not hide it (an untrusted canvas
+ * a child of `.maude`, not of `.sh-body`, so Presentation mode does not hide it (an untrusted canvas
  * must not be able to silence a security-relevant notice by entering it — phase-28 audit F-1).
  * Tone colours the icon and the plate's edge, never the words. No motion beyond the shell's own. */
 
 @layer shell {
-  .st-callouts {
+  .sh-callouts {
     position: fixed;
     top: calc(var(--float-gap, 16px) + var(--pill-h, 40px) + 8px);
     left: 50%;
@@ -26,14 +26,14 @@
     max-width: min(560px, calc(100vw - 2 * var(--float-gap, 16px)));
     pointer-events: none;
   }
-  .st-callouts:has(.st-callout--warn, .st-callout--error) {
+  .sh-callouts:has(.sh-callout--warn, .sh-callout--error) {
     z-index: 9100;
   }
-  .st-callouts:empty {
+  .sh-callouts:empty {
     display: none;
   }
 
-  .st-callout {
+  .sh-callout {
     pointer-events: auto;
     display: flex;
     align-items: center;
@@ -51,7 +51,7 @@
     font-size: var(--type-sm, 13px);
     line-height: var(--lh-sm, 1.4);
   }
-  .st-callout-ic {
+  .sh-callout-ic {
     display: grid;
     place-items: center;
     flex: none;
@@ -61,43 +61,43 @@
     background: var(--bg-3);
     color: var(--fg-1);
   }
-  .st-callout--ok .st-callout-ic {
+  .sh-callout--ok .sh-callout-ic {
     color: var(--status-success-text, var(--status-success));
   }
-  .st-callout--warn .st-callout-ic {
+  .sh-callout--warn .sh-callout-ic {
     color: var(--status-warn-text, var(--status-warn));
   }
-  .st-callout--error .st-callout-ic {
+  .sh-callout--error .sh-callout-ic {
     color: var(--status-error-text, var(--status-error));
   }
-  .st-callout--info .st-callout-ic {
+  .sh-callout--info .sh-callout-ic {
     color: var(--status-info);
   }
-  .st-callout--warn {
+  .sh-callout--warn {
     box-shadow:
       var(--shadow-lg, 0 12px 32px oklch(0 0 0 / 0.28)),
       inset 0 0 0 1px var(--status-warn);
   }
-  .st-callout--error {
+  .sh-callout--error {
     box-shadow:
       var(--shadow-lg, 0 12px 32px oklch(0 0 0 / 0.28)),
       inset 0 0 0 1px var(--status-error);
   }
-  .st-callout-t {
+  .sh-callout-t {
     display: flex;
     flex-direction: column;
     min-width: 0;
     overflow-wrap: anywhere;
   }
-  .st-callout-t > span {
+  .sh-callout-t > span {
     font-size: var(--type-xs, 12px);
     line-height: var(--lh-xs, 1.4);
     color: var(--fg-2);
   }
-  .st-callout .btn--sm {
+  .sh-callout .btn--sm {
     flex: none;
   }
-  .st-callout-x {
+  .sh-callout-x {
     appearance: none;
     flex: none;
     border: 0;
@@ -109,26 +109,26 @@
     padding: 4px 6px;
     border-radius: var(--radius-xs, 4px);
   }
-  .st-callout-x:hover {
+  .sh-callout-x:hover {
     background: color-mix(in oklab, var(--fg-0) 12%, transparent);
     color: var(--fg-0);
   }
   /* S11.15 — a callout with a fold: the words and the one verb stay in the first row, the fold takes the
      full width below it. */
-  .st-callout--fold {
+  .sh-callout--fold {
     flex-wrap: wrap;
   }
-  .st-callout--fold .st-callout-t {
+  .sh-callout--fold .sh-callout-t {
     flex: 1 1 0;
   }
-  .st-callout-fold {
+  .sh-callout-fold {
     flex: 1 1 100%;
     min-width: 0;
   }
-  .st-callout-fold .v2-fold {
+  .sh-callout-fold .v2-fold {
     margin: 0;
   }
-  .st-callout-row {
+  .sh-callout-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -138,16 +138,16 @@
     font-size: var(--type-xs, 12px);
     color: var(--fg-2);
   }
-  .st-callout-row--sub {
+  .sh-callout-row--sub {
     color: var(--fg-1);
   }
-  .st-callout-mono {
+  .sh-callout-mono {
     font-family: var(--font-mono);
     color: var(--fg-1);
     overflow-wrap: anywhere;
     text-align: right;
   }
-  .st-callout-files {
+  .sh-callout-files {
     display: flex;
     flex-direction: column;
     gap: var(--space-1, 4px);
@@ -155,7 +155,7 @@
     font-size: var(--type-xs, 12px);
     text-align: left;
   }
-  .st-callout-hint {
+  .sh-callout-hint {
     margin: var(--space-1, 4px) 0 0;
     padding: 0 var(--space-1, 4px);
     font-size: var(--type-xs, 12px);

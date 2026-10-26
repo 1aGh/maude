@@ -181,7 +181,7 @@ describe('the pinned system rows', () => {
     const [, campMenu] = qa(host, 'canvases-ds-row-menu');
     await click(campMenu);
     const items = Array.from(document.querySelectorAll('[role="menuitem"]'));
-    expect(items.map((i) => i.querySelector('.st-dd-lead')?.textContent)).toEqual([
+    expect(items.map((i) => i.querySelector('.sh-dd-lead')?.textContent)).toEqual([
       'Open Combine 2026',
       'Use for new canvases',
       // S10.14 registered ds.switch / ds.preview: the rows S10.13 left to the registry appear on their own
@@ -262,7 +262,7 @@ describe('the pinned system rows', () => {
     const host = await sidebar({ readOnly: true, onDsAction: () => {} });
     await click(qa(host, 'canvases-ds-row-menu')[1]);
     const labels = Array.from(document.querySelectorAll('[role="menuitem"]')).map(
-      (i) => i.querySelector('.st-dd-lead')?.textContent
+      (i) => i.querySelector('.sh-dd-lead')?.textContent
     );
     expect(labels).toEqual(['Open Combine 2026', 'Preview in…']);
   });

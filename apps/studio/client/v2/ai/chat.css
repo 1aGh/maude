@@ -1,14 +1,14 @@
 /* @layer components — Phase 31 (DDR-123) ACP chat sidepanel.
  *
  * Ported from `.design/ui/ChatPanel.css` (the approved mock), styling only the
- * canvas-LOCAL `chat-*` content inside the `st-rpanel` Assistant tab. Every value
+ * canvas-LOCAL `chat-*` content inside the `sh-rpanel` Assistant tab. Every value
  * is a maude token from `1-tokens-maude.css` / a component class from
  * `4-components-maude.css`. Differences from the mock: the feed scrolls live
  * (`overflow-y:auto`, not the mock's static `hidden`) and a few wrappers
- * (`.chat-thread`, `.st-rp-body--chat`, `.chat-tool-path`) the live panel needs.
+ * (`.chat-thread`, `.sh-rp-body--chat`, `.chat-tool-path`) the live panel needs.
  */
 @layer components {
-  .st-rp-body--chat {
+  .sh-rp-body--chat {
     padding: 0;
     display: flex;
     flex-direction: column;

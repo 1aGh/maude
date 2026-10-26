@@ -31,7 +31,7 @@
           if (!frame?.contentWindow || !frame.src || !loopback(frame.src))
             return resolve({ error: 'Active canvas frame unavailable', visible: false });
           const blocker = document.querySelector(
-            '[data-testid="canvas-load-error"], .st-canvas-loading'
+            '[data-testid="canvas-load-error"], .sh-canvas-loading'
           );
           if (blocker && blocker.getBoundingClientRect().height > 0)
             return resolve({

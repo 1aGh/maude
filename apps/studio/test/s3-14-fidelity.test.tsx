@@ -1,7 +1,7 @@
 // S3.14 — the fidelity gaps the S3.13 verifier found between canvas 04 (Modes) and the built shell.
 // One file, one describe per gap (G1…G7), each written to fail first.
 //
-// G1  Preview's compact cluster hides the faces (the wrapper is `.st-faces-host`, not `.st-faces`)
+// G1  Preview's compact cluster hides the faces (the wrapper is `.sh-faces-host`, not `.sh-faces`)
 // G3  Present ⌄ has "Copy presentation link — follows you live" (editors; enabled on the online fact)
 // G5  the View menu draws Preview ⌥⌘P and Actual size ⌘1 (registry, one binding per scope)
 // G6  esc from Sticky armed with N in Preview goes to Hand first (md-esc), then Edit
@@ -60,7 +60,7 @@ describe('G1 · Preview’s compact cluster hides the faces', () => {
   /** The selectors of the rule that carries `display: none` for `data-cluster="compact"`. */
   const compactHidden = (): string[] => {
     const rule = CLUSTER_CSS.match(
-      /((?:\s*\.st-share\[data-cluster="compact"\][^{,]+,?)+)\{\s*display:\s*none;/
+      /((?:\s*\.sh-share\[data-cluster="compact"\][^{,]+,?)+)\{\s*display:\s*none;/
     );
     expect(rule).not.toBeNull();
     return (rule?.[1] ?? '').split(',').map((s) => s.trim());
@@ -96,7 +96,7 @@ describe('G1 · Preview’s compact cluster hides the faces', () => {
       const cls = [...child.classList];
       expect(cls.length).toBeGreaterThan(0);
       const hidden = compactHidden();
-      expect(cls.some((c) => hidden.includes(`.st-share[data-cluster="compact"] > .${c}`))).toBe(
+      expect(cls.some((c) => hidden.includes(`.sh-share[data-cluster="compact"] > .${c}`))).toBe(
         true
       );
     });
@@ -142,8 +142,8 @@ describe('G3 · Present ⌄ › Copy presentation link', () => {
     expect(row?.getAttribute('role')).toBe('menuitem');
     expect(row?.textContent).toContain('Copy presentation link');
     expect(row?.textContent).toContain('follows you live');
-    expect(row?.closest('.st-pm-li')?.previousElementSibling?.tagName).toBe('HR');
-    expect(row?.closest('.st-pm-li')?.nextElementSibling).toBeNull();
+    expect(row?.closest('.sh-pm-li')?.previousElementSibling?.tagName).toBe('HR');
+    expect(row?.closest('.sh-pm-li')?.nextElementSibling).toBeNull();
     act(() => row?.click());
     expect(asked).toEqual(['copy-link']);
     expect(q('mode-present-list')).toBeNull(); // the menu closes
@@ -233,19 +233,19 @@ describe('G4 · a floating panel folds toward its corner icon (04 md-motion), it
   };
   const stage = () => {
     const body = document.createElement('div');
-    body.className = 'st-body st-body--float';
+    body.className = 'sh-body sh-body--float';
     withBox(body, { ...BOX, left: 0, top: 0, right: 1000, bottom: 800, width: 1000, height: 800 });
     document.body.append(body);
     return body;
   };
   afterEach(() => {
-    for (const el of document.querySelectorAll('.st-body')) el.remove();
+    for (const el of document.querySelectorAll('.sh-body')) el.remove();
   });
 
   test('the ghost is a picture of the island: no hook, no id, no focus, no click — placed where it was', () => {
     const body = stage();
     const island = document.createElement('div');
-    island.className = 'st-dockslot-inner island';
+    island.className = 'sh-dockslot-inner island';
     island.setAttribute('data-testid', 'dock-slot-left');
     island.innerHTML = '<button id="x" data-testid="canvas-row-a">A</button>';
     body.append(island);
@@ -253,7 +253,7 @@ describe('G4 · a floating panel folds toward its corner icon (04 md-motion), it
     const ghost = spawnFoldGhost(island, body, 'top-left') as HTMLElement;
     expect(ghost).not.toBeNull();
     expect(body.contains(ghost)).toBe(true);
-    expect(ghost.classList.contains('st-fold-ghost')).toBe(true);
+    expect(ghost.classList.contains('sh-fold-ghost')).toBe(true);
     expect(ghost.getAttribute('aria-hidden')).toBe('true');
     expect(ghost.hasAttribute('inert')).toBe(true);
     expect(ghost.getAttribute('data-fold')).toBe('top-left');
@@ -305,10 +305,10 @@ describe('G4 · a floating panel folds toward its corner icon (04 md-motion), it
     );
     act(() => r.render(slot(true)));
     withBox(body.querySelector('[data-testid="dock-slot-left"]') as Element);
-    expect(body.querySelector('.st-fold-ghost')).toBeNull();
+    expect(body.querySelector('.sh-fold-ghost')).toBeNull();
     act(() => r.render(slot(false)));
     expect(body.querySelector('[data-testid="dock-slot-left"]')).toBeNull(); // the real panel is gone at once
-    const ghost = body.querySelector('.st-fold-ghost') as HTMLElement | null;
+    const ghost = body.querySelector('.sh-fold-ghost') as HTMLElement | null;
     expect(ghost).not.toBeNull();
     expect(ghost?.getAttribute('data-fold')).toBe('top-left');
     expect(ghost?.textContent).toContain('Canvases');
@@ -337,17 +337,17 @@ describe('G4 · a floating panel folds toward its corner icon (04 md-motion), it
     act(() => r.render(slot(false)));
     withBox(body.querySelector('[data-testid="dock-slot-right"]') as Element); // the rect a commit measures
     act(() => r.render(slot(false))); // a commit while visible keeps the rect
-    expect(body.querySelector('.st-fold-ghost')).toBeNull();
+    expect(body.querySelector('.sh-fold-ghost')).toBeNull();
     act(() => r.render(slot(true)));
-    const ghost = body.querySelector('.st-fold-ghost') as HTMLElement | null;
+    const ghost = body.querySelector('.sh-fold-ghost') as HTMLElement | null;
     expect(ghost).not.toBeNull();
     expect(ghost?.getAttribute('data-fold')).toBe('top-right');
     expect(ghost?.textContent).toContain('Inspector body');
     expect(ghost?.style.width).toBe('320px');
     // coming back is not a fold
-    body.querySelector('.st-fold-ghost')?.remove();
+    body.querySelector('.sh-fold-ghost')?.remove();
     act(() => r.render(slot(false)));
-    expect(body.querySelector('.st-fold-ghost')).toBeNull();
+    expect(body.querySelector('.sh-fold-ghost')).toBeNull();
     act(() => r.unmount());
   });
 
@@ -370,7 +370,7 @@ describe('G4 · a floating panel folds toward its corner icon (04 md-motion), it
     act(() => r.render(slot(true)));
     withBox(body.querySelector('[data-testid="dock-slot-left"]') as Element);
     act(() => r.render(slot(false)));
-    expect(body.querySelector('.st-fold-ghost')).toBeNull();
+    expect(body.querySelector('.sh-fold-ghost')).toBeNull();
     act(() => r.unmount());
   });
 
@@ -380,11 +380,11 @@ describe('G4 · a floating panel folds toward its corner icon (04 md-motion), it
       'utf8'
     );
     expect(css).toMatch(
-      /\.st-fold-ghost\s*\{[^}]*animation:\s*st-island-fold var\(--dur-panel\) var\(--ease-out\)/
+      /\.sh-fold-ghost\s*\{[^}]*animation:\s*sh-island-fold var\(--dur-panel\) var\(--ease-out\)/
     );
-    expect(css).toContain('@keyframes st-island-fold');
-    expect(css).toMatch(/prefers-reduced-motion[\s\S]*\.st-fold-ghost\s*\{\s*display:\s*none/);
+    expect(css).toContain('@keyframes sh-island-fold');
+    expect(css).toMatch(/prefers-reduced-motion[\s\S]*\.sh-fold-ghost\s*\{\s*display:\s*none/);
     for (const o of ['top-right', 'bottom-left', 'bottom-right'])
-      expect(css).toContain(`.st-fold-ghost[data-fold="${o}"]`);
+      expect(css).toContain(`.sh-fold-ghost[data-fold="${o}"]`);
   });
 });

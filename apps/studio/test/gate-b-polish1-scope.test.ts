@@ -1,7 +1,7 @@
 // Wave-B gate design polish 1 — source pins for the two shared root causes the design critics found
 // (.ai/plans/notes/v2-evidence/waveB-gate/design-critic-{1,2}.md):
 //
-//   RC-A  v2 sheets mounted in the shell (beside `.st-shell`, outside `.maude-v2`) inherited body's v1 mono face
+//   RC-A  v2 sheets mounted in the shell (beside `.sh-shell`, outside `.maude-v2`) inherited body's v1 mono face
 //         and resolved none of the v2-only tokens (--scrim, --island-*, --w-*, --font-rounded …).
 //   RC-B  class names lifted from the boards' `_kit.css` / the DS `_components.css` with no rule in the app's
 //         stylesheets, so the element rendered as a UA button or bare text.
@@ -147,8 +147,8 @@ const DEBT = new Set([
   'ob-dialog',
   'sd-ct',
   'si-new-t',
-  'st-mode-g',
-  'st-plist-name',
+  'sh-mode-g',
+  'sh-plist-name',
   'tl-take-t',
   'v2-err-snip-t',
   'v2ac-tip-t',
@@ -191,7 +191,7 @@ describe('RC-B · kit classes and unstyled v2 elements', () => {
   });
 });
 
-// ── RC-A: the shell face and the v2 tokens reach a sheet mounted beside `.st-shell` ──────────
+// ── RC-A: the shell face and the v2 tokens reach a sheet mounted beside `.sh-shell` ──────────
 describe('RC-A · v2 surfaces resolve the body face and the v2 tokens in the shell', () => {
   test('`.maude` itself speaks var(--font-body) (body resolves the v1 mono stack at :root)', () => {
     const css = stripComments(read(join(CLIENT, 'styles/3-shell-maude.css')));

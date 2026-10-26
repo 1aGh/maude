@@ -356,7 +356,7 @@ describe('typing, naming, Dark', () => {
 
   test('Editing → Dark switches what the picker and the box change', async () => {
     const { host, writes } = await panel();
-    const seg = host.querySelectorAll('.st-cp-segbtn');
+    const seg = host.querySelectorAll('.insp-cp-segbtn');
     expect(seg).toHaveLength(2);
     await click(seg[1], 'Dark');
     expect((q(host, 'ds-token-value') as HTMLInputElement).value).toBe('oklch(0.60 0.175 255)');
@@ -374,7 +374,7 @@ describe('typing, naming, Dark', () => {
         ),
       ].map((el) => el.getAttribute('data-testid'));
     expect(order()).toEqual(['insp-row-ds-light', 'ds-token-picker', 'insp-row-ds-dark']);
-    await click(host.querySelectorAll('.st-cp-segbtn')[1], 'Dark');
+    await click(host.querySelectorAll('.insp-cp-segbtn')[1], 'Dark');
     expect(order()).toEqual(['insp-row-ds-dark', 'ds-token-picker', 'insp-row-ds-light']);
   });
 
@@ -415,7 +415,7 @@ describe('typing, naming, Dark', () => {
     const t = m.tokens[5] as { values: Record<string, string> };
     t.values = { light: '10px' };
     const { host } = await panel({ model: m }, '--radius-md');
-    expect(host.querySelectorAll('.st-cp-segbtn')).toHaveLength(0);
+    expect(host.querySelectorAll('.insp-cp-segbtn')).toHaveLength(0);
     expect(q(host, 'ds-token-picker')).toBeNull();
     expect(q(host, 'ds-token-contrast')).toBeNull();
     expect((q(host, 'ds-token-value') as HTMLInputElement).value).toBe('10px');

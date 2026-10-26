@@ -150,10 +150,10 @@ function PhotoColorField({ value, fallback, label, ColorPicker, onApply }) {
   return (
     <ColorField
       swatch={
-        <span className="st-cp-tokwrap" ref={wrapRef}>
+        <span className="insp-cp-tokwrap" ref={wrapRef}>
           <button
             type="button"
-            className="st-cp-cf-sw"
+            className="insp-cp-cf-sw"
             style={{ background: hex }}
             aria-haspopup="dialog"
             aria-expanded={open}
@@ -163,7 +163,7 @@ function PhotoColorField({ value, fallback, label, ColorPicker, onApply }) {
           />
           {open ? (
             <div
-              className="st-cp-pop"
+              className="insp-cp-pop"
               role="dialog"
               aria-label={label}
               style={{ padding: 'var(--space-1)' }}
@@ -592,7 +592,7 @@ export function PhotoKnobs({
           ) : (
             <button
               type="button"
-              className="st-btn"
+              className="sh-btn"
               style={{ opacity: bgBusy ? 0.6 : 1 }}
               disabled={bgBusy || !onRemoveBackground}
               data-testid="photo-remove-bg"

@@ -236,7 +236,7 @@
     pointer-events: none;
   }
   /* the Home pill is the project pill (ProjectPill): in the header's row, not floating at the window's corner */
-  .home-top .st-pill.island {
+  .home-top .sh-pill.island {
     position: relative;
     left: auto;
     top: auto;

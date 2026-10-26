@@ -87,7 +87,7 @@ describe('chrome', () => {
   test('opens straight on the search: no header, no × (15 an-stk-gallery); Esc still closes', async () => {
     let closed = 0;
     const { host, done } = await mount({ onClose: () => closed++ });
-    expect(host.querySelector('.st-dialog-hd')).toBeNull();
+    expect(host.querySelector('.sh-dialog-hd')).toBeNull();
     expect(host.querySelector('button[aria-label="Close"]')).toBeNull();
     expect(host.querySelector('[data-testid="stickers-search"]')).not.toBeNull();
     await act(async () => {
@@ -124,7 +124,7 @@ describe('browse', () => {
     const more = host.querySelector('[data-testid="stickers-more-life-style"]') as HTMLElement;
     await act(async () => more.click());
     const pack = host.querySelector('[data-testid="stickers-pack-life-style"]') as HTMLElement;
-    expect(pack.querySelectorAll('.st-sp-cell')).toHaveLength(15);
+    expect(pack.querySelectorAll('.sh-sp-cell')).toHaveLength(15);
     expect(host.querySelector('[data-testid="stickers-more-life-style"]')).toBeNull();
     await done();
   });
@@ -248,7 +248,7 @@ describe('pick and Recent', () => {
     const again = await mount();
     const recent = again.host.querySelector('[data-testid="stickers-recent"]') as HTMLElement;
     expect(recent).not.toBeNull();
-    expect(recent.querySelectorAll('.st-sp-cell')).toHaveLength(1);
+    expect(recent.querySelectorAll('.sh-sp-cell')).toHaveLength(1);
     expect(recent.querySelector('img')?.getAttribute('src')).toContain('group-51.png');
     await again.done();
   });

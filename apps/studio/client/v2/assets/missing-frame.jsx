@@ -128,7 +128,7 @@ export function RelinkSheet({ from, canvas, onClose, relink = relinkWithFile, un
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the scrim closes the sheet on a press outside it; the Cancel button is the keyboard path
     <div
-      className="st-scrim"
+      className="sh-scrim"
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -136,16 +136,16 @@ export function RelinkSheet({ from, canvas, onClose, relink = relinkWithFile, un
     >
       <div
         ref={ref}
-        className="st-dialog asset-relink"
+        className="sh-dialog asset-relink"
         role="dialog"
         aria-modal="true"
         aria-label={`Relink ${name}`}
         data-testid="asset-relink-sheet"
       >
-        <div className="st-dialog-hd">
-          <span className="st-dialog-title">Relink {name}</span>
+        <div className="sh-dialog-hd">
+          <span className="sh-dialog-title">Relink {name}</span>
         </div>
-        <div className="st-dialog-bd">
+        <div className="sh-dialog-bd">
           <p>
             Pick a copy of it from this Mac. Everywhere {name} is used will point at the copy, as
             one undo step.
@@ -168,7 +168,7 @@ export function RelinkSheet({ from, canvas, onClose, relink = relinkWithFile, un
             }}
           />
         </div>
-        <div className="st-dialog-ft">
+        <div className="sh-dialog-ft">
           <button
             type="button"
             className="btn btn--ghost"

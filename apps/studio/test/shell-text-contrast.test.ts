@@ -22,7 +22,7 @@ for (const theme of ['light', 'dark']) {
   // P8 C0: the generated maude-v2 shell ladder; translucent values composite over the island (--bg-1)
   const color = (token: string) => shellColor(theme as 'light' | 'dark', token);
   for (const [selector, css] of [
-    ['.st-callout-t > span', callouts],
+    ['.sh-callout-t > span', callouts],
     ['.lp-tab', leftPanel],
     ['.dv-zoom-sync', shell],
   ]) {
@@ -42,7 +42,7 @@ for (const theme of ['light', 'dark']) {
 // had been used for real text — palette group labels and footer, Settings notes, Layers type labels, the
 // "?" sheet's "or" and notes, placeholders. Every rule below carries text, so each must resolve to a token
 // that holds 4.5:1 on the three surfaces text sits on (--bg-1 island, --bg-2 popover, --bg-3 well).
-// V2-8.0 B: `.st-skel-cap`, `.st-pal-empty`, `.st-rp-hint` and `.st-settings-intro` left with their rules — no
+// V2-8.0 B: `.sh-skel-cap`, `.sh-pal-empty`, `.sh-rp-hint` and `.v2s-settings-intro` left with their rules — no
 // element the shell bundle renders carries them any more (scripts/v2-css-inventory.mjs).
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const components = read('../client/styles/4-components.css');
@@ -50,25 +50,25 @@ const search = read('../client/v2/search/search.css');
 const fold = read('../client/v2/fold/fold.css');
 
 const TEXT_RULES: [string, string, string][] = [
-  ['shell', '.st-search-box', shell],
-  ['shell', '.st-search-box input::placeholder', shell],
-  ['shell', '.st-tree-empty', shell],
-  ['shell', '.st-pal-search', shell],
-  ['shell', '.st-pal-search input::placeholder', shell],
-  ['shell', '.st-pal-group', shell],
-  ['shell', '.st-pref-note', shell],
-  ['shell', '.st-layer-caret', shell],
-  ['shell', '.st-layer-type', shell],
+  ['shell', '.cv-search-box', shell],
+  ['shell', '.cv-search-box input::placeholder', shell],
+  ['shell', '.sh-tree-empty', shell],
+  ['shell', '.sh-pal-search', shell],
+  ['shell', '.sh-pal-search input::placeholder', shell],
+  ['shell', '.sh-pal-group', shell],
+  ['shell', '.v2s-pref-note', shell],
+  ['shell', '.sh-layer-caret', shell],
+  ['shell', '.sh-layer-type', shell],
   ['shell', '.so-or', shell],
   ['shell', '.so-section-hd', shell],
-  ['shell', '.st-present-exit-kbd', shell],
-  ['shell', '.st-tree-sec-hd .st-sec-name', shell],
-  ['shell', '.st-tree-sec-hd .st-sec-count', shell],
-  ['components', '.st-provider-notes', components],
-  ['components', '.st-engine-radio-note', components],
-  ['search', '.st-pal-aside', search],
-  ['search', '.st-pal-meta', search],
-  ['search', '.st-pal-foot', search],
+  ['shell', '.pv-present-exit-kbd', shell],
+  ['shell', '.sh-tree-sec-hd .cv-sec-name', shell],
+  ['shell', '.sh-tree-sec-hd .cv-sec-count', shell],
+  ['components', '.v2s-provider-notes', components],
+  ['components', '.v2s-engine-radio-note', components],
+  ['search', '.sh-pal-aside', search],
+  ['search', '.sh-pal-meta', search],
+  ['search', '.sh-pal-foot', search],
   ['search', '.so-find', search],
   ['search', '.so-note', search],
   ['search', '.so-sub', search],
@@ -106,10 +106,10 @@ for (const theme of ['light', 'dark']) {
   // setup are three boxes at once), so the selected-tab contrast pin has nothing left to read.
 
   test(`${theme} the Present exit pill is not faded and its label and Esc hint hold AA on it`, () => {
-    const pill = block(shell, '.st-present-exit');
+    const pill = block(shell, '.pv-present-exit');
     expect(pill).not.toMatch(/(^|;)\s*opacity:/);
     expect(ratio('--fg-1', '--bg-1')).toBeGreaterThanOrEqual(4.5);
-    const kbd = block(shell, '.st-present-exit-kbd').match(/color:\s*var\((--[^)]+)\)/)?.[1];
+    const kbd = block(shell, '.pv-present-exit-kbd').match(/color:\s*var\((--[^)]+)\)/)?.[1];
     if (!kbd) throw new Error('Missing Esc hint colour');
     expect(ratio(kbd, '--bg-1')).toBeGreaterThanOrEqual(4.5);
   });

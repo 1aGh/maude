@@ -291,7 +291,7 @@ describe('the done toast carries ONE action', () => {
       const last = said[said.length - 1];
       expect(last).toBeDefined();
       const body = mount(createElement('div', null, last?.content));
-      const buttons = body.qa('.st-toast-actions button');
+      const buttons = body.qa('.sh-toast-actions button');
       expect(buttons).toHaveLength(1);
       expect(buttons[0]?.textContent).toBe(label);
       expect(buttons[0]?.getAttribute('data-action')).toBe(action);

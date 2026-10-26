@@ -30,7 +30,7 @@ const LOAD_TIMEOUT_MS = 20_000;
 // short ladder rather than once. Every message on it is idempotent.
 const SEED_LADDER_MS = [0, 150, 500, 1200, 2500];
 
-const ROOT_STYLE = { position: 'fixed', inset: 0, overflow: 'hidden', background: 'var(--u-bg-0)' };
+const ROOT_STYLE = { position: 'fixed', inset: 0, overflow: 'hidden', background: 'var(--bg-0)' };
 const FRAME_STYLE = { width: '100%', height: '100%', border: 0, display: 'block' };
 const NOTE_STYLE = {
   position: 'absolute',
@@ -39,7 +39,7 @@ const NOTE_STYLE = {
   placeItems: 'center',
   padding: 24,
   textAlign: 'center',
-  color: 'var(--u-fg-2)',
+  color: 'var(--fg-2)',
 };
 
 function originOf(value) {

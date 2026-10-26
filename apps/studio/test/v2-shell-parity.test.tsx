@@ -360,7 +360,7 @@ describe('the left panel and the right islands', () => {
           onFold={noop}
           floating
         >
-          <aside className="st-sidebar" />
+          <aside className="sh-sidebar" />
         </DockSlot>
       );
       for (const t of lp.tabs) expect(html, `${id} ${t}`).toContain(`data-testid="panel-tab-${t}"`);

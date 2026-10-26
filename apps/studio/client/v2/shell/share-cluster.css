@@ -14,7 +14,7 @@
  * meaning; colour is the second channel). Motion: none of its own — the island appears with the shell. */
 
 @layer shell {
-  .st-share {
+  .sh-share {
     position: absolute;
     right: var(--float-gap, 16px);
     top: var(--float-gap, 16px);
@@ -27,27 +27,27 @@
     box-sizing: border-box;
     max-width: calc(100% - 2 * var(--float-gap, 16px));
   }
-  /* Pinned: the island chrome `.st-body--float .island` gives is not applied, so give it here. */
-  .st-body:not(.st-body--float) .st-share {
+  /* Pinned: the island chrome `.sh-body--float .island` gives is not applied, so give it here. */
+  .sh-body:not(.sh-body--float) .sh-share {
     background: var(--bg-1);
     border-radius: 14px;
     box-shadow: var(--shadow-md);
   }
-  .st-body:not(.st-body--float) .st-share[data-docked="true"] {
+  .sh-body:not(.sh-body--float) .sh-share[data-docked="true"] {
     right: var(--space-2, 8px);
     top: var(--space-2, 8px);
     background: transparent;
     box-shadow: none;
   }
 
-  .st-faces {
+  .sh-faces {
     display: inline-flex;
     flex: none;
     margin: 0;
     padding: 0 4px;
     list-style: none;
   }
-  .st-face {
+  .sh-face {
     display: grid;
     place-items: center;
     width: 24px;
@@ -61,29 +61,29 @@
     background: color-mix(in oklab, var(--accent) 24%, var(--bg-3));
     box-shadow: 0 0 0 2px var(--island-bg, var(--bg-1));
   }
-  .st-face + .st-face,
-  .st-face + .st-face-li,
-  .st-face-li + .st-face-li,
-  .st-face-li + .st-face {
+  .sh-face + .sh-face,
+  .sh-face + .sh-face-li,
+  .sh-face-li + .sh-face-li,
+  .sh-face-li + .sh-face {
     margin-left: -6px;
   }
-  .st-face-li {
+  .sh-face-li {
     display: flex;
   }
-  button.st-face {
+  button.sh-face {
     border: 0;
     padding: 0;
     font: inherit;
     cursor: pointer;
   }
-  .st-face.is-following {
+  .sh-face.is-following {
     box-shadow: 0 0 0 2px var(--accent);
   }
-  .st-face.is-agent {
+  .sh-face.is-agent {
     background: color-mix(in oklab, var(--presence-agent, var(--accent)) 28%, var(--bg-3));
   }
 
-  .st-saved {
+  .sh-saved {
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -94,31 +94,31 @@
     color: var(--fg-2);
     white-space: nowrap;
   }
-  .st-saved-w {
+  .sh-saved-w {
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .st-saved--warn {
+  .sh-saved--warn {
     color: var(--status-warn-text, var(--status-warn));
   }
-  .st-saved--error {
+  .sh-saved--error {
     color: var(--status-error-text, var(--status-error));
   }
   /* 10 co-browser-view: the access word ("Can view") is the one thing a viewer's cluster says, so it is
      read as a word, not as a quiet status — fg-1, medium (`.co-trw[data-access] .k-saved`). */
-  .st-saved[data-status="access"] {
+  .sh-saved[data-status="access"] {
     padding-left: var(--space-2, 8px);
     color: var(--fg-1);
     font-weight: var(--w-medium, 500);
   }
   /* 10 co-sync-offline: the words under Share while this Mac is offline — the kit's dark tooltip
      (`.k-tip`: fg-0 fill, bg-2 ink), right-aligned under the button, shown on hover and focus */
-  .st-tipwrap {
+  .sh-tipwrap {
     position: relative;
     display: inline-flex;
     flex: none;
   }
-  .st-tip {
+  .sh-tip {
     position: absolute;
     right: 0;
     top: calc(100% + var(--space-3, 12px));
@@ -135,16 +135,16 @@
     box-shadow: var(--shadow-md);
     pointer-events: none;
   }
-  .st-tipwrap:hover > .st-tip,
-  .st-tipwrap:focus-within > .st-tip {
+  .sh-tipwrap:hover > .sh-tip,
+  .sh-tipwrap:focus-within > .sh-tip {
     display: block;
   }
   /* 10 co-share-sheet: Share reads "open" while its sheet is — a 3 px accent-tint ring (`data-share-open`) */
-  body:has(.v2sh-sheet) .st-share .st-share-btn[data-testid="share-cluster-share"] {
+  body:has(.v2sh-sheet) .sh-share .sh-share-btn[data-testid="share-cluster-share"] {
     box-shadow: 0 0 0 3px var(--accent-tint);
   }
 
-  .st-share-ic {
+  .sh-share-ic {
     appearance: none;
     position: relative;
     flex: none;
@@ -158,20 +158,20 @@
     color: var(--fg-1);
     cursor: pointer;
   }
-  .st-share-ic:hover {
+  .sh-share-ic:hover {
     background: var(--bg-3);
     color: var(--fg-0);
   }
-  .st-share-ic.is-on {
+  .sh-share-ic.is-on {
     background: var(--accent-muted, var(--bg-3));
     color: var(--accent-text, var(--accent));
   }
-  .st-share-ic:focus-visible,
-  .st-share-act:focus-visible {
+  .sh-share-ic:focus-visible,
+  .sh-share-act:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: -2px;
   }
-  .st-share-count {
+  .sh-share-count {
     position: absolute;
     top: 2px;
     right: 1px;
@@ -190,7 +190,7 @@
   }
 
   /* Exports (09 Export `ex-ring`): the ring sits on the icon button's edge while anything runs. */
-  .st-ex-ring {
+  .sh-ex-ring {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -200,16 +200,16 @@
     stroke-width: 2.5;
     pointer-events: none;
   }
-  .st-ex-ring circle {
+  .sh-ex-ring circle {
     stroke: var(--bg-4, var(--border-default));
   }
-  .st-ex-ring circle.st-ex-ring-v {
+  .sh-ex-ring circle.sh-ex-ring-v {
     stroke: var(--accent);
     stroke-linecap: round;
   }
 
   /* The one action beside a failed status: text button, no chrome until hover. */
-  .st-share-act {
+  .sh-share-act {
     appearance: none;
     flex: none;
     height: 28px;
@@ -223,24 +223,24 @@
     font-weight: var(--w-semibold, 600);
     cursor: pointer;
   }
-  .st-share-act:hover {
+  .sh-share-act:hover {
     background: var(--bg-3);
   }
 
-  .st-share-btn {
+  .sh-share-btn {
     flex: none;
     height: 32px;
     padding: 0 12px;
     border-radius: var(--radius-md, 8px);
     white-space: nowrap;
   }
-  .st-share-btn[aria-disabled="true"] {
+  .sh-share-btn[aria-disabled="true"] {
     opacity: 0.5;
     cursor: not-allowed;
   }
 
   /* "This Mac is out of space — …" (C37): a note hung under the cluster, the popover plane's look. */
-  .st-share-note {
+  .sh-share-note {
     position: absolute;
     right: 0;
     top: calc(100% + 6px);
@@ -261,7 +261,7 @@
   /* V2-4.3b — the mode switch (kit `.k-modes` / `.k-mode-b`): a sunken track of 30 × 28 segments, the
      pressed one raised with the accent ring; Present is the kit's 40px slot (segment + chevron). No
      motion of its own: a mode change is a cut here (M6). */
-  .st-modes {
+  .sh-modes {
     position: relative;
     display: inline-flex;
     flex: none;
@@ -271,7 +271,7 @@
     border-radius: var(--radius-md, 10px);
     background: var(--bg-3);
   }
-  .st-mode-b {
+  .sh-mode-b {
     position: relative;
     display: inline-flex;
     align-items: center;
@@ -285,25 +285,25 @@
     color: var(--fg-1);
     cursor: pointer;
   }
-  .st-mode-b--menu {
+  .sh-mode-b--menu {
     width: 40px;
     gap: 0;
     cursor: default;
   }
-  .st-mode-b[aria-pressed="true"],
-  .st-mode-b--menu:has(> .st-mode-hit[aria-pressed="true"]) {
+  .sh-mode-b[aria-pressed="true"],
+  .sh-mode-b--menu:has(> .sh-mode-hit[aria-pressed="true"]) {
     background: var(--bg-2);
     color: var(--fg-0);
     box-shadow:
       var(--shadow-sm),
       inset 0 0 0 1px var(--accent);
   }
-  .st-mode-b--menu.is-open {
+  .sh-mode-b--menu.is-open {
     background: var(--bg-4);
     color: var(--fg-0);
   }
-  .st-mode-hit,
-  .st-mode-ch {
+  .sh-mode-hit,
+  .sh-mode-ch {
     display: inline-grid;
     place-items: center;
     height: 28px;
@@ -313,32 +313,32 @@
     color: inherit;
     cursor: pointer;
   }
-  .st-mode-hit {
+  .sh-mode-hit {
     width: 26px;
     border-radius: var(--radius-sm, 6px) 0 0 var(--radius-sm, 6px);
   }
-  .st-mode-ch {
+  .sh-mode-ch {
     width: 14px;
     color: var(--fg-2);
     border-radius: 0 var(--radius-sm, 6px) var(--radius-sm, 6px) 0;
   }
-  .st-mode-b:hover:not([aria-pressed="true"]),
-  .st-mode-hit:hover,
-  .st-mode-ch:hover {
+  .sh-mode-b:hover:not([aria-pressed="true"]),
+  .sh-mode-hit:hover,
+  .sh-mode-ch:hover {
     color: var(--fg-0);
   }
-  .st-mode-hit:disabled,
-  .st-mode-ch:disabled {
+  .sh-mode-hit:disabled,
+  .sh-mode-ch:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  .st-mode-b:focus-visible,
-  .st-mode-hit:focus-visible,
-  .st-mode-ch:focus-visible {
+  .sh-mode-b:focus-visible,
+  .sh-mode-hit:focus-visible,
+  .sh-mode-ch:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
   }
-  .st-mode-menu {
+  .sh-mode-menu {
     position: absolute;
     right: 0;
     top: calc(100% + 10px);
@@ -346,19 +346,19 @@
     /* 04 md-present-menu: Menu width={352} */
     width: 352px;
   }
-  .st-mode-menu .st-pm-row[data-hl="true"] {
+  .sh-mode-menu .sh-pm-row[data-hl="true"] {
     background: var(--accent-muted, var(--bg-3));
   }
-  .st-mode-menu .st-pm-row[data-hl="true"] :is(.st-pm-ic, .st-mode-menu-note) {
+  .sh-mode-menu .sh-pm-row[data-hl="true"] :is(.sh-pm-ic, .sh-mode-menu-note) {
     color: inherit;
   }
-  .st-mode-menu-hd {
+  .sh-mode-menu-hd {
     padding: 8px 8px 4px;
     font-size: var(--type-xs, 12px);
     font-weight: var(--w-semibold, 600);
     color: var(--fg-2);
   }
-  .st-mode-menu-note {
+  .sh-mode-menu-note {
     margin-left: auto;
     padding-left: 12px;
     font-size: var(--type-xs, 12px);
@@ -367,7 +367,7 @@
   }
   /* S1.22a — the account chip and its card (11 pn-accounts). A circle with the label's initial (W / P),
      never the person's own "M", so two accounts never look alike. The card is the popover plane. */
-  .st-acct {
+  .sh-acct {
     position: relative;
     flex: none;
     display: flex;
@@ -376,7 +376,7 @@
     margin-right: 2px;
     box-shadow: inset -1px 0 0 var(--border-subtle);
   }
-  .st-acct-chip {
+  .sh-acct-chip {
     appearance: none;
     display: inline-flex;
     align-items: center;
@@ -392,19 +392,19 @@
     font-weight: var(--w-medium, 500);
     cursor: pointer;
   }
-  .st-acct-chip:hover,
-  .st-acct-chip.is-on,
-  .st-acct-chip:focus-visible {
+  .sh-acct-chip:hover,
+  .sh-acct-chip.is-on,
+  .sh-acct-chip:focus-visible {
     background: var(--accent-muted, var(--bg-3));
     outline: none;
   }
-  .st-acct-name {
+  .sh-acct-name {
     max-width: 96px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .st-acct-face {
+  .sh-acct-face {
     display: grid;
     place-items: center;
     flex: none;
@@ -418,27 +418,27 @@
     background: var(--object-grey);
   }
   /* the one account tone (shell/account-tone.js — Work sky, Personal yellow; tabs.rs + Home agree) */
-  .st-acct-face[data-tone="lilac"] {
+  .sh-acct-face[data-tone="lilac"] {
     background: var(--object-lilac);
   }
-  .st-acct-face[data-tone="yellow"] {
+  .sh-acct-face[data-tone="yellow"] {
     background: var(--object-yellow);
   }
-  .st-acct-face[data-tone="sky"] {
+  .sh-acct-face[data-tone="sky"] {
     background: var(--object-sky);
   }
-  .st-acct-face[data-tone="green"] {
+  .sh-acct-face[data-tone="green"] {
     background: var(--object-green);
   }
-  .st-acct-face[data-tone="coral"] {
+  .sh-acct-face[data-tone="coral"] {
     background: var(--object-coral);
   }
-  .st-acct-face--lg {
+  .sh-acct-face--lg {
     width: 32px;
     height: 32px;
     font-size: var(--type-sm, 13px);
   }
-  .st-acct-card {
+  .sh-acct-card {
     position: absolute;
     top: calc(100% + var(--space-2, 8px));
     left: 0;
@@ -458,41 +458,41 @@
     font-size: var(--type-sm, 13px);
     text-align: left;
   }
-  .st-acct-row {
+  .sh-acct-row {
     display: flex;
     align-items: center;
     gap: var(--space-3, 12px);
     padding: var(--space-1, 4px);
   }
-  .st-acct-txt {
+  .sh-acct-txt {
     display: flex;
     flex-direction: column;
     min-width: 0;
     font-size: var(--type-xs, 12px);
     color: var(--fg-2);
   }
-  .st-acct-txt strong {
+  .sh-acct-txt strong {
     font-size: var(--type-sm, 13px);
     font-weight: var(--w-semibold, 600);
     color: var(--fg-0);
   }
-  .st-acct-row--sm .st-acct-txt strong {
+  .sh-acct-row--sm .sh-acct-txt strong {
     font-weight: var(--w-medium, 500);
   }
-  .st-acct-gt {
+  .sh-acct-gt {
     margin: 0;
     padding: var(--space-1, 4px) var(--space-2, 8px) 0;
     font-size: var(--type-xs, 12px);
     font-weight: var(--w-semibold, 600);
     color: var(--fg-2);
   }
-  .st-acct-sep {
+  .sh-acct-sep {
     border: 0;
     height: 1px;
     margin: var(--space-1, 4px) var(--space-2, 8px);
     background: var(--border-subtle);
   }
-  .st-acct-act {
+  .sh-acct-act {
     appearance: none;
     border: 0;
     background: transparent;
@@ -507,25 +507,25 @@
     text-align: left;
     cursor: default;
   }
-  .st-acct-act:hover,
-  .st-acct-act:focus-visible {
+  .sh-acct-act:hover,
+  .sh-acct-act:focus-visible {
     background: var(--accent-muted, var(--bg-3));
     outline: none;
   }
-  .st-acct-act--two {
+  .sh-acct-act--two {
     flex-direction: column;
     align-items: flex-start;
     gap: 2px;
     padding-top: var(--space-1, 4px);
     padding-bottom: var(--space-1, 4px);
   }
-  .st-acct-sub {
+  .sh-acct-sub {
     white-space: normal;
     font-size: var(--type-xs, 12px);
     line-height: var(--lh-xs, 1.4);
     color: var(--fg-2);
   }
-  .st-acct-ask {
+  .sh-acct-ask {
     display: flex;
     flex-direction: column;
     gap: var(--space-1, 4px);
@@ -535,17 +535,17 @@
     font-size: var(--type-xs, 12px);
     color: var(--fg-2);
   }
-  .st-acct-ask strong {
+  .sh-acct-ask strong {
     font-size: var(--type-sm, 13px);
     color: var(--fg-0);
   }
-  .st-acct-btns {
+  .sh-acct-btns {
     display: flex;
     justify-content: flex-end;
     gap: var(--space-2, 8px);
     padding-top: var(--space-1, 4px);
   }
-  .st-acct-foot {
+  .sh-acct-foot {
     margin: var(--space-1, 4px) 0 0;
     padding: var(--space-2, 8px) var(--space-2, 8px) var(--space-1, 4px);
     box-shadow: inset 0 0.5px 0 var(--border-default);
@@ -556,18 +556,18 @@
   /* Preview: the cluster goes compact — the faces and the status word step aside (V2-1.2 §5.4). The form
      comes from the what-shows table (`share-cluster` row → data-cluster). The ACCESS word is not a status:
      it says what this person may do, so it stays (04 md-edge-viewer shows "Can view" in Preview). The strip
-     with the face menu sits in a `.st-faces-host` wrapper (S9.23): hide the wrapper, or the faces stay
-     (S3.14 G1 — the rule named only the inner `.st-faces`). */
-  .st-share[data-cluster="compact"] > .st-acct,
-  .st-share[data-cluster="compact"] > .st-faces,
-  .st-share[data-cluster="compact"] > .st-faces-host,
-  .st-share[data-cluster="compact"] > .st-saved:not([data-status="access"]),
-  .st-share[data-cluster="compact"] > .st-share-act {
+     with the face menu sits in a `.sh-faces-host` wrapper (S9.23): hide the wrapper, or the faces stay
+     (S3.14 G1 — the rule named only the inner `.sh-faces`). */
+  .sh-share[data-cluster="compact"] > .sh-acct,
+  .sh-share[data-cluster="compact"] > .sh-faces,
+  .sh-share[data-cluster="compact"] > .sh-faces-host,
+  .sh-share[data-cluster="compact"] > .sh-saved:not([data-status="access"]),
+  .sh-share[data-cluster="compact"] > .sh-share-act {
     display: none;
   }
 
   /* Pinned: the right column leaves room for the cluster above its panel (06 Advanced `ad-dock-r`). */
-  .st-body:not(.st-body--float) > .st-dockslot--right {
+  .sh-body:not(.sh-body--float) > .sh-dockslot--right {
     padding-top: calc(var(--pill-h, 40px) + var(--space-2, 8px) * 2);
     box-sizing: border-box;
     background: var(--bg-1);
@@ -578,16 +578,16 @@
 @layer components {
   /* The Share / Ask to edit button and the icon buttons never shrink — the status word gives way first
      (it ellipsises), so the primary action is always whole (seen squeezed to 28 px, V2-4.3 lead). */
-  .st-share .st-share-btn,
-  .st-share .st-share-ic,
-  .st-share .st-modes {
+  .sh-share .sh-share-btn,
+  .sh-share .sh-share-ic,
+  .sh-share .sh-modes {
     flex: none;
     white-space: nowrap;
   }
-  /* `.st-share-btn` is also a v1 rule (4-components.css: a 28 px square, from the Share icon of the menubar
+  /* `.sh-share-btn` is also a v1 rule (4-components.css: a 28 px square, from the Share icon of the menubar
      V2-4.8a deleted) — the cluster's button is a labelled button, so it takes its own width. The v1 rule
      can go with the next CSS sweep; this override is harmless without it. */
-  .st-share .btn.st-share-btn {
+  .sh-share .btn.sh-share-btn {
     width: auto;
     min-width: max-content;
   }
@@ -595,7 +595,7 @@
      that brings them back. The access word stays too (a viewer's "Can view" is not a status). This rule lives in
      @layer components: the Share button is a `.maude .btn` whose display is set in that layer, which outranks any
      @layer shell rule whatever its specificity (the C8 rule sat in shell and the Share button stayed). */
-  .st-share[data-zen="true"] > :not([data-testid="share-cluster-panels"]):not([data-status="access"]) {
+  .sh-share[data-zen="true"] > :not([data-testid="share-cluster-panels"]):not([data-status="access"]) {
     display: none;
   }
 }

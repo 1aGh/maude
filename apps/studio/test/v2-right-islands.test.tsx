@@ -38,14 +38,14 @@ const slot = (side: 'left' | 'right', o: Record<string, unknown> = {}) =>
       floating
       {...o}
     >
-      <aside className="st-sidebar" />
+      <aside className="sh-sidebar" />
     </DockSlot>
   );
 
 describe('no dock tab strip, no rail', () => {
   test('the markup carries neither hook, left or right', () => {
     for (const side of ['left', 'right'] as const) {
-      const html = slot(side, { ai: <aside className="st-rpanel" />, aiShown: true });
+      const html = slot(side, { ai: <aside className="sh-rpanel" />, aiShown: true });
       expect(html).not.toContain('dock-tab-');
       expect(html).not.toContain('st-docktab');
       expect(html).not.toContain('st-rail');
@@ -92,7 +92,7 @@ describe('the left panel keeps a strip — in its own header', () => {
 
 describe('the right side is separate islands', () => {
   test('the main panel and the AI chat are two islands, each declaring its edge', () => {
-    const html = slot('right', { ai: <aside className="st-rpanel" />, aiShown: true });
+    const html = slot('right', { ai: <aside className="sh-rpanel" />, aiShown: true });
     expect(html).toContain('data-testid="dock-slot-right"');
     expect(html).toContain('data-testid="dock-ai-right"');
     expect(html.match(/data-occludes="right"/g)?.length).toBe(2);
@@ -100,7 +100,7 @@ describe('the right side is separate islands', () => {
   });
 
   test('a hidden AI chat stays mounted (the stream survives) but is not an island', () => {
-    const html = slot('right', { ai: <aside className="st-rpanel" />, aiShown: false });
+    const html = slot('right', { ai: <aside className="sh-rpanel" />, aiShown: false });
     expect(html).toContain('data-testid="dock-ai-right"');
     expect(html).toMatch(/data-testid="dock-ai-right"[^>]*hidden/);
     expect(html.match(/data-occludes="right"/g)?.length).toBe(1);
@@ -108,7 +108,7 @@ describe('the right side is separate islands', () => {
   });
 
   test('the AI chat alone leaves no empty main island', () => {
-    const html = slot('right', { open: false, ai: <aside className="st-rpanel" />, aiShown: true });
+    const html = slot('right', { open: false, ai: <aside className="sh-rpanel" />, aiShown: true });
     expect(html).not.toContain('data-testid="dock-slot-right"');
     expect(html).toContain('data-testid="dock-ai-right"');
     expect(html).not.toContain('is-collapsed');

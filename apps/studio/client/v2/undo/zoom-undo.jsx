@@ -30,7 +30,7 @@ export function ZoomUndo({ zoom, fit = false, form = 'full', onUndo, onRedo, onF
   const full = form === 'full';
   return (
     <div
-      className={`st-zoomundo island${full ? '' : ' is-zoom-only'}`}
+      className={`sh-zoomundo island${full ? '' : ' is-zoom-only'}`}
       data-testid="zoom-undo"
       data-form={form}
     >
@@ -56,12 +56,12 @@ export function ZoomUndo({ zoom, fit = false, form = 'full', onUndo, onRedo, onF
           >
             <StIcon name="redo" size={16} />
           </button>
-          <span className="st-zoomundo-div" aria-hidden="true" />
+          <span className="sh-zoomundo-div" aria-hidden="true" />
         </>
       ) : null}
       <button
         type="button"
-        className="btn btn--ghost btn--sm st-zoomundo-pct"
+        className="btn btn--ghost btn--sm sh-zoomundo-pct"
         data-testid="zoom-undo-pct"
         aria-label={
           fit ? `Zoom to fit, ${zoomLabel(zoom)}` : `Zoom ${zoomLabel(zoom)}, zoom to fit`

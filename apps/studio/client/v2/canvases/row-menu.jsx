@@ -97,7 +97,7 @@ export function CanvasRowMenu({ state, items, targets, onSelect, onPick, onClose
     return (
       <div
         ref={ref}
-        className="st-dropdown cv-rowmenu"
+        className="sh-dropdown cv-rowmenu"
         role="dialog"
         aria-label="Move to…"
         style={style}
@@ -114,7 +114,7 @@ export function CanvasRowMenu({ state, items, targets, onSelect, onPick, onClose
   return (
     <div
       ref={ref}
-      className="st-dropdown cv-rowmenu"
+      className="sh-dropdown cv-rowmenu"
       role="menu"
       aria-label={`Actions for ${state.row.name}`}
       data-testid="canvas-row-menu"
@@ -126,13 +126,13 @@ export function CanvasRowMenu({ state, items, targets, onSelect, onPick, onClose
           <button
             type="button"
             role="menuitem"
-            className="st-dd-item"
+            className="sh-dd-item"
             data-testid={`canvas-menu-${it.id}`}
             aria-haspopup={it.sub ? 'dialog' : undefined}
             style={it.danger ? { color: 'var(--status-error)' } : undefined}
             onClick={() => onSelect(it.id)}
           >
-            <span className="st-dd-lead">{it.label}</span>
+            <span className="sh-dd-lead">{it.label}</span>
             {it.sub ? <StIcon name="chevron-right" size={12} /> : null}
           </button>
         </div>

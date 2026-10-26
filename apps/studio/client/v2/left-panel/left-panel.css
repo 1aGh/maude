@@ -1,6 +1,6 @@
 /* client/v2/left-panel/left-panel.css — V2-4.4a: the left panel's v2 look. Canvases · Layers · Assets is a
  * segmented strip (kit `.seg` / `.k-seg-b`); the pinned Design system row, the Trash row, Advanced and the
- * Assets tab are `.lp-*`. Every class is namespaced `lp-` (V2-4.3 hit a v1 class collision — `.st-share-btn`
+ * Assets tab are `.lp-*`. Every class is namespaced `lp-` (V2-4.3 hit a v1 class collision — `.sh-share-btn`
  * — so nothing here reuses a bare v1 name). Tokens are the shell's (maude-v2 since P8 C0). */
 
 @layer shell {
@@ -1159,7 +1159,7 @@
     font-size: var(--type-xs);
   }
   /* Show tags and ids: the tag and id after a layer's name. */
-  .st-layer-tag {
+  .sh-layer-tag {
     flex: none;
     margin-left: var(--space-1);
     font-family: var(--font-mono);
