@@ -1,7 +1,7 @@
 // V2-8.5 c7 (01 cf-big-tree) — a project opens the canvas it was last on, and the Canvases panel keeps a
 // "Recent" block of the ones before it. The data is `_canvas-state/_recent.json` (per Mac, ignored by git),
 // read through `/_api/pins` -> `opened`; nothing new is stored.
-import { describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, setSystemTime, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { lastOpenedPath } from '../client/v2/canvases/last-canvas.js';
 import { buildTree, visibleRows } from '../client/v2/canvases/tree-model.js';
@@ -58,6 +58,9 @@ describe('the Recent block (cf-big-tree)', () => {
     (_, i) => `.design/ui/C${String(i).padStart(2, '0')}.tsx`
   );
   const g = [{ kind: 'canvas', fullPath: '.design/ui', label: 'ui', paths: many, dirs: [] }];
+  // the words are calendar-relative (an hour ago at 00:30 is 'yesterday'): read them at a fixed midday
+  setSystemTime(new Date(2026, 9, 21, 12, 0, 0));
+  afterAll(() => setSystemTime());
   const now = Date.now();
   const opened = {
     'ui/C03.tsx': now - 3_600_000,
