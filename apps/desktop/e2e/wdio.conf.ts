@@ -24,7 +24,9 @@ import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { browser } from '@wdio/globals';
-
+import { bringAppToFront } from './helpers/app-front';
+import { stopE2eApp } from './helpers/app-lifecycle';
+import { isE2eConfigHome } from './helpers/config-home';
 import {
   baselineFixtureTree,
   releaseFixtureTree,
@@ -185,11 +187,33 @@ export const E2E_BUNDLE_ID = 'com.maude.app.e2e';
 // folds, panel layout and theme in `$XDG_CONFIG_HOME/maude/prefs.json`, so a default-lane run used to open every fold
 // in the PERSON's prefs and carry them into the next spec (a fold one spec opened was open — its toggle then CLOSED
 // it — in the next). A throwaway config home, shared by the launcher and its workers through the environment; a lane
-// config that names its own (`??=`) keeps it.
-process.env.XDG_CONFIG_HOME ??= mkdtempSync(join(tmpdir(), 'maude-e2e-xdg-'));
+// config that names its own `maude-e2e-*` home keeps it.
+//
+// An inherited home that is NOT one of ours is replaced, never adopted: the test-lane wrapper
+// (scripts/v2-test-lane.sh) hands every job one `v2-lane-config.*` dir — and a full run is ONE job, so every lane
+// (profiles, prefs, cloud.json) and every spec shared it, and `resetE2eAppState` (which only clears a `maude-e2e-*`
+// prefs) never cleared it. The wrapper's prefs/cloud pointers into that dir follow the new home.
+{
+  const inherited = process.env.XDG_CONFIG_HOME ?? '';
+  if (!isE2eConfigHome(inherited)) {
+    const own = mkdtempSync(join(tmpdir(), 'maude-e2e-xdg-'));
+    process.env.XDG_CONFIG_HOME = own;
+    for (const [key, file] of [
+      ['MAUDE_UI_PREFS_PATH', 'prefs.json'],
+      ['MAUDE_CLOUD_CONFIG', 'cloud.json'],
+    ] as const) {
+      const cur = process.env[key];
+      if (cur !== undefined && inherited !== '' && cur.startsWith(inherited + sep)) {
+        process.env[key] = join(own, 'maude', file);
+      }
+    }
+  }
+}
 export function resetE2eAppState(): void {
   const prefs = join(process.env.XDG_CONFIG_HOME as string, 'maude', 'prefs.json');
   if (prefs.includes('maude-e2e-')) rmSync(prefs, { force: true });
+  const uiPrefs = process.env.MAUDE_UI_PREFS_PATH;
+  if (uiPrefs?.includes('maude-e2e-')) rmSync(uiPrefs, { force: true });
   const home = homedir();
   const targets = [
     join(home, 'Library', 'WebKit', E2E_BUNDLE_ID, 'WebsiteDataStore'),
@@ -263,16 +287,8 @@ function resolveAppPath(): string {
 export const config: WebdriverIO.Config = {
   runner: 'local',
   beforeSession() {
-    // Every spec file gets its own app launch (a new session) — and, since the
-    // stores outlive the app, its own clean e2e identity: the default lane runs a
-    // dozen specs against the SAME fixture project, so a panel one spec collapsed
-    // was still collapsed in the next. Runs before this session's app starts.
-    if (!process.env.MAUDE_E2E_KEEP_STATE) resetE2eAppState();
-    // …and a pristine fixture project: the specs share one, and the app itself writes it (version
-    // restores, edits, moves) — see helpers/fixture-tree.ts.
-    restoreFixtureTree();
-    // …and no runtime state from an earlier session (a trashed canvas, open tabs): `_*` is outside the tree restore.
-    if (!process.env.MAUDE_E2E_KEEP_STATE) resetFixtureRuntime();
+    // NOT the place for the per-spec reset: the worker starts after the launcher has the app up, so a reset here
+    // pulled the stores and `_server.json` from under a running app. It is `onWorkerEnd` (app stopped first).
     // The runner can install a newer Undici global dispatcher before WebDriver
     // loads its own copy. Mixing their header representations fails POST /session
     // with UND_ERR_INVALID_ARG (invalid content-length header) on Node 24.
@@ -301,7 +317,13 @@ export const config: WebdriverIO.Config = {
   // ACTIVE tab — the boot project's when MAUDE_PROJECT_ROOT names one
   // (helpers/windows.ts `pinCurrentWindow`, the same call specs make).
   async beforeSuite() {
+    bringAppToFront();
     await pinCurrentWindow();
+  },
+  // A red taken while the app was covered is not evidence (helpers/app-front.ts): every test starts with the e2e
+  // app in front.
+  beforeTest() {
+    bringAppToFront();
   },
   // A red is only evidence when it can be seen: keep what the webview showed at the failing step next to the run's
   // other evidence (<run dir>/failures/). Best effort — a dead session simply has nothing to shoot.
@@ -323,6 +345,9 @@ export const config: WebdriverIO.Config = {
 
   onPrepare: (cfg: WebdriverIO.Config) => {
     baselineFixtureTree();
+    // before the service's onPrepare spawns the first app (config hooks run first): no runtime state from a
+    // previous lane
+    if (!process.env.MAUDE_E2E_KEEP_STATE) resetFixtureRuntime();
     // Only when THIS config is the one running — a dedicated config spreads
     // `...base` and would otherwise print a banner about specs it never meant
     // to run. Identity holds because each override supplies a fresh array.
@@ -341,6 +366,19 @@ export const config: WebdriverIO.Config = {
   // The lane ends on the baseline `onPrepare` took, whatever failed in the middle.
   onComplete: () => {
     releaseFixtureTree();
+  },
+
+  // Every spec file gets its own app (helpers/app-lifecycle.ts): the embedded provider launches ONE app per lane and
+  // runs every spec's session against it, so the next spec inherited this one's live page. Stop it here — the
+  // service sees its port dead before the next worker and starts a fresh one — and reset in between, while no app
+  // runs: a clean e2e identity (the stores outlive the app; a panel one spec collapsed was still collapsed in the
+  // next), a pristine fixture tree (the app writes it: restores, edits, moves) and no `_*` runtime state (a trashed
+  // canvas, open tabs) — `_*` is outside the tree restore.
+  onWorkerEnd: async () => {
+    await stopE2eApp(Number(process.env.TAURI_WEBDRIVER_PORT));
+    if (!process.env.MAUDE_E2E_KEEP_STATE) resetE2eAppState();
+    restoreFixtureTree();
+    if (!process.env.MAUDE_E2E_KEEP_STATE) resetFixtureRuntime();
   },
 
   capabilities: [

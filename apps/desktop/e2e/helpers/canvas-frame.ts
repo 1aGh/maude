@@ -1,5 +1,5 @@
-import { execFileSync } from 'node:child_process';
 import { $, browser } from '@wdio/globals';
+import { bringAppToFront } from './app-front';
 
 /**
  * Switch WebDriver context INTO the active canvas iframe (`data-testid="canvas-frame"`).
@@ -93,9 +93,6 @@ export async function waitForEditChrome(timeout = 30_000): Promise<void> {
   );
 }
 
-/** wdio.conf.ts `E2E_BUNDLE_ID` (not imported: a worker re-evaluating the config has side effects). */
-const E2E_BUNDLE_ID = 'com.maude.app.e2e';
-
 /**
  * Put the person's focus IN the canvas: the app is the active app and the canvas frame holds the
  * shell's focus. The shell honours a canvas's `undo-key` (⌘Z / ⇧⌘Z pressed in the canvas, or a
@@ -106,14 +103,7 @@ const E2E_BUNDLE_ID = 'com.maude.app.e2e';
  * the test window to the front (the run already needs it on screen).
  */
 export async function focusCanvasFrame(timeout = 8000): Promise<void> {
-  try {
-    execFileSync('osascript', ['-e', `tell application id "${E2E_BUNDLE_ID}" to activate`], {
-      timeout: 5000,
-      stdio: 'ignore',
-    });
-  } catch {
-    /* the wait below names the failure */
-  }
+  bringAppToFront(); // the wait below names the failure
   await browser.waitUntil(
     async () =>
       browser.execute(() => {

@@ -10,6 +10,7 @@ import {
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isE2eConfigHome } from './config-home';
 
 /**
  * A signed-in "Claude" that is nobody: the AI lanes of the desktop e2e run against this instead of a real `claude`.
@@ -36,7 +37,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 export function useFakeAi(): void {
   if (process.env.MAUDE_E2E_FAKE_AI === '1') return; // the worker re-evaluates the conf: set up once
   const xdg = process.env.XDG_CONFIG_HOME ?? '';
-  if (!xdg.includes('maude-e2e-')) {
+  if (!isE2eConfigHome(xdg)) {
     throw new Error(
       `[fake-ai] refusing to run: XDG_CONFIG_HOME (${xdg || 'unset'}) is not a throwaway maude-e2e-* dir — import wdio.conf first`
     );
