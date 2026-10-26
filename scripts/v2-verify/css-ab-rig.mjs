@@ -198,10 +198,12 @@ const FINGERPRINT = (ignore) => {
     for (const ps of [null, '::before', '::after']) {
       const cs = getComputedStyle(el, ps);
       if (ps && (cs.content === 'none' || cs.content === 'normal')) continue;
-      let s = '';
+      // sorted: Chromium enumerates custom properties in hash order, which reshuffles when the SET of declared
+      // custom properties changes — the order is not style.
+      const decl = [];
       for (let i = 0; i < cs.length; i++)
-        if (!ig?.test(cs[i])) s += `${cs[i]}:${cs.getPropertyValue(cs[i])};`;
-      res[k + (ps || '')] = h(s);
+        if (!ig?.test(cs[i])) decl.push(`${cs[i]}:${cs.getPropertyValue(cs[i])};`);
+      res[k + (ps || '')] = h(decl.sort().join(''));
     }
   }
   return res;
@@ -279,11 +281,14 @@ const tid = (page, id) => page.locator(`[data-testid="${id}"]`).first();
 async function leftTab(page, id) {
   const icon = tid(page, 'panel-icon-left');
   const tab = tid(page, `panel-tab-${id}`);
-  for (let i = 0; i < 4 && !(await tab.isVisible().catch(() => false)); i++) {
-    if (await icon.isVisible().catch(() => false)) await icon.click();
-    await page.waitForTimeout(1000);
+  // one click, then wait: re-clicking on a timer toggled a slow-opening panel shut again (part B's "not reached")
+  if (!(await tab.isVisible().catch(() => false)) && (await icon.isVisible().catch(() => false))) {
+    await icon.click();
+    await tab.waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
   }
-  await tab.click({ timeout: 5000 });
+  // clicking the tab that is already selected folds the panel again — only pick another tab
+  if ((await tab.getAttribute('aria-selected', { timeout: 5000 })) !== 'true')
+    await tab.click({ timeout: 5000 });
   await page.waitForTimeout(600);
 }
 const frame = (page) => page.frameLocator('[data-testid="canvas-frame"] iframe, iframe').first();
@@ -325,8 +330,15 @@ async function openCanvas(page, slug, name) {
     .waitFor({ timeout: 10000 });
   await page.waitForTimeout(1200);
 }
-async function reset(page, url) {
+// native: boot the shell as the desktop app (the AI chat is desktop-only — `ai.chat` needs the `native` fact) by
+// planting the same rejecting Tauri stub the client-boot gate uses; every other state boots as a browser tab.
+async function reset(page, url, { native = false } = {}) {
   await page.goto(url);
+  const was = await page.evaluate(() => sessionStorage.getItem('ab-native') === '1');
+  if (was !== native) {
+    await page.evaluate((n) => sessionStorage.setItem('ab-native', n ? '1' : '0'), native);
+    await page.goto(url);
+  }
   await tid(page, 'share-cluster').waitFor({ timeout: 20000 });
   await page.waitForTimeout(1200);
 }
@@ -344,9 +356,9 @@ const STATES = [
   ],
   [
     'canvases-panel',
+    // before any canvas opens: with a canvas open the folded left panel would not reopen headless (part B)
     async (page, u) => {
       await reset(page, u.project);
-      await openCanvas(page, 'ui-smoke', 'Smoke');
       await leftTab(page, 'tree');
     },
     '[data-testid="canvas-list"]',
@@ -431,11 +443,11 @@ const STATES = [
   [
     'ai-chat',
     async (page, u) => {
-      await reset(page, u.project);
+      await reset(page, u.project, { native: true });
       await openCanvas(page, 'ui-smoke', 'Smoke');
-      await shellKey(page, 'Meta+k');
-      await tid(page, 'palette-input').fill('make the title bigger');
-      await tid(page, 'palette-ask-ai').click({ timeout: 5000 });
+      const icon = tid(page, 'panel-icon-assistant');
+      if (await icon.isVisible().catch(() => false)) await icon.click();
+      else await shellKey(page, 'Meta+/');
     },
     '[data-testid="ai-chat-island"]',
   ],
@@ -493,6 +505,18 @@ try {
       },
       [homeSecret]
     );
+    await ctx.addInitScript(() => {
+      try {
+        if (sessionStorage.getItem('ab-native') === '1')
+          window.__TAURI__ = {
+            core: { invoke: (cmd) => Promise.reject(new Error(`css-ab-rig: ${cmd}`)) },
+            event: { listen: () => Promise.resolve(() => {}) },
+            window: {},
+            path: {},
+            app: {},
+          };
+      } catch {}
+    });
     await ctx.route('**/_client/styles.css*', (route) =>
       route.fulfill({
         status: 200,
