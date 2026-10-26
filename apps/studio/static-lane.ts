@@ -3,8 +3,9 @@
 // client bundle through the same headers without loading http.ts's whole route graph (~70 MB RSS).
 // Moved verbatim out of http.ts; http.ts re-exports what it used to export.
 
-import { join } from 'node:path';
+import { join, relative, sep } from 'node:path';
 
+import { isUnderOrEqual } from './path-containment.ts';
 import { CLIENT_DIR, DIST_DIR } from './paths.ts';
 
 export const MIME: Record<string, string> = {
@@ -147,8 +148,34 @@ export const INERT_DOCUMENT_CSP = "default-src 'none'; sandbox";
  * wired to the studio only by its frame's `load` event — still renders.
  * Only `.html` is a document type in MIME; `.htm`/`.xhtml`/`.xml` go out as
  * `application/octet-stream` + nosniff, which no browser renders.
+ *
+ * V2-8.9 re-check 2 H-b (decision maude/v2-p8-repo-html-loads-nothing-out): the agent can
+ * auto-write `<repo>/x.html` and open it with `agent-browser-safe`, so the page must not carry data
+ * out by LOADING anything: `default-src 'none'`, then only this server for scripts, styles, images,
+ * media and fonts ('self' is the URL's origin, also for an opaque sandboxed document), no frames,
+ * no form posts, no `<base>`. A legacy `.html` canvas keeps rendering. What CSP cannot stop — the
+ * page navigating ITSELF (`location=`, a meta refresh) — is the no-egress proxy's job
+ * (`_agent-browser-safe.mjs` `safeEnv`, `_no-egress.sh`).
  */
-export const REPO_HTML_CSP = "sandbox allow-scripts; connect-src 'none'";
+export const REPO_HTML_CSP =
+  "sandbox allow-scripts; default-src 'none'; script-src 'self' 'unsafe-inline'; " +
+  "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; " +
+  "font-src 'self' data:; connect-src 'none'; frame-src 'none'; form-action 'none'; " +
+  "base-uri 'none'";
+
+/**
+ * V2-8.9 re-check 2 H-a (decision maude/v2-p8-own-ports-only, defence in depth) — the repo static
+ * lane serves no dot path outside the design root: `/.mcp.json`, `/.claude/settings.local.json`,
+ * `/.ai/**`, `/x/.env`, `/node_modules/.pnpm/**`. Canvases, their imports and assets are built
+ * in-process or live under the design root (served as `/.design/…` — the design root's own name is
+ * the one dot segment allowed). `fp` is the lexical path the lane resolved under `repoRoot`.
+ */
+export function isRefusedDotPath(fp: string, repoRoot: string, designRoot: string): boolean {
+  const base = isUnderOrEqual(fp, designRoot) ? designRoot : repoRoot;
+  return relative(base, fp)
+    .split(sep)
+    .some((seg) => seg.startsWith('.'));
+}
 
 /** The CSP a served repo file needs because it is a document, if it is one. */
 export function documentCsp(e: string): Record<string, string> {
