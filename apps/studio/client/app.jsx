@@ -3129,6 +3129,7 @@ function ShellTree() {
             activePath={activePath}
             toast={shellToast}
             scope={project}
+            reloadTree={loadTree}
             frameFor={() => (activePath ? iframesRef.current.get(activePath) : null)}
           />
           {/* S11.2 — "Your canvas is ready." on a canvas with no artboards, the empty-artboard hint, Ask AI to fill. */}
