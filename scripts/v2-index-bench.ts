@@ -5,7 +5,7 @@
 // `_sync.json` / `_state/` (a copied synced project re-links to the live cloud hub).
 //
 //   bun scripts/v2-index-bench.ts --root <copy> [--port 4797] [--skip-artboards] [--skip-assets]
-//                                 [--skip-versions] [--skip-covers] [--whole-canvas] [--runs 5] [--only <regex>]
+//                                 [--skip-versions] [--skip-covers] [--whole-canvas] [--versions-of <regex>] [--runs 5] [--only <regex>]
 //
 // --only <regex>: the cover pass asks for just the canvases whose rel matches (instead of the
 // background sweep) and prints the renderer's reply for every one that fails — the way to chase
@@ -39,6 +39,7 @@ const root = path.resolve(opt('--root', ''));
 const port = Number(opt('--port', '4797'));
 const RUNS = Number(opt('--runs', '5'));
 const ONLY = opt('--only', '') ? new RegExp(opt('--only', '')) : null;
+const VERSIONS_OF = opt('--versions-of', '') ? new RegExp(opt('--versions-of', '')) : null;
 if (!opt('--root', '')) throw new Error('--root <unlinked copy> is required');
 const designRoot = path.join(root, '.design');
 const cfgRaw = JSON.parse(readFileSync(path.join(designRoot, 'config.json'), 'utf8'));
@@ -426,6 +427,7 @@ try {
     const rows = index
       .snapshot()
       .canvases.filter((c) => c.artboards.length > 0)
+      .filter((c) => !VERSIONS_OF || VERSIONS_OF.test(c.rel))
       .slice(0, 12);
     const rels = rows.map((c) => c.rel);
     // V2-1.9's shape: a version row pictures one named artboard (its most-changed), row size
