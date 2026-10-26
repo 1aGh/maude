@@ -137,6 +137,24 @@ describe('Petra: Can view on one canvas, Ask to edit, Let Petra edit', () => {
     assert.deepEqual(me.grants, [{ c: rig.run.canvas, r: 'observer' }]);
     assert.equal(me.canvasCaps[rig.run.canvas].edit, false);
 
+    // Her own studio says the same (p8-e2e-rolefix): the shell's access word reads `/_config.access`, and a
+    // comment on that canvas is refused — Can view looks only.
+    const cfg = await json(await fetch(`${body.url}/_config`));
+    assert.equal(cfg.readOnlyReason, 'role');
+    assert.deepEqual(cfg.access, { role: null, grants: [{ c: rig.run.canvas, r: 'observer' }] });
+    const said = await fetch(`${body.url}/_api/comments/op`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: body.url },
+      body: JSON.stringify({
+        op: 'add',
+        file: `.design/${rig.run.canvas}`,
+        text: 'hi',
+        x: 1,
+        y: 1,
+      }),
+    });
+    assert.equal(said.status, 403);
+
     // Can view holds no document credential (the export class — a Yjs canvas document is its source): the hub
     // lists her nothing, and never the owner's other canvas.
     const hers = await docs(petraToken);
