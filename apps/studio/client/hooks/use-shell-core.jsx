@@ -35,7 +35,7 @@ import { useWhatsNew } from '../whats-new.jsx';
 import { overlayLiveSize, useLiveArtboardSize } from '../v2/inspector/live-size.js';
 import {
   createCanvasesFold,
-  isArtboardSelection,
+  isAskScopePick,
   isFollowable,
   shouldCloseOnDeselect,
   shouldOpenOnSelect,
@@ -973,7 +973,7 @@ export function useShellCore({}) {
         viewer: !!viewerMode || reads,
         hasId: isFollowable(sel), // an element with an id, or a whole artboard (V2-8.5 c3)
         anyMainOpen: anyRightPanelOpenRef.current,
-        askingAi: assistantOpenRef.current && isArtboardSelection(sel), // a whole-artboard pick with the chat open = the ask scope (board 03)
+        askingAi: assistantOpenRef.current && isAskScopePick(sel), // a whole-artboard pick with the chat open = the ask scope (board 03)
       });
       if (!open) return;
       inspectorAutoOpenedRef.current = true; // V2-4.4b — this appearance is the selection's; it leaves with it

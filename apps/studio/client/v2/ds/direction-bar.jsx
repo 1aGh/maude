@@ -50,6 +50,17 @@ export function directionIdOf(el) {
   return m ? m[1] : null;
 }
 
+/**
+ * May this person pick or mix here? The Inspector's generic `editable` wants an element id, and the pick board 13
+ * draws is the direction's ARTBOARD (no id): the bar came up greyed. A direction writes through /_api/ds/make, so only
+ * read-only access turns it off (the server refuses a viewer anyway). A frame without `readOnly` keeps `editable`.
+ */
+export function directionEditable(ctx) {
+  if (!ctx) return true;
+  if (typeof ctx.readOnly === 'boolean') return !ctx.readOnly;
+  return ctx.editable !== false;
+}
+
 export const isDsDirection = (selection) => {
   const el = singleOf(selection);
   return !!el && directionIdOf(el) !== null;
@@ -235,7 +246,7 @@ function DirectionBody({ el, ctx }) {
       id={id}
       ds={ds}
       model={model}
-      editable={ctx?.editable !== false}
+      editable={directionEditable(ctx)}
       onUse={useDirection}
       onMix={mixDirections}
       onRefresh={refresh}

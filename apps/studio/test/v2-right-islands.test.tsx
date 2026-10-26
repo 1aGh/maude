@@ -190,7 +190,8 @@ describe('the Inspector follows the selection', () => {
     // an element with an id still follows even with the chat open (01 cf-select-tweak)
     expect(shouldOpenOnSelect({ ...on, askingAi: false })).toBe(true);
     const src = read('client/hooks/use-shell-core.jsx');
-    expect(src).toMatch(/askingAi: assistantOpenRef\.current && isArtboardSelection\(sel\)/);
+    // every artboard but a design-system direction (13 ds-make-mix: its pick bar comes with the chat open)
+    expect(src).toMatch(/askingAi: assistantOpenRef\.current && isAskScopePick\(sel\)/);
   });
   test('goes away on deselect — only when the selection opened it, and only with the pref on', () => {
     const off = { pref: true, autoOpened: true, hasSelection: false };
