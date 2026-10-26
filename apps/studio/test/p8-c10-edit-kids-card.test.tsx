@@ -15,8 +15,10 @@ beforeAll(() => {
       : new Response(JSON.stringify({ ok: true }), { status: 200 })) as unknown as typeof fetch;
 });
 afterAll(async () => {
-  const { unregisterSections } = await import('../client/v2/inspector/sections/index.js');
-  unregisterSections();
+  // The section bodies register ONCE, when the module is first imported, and bun shares one module cache across
+  // the files of a run: unregistering them here is irreversible, and a later file would find the Layout card gone
+  // (reverse-order `bun test ./test/p8-*`). Leave the registry as the import left it; a test that wants it empty
+  // uses `stashSlots()`, which puts it back.
   globalThis.fetch = realFetch;
   GlobalRegistrator.unregister();
 });

@@ -23,8 +23,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { escClearsSelection, runEscRung } from '../bridge/esc-ladder.ts';
 import { stepOut } from '../editing/selection.tsx';
 import { useInputRouter } from '../input-router.tsx';
-import { ToolProvider, useToolMode } from '../use-tool-mode.tsx';
 import { SelectionSetProvider, useSelectionSet } from '../use-selection-set.tsx';
+import { ToolProvider, useToolMode } from '../use-tool-mode.tsx';
 
 const FIXTURE = `
 <article class="dc-artboard" data-dc-screen="desktop">

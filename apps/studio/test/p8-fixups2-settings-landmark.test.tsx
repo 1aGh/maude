@@ -19,7 +19,16 @@ describe('a Settings group is named apart from the inspector section of the same
   });
 
   test('no Settings group is ever named exactly like an inspector section', () => {
-    for (const title of ['Layout', 'Position', 'Size', 'Appearance', 'Fill', 'Stroke', 'Typography', 'Effects']) {
+    for (const title of [
+      'Layout',
+      'Position',
+      'Size',
+      'Appearance',
+      'Fill',
+      'Stroke',
+      'Typography',
+      'Effects',
+    ]) {
       const html = renderToStaticMarkup(<Group title={title}>x</Group>);
       expect(html).not.toContain(`aria-label="${title}"`);
     }

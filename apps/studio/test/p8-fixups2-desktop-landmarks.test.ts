@@ -13,7 +13,9 @@ const count = (html: string, re: RegExp) => (html.match(re) ?? []).length;
 describe('desktop pages: one main, one h1', () => {
   for (const name of ['strip.html', 'index.html', 'root-missing.html']) {
     test(`${name}: exactly one <main> and one <h1>`, () => {
-      const html = page(name).replace(/<!--[\s\S]*?-->/g, '').replace(/<script[\s\S]*?<\/script>/g, '');
+      const html = page(name)
+        .replace(/<!--[\s\S]*?-->/g, '')
+        .replace(/<script[\s\S]*?<\/script>/g, '');
       expect(count(html, /<main[\s>]/g)).toBe(1);
       expect(count(html, /<h1[\s>]/g)).toBe(1);
     });

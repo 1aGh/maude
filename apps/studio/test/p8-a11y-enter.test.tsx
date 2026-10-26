@@ -15,6 +15,10 @@ afterAll(() => GlobalRegistrator.unregister());
 const roots: Root[] = [];
 afterEach(async () => {
   for (const r of roots.splice(0)) await act(async () => r.unmount());
+  // "filled in from code" raises a canvas toast, which mounts a standalone NotificationHost (its own React root and
+  // Sonner subscription). Clearing the body leaves that root alive and rendering into the NEXT file's document
+  // (p8-c8-ann-hidden-toast then saw two toasts): tear the host down with the DOM.
+  (await import('../canvas-notifications.tsx')).disposeCanvasToastHost();
   document.body.innerHTML = '';
 });
 
