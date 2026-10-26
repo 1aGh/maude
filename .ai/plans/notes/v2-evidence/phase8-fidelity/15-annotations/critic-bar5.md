@@ -96,3 +96,13 @@ New polish rows:
 - an-layers · rows for stickies show neutral swatches and the count reads 11, not 24 (fixture); no section grouping / person chips (fixture, one author)
 - an-follow · the chip names Tablet where the board names Mobile (first artboard the straight line crosses in this fixture); the bubble lacks the board's "over Mobile · 160 ms" suffix; Edit-mode inspector still frames the shot
 - an-video · notes carry the AI spark mark and no author line (fixture); strip omits the board's second-scale ruler
+
+## Round 12
+
+Judged fresh from the committed `an-follow-<theme>.jpg` pair and the full-size round-12 pair (both themes, cropped to the route at 1:1). Lead decisions applied: route bubble drag-only (`v2-p8-r11-15-let-go-bubble`); only Elbow arrows route around artboards (S4.10).
+
+- an-follow · verified (both themes) · none. Round-11 MUST (1) closed: dark route over Tablet / Mobile is now drawn in the light ink and reads as a thin elbow round both artboards. MUST (2) closed: in light the "Let go — the shortest clean path" bubble (dark pill) and the "the straight line would cross Tablet" tag are at page size, matching the dark frame.
+
+New polish rows:
+- an-follow · dark: the let-go bubble shows light text with no pill behind it, and the cross tag is a light pill (board draws a dark-grey pill with light text in both) — token shade
+- an-follow · (carried) chip names Tablet where the board names Mobile; bubble lacks "over Mobile · 160 ms" (fixture/crossing order); Edit-mode inspector frames the shot (side row)
