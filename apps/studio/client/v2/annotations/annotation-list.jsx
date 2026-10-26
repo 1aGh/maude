@@ -25,6 +25,7 @@ import {
   lockedToolbarFor,
   toggleFilter,
 } from './annotation-list-model.js';
+import { annotationScopeOf, subscribeAnnotationSelection } from './annotation-asks.js';
 
 /** The shell hears these from S4.9 (`annotations-changed {file}`, the canvas's selection) and relays them. */
 export const ANNOTATIONS_CHANGED_EVENT = 'maude:annotations-changed';
@@ -327,7 +328,17 @@ export function AnnotationListHost({
     [file, source]
   );
 
-  // The canvas's own selection, relayed by the shell.
+  // The canvas's own selection. The canvas tells the shell (`annotation-selection`), the shell keeps it per canvas
+  // (annotation-asks.js, the AI chat's scope chip reads the same note) and this list follows it — a selected
+  // sticky, a locked one included, lights its row. (p8-r11-15, an-layers: nothing carried the canvas's selection here.)
+  useEffect(() => {
+    if (!file) return undefined;
+    const follow = () => setSelectedIds(annotationScopeOf(file)?.ids ?? []);
+    follow();
+    return subscribeAnnotationSelection(follow);
+  }, [file]);
+
+  // The same selection by event, for a host that has no store (tests, a standalone embed).
   useEffect(() => {
     const onSel = (e) => setSelectedIds(Array.isArray(e.detail?.ids) ? e.detail.ids : []);
     target?.addEventListener?.(ANNOTATION_SELECTION_EVENT, onSel);
