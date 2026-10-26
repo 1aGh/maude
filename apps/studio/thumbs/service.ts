@@ -153,6 +153,10 @@ const ARTBOARD_KINDS = new Set<ArtboardKind>(['digital', 'print', 'web', 'video'
 const HIST_WINDOW_MS = 10_000;
 const HIST_MAX = 12; // §5.8: ≤ 12 version renders per 10 s (serveHistoricalCanvas allows 24)
 const MAX_PAGES = 4;
+/** background jobs (the cover sweep, tiles) that render at once — the rest of the pages are for what is on screen */
+const BACKGROUND_PAGES = 2;
+/** the covers `startBackground` treats as on screen: Home's most recent shelf */
+const FIRST_SCREEN = 12;
 const MAX_FAILURES = 3;
 const MAX_REFERENCED = 20_000;
 const NO_BROWSER_EXIT = 3;
@@ -422,7 +426,11 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
     );
     for (const job of ordered) {
       if (running.size >= MAX_PAGES) break;
-      if (job.priority === 1 && [...running].some((r) => r.priority === 1)) continue;
+      if (
+        job.priority === 1 &&
+        [...running].filter((r) => r.priority === 1).length >= BACKGROUND_PAGES
+      )
+        continue;
       if (job.atParam !== null) {
         if (!historicalAllowed()) {
           schedulePump(1000);
@@ -545,6 +553,10 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
           url,
           expectOrigin: capture,
           hasArtboards: job.hasArtboards,
+          // the artboards the index already knows: the renderer stops waiting for late ones at
+          // this count (a version's own source can differ from today's, so only "now" is told)
+          knownArtboards:
+            job.atParam === null ? (o.index.canvas(job.rel)?.artboards.length ?? 0) : 0,
           deadlineMs: 20_000,
           ...metaHints(o.designRoot, job.rel),
           targets: job.targets.map((t) => ({ artboard: t.artboard, px: t.px })),
@@ -759,9 +771,15 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
         (a, b) => (recent.get(b.rel) ?? 0) - (recent.get(a.rel) ?? 0)
       );
       // resolves once every cover is queued (or answered from disk), not when they are rendered
+      // the first screen (Home's most recent 12) is not "background": it renders on all pages
       await Promise.all(
-        rows.map((r) =>
-          svc.thumb({ canvas: r.rel, artboard: null, size: 'card', priority: 'background' })
+        rows.map((r, i) =>
+          svc.thumb({
+            canvas: r.rel,
+            artboard: null,
+            size: 'card',
+            priority: i < FIRST_SCREEN ? 'visible' : 'background',
+          })
         )
       );
     },

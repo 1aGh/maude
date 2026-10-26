@@ -8,9 +8,9 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 
 import { pidOf } from '../index/snapshot.ts';
-import { createThumbService, type ThumbService } from '../thumbs/service.ts';
+import { createThumbService, spawnRendererShim, type ThumbService } from '../thumbs/service.ts';
 import { makeSandbox } from './_helpers.ts';
-import { fakeShim } from './_thumbs-fake.ts';
+import { fakeJpeg, fakeShim } from './_thumbs-fake.ts';
 import { indexFor, rig, settle, writeFiles } from './_thumbs-helpers.ts';
 
 const COVER = { canvas: 'ui/web.tsx', artboard: null, size: 'card', priority: 'visible' } as const;
@@ -75,4 +75,122 @@ describe('a canvas that cannot mount (P8 perf fix, V2-8.14 covers)', () => {
     expect(res).toEqual({ status: 'unavailable', reason: 'failed' });
     expect(took).toBeLessThan(10_000);
   }, 120_000);
+});
+
+const TWO = (n: number) => `import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
+export default function C${n}() {
+  return (<DesignCanvas><DCSection id="s" title="S">
+    <DCArtboard id="a" label="A" width={960} height={600}><div>${n}a</div></DCArtboard>
+    <DCArtboard id="b" label="B" width={960} height={600}><div>${n}b</div></DCArtboard>
+  </DCSection></DesignCanvas>);
+}
+`;
+
+function slowService(files: Record<string, string>, delayMs: number) {
+  const { root, designRoot } = makeSandbox();
+  writeFiles(designRoot, files);
+  const sent: Array<Record<string, unknown>> = [];
+  let inflight = 0;
+  let peak = 0;
+  const starts: number[] = [];
+  const spawnShim = () => {
+    const listeners: Array<(m: Record<string, unknown>) => void> = [];
+    return {
+      send(msg: Record<string, unknown>) {
+        sent.push(msg);
+        inflight++;
+        starts.push(inflight);
+        peak = Math.max(peak, inflight);
+        setTimeout(() => {
+          inflight--;
+          const reply = {
+            id: msg.id,
+            ok: true,
+            runtime: { artboards: [] },
+            shots: [
+              {
+                target: 0,
+                artboard: 'a',
+                jpeg: Buffer.from(fakeJpeg(480, 300)).toString('base64'),
+              },
+            ],
+          };
+          for (const cb of listeners) cb(reply);
+        }, delayMs);
+      },
+      onMessage: (cb: (m: Record<string, unknown>) => void) => listeners.push(cb),
+      exited: new Promise<number>(() => {}),
+      kill() {},
+    };
+  };
+  const svc = createThumbService({
+    pid: pidOf(root),
+    designRoot,
+    index: indexFor(root, designRoot),
+    config: () => ({ theme: 'dark' }),
+    serverOrigin: () => 'http://localhost:1',
+    captureOrigin: () => 'http://localhost:2',
+    spawnShim,
+  });
+  stoppers.push(() => svc.stop());
+  return { svc, sent, peak: () => peak, starts: () => starts };
+}
+
+describe('the cover sweep (P8 perf fix, V2-8.14 covers)', () => {
+  test('a render is told how many artboards the index knows, so it can stop waiting at that count', async () => {
+    const { svc, sent } = slowService({ 'ui/two.tsx': TWO(1) }, 5);
+    await svc.thumb({ canvas: 'ui/two.tsx', artboard: null, size: 'card', priority: 'visible' });
+    await svc.idle();
+    expect(sent[0]?.knownArtboards).toBe(2);
+  });
+
+  test('background covers render two at a time, not one', async () => {
+    const files: Record<string, string> = {};
+    for (let i = 0; i < 8; i++) files[`ui/c${i}.tsx`] = TWO(i);
+    const { svc, peak } = slowService(files, 40);
+    await Promise.all(
+      Object.keys(files).map((canvas) =>
+        svc.thumb({ canvas, artboard: null, size: 'card', priority: 'background' })
+      )
+    );
+    await svc.idle();
+    expect(peak()).toBe(2);
+  });
+
+  test('the sweep renders the first screen of covers on every page', async () => {
+    const files: Record<string, string> = {};
+    for (let i = 0; i < 20; i++) files[`ui/c${String(i).padStart(2, '0')}.tsx`] = TWO(i);
+    const { svc, peak, starts } = slowService(files, 40);
+    await svc.startBackground();
+    await svc.idle();
+    expect(peak()).toBe(4);
+    expect(starts().length).toBe(20);
+  });
+
+  test('the real renderer does not sleep out the artboard-count settle when the count is known', async () => {
+    const replies: Array<Record<string, unknown>> = [];
+    const r = await rig(() => ({ 'ui/two.tsx': TWO(2) }), {
+      service: {
+        spawnShim: () => {
+          const h = spawnRendererShim();
+          h.onMessage((m) => replies.push(m));
+          return h;
+        },
+      },
+    });
+    stoppers.push(() => {
+      r.svc.stop();
+      r.proc.kill();
+    });
+    const res = await settle(r.svc, {
+      canvas: 'ui/two.tsx',
+      artboard: null,
+      size: 'card',
+      priority: 'visible',
+    });
+    expect(res.status).toBe('ready');
+    const phases = replies.find((m) => m.phases)?.phases as Record<string, number> | undefined;
+    expect(phases).toBeDefined();
+    expect(phases?.settle ?? 9999).toBeLessThan(200);
+  }, 60_000);
 });

@@ -391,6 +391,11 @@ async function render(msg) {
     url: String(msg.url),
     expectOrigin: String(msg.expectOrigin),
     hasArtboards: msg.hasArtboards === true,
+    // how many artboards the server's index already knows (0 = unknown): the cover pick waits for
+    // exactly that many instead of sleeping out the count-settle
+    knownArtboards: Number.isInteger(msg.knownArtboards)
+      ? Math.max(0, Math.min(2000, msg.knownArtboards))
+      : 0,
     coverOrder: Array.isArray(msg.coverOrder) ? msg.coverOrder.filter(SAFE_ID).slice(0, 500) : null,
     posters: msg.posters && typeof msg.posters === 'object' ? msg.posters : {},
     entered: false,
@@ -403,9 +408,18 @@ async function render(msg) {
   lastLaunchMs = null;
   job.page = page;
   jobsByPage.set(page, job);
+  const phases = {};
+  let mark = Date.now();
+  const lap = (name) => {
+    const n = Date.now();
+    phases[name] = n - mark;
+    mark = n;
+  };
   try {
     await page.setViewportSize({ width: 1440, height: 900 });
+    lap('viewport');
     await page.goto(job.url, { waitUntil: 'domcontentloaded', timeout: left() });
+    lap('goto');
     assertOrigin(page, job);
     // The shell writes a refused or failed mount into `#canvas-mount-error` and never mounts the
     // canvas (a module the frame gate refuses — a `_frames.tsx` that renders DesignCanvas — is one):
@@ -428,6 +442,7 @@ async function render(msg) {
       err.code = 'canvas-failed';
       throw err;
     }
+    lap('mount');
     const named = targets.map((t) => t?.artboard).filter((a) => typeof a === 'string');
     if (job.hasArtboards && named.length && named.length === targets.length) {
       // every target names its artboard (a version row, an on-demand shot): wait for exactly
@@ -449,18 +464,42 @@ async function render(msg) {
         .first()
         .waitFor({ state: 'attached', timeout: Math.min(10_000, left()) })
         .catch(() => {});
-      await settleCount(page, left);
+      // The count the index knows is on screen and holds across two frames: nothing is left to
+      // mount late, and the 250 ms count-settle below is skipped. Any other count settles as before.
+      const known = job.knownArtboards;
+      const atKnown =
+        known > 0 &&
+        (await bounded(
+          page.waitForFunction(
+            (n) => document.querySelectorAll('[data-dc-screen]').length === n,
+            known,
+            { timeout: Math.min(1500, left()) }
+          ),
+          Math.min(1600, left())
+        )
+          .then((v) => v !== '__timeout__')
+          .catch(() => false));
+      if (atKnown) {
+        await bounded(frames(page), 1000);
+        if ((await page.locator('[data-dc-screen]').count()) !== known)
+          await settleCount(page, left);
+      } else await settleCount(page, left);
     } else {
       await bounded(frames(page), 1000);
     }
+    lap('settle');
     await bounded(
       page.evaluate(() => document.fonts.ready.then(() => true)),
       3000
     );
+    lap('fonts');
     const runtime = await harvest(page);
+    lap('harvest');
     const shots = [];
     for (const [i, t] of targets.entries()) shots.push(await shoot(page, job, i, t, runtime, left));
+    lap('shoot');
     return {
+      phases,
       ok: true,
       runtime: {
         artboards: runtime.map(({ id, label, kind, w, h }) => ({ id, label, kind, w, h })),

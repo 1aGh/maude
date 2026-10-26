@@ -77,6 +77,14 @@ const pct = (xs: number[], p: number) => {
   return Math.round(s[Math.min(s.length - 1, Math.floor(p * s.length))] as number);
 };
 const ms = (t0: number) => Math.round(performance.now() - t0);
+/** p50 of each render phase the renderer reported (`phases`: viewport/goto/mount/settle/…). */
+const phasesOf = (rs: Array<Record<string, unknown>>) => {
+  const by: Record<string, number[]> = {};
+  for (const m of rs)
+    for (const [k, v] of Object.entries((m.phases ?? {}) as Record<string, number>))
+      by[k] = [...(by[k] ?? []), Number(v)];
+  return Object.fromEntries(Object.entries(by).map(([k, v]) => [k, pct(v, 0.5)]));
+};
 const out: Record<string, unknown> = { root, at: new Date().toISOString() };
 
 // ---------------------------------------------------------------- index
@@ -283,6 +291,7 @@ try {
     first12Ms: first12,
     budget: { totalMs: 45_000, first12Ms: 3000 },
     perCanvasMs: { p50: pct(coldJobs, 0.5), p95: pct(coldJobs, 0.95) },
+    phasesP50Ms: phasesOf(replies.slice(from)),
     ...(await coverStatus()),
     artboardsAfterHarvest: index.counts().artboards,
   };
