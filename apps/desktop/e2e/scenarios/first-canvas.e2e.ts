@@ -7,6 +7,7 @@ import { waitForCanvasRects, waitForEditChrome } from '../helpers/canvas-frame';
 import { syncStatusText } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { invokeTauri } from '../helpers/native';
+import { pointerClick } from '../helpers/pointer';
 import {
   activeTab,
   closeTab,
@@ -411,7 +412,15 @@ describe('first canvas (S6.16) — a sentence on Home to a saved, shared canvas'
     // anywhere: just right of the Mobile artboard's top-left corner
     const m = await centreOf('[data-dc-screen="mobile"] .dc-artboard-label');
     expect(m).not.toBeNull();
-    await mouseAt({ x: (m as Pt).x + 40, y: (m as Pt).y + 160 }, CLICK);
+    // a real click is POINTER events (the stamp tools place on pointerdown/up, which a MouseEvent named
+    // "pointerdown" is not): the window-coordinate pointer helper, through the frame
+    const off = (await browser.execute(() => {
+      const r = (
+        document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement
+      ).getBoundingClientRect();
+      return { x: r.left, y: r.top };
+    })) as Pt;
+    await pointerClick(off.x + (m as Pt).x + 40, off.y + (m as Pt).y + 160);
     await browser.waitUntil(
       () =>
         walk(designDir(), (rel) => /\.annotations\.json$/.test(rel)).some((f) =>

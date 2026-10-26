@@ -523,7 +523,17 @@ part('4')(
 
     it('the ready card says what is missing; "Use as … style" makes the first revision and the default', async () => {
       const card = await $('[data-testid="ds-make-ready"]');
-      await card.waitForExist({ timeout: 30_000 });
+      await card.waitForExist({ timeout: 30_000 }).catch(async () => {
+        // the card shows once a filling section is done and none is drawing (make-model.js readiness): say which
+        const state = await browser.execute(
+          (ds: string) =>
+            fetch(`/_api/ds/make-state?ds=${encodeURIComponent(ds)}`, { cache: 'no-store' })
+              .then((r) => r.text())
+              .catch((e) => String(e)),
+          sysDir()
+        );
+        throw new Error(`no ready card; make-state: ${String(state).slice(0, 600)}`);
+      });
       expect(await (await $('[data-testid="ds-make-ready-title"]')).getText()).toContain(
         'partly ready'
       );

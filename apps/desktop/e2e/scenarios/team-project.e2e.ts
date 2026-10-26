@@ -101,6 +101,19 @@ export default function Canvas() {
 }
 `;
 
+/** A studio's own sync status file (`.design/_sync.json`): its queued saves and the conflicts it holds. */
+function syncFileOf(root: string): {
+  accepted?: { pending?: number };
+  conflicts?: { slug?: string }[];
+  notices?: { id?: string }[];
+} | null {
+  try {
+    return JSON.parse(readFileSync(join(root, '.design', '_sync.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
 function read(path: string): string | null {
   try {
     return readFileSync(path, 'utf8');
@@ -451,16 +464,7 @@ describe('team-project (native-desktop)', () => {
     const slug = 'screens-home';
     const mine = join(t.managedDir, '.design', rel);
     const theirs = join(t.teammate, '.design', rel);
-    const teammateStatus = () => {
-      try {
-        return JSON.parse(readFileSync(join(t.teammate, '.design', '_sync.json'), 'utf8')) as {
-          notices?: { id?: string }[];
-          conflicts?: { slug?: string }[];
-        };
-      } catch {
-        return null;
-      }
-    };
+    const teammateStatus = () => syncFileOf(t.teammate);
     await closeDiagnostics();
     await settleMotion();
 
@@ -522,8 +526,12 @@ describe('team-project (native-desktop)', () => {
     process.kill(t.hubPid, 'SIGSTOP');
     try {
       writeFileSync(theirs, canvas('Welcome, theirs while offline'));
-      // the teammate's studio has no status line to read: give its watcher the outage the unit lane gives it
-      await browser.pause(6_000);
+      // the teammate's studio has no status line: its `_sync.json` says when the save is queued for the server
+      await eventually(
+        'the teammate’s save to be queued while the server is away',
+        () => (syncFileOf(t.teammate)?.accepted?.pending ?? 0) > 0,
+        60_000
+      );
     } finally {
       process.kill(t.hubPid, 'SIGCONT');
     }
@@ -532,7 +540,14 @@ describe('team-project (native-desktop)', () => {
 
     await openSyncDetails();
     const card = await $(tid('diag-sync-conflict-ui-welcome'));
-    await card.waitForDisplayed({ timeout: 120_000 });
+    await card.waitForDisplayed({ timeout: 120_000 }).catch(() => {
+      const h1 = (p: string) => /<h1[^>]*>([^<]*)</.exec(read(p) ?? '')?.[1] ?? '(none)';
+      const held = (root: string) =>
+        JSON.stringify((syncFileOf(root)?.conflicts ?? []).map((c) => c.slug));
+      throw new Error(
+        `no conflict card here — this Mac: "${h1(mine)}" holds ${held(t.managedDir)}; teammate: "${h1(theirs)}" holds ${held(t.teammate)}`
+      );
+    });
     expect(await card.getText()).toContain('changed here and in the cloud.');
     expect(await card.getText()).toContain('Both versions are kept until you choose.');
     expect(await (await $(tid('diag-sync-need-word'))).getText()).toMatch(/need(s)? you/);

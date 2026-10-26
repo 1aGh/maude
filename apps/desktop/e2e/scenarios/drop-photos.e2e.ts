@@ -219,6 +219,12 @@ describe('drop from Finder onto an artboard (S8.14)', () => {
     expect(source()).toContain('"repeat(2, 1fr)"');
     await capture(report, 'grid');
     await undoTo(before);
+    // the file is back; the canvas draws it a beat later — hover the artboard as it is drawn again, not the grid
+    // still on screen (a photo frame there says "Drop to fill the frame")
+    await browser.waitUntil(
+      async () => inFrame((doc) => doc.querySelectorAll('.dc-artboard-body img').length === 0),
+      { timeout: 15000, timeoutMsg: 'the canvas never drew the undone state' }
+    );
     const one = await dragPhotos(1, 'over');
     expect(one.hint).toBe(`Drop to place the photo in ${BOARD}`);
   });
