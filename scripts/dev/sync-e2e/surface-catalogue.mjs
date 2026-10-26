@@ -33,6 +33,39 @@ function values(source, name, key) {
   if (!result.length) throw new Error(`No values enumerated from ${name}`);
   return result;
 }
+/** The board's drawing tools (V2-4.5a retired the palette's `DRAW_TOOLS`): the Preview toolbar's slots in
+ *  bridge/canvas-modes.ts (`MODE_TOOLS.preview`), minus Browse and Comment, plus the two marker-tips choices
+ *  under Pen (highlighter, eraser — still the palette's own tools). Kept in the v1 order so the inventory reads
+ *  the same: pen, highlighter, shape, sticky, section, arrow, text, eraser. */
+const BOARD_TOOL_ORDER = [
+  'pen',
+  'highlighter',
+  'shape',
+  'sticky',
+  'section',
+  'arrow',
+  'text',
+  'eraser',
+];
+function boardTools(palette) {
+  const modes = readFileSync(join(root, 'apps/studio/bridge/canvas-modes.ts'), 'utf8');
+  const block = modes.match(/\n {2}preview: Object\.freeze\(\{([\s\S]*?)\n {2}\}\),/)?.[1];
+  if (!block) throw new Error('Cannot enumerate MODE_TOOLS.preview; review bridge/canvas-modes.ts');
+  const slots = [...block.matchAll(/\btool: '([^']+)'/g)].map((m) => m[1]);
+  const tips = ['highlighter', 'eraser'].filter((t) =>
+    new RegExp(`current [!=]== '${t}'`).test(palette)
+  );
+  const found = new Set([...slots.filter((t) => t !== 'browse' && t !== 'comment'), ...tips]);
+  const unknown = [...found].filter((t) => !BOARD_TOOL_ORDER.includes(t));
+  if (unknown.length)
+    throw new Error(`New board tool(s) ${unknown.join(', ')}: add them to BOARD_TOOL_ORDER`);
+  const tools = BOARD_TOOL_ORDER.filter((t) => found.has(t));
+  if (tools.length !== BOARD_TOOL_ORDER.length)
+    throw new Error(
+      `Board tool(s) gone: ${BOARD_TOOL_ORDER.filter((t) => !found.has(t)).join(', ')}`
+    );
+  return tools;
+}
 /** Rows `surface.e2e.ts` emits for the annotations-v2 plan (Task 29): [row id, plan row]. */
 export const ANNOTATIONS_V2_ROWS = [
   ['L09.v2.seed', 'setup'],
@@ -90,7 +123,7 @@ export function buildSurfaceCatalogue() {
   // listed with their reasons in `ANNOTATIONS_V2_NOT_DRIVEN`.
   for (const [id, plan] of ANNOTATIONS_V2_ROWS)
     add(id, 'apps/studio/annotations/ops.ts', 'T29', { directions, plan });
-  const tools = values(palette, 'DRAW_TOOLS');
+  const tools = boardTools(palette);
   const shapes = values(palette, 'SHAPE_KINDS', 'kind');
   for (const tool of tools) {
     if (tool === 'shape') {
