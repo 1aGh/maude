@@ -67,7 +67,7 @@ const trashAccessNone = resolveAccess(null);
 export { trashAccess } from '../history/trash.ts';
 // S5.4 / S2.18 — the held-by-ai backstop http.ts's legacy `/_api/edit-*` routes ask before a
 // write. Re-exported here because http.ts reaches routes/ only through index + table.
-export { heldByAiRefusal } from './agent.ts';
+export { type AgentRouteDeps, heldByAiRefusal } from './agent.ts';
 // S8.19 — the asset-state service, built once by http.ts over the live sync runtime.
 export { assetStateDepsFor } from './asset-state.ts';
 // S11.4 — the index payload's canvas paths, the availability route's `local` (the panel's own scan).
