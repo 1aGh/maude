@@ -334,6 +334,16 @@
   word-break: break-word;
 }
 
+.cm-queued {
+  /* 10 co-sync-offline: the board's `.co-queued` — a clock and one warn-coloured line under the words */
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--maude-hud-warn-text, var(--maude-hud-accent-text));
+}
+
 .cm-thread__body strong,
 .cm-thread__reply-body strong {
   /* @mention tokens — semibold, the accent's text colour (the board's `.md-mention-q`). */
