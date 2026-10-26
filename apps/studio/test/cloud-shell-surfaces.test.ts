@@ -170,13 +170,10 @@ describe('"not known yet" survives every layer between /_config and the DOM', ()
   // frame, and the boot 404 came back looking exactly like the one just fixed.
   // Checked in EVERY client module (app.jsx and SettingsPanel.jsx were the two
   // named here; a component split out of app.jsx must stay covered wherever it
-  // lands), except the one panel whose `cloud = null` default is pinned on
-  // purpose by sync-panel-surface.test.ts ("it is ABSENT in the cloud").
-  const DEFAULTS_ON_PURPOSE = new Set(['panels/SyncPanel.jsx']);
+  // lands). The one panel that defaulted it on purpose (SyncPanel.jsx) left in V2-8.0.
 
   test('no component defaults the shell flag', () => {
     for (const { path, src } of clientFiles()) {
-      if (DEFAULTS_ON_PURPOSE.has(path)) continue;
       expect(src, path).not.toMatch(/^\s*cloud = (null|false|\{\}),$/m);
     }
   });

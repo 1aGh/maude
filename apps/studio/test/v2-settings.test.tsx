@@ -736,17 +736,6 @@ describe('secrets stay where they are', () => {
 
 describe('V2-4.7c: Settings › Advanced owns the switches — the old homes are gone', () => {
   const src = (f: string) => readFileSync(join(import.meta.dir, '..', 'client', f), 'utf8');
-  test('the Sync panel no longer carries the sync settings or the ownership switch', () => {
-    const s = src('panels/SyncPanel.jsx');
-    for (const needle of [
-      'data-testid="sync-settings"',
-      'data-testid="sync-ownership',
-      'data-testid="sync-setting-',
-      "'/_api/sync/settings'",
-      "'/_api/sync/ownership'",
-    ])
-      expect(s.includes(needle), needle).toBe(false);
-  });
   test('the readiness dialog no longer carries the auto-setup toggle', () => {
     const s = src('panels/ReadinessList.jsx');
     expect(s.includes('AutoSetupToggle')).toBe(false);

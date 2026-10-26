@@ -123,8 +123,8 @@ export const KEY_CLASS: Readonly<Record<string, KeyRule>> = {
     note: 'Consent records per hub; carried forward unchanged, never reset.',
   },
   'maude-sync-notice-ack': {
-    class: 'kept',
-    note: 'Per-hub notice acks; carried forward unchanged.',
+    class: 'dead',
+    note: 'Per-hub notice acks of the v1 Sync panel (unmounted since S11.12b, deleted in V2-8.0); nothing reads or writes it now, a stale value is harmless.',
   },
   'mdcc-settings-tab': {
     class: 'dead',
