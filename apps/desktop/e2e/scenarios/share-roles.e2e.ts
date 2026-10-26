@@ -17,6 +17,7 @@ import { type Browser, chromium, type FrameLocator, type Page } from '@playwrigh
 import { $, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
+import { setSelect } from '../helpers/select';
 import { waitForSidecar } from '../helpers/sidecar';
 import { pinCurrentWindow } from '../helpers/windows';
 
@@ -164,9 +165,17 @@ describe('Share roles: Can view asks, Can edit is removed, a link is turned off 
     // The owner invites her on this canvas, Can view.
     await ownerOpensShare('canvas');
     await $(tid('share-invite-email')).setValue(run.petra.email as string);
-    await $(tid('share-invite-role')).selectByAttribute('value', 'observer');
+    // the embedded WebDriver's option click does not select in WKWebView (helpers/select.ts)
+    expect(await setSelect('share-invite-role', 'observer')).toBe(true);
     await $(tid('share-invite-submit')).click();
-    await $(tid('share-invite-sent')).waitForDisplayed({ timeout: STEP_MS });
+    // a hub that mails says "sent"; one that does not (this stand-in) hands the owner the link to send
+    // (share-sheet.jsx notice `sent` | `link`) — either way Petra is invited, as Can view
+    await browser.waitUntil(
+      async () =>
+        (await $(tid('share-invite-sent')).isDisplayed()) ||
+        (await $(tid('share-invite-link')).isDisplayed()),
+      { timeout: STEP_MS, timeoutMsg: 'the invite said neither sent nor here is the link' }
+    );
     await capture(report, 'owner-invited-petra');
     await ownerClosesShare();
 
@@ -302,6 +311,12 @@ describe('Share roles: Can view asks, Can edit is removed, a link is turned off 
       throw new Error(
         'this hub hands out no links (/health.access.links) — the link step needs one that does'
       );
+    // A third person is not on the team: the link must be "Anyone with the link" (Advanced › This link › Who can
+    // open; the sheet's default is Team only, which the control plane refuses to a stranger — 403 at /l/redeem).
+    if (!(await $(tid('share-link-who')).isDisplayed()))
+      await $(tid('share-other-ways-toggle')).click();
+    await $(tid('share-link-who')).waitForDisplayed({ timeout: STEP_MS });
+    expect(await setSelect('share-link-who', 'anyone')).toBe(true);
     await $(tid('share-link-copy')).click();
     const link = await until('the copied link', () =>
       browser.execute(() => (window as unknown as { __e2eCopied?: string }).__e2eCopied ?? null)
@@ -316,7 +331,8 @@ describe('Share roles: Can view asks, Can edit is removed, a link is turned off 
     );
 
     // The owner turns it off, under Advanced.
-    await $(tid('share-other-ways-toggle')).click();
+    if (!(await $(tid('share-link-off')).isDisplayed()))
+      await $(tid('share-other-ways-toggle')).click();
     await $(tid('share-link-off')).waitForDisplayed({ timeout: STEP_MS });
     await $(tid('share-link-off')).click();
     await capture(report, 'owner-link-off');

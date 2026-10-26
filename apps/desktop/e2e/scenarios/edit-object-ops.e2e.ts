@@ -134,8 +134,11 @@ describe('object ops on a canvas (S2.6)', () => {
     // The file is written first and the frame re-renders from it a beat later (the lock attribute is
     // on the NEW element), so the pointer is moved again until the badge answers — one move at the
     // moment of the write lands on the element that is about to be replaced.
+    // …and the heading is looked up again each time: the pick opened the Inspector, so the stage narrowed and the
+    // camera moved the heading (measured: 212 px left on a fresh window) — the box read before the click is stale.
     await browser.waitUntil(
       async () => {
+        const at = (await rectOf('Maude desktop E2E')) ?? h1!;
         await browser.execute(
           (px, py) => {
             const frame = document.querySelector(
@@ -146,8 +149,8 @@ describe('object ops on a canvas (S2.6)', () => {
               new PointerEvent('pointermove', { bubbles: true, clientX: px, clientY: py })
             );
           },
-          h1!.x,
-          h1!.y
+          at.x,
+          at.y
         );
         await browser.pause(150);
         return inFrame('edit-lock-badge');
