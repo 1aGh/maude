@@ -26,9 +26,15 @@
 //   • a grantee is judged by the ONE granted canvas that holds the target — a person holding two
 //     canvases may get a card for a file they could in fact see;
 //   • a Grep over a folder counts as reading every file under it.
-// Residual, named: runtime state (`_comments/`, `_chat/`, … — first segment `_`) is not tracked, and
-// a verb whose output names no path on its command line (`comments list`) is not a tracked read;
-// the open-comments step of /design:edit (H1 part c, plugin copy) is the layer for thread text.
+// Round 2 (decision maude/v2-8.9-round2-writer-verbs-audience): canvas copies under `_history/`,
+// `_trash/`, `_versions` and the path-less `history show|diff` count as reading the whole design
+// folder; the auto-tier writer verbs (annotate, canvas-edit, …) are judged too — on a hub-linked
+// project their allow rules leave the session, so each call reaches the bridge (`writerVerbCall`).
+// Residual, named: other runtime state (`_comments/`, `_chat/`, …) is not tracked, and a verb whose
+// output names no path on its command line (`comments list`) is not a tracked read; the
+// open-comments step of /design:edit (H1 part c, plugin copy) is the layer for thread text. A
+// person's own `~/.claude` allow rule (`Bash(maude:*)`) or a bypassPermissions mode skips the bridge
+// for these verbs exactly as it does for Edit — their call.
 
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 
@@ -51,6 +57,12 @@ export interface WriteAudienceSource {
    * (a linked hub that could not be asked) — the caller fails closed.
    */
   audienceOf(targets: readonly string[]): Promise<AudienceGrant[] | null>;
+  /**
+   * V2-8.9 round 2 — can anyone beyond the project's own people see something here at all (a linked
+   * hub)? Synchronous: decides at session spawn whether the writer verbs keep their allow rules.
+   * Absent = yes (fail closed).
+   */
+  linked?(): boolean;
 }
 
 /** A file or folder this chat has read, designRoot-relative. */
@@ -95,15 +107,66 @@ export function designRelOf(
 /** Runtime state (`_comments/…`, `_chat/…`) is not a design file anyone is granted. */
 const isRuntime = (rel: string) => rel.split('/')[0]?.startsWith('_') === true;
 
-/** Shell words that look like a path (no flags, no URLs). */
-function shellPathWords(command: string): string[] {
+/**
+ * V2-8.9 round 2 (M-R2-1) — runtime folders holding whole-file copies of canvases (the safety
+ * snapshots, the Trash, version pictures). A read there is a read of SOME canvas, so it counts as
+ * reading the whole design folder (fails toward the card).
+ */
+const COPY_DIRS = new Set(['_history', '_trash', '_versions']);
+const isCopyStore = (rel: string) => COPY_DIRS.has(rel.split('/')[0] ?? '');
+
+const LOOPBACK_HOST = /^(?:localhost|127(?:\.\d{1,3}){3}|\[::1\])$/i;
+const GLOB_CHAR = /[*?[{]/;
+
+/**
+ * Shell words that look like a path. A `--flag=value` counts by its value, a loopback URL by its
+ * decoded `?canvas=` (`screenshot --url …?canvas=ui%2Fx.tsx`), a glob by its base folder (defender
+ * R2-L3). Any other URL names no design file.
+ */
+export function shellPathWords(command: string): string[] {
   const out: string[] = [];
-  for (const w of command.split(/[\s;&|()<>`"']+/)) {
-    if (!w || w.startsWith('-') || w.includes('://') || w.startsWith('$')) continue;
+  for (let w of command.split(/[\s;&|()<>`"']+/)) {
+    if (!w || w.startsWith('$')) continue;
+    if (w.startsWith('-')) {
+      const eq = w.indexOf('=');
+      if (eq < 0) continue;
+      w = w.slice(eq + 1);
+      if (!w || w.startsWith('$')) continue;
+    }
+    if (w.includes('://')) {
+      try {
+        const u = new URL(w);
+        if (LOOPBACK_HOST.test(u.hostname))
+          for (const v of u.searchParams.getAll('canvas')) if (v) out.push(v);
+      } catch {
+        // not a URL: names nothing
+      }
+      continue;
+    }
+    if (GLOB_CHAR.test(w)) {
+      const segs = w.split('/');
+      const base = segs
+        .slice(
+          0,
+          segs.findIndex((x) => GLOB_CHAR.test(x))
+        )
+        .join('/');
+      out.push(base || (w.startsWith('/') ? '/' : '.'));
+      continue;
+    }
     if (w.includes('/') || /\.(tsx|ts|jsx|js|json|css|svg|md)$/i.test(w)) out.push(w);
   }
   return out;
 }
+
+/** `history show <ref>` / `history diff` print project-wide content when no canvas is named. */
+const PATHLESS_HISTORY_RE =
+  /(?:^|[\s;&|()`$])(?:maude|mdcc)\s+design\s+history\s+(?:show|diff)(?![\w-])/;
+
+const insideRoot = (p: string, root: string) => {
+  const r = relative(root, p);
+  return r !== '' && !r.startsWith('..') && !isAbsolute(r);
+};
 
 /**
  * The design-root files/folders one streamed tool call reads. `exists` tells a folder from a file
@@ -138,18 +201,32 @@ export function readPathsOf(
     return [];
   }
   const out = new Map<string, TrackedRead>();
+  const whole = () => out.set('d:', { rel: '', dir: true });
   for (const { p, bases } of words) {
     for (const base of bases) {
       const abs = isAbsolute(p) ? resolve(p) : resolve(base, p);
       const kind = kindOf(abs);
       if (!kind) continue;
       const rel = designRelOf(abs, base, designRoots);
-      if (rel === null || (rel !== '' && isRuntime(rel))) continue;
+      if (rel === null) {
+        // A folder that holds the design root (a Grep with no path, `cat **/*.tsx`): all of it.
+        if (kind === 'dir' && designRoots.some((r) => insideRoot(r, abs))) {
+          whole();
+          break;
+        }
+        continue;
+      }
+      if (rel !== '' && isRuntime(rel)) {
+        if (isCopyStore(rel)) whole();
+        break;
+      }
       const key = `${kind === 'dir' ? 'd' : 'f'}:${rel}`;
       if (!out.has(key)) out.set(key, { rel, dir: kind === 'dir' });
       break;
     }
   }
+  if (toolName === 'Bash' && out.size === 0 && PATHLESS_HISTORY_RE.test(String(raw.command)))
+    whole();
   return [...out.values()];
 }
 
@@ -179,6 +256,88 @@ export function audienceLeak(
 export function readsBeyond(reads: Iterable<TrackedRead>, targets: readonly string[]): boolean {
   for (const r of reads) if (r.dir || !targets.includes(r.rel)) return true;
   return false;
+}
+
+// ---------------------------------------------------------------------------------------------------
+// V2-8.9 round 2 H-R2-1 (decision maude/v2-8.9-round2-writer-verbs-audience) — the auto-tier
+// `maude design` verbs that write a versioned design-root file with text the agent chose. An allowed
+// tool never reaches the bridge's requestPermission, so on a hub-linked project these verbs' allow
+// rules leave the session (`withoutWriterRules`) and the bridge judges each call itself.
+
+/** The `Bash(maude design <rule>:*)` rules a hub-linked session is spawned without. */
+export const AUDIENCE_WRITER_RULES: readonly string[] = [
+  'annotate',
+  'canvas-edit',
+  'handoff',
+  'import-tokens',
+  'captions',
+  'captions add',
+  'cut-words',
+  'cut-to-beat',
+  'reel-place',
+  'ds-check',
+];
+
+export function withoutWriterRules(allowed: readonly string[]): {
+  kept: string[];
+  dropped: string[];
+} {
+  const gated = new Set(AUDIENCE_WRITER_RULES.map((v) => `Bash(maude design ${v}:*)`));
+  return {
+    kept: allowed.filter((t) => !gated.has(t)),
+    dropped: allowed.filter((t) => gated.has(t)),
+  };
+}
+
+const WRITER_FIRST = new Set(AUDIENCE_WRITER_RULES.map((r) => r.split(' ')[0] as string));
+const WRITER_MENTION_RE =
+  /(?:^|[\s;&|()`$=])(?:maude|mdcc)\s+design\s+(annotate|canvas-edit|handoff|import-tokens|captions|cut-words|cut-to-beat|reel-place|ds-check)(?![\w-])/;
+/** Anything that makes a command more than one plain `maude design …` call. */
+const SHELL_META = /[;&|<>`$()\\\n\r]/;
+
+export interface WriterVerbCall {
+  /** The allow rule that would have covered it (`captions add`, `ds-check`, …). */
+  rule: string;
+  /** Does this form write (`ds-check` only with --fix/--emit; `captions list|export` never)? */
+  writes: boolean;
+  /**
+   * The write lands where no named path says (a design system's files, the EDL's own canvas): the
+   * audience is not knowable from the command, so a chat that read anything gets the card.
+   */
+  implicitTarget: boolean;
+  /** The arguments after the verb (quotes removed). */
+  args: string[];
+}
+
+/**
+ * A Bash command as a gated writer verb: the call, `'compound'` when it mentions one inside anything
+ * but one plain `maude design <verb> …` (the card, never the bridge's own approval), or null when it
+ * mentions none.
+ */
+export function writerVerbCall(command: string): WriterVerbCall | 'compound' | null {
+  if (!WRITER_MENTION_RE.test(command)) return null;
+  const t = command.trim();
+  if (SHELL_META.test(t) || !/^maude\s+design\s/.test(t)) return 'compound';
+  const words: string[] = [];
+  for (const m of t.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)) words.push(m[1] ?? m[2] ?? m[3] ?? '');
+  const first = words[2] ?? '';
+  if (!WRITER_FIRST.has(first)) return 'compound';
+  let args = words.slice(3);
+  let rule = first;
+  let writes = true;
+  if (first === 'captions') {
+    const sub = args[0];
+    if (sub === 'add') rule = 'captions add';
+    writes = sub !== 'list' && sub !== 'export';
+    args = args.slice(1);
+  } else if (first === 'ds-check') {
+    writes = args.some((a) => /^--(?:fix|emit)(?:=|$)/.test(a));
+  }
+  const implicitTarget =
+    first === 'import-tokens' ||
+    first === 'ds-check' ||
+    (first === 'reel-place' && !args.some((a) => /^--canvas(?:=|$)/.test(a)));
+  return { rule, writes, implicitTarget, args };
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -251,6 +410,7 @@ export function createHubWriteAudience(deps: HubAudienceDeps): WriteAudienceSour
   }
 
   return {
+    linked: () => deps.hub() !== null,
     async audienceOf(targets) {
       const hub = deps.hub();
       if (!hub) return [];

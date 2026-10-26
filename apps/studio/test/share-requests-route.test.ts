@@ -75,7 +75,11 @@ async function call(table: RouteSpec[], method: string, path: string, body?: unk
   const res = await m.spec.handle(
     new Request(url, {
       method,
-      headers: { 'content-type': 'application/json', cookie: 'maude_session=caller' },
+      headers: {
+        'content-type': 'application/json',
+        cookie: 'maude_session=caller',
+        'sec-fetch-site': 'same-origin',
+      },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     }),
     m.params

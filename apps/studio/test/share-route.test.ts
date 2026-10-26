@@ -86,7 +86,7 @@ async function call(
   const res = await m.spec.handle(
     new Request(url, {
       method,
-      headers: { 'content-type': 'application/json', ...headers },
+      headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin', ...headers },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     }),
     m.params

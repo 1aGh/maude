@@ -106,6 +106,11 @@ mkdir -p "$OUT_DIR"
 # captured evidence actually lands in OUT_DIR. See DDR-021.
 OUT_DIR="$(cd "$OUT_DIR" && pwd)"
 
+# V2-8.9 round 2 (R2-M1) — "AI may › Search the web: off" holds here too: a canvas the agent wrote
+# renders on loopback only (dead loopback proxy, WebRTC pinned, a session of its own). The
+# playwright lane goes through screenshot.sh, which sources the same file.
+. "$(dirname "$0")/_no-egress.sh"
+
 # ---------- engine resolution ----------
 if [ "$ENGINE" = "auto" ]; then
   if command -v agent-browser >/dev/null 2>&1; then

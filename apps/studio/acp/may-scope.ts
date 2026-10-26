@@ -42,7 +42,11 @@
 // (`maude design serve`, a cloud cell) has no shell gate — there the canvas CSP holds fetch/img/media but
 // not navigation; renders the SERVER starts (export, thumbnails) do not carry the session's env; and the
 // shell's flag is per tab as the page last told it, so a page that never loads its bundle (an older client)
-// leaves the default (on).
+// leaves the default (on). Round 2 (L-R2-2): neither the navigation gate nor the CSP covers DNS from a
+// resource hint, so the canvas shell (plugins/design/templates/_shell.html) turns prefetch control off
+// and strips `rel=dns-prefetch|preconnect|prefetch|prerender` in EVERY canvas frame, web on or off; a
+// nested same-origin frame inside a canvas keeps its own prototypes (named, like WebRTC there), and
+// whether the shipping WKWebView honours the meta was not checked on a real Mac.
 //
 // V2-8.9 M2 adds a third, switch-independent part at the bottom of this file: the credential-store
 // deny rules + their live refusal (`credentialDenyRules` / `credentialRefusal`).
@@ -270,7 +274,9 @@ export function mayRefusal(
 // shell command that NAMES one of these paths is refused without a card. Residual, named: under
 // bypassPermissions (or the person's own Bash allow rules) a shell command that reaches a credential
 // file WITHOUT naming its path (a glob, a variable, `cd ~ && cat .ssh/*`) is approved by the CLI
-// itself and reaches neither layer.
+// itself and reaches neither layer. Round 2 (R2-L2): the live refusal folds case; the deny rules
+// cannot (Claude Code's matcher is in the native binary, unverified offline) — so a case-variant
+// `Read` (`~/.CONFIG/Maude/…`, allow-listed, never reaching the bridge) rests on that matcher alone.
 
 export interface CredentialPaths {
   /** Folders — every file under them is a credential store. */
@@ -342,8 +348,10 @@ export function credentialRefusal(
   home: string = process.env.HOME || homedir()
 ): 'credentials' | null {
   const raw = (toolCall?.rawInput ?? {}) as Record<string, unknown>;
-  const command = typeof raw.command === 'string' ? raw.command : '';
-  if (command && credentialSpellings(paths, home).some((s) => command.includes(s)))
+  // V2-8.9 round 2 R2-L2 — case-folded: a case-insensitive volume (the macOS default) opens
+  // `~/.CONFIG/Maude/cloud.json` as the same file, and the deny rules are exact-case.
+  const command = typeof raw.command === 'string' ? raw.command.toLowerCase() : '';
+  if (command && credentialSpellings(paths, home).some((s) => command.includes(s.toLowerCase())))
     return 'credentials';
   const roots = [...paths.dirs, ...paths.files];
   const candidates: string[] = [];
@@ -358,5 +366,17 @@ export function credentialRefusal(
     if (typeof g === 'string' && isAbsolute(g)) candidates.push(g.split(/[*?[{]/)[0] ?? '');
   }
   const expand = (p: string) => (p.startsWith('~/') ? join(home, p.slice(2)) : p);
-  return candidates.some((p) => p && insideAny(expand(p), repoRoot, roots)) ? 'credentials' : null;
+  return candidates.some((p) => p && insideAnyFolded(expand(p), repoRoot, roots))
+    ? 'credentials'
+    : null;
+}
+
+/** `insideAny`, with the lexical and the real path compared case-folded (R2-L2). */
+function insideAnyFolded(p: string, repoRoot: string, roots: readonly string[]): boolean {
+  const lexical = (isAbsolute(p) ? resolve(p) : resolve(repoRoot, p)).toLowerCase();
+  const real = resolveRealPath(p, repoRoot).toLowerCase();
+  return roots.some((root) => {
+    const r = root.toLowerCase();
+    return r === lexical || r === real || isInsideRoot(lexical, r) || isInsideRoot(real, r);
+  });
 }

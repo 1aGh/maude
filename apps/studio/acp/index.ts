@@ -4,7 +4,7 @@
 // NEVER exposed on the canvas origin (DDR-054/DDR-123) — the untrusted iframe
 // must not reach the agent bridge.
 
-import { readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type {
   AvailableCommand,
@@ -13,6 +13,7 @@ import type {
 } from '@agentclientprotocol/sdk';
 import type { ServerWebSocket } from 'bun';
 import { projectVisibility } from '../access/filters.ts';
+import { knownCanvasesFor } from '../access/known-canvases.ts';
 import { resolveAccess } from '../access/scope.ts';
 import { isCanvasFile } from '../activity.ts';
 import { readOnlyRootsFor } from '../ai/attach-grants.ts';
@@ -24,11 +25,12 @@ import {
   type RunScope,
 } from '../ai/run-lifecycle.ts';
 import type { RunRegistry } from '../ai/runs.ts';
+import { canvasSlugFromRel } from '../canvas-slug.ts';
 import type { AiActivity } from '../collab/ai-activity.ts';
 import type { Context } from '../context.ts';
 import { runWriteScope } from '../handoff/write-scopes.ts';
 import { listCanvases } from '../routes/canvas-source.ts';
-import { isCanvasSource } from '../skip-dirs.ts';
+import { isCanvasSource, isUnderscoreModuleRel } from '../skip-dirs.ts';
 import { hashBytes } from '../sync/echo-guard.ts';
 import { getHubRecord } from '../sync/hubs-config.ts';
 import type { WsData } from '../ws.ts';
@@ -154,14 +156,37 @@ export function projectWriteAudience(ctx: Context): WriteAudienceSource {
     },
     canvases: () => listCanvases(ctx.paths.designRoot),
     closureOf: (canvas) => projectVisibility(ctx).closureOf(canvasAccess(canvas))?.read ?? null,
-    isCanvas: (rel) => {
-      try {
-        return isCanvasSource(readFileSync(join(ctx.paths.designRoot, rel), 'utf8'));
-      } catch {
-        return false;
-      }
-    },
+    isCanvas: (rel) =>
+      audienceIsCanvas(ctx.paths.designRoot, rel, () => knownCanvasesFor(ctx.cfg ?? undefined)),
   });
+}
+
+/**
+ * Is `rel` a canvas for the write audience — the access closure's answer (access/closure.ts
+ * `walkEnv`): a `_` file (`ui/club-web/_frames.tsx`) is a module whatever it renders, unless its own
+ * meta / board or a stored grant says canvas (lead decision maude/v2-p8-lead-underscore-file-is-a-module);
+ * any other `.tsx` is one when it renders DesignCanvas. A module's audience is every canvas that
+ * inlines it — so calling one a canvas would hide those canvases' grantees.
+ */
+export function audienceIsCanvas(
+  designRoot: string,
+  rel: string,
+  known: () => readonly string[]
+): boolean {
+  if (isUnderscoreModuleRel(rel)) {
+    const slug = canvasSlugFromRel(rel, '');
+    return (
+      existsSync(join(designRoot, rel.replace(/\.tsx$/i, '.meta.json'))) ||
+      existsSync(join(designRoot, `${slug}.annotations.json`)) ||
+      existsSync(join(designRoot, `${slug}.annotations.svg`)) ||
+      known().includes(rel)
+    );
+  }
+  try {
+    return isCanvasSource(readFileSync(join(designRoot, rel), 'utf8'));
+  } catch {
+    return false;
+  }
 }
 
 /** The refusal a read-only session's state-changing frame gets (CONTRACT §4 voice). */

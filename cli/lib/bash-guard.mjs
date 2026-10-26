@@ -463,7 +463,7 @@ const MESSAGES = {
   'other-project': (what) =>
     `out-of-project: ${what} names a different project. In this session maude verbs work only on this project; to work on another one, the person opens it in Maude or runs the command in their own terminal.`,
   'session-env': (key) =>
-    `out-of-project: this command changes ${key}, which holds maude verbs to this session's project. Run the maude verb without it.`,
+    `out-of-project: this command changes ${key}, which this session sets for maude verbs (its project, its chat, the web switch). Run the maude verb without it.`,
   'not-a-writer': (rel) =>
     `not-a-writer: files in .design/ (${rel}) are written with Edit/Write or a \`maude design\` verb, so every change is checked. Edit the file instead.`,
   'human-only': (what, why) =>
@@ -489,7 +489,33 @@ const HUMAN_ONLY_ROUTES = [
     what: 'Connect to the hub',
     why: "it sends this Mac's hub credential to the folder's hub",
   },
+  // V2-8.9 round 2 R2-M2 — the desktop's share writes run with this Mac's hub credential; the studio
+  // answers them 403 window-only without the window's own fetch (routes/share.ts).
+  {
+    re: /\/_api\/share\/(?:invites|people|links|requests)(?![\w-])/i,
+    what: 'Share',
+    why: "it invites people, changes their access or makes a link with this Mac's hub credential",
+  },
 ];
+
+// V2-8.9 round 2 R2-L1 — `maude design link|adopt` hands this Mac's hub credential to a hub (and
+// adopt rewrites config.json). The dispatcher refuses them in an AI session by env, which the
+// agent's own command can change; this hook's verdict cannot be.
+const HUMAN_ONLY_VERBS = new Set(['link', 'adopt']);
+function humanOnlyVerb(cmds) {
+  for (const cmd of cmds) {
+    const mw = maudeWords(cmd);
+    if (!mw || mw[0]?.text !== 'design' || !HUMAN_ONLY_VERBS.has(mw[1]?.text)) continue;
+    return {
+      code: 'human-only',
+      reason: MESSAGES['human-only'](
+        'Connect to a hub',
+        `\`maude design ${mw[1].text}\` sends this Mac's hub credential to a hub`
+      ),
+    };
+  }
+  return null;
+}
 const READ_METHODS = new Set(['GET', 'HEAD']);
 /** A write sign in a script / non-curl client's words (wget --post-data, fetch {method:'POST'}). */
 const SCRIPT_REQUEST_WRITE = /\bpost\b|--post|\bmethod\b|\bdata\s*=|--data|--body/i;
@@ -667,7 +693,7 @@ export function classifyBash(command, { cwd, designRoot, root, sessionRoot = nul
   // for a judged word, so the cost is the parse (the budget test in bash-guard.test.mjs).
   const cmds = parseBash(command);
   if (!cmds) return null;
-  const human = humanOnlyRoute(cmds);
+  const human = humanOnlyRoute(cmds) ?? humanOnlyVerb(cmds);
   if (human) return human;
   const out = root ? outOfProject(cmds, { cwd, root }) : null;
   if (out) return out;
@@ -971,12 +997,16 @@ function outOfProject(cmds, { cwd, root }) {
 // ── gate-b-sec2 finding 1: a `maude` command stays on the session's project ──────────────────────
 
 const SESSION_ENV = new Set(SESSION_ENV_KEYS);
+// V2-8.9 round 2 R2-L1 — and the web switch's carriers: the bridge sets MAUDE_NO_EGRESS for a web-off
+// session and the helpers derive AGENT_BROWSER_* from it (bin/_no-egress.sh).
+const isGuardedEnv = (k) =>
+  SESSION_ENV.has(k) || k === 'MAUDE_NO_EGRESS' || k.startsWith('AGENT_BROWSER_');
 const ENV_SETTERS = new Set(['export', 'unset', 'declare', 'typeset', 'local', 'readonly']);
-/** The NAME a `NAME=value` / `NAME+=value` / bare `NAME` word sets, when it is a session key. */
+/** The NAME a `NAME=value` / `NAME+=value` / bare `NAME` word sets, when it is a guarded key. */
 const sessionKeyOf = (w) => {
   if (!w?.text) return null;
   const k = /^([A-Za-z_]\w*)(?:\+?=|$)/.exec(w.text)?.[1];
-  return k && SESSION_ENV.has(k) ? k : null;
+  return k && isGuardedEnv(k) ? k : null;
 };
 
 /**
@@ -1022,11 +1052,10 @@ function otherProject(cmds, { cwd, root }) {
         const t = cmd.words[k].text;
         if (isEnv && (/^-(?:i|-ignore-environment)$/.test(t) || t === '-'))
           return env('the environment');
-        if (isEnv && /^-(?:u|-unset)$/.test(t)) {
-          const key = sessionKeyOf(cmd.words[k + 1]);
-          if (key) return env(key);
-          k += 2;
-        } else if (/^-/.test(t)) k++;
+        // R2-L1 — any `env -u` before a maude verb: what it removes is the session's to say
+        if (isEnv && /^-(?:u.*|-unset(?:=.*)?)$/.test(t))
+          return env(sessionKeyOf(cmd.words[k + 1]) ?? 'the environment');
+        if (/^-/.test(t)) k++;
         else if (/^[A-Za-z_]\w*=/.test(t)) {
           const key = sessionKeyOf(cmd.words[k]);
           if (key) return env(key);
