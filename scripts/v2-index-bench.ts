@@ -5,7 +5,7 @@
 // `_sync.json` / `_state/` (a copied synced project re-links to the live cloud hub).
 //
 //   bun scripts/v2-index-bench.ts --root <copy> [--port 4797] [--skip-artboards] [--skip-assets]
-//                                 [--skip-versions] [--runs 5] [--only <regex>]
+//                                 [--skip-versions] [--skip-covers] [--runs 5] [--only <regex>]
 //
 // --only <regex>: the cover pass asks for just the canvases whose rel matches (instead of the
 // background sweep) and prints the renderer's reply for every one that fails — the way to chase
@@ -277,48 +277,50 @@ try {
     console.log(JSON.stringify(out, null, 2));
     process.exit(0);
   }
-  await svc.startBackground();
-  await svc.idle();
-  const coldMs = ms(t0);
-  const first12 = ready[11] ?? null;
-  const launchCold = replies.find((m) => typeof m.launchMs === 'number')?.launchMs ?? null;
-  const coldJobs = replies
-    .slice(from)
-    .map((m) => Number(m.ms))
-    .filter(Number.isFinite);
-  out.coversCold = {
-    totalMs: coldMs,
-    first12Ms: first12,
-    budget: { totalMs: 45_000, first12Ms: 3000 },
-    perCanvasMs: { p50: pct(coldJobs, 0.5), p95: pct(coldJobs, 0.95) },
-    phasesP50Ms: phasesOf(replies.slice(from)),
-    ...(await coverStatus()),
-    artboardsAfterHarvest: index.counts().artboards,
-  };
+  if (!flag('--skip-covers')) {
+    await svc.startBackground();
+    await svc.idle();
+    const coldMs = ms(t0);
+    const first12 = ready[11] ?? null;
+    const launchCold = replies.find((m) => typeof m.launchMs === 'number')?.launchMs ?? null;
+    const coldJobs = replies
+      .slice(from)
+      .map((m) => Number(m.ms))
+      .filter(Number.isFinite);
+    out.coversCold = {
+      totalMs: coldMs,
+      first12Ms: first12,
+      budget: { totalMs: 45_000, first12Ms: 3000 },
+      perCanvasMs: { p50: pct(coldJobs, 0.5), p95: pct(coldJobs, 0.95) },
+      phasesP50Ms: phasesOf(replies.slice(from)),
+      ...(await coverStatus()),
+      artboardsAfterHarvest: index.counts().artboards,
+    };
 
-  // Chromium launch, warm: a second renderer process on a warm disk cache
-  svc.stop();
-  rmSync(thumbsDir(pid), { recursive: true, force: true });
-  svc = service();
-  ready.length = 0;
-  t0 = performance.now();
-  from = replies.length;
-  await svc.startBackground();
-  await svc.idle();
-  const warmJobs = replies
-    .slice(from)
-    .map((m) => Number(m.ms))
-    .filter(Number.isFinite);
-  out.coversWarm = {
-    totalMs: ms(t0),
-    first12Ms: ready[11] ?? null,
-    perCanvasMs: { p50: pct(warmJobs, 0.5), p95: pct(warmJobs, 0.95) },
-  };
-  out.chromiumLaunchMs = {
-    cold: launchCold,
-    warm: replies.slice(from).find((m) => typeof m.launchMs === 'number')?.launchMs ?? null,
-    budgetWarm: 500,
-  };
+    // Chromium launch, warm: a second renderer process on a warm disk cache
+    svc.stop();
+    rmSync(thumbsDir(pid), { recursive: true, force: true });
+    svc = service();
+    ready.length = 0;
+    t0 = performance.now();
+    from = replies.length;
+    await svc.startBackground();
+    await svc.idle();
+    const warmJobs = replies
+      .slice(from)
+      .map((m) => Number(m.ms))
+      .filter(Number.isFinite);
+    out.coversWarm = {
+      totalMs: ms(t0),
+      first12Ms: ready[11] ?? null,
+      perCanvasMs: { p50: pct(warmJobs, 0.5), p95: pct(warmJobs, 0.95) },
+    };
+    out.chromiumLaunchMs = {
+      cold: launchCold,
+      warm: replies.slice(from).find((m) => typeof m.launchMs === 'number')?.launchMs ?? null,
+      budgetWarm: 500,
+    };
+  }
 
   // every artboard (on demand only): one shot per artboard, card size
   if (!flag('--skip-artboards')) {

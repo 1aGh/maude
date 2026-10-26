@@ -6,6 +6,8 @@
 // retry a canvas that cannot mount (its key changes when the source does, and that is the retry).
 
 import { afterAll, describe, expect, test } from 'bun:test';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { pidOf } from '../index/snapshot.ts';
 import { createThumbService, spawnRendererShim, type ThumbService } from '../thumbs/service.ts';
@@ -192,5 +194,36 @@ describe('the cover sweep (P8 perf fix, V2-8.14 covers)', () => {
     const phases = replies.find((m) => m.phases)?.phases as Record<string, number> | undefined;
     expect(phases).toBeDefined();
     expect(phases?.settle ?? 9999).toBeLessThan(200);
+  }, 60_000);
+});
+
+// A 1 x 1 PNG; trailing bytes after IEND change the file's hash and not its picture.
+const PNG1 = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64'
+);
+
+describe('asset tiles (P8 perf fix, V2-8.14 asset tiles)', () => {
+  test('every picture gets a tile, not just the first one the tile page was opened for', async () => {
+    const r = await rig(() => ({}));
+    stoppers.push(() => {
+      r.svc.stop();
+      r.proc.kill();
+    });
+    mkdirSync(join(r.designRoot, 'assets'), { recursive: true });
+    const names = ['one.png', 'two.png', 'three.png', 'four.png'];
+    names.forEach((n, i) => {
+      writeFileSync(join(r.designRoot, 'assets', n), Buffer.concat([PNG1, Buffer.from([i])]));
+    });
+    const out: string[] = [];
+    for (const n of names) {
+      let t = await r.svc.assetTile(`assets/${n}`, 'card');
+      for (let i = 0; i < 4 && t.status === 'pending'; i++) {
+        await r.svc.idle();
+        t = await r.svc.assetTile(`assets/${n}`, 'card');
+      }
+      out.push(`${n}:${t.status}`);
+    }
+    expect(out).toEqual(names.map((n) => `${n}:ready`));
   }, 60_000);
 });

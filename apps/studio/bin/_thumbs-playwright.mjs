@@ -539,7 +539,24 @@ function dropTileHold() {
 async function tilePage(msg) {
   const origin = String(msg.expectOrigin);
   if (tileHold && (tileHold.page.isClosed() || tileHold.origin !== origin)) dropTileHold();
-  if (tileHold) return tileHold;
+  if (tileHold) {
+    // The held page's capability names the ONE picture its URL was minted for: the frame gate reads
+    // it off the page's own URL (the Referer of what the page loads), so a tile for another picture
+    // re-enters the shell for that picture on the same page. Reusing it as it was left every tile
+    // after the first a 403 -> `missing`: 189 of 194 pictures drew a glyph (V2-8.14).
+    if (tileHold.job.url === String(msg.url)) return tileHold;
+    const { page, job } = tileHold;
+    job.url = String(msg.url);
+    job.entered = false;
+    try {
+      await page.goto(job.url, { waitUntil: 'domcontentloaded', timeout: 10_000 });
+      assertOrigin(page, job);
+    } catch (e) {
+      dropTileHold();
+      throw e;
+    }
+    return tileHold;
+  }
   const job = {
     url: String(msg.url),
     expectOrigin: origin,
