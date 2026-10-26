@@ -13,10 +13,14 @@ mkdir -p .scr/impl
 case "${N:0:2}" in 13) DIR=13-design-system;; 14) DIR=14-editing;; 15) DIR=15-annotations;; esac
 rm -f .scr/impl/$DIR/*-$T.png .scr/impl/$DIR/*-$T.*.png
 run() {
-  local out
-  out=$(bun .scr/run.mjs "$@" 2>&1)
-  echo "$out" | grep -E "^shot|FAIL|RUN ERROR|pageerrors|^INSTANCE"
-  if ! echo "$out" | grep -q '^shot'; then echo "NO SHOTS:"; echo "$out" | tail -15; fi
+  local out try
+  # D7: a random port can be one Chrome refuses (ERR_UNSAFE_PORT, e.g. 6665) or one that collides: retry the scenario up to 3 times
+  for try in 1 2 3; do
+    out=$(bun .scr/run.mjs "$@" 2>&1)
+    echo "$out" | grep -E "^shot|FAIL|RUN ERROR|pageerrors|^INSTANCE"
+    if echo "$out" | grep -q '^shot'; then return 0; fi
+    echo "NO SHOTS (try $try):"; echo "$out" | tail -15
+  done
 }
 case "$N" in
 13)
@@ -26,6 +30,9 @@ case "$N" in
   echo "== s13s"; run .scr/s13s.mjs $T
   echo "== s13u"; run .scr/s13u.mjs $T
   if [ "$T" = light ]; then bun .scr/dsboard.mjs 2>&1 | tail -8; fi
+  ;;
+13u) # D7: re-run of s13u alone (ds-multi-schema), same reason as 13p
+  echo "== s13u"; run .scr/s13u.mjs $T
   ;;
 13p) # re-run of s13p alone (a random port can collide: EADDRINUSE)
   bun .scr/mk-dsconv.mjs 2>&1 | tail -2
