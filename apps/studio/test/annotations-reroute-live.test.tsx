@@ -153,7 +153,20 @@ describe('live re-route while the artboard is dragged', () => {
     }
     // …and the refused straight line says why.
     expect(last.a.tag?.text).toBe('the straight line would cross Mobile');
+    // p8-r11-15 (an-follow): …and, while the artboard is still in hand, the bubble that says what letting go does.
+    expect(last.a.route?.text).toBe('Let go — the shortest clean path');
     expect(h.modes.every((m) => m === 'drag')).toBe(true);
+  });
+
+  test('p8-r11-15: the let-go bubble is a drag-only hint — the settled route has none', () => {
+    const h = setup();
+    h.ctl.onFrame(frame('start', 0, 0));
+    h.ctl.onFrame(frame('move', 1000, -1000));
+    h.ctl.onFrame(frame('end', 1000, -1000));
+    h.flush();
+    const settled = h.calls.arrows.at(-1) as { a: LiveArrow; phase: string };
+    expect(settled.phase).toBe('settle');
+    expect(settled.a.route).toBeNull();
   });
 
   test('let go: one settle at grid 20 is scheduled, then the hold lets go when the board lands', () => {
@@ -221,6 +234,7 @@ describe('the DOM sink', () => {
     color: '#1a1a1a',
     width: 2,
     tag,
+    route: null,
   });
 
   test('a translate composes with the rotation; clear restores every node', () => {
@@ -241,6 +255,17 @@ describe('the DOM sink', () => {
     expect(world.querySelector('[data-testid="annot-cross-tag"]')?.textContent).toBe(
       'the straight line would cross Mobile'
     );
+    // p8-r11-15: the let-go bubble rides with the live arrow and goes with the next frame that has none
+    sink.arrow(
+      { ...live('arw'), route: { text: 'Let go — the shortest clean path', at: { x: 7, y: 3 } } },
+      'drag'
+    );
+    const bubble = world.querySelector('[data-testid="annot-route-tag"]') as HTMLElement;
+    expect(bubble.textContent).toBe('Let go — the shortest clean path');
+    expect(bubble.style.left).toBe('7px');
+    sink.arrow(live('arw'), 'drag');
+    expect(world.querySelector('[data-testid="annot-route-tag"]')).toBeNull();
+    sink.arrow({ ...live('arw'), route: { text: 'x', at: { x: 0, y: 0 } } }, 'drag');
     sink.clear();
     expect(sun.style.translate).toBe('');
     expect((world.querySelector('[data-id="arw"]') as HTMLElement).style.visibility).toBe('');

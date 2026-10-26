@@ -684,6 +684,11 @@ const ANNOT_CSS = `
 .dc-annot-ride-svg g.is-settling { opacity: 0; transition: opacity var(--dur-soft, 160ms) var(--ease-out, ease-out); }
 .dc-annot-ride-svg g.is-settling.is-in { opacity: 1; }
 .dc-annot-ride-svg g.is-leaving { opacity: 0; transition: opacity var(--dur-soft, 160ms) var(--ease-out, ease-out); }
+.dc-annot-route {
+  position: absolute; transform: translate(-50%, calc(-100% - 8px)); white-space: nowrap; pointer-events: none;
+  font: 500 12px/1.3 var(--font-ui, system-ui, sans-serif); padding: 2px 8px; border-radius: 4px;
+  color: var(--maude-hud-bg, #fff); background: var(--maude-hud-fg, #1a1a1a);
+}
 .dc-annot-cross {
   position: absolute; transform: translate(-50%, -50%); white-space: nowrap; pointer-events: none;
   font: 500 12px/1.3 var(--font-ui, system-ui, sans-serif); padding: 2px 8px; border-radius: 999px;
