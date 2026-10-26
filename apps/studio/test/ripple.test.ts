@@ -87,6 +87,15 @@ describe('applyRippleAfterClip — standalone sequences', () => {
     expect(r.source).toContain('from={A + 70}');
   });
 
+  test('fromFrame: a piece starting inside the edited span stays, one at the old end moves', () => {
+    // "one" spans 0-90; "two" starts at 90 (the old end), "three" at 190. Shrink "one" by 30 with
+    // the editor threshold at its old end: both later pieces move, an earlier-starting one would not.
+    const r = applyRippleAfterClip(CANVAS, STANDALONE, 'a', 'name:two', -30, { fromFrame: 190 });
+    expect(r.shifted).toEqual(['name:three']);
+    expect(r.source).toContain('from={90}'); // "two" starts before 190: untouched, no refusal
+    expect(r.source).toContain('from={A + 70}');
+  });
+
   test('delta 0 is a no-op', () => {
     const r = applyRippleAfterClip(CANVAS, STANDALONE, 'a', 'name:one', 0);
     expect(r.source).toBe(STANDALONE);

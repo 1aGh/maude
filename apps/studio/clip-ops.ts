@@ -778,7 +778,9 @@ export function applySetPlaybackRate(
   assertParses(canvasAbsPath, out, stableId);
   assertCompSemantics(canvasAbsPath, out);
   if (oldDur != null && newDur != null && newDur !== oldDur) {
-    out = applyRippleAfterClip(canvasAbsPath, out, artboardId, stableId, newDur - oldDur).source;
+    out = applyRippleAfterClip(canvasAbsPath, out, artboardId, stableId, newDur - oldDur, {
+      fromFrame: clipAbsoluteStart(source, canvasAbsPath, artboardId, stableId) + oldDur,
+    }).source;
   }
   return { source: out, rate, newDuration: newDur };
 }
@@ -850,7 +852,9 @@ export function applyTrimIn(
   assertParses(canvasAbsPath, out, stableId);
   assertCompSemantics(canvasAbsPath, out);
   if (effDelta !== 0) {
-    out = applyRippleAfterClip(canvasAbsPath, out, artboardId, stableId, -effDelta).source;
+    out = applyRippleAfterClip(canvasAbsPath, out, artboardId, stableId, -effDelta, {
+      fromFrame: clipAbsoluteStart(source, canvasAbsPath, artboardId, stableId) + oldDur,
+    }).source;
   }
   return { source: out, trimBefore: newTrim, newDuration: newDur };
 }

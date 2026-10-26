@@ -246,7 +246,12 @@ describe('the host', () => {
     document.body.innerHTML = '';
   });
 
-  async function mount(f: ReturnType<typeof fakeFetch>, toasts: string[], cfg: unknown = CFG) {
+  async function mount(
+    f: ReturnType<typeof fakeFetch>,
+    toasts: string[],
+    cfg: unknown = CFG,
+    extra: Record<string, unknown> = {}
+  ) {
     const el = document.createElement('div');
     document.body.append(el);
     const root = createRoot(el);
@@ -259,6 +264,7 @@ describe('the host', () => {
           toast={(m: string) => toasts.push(m)}
           scope="Studio site"
           fetchImpl={f.impl}
+          {...extra}
         />
       )
     );
@@ -310,6 +316,29 @@ describe('the host', () => {
     });
     expect(toasts).toEqual(['Updated 2 canvases. 1 left out keeps the old look.']);
     expect(q('ds-review')).toBeNull(); // closed
+  });
+
+  // p8-e2e-prodfix — the Canvases rows' "update" word reads the project index in `cfg`
+  // (canvasDsRevs / systemHeads). Update writes new revisions, but nothing re-read the index, so
+  // the word never appeared although the server's index already named the left-out canvas.
+  test('a published Update re-reads the project index; a refusal does not', async () => {
+    const calls: number[] = [];
+    const f = fakeFetch({});
+    await mount(f, [], CFG, { reloadTree: () => calls.push(1) });
+    await act(async () => void requestDsReview({ kind: 'review' }));
+    await settle();
+    await act(async () => q('ds-review-update')?.click());
+    await settle();
+    expect(calls.length).toBe(1);
+
+    const refused: number[] = [];
+    const g = fakeFetch({ publish: { status: 409, body: { code: 'ds-head-moved' } } });
+    await mount(g, [], CFG, { reloadTree: () => refused.push(1) });
+    await act(async () => void requestDsReview({ kind: 'review' }));
+    await settle();
+    await act(async () => q('ds-review-update')?.click());
+    await settle();
+    expect(refused.length).toBe(0);
   });
 
   test('a moved head is a refusal in words, and the sheet stays', async () => {
