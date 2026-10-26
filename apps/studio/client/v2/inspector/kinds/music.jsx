@@ -128,7 +128,9 @@ function SnapRow({ t }) {
             checked={mode === 'beat'}
             ariaLabel={MUSIC_WORDS.snap}
             onChange={async (on) => {
-              const r = await saveSnap(t.canvas, t.artboardId, on ? 'beat' : 'off');
+              // on = back to the default (V2-1.10 §5.5: "beat" when absent and the song has a clear beat — the
+              // only time this switch is drawn): the stored choice is taken out, never a "beat" written over it
+              const r = await saveSnap(t.canvas, t.artboardId, on ? null : 'off');
               if (!r.ok) shellToast(r.message);
             }}
           />

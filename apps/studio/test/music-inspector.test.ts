@@ -376,6 +376,12 @@ describe('a song on the Music track (07 ve-music)', () => {
     expect(patch?.method).toBe('PATCH');
     expect(patch?.body).toEqual({ file: CANVAS, snap: { reel: 'off' } });
     expect(chk(host, 'insp-music-snap').checked).toBe(false);
+    // back on = back to the default (V2-1.10 §5.5: "beat" when absent and the song has a clear beat): the stored
+    // choice is taken out, never a second "beat" written over it
+    await click(q(host, 'insp-music-snap')?.querySelector('input') ?? null, 'the snap switch');
+    const patches = reqs.filter((r) => r.url === '/_api/present-meta');
+    expect(patches.at(-1)?.body).toEqual({ file: CANVAS, snap: { reel: null } });
+    expect(chk(host, 'insp-music-snap').checked).toBe(true);
   });
 
   test('a song with no clear beat has no Snap switch and no Cut to the beat — it says why', async () => {
