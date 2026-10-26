@@ -83,12 +83,15 @@ export function allowedRoots({
   projectDir = process.env.CLAUDE_PROJECT_DIR,
   root = null,
 } = {}) {
+  // V2-8.9 M2 — in the Maude AI chat the temp dir IS the chat's scratch (the bridge sets TMPDIR);
+  // the shared /tmp is not a place its outputs go.
+  const chat = process.env.MAUDE_AGENT_ACTOR === 'maude-chat';
   const roots = [
     findProjectRoot(cwd),
     root ? findProjectRoot(resolve(cwd, root)) : null,
     projectDir,
     tmpdir(),
-    '/tmp',
+    chat ? null : '/tmp',
   ].filter(Boolean);
   return [...new Set(roots.map((r) => realpathDeep(r)))];
 }

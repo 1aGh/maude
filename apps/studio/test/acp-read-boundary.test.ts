@@ -29,7 +29,13 @@ import {
   newSessionParams,
   sessionReadRoots,
 } from '../acp/bridge.ts';
-import { readAllowRules, readBoundaryRoots, readVerdict } from '../acp/may-scope.ts';
+import {
+  bashReadsOutside,
+  chatScratchDir,
+  readAllowRules,
+  readBoundaryRoots,
+  readVerdict,
+} from '../acp/may-scope.ts';
 import { createGrantStore, resolveFolder } from '../ai/attach-grants.ts';
 import { DEV_SERVER_ROOT } from '../paths.ts';
 
@@ -103,20 +109,81 @@ describe('the pure rules', () => {
     expect(readAllowRules(['/a/b'])).toEqual(['Read(//a/b/**)']);
   });
 
-  test('a chat session’s default boundary: + Maude’s package root, $TMPDIR and /tmp as they resolve', () => {
-    const roots = sessionReadRoots(repo, [{ type: 'local', path: plugin }]);
+  test('a chat session’s default boundary: + Maude’s own files, the chat’s scratch, Claude Code’s folder for this project', () => {
+    const roots = sessionReadRoots(repo, [{ type: 'local', path: plugin }], undefined, 'c1');
+    const uid = process.getuid?.() ?? 0;
     expect(roots).toEqual(
       expect.arrayContaining([
         repo,
         design,
         plugin,
-        join(DEV_SERVER_ROOT, '..', '..'),
-        realpathSync(tmpdir()),
-        realpathSync('/tmp'),
+        DEV_SERVER_ROOT,
+        join(DEV_SERVER_ROOT, '..', '..', 'plugins'),
+        chatScratchDir(repo, 'c1'),
+        join('/tmp', `claude-${uid}`, repo.replace(/[^A-Za-z0-9]/g, '-')),
       ])
     );
     expect(roots).not.toContain(outside);
     expect(roots).not.toContain(homedir());
+    // V2-8.9 L1 — never the package's parent folder (a source checkout's repo root: .env.local, profiles)
+    expect(roots).not.toContain(join(DEV_SERVER_ROOT, '..', '..'));
+    // V2-8.9 M2 — never all of /tmp or $TMPDIR (every session's task output lives there)
+    for (const t of [tmpdir(), '/tmp']) {
+      expect(roots).not.toContain(t);
+      expect(roots).not.toContain(realpathSync(t));
+    }
+    // each chat has its own scratch
+    expect(chatScratchDir(repo, 'c1')).not.toBe(chatScratchDir(repo, 'c2'));
+  });
+
+  test('M2 — another session’s task output under /tmp is outside; this project’s is inside', () => {
+    const roots = sessionReadRoots(repo, [], undefined, 'c1');
+    const uid = process.getuid?.() ?? 0;
+    const other = join(
+      '/tmp',
+      `claude-${uid}`,
+      '-Users-someone-git-studyfi-x',
+      's',
+      'tasks',
+      'a.output'
+    );
+    expect(readVerdict('Read', call({ file_path: other }), repo, roots)).toBe('outside');
+    const mine = join(
+      '/tmp',
+      `claude-${uid}`,
+      repo.replace(/[^A-Za-z0-9]/g, '-'),
+      's',
+      'tasks',
+      'b.output'
+    );
+    expect(readVerdict('Read', call({ file_path: mine }), repo, roots)).toBe('inside');
+    expect(
+      readVerdict(
+        'Read',
+        call({ file_path: join(chatScratchDir(repo, 'c1'), 'x.png') }),
+        repo,
+        roots
+      )
+    ).toBe('inside');
+    expect(
+      readVerdict(
+        'Read',
+        call({ file_path: join(chatScratchDir(repo, 'c2'), 'x.png') }),
+        repo,
+        roots
+      )
+    ).toBe('outside');
+  });
+
+  test('L2 — a read-only shell command on an outside path is flagged; in-project is not', () => {
+    const roots = [repo, design];
+    expect(bashReadsOutside(`cat ${join(outside, 'tax.pdf')}`, repo, roots)).toBe(true);
+    expect(bashReadsOutside('head -n 5 ~/maude-p8-probe/x.txt', repo, roots)).toBe(true);
+    expect(bashReadsOutside('cd .design && rg secret $HOME/maude-p8-probe', repo, roots)).toBe(true);
+    expect(bashReadsOutside('FOO=1 cat /etc/hosts | wc -l', repo, roots)).toBe(true);
+    expect(bashReadsOutside('cat README.md', repo, roots)).toBe(false);
+    expect(bashReadsOutside('ls .design/ui', repo, roots)).toBe(false);
+    expect(bashReadsOutside('maude design screenshot --full --out x.png', repo, roots)).toBe(false);
   });
 
   test('inside the project → inside; outside → outside; not a read tool → null', () => {
@@ -278,11 +345,12 @@ describe('through the bridge', () => {
   });
 
   test('a consented folder: approved; after Remove, the card again', async () => {
-    const store = createGrantStore(design);
+    const store = createGrantStore({ projectRoot: repo, designRoot: design, home: tmp });
     const folder = resolveFolder(consented, { projectRoot: repo, designRoot: design, home: tmp });
     if (!folder.ok) throw new Error(`folder refused: ${folder.code}`);
     expect(store.grant(folder, 'c1')).toEqual({ ok: true });
-    const roots = () => createGrantStore(design).chatRoots('c1');
+    const roots = () =>
+      createGrantStore({ projectRoot: repo, designRoot: design, home: tmp }).chatRoots('c1');
 
     const allowed = await ask({ file_path: join(consented, 'a.jpg') }, roots);
     expect(allowed.prompts).toHaveLength(0);
@@ -312,5 +380,18 @@ describe('through the bridge', () => {
     const { prompts, out } = await ask({ file_path: join(home, '.ssh', 'id_ed25519') });
     expect(prompts).toHaveLength(0);
     expect(out).toContain('"optionId":"reject"');
+  });
+});
+
+// V2-8.9 L2 — a Bash card for `cat <outside>` must not offer "Always allow": the adapter turns it
+// into a standing `Bash(cat:*)` rule that reads anywhere, outside the folder consent.
+describe('L2 — read-only Bash cards', () => {
+  test('`cat <outside file>` → the card without Always allow; `cat README.md` keeps it', async () => {
+    const outsideCat = await ask({ command: `cat ${join(outside, 'tax.pdf')}` }, undefined, 'Bash');
+    expect(outsideCat.prompts).toHaveLength(1);
+    expect(outsideCat.prompts[0]?.options?.some((o) => o.kind === 'allow_always')).toBe(false);
+    const inside = await ask({ command: 'cat README.md' }, undefined, 'Bash');
+    expect(inside.prompts).toHaveLength(1);
+    expect(inside.prompts[0]?.options?.some((o) => o.kind === 'allow_always')).toBe(true);
   });
 });

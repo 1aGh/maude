@@ -2,9 +2,15 @@
 //
 // WHAT A GRANT IS
 // ---------------
-// "Let AI read “<folder>”?" — asked once per folder (its REAL path), per Mac, recorded in
-// `<designRoot>/_state/ai-grants.json` (DDR-115 runtime state: `_state/` is ignored, never synced,
-// never served to the canvas origins). A grant is consent; it is not access on its own:
+// "Let AI read “<folder>”?" — asked once per folder (its REAL path), per Mac, recorded in this
+// machine's per-project state OUTSIDE the project: `<index dir>/projects/<pid>/ai-grants.json`
+// (`grantsFileFor`, the frame key's place — decision v2-gate-b-c4e-frame-key-outside-design-root).
+// V2-8.9 B1 (decision maude/v2-p8-grants-outside-design-root): the old home,
+// `<designRoot>/_state/ai-grants.json`, sat where the agent auto-writes, so a chat could grant itself
+// any folder. A legacy file is migrated once (its folders re-judged by `resolveFolder`) and deleted;
+// after that one is only ever deleted, never read. Every use re-judges a stored root too, so even a
+// forged store cannot reach a folder the picker would refuse. A grant is consent; it is not access
+// on its own:
 //   • a chat reads a granted folder only while that folder is ATTACHED to that chat
 //     (`chats[<chatId>]`) — removing the chip detaches it, Advanced's Reset revokes it everywhere;
 //   • a granted folder is READ-ONLY for every chat: `readOnlyRoots()` feeds the ACP write gate
@@ -30,12 +36,14 @@ import {
   readFileSync,
   realpathSync,
   renameSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { isInsideRoot } from '../acp/write-scope.ts';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { isInsideRoot, resolveRealPath } from '../acp/write-scope.ts';
+import { pidOf, projectDir } from '../index/snapshot.ts';
 
 /** The limits the panel states and the routes enforce. */
 export const ATTACH_FOLDER_LIMITS = {
@@ -290,7 +298,23 @@ interface GrantsFile {
   chats: Record<string, string[]>;
 }
 
-export const GRANTS_REL = join('_state', 'ai-grants.json');
+/** Where grants lived before V2-8.9 B1 — inside the design root. Migrated once, then only deleted. */
+export const LEGACY_GRANTS_REL = join('_state', 'ai-grants.json');
+
+/** This machine's grants file for one project: outside the project tree and its design root. */
+export function grantsFileFor(projectRoot: string): string {
+  return join(projectDir(pidOf(projectRoot)), 'ai-grants.json');
+}
+
+/** Where a project's grants live and what a stored root is re-judged against. */
+export interface GrantPlace {
+  projectRoot: string;
+  designRoot: string;
+  /** Injectable for tests; the real home otherwise. */
+  home?: string;
+  /** Tests only — the grants file (default `grantsFileFor(projectRoot)`). */
+  file?: string;
+}
 const CHAT_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
 export function isChatId(v: unknown): v is string {
@@ -344,13 +368,28 @@ export interface GrantStore {
   readOnlyRoots(): string[];
 }
 
-export function createGrantStore(designRoot: string, now: () => number = Date.now): GrantStore {
-  const file = join(designRoot, GRANTS_REL);
+export function createGrantStore(place: GrantPlace, now: () => number = Date.now): GrantStore {
+  const file = place.file ?? grantsFileFor(place.projectRoot);
+  // Fail closed on a misplaced store (MAUDE_INDEX_DIR pointed into the project): the agent writes
+  // there, so a file in it is never trusted and nothing is written to it — no folder is allowed.
+  const f = resolveRealPath(file, sep);
+  const misplaced = [place.designRoot, place.projectRoot].some((r) => {
+    const root = resolveRealPath(r, sep);
+    return f === root || isInsideRoot(f, root);
+  });
+  migrateLegacyGrants(place, file, misplaced);
+  const read = (): GrantsFile => (misplaced ? emptyGrants() : readGrants(file));
   const write = (g: GrantsFile) => {
-    mkdirSync(join(designRoot, '_state'), { recursive: true });
+    if (misplaced) throw new Error('grants store is inside the project');
+    mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
     const tmp = `${file}.${process.pid}.tmp`;
     writeFileSync(tmp, `${JSON.stringify(g, null, 2)}\n`, { mode: 0o600 });
     renameSync(tmp, file);
+  };
+  /** Still a folder the picker would allow, and still the same folder (no swap, no move). */
+  const stillAllowed = (root: string) => {
+    const r = resolveFolder(root, place);
+    return r.ok && r.root === root;
   };
   const granted = (g: GrantsFile, root: string) => g.folders.some((f) => f.root === root);
   const addChat = (g: GrantsFile, root: string, chatId: string) => {
@@ -360,11 +399,11 @@ export function createGrantStore(designRoot: string, now: () => number = Date.no
   };
 
   return {
-    list: () => readGrants(file).folders,
-    isGranted: (root) => granted(readGrants(file), root),
+    list: () => read().folders,
+    isGranted: (root) => granted(read(), root),
     grant(folder, chatId) {
       if (!isChatId(chatId)) return { ok: false, code: 'bad-path' };
-      const g = readGrants(file);
+      const g = read();
       if (!granted(g, folder.root)) {
         if (g.folders.length >= ATTACH_FOLDER_LIMITS.grantsMax)
           return { ok: false, code: 'too-many' };
@@ -381,7 +420,7 @@ export function createGrantStore(designRoot: string, now: () => number = Date.no
     },
     attach(root, chatId) {
       if (!isChatId(chatId)) return { ok: false, code: 'bad-path' };
-      const g = readGrants(file);
+      const g = read();
       if (!granted(g, root)) return { ok: false, code: 'not-granted' };
       if (!stillSame(root)) return { ok: false, code: 'moved' };
       addChat(g, root, chatId);
@@ -389,7 +428,7 @@ export function createGrantStore(designRoot: string, now: () => number = Date.no
       return { ok: true };
     },
     detach(root, chatId) {
-      const g = readGrants(file);
+      const g = read();
       const list = g.chats[chatId];
       if (!list?.includes(root)) return;
       const next = list.filter((r) => r !== root);
@@ -398,7 +437,7 @@ export function createGrantStore(designRoot: string, now: () => number = Date.no
       write(g);
     },
     revoke(root) {
-      const g = readGrants(file);
+      const g = read();
       if (!granted(g, root)) return false;
       g.folders = g.folders.filter((f) => f.root !== root);
       for (const id of Object.keys(g.chats)) {
@@ -411,31 +450,67 @@ export function createGrantStore(designRoot: string, now: () => number = Date.no
     },
     chatRoots(chatId) {
       if (!isChatId(chatId)) return [];
-      const g = readGrants(file);
-      return (g.chats[chatId] ?? []).filter((r) => granted(g, r) && stillSame(r));
+      const g = read();
+      return (g.chats[chatId] ?? []).filter((r) => granted(g, r) && stillAllowed(r));
     },
     // Deliberately NOT filtered by `stillSame`: a folder that moved is still one the person said
     // AI may only read. Over-including here only ever adds a prompt.
-    readOnlyRoots: () => readGrants(file).folders.map((f) => f.root),
+    readOnlyRoots: () => read().folders.map((f) => f.root),
   };
+}
+
+/**
+ * V2-8.9 B1 — the one-time move of `<designRoot>/_state/ai-grants.json` to the app-owned store.
+ * Only while no app-owned store exists yet does the legacy file's content count (each folder
+ * re-judged by `resolveFolder`, so a forged `/` or `~/.ssh` is dropped); the store is created then,
+ * empty if need be, so a legacy file planted afterwards is deleted unread. Never throws.
+ */
+function migrateLegacyGrants(place: GrantPlace, file: string, misplaced: boolean): void {
+  const legacy = join(place.designRoot, LEGACY_GRANTS_REL);
+  try {
+    if (misplaced) return;
+    if (existsSync(file)) {
+      if (existsSync(legacy)) rmSync(legacy, { force: true });
+      return;
+    }
+    const old = readGrants(legacy);
+    const folders = old.folders.filter((f) => {
+      const r = resolveFolder(f.root, place);
+      return r.ok && r.root === f.root;
+    });
+    const kept = new Set(folders.map((f) => f.root));
+    const chats: Record<string, string[]> = {};
+    for (const [id, roots] of Object.entries(old.chats)) {
+      const next = roots.filter((r) => kept.has(r));
+      if (next.length) chats[id] = next;
+    }
+    mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
+    const tmp = `${file}.${process.pid}.tmp`;
+    writeFileSync(tmp, `${JSON.stringify({ v: 1, folders, chats }, null, 2)}\n`, { mode: 0o600 });
+    renameSync(tmp, file);
+    rmSync(legacy, { force: true });
+  } catch {
+    /* an unwritable index dir: the store stays absent and the legacy file is never read again
+       except by this same migration, which only ever drops refused folders */
+  }
 }
 
 /**
  * For the ACP read gate (M2, decision maude/v2-michal-m2-read-boundary): the folders one chat may read
  * now — allowed, attached to it, still the same folder. Never throws (a broken file allows nothing).
  */
-export function chatReadRootsFor(designRoot: string, chatId: string): string[] {
+export function chatReadRootsFor(place: GrantPlace, chatId: string): string[] {
   try {
-    return createGrantStore(designRoot).chatRoots(chatId);
+    return createGrantStore(place).chatRoots(chatId);
   } catch {
     return [];
   }
 }
 
 /** For the ACP write gate: cheap, and never throws (a broken file grants nothing). */
-export function readOnlyRootsFor(designRoot: string): string[] {
+export function readOnlyRootsFor(place: GrantPlace): string[] {
   try {
-    return createGrantStore(designRoot).readOnlyRoots();
+    return createGrantStore(place).readOnlyRoots();
   } catch {
     return [];
   }

@@ -56,7 +56,7 @@ maude design smart-frames <asset> [--root <repo>] [--out-dir DIR] [--frames N]
   "scout": null,                            // "mlx" | "ollama" when the gemma scout contributed beats
   "sceneCuts": [0.233, 6.533],              // ffmpeg scene-detect (empty in blind)
   "scoutBeats": [{ "t": 6.9, "what": "run play" }],  // gemma only (empty otherwise)
-  "outDir": "/tmp/smart-frames-…",
+  "outDir": "$TMPDIR/smart-frames-…",
   "frames": [ { "index": 1, "t": 0.0, "png": "…/f_01.png" }, … ] }
 ```
 

@@ -106,6 +106,8 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { urlRefusal } from './_url-guard.mjs';
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 // A fixed, empty, valid-JSON config file this wrapper always points
 // agent-browser at — per agent-browser's own docs, `--config <path>`
@@ -167,6 +169,13 @@ export function validateArgv(argv) {
   if (rest.length < min || rest.length > max) {
     const expected = min === max ? `exactly ${min}` : `${min}-${max}`;
     return `"${sub}" takes ${expected} argument(s), got ${rest.length} — no flags of any kind are accepted here (agent-browser-safe has no flag vocabulary at all; see --help)`;
+  }
+  // V2-8.9 B2 — `--allowed-domains` names hosts, so it never stopped `file://` (no host at all):
+  // `open file:///…/.ssh/id_ed25519` + `get text body` read any file. Only http(s) to this Mac.
+  // (`screenshot <path>` is confined to the project / temp dir by the dispatcher, cli design.mjs.)
+  if (sub === 'open') {
+    const why = urlRefusal(rest[0]);
+    if (why) return why;
   }
   return null;
 }

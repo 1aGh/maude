@@ -227,6 +227,7 @@ esac
 # or `%` would otherwise truncate or rewrite the query string.
 REL_ENC=$("$JS_RUNTIME" -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$REL_FULL")
 URL="http://localhost:${PORT}/_canvas-shell.html?canvas=${REL_ENC}"
+. "$SCRIPT_DIR/_url-guard.sh" && maude_url_guard "$URL" || exit 2 # V2-8.9 B2 — http(s) to this Mac only
 
 # ---------- history path ----------
 # `_smoke/` is already IGNORED runtime state (DDR-115), so the benchmark log

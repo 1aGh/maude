@@ -64,6 +64,26 @@ test('inside the project and the temp dir pass; /tmp/../etc and ~ are refused', 
   }
 });
 
+// V2-8.9 M2 — in the Maude AI chat the temp dir is the chat's scratch (TMPDIR); the shared /tmp is
+// no output root.
+test('in the Maude AI chat, /tmp is not an output root; the temp dir still is', () => {
+  const p = project();
+  const prev = process.env.MAUDE_AGENT_ACTOR;
+  process.env.MAUDE_AGENT_ACTOR = 'maude-chat';
+  try {
+    if (realpathSync(tmpdir()) !== realpathSync('/tmp'))
+      assert.notEqual(outputViolation(['--out', '/tmp/x.png'], { cwd: p, projectDir: '' }), null);
+    assert.equal(
+      outputViolation(['--out', join(tmpdir(), 'x.png')], { cwd: p, projectDir: '' }),
+      null
+    );
+  } finally {
+    if (prev === undefined) delete process.env.MAUDE_AGENT_ACTOR;
+    else process.env.MAUDE_AGENT_ACTOR = prev;
+    rmSync(p, { recursive: true, force: true });
+  }
+});
+
 test('a symlink inside the project that points out of it is refused', () => {
   const p = project();
   try {
@@ -120,6 +140,8 @@ test('`maude design <verb> --out /tmp/../etc/x` exits 2 before the helper runs',
       ['svg-optimize', '--out', '/tmp/../etc/maude-confine-probe'],
       ['curl-local', 'http://127.0.0.1:9/', '--output', '/tmp/../etc/maude-confine-probe'],
       ['slug', 'foo', `--out=${join(homedir(), '..', '..', 'etc', 'maude-confine-probe')}`],
+      // V2-8.9 B2 — agent-browser-safe's screenshot path is a positional, not a flag.
+      ['agent-browser-safe', 'screenshot', '/tmp/../etc/maude-confine-probe.png'],
     ];
     for (const args of cases) {
       const r = spawnSync(process.execPath, [MAUDE, 'design', ...args], {

@@ -59,6 +59,8 @@
 import { realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
+import { agentPath } from './agent-path.ts';
+
 /**
  * The tools this gate scopes. Bare names as they arrive on
  * `_meta.claudeCode.toolName`.
@@ -99,7 +101,10 @@ export type WriteScopeReason =
   | 'read-only-grant'
   /** S8.10 — inside the project, but not the one path this run may write (a Handoff to production
    *  run writes its target file and nothing else, decision v2-S8.10-run-write-scope). */
-  | 'outside-run-scope';
+  | 'outside-run-scope'
+  /** V2-8.9 B1 — inside the project, under the design root's `_*` runtime state (sessions, chats,
+   *  comments, grants…), and not one of the agent's own working folders (`AGENT_RUNTIME_OUTPUTS`). */
+  | 'runtime-state';
 
 export interface WriteScopeVerdict {
   /** True ONLY when every resolvable target is inside the pinned project root. */
@@ -249,6 +254,35 @@ export const PROTECTED_PREFIXES: readonly string[][] = [
   // flow's `quality` gates are `eval`ed; the rest of `.ai/` (plans, logs) is ordinary work.
   ['.ai', 'workflows.config.json'],
 ];
+
+/**
+ * V2-8.9 B1 (decision maude/v2-p8-runtime-state-write-asks) — the design root's runtime state is
+ * the app's, not the agent's: `_state/` (consent, keys, sessions), `_chat/`, `_comments/`,
+ * `_canvas-state/`, `_trash/`, `_server.json`, `_active.json`, `_sync.json`… An auto-approved write
+ * there let a chat forge its own consent. Only the folders the design plugin tells the agent to
+ * write stay auto: the run folder, draw/photo/smoke scratch, the research cache under `_history/`
+ * and the critic routing note. Everything else under `<designRoot>/_*` goes to the card.
+ */
+export const AGENT_RUNTIME_OUTPUTS: readonly string[] = [
+  '_runs',
+  '_draw',
+  '_photo',
+  '_smoke',
+  '_history',
+  '_last-feedback.txt',
+];
+
+/** True when `target` (resolved) sits in a design root's `_*` runtime state the agent doesn't own. */
+export function isRuntimeStateWrite(target: string, designRoots: readonly string[]): boolean {
+  // Folded like `isProtectedInProject`: APFS is case-insensitive, so `_STATE` is `_state`.
+  const fold = (v: string) => v.toLowerCase();
+  return designRoots.some((root) => {
+    const rel = relative(fold(root), fold(target));
+    if (!rel || isAbsolute(rel) || rel === '..' || rel.startsWith(`..${sep}`)) return false;
+    const first = rel.split(sep)[0] ?? '';
+    return first.startsWith('_') && !AGENT_RUNTIME_OUTPUTS.some((o) => fold(o) === first);
+  });
+}
 
 /**
  * True when `target` (resolved, already known to be inside `root`) touches a
@@ -420,10 +454,11 @@ export function writeTargetsInsideProject(
   scopeRoot: string,
   toolName: unknown,
   readOnlyRoots: readonly string[] = [],
-  onlyPaths: readonly string[] | null = null
+  onlyPaths: readonly string[] | null = null,
+  designRoots: readonly string[] = []
 ): WriteScopeVerdict {
   if (!isWriteToolName(toolName)) return { inside: false, reason: 'no-target', resolved: [] };
-  return resolveWriteTargets(toolCall, scopeRoot, readOnlyRoots, onlyPaths);
+  return resolveWriteTargets(toolCall, scopeRoot, readOnlyRoots, onlyPaths, designRoots);
 }
 
 /**
@@ -464,7 +499,8 @@ export function resolveWriteTargets(
   toolCall: ToolCallLike | null | undefined,
   scopeRoot: string,
   readOnlyRoots: readonly string[] = [],
-  onlyPaths: readonly string[] | null = null
+  onlyPaths: readonly string[] | null = null,
+  designRoots: readonly string[] = []
 ): WriteScopeVerdict {
   const { fromLocations, fromRawInput } = collectTargets(toolCall);
   if (fromLocations.length === 0 && fromRawInput.length === 0) {
@@ -476,8 +512,18 @@ export function resolveWriteTargets(
 
   // Resolve BOTH sources before comparing them. Comparing the raw strings would
   // call `./x.tsx` and `/repo/x.tsx` a disagreement when they are the same file.
-  const resolvedLocations = fromLocations.map((p) => resolveRealPath(p, scopeRoot));
-  const resolvedRawInput = fromRawInput.map((p) => resolveRealPath(p, scopeRoot));
+  // V2-8.9 H1 — Claude Code's spelling first (agent-path.ts): `~/x` is the home folder's x, not
+  // `<project>/~/x`. A NUL names nothing judgeable; a spelling readers may disagree on (spaces
+  // around it, a leading `~`) is never inside.
+  const spelled = [...fromLocations, ...fromRawInput].map((p) => agentPath(p, scopeRoot));
+  if (spelled.some((a) => a === null)) return { inside: false, reason: 'no-target', resolved: [] };
+  const odd = spelled.some((a) => a?.odd);
+  const real = (p: string) => {
+    const a = agentPath(p, scopeRoot);
+    return resolveRealPath(a ? a.abs : p, scopeRoot);
+  };
+  const resolvedLocations = fromLocations.map(real);
+  const resolvedRawInput = fromRawInput.map(real);
 
   // Cross-check (see the header — tautological against today's adapter, kept
   // because a gate whose whole job is fail-closed should not assume a
@@ -513,13 +559,17 @@ export function resolveWriteTargets(
     return { inside: false, reason: 'read-only-grant', resolved };
   }
   // EVERY target must pass — a multi-location write with one escape is an escape.
-  const inside = resolved.every((p) => isInsideRoot(p, scopeRoot));
+  const inside = !odd && resolved.every((p) => isInsideRoot(p, scopeRoot));
   if (!inside) return { inside: false, reason: 'outside', resolved };
   // Inside is NECESSARY but not SUFFICIENT. A write under `.git/` or `.claude/`
   // is in-project and still reaches execution, so it goes to the prompt like any
   // out-of-project write would. See PROTECTED_IN_PROJECT.
   if (resolved.some((p) => isProtectedInProject(p, scopeRoot))) {
     return { inside: false, reason: 'in-project-denied', resolved };
+  }
+  // V2-8.9 B1 — the app's runtime state under the design root is not the agent's to write.
+  if (designRoots.length && resolved.some((p) => isRuntimeStateWrite(p, designRoots))) {
+    return { inside: false, reason: 'runtime-state', resolved };
   }
   // S8.10 — a run with its own write scope (Handoff to production: the target file only). Judged
   // AFTER every project rule, so it can only narrow: each resolved target must BE one of the run's

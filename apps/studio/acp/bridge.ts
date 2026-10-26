@@ -8,9 +8,9 @@
 // (env.ts): the child inherits the environment MINUS `ANTHROPIC_API_KEY`, so
 // auth precedence falls through to the user's Pro/Max subscription.
 
-import { statSync } from 'node:fs';
+import { mkdirSync, statSync } from 'node:fs';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { delimiter, dirname, isAbsolute, join, resolve } from 'node:path';
 
 import {
   type AvailableCommand,
@@ -37,6 +37,7 @@ import {
   type AudienceLeak,
   audienceLeak,
   designRelOf,
+  privateLeak,
   readPathsOf,
   readsBeyond,
   shellPathWords,
@@ -49,7 +50,10 @@ import { chatSpawnEnv, scrubAgentEnv, teamsSpawnEnv } from './env.ts';
 import {
   type AiMay,
   assetsRootsFor,
+  bashReadsOutside,
   type CredentialPaths,
+  chatScratchDir,
+  claudeCodeTmpFor,
   credentialDenyRules,
   credentialPathsFor,
   credentialRefusal,
@@ -114,6 +118,12 @@ export interface AcpBridgeOptions {
    * takes it back the same way — no session restart. Absent / throws → none (fail closed: the card).
    */
   readRoots?: () => readonly string[];
+  /**
+   * V2-8.9 H2 — the app-owned consent store (`grantsFileFor`), handed to the agent's env as
+   * MAUDE_GRANTS_FILE so a source-reading `maude design` verb reads this chat's folders live
+   * (cli/lib/confine-read.mjs). Absent → the verbs see only the fixed roots.
+   */
+  grantsFile?: string;
   /** M2 — the read boundary's fixed roots. Absent → `sessionReadRoots(repoRoot, plugins, designRoot)`. */
   readBoundary?: readonly string[];
   /**
@@ -629,13 +639,20 @@ export function sessionAllowedTools(scope: {
 export function sessionReadRoots(
   repoRoot: string,
   plugins?: readonly SdkPluginConfig[],
-  designRoot?: string
+  designRoot?: string,
+  chatId?: string
 ): string[] {
   return readBoundaryRoots({
     repoRoot,
     designRoot: designRoot ?? join(repoRoot, '.design'),
     pluginRoots: (plugins ?? []).map((p) => p.path),
-    packageRoot: join(DEV_SERVER_ROOT, '..', '..'),
+    // V2-8.9 L1 — Maude's own files, listed: the studio (helpers, canvas-lib) and the plugins
+    // (templates). Never `../..`: in a source checkout that is the repo root, with its .env.local
+    // and browser profiles.
+    packageRoot: [DEV_SERVER_ROOT, join(DEV_SERVER_ROOT, '..', '..', 'plugins')],
+    // V2-8.9 M2 — the chat's scratch (its TMPDIR) and Claude Code's folder for this project; never
+    // all of /tmp.
+    tmpRoots: [chatScratchDir(repoRoot, chatId), ...claudeCodeTmpFor(repoRoot)],
   });
 }
 
@@ -965,7 +982,8 @@ export class AcpBridge {
       : sessionReadRoots(
           opts.repoRoot,
           opts.plugins,
-          opts.designRoot ?? join(opts.repoRoot, '.design')
+          opts.designRoot ?? join(opts.repoRoot, '.design'),
+          opts.chatId
         );
     this.assetsRoots = assetsRootsFor(
       opts.repoRoot,
@@ -1405,6 +1423,19 @@ export class AcpBridge {
     // gate-b-sec2 (decision v2-gate-b-sec2-session-root): the project this chat's maude verbs are
     // held to — `maude design` refuses a --root / cwd / CLAUDE_PROJECT_DIR naming another one.
     env.MAUDE_SESSION_ROOT = this.opts.repoRoot;
+    // V2-8.9 H2 — the read boundary of this chat for the verbs that read a path they are given
+    // (cli/lib/confine-read.mjs): the fixed roots now, the consented folders live from the store.
+    env.MAUDE_READ_ROOTS = this.readRoots.join(delimiter);
+    // V2-8.9 M2 — the agent's temp folder is this chat's own scratch (inside its read boundary), not
+    // the shared /tmp. Created owner-only; a failure leaves TMPDIR as it was (reads there then ask).
+    try {
+      const scratch = chatScratchDir(this.opts.repoRoot, this.opts.chatId);
+      mkdirSync(scratch, { recursive: true, mode: 0o700 });
+      env.TMPDIR = `${scratch}/`;
+    } catch {
+      /* no scratch: the agent's temp reads reach the card */
+    }
+    if (this.opts.grantsFile) env.MAUDE_GRANTS_FILE = this.opts.grantsFile;
     const proc = Bun.spawn([runtime.bin, adapterEntry], {
       cwd: this.opts.repoRoot,
       windowsHide: true, // #141 — never a console window for the adapter on Windows
@@ -1584,6 +1615,11 @@ export class AcpBridge {
             return info ? this.askPerson(params, { stripAlways: true, info }) : auto;
           });
         }
+        // V2-8.9 L2 — a read-only shell command (cat, head, rg…) on a path outside this chat's read
+        // boundary: no "Always allow" — it would become a standing `Bash(cat:*)` rule that reads
+        // anywhere, outside the folder consent.
+        if (!scope.stripAlways && this.bashReadsOutsideNow(params))
+          return this.askPerson(params, { ...scope, stripAlways: true });
         return this.askPerson(params, scope);
       },
       unstable_createElicitation: (
@@ -1842,14 +1878,22 @@ export class AcpBridge {
     if (!name || !view.rawInput) return;
     let found: TrackedRead[];
     try {
-      found = readPathsOf(name, view, this.opts.repoRoot, this.designRoots, (abs) => {
-        try {
-          const st = statSync(abs);
-          return st.isDirectory() ? 'dir' : st.isFile() ? 'file' : null;
-        } catch {
-          return null;
-        }
-      });
+      found = readPathsOf(
+        name,
+        view,
+        this.opts.repoRoot,
+        this.designRoots,
+        (abs) => {
+          try {
+            const st = statSync(abs);
+            return st.isDirectory() ? 'dir' : st.isFile() ? 'file' : null;
+          } catch {
+            return null;
+          }
+        },
+        // V2-8.9 M1 — Maude's own roots (plugins, package, this chat's scratch) are not private.
+        this.readRoots
+      );
     } catch {
       found = [];
     }
@@ -1947,6 +1991,9 @@ export class AcpBridge {
     }
     const targets = [...rels];
     if (call.implicitTarget || !targets.length) return card('audience-unknown', targets);
+    // V2-8.9 M1 — a file read from outside the project is private on a hub-linked project.
+    const priv = privateLeak(this.reads.values(), targets[0] ?? '');
+    if (priv) return card('audience', targets, priv);
     if (targets.length === 1 && !readsBeyond(this.reads.values(), targets))
       return Promise.resolve(auto);
     const source = this.opts.writeAudience;
@@ -1981,6 +2028,12 @@ export class AcpBridge {
       reason,
       ...(leak ? { audience: leak } : {}),
     });
+    // V2-8.9 M1 — on a hub-linked project, a file read from outside the project (a folder the
+    // person let AI read, the temp folder…) is a private source whatever the canvas grants say.
+    if (this.audienceGatedNow()) {
+      const priv = privateLeak(this.reads.values(), rels[0] ?? '');
+      if (priv) return Promise.resolve(card('audience', priv));
+    }
     return source.audienceOf(rels).then(
       (audiences) => {
         if (audiences === null) return card('audience-unknown');
@@ -2022,6 +2075,20 @@ export class AcpBridge {
    * strict (a confirmed read tool, every path inside, a once-only option on the table); taking
    * "Always allow" off is generous (a read-shaped call whose name went missing too).
    */
+  /** V2-8.9 L2 — see `bashReadsOutside` (may-scope.ts). A getter that throws counts as outside. */
+  private bashReadsOutsideNow(params: RequestPermissionRequest): boolean {
+    const toolCallId = params.toolCall?.toolCallId;
+    const name = typeof toolCallId === 'string' ? this.toolNames.get(toolCallId) : undefined;
+    const command = (params.toolCall?.rawInput as { command?: unknown } | undefined)?.command;
+    if (name !== 'Bash' || typeof command !== 'string') return false;
+    try {
+      const consented = this.opts.readRoots?.() ?? [];
+      return bashReadsOutside(command, this.scopeRoot, [...this.readRoots, ...consented]);
+    } catch {
+      return true;
+    }
+  }
+
   private classifyRead(
     params: RequestPermissionRequest
   ): Promise<RequestPermissionResponse> | null {
@@ -2090,8 +2157,15 @@ export class AcpBridge {
       only = [];
     }
     const verdict = named
-      ? writeTargetsInsideProject(params.toolCall, this.scopeRoot, toolName, readOnly, only)
-      : resolveWriteTargets(params.toolCall, this.scopeRoot, readOnly, only);
+      ? writeTargetsInsideProject(
+          params.toolCall,
+          this.scopeRoot,
+          toolName,
+          readOnly,
+          only,
+          this.designRoots
+        )
+      : resolveWriteTargets(params.toolCall, this.scopeRoot, readOnly, only, this.designRoots);
     if (!verdict.inside) {
       return {
         stripAlways: true,

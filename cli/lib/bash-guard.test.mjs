@@ -468,6 +468,10 @@ test('other project: --root, --design-root, cd and the session env are denied; t
       'env -i maude design read-annotations ui/C.tsx',
       `export CLAUDE_PROJECT_DIR=${b}; maude design read-annotations ui/C.tsx`,
       'unset MAUDE_CHAT_ID; maude design assets',
+      // V2-8.9 H2 — the chat's read boundary is the bridge's to set, never the command's.
+      'MAUDE_READ_ROOTS=/ maude design import-asset /etc/hosts',
+      'env -u MAUDE_READ_ROOTS maude design ingest-footage ~/maude-p8-probe',
+      'export MAUDE_GRANTS_FILE=/tmp/g.json; maude design import-asset ~/x.png',
     ];
     for (const cmd of DENY) assert.equal(c(cmd), 'out-of-project', cmd);
     const PASS = [

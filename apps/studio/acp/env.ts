@@ -90,6 +90,9 @@ const RUN_BINDING_KEYS: ReadonlySet<string> = new Set([
   'MAUDE_CHAT_ID',
   'MAUDE_AGENT_ACTOR',
   'MAUDE_SESSION_ROOT',
+  // V2-8.9 H2 — the chat's read boundary for the source-reading verbs; only the bridge sets them.
+  'MAUDE_READ_ROOTS',
+  'MAUDE_GRANTS_FILE',
 ]);
 /** A chat id as `acp/index.ts` keys its files (`sanitizeChatId`): what MAUDE_CHAT_ID may carry. */
 export const SPAWN_CHAT_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;

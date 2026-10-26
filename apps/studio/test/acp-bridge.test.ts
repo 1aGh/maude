@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { AcpBridge } from '../acp/bridge.ts';
+import { chatScratchDir } from '../acp/may-scope.ts';
 import {
   getClaudeAuthStatus,
   probeAcpAvailability,
@@ -179,6 +180,36 @@ describe('AcpBridge — round-trip + subscription guardrail', () => {
       await bridge.stop();
       if (prev === undefined) delete process.env.MAUDE_SESSION_ROOT;
       else process.env.MAUDE_SESSION_ROOT = prev;
+    }
+  }, 20000);
+
+  // V2-8.9 H2 / M2 — the source-reading verbs get this chat's read boundary from the bridge, never
+  // from an inherited env, and the agent's temp folder is the chat's own scratch.
+  test('H2/M2 — the adapter carries MAUDE_READ_ROOTS, MAUDE_GRANTS_FILE and TMPDIR = the chat scratch', async () => {
+    process.env.MAUDE_ACP_ADAPTER_ENTRY = FIXTURE;
+    process.env.MAUDE_ACP_RUNTIME = process.execPath;
+    process.env.MAUDE_CLAUDE_BIN = process.execPath;
+    process.env.MAUDE_READ_ROOTS = '/';
+    process.env.MAUDE_GRANTS_FILE = '/planted.json';
+    const updates: unknown[] = [];
+    const bridge = new AcpBridge({
+      repoRoot: process.cwd(),
+      chatId: 'c-env',
+      readBoundary: [process.cwd()],
+      grantsFile: '/idx/ai-grants.json',
+      onUpdate: (u) => updates.push(u),
+    });
+    try {
+      await bridge.prompt('hi', 'c-env');
+      const s = JSON.stringify(updates);
+      expect(s).toContain(`readRoots=${process.cwd()} `);
+      expect(s).toContain('grantsFile=/idx/ai-grants.json');
+      expect(s).toContain(`tmpdir=${chatScratchDir(process.cwd(), 'c-env')}/`);
+      expect(s).not.toContain('/planted.json');
+    } finally {
+      await bridge.stop();
+      delete process.env.MAUDE_READ_ROOTS;
+      delete process.env.MAUDE_GRANTS_FILE;
     }
   }, 20000);
 });

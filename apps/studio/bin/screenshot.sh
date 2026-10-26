@@ -178,6 +178,10 @@ if [ "$MODE" = "shell" ] && [ $CANVAS_SET -eq 0 ] && [ -z "$ACTIVE" ]; then
   fi
 fi
 
+# V2-8.9 B2 — whatever the URL came from (--url, --port, _server.json), only http(s) to this Mac:
+# never file://, never another host (_url-guard.mjs). Checked before any browser starts.
+. "$(dirname "$0")/_url-guard.sh" && maude_url_guard "$URL" || exit 2
+
 # The file-tree row testid the client stamps (app.jsx `pathTestIdSlug`):
 # designRoot dot-folder stripped, extension stripped, non-alphanumerics folded
 # to single dashes, lowercased, dashes trimmed. Lowercasing happens BEFORE the
