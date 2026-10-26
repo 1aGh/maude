@@ -319,5 +319,8 @@ describe('ai-quit (native-desktop)', () => {
     const took = await waitGone(appBefore, 10_000);
     expect(took).toBeLessThanOrEqual(6_000);
     expect(records(A).every((r) => r.state === 'ended')).toBe(true);
+    // the app is gone, and wdio's session end would DELETE against a dead driver (ECONNREFUSED — the whole file
+    // then reads "failed" though every step passed, r5): start it again; the conf's onComplete stops it
+    await startApp();
   });
 });
