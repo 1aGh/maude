@@ -82,7 +82,9 @@ describe('↵ on the canvas (V2-8.7)', () => {
     m.off();
     expect(m.typed).toHaveLength(1);
     expect(m.typed[0]).toMatchObject({ clientX: 0, clientY: 0, selectAll: true });
-    expect((m.typed[0]?.el as HTMLElement).getAttribute('data-cd-id')).toBe('title');
+    expect(((m.typed[0] as { el: HTMLElement }).el as HTMLElement).getAttribute('data-cd-id')).toBe(
+      'title'
+    );
     expect(e.defaultPrevented).toBe(true);
   });
 

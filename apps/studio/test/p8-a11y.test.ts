@@ -50,17 +50,25 @@ describe('color-contrast', () => {
   const inkOf = (decl: string): Rgb => {
     // the HUD's accent-fg is white in both themes (canvas-hud-tokens.gen.ts) — a var() to it IS white, whatever its fallback says
     if (/color:\s*var\(--maude-hud-accent-fg/.test(decl)) return { r: 255, g: 255, b: 255 };
-    const raw = /(?:^|[\s;{])color:\s*(?:var\([^,]+,\s*)?(oklch\([^)]+\)|#[0-9a-f]{3,6})\)?/i.exec(decl)?.[1];
+    const raw = /(?:^|[\s;{])color:\s*(?:var\([^,]+,\s*)?(oklch\([^)]+\)|#[0-9a-f]{3,6})\)?/i.exec(
+      decl
+    )?.[1];
     if (!raw) throw new Error(`no colour in: ${decl}`);
     return raw.startsWith('#') ? hexRgb(raw) : oklchToRgb(parseOklch(raw));
   };
   const hexRgb = (h: string): Rgb => {
     const x = h.length === 4 ? [...h.slice(1)].map((c) => c + c).join('') : h.slice(1);
-    return { r: Number.parseInt(x.slice(0, 2), 16), g: Number.parseInt(x.slice(2, 4), 16), b: Number.parseInt(x.slice(4, 6), 16) };
+    return {
+      r: Number.parseInt(x.slice(0, 2), 16),
+      g: Number.parseInt(x.slice(2, 4), 16),
+      b: Number.parseInt(x.slice(4, 6), 16),
+    };
   };
   for (const [name, file, selector] of [
     ['the peer cursor label', '../cursors-overlay.tsx', '.dc-cursor-label'],
     ['the co-edit hold tag', '../editing/hold-rings.tsx', '.ed-hold-ring .ed-hold-tag'],
+    ['the peer selection label', '../cursors-overlay.tsx', '.dc-peer-selection__label'],
+    ['the participant avatar initials', '../participants-chrome.tsx', '.dc-participant'],
   ] as const) {
     test(`${name}: its ink holds 4.5:1 on every person tone`, () => {
       const ink = inkOf(ruleOf(read(file), selector));
