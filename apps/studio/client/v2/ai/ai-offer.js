@@ -44,7 +44,7 @@ const TRAILING_RE = /(?:^|\n)```maude-offer[ \t]*\r?\n([\s\S]*?)\r?\n?```\s*$/;
 const plain = (v, max) =>
   typeof v === 'string'
     ? v
-        // eslint-disable-next-line no-control-regex
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping control characters is the point
         .replace(/[\u0000-\u001f\u007f]+/g, ' ')
         .trim()
         .slice(0, max)

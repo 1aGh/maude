@@ -245,6 +245,7 @@ export function ReframeIsland({
         <span data-testid="reframe-title">Frame “{name}” for</span>
         <div className="st-cp-seg" role="radiogroup" aria-label="Format">
           {options.map((o) => (
+            // biome-ignore lint/a11y/useSemanticElements: an aspect option with a checked state, drawn as a segment button
             <button
               key={o.aspect}
               type="button"

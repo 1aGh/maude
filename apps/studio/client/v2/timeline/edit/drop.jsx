@@ -79,6 +79,7 @@ export function useFileDrag(enabled) {
 export function ArtboardDropCatcher({ rect, onFiles }) {
   if (!rect || typeof document === 'undefined') return null;
   return portalToBody(
+    // biome-ignore lint/a11y/noStaticElementInteractions: a transparent file-drop catcher over the artboard while files are in flight — a pointer-only door by nature
     <div
       className="tl-artboard-drop"
       data-testid="timeline-artboard-drop"

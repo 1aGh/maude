@@ -110,9 +110,9 @@ export function OtherFormats({ groups, format, onPick, open, setOpen }) {
         {OTHER_LABEL}
       </button>
       {open ? (
-        // biome-ignore lint/a11y/noStaticElementInteractions: the menu handles ↑ ↓ esc for its rows
         // gate-b-a11y B-ex: the search box is NOT a child of `role=menu` (axe aria-required-children) — the
         // popover is a plain container; only the format rows live in the menu.
+        // biome-ignore lint/a11y/noStaticElementInteractions: the menu handles ↑ ↓ esc for its rows
         <div
           className="ex-other-menu island"
           data-testid="export-other-menu"
@@ -146,6 +146,7 @@ export function OtherFormats({ groups, format, onPick, open, setOpen }) {
           ) : (
             <div role="menu" aria-label={OTHER_LABEL} className="ex-other-list">
               {shown.map(({ group, items }) => (
+                // biome-ignore lint/a11y/useSemanticElements: a labelled group of menu rows, not a form fieldset
                 <div key={group} className="ex-other-grp" role="group" aria-label={group}>
                   <p className="ex-other-gh" aria-hidden="true">
                     {group}

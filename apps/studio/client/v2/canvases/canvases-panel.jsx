@@ -603,7 +603,7 @@ export function CanvasesPanel({
       ) : null}
       <div className="cv-listwrap">
         {sortLane}
-        {/* biome-ignore lint/a11y/useSemanticElements: an ARIA tree on a flat, windowed list */}
+        {/* biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useAriaPropsSupportedByRole: an ARIA tree on a flat, windowed list — role is "tree" (or "group" when empty), a dynamic role biome cannot follow; the keyboard handler is the tree's arrow-key model */}
         <div
           ref={treeRef}
           className="st-tree cv-tree"

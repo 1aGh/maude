@@ -65,7 +65,7 @@ function Picture({ row }) {
 function Face({ row }) {
   if (row.who?.kind === 'ai')
     return (
-      <span className="vh-ai" aria-label="AI">
+      <span className="vh-ai" role="img" aria-label="AI">
         <StIcon name="sparkle" size={10} />
       </span>
     );
@@ -407,6 +407,7 @@ export function VersionHistoryPanel({
           </button>
         </div>
       ) : (
+        // biome-ignore lint/a11y/useSemanticElements: a filter segmented control, not a form fieldset
         <div className="vh-seg" role="group" aria-label={W.filters}>
           {FILTERS.map((f) => (
             <button
@@ -422,6 +423,7 @@ export function VersionHistoryPanel({
           ))}
         </div>
       )}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: the keydown only moves focus between the rows (real buttons) that bubble up to it */}
       <div className="vh-body" ref={listRef} onKeyDown={onListKey}>
         {scoped ? (
           <ObjectHistoryView

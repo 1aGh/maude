@@ -119,6 +119,7 @@ export function OfferSlot({ parts, status }) {
   };
   const leaves = leavesLine(offer.leaves.length);
   return (
+    // biome-ignore lint/a11y/useSemanticElements: a labelled card of offers, not a form fieldset — a fieldset would bring its own border and min-width
     <div
       className="ai-nc ai-nc-choice"
       role="group"

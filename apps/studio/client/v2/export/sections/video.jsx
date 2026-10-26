@@ -99,6 +99,7 @@ function Film({ row, at, onAt, designRel }) {
   const stills = useStills(pics, designRel);
   const here = Math.min(total, Math.max(0, at));
   return (
+    // biome-ignore lint/a11y/useSemanticElements: a labelled film strip of lanes, not a form fieldset
     <div
       className="ex-film"
       data-testid="export-film"

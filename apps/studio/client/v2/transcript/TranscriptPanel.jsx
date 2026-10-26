@@ -88,6 +88,7 @@ function Word({
     );
   }
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: a word is a pointer-select target inside the transcript's focusable list; the list's keydown (arrows, Enter, Delete) is the keyboard path
     <span
       className="tx-w"
       data-testid={`transcript-word-${item.wordId}`}

@@ -205,6 +205,7 @@ export function DsMakeSheet({ project, canvases = 0, canAskAI = true, onMake, on
               <b>3</b>
               {MAKE_WORDS.forLabel}
             </p>
+            {/* biome-ignore lint/a11y/useSemanticElements: a segmented control, not a form fieldset */}
             <span
               className="seg dsm-seg"
               role="group"

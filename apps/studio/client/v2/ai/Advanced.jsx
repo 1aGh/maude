@@ -80,6 +80,7 @@ function OptionSegmented({ row, label, opt, onChange }) {
     <Row row={row} label={label}>
       <span className="seg k-in-seg" role="radiogroup" aria-label={label} data-adv-control>
         {flat.map((o) => (
+          // biome-ignore lint/a11y/useSemanticElements lint/a11y/useAriaPropsSupportedByRole: a segmented radio drawn as buttons (k-seg-b), not a native radio input; the kit paints the chosen segment from aria-pressed, aria-checked carries the state for AT
           <button
             key={o.value}
             type="button"

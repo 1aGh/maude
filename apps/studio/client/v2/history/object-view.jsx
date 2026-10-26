@@ -74,7 +74,7 @@ export function useObjectHistory({ path, objectKey, refreshKey = 0, fetchImpl })
 function Face({ who }) {
   if (who?.kind === 'ai')
     return (
-      <span className="vh-ai" aria-label="AI">
+      <span className="vh-ai" role="img" aria-label="AI">
         <StIcon name="sparkle" size={10} />
       </span>
     );

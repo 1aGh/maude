@@ -48,6 +48,7 @@ function TokensView({ files }) {
   const one = which === 'css' ? files?.css : files?.json;
   return (
     <>
+      {/* biome-ignore lint/a11y/useSemanticElements: a two-file toggle, not a form fieldset */}
       <div className="dsa-seg" role="group" aria-label="Tokens file">
         {['css', 'json'].map((k) => (
           <button

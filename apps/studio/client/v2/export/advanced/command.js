@@ -42,8 +42,8 @@ const optionItem = ([path, value]) => `${ALIAS[path] ?? path}=${value}`;
 // ESC, CR, …), line / paragraph separators, bidi overrides and isolates (the line would read in another
 // order than it runs) and tag characters (invisible text). Single quotes protect a shell, not a terminal
 // or a Claude Code prompt, so such a word is refused, never quoted.
-// biome-ignore lint/suspicious/noControlCharactersInRegex: matching control characters is the point
 const UNSAFE_IN_LINE =
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: matching control characters is the point
   /[\u0000-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069\u{e0000}-\u{e007f}]/u;
 
 /** One word of a shell command line: bare when it is safe, else single-quoted. Throws on a word that

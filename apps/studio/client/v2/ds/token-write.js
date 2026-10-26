@@ -126,7 +126,10 @@ export function buildEntry(token, themes, edit) {
   if (edit.theme !== undefined && edit.name !== undefined) {
     const name = cleanName(edit.name);
     if (name === null) return { refused: TOKEN_WORDS.invalid };
-    const put = (t) => (name ? (names[t] = name) : delete names[t]);
+    const put = (t) => {
+      if (name) names[t] = name;
+      else delete names[t];
+    };
     put(edit.theme);
     // Dark follows: the colour keeps one name in both modes
     if (hasDark && edit.theme === light && followedBefore) put(themes.dark);

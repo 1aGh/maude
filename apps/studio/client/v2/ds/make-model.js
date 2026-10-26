@@ -34,6 +34,7 @@ export const AUDIENCES = Object.freeze([
   { id: 'everything', label: 'A bit of everything' },
 ]);
 
+// biome-ignore lint/suspicious/noControlCharactersInRegex: stripping control characters is the point
 const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g;
 export const SENTENCE_MAX = 600;
 

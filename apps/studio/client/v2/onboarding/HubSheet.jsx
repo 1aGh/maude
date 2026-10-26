@@ -160,6 +160,7 @@ export function HubSheet({ onTest, onConnect, onJoin, onCancel, initialUrl = '' 
           ) : null}
         </span>
 
+        {/* biome-ignore lint/a11y/useSemanticElements: a two-way segmented control, not a form fieldset */}
         <span className="ob-seg" role="group" aria-label="How you sign in">
           <button
             type="button"

@@ -95,6 +95,7 @@ function CombineBody({ selection, ctx }) {
   const live = combinable(selection) && ctx?.editable !== false && !!ctx?.onRunAction;
   return (
     <Row k="Two or more" name="combine" dim={!live}>
+      {/* biome-ignore lint/a11y/useSemanticElements: a segmented control, not a form fieldset */}
       <span
         className="seg insp-combine"
         data-testid="insp-combine"

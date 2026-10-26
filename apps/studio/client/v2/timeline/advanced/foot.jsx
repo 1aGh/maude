@@ -184,6 +184,7 @@ export function AdvancedFoot({
       {open ? (
         <div className="tla-readout" data-testid="timeline-frame-readout">
           <span className="tla-readout-t">{frameReadout({ fps, frame, total })}</span>
+          {/* biome-ignore lint/a11y/useSemanticElements: a two-way segmented control, not a form fieldset */}
           <span className="tla-seg" role="group" aria-label="Ruler">
             {[
               ['timecode', ADV_WORDS.timecode],
