@@ -23,6 +23,10 @@ export const accessWord = (role) => (typeof role === 'string' && ACCESS_WORDS[ro
 
 const RANK = Object.freeze({ observer: 0, viewer: 1, member: 2, owner: 3 });
 
+/** A wire role's rank (Can view 0 … Owner 3); undefined for anything else. */
+export const roleRank = (role) =>
+  typeof role === 'string' && role in RANK ? RANK[role] : undefined;
+
 /**
  * p8-e2e-rolefix — this session's role on canvas `rel` (designRoot-relative, `ui/a.tsx`): the higher of the
  * project role and that canvas's grant, from the server's `/_config.access` (`{ role, grants: [{ c, r }] }`,
