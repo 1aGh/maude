@@ -508,3 +508,11 @@ Re-shot 6 of 68 pairs on the p8-r11-15 tip (release-built client, Mac mini + Goo
 | `an-follow` | re-shot | re-shot | the bound arrows are seeded Elbow (the earlier harness pressed the Elbow button and missed, so the frame kept curves); mid-drag the route goes round Tablet and Mobile, the "the straight line would cross …" chip and the new "Let go — the shortest clean path" bubble are drawn at page size |
 | `an-layers` | re-shot | re-shot | the selected locked sticky's row ("Tighter, please") is lit with its Locked pill below the list |
 | `an-video` | re-shot | re-shot | now on real footage (the 30 s Alligators Recruiting Trailer, Preview): "0:12" pin chip on the note, the strip under the picture reads "2 notes · 1 comment" with a bar per note and a face at 0:25 |
+
+## Round 12 (p8-r12-15) — an-follow re-shot (both themes)
+
+Re-shot 2 of 68 pairs on the p8-r12-15 tip (release-built client, Mac mini + Google Chrome, harness `_r11-15-harness-g4/`, `run.sh 15 light|dark`). Everything else in this folder is unchanged. Full-size pairs: last line of `full-size-path.txt` ("round 12: ..."). The two fixes behind the frames are in `fix-r12-15.md`. No match judged here.
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `an-follow` | re-shot | re-shot | dark: the live elbow route over Tablet / Mobile is drawn in the theme default ink (light), no longer the `#1a1a1a` literal; light: the "Let go — the shortest clean path" bubble and the "the straight line would cross Tablet" tag are at page size (they were world scale, about 3 px type at 26 %) |

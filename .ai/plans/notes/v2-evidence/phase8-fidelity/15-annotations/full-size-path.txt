@@ -14,3 +14,5 @@ round 10: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a53183683035fd2
 final (D7, 0e926b7dc): /Users/iagh/git/personal/maude/.claude/worktrees/agent-abd6ccfc54b5f2193/.scr/pairs/15-annotations (raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-abd6ccfc54b5f2193/.scr/impl/15-annotations; spec: /Users/iagh/git/personal/maude/.claude/worktrees/agent-abd6ccfc54b5f2193/.scr/spec/15-annotations; harness _d7-harness-g4/)
 
 round 11: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ac98b6f3fa3ee10b1/.scr/pairs/15-annotations (p8-r11-15; an-follow, an-layers, an-video re-shot light + dark; raw impl /Users/iagh/git/personal/maude/.claude/worktrees/agent-ac98b6f3fa3ee10b1/.scr/impl/15-annotations; harness _r11-15-harness-g4)
+
+round 12: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ac8f56b76586c4fa4/.scr/pairs/15-annotations (p8-r12-15; an-follow re-shot light + dark; raw impl /Users/iagh/git/personal/maude/.claude/worktrees/agent-ac8f56b76586c4fa4/.scr/impl/15-annotations; harness _r11-15-harness-g4)
