@@ -3,10 +3,653 @@
  * Ported from `.design/ui/ChatPanel.css` (the approved mock), styling only the
  * canvas-LOCAL `chat-*` content inside the `sh-rpanel` Assistant tab. Every value
  * is a maude token from `1-tokens-maude.css` / a component class from
- * `4-components-maude.css`. Differences from the mock: the feed scrolls live
+ * the shell kit / `v2/shell/floating-panels.css`. Differences from the mock: the feed scrolls live
  * (`overflow-y:auto`, not the mock's static `hidden`) and a few wrappers
  * (`.chat-thread`, `.sh-rp-body--chat`, `.chat-tool-path`) the live panel needs.
  */
+
+/* ── V2-8.0: rules moved here from the retired styles/ layer files, in their original order and ahead of this file's own rules, so the cascade is unchanged. ── */
+
+/* from styles/3-shell-maude.css */
+@layer shell {
+  /* ── Phase 28 (E3) — GitHub identity rail + create/pull/share dialogs.
+ *    All chrome is the SHELL maude DS: solid surfaces (var(--bg-1)/2) and the
+ *    .sh-dialog scrim+card treatment — NEVER the canvas-side `.panel` (it isn't in
+ *    the client bundle, which made the cards transparent). The identity rail docks
+ *    at the BOTTOM of the sidebar as a compact avatar; the menu opens upward. */
+  /* text inputs — the maude DS .input/.textarea recipe (lifted from the canvas-side
+ * _components.css, which isn't in the client bundle → my fields fell back to native).
+ * Scoped to the github dialogs so it can't collide with the shell's .cv-search / the v1 field. */
+  .gi-dialog .input,
+  .cp-dialog .input,
+  .gi-dialog .textarea,
+  .cp-dialog .textarea,
+  .rb-dialog .textarea {
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+    background: var(--bg-3);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    width: 100%;
+    transition:
+      border-color var(--dur-soft) var(--ease-out),
+      box-shadow var(--dur-soft) var(--ease-out);
+  }
+
+  .gi-dialog .input::placeholder,
+  .cp-dialog .input::placeholder,
+  .gi-dialog .textarea::placeholder,
+  .cp-dialog .textarea::placeholder,
+  .rb-dialog .textarea::placeholder {
+    color: var(--fg-2);
+  }
+
+  .gi-dialog .input:focus,
+  .cp-dialog .input:focus,
+  .gi-dialog .textarea:focus,
+  .cp-dialog .textarea:focus,
+  .rb-dialog .textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
+
+  /* identity rail — sidebar footer */
+  .gi-rail {
+    position: relative;
+    flex: 0 0 auto;
+    margin-top: auto;
+    padding: var(--space-1) var(--space-2);
+    border-top: 1px solid var(--border-default);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  /* Truncation the code already assumed: CloudBar.jsx documents `title` as "the
+   full sentence on hover (the rail truncates)" — and this rule did not exist,
+   so a long hub-supplied project name wrapped and grew, pushing the rail into
+   adjacent chrome. Its sibling .gi-rail-err has carried the same three
+   properties all along. `anywhere` so a single unbreakable 60-char token
+   cannot overflow horizontally either. */
+  .gi-rail-hint {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    padding: 2px 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow-wrap: anywhere;
+  }
+
+  .gi-rail-signin {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* …but the deep-link confirm strip is a paragraph that MUST wrap — it explains
+   both sides of a consent decision, and one ellipsised line would hide half of
+   what the person is agreeing to. */
+  .gi-rail-err {
+    font-size: var(--type-xs);
+    color: var(--status-error);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .gi-avatar {
+    border-radius: var(--radius-pill);
+    display: grid;
+    place-items: center;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--accent-fg);
+    background: var(--accent);
+    flex: 0 0 auto;
+  }
+
+  .gi-rail-account {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    width: 100%;
+    padding: 2px var(--space-1);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--fg-0);
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .gi-rail-account:hover {
+    background: var(--bg-2);
+  }
+
+  .gi-rail-account.is-open {
+    background: var(--bg-2);
+    border-color: var(--border-default);
+  }
+
+  .gi-rail-account:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .gi-rail-login {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .gi-rail-caret {
+    color: var(--fg-2);
+    flex: 0 0 auto;
+    display: inline-flex;
+  }
+
+  /* account menu — opens UPWARD, solid surface */
+  .gi-menu {
+    position: absolute;
+    bottom: calc(100% + 2px);
+    left: var(--space-2);
+    right: var(--space-2);
+    z-index: 9500;
+    background: var(--bg-1);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: var(--space-1);
+  }
+
+  .gi-menu-hd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-1) var(--space-2);
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 2px;
+  }
+
+  .gi-menu-id {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .gi-menu-name {
+    font-weight: 600;
+    color: var(--fg-0);
+    font-size: var(--type-sm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .gi-menu-login {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  .gi-menu-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-1);
+    font-size: var(--type-sm);
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .gi-menu-item svg {
+    color: var(--fg-2);
+  }
+
+  .gi-menu-item:hover {
+    background: var(--bg-2);
+    color: var(--fg-0);
+  }
+
+  .gi-menu-item:hover svg {
+    color: var(--fg-1);
+  }
+
+  .gi-menu-item:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  /* the already-linked project's row — a state, not an action (fix 7, sync RCA) */
+  .gi-menu-item.is-connected {
+    cursor: default;
+  }
+
+  .gi-menu-item.is-connected:hover {
+    background: transparent;
+    color: var(--fg-1);
+  }
+
+  .gi-menu-item.is-connected:hover svg {
+    color: var(--fg-2);
+  }
+
+  .gi-menu-item--danger,
+  .gi-menu-item--danger svg {
+    color: var(--status-error);
+  }
+
+  .gi-menu-item--danger:hover {
+    background: color-mix(in oklab, var(--status-error) 14%, transparent);
+    color: var(--status-error);
+  }
+
+  .gi-menu-sep {
+    height: 1px;
+    background: var(--border-subtle);
+    margin: 2px 0;
+  }
+
+  /* shared dialog shell (device-code + create/pull/share) — lifts .sh-scrim/.sh-dialog */
+  .gi-modal,
+  .cp-modal {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    z-index: 9600;
+    padding: var(--space-5);
+  }
+
+  .gi-scrim,
+  .cp-scrim {
+    position: fixed;
+    inset: 0;
+    background: color-mix(in oklab, var(--bg-0) 72%, transparent);
+  }
+
+  /* the kit dialog material (Phase 8 C1-kit, _kit.css .k-dialog): bg-2, radius-xl, the 0.5 px island edge,
+     shadow-lg. It was bg-1 + a 1 px border, radius-lg. */
+  .gi-dialog,
+  .cp-dialog {
+    position: relative;
+    background: var(--bg-2);
+    border: 0;
+    border-radius: var(--radius-xl);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: sh-pop var(--dur-route) var(--ease-out);
+  }
+
+  /* device-code dialog */
+  .gi-dialog--code {
+    width: min(460px, 92vw);
+    padding: var(--space-5);
+    gap: var(--space-4);
+  }
+
+  .gi-dc-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--space-2);
+  }
+
+  .gi-dc-head h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--type-lg);
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+
+  .gi-dc-marks {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: var(--radius-lg);
+    background: var(--bg-2);
+    border: 1px solid var(--border-default);
+    color: var(--fg-0);
+  }
+
+  .gi-dc-head p {
+    margin: 0;
+    color: var(--fg-2);
+    font-size: var(--type-sm);
+    line-height: var(--lh-base);
+    max-width: 38ch;
+  }
+
+  .gi-dc-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .gi-dc-steps li {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .gi-dc-step-n {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-pill);
+    background: var(--accent-tint);
+    border: 1px solid var(--accent-muted);
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    font-weight: 600;
+  }
+
+  .gi-dc-step-tx {
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    line-height: var(--lh-base);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .gi-dc-url {
+    font-family: var(--font-mono);
+    color: var(--fg-0);
+    background: var(--bg-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xs);
+    padding: 1px var(--space-1);
+  }
+
+  .gi-code {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+  }
+
+  .gi-code-val {
+    font-family: var(--font-mono);
+    font-size: var(--type-2xl);
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    color: var(--fg-0);
+  }
+
+  .gi-code-copy {
+    flex: 0 0 auto;
+  }
+
+  /* the manual path out of the device dialog — always rendered, never a fallback
+   that only appears once something has already failed */
+  .gi-dc-link {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .gi-dc-link-lbl {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  .gi-dc-link-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .gi-dc-link-a {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-xs);
+    color: var(--accent);
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .gi-dc-link-a:hover {
+    text-decoration: underline;
+  }
+
+  .gi-dc-link-a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .gi-dc-status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+  }
+
+  .gi-pulse {
+    width: 9px;
+    height: 9px;
+    flex: 0 0 auto;
+    border-radius: var(--radius-pill);
+    background: var(--status-info);
+    animation: gi-pulse 1.8s var(--ease-out) infinite;
+  }
+
+  @keyframes gi-pulse {
+    0% {
+      box-shadow: 0 0 0 0 color-mix(in oklch, var(--status-info) 55%, transparent);
+    }
+    70% {
+      box-shadow: 0 0 0 7px transparent;
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+
+  .gi-dc-foot {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .gi-dc-foot-note {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    line-height: var(--lh-sm);
+  }
+
+  /* maude:// decision modal — same dialog family, one job: name both sides */
+  .gi-dl-pair {
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+
+  .gi-dl-side {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+  }
+
+  .gi-dl-lbl {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  .gi-dl-val {
+    font-family: var(--font-mono);
+    font-size: var(--type-sm);
+    font-weight: 600;
+    color: var(--fg-0);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .gi-dl-arrow {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    color: var(--fg-2);
+  }
+
+  .gi-dl-what {
+    margin: 0;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    line-height: var(--lh-base);
+  }
+
+  .gi-dl-what code {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    background: var(--bg-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xs);
+    padding: 1px 2px;
+  }
+
+  .gi-dl-note {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    line-height: var(--lh-base);
+  }
+
+  /* The warn colour rides the border + wash ONLY — `--status-warn` as text fails
+   AA at this size (DDR-097's file-tree badge fix; the ACP elicitation warning
+   carries the same note). Text stays on --fg-1/--fg-0. */
+  .gi-dl-warn {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2);
+    border: 1px solid var(--status-warn);
+    border-radius: var(--radius-md);
+    background: color-mix(in oklab, var(--status-warn) 12%, transparent);
+    font-size: var(--type-sm);
+    line-height: var(--lh-base);
+    color: var(--fg-1);
+  }
+
+  .gi-dl-warn strong {
+    color: var(--fg-0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .gi-dialog,
+    .cp-dialog {
+      animation: none;
+    }
+  }
+
+  /* ── Team projects (plan T22) — the designer's way in: recent managed copies,
+   Maude Cloud projects, a team server sign-in. Composes the ob-* door parts; the
+   dialog frame reuses gi-modal/gi-dialog from the project switcher. ── */
+  .gi-dl-open {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--border-default);
+  }
+
+  .gi-dialog.tp-dialog {
+    width: min(620px, 94vw);
+    max-height: min(760px, 90vh);
+    overflow: auto;
+    padding: var(--space-5);
+    gap: var(--space-3);
+  }
+}
+
+/* from styles/4-components.css */
+@layer components {
+  /* ── Generate dialog (feature-ai-media-generation, DDR-16x) ─────────────── */
+  .ai-gen-prompt {
+    width: 100%;
+    resize: vertical;
+    min-height: 60px;
+    font-family: var(--font-body, system-ui, sans-serif);
+    margin-bottom: 10px;
+  }
+
+  .ai-gen-go {
+    color: var(--accent);
+    border-color: var(--accent-muted, var(--accent));
+  }
+
+  .ai-gen-result {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin-top: 12px;
+    padding: 10px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+  }
+
+  .ai-gen-thumb {
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+  }
+
+  .ai-gen-result-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+}
+
+/* ── end of the moved rules ── */
+
 @layer components {
   .sh-rp-body--chat {
     padding: 0;

@@ -20,6 +20,7 @@ import {
   shouldCloseOnDeselect,
   shouldOpenOnSelect,
 } from '../client/v2/shell/inspector-follow.js';
+import { shellCss } from './_shell-css';
 
 const STUDIO = join(import.meta.dir, '..');
 const read = (rel: string) => readFileSync(join(STUDIO, rel), 'utf8');
@@ -57,13 +58,7 @@ describe('no dock tab strip, no rail', () => {
     const app = read('client/app.jsx');
     expect(app).not.toContain('CollapsedRail');
     expect(app).not.toContain('collapsed-rail');
-    for (const css of [
-      'client/styles/3-shell-maude.css',
-      'client/v2/shell/floating-panels.css',
-      'client/v2/left-panel/left-panel.css',
-      'client/v2/shell/project-pill.css',
-    ]) {
-      const src = read(css);
+    for (const [css, src] of [['the shell stylesheet', shellCss()]]) {
       expect(src, css).not.toMatch(/\.st-rail\b/);
       expect(src, css).not.toMatch(/\.st-docktab/);
     }

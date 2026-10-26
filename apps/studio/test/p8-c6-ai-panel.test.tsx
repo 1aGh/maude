@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { ChatHeader } from '../client/panels/chat-header.jsx';
+import { shellCss } from './_shell-css';
 
 const STUDIO = join(import.meta.dir, '..');
 const read = (rel: string) => readFileSync(join(STUDIO, rel), 'utf8');
@@ -105,8 +106,10 @@ describe('the working line (03 `ai-working`, `ai-same-artboard`)', () => {
 });
 
 describe('the rest of the panel (03 `.k-dialog`, `.k-iconbtn--ai`, `ai-attach`)', () => {
+  // BUNDLE = the whole shell stylesheet in _index.css order (test/_shell-css.ts), for rules that may move between files.
+  const BUNDLE = 'bundle';
   const block = (file: string, sel: string) => {
-    const css = read(file);
+    const css = file === BUNDLE ? shellCss() : read(file);
     const at = css.indexOf(`${sel} {`);
     return at < 0 ? '' : css.slice(at, css.indexOf('}', at));
   };
@@ -116,7 +119,7 @@ describe('the rest of the panel (03 `.k-dialog`, `.k-iconbtn--ai`, `ai-attach`)'
     const r = block('client/v2/ai/quit.css', '.ai-quit-dialog');
     expect(r).toContain('padding: var(--space-5)');
     expect(read('client/styles/1-tokens-maude-v2.css')).toMatch(/--space-5:\s*24px/);
-    const material = block('client/styles/3-shell-maude.css', '.gi-dialog,\n  .cp-dialog');
+    const material = block(BUNDLE, '.gi-dialog,\n  .cp-dialog');
     expect(material).toContain('var(--radius-xl)');
     expect(material).toContain('background: var(--bg-2)');
   });

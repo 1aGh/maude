@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { shellCss } from './_shell-css';
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
@@ -93,7 +94,7 @@ describe('class collisions and stacking (CSS wiring)', () => {
 
   test('the tree group count uses its own class, not `.sh-pill`', () => {
     const tree = read('../client/tree/tree.jsx');
-    const css = read('../client/styles/3-shell-maude.css');
+    const css = shellCss();
     expect(tree).toContain('className="cv-sec-count"');
     expect(tree).not.toMatch(/className="sh-pill"/);
     expect(css).not.toMatch(/\.sh-tree-sec-hd \.sh-pill/);
@@ -107,9 +108,7 @@ describe('class collisions and stacking (CSS wiring)', () => {
     const warn = Number(
       co.match(/\.sh-callouts:has\(\.sh-callout--warn[^{]*\{[^}]*?z-index:\s*(\d+)/)?.[1]
     );
-    const scrim = Number(
-      read('../client/styles/3-shell-maude.css').match(/\.sh-scrim\s*\{[^}]*?z-index:\s*(\d+)/)?.[1]
-    );
+    const scrim = Number(shellCss().match(/\.sh-scrim\s*\{[^}]*?z-index:\s*(\d+)/)?.[1]);
     expect(sheet).toBeGreaterThan(info);
     expect(sheet).toBeLessThan(scrim);
     expect(sheet).toBeLessThan(warn);
@@ -134,7 +133,7 @@ describe('class collisions and stacking (CSS wiring)', () => {
   });
 
   test('eyebrows are the island title: sans, sentence case (no mono caps)', () => {
-    const shell = read('../client/styles/3-shell-maude.css');
+    const shell = shellCss();
     const search = read('../client/v2/search/search.css');
     const rule = (css: string, sel: string) =>
       css.slice(css.indexOf(`${sel} {`), css.indexOf('}', css.indexOf(`${sel} {`)));
@@ -151,7 +150,7 @@ describe('class collisions and stacking (CSS wiring)', () => {
   });
 
   test('the keycap is the kit’s: body font, 20px high, 20px wide at minimum', () => {
-    const css = read('../client/styles/4-components-maude.css');
+    const css = shellCss();
     const rule = css.slice(
       css.indexOf('.maude .kbd {'),
       css.indexOf('}', css.indexOf('.maude .kbd {'))
@@ -162,7 +161,7 @@ describe('class collisions and stacking (CSS wiring)', () => {
   });
 
   test('row actions reveal on hover or keyboard focus only', () => {
-    const css = read('../client/styles/3-shell-maude.css');
+    const css = shellCss();
     for (const sel of ['.sh-row-del', '.sh-row-menu-btn']) {
       const rest = css.slice(css.indexOf(`${sel} {`), css.indexOf('}', css.indexOf(`${sel} {`)));
       expect(rest, sel).toMatch(/opacity:\s*0/);

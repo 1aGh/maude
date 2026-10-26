@@ -6,6 +6,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { shellCss } from './_shell-css';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel: string) => readFileSync(join(root, rel), 'utf8');
@@ -13,7 +14,7 @@ const read = (rel: string) => readFileSync(join(root, rel), 'utf8');
 describe('the edit-scope badge is retired into Inspector › Advanced › Used in', () => {
   test('the inspector header no longer draws .st-scope, and its CSS is gone', () => {
     expect(read('client/inspector/inspector-panel.jsx')).not.toMatch(/st-scope/);
-    expect(read('client/styles/3-shell-maude.css')).not.toMatch(/\.st-scope/);
+    expect(shellCss()).not.toMatch(/\.st-scope/);
   });
 
   test('the same words and Detach stay in the Advanced row', () => {

@@ -3,6 +3,165 @@
  * namespaced `v2sh-` (V2-4.3 hit a collision on a bare v1 name). Tokens only; motion is `--dur-*`,
  * which the reduced-motion collapse already shortens to 1 ms. */
 
+/* ── V2-8.0: rules moved here from the retired styles/ layer files, in their original order and ahead of this file's own rules, so the cascade is unchanged. ── */
+
+/* from styles/5-maude-overrides.css */
+@layer components {
+  .cm-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .cm-live {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3);
+    border: 1px solid color-mix(in oklab, var(--presence-online) 32%, var(--border-default));
+    border-radius: var(--radius-md);
+    background: color-mix(in oklab, var(--presence-online) 8%, var(--bg-2));
+  }
+
+  .cm-live-hd {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+
+  .cm-live-hd b {
+    color: var(--fg-0);
+  }
+
+  .cm-live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-pill);
+    background: var(--presence-online);
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--presence-online) 22%, transparent);
+    flex: 0 0 auto;
+  }
+
+  .cm-live-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+
+  .cm-live-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px var(--space-1);
+    border-radius: var(--radius-pill);
+    background: var(--bg-1);
+    border: 1px solid var(--border-subtle);
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+
+  .cm-live-item svg {
+    color: var(--presence-online);
+  }
+
+  .cm-live-note {
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+
+  .cm-bridge {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .cm-bridge-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border-default);
+  }
+
+  .cm-bridge-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--fg-2);
+  }
+
+  .cm-cycle {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--space-1);
+  }
+
+  .cm-cycle::before {
+    content: "";
+    position: absolute;
+    top: 30px;
+    left: 14%;
+    right: 14%;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--accent-muted) 18%,
+      var(--accent-muted) 82%,
+      transparent
+    );
+    border-radius: var(--radius-pill);
+  }
+
+  .cm-step {
+    position: relative;
+    flex: 1 1 0;
+    max-width: 160px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-1);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--bg-1);
+    text-align: center;
+  }
+
+  .cm-step-icon {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-md);
+    background: var(--accent-tint);
+    color: var(--accent);
+  }
+
+  .cm-step-label {
+    font-weight: 600;
+    color: var(--fg-0);
+    font-size: var(--type-xs);
+  }
+
+  .cm-step-sub {
+    color: var(--fg-2);
+    font-size: 10px;
+    line-height: var(--lh-sm);
+  }
+
+  .cm-cyc-arrow {
+    color: var(--accent);
+    align-self: center;
+    padding-top: 14px;
+  }
+}
+
+/* ── end of the moved rules ── */
+
 @layer shell {
   .v2sh-scrim {
     position: fixed;

@@ -24,19 +24,15 @@
 /* V2-2.6 — the same maude-v2 ladder, GENERATED, scoped under `.maude-v2[data-theme]` (Home's root, v2Scope panels). */
 @import url("./1-tokens-maude-v2.css");
 @import url("./2-layout.css");
-@import url("./3-shell.css");
-/* Plan B — maude DS studio chrome (.st-* ported from Studio.css), grown per slice. */
 /* Gate-B polish — the maude-v2 kit anatomy (.icon-btn, .seg/.k-seg-b, .k-adv*, .k-sw, .chip, .field, .input …)
    at (0,1,0) in @layer shell, BEFORE every other shell file so any surface that styles these keeps its look. */
 @import url("./3-kit-maude-v2.css");
-@import url("./3-shell-maude.css");
-@import url("./4-components.css");
-/* Plan B — maude DS shared component classes (.btn/.kbd/.callout), scoped under `.maude`. */
-@import url("./4-components-maude.css");
-/* Plan B — maude redesign of remaining legacy shell surfaces (HelpModal, tour, what's-new, SystemView, CommentBar). */
-@import url("./5-maude-overrides.css");
+/* V2-8.0 — Help (help modal, What's new + tour, Report a bug): its rules left the retired styles/ layer files; it keeps their slot. */
+@import url("../v2/help/help.css");
 /* Phase 31 (DDR-123) — ACP chat sidepanel (chat-* inside the Assistant sh-rpanel). */
 @import url("../v2/ai/chat.css");
+/* V2-8.0 — Create a project (cp-*): after the dialog chrome it shares with Generate (.gi-dialog, .cp-dialog), before the Component picker's own .cp-* names. */
+@import url("../v2/create/create-project.css");
 /* S5.8 — the AI chat panel host: scope chip + menu, suggestion strip, answer note, azure send. */
 @import url("../v2/ai/ai.css");
 /* S5.9 — the AI chat's run surface: working line, result card, Jump to latest, full height. */

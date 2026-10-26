@@ -11,6 +11,7 @@ import { DS_GLYPHS } from '../canvas-ds-icons.tsx';
 import { finishedArtboards } from '../client/v2/ai/runs-model.js';
 import { createRunsStore } from '../client/v2/ai/runs-store.js';
 import { pinInitial } from '../comments-overlay.tsx';
+import { shellCss } from './_shell-css';
 
 const src = (f: string) => readFileSync(join(import.meta.dir, '..', f), 'utf8');
 
@@ -128,7 +129,7 @@ describe('04 R5 · Present is the island material on an ink mask', () => {
     );
     expect(controls).toContain('var(--island-bg)');
     expect(controls).toContain('border-radius: var(--radius-lg)');
-    const shell = src('client/styles/3-shell-maude.css');
+    const shell = shellCss();
     const exit = shell.slice(
       shell.indexOf('.pv-present-exit {'),
       shell.indexOf('.pv-present-exit:hover,')

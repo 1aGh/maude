@@ -4,7 +4,7 @@
 //   <WhatsNewToast>       → first-run notice (bottom-left, mirrors ai-banner.tsx)
 //   <WhatsNewPanel>       → list of entries (reuses the help-modal backdrop)
 //
-// Styling lives in client/styles/4-components.css (.mdcc-wn-*). Spotlight tours
+// Styling lives in client/v2/help/help.css (.mdcc-wn-*). Spotlight tours
 // (entry.tour[]) land in Phase 3 — the panel/toast leave a hook for them.
 
 import { useCallback, useEffect, useState } from 'react';

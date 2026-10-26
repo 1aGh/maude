@@ -584,7 +584,7 @@
     flex: none;
     white-space: nowrap;
   }
-  /* `.sh-share-btn` is also a v1 rule (4-components.css: a 28 px square, from the Share icon of the menubar
+  /* `.sh-share-btn` is also a v1 rule (v2/shell/floating-panels.css: a 28 px square, from the Share icon of the menubar
      V2-4.8a deleted) — the cluster's button is a labelled button, so it takes its own width. The v1 rule
      can go with the next CSS sweep; this override is harmless without it. */
   .sh-share .btn.sh-share-btn {

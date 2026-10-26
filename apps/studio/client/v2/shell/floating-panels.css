@@ -19,6 +19,2480 @@
  * MOTION. Every duration is `var(--dur-panel)` — 1ms under prefers-reduced-motion (1-tokens-maude.css
  * collapses it) — and the keyframes are dropped outright there: reduced motion is a cut. */
 
+/* ── V2-8.0: rules moved here from the retired styles/ layer files, in their original order and ahead of this file's own rules, so the cascade is unchanged. ── */
+
+/* from styles/3-shell-maude.css */
+@layer shell {
+  /* ─── Shell scaffold ───────────────────────────────────────────────────────
+ * The real app fills the viewport (NOT an artboard body), so this overrides the
+ * mockup's rounded-border `.sh-shell` frame: full-bleed flex column, the
+ * existing `.app` grid flexes as the middle body row between the bars. */
+  .maude {
+    position: relative;
+    /* Gate-B polish (RC-A): a sheet mounted beside `.sh-shell` (Export, Share, Handoff, the Exports panel,
+       the import and design-system sheets) inherited body's v1 mono face; the whole shell speaks the body
+       face, mono only where a rule asks for --font-mono. */
+    font-family: var(--font-body);
+  }
+
+  .sh-shell {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-0);
+    color: var(--fg-0);
+    font-family: var(--font-body);
+    font-size: var(--type-base);
+    line-height: var(--lh-base);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* The legacy grid body (sidebar | main | rsidebar) now flexes between the
+ * full-width menubar + status bar instead of owning the whole viewport. */
+  .sh-shell > .app {
+    width: 100%;
+    height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .sh-mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sh-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-right: var(--space-2);
+  }
+
+  .sh-brand-mark {
+    width: 18px;
+    height: 18px;
+    /* message-bubble corner — bottom-right squared, the other three rounded */
+    border-radius: var(--radius-sm) var(--radius-sm) 0 var(--radius-sm);
+    background: var(--accent);
+    display: grid;
+    place-items: center;
+    color: var(--accent-fg);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
+
+  /* the spark star fills the bubble (32-grid path, identical to the logo specimen) */
+  .sh-brand-mark svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .sh-brand-name {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: var(--type-md);
+    letter-spacing: var(--tracking-tight);
+  }
+
+  /* keyboard ring: the shared `.maude :is(button…):focus-visible` recipe */
+  /* ─── Menubar dropdown ────────────────────────────────────────────────────── */
+  .sh-dropdown {
+    position: absolute;
+    top: 38px;
+    min-width: 230px;
+    background: var(--bg-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    /* above the floating st-banner (9100) — an open menu must never sit under
+     a transient notice */
+    padding: var(--space-1);
+    z-index: 9150;
+    animation: sh-pop var(--dur-panel) var(--ease-out);
+    transform-origin: top left;
+  }
+
+  @keyframes sh-pop {
+    from {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .sh-dd-hd {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--fg-2);
+    padding: var(--space-1) var(--space-2) 2px;
+  }
+
+  .sh-dd-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    justify-content: space-between;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-xs);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    cursor: pointer;
+    appearance: none;
+    border: 0;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    font-family: var(--font-body);
+  }
+
+  .sh-dd-item:hover,
+  .sh-dd-item.is-hover {
+    background: var(--bg-4);
+    color: var(--fg-0);
+  }
+
+  .sh-dd-item[aria-disabled="true"] {
+    color: var(--fg-2);
+    cursor: default;
+  }
+
+  .sh-dd-item[aria-disabled="true"]:hover {
+    background: transparent;
+    color: var(--fg-2);
+  }
+
+  .sh-dd-item .sh-dd-lead {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .sh-dd-sep {
+    height: 1px;
+    background: var(--border-subtle);
+    margin: var(--space-1) var(--space-1);
+  }
+
+  /* ─── Icon button (shared chrome control) ─────────────────────────────────── */
+  .sh-iconbtn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-sm);
+    color: var(--fg-2);
+    transition:
+      background var(--dur-soft) var(--ease-out),
+      color var(--dur-soft) var(--ease-out);
+  }
+
+  .sh-iconbtn:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+
+  /* Refresh-files button: spin the reload glyph while the tree re-reads so the
+ * action visibly registers even when /_index-data returns instantly. Disabled
+ * state stays full-opacity (it's a "busy" beat, not an unavailable control). */
+  @keyframes sh-refresh-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* DS avatar recipe (ui_kits showcase `.sc-avatar`): hue-TINTED surface + hue
+ * border + fg-0 text. A solid hue fill with white text broke the accent-fg
+ * contrast rule on dark and washed out entirely in light theme. */
+  /* ═══ Task 4 — body row · sidebar · tree · rail ═══════════════════════════════ */
+  /* The body flex row replaces the legacy `.app` grid: rail | sidebar | main | rpanel. */
+  .sh-body {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    min-width: 0;
+  }
+
+  .sh-body > .main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .sh-body > .sh-rpanel {
+    flex: 0 0 304px;
+  }
+
+  /* ─── Dock slot (feature-configurable-panel-docking) ──────────────────────────
+ * A left/right slot: the active panel (and, V2-4.4b, the AI chat as its own island),
+ * which fills the remaining height. The wrapper owns the resizable width; the inner panel fills
+ * it (width:100% wins over the panel's own inline width, which we no longer set). */
+  .sh-dockslot {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+    flex: none;
+  }
+
+  .sh-dockslot.is-collapsed {
+    width: 0 !important;
+    flex-basis: 0 !important;
+  }
+
+  /* pinned layout: the inner wrapper is display:contents, so the panel is still the slot's flex item — without
+     the two `-inner` selectors, the sidebar's own `flex: 0 0 252px` meant 252 px TALL in the column and the
+     Canvases list got 6 px */
+  .sh-dockslot > .sh-rpanel,
+  .sh-dockslot > .sh-sidebar,
+  .sh-dockslot > .sh-dockslot-inner > .sh-rpanel,
+  .sh-dockslot > .sh-dockslot-inner > .sh-sidebar {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
+  }
+
+  /* ─── Left sidebar — file tree ────────────────────────────────────────────── */
+  .sh-sidebar {
+    width: 252px;
+    flex: 0 0 252px;
+    background: var(--bg-1);
+    border-right: 1px solid var(--border-default);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    transition:
+      width var(--dur-panel) var(--ease-in-out),
+      flex-basis var(--dur-panel) var(--ease-in-out);
+    overflow: hidden;
+  }
+
+  .sh-sidebar.is-collapsed {
+    width: 0;
+    flex-basis: 0;
+    border-right-color: transparent;
+  }
+
+  .sh-tree {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-1) var(--space-1) var(--space-3);
+  }
+
+  .sh-tree-section {
+    margin-bottom: var(--space-1);
+  }
+
+  .sh-tree-sec-hd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    width: 100%;
+    padding: var(--space-1) var(--space-2);
+    cursor: pointer;
+    color: var(--fg-2);
+    appearance: none;
+    border: 0;
+    background: transparent;
+    text-align: left;
+  }
+
+  .sh-tree-sec-hd:hover {
+    color: var(--fg-0);
+  }
+
+  /* feature-file-tree-drag-drop-folders (dogfood follow-up) — the section
+   header is the drop target for "move back to this group's root". Same
+   accent language as .sh-row.is-drop-target. */
+  .sh-tree-sec-hd.is-drop-target {
+    background: var(--accent-tint);
+    color: var(--fg-0);
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+
+  /* The eyebrow is the island title (CONTRACT section 5): sans, xs, semibold, --fg-2, as the user wrote it. */
+  .sh-tree-sec-hd .cv-sec-name {
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold, 600);
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--fg-2);
+  }
+
+  /* The count is a plain right-aligned tabular numeral in the header row. It used to be the class
+   `sh-pill`, which collided with the project pill's absolutely positioned island of the same name and
+   floated over the header (design-critic blocker 1). */
+  .sh-tree-sec-hd .cv-sec-count {
+    margin-left: auto;
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    font-variant-numeric: tabular-nums;
+    color: var(--fg-2);
+  }
+
+  .sh-tree-empty {
+    padding: var(--space-1) var(--space-4);
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+    font-style: italic;
+  }
+
+  .sh-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    width: 100%;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-xs);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    cursor: default;
+    position: relative;
+    appearance: none;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    font-family: var(--font-body);
+  }
+
+  .sh-row:hover {
+    background: var(--bg-2);
+  }
+
+  .sh-row.is-sel {
+    background: var(--accent-tint);
+    color: var(--fg-0);
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+
+  .sh-row.is-muted {
+    color: var(--fg-2);
+  }
+
+  .sh-row[aria-disabled="true"] {
+    cursor: default;
+  }
+
+  /* feature-file-tree-drag-drop-folders (Task 8) — a valid drop target reuses
+   the exact .sh-row.is-sel treatment (same accent language: "this is where
+   it lands"), the dragged source dims, and a busy row (server round-trip
+   in flight) dims further + suspends pointer events so it can't be re-dragged
+   mid-move. */
+  .sh-row.is-drop-target {
+    background: var(--accent-tint);
+    color: var(--fg-0);
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+
+  .sh-row.is-dragging {
+    opacity: 0.45;
+    transition: opacity var(--dur-soft) var(--ease-out);
+  }
+
+  .sh-row.is-busy {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sh-row.is-dragging {
+      transition-duration: 1ms;
+    }
+  }
+
+  .sh-row-glyph {
+    width: 14px;
+    display: inline-flex;
+    justify-content: center;
+    color: var(--fg-2);
+    flex: 0 0 14px;
+  }
+
+  .sh-row.is-sel .sh-row-glyph {
+    color: var(--accent);
+  }
+
+  .sh-row-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .sh-row-badge {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    color: var(--accent-fg);
+    flex: none;
+  }
+
+  /* DDR-174 (T15) — "reconstructed from an image, experimental" marker. Sits left
+   of the git/open-count badges (which already claim margin-left:auto), so this
+   one gets an explicit left margin instead of fighting for the auto slot.
+   `--status-warn` stays on the border only (a UI-component outline needs just
+   3:1, which it clears) — a11y-auditor caught it also being used as 9px TEXT
+   color failing WCAG AA in light theme (~3.46:1 vs the required 4.5:1); the
+   sibling `.cv-git-badge[data-kind="M"]` avoids this by using the warn token
+   as a fill with a fixed dark foreground instead. Text uses `--fg-2` (the
+   DS's own documented AA-clearing muted-text token) so both themes pass. */
+  .sh-row-exp-badge {
+    margin-left: 6px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    padding: 2px 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-xs);
+    border: 1px dashed var(--status-warn);
+    color: var(--fg-2);
+    flex: none;
+  }
+
+  /* delete affordance — sibling of the row button (can't nest buttons). */
+  .sh-row-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .sh-tree-item:focus-visible {
+    outline: none;
+  }
+
+  .sh-tree-item:focus-visible > .sh-row-wrap {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+    border-radius: var(--radius-sm);
+  }
+
+  .sh-row-wrap .sh-row {
+    flex: 1;
+  }
+
+  .sh-row-del {
+    position: absolute;
+    right: var(--space-1);
+    top: 50%;
+    transform: translateY(-50%);
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-2);
+    cursor: pointer;
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-xs);
+    opacity: 0;
+    transition: opacity var(--dur-soft) var(--ease-out);
+  }
+
+  /* Kept in the a11y tree (opacity, not display:none) so keyboard users reach it. */
+  .sh-row-wrap:hover .sh-row-del,
+  .sh-row-wrap:has(:focus-visible) .sh-row-del,
+  .sh-row-del:focus-visible {
+    opacity: 1;
+  }
+
+  /* Shift the open-comments badge AND the M/A/D/U git badge left of the delete
+   button on hover/focus so they don't overlap (the delete is absolute at the
+   row's right edge). */
+  .sh-row-wrap:hover .sh-row-badge,
+  .sh-row-wrap:focus-within .sh-row-badge,
+  .sh-row-wrap:hover .cv-git-badge,
+  .sh-row-wrap:focus-within .cv-git-badge {
+    margin-right: 24px;
+  }
+
+  .sh-row-del:hover {
+    color: var(--status-error);
+    background: color-mix(in oklab, var(--status-error) 14%, transparent);
+  }
+
+  /* feature-file-tree-drag-drop-folders (Task 9) — the keyboard-reachable
+   "⋯" trigger (Move to… / New folder here). Same treatment as .sh-row-del;
+   sits to ITS left when both share a row (a canvas row has delete too). */
+  .sh-row-menu-btn {
+    position: absolute;
+    right: var(--space-1);
+    top: 50%;
+    transform: translateY(-50%);
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-2);
+    cursor: pointer;
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-xs);
+    opacity: 0;
+    transition: opacity var(--dur-soft) var(--ease-out);
+  }
+
+  .sh-row-wrap:hover .sh-row-menu-btn,
+  .sh-row-wrap:has(:focus-visible) .sh-row-menu-btn,
+  .sh-row-menu-btn:focus-visible {
+    opacity: 1;
+  }
+
+  .sh-row-menu-btn:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+
+  .sh-row-menu-btn.has-delete-sibling {
+    right: calc(var(--space-1) + 24px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sh-row-menu-btn,
+    .sh-row-del {
+      transition-duration: 1ms;
+    }
+  }
+
+  /* ═══ Task 5 — stage (iframe viewport frame) + empty state ════════════════════
+ * The canvas iframe (canvas-shell.tsx) renders its OWN dotted world + floating
+ * toolbar + minimap + zoom HUD (DDR-054, reskinned to maude in Task 7). The
+ * shell stage only frames it; the maude dot-grid shows in the empty/system
+ * state behind the iframe. NO shell-side floating chrome — that would duplicate
+ * the in-iframe controls. Keeps the legacy `.viewport > iframe` fill rules. */
+  .sh-stage {
+    background: var(--canvas-bg);
+    background-image: radial-gradient(var(--canvas-dot) 1.1px, transparent 1.2px);
+    background-size: var(--canvas-grid) var(--canvas-grid);
+  }
+
+  .sh-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    text-align: center;
+    padding: var(--space-7);
+    pointer-events: none;
+  }
+
+  .sh-empty code,
+  .sh-empty .kbd,
+  .sh-empty strong {
+    pointer-events: auto;
+  }
+
+  .sh-empty-title {
+    font-family: var(--font-display);
+    font-size: var(--type-xl);
+    font-weight: 600;
+    color: var(--fg-1);
+  }
+
+  .sh-empty-body {
+    max-width: 540px;
+    font-size: var(--type-sm);
+    line-height: 1.7;
+    color: var(--fg-2);
+  }
+
+  .sh-empty-body code {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    background: var(--bg-2);
+    color: var(--accent);
+    padding: 1px 5px;
+    border-radius: var(--radius-xs);
+  }
+
+  .sh-empty-body strong {
+    color: var(--fg-0);
+    font-weight: 600;
+  }
+
+  /* DDR-166 plan, Phase 2 (T7) — persistent "Setup" affordance, shown only while
+   the project's own setup (design system / first canvas / brand assets) is
+   incomplete; auto-hides once probeSetupReadiness() reports ready. */
+  .sh-empty-quick-setup {
+    pointer-events: auto;
+    margin-top: var(--space-1);
+  }
+
+  /* ═══ feature-studio-file-preview — non-canvas file preview overlay ════════
+ * Layered above the (still-mounted) canvas iframe / empty state so switching
+ * back to a canvas is instant. Shell-token only, no hardcoded colors. */
+  .sh-file-preview-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-1);
+    overflow: auto;
+  }
+
+  .sh-file-preview-overlay:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  .sh-file-preview {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+
+  .sh-file-preview-header {
+    flex: none;
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    font-weight: 400;
+    color: var(--fg-2);
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-0);
+  }
+
+  .sh-file-preview-body {
+    flex: 1;
+    padding: var(--space-5);
+  }
+
+  .sh-file-preview-status {
+    color: var(--fg-2);
+    font-size: var(--type-sm);
+  }
+
+  .sh-file-preview-error {
+    color: var(--status-error);
+  }
+
+  .sh-file-preview-text {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    line-height: 1.6;
+    color: var(--fg-1);
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--bg-0);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: var(--space-3);
+  }
+
+  .sh-file-preview-markdown {
+    max-width: 720px;
+    color: var(--fg-1);
+  }
+
+  .sh-file-preview-image-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    background-image:
+      linear-gradient(45deg, var(--bg-2) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--bg-2) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--bg-2) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--bg-2) 75%);
+    background-size: 16px 16px;
+    background-position:
+      0 0,
+      0 8px,
+      8px -8px,
+      -8px 0;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+  }
+
+  .sh-file-preview-image-wrap {
+    position: relative;
+  }
+
+  .sh-file-preview-image-wrap.is-loading {
+    min-height: 50vh;
+  }
+
+  .sh-file-preview-image {
+    max-width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+    transition: opacity var(--dur-soft) var(--ease-out);
+  }
+
+  /* Until it has fully arrived the photo stays hidden behind the status line —
+ * a half-painted or failed <img> reads as broken. */
+  .sh-file-preview-image-wrap.is-loading .sh-file-preview-image {
+    opacity: 0;
+  }
+
+  .sh-file-preview-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+  }
+
+  .sh-file-preview-image-wrap.is-error .sh-file-preview-loading {
+    position: static;
+    padding: var(--space-5);
+  }
+
+  .sh-file-preview-spinner {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid var(--bg-3);
+    border-top-color: var(--accent);
+    animation: sh-spin 0.8s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sh-file-preview-spinner {
+      animation-duration: 2.4s;
+    }
+  }
+
+  .sh-file-preview-media {
+    max-width: 100%;
+    max-height: 70vh;
+    display: block;
+  }
+
+  .sh-file-preview-audio {
+    width: 100%;
+  }
+
+  .sh-file-preview-font {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .sh-file-preview-font-specimen {
+    color: var(--fg-0);
+  }
+
+  .sh-file-preview-font-lg {
+    font-size: 40px;
+    line-height: 1.3;
+  }
+
+  .sh-file-preview-font-md {
+    font-size: 24px;
+    line-height: 1.4;
+  }
+
+  .sh-file-preview-font-sm {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--fg-2);
+    word-break: break-all;
+  }
+
+  /* ═══ Task 6 — right panel (Inspector / Comments) + palette + toast ═══════════ */
+  .sh-rpanel {
+    background: var(--bg-1);
+    border-left: 1px solid var(--border-default);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .sh-rp-tabs {
+    display: flex;
+    gap: 2px;
+    padding: var(--space-1) var(--space-2) 0;
+    border-bottom: 1px solid var(--border-subtle);
+    flex: none;
+  }
+
+  .sh-rp-tab {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+    font-family: var(--font-body);
+    padding: var(--space-2) var(--space-2);
+    border-bottom: 2px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .sh-rp-tab.is-active {
+    color: var(--fg-0);
+    border-bottom-color: var(--accent);
+  }
+
+  .sh-rp-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .sh-rp-hd {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--fg-2);
+  }
+
+  /* V2-4.8b — the second half of a panel header: the artboard count (Layers), the element's text
+     (Inspector). Quiet, sentence case, same line. */
+  .sh-rp-empty {
+    color: var(--fg-2);
+    font-size: var(--type-sm);
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  /* inspector panel rows */
+  .sh-insp-row {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .sh-insp-label {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide);
+  }
+
+  /* ─── Floating status banners (sync / git-lifecycle) ──────────────────────── */
+  @keyframes sh-slide-down {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -6px);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+  }
+
+  /* ─── Command palette (⌘K) ───────────────────────────────────────────────── */
+  /* The informational role notice sits BELOW a modal's scrim (9000): it covered
+   the preview dialog's own header (S19). Warnings and errors keep
+   the v1 banner's 9100 and stay visible over a dialog. */
+  .sh-scrim {
+    position: fixed;
+    inset: 0;
+    background: color-mix(in oklab, var(--bg-0) 62%, transparent);
+    z-index: 9000;
+    display: grid;
+    place-items: start center;
+    padding-top: 12vh;
+  }
+
+  .sh-palette {
+    width: 560px;
+    max-width: 92vw;
+    background: var(--bg-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    animation: sh-pop var(--dur-route) var(--ease-out);
+  }
+
+  .sh-pal-search {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--fg-2);
+  }
+
+  .sh-pal-search input {
+    flex: 1;
+    min-width: 0;
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-0);
+    font-size: var(--type-lg);
+    font-family: var(--font-body);
+  }
+
+  .sh-pal-search input::placeholder {
+    color: var(--fg-2);
+  }
+
+  .sh-pal-search .kbd {
+    margin-left: auto;
+  }
+
+  .sh-pal-list {
+    max-height: 340px;
+    overflow-y: auto;
+    padding: var(--space-1);
+  }
+
+  .sh-pal-group {
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold, 600);
+    color: var(--fg-2);
+    padding: var(--space-2) var(--space-2) 2px;
+  }
+
+  .sh-pal-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
+    color: var(--fg-1);
+    appearance: none;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+  }
+
+  .sh-pal-item.is-active {
+    background: var(--accent-tint);
+    color: var(--fg-0);
+  }
+
+  .sh-pal-label {
+    flex: 1;
+  }
+
+  .sh-pal-item .sh-pal-kbd {
+    margin-left: auto;
+    flex: none;
+  }
+
+  .sh-pal-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-4);
+    display: grid;
+    place-items: center;
+    color: var(--fg-1);
+    flex: none;
+  }
+
+  .sh-pal-item.is-active .sh-pal-icon {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+
+  .sh-toast-actions {
+    display: flex;
+    gap: var(--space-1);
+    margin-top: 2px;
+  }
+
+  /* ─── Export & handoff dialog (Plan C P9/P10) ──────────────────────────────
+ * Lifted from Studio.css `.sh-dialog*` and its format rows. Rendered inside `.sh-scrim`. */
+  .sh-dialog {
+    width: 540px;
+    max-width: 92vw;
+    background: var(--bg-1);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    animation: sh-pop var(--dur-route) var(--ease-out);
+  }
+
+  .sh-dialog-hd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .sh-dialog-title {
+    font-family: var(--font-display);
+    font-size: var(--type-lg);
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+
+  .sh-dialog-bd {
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  /* feature-cloud-export-render-workers — the "why is this disabled" line under the format grid. */
+  .sh-dialog-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .sh-dialog-lbl {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide);
+  }
+
+  .sh-select {
+    flex: 1;
+    appearance: none;
+    background: var(--bg-2);
+    color: var(--fg-0);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    padding: var(--space-1) var(--space-2);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    cursor: pointer;
+  }
+
+  .sh-dialog-ft {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    justify-content: flex-end;
+    padding: var(--space-3) var(--space-4);
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  /* ── Unified Settings modal (feature-unified-settings-modal) ────────────────
+ * One modal for every Maude preference: a vertical tab rail + an internally
+ * scrolling pane, so no category can push the dialog off-screen. Extends the
+ * shared .sh-dialog shell (which already clips + pops). */
+  .sh-dialog.is-settings {
+    width: 760px;
+  }
+
+  /* ─── AssetPicker (feature-element-editing-robustness Stage F1) ───────────── */
+  .sh-btn {
+    appearance: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 28px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    color: var(--fg-1);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    padding: 0 12px;
+    transition:
+      background var(--dur-soft) var(--ease-out),
+      border-color var(--dur-soft) var(--ease-out);
+  }
+
+  .sh-btn:hover {
+    background: var(--bg-3);
+    border-color: var(--border-strong, var(--border-default));
+  }
+
+  .sh-btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  .sh-asset-picker {
+    width: 620px;
+  }
+
+  .sh-ap-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .sh-ap-err {
+    color: var(--danger, #e5484d);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+  }
+
+  .sh-ap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+    gap: var(--space-2);
+    max-height: 52vh;
+    overflow-y: auto;
+    padding: 2px;
+  }
+
+  .sh-ap-empty {
+    grid-column: 1 / -1;
+    color: var(--fg-2);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    padding: var(--space-5) 0;
+    text-align: center;
+  }
+
+  .sh-ap-cell {
+    position: relative;
+    appearance: none;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    text-align: left;
+    transition:
+      border-color var(--dur-soft) var(--ease-out),
+      background var(--dur-soft) var(--ease-out);
+  }
+
+  .sh-ap-cell:hover {
+    border-color: var(--accent, var(--border-strong, var(--border-default)));
+    background: var(--bg-3);
+  }
+
+  .sh-ap-thumb {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: var(--radius-xs);
+    background: var(--bg-4, var(--bg-3));
+    display: block;
+  }
+
+  .sh-ap-name {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--fg-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* feature-bulk-media-insert — multi-select grid state + destination toggle + confirm bar */
+  .sh-ap-cell[data-selected="true"] {
+    border-color: var(--accent);
+    background: var(--bg-3);
+  }
+
+  .sh-ap-check {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border-default);
+    background: var(--bg-1);
+    color: var(--accent-fg, #fff);
+    display: grid;
+    place-items: center;
+  }
+
+  .sh-ap-cell[data-selected="true"] .sh-ap-check {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .sh-ap-confirm {
+    flex-wrap: wrap;
+  }
+
+  .sh-ap-count {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  .sh-ap-seg {
+    display: inline-flex;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: var(--bg-2);
+  }
+
+  .sh-ap-seg-btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+    font-family: var(--font-mono);
+    padding: var(--space-1) var(--space-2);
+    cursor: pointer;
+  }
+
+  .sh-ap-seg-btn[aria-pressed="true"] {
+    background: var(--bg-4);
+    color: var(--fg-0);
+  }
+
+  .sh-ap-seg-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  .sh-ap-seg-btn + .sh-ap-seg-btn {
+    border-left: 1px solid var(--border-subtle);
+  }
+
+  .sh-ap-dest-note {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  .sh-ap-confirm-spacer {
+    flex: 1;
+  }
+
+  /* ─── StickerPicker (feature-whiteboard-annotation-improvements Phase 4) ──── */
+  .sh-sticker-picker {
+    width: 640px;
+  }
+
+  .sh-sticker-picker .input {
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+    background: var(--bg-3);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    width: 100%;
+    transition:
+      border-color var(--dur-soft) var(--ease-out),
+      box-shadow var(--dur-soft) var(--ease-out);
+  }
+
+  .sh-sticker-picker .input::placeholder {
+    color: var(--fg-2);
+  }
+
+  .sh-sticker-picker .input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
+
+  .sh-sp-body {
+    max-height: 56vh;
+    overflow-y: auto;
+    padding: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .sh-sp-cell {
+    appearance: none;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    transition:
+      border-color var(--dur-soft) var(--ease-out),
+      background var(--dur-soft) var(--ease-out);
+  }
+
+  .sh-sp-cell:hover {
+    border-color: var(--accent, var(--border-strong, var(--border-default)));
+    background: var(--bg-3);
+  }
+
+  .sh-sp-thumb {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: contain;
+    display: block;
+  }
+
+  .sh-sp-empty {
+    color: var(--fg-2);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    padding: var(--space-5) 0;
+    text-align: center;
+  }
+
+  .sh-sp-ft {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    border-top: 1px solid var(--border-subtle);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--fg-2);
+  }
+
+  .sh-sp-ft a {
+    color: var(--fg-2);
+  }
+
+  /* ─── Inspector panel fields / layers / css (Plan C P11–P13) ───────────────
+ * Lifted from Studio.css; complements the already-present `.sh-insp-row`,
+ * `.sh-insp-label`, `.sh-rp-*`. */
+  .sh-insp-fields {
+    display: flex;
+    gap: var(--space-1);
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .sh-insp-unit {
+    align-self: center;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--fg-2);
+    letter-spacing: var(--tracking-wide);
+  }
+
+  .sh-insp-swatch {
+    display: block;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--border-default);
+    flex: none;
+  }
+
+  .sh-layer {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1);
+    border-radius: var(--radius-xs);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    /* gate-b-polish3 (08/14) — Layers speaks the body face; mono stays in Advanced (Show tags and ids) */
+    font-family: var(--font-body);
+  }
+
+  .sh-layer:hover {
+    background: var(--bg-2);
+  }
+
+  /* maude signature — selection is an accent-tint wash + an inset 2px accent bar,
+ * never a solid fill (DS hard rule). */
+  .sh-layer.is-sel {
+    background: var(--accent-tint);
+    color: var(--fg-0);
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+
+  /* Phase 12 Task 4 — browsable layers tree rows */
+  .sh-layer--row {
+    cursor: pointer;
+    padding: 3px var(--space-1);
+    gap: 4px;
+    white-space: nowrap;
+  }
+
+  .sh-layer--row:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  .sh-layer-caret {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 0;
+    color: var(--fg-2);
+    font-size: 9px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .sh-layer-label {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sh-layer-type {
+    flex: none;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  /* Phase 12.3 (W3.1) — type icon tint + per-row visibility (eye) toggle. */
+  .sh-layer-ticon {
+    flex: none;
+    color: var(--fg-2);
+  }
+
+  .sh-layer.is-sel .sh-layer-ticon {
+    color: var(--accent);
+  }
+
+  .sh-layer-eye {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 0;
+    color: var(--fg-2);
+    cursor: pointer;
+    padding: 0;
+    border-radius: var(--radius-xs);
+    opacity: 0;
+  }
+
+  .sh-layer--row:hover .sh-layer-eye,
+  .sh-layer--row:focus-within .sh-layer-eye {
+    opacity: 1;
+  }
+
+  .sh-layer-eye:hover {
+    color: var(--fg-0);
+    background: var(--bg-3);
+  }
+
+  .sh-layer-eye:focus-visible {
+    outline: none;
+    color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-tint);
+  }
+
+  /* feature-4 T7 — synthetic group row (unstamped wrapper): a muted, italic
+   structural stand-in. Not selectable, not draggable, no eye — it exists only
+   to restore real nesting in the tree. The folder icon reads as "container". */
+  .sh-layer.is-group {
+    cursor: default;
+    color: var(--fg-2);
+  }
+
+  .sh-layer.is-group .sh-layer-label {
+    font-style: italic;
+  }
+
+  .sh-layer.is-group .sh-layer-type {
+    opacity: 0.7;
+  }
+
+  .sh-layer.is-group:hover {
+    background: var(--bg-2);
+  }
+
+  /* feature-4 T7a — component-instance rows (Figma purple). ◆ = the component's
+   own frame root, ◇ = an inner member. The purple is deliberately Figma-adjacent
+   so the vocabulary transfers. */
+  .sh-layer.is-instance {
+    color: var(--layer-instance, #a78bfa);
+  }
+
+  .sh-layer.is-instance .sh-layer-label {
+    color: var(--layer-instance, #a78bfa);
+  }
+
+  .sh-layer.is-instance .sh-layer-type {
+    color: var(--layer-instance, #a78bfa);
+    opacity: 0.75;
+  }
+
+  .sh-layer-inst-glyph {
+    flex: none;
+    width: 14px;
+    text-align: center;
+    font-size: 10px;
+    color: var(--layer-instance, #a78bfa);
+  }
+
+  .sh-layer.is-sel.is-instance {
+    box-shadow: inset 2px 0 0 var(--layer-instance, #a78bfa);
+  }
+
+  /* feature-4 T7b — locked rows: padlock stays visible when locked; dimmed label. */
+  .sh-layer-lock {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 0;
+    color: var(--fg-2);
+    cursor: pointer;
+    padding: 0;
+    border-radius: var(--radius-xs);
+    opacity: 0;
+  }
+
+  .sh-layer--row:hover .sh-layer-lock,
+  .sh-layer--row:focus-within .sh-layer-lock {
+    opacity: 1;
+  }
+
+  .sh-layer-lock:hover {
+    color: var(--fg-0);
+    background: var(--bg-3);
+  }
+
+  .sh-layer-lock:focus-visible {
+    outline: none;
+    color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-tint);
+  }
+
+  .sh-layer.is-locked .sh-layer-lock {
+    opacity: 1;
+    color: var(--fg-1);
+  }
+
+  .sh-layer.is-locked .sh-layer-label {
+    opacity: 0.6;
+  }
+
+  /* feature-4 T7c — inline rename input matches the row's mono type. */
+  .sh-layer-rename {
+    flex: 1 1 auto;
+    min-width: 40px;
+    font: inherit;
+    color: var(--fg-0);
+    background: var(--bg-1);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-xs);
+    padding: 0 4px;
+    outline: none;
+  }
+
+  /* a hidden layer stays dim + keeps its eye visible (so it can be re-shown) */
+  .sh-layer.is-hidden {
+    opacity: 0.45;
+  }
+
+  .sh-layer.is-hidden .sh-layer-eye {
+    opacity: 1;
+    color: var(--fg-2);
+  }
+
+  /* Phase 12.1 (DDR-138) — drag-to-reorder affordances (same model as the in-canvas
+   drag): the dragged row floats with the cursor via an inline transform (its slot
+   stays reserved). A fixed blue DIVIDER marks the drop — INDENTED (left offset) to
+   the depth it will nest at (dnd-kit-tree / Figma style). */
+  .sh-layer-divider {
+    position: fixed;
+    z-index: 60;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 1px;
+    pointer-events: none;
+    box-shadow: 0 0 0 1px var(--bg-0);
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .insp-cp-prov.is-resettable:hover {
+    box-shadow: 0 0 0 3px var(--bg-4);
+  }
+
+  /* ═══ DS-parity polish (specimen sweep) ═══════════════════════════════════════
+ * Gaps found auditing the shell against `.design/system/maude/preview/*`:
+ * focus-visible coverage, the DS input focus ring, select chevron, unified
+ * thin scrollbars, tooltip bubbles. */
+  /* Catch-all keyboard focus — the DS focus specimen's ONE ring: 2px accent
+ * outline at 2px offset wrapped in a 5px --accent-tint halo (`focus.css`
+ * .fo-chip). :focus-visible only — mouse clicks never paint it. Inputs are
+ * NOT here — they take the DS input recipe (accent border + 3px tint ring). */
+  .maude :is(button, [role="tab"], select, summary, a):focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 5px var(--accent-tint);
+  }
+
+  /* tight rows inside scrollers — the inset variant so the ring never clips
+ * (focus.css .fo-tree .tree-row recipe). */
+  .maude
+  :is(
+    .sh-row,
+    .sh-dd-item,
+    .sh-pal-item,
+    .sh-layer,
+    .sh-tree-sec-hd,
+    .sh-cm-group-hd
+  ):focus-visible {
+    outline-offset: -2px;
+    box-shadow: inset 0 0 0 5px var(--accent-tint);
+  }
+
+  .sh-select:hover {
+    border-color: var(--border-strong);
+    background-color: var(--bg-3);
+  }
+
+  .sh-select:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
+
+  /* palette search — the container is the field; the inner input stays naked */
+  .sh-pal-search input:focus {
+    outline: none;
+  }
+
+  .sh-pal-search:focus-within {
+    border-bottom-color: var(--accent-muted);
+  }
+
+  /* select chevron: one kit caret for every native <select> lives in 3-kit-maude-v2.css (Phase 8 C1-kit). */
+  /* unified thin scrollbars — one material everywhere (tree, panels, palette,
+ * system view, modals). Hairline thumb, transparent track. */
+  .maude * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-default) transparent;
+  }
+
+  .maude ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .maude ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .maude ::-webkit-scrollbar-thumb {
+    background: var(--border-default);
+    border-radius: var(--radius-pill);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .maude ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--border-strong);
+  }
+
+  /* tooltip bubble — DS `components-tooltips` recipe (bg-2 hairline bubble), CSS
+ * attr-driven so chrome controls opt in via `data-tip` without a JS layer.
+ * 500ms reveal delay ≈ native tooltip timing; reduced-motion shows instantly. */
+  .maude [data-tip] {
+    position: relative;
+  }
+
+  .maude [data-tip]::after {
+    content: attr(data-tip);
+    position: absolute;
+    top: calc(100% + 7px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9200;
+    white-space: nowrap;
+    padding: var(--space-1) var(--space-2);
+    background: var(--bg-2);
+    color: var(--fg-0);
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    font-weight: 400;
+    letter-spacing: normal;
+    text-transform: none;
+    line-height: 1;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--dur-soft) var(--ease-out);
+  }
+
+  .maude [data-tip]:hover::after,
+  .maude [data-tip]:focus-visible::after {
+    opacity: 1;
+    transition-delay: 500ms;
+  }
+
+  /* bottom-bar + right-edge hosts flip/clamp so the bubble stays on screen */
+  .maude [data-tip][data-tip-pos="top"]::after {
+    top: auto;
+    bottom: calc(100% + 7px);
+  }
+
+  .maude [data-tip][data-tip-pos="left"]::after {
+    top: 50%;
+    left: auto;
+    right: calc(100% + 7px);
+    transform: translateY(-50%);
+  }
+
+  /* ═══ Behavioral polish (specimen sweep, round 2) ═════════════════════════════ */
+  /* ─── Panel grip — DS components-resize-panels recipe ──────────────────────
+ * 8px hit area; the panel's own border is the at-rest hairline, the grip seam
+ * surfaces accent + grip dots on hover/focus/drag. col-resize everywhere
+ * while dragging; iframes drop pointer events so they can't eat the stream. */
+  .sh-grip {
+    flex: 0 0 8px;
+    width: 8px;
+    position: relative;
+    cursor: col-resize;
+    display: grid;
+    place-items: center;
+    background: transparent;
+    /* sit over the adjacent panel borders so the accent seam reads centered */
+    margin: 0 -4px;
+    z-index: 25;
+  }
+
+  .sh-grip::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 1px;
+    transform: translateX(-50%);
+    background: transparent;
+    transition:
+      background var(--dur-flip) var(--ease-out),
+      width var(--dur-flip) var(--ease-out);
+  }
+
+  .sh-grip:hover::before,
+  .sh-grip:focus-visible::before,
+  .sh-grip.is-active::before {
+    background: var(--accent);
+    width: 2px;
+  }
+
+  .sh-grip-dots {
+    width: 6px;
+    height: 18px;
+    color: var(--accent);
+    opacity: 0;
+    position: relative;
+    transition: opacity var(--dur-flip) var(--ease-out);
+  }
+
+  .sh-grip:hover .sh-grip-dots,
+  .sh-grip:focus-visible .sh-grip-dots,
+  .sh-grip.is-active .sh-grip-dots {
+    opacity: 1;
+  }
+
+  /* specimen recipe — inset ring on the narrow hit area (the seam + dots already
+ * surface accent, this keeps a proper outline for WCAG focus visibility) */
+  .sh-grip:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -3px;
+  }
+
+  .sh-body.is-resizing {
+    cursor: col-resize;
+    user-select: none;
+  }
+
+  .sh-body.is-resizing iframe {
+    pointer-events: none;
+  }
+
+  .sh-sidebar.is-resizing,
+  .sh-rpanel.is-resizing {
+    transition: none;
+  }
+
+  /* ─── File tree before its first index (TreeLoading) ───────────────────────── */
+  .sh-tree-loading {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-2) var(--space-3);
+  }
+
+  .sh-tree-loading-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+    margin-bottom: 2px;
+  }
+
+  .sh-tree-loading-row {
+    height: 10px;
+  }
+
+  .sh-tree-loading-hint {
+    margin-top: var(--space-1);
+    font-size: var(--type-xs);
+    line-height: 1.45;
+    color: var(--fg-2);
+  }
+
+  /* ─── Canvas-compile skeleton — DS skeletons recipe (.skel pulse) ──────────── */
+  .sh-canvas-loading {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    z-index: 5;
+    /* OPAQUE from the first frame — the frame underneath is the bare shell (a
+   * white page, comment pins over nothing) until the canvas reports rendered. */
+    background: var(--canvas-bg);
+  }
+
+  /* 180ms appearance delay on the CARD — warm canvases mount in <150ms and never
+ * flash it; the backdrop above is immediate so nothing white shows through. */
+  .sh-canvas-loading > .sh-skel-card {
+    opacity: 0;
+    animation: sh-loading-in var(--dur-soft) var(--ease-out) 180ms forwards;
+  }
+
+  @keyframes sh-loading-in {
+    to {
+      opacity: 1;
+    }
+  }
+
+  .sh-canvas-loading-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+
+  .sh-canvas-loading-title {
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sh-canvas-loading-spinner {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid var(--bg-3);
+    border-top-color: var(--accent);
+    animation: sh-spin 0.8s linear infinite;
+  }
+
+  @keyframes sh-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .sh-canvas-loading-hint {
+    font-size: var(--type-xs);
+    line-height: 1.45;
+    color: var(--fg-2);
+    opacity: 0;
+    transition: opacity var(--dur-soft) var(--ease-out);
+  }
+
+  .sh-canvas-loading-hint.is-shown {
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sh-canvas-loading-spinner {
+      animation-duration: 2.4s;
+    }
+  }
+
+  .sh-skel-card {
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    background: var(--bg-1);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    animation: sh-pop var(--dur-panel) var(--ease-out);
+  }
+
+  .skel {
+    display: block;
+    background: var(--bg-3);
+    border-radius: var(--radius-xs);
+    animation: sk-pulse calc(var(--dur-route) * 3) var(--ease-in-out) infinite alternate;
+  }
+
+  @keyframes sk-pulse {
+    from {
+      opacity: 0.45;
+    }
+    to {
+      opacity: 0.95;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skel {
+      animation: none;
+      opacity: 0.7;
+    }
+  }
+
+  .sh-skel-thumb {
+    height: 96px;
+    border-radius: var(--radius-sm);
+  }
+
+  .sh-skel-line {
+    height: 10px;
+  }
+
+  /* ─── Canvas failed to load (issue #115) ──────────────────────────────────────
+ * Replaces the blank pane the 15s skeleton cap used to leave behind. Same card
+ * geometry as the skeleton so the transition from "compiling" to "it didn't"
+ * reads as one surface changing state, not a new thing appearing. Interactive
+ * (the skeleton is `pointer-events: none`; this one has a button). */
+  .sh-canvas-error {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    z-index: 6;
+    background: var(--canvas-bg);
+  }
+
+  .sh-canvas-error-card {
+    width: 360px;
+    max-width: calc(100% - var(--space-7));
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    background: var(--bg-1);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    animation: sh-pop var(--dur-panel) var(--ease-out);
+  }
+
+  .sh-canvas-error-title {
+    font-family: var(--font-display);
+    font-size: var(--type-base);
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+
+  .sh-canvas-error-body {
+    font-size: var(--type-sm);
+    line-height: 1.6;
+    color: var(--fg-2);
+  }
+
+  .sh-canvas-error-body code {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    background: var(--bg-2);
+    color: var(--accent);
+    padding: 1px 5px;
+    border-radius: var(--radius-xs);
+  }
+
+  .sh-canvas-error-card .btn {
+    align-self: flex-start;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sh-canvas-error-card {
+      animation: none;
+    }
+  }
+
+  /* ─── Micro-motion — hover/disclosure transitions on the dense surfaces ───── */
+  .sh-row,
+  .sh-rp-tab,
+  .sh-dd-item,
+  .sh-pal-item,
+  .sh-layer,
+  .ex-export-recent-row {
+    transition:
+      background var(--dur-soft) var(--ease-out),
+      border-color var(--dur-soft) var(--ease-out),
+      color var(--dur-soft) var(--ease-out);
+  }
+
+  /* right dock slides in as a panel (DS motion role: panel) */
+  .sh-rpanel {
+    animation: insp-panel-in var(--dur-panel) var(--ease-out);
+  }
+
+  /* ─── Keyboard-shortcuts overlay — DS components-shortcuts-overlay recipe ──── */
+  .so-overlay {
+    position: relative;
+    width: 100%;
+    max-width: 720px;
+    background: var(--bg-1);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: var(--space-5);
+    margin-top: -4vh;
+    animation: so-enter var(--dur-panel) var(--ease-out) both;
+  }
+
+  @keyframes so-enter {
+    0% {
+      opacity: 0;
+      transform: translateY(-6px) scale(0.99);
+    }
+    100% {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .so-overlay-hd {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin: 0 0 var(--space-4);
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .so-title {
+    font-family: var(--font-display);
+    font-size: var(--type-lg);
+    line-height: var(--lh-lg);
+    font-weight: 600;
+    letter-spacing: var(--tracking-tight);
+    color: var(--fg-0);
+  }
+
+  .so-columns {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-5) var(--space-6);
+  }
+
+  .so-section-hd {
+    margin: 0 0 var(--space-2);
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold, 600);
+    color: var(--fg-2);
+    padding-bottom: var(--space-1);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  /* the canvas-tools column reads as the in-canvas scope — accent-muted header */
+  .so-section--tools .so-section-hd {
+    color: var(--accent);
+    border-bottom-color: color-mix(in oklab, var(--accent) 40%, var(--border-subtle));
+  }
+
+  .so-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+  }
+
+  .so-pair {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: var(--space-3);
+    padding: 2px 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  .so-pair:hover {
+    background: var(--bg-2);
+  }
+
+  .so-pair dt {
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+
+  .so-pair dd {
+    margin: 0;
+    justify-self: end;
+  }
+
+  .so-combos {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .so-or {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    padding: 0 1px;
+  }
+
+  .so-overlay-ft {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border-subtle);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  @media (max-width: 640px) {
+    .so-columns {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* header: title + "N unsaved" pill + close, then the Changes/History tabbar */
+  .gp-x {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--fg-2);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 5px;
+    border-radius: var(--radius-xs);
+  }
+
+  .gp-x:hover {
+    color: var(--fg-1);
+    background: var(--bg-3);
+  }
+
+  /* WKWebView-safe shell prompt modal (window.prompt is a no-op in Tauri). */
+  .sh-prompt {
+    width: 420px;
+    max-width: 90vw;
+  }
+
+  .sh-prompt .sh-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--bg-3);
+    background: var(--bg-0);
+    color: var(--fg-0);
+    font-size: var(--type-sm);
+    outline: none;
+  }
+
+  .sh-prompt .sh-input:focus {
+    border-color: var(--accent);
+  }
+
+  /* DDR-150 dogfood — the right-click clip menu reuses the canvas's shared
+   .dc-context-menu component. Its injected CSS reads --maude-chrome-* tokens
+   that the CANVAS defines but the SHELL never set. gate-a-polish: map them to the shell's own
+   ladder (theme-following, island material, body face) instead of a hard-coded dark oklch set. */
+  .dc-context-menu {
+    --maude-chrome-bg-2: var(--bg-2);
+    --maude-chrome-fg-0: var(--fg-0);
+    --maude-chrome-fg-1: var(--fg-1);
+    --maude-chrome-border: var(--border-subtle);
+    --maude-chrome-shadow: color-mix(in oklab, var(--fg-0) 14%, transparent);
+    --maude-chrome-error: var(--status-error-text, var(--fg-0));
+    --maude-chrome-font-body: var(--font-body);
+  }
+
+  /* the changed-file list */
+  .gp-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-1) 0;
+    min-height: 0;
+  }
+
+  /* publish / get-latest bar */
+  @keyframes gp-pulse {
+    0% {
+      box-shadow: 0 0 0 0 color-mix(in oklab, var(--status-info) 55%, transparent);
+    }
+    70% {
+      box-shadow: 0 0 0 7px transparent;
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+
+  /* ─── Presentation Mode ────────────────────────────────────────────────────
+   View ▸ Presentation Mode — a non-destructive "artboards only" overlay. Hides
+   every piece of shell chrome while leaving the canvas viewport (.main) mounted
+   so its pan/zoom + open tabs survive an exit. The two structural rules below
+   hide (a) the menubar + status bar — the .sh-shell children that aren't the
+   body — and (b) the sidebar / collapsed rail / resize grips / side panels —
+   the .sh-body children that aren't the viewport. The canvas iframe hides its
+   OWN floating chrome (minimap, zoom pill, tool palette, annotations, comment
+   pins) via the dgn:'view-chrome' bridge. Escape hatch: Esc or the pill. */
+  .maude.is-present .sh-shell > :not(.sh-body) {
+    display: none !important;
+  }
+
+  .maude.is-present .sh-body > :not(.main) {
+    display: none !important;
+  }
+
+  /* Proactive "remote has updates" nudge — a full-width primary button above the dock
+   trigger, shown when the tracking remote is ahead (status.remoteAhead). */
+  @keyframes rb-getlatest-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* feature-sync-progress-modal — the Sync panel (per-file sync rows). Reuses
+ * the gp- head chrome; sp- covers only the sync-specific rows/sections. */
+  .sp-body {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: var(--space-3);
+  }
+
+  .sp-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* a remote-only draft (on the team's remote, not downloaded yet) reads quieter
+ * than a local draft — it's a "could open" not a "yours". */
+  @keyframes rb-pop-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* new-draft inline form (anchored upward above the dock). Solid bg (not `.panel`). */
+  .rb-switcher-err {
+    color: var(--status-error);
+    font-size: var(--type-xs);
+  }
+
+  /* switching state (compact, in the dock). */
+  .rb-switching {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    color: var(--fg-1);
+    font-size: var(--type-sm);
+  }
+
+  .rb-switching b {
+    color: var(--fg-0);
+  }
+
+  @keyframes rb-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}
+
+/* from styles/4-components.css */
+@layer components {
+  /* Busy state for the Save…/Download button — the bytes fetch + (native) the
+   OS save-dialog handoff can take several seconds on a large export; without
+   this the button just goes silent after the click. */
+  .sh-btn-spin {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    margin-right: 5px;
+    vertical-align: -1px;
+    border: 1.5px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    opacity: 0.75;
+    animation: sh-btn-spin 0.7s linear infinite;
+  }
+
+  @keyframes sh-btn-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sh-btn-spin {
+      animation-duration: 1ms;
+    }
+  }
+
+  /* Share links reuse the shell dialog material. */
+  .sh-share-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+
+  .sh-share-btn:hover {
+    background: var(--bg-2);
+    color: var(--fg-0);
+  }
+
+  .sh-share-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .sh-share-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+/* from styles/4-components-maude.css */
+@layer components {
+  /* ─── Buttons: the maude-v2 kit button lives in 3-kit-maude-v2.css (@layer components, Phase 8 C1-kit) ─── */
+  /* ─── Keyboard hint ─────────────────────────────────────────────────────── */
+  /* The kit's keycap (`.design/system/maude-v2/preview/_components.css` `.kbd`): body font, 11px, 20px high,
+     20px wide at minimum, a hairline edge with a 1px floor. It was mono and ~9px with a 2px floor, so ⇧ and
+     ⌥ were barely legible (design-critic warning). */
+  .maude .kbd {
+    display: inline-grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    line-height: 1;
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    color: var(--fg-1);
+    box-shadow:
+      inset 0 -1px 0 var(--border-default),
+      inset 0 0 0 0.5px var(--border-default);
+  }
+
+  /* ─── Callout ───────────────────────────────────────────────────────────── */
+  .maude .callout {
+    display: flex;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border: 1px solid var(--border-default);
+    border-left-width: 3px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-1);
+    color: var(--fg-1);
+  }
+
+  .maude .callout--info {
+    border-left-color: var(--status-info);
+  }
+
+  .maude .callout--success {
+    border-left-color: var(--status-success);
+  }
+
+  .maude .callout--warn {
+    border-left-color: var(--status-warn);
+  }
+
+  .maude .callout--error {
+    border-left-color: var(--status-error);
+  }
+}
+
+/* ── end of the moved rules ── */
+
 @layer shell {
   .sh-body {
     position: relative; /* the corner icons position against it in either layout */

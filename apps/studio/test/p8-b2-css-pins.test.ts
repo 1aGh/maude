@@ -4,6 +4,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { shellCss } from './_shell-css';
 
 const css = (rel: string) => readFileSync(join(import.meta.dir, '..', 'client', rel), 'utf8');
 /** The declaration block of the first rule whose selector is exactly `sel` (alone or last in a list). */
@@ -24,7 +25,7 @@ describe('Inspector', () => {
 
 describe('pinned panels', () => {
   test('the sidebar and right panel fill the slot through the display:contents wrapper (Canvases list was 6 px tall)', () => {
-    const shell = css('styles/3-shell-maude.css');
+    const shell = shellCss();
     expect(shell).toMatch(
       /\.sh-dockslot > \.sh-dockslot-inner > \.sh-sidebar\s*\{\s*flex:\s*1 1 auto/
     );

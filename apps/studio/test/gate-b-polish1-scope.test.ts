@@ -12,6 +12,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { shellCss, shellCssFiles } from './_shell-css';
 
 const STUDIO = join(import.meta.dir, '..');
 const CLIENT = join(STUDIO, 'client');
@@ -194,11 +195,13 @@ describe('RC-B · kit classes and unstyled v2 elements', () => {
 // ── RC-A: the shell face and the v2 tokens reach a sheet mounted beside `.sh-shell` ──────────
 describe('RC-A · v2 surfaces resolve the body face and the v2 tokens in the shell', () => {
   test('`.maude` itself speaks var(--font-body) (body resolves the v1 mono stack at :root)', () => {
-    const css = stripComments(read(join(CLIENT, 'styles/3-shell-maude.css')));
-    const at = css.search(/\n\s*\.maude\s*\{/);
-    expect(at).toBeGreaterThan(-1);
-    const body = css.slice(css.indexOf('{', at) + 1, css.indexOf('}', at));
-    expect(body).toMatch(/font-family:\s*var\(--font-body\)/);
+    const css = stripComments(shellCss());
+    // the last bare `.maude {` rule that sets a font-family is the one that wins
+    const faces = [...css.matchAll(/\n\s*\.maude\s*\{([^}]*)\}/g)]
+      .map((m) => m[1])
+      .filter((body) => /font-family:/.test(body));
+    expect(faces.length).toBeGreaterThan(0);
+    expect(faces[faces.length - 1]).toMatch(/font-family:\s*var\(--font-body\)/);
   });
 
   test('every var(--x) without a fallback in client/v2 CSS is declared in the shell scope', () => {
@@ -230,12 +233,14 @@ describe('RC-A · v2 surfaces resolve the body face and the v2 tokens in the she
       expect(shell).toContain(n);
   });
 
-  test('the kit and the shell token files load in the bundle, in order', () => {
-    const idx = read(join(CLIENT, 'styles/_index.css'));
-    const pos = (f: string) => idx.indexOf(`@import url("./${f}")`);
-    expect(pos('1-tokens-shell.css')).toBeGreaterThan(-1);
-    expect(pos('1-tokens-shell.css')).toBeLessThan(pos('3-kit-maude-v2.css'));
-    expect(pos('3-kit-maude-v2.css')).toBeGreaterThan(-1);
-    expect(pos('3-kit-maude-v2.css')).toBeLessThan(pos('3-shell-maude.css'));
+  test('the kit and the shell token files load in the bundle, in order — the kit before every area file', () => {
+    const files = shellCssFiles();
+    const pos = (f: string) => files.indexOf(f);
+    expect(pos('styles/1-tokens-shell.css')).toBeGreaterThan(-1);
+    expect(pos('styles/1-tokens-shell.css')).toBeLessThan(pos('styles/3-kit-maude-v2.css'));
+    expect(pos('styles/3-kit-maude-v2.css')).toBeGreaterThan(-1);
+    expect(pos('styles/3-kit-maude-v2.css')).toBeLessThan(
+      files.findIndex((f) => f.startsWith('v2/'))
+    );
   });
 });

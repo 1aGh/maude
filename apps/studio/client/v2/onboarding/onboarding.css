@@ -2,6 +2,232 @@
  * (`ob-sheet*`, `ob-row2`, `ob-opt*`, `ob-inst*`, `ob-cmds*`, `ob-seg`) with tokens only; the sheet plane itself is
  * the Connect-AI sheet's (`ai-conn-*`, v2/ai/needs-you.css). Mono lives only inside these bodies. */
 
+/* ── V2-8.0: rules moved here from the retired styles/ layer files, in their original order and ahead of this file's own rules, so the cascade is unchanged. ── */
+
+/* from styles/3-shell-maude.css */
+@layer shell {
+  /* maude mark tile — lifted from system/maude/preview/logo.css `.lg-mark`: spark in
+ * --accent-fg on the indigo, bottom-right corner squared (bubble), accent-tint halo. */
+  .ob-foot-note {
+    margin: 0;
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+
+  /* AI-editing readiness strip (Phase 33 / DDR-128) — non-blocking, collapsible. */
+  .ob-section-label {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--fg-2);
+    margin-top: var(--space-1);
+  }
+
+  .ob-repolist {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    max-width: 720px;
+  }
+
+  .ob-repo {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    text-align: left;
+    padding: var(--space-3);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--bg-1);
+    color: inherit;
+    cursor: pointer;
+    transition:
+      border-color var(--dur-soft) var(--ease-out),
+      background var(--dur-soft) var(--ease-out);
+  }
+
+  .ob-repo:hover {
+    border-color: var(--border-strong);
+    background: var(--bg-2);
+  }
+
+  .ob-repo:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .ob-repo:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .ob-repo-icon {
+    color: var(--fg-2);
+    display: grid;
+    place-items: center;
+  }
+
+  .ob-repo-tx {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  .ob-repo-name {
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+
+  .ob-repo-meta {
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+    font-family: var(--font-mono);
+  }
+
+  .ob-repo-go {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--fg-2);
+    font-size: var(--type-sm);
+    white-space: nowrap;
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-sm);
+  }
+
+  .ob-repo:hover .ob-repo-go {
+    color: var(--accent);
+    background: var(--accent-tint);
+  }
+
+  .ob-callout {
+    max-width: 720px;
+  }
+
+  .ob-callout-glyph {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+  }
+
+  .ob-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    max-width: 560px;
+  }
+
+  .ob-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .ob-field-label {
+    font-size: var(--type-sm);
+    font-weight: 600;
+    color: var(--fg-1);
+  }
+
+  .ob-field-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .ob-field-pre {
+    position: absolute;
+    left: var(--space-2);
+    color: var(--fg-2);
+    pointer-events: none;
+  }
+
+  .ob-input {
+    width: 100%;
+  }
+
+  .ob-field-wrap .ob-input {
+    padding-left: calc(var(--space-2) * 2 + 16px);
+    font-family: var(--font-mono);
+  }
+
+  .ob-form-actions {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: 2px;
+  }
+
+  .ob-spin {
+    animation: ob-spin 0.8s linear infinite;
+  }
+
+  @keyframes ob-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ob-repo {
+      transition-duration: 1ms;
+    }
+    .ob-spin {
+      animation-duration: 1ms;
+    }
+  }
+
+  /* ── SourceConflictPanel (plan T28) — two versions, line by line. ── */
+  .tp {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    max-width: 720px;
+  }
+
+  .tp-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .tp-device {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-width: 560px;
+  }
+
+  .tp-device .ob-form-actions {
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .tp-dialog-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .tp-dialog-head h2 {
+    margin: 0;
+    font-size: var(--type-lg);
+    color: var(--fg-0);
+  }
+
+  .tp-dialog-head p {
+    margin: 2px 0 0;
+    color: var(--fg-2);
+    font-size: var(--type-sm);
+  }
+}
+
+/* ── end of the moved rules ── */
+
 @layer components {
   .ob-modal {
     z-index: 30;

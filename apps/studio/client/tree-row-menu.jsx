@@ -5,7 +5,7 @@
 // for the a11y gate, not optional polish. A focusable "⋯" button + Enter/click
 // opens a small menu; Move to… drills into a flat destination-folder list.
 // Reuses the existing menubar dropdown visual language (`.sh-dropdown` /
-// `.sh-dd-item` from 3-shell-maude.css) rather than inventing new chrome —
+// `.sh-dd-item` from v2/shell/floating-panels.css) rather than inventing new chrome —
 // only `position` is overridden inline since this menu anchors to an
 // arbitrary row, not the menubar's fixed offset.
 

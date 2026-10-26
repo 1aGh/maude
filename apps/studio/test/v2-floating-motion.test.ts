@@ -5,9 +5,11 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { withoutMovedRules } from './_shell-css';
 
 const read = (rel: string) => readFileSync(join(import.meta.dir, '..', rel), 'utf8');
-const FLOAT = read('client/v2/shell/floating-panels.css');
+// the panels' own rules: the shell chrome moved in from the old layers (V2-8.0 D) is pinned elsewhere
+const FLOAT = withoutMovedRules(read('client/v2/shell/floating-panels.css'));
 const TOKENS = read('client/styles/1-tokens-shell.css');
 
 const declarations = (css: string, prop: RegExp) =>
@@ -28,7 +30,7 @@ describe('reduced motion is a cut', () => {
 
   test('the ladder the shell resolves collapses --dur-panel to 1ms under prefers-reduced-motion', () => {
     const block =
-      /@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n  \}/.exec(TOKENS)?.[1] ?? '';
+      /@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n {2}\}/.exec(TOKENS)?.[1] ?? '';
     // P8 C0: the shell ladder (1-tokens-shell.css) collapses on the shell roots, theme-independent
     expect(block).toMatch(/:root,\s*\.maude\s*\{/);
     const panel = /--dur-panel:\s*(\d+)ms/.exec(block);
@@ -39,7 +41,7 @@ describe('reduced motion is a cut', () => {
 
   test('the floating rules drop the keyframes outright under reduced motion', () => {
     const rm =
-      /@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n  \}/.exec(FLOAT)?.[1] ?? '';
+      /@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n {2}\}/.exec(FLOAT)?.[1] ?? '';
     expect(rm).toMatch(/\.sh-dockslot-inner/);
     expect(rm).toMatch(/\.sh-corner/);
     expect(rm).toMatch(/animation:\s*none/);

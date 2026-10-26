@@ -35,6 +35,7 @@ import {
   ELEMENT_ID_MAX as SERVER_MAX,
   ELEMENT_ID_RE as SERVER_RE,
 } from '../element-ids.ts';
+import { withoutMovedRules } from './_shell-css';
 
 const STUDIO = join(import.meta.dir, '..');
 const read = (rel: string) => readFileSync(join(STUDIO, rel), 'utf8');
@@ -439,7 +440,8 @@ describe('the registry carries the inspector actions (rule 14: each with its AI 
 });
 
 describe('the frame stays on the rails (CONTRACT: tokens only, weights stop at 600)', () => {
-  const css = read('client/v2/inspector/inspector.css');
+  // the v2 inspector's own rules: the insp-* rules moved in from the old layers (V2-8.0 D) predate this contract
+  const css = withoutMovedRules(read('client/v2/inspector/inspector.css'));
   test('inspector.css has no hex colour and no weight above 600', () => {
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     expect(css).not.toMatch(/font-weight:\s*(7|8|9)00/);

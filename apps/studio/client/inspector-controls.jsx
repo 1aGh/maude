@@ -25,7 +25,7 @@
 //   • Field — the label + control [+ help] inspector row.
 //
 // Runs on the MAIN origin (studio shell), so it's plain React with the shell's
-// `.insp-cp-*` classes (styled in client/styles/3-shell-maude.css). Value model is
+// `.insp-cp-*` classes (styled in client/v2/inspector/inspector.css). Value model is
 // numeric-first; NumberField accepts optional parse/format hooks so CssKnobs can
 // adapt its CSS-unit strings without the library learning about units.
 
