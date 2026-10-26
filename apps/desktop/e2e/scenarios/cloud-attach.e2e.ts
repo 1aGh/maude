@@ -14,9 +14,9 @@ import { canvasRow } from '../helpers/tree';
 
 /**
  * cloud-attach (Cloud Phase 23 C4 + Phase 17) — the CloudBar lane end to end,
- * DOM-driven, control plane + cell stubbed by wdio.cloud.conf.ts (which
+ * DOM-driven, control plane stubbed and cell = a LOCAL throwaway hub, both by wdio.cloud.conf.ts (which
  * primes MAUDE_CLOUD_URL/MAUDE_CLOUD_CONFIG/HUBS_CONFIG_PATH before the app
- * spawns, so no real account or credential is ever touched).
+ * spawns, so no real account, hub or credential is ever touched).
  *
  * Proven here:
  *   1. sign-in flips the rail to the account email without a human (the stub
@@ -360,9 +360,9 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     // including a link that never connected at all. Nothing in the DOM ever
     // changed again, which is exactly what "reálně se nic nestane" looked like.
     //
-    // This stub has NO Yjs hub behind it — the control plane is faked and the
-    // WS upgrade goes nowhere. So the honest terminal state here is
-    // "unreachable", and reaching it is the proof the sentence is live: an
+    // The control plane is faked but the cell behind it is a real LOCAL hub
+    // (wdio.cloud.conf.ts), so the honest terminal state is usually "Synced
+    // with …" — and any terminal sentence is the proof the line is live: an
     // intention-derived string could never have arrived at it.
     await openConnections();
     const member = await $(tid('cloud-project-stub-project'));

@@ -35,6 +35,7 @@
     "e2e:share-roles": "wdio run ./wdio.share-roles.conf.ts",
     "e2e:onboarding": "wdio run ./wdio.onboarding.conf.ts",
     "e2e:acp-cold-start": "wdio run ./wdio.acp-cold-start.conf.ts",
+    "e2e:acp-fake": "wdio run ./wdio.acp-fake.conf.ts",
     "e2e:parity": "wdio run ./wdio.parity.conf.ts",
     "e2e:sidecar-respawn": "wdio run ./wdio.sidecar-respawn.conf.ts",
     "e2e:team-project": "wdio run ./wdio.team-project.conf.ts",

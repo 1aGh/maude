@@ -38,7 +38,11 @@ async function nap(s, ms) {
   for (let left = ms; left > 0 && !s.cancelled; left -= 100) await sleep(Math.min(100, left));
 }
 const MODES = [
-  { id: 'default', name: 'Default', description: 'Standard behavior, prompts for dangerous operations' },
+  {
+    id: 'default',
+    name: 'Default',
+    description: 'Standard behavior, prompts for dangerous operations',
+  },
   { id: 'acceptEdits', name: 'Accept Edits', description: 'Auto-accept file edit operations' },
   { id: 'plan', name: 'Plan Mode', description: 'Planning mode, no actual tool execution' },
 ];
@@ -47,7 +51,14 @@ const sessions = new Map(); // sessionId -> { mode, cancelled }
 let n = 0;
 
 const modeConfig = (s) => [
-  { id: 'mode', name: 'Mode', category: 'mode', type: 'select', currentValue: s.mode, options: MODE_OPTIONS },
+  {
+    id: 'mode',
+    name: 'Mode',
+    category: 'mode',
+    type: 'select',
+    currentValue: s.mode,
+    options: MODE_OPTIONS,
+  },
 ];
 // The connection's client handle (every request context carries the same one).
 let client = null;
@@ -135,9 +146,7 @@ async function toolCall(sessionId, tool, rawInput, { ask }) {
 }
 
 const promptText = (params) =>
-  (params.prompt ?? [])
-    .map((b) => (b?.type === 'text' ? b.text : ''))
-    .join('\n');
+  (params.prompt ?? []).map((b) => (b?.type === 'text' ? b.text : '')).join('\n');
 
 async function run(ctx) {
   const { sessionId } = ctx.params;
@@ -155,7 +164,8 @@ async function run(ctx) {
       return { stopReason: 'end_turn' };
     }
     const file = outside ? outside[0] : join(root, 'write-scope-probe.txt');
-    const allowed = await toolCall(sessionId,
+    const allowed = await toolCall(
+      sessionId,
       'Write',
       { file_path: file, content: 'ok' },
       { ask: s.mode === 'default' }
@@ -184,7 +194,8 @@ async function run(ctx) {
       if (s.cancelled) return cancelled();
       if (target) {
         const src = readFileSync(target, 'utf8').replace(/\n?\/\/ Step \d+\n?$/, '');
-        const ok = await toolCall(sessionId,
+        const ok = await toolCall(
+          sessionId,
           'Edit',
           { file_path: target, old_string: 'a', new_string: `Step ${i}` },
           { ask: s.mode === 'default' }
@@ -226,11 +237,15 @@ acp
   .onRequest('session/load', (ctx) => {
     client = ctx.client;
     const s = state(ctx.params.sessionId);
-    return { modes: { currentModeId: s.mode, availableModes: MODES }, configOptions: modeConfig(s) };
+    return {
+      modes: { currentModeId: s.mode, availableModes: MODES },
+      configOptions: modeConfig(s),
+    };
   })
   .onRequest('session/set_mode', async (ctx) => {
     const s = state(ctx.params.sessionId);
-    if (!MODES.some((m) => m.id === ctx.params.modeId)) throw new Error(`unknown mode: ${ctx.params.modeId}`);
+    if (!MODES.some((m) => m.id === ctx.params.modeId))
+      throw new Error(`unknown mode: ${ctx.params.modeId}`);
     client = ctx.client;
     s.mode = ctx.params.modeId;
     // The real adapter's setSessionMode emits ONLY config_option_update; the bridge cross-derives the mode.

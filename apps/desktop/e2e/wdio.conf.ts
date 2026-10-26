@@ -35,6 +35,9 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 // config — so they failed for missing env, not for a real defect.
 const DEDICATED: Record<string, string> = {
   'acp-cold-start.e2e.ts': 'pnpm test:e2e:desktop:acp-cold-start',
+  // P8 e2e live lanes: the AI panel's own contracts on the SCRIPTED fake agent + a signed-in claude stub (no model).
+  'acp-capability-picker.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:acp-fake',
+  'acp-write-scope.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:acp-fake',
   'cloud-attach.e2e.ts': 'pnpm test:e2e:desktop:cloud',
   'git-branch-switcher.e2e.ts': 'pnpm test:e2e:desktop:git',
   'git-lifecycle.e2e.ts': 'pnpm test:e2e:desktop:lifecycle',

@@ -4,7 +4,8 @@
  * The designer's whole way in, on a clean install, with nothing stubbed on the
  * sync path:
  *
- *   • a REAL hub (the Node fixture, accepted revisions ON, password accounts)
+ *   • a REAL hub, LOCAL and throwaway (fixtures/local-hub.mjs: apps/hub from source under Node 24, accepted
+ *     revisions ON, password accounts) — never a hub that belongs to anyone
  *   • a teammate's studio already working in the project — it seeds the
  *     canvases through the hub exactly as a person would
  *   • the debug `.app` on a first-run home: no MAUDE_PROJECT_ROOT, no remembered
@@ -12,6 +13,12 @@
  *
  * The scenario signs in with an email and password, never picks a folder, and
  * asserts the project's canvases arrive and changes flow both ways.
+ *
+ * FIRST RUN, REALLY (P8 e2e live lanes): Home shows its sign-in card only on a first run — no project, no account,
+ * and Home's per-Mac "the first-run card was shown" flag (`home/home.json`, P8 C8) not yet set. Any earlier lane's
+ * Home sets that flag, so this lane clears it, points Home's index and projects dir at fresh empty dirs (as
+ * wdio.onboarding.conf.ts does) and holds the real `claude` off with a stub. Without that the lane sat 180 s on a
+ * sign-in card that never came and every later step failed behind it.
  *
  * Run: `pnpm test:e2e:desktop:team-project` (after `pnpm test:e2e:desktop:build`).
  */
@@ -22,11 +29,14 @@ import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { type LocalHub, startLocalHub } from './fixtures/local-hub.mjs';
+import { useStubClaude } from './helpers/fake-ai';
 import { config as base } from './wdio.conf';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '../../..');
 const children: ChildProcess[] = [];
+const hubs: LocalHub[] = [];
 
 export const TEAM_PASSWORD = 'designer-pass-1';
 
@@ -36,38 +46,6 @@ function freePort(): Promise<number> {
     s.listen(0, '127.0.0.1', () => {
       const { port } = s.address() as { port: number };
       s.close(() => ok(port));
-    });
-  });
-}
-
-function startHub(
-  dataDir: string
-): Promise<{ http: string; tokens: Record<string, string>; pid: number }> {
-  return new Promise((ok, fail) => {
-    const proc = spawn(
-      'node',
-      [
-        join(ROOT, 'apps/hub/test/fixtures/serve-hub.mjs'),
-        dataDir,
-        '0',
-        '--transactions',
-        '--users',
-      ],
-      { stdio: ['ignore', 'pipe', 'pipe'] }
-    );
-    children.push(proc);
-    let buf = '';
-    const timer = setTimeout(() => fail(new Error(`hub did not start: ${buf}`)), 30_000);
-    proc.stdout?.on('data', (c: Buffer) => {
-      buf += c.toString('utf8');
-      const line = buf.split('\n').find((l) => l.startsWith('{'));
-      if (!line) return;
-      clearTimeout(timer);
-      const info = JSON.parse(line);
-      ok({ http: info.http.replace(/\/$/, ''), tokens: info.tokens, pid: proc.pid ?? 0 });
-    });
-    proc.stderr?.on('data', (c: Buffer) => {
-      buf += c.toString('utf8');
     });
   });
 }
@@ -117,12 +95,22 @@ if (!process.env.MAUDE_E2E_TEAM) {
 async function setUp(): Promise<string> {
   // ── A first-run home for the e2e bundle id ────────────────────────────────
   const appDir = join(homedir(), 'Library', 'Application Support', 'com.maude.app.e2e');
-  for (const f of ['app-state.json', 'last-project.txt', 'managed-projects.json']) {
+  for (const f of [
+    'app-state.json',
+    'last-project.txt',
+    'managed-projects.json',
+    join('home', 'home.json'),
+  ]) {
     rmSync(join(appDir, f), { force: true });
   }
+  // Home's index and projects dir: fresh and empty, so nothing on this Mac hides the first-run card.
+  process.env.MAUDE_INDEX_DIR = mkdtempSync(join(tmpdir(), 'maude-team-index-'));
+  process.env.MAUDE_HOME_PROJECTS_DIR = mkdtempSync(join(tmpdir(), 'maude-team-projects-'));
+  useStubClaude();
 
   const scratch = mkdtempSync(join(tmpdir(), 'maude-e2e-team-'));
-  const hub = await startHub(join(scratch, 'hub'));
+  const hub: LocalHub = await startLocalHub({ dir: join(scratch, 'hub') });
+  hubs.push(hub);
   const managedDir = join(
     appDir,
     'projects',
@@ -169,7 +157,7 @@ async function setUp(): Promise<string> {
     ],
     {
       env: {
-        ...process.env,
+        ...process.env, // includes the stub `claude` first on PATH (useStubClaude)
         HUBS_CONFIG_PATH: teammateHubs,
         // gate-b-sec4: the harness is the app that made this link (sync/link-consent.ts)
         MAUDE_APP_BOUND_HUB: hub.http,
@@ -220,6 +208,7 @@ export const config: WebdriverIO.Config = {
   mochaOpts: { ...base.mochaOpts, timeout: 300_000 },
   onComplete() {
     for (const c of children) c.kill('SIGTERM');
-    if (scratch) rmSync(scratch, { recursive: true, force: true });
+    for (const h of hubs) h.stop();
+    if (scratch) rmSync(scratch, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
   },
 };

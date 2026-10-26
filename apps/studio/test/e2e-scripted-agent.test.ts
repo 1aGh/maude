@@ -11,7 +11,15 @@
 // No `claude`, no network, no home-directory write: the project is a temp dir and the outside probe is rejected.
 
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -20,7 +28,12 @@ import type { RequestPermissionRequest, SessionModeState } from '@agentclientpro
 import { AcpBridge, type PermissionScopeInfo } from '../acp/bridge.ts';
 
 const AGENT = resolve(import.meta.dir, '../../desktop/e2e/fixtures/fake-acp/scripted-agent.mjs');
-const TEST_ENV_KEYS = ['MAUDE_ACP_ADAPTER_ENTRY', 'MAUDE_ACP_RUNTIME', 'MAUDE_CLAUDE_BIN', 'FAKE_ACP_SDK'];
+const TEST_ENV_KEYS = [
+  'MAUDE_ACP_ADAPTER_ENTRY',
+  'MAUDE_ACP_RUNTIME',
+  'MAUDE_CLAUDE_BIN',
+  'FAKE_ACP_SDK',
+];
 
 let tmp: string;
 let project: string;
@@ -115,7 +128,10 @@ describe('scripted fake agent — the write-path gate', () => {
     const { bridge, cards, updates } = makeBridge();
     rmSync(join(project, 'write-scope-probe.txt'), { force: true });
     try {
-      await bridge.prompt('Create a file called write-scope-probe.txt in the root of this project with ok.', 'c1');
+      await bridge.prompt(
+        'Create a file called write-scope-probe.txt in the root of this project with ok.',
+        'c1'
+      );
       expect(cards).toHaveLength(0);
       expect(readFileSync(join(project, 'write-scope-probe.txt'), 'utf8')).toBe('ok');
       expect(updates.join('')).toContain('Written.');
@@ -166,7 +182,10 @@ describe('scripted fake agent — a shell call waits for the person, long turns 
       // accept-edits asks nothing for an edit
       await bridge.warmUp('c1');
       await bridge.setMode('c1', 'acceptEdits');
-      const turn = bridge.prompt("Change a heading 40 times: 'Step 1', then 'Step 2', and so on up to 'Step 40'.", 'c1');
+      const turn = bridge.prompt(
+        "Change a heading 40 times: 'Step 1', then 'Step 2', and so on up to 'Step 40'.",
+        'c1'
+      );
       await until(() => (readFileSync(canvas, 'utf8').includes('// Step 1') ? true : undefined));
       const t0 = performance.now();
       await bridge.cancel();
@@ -184,7 +203,10 @@ describe('scripted fake agent — a shell call waits for the person, long turns 
     useScriptedAgent();
     const { bridge, updates } = makeBridge();
     try {
-      const turn = bridge.prompt('Write every whole number from 1 to 4000, comma separated, in one reply.', 'c1');
+      const turn = bridge.prompt(
+        'Write every whole number from 1 to 4000, comma separated, in one reply.',
+        'c1'
+      );
       await until(() => (updates.length >= 2 ? true : undefined));
       await bridge.cancel();
       expect(await turn.then((r) => r.stopReason)).toBe('cancelled');
@@ -213,7 +235,9 @@ describe('scripted fake agent — a relaunched app loads the chat again', () => 
     b.bridge.setSessionStorePath(store);
     try {
       await b.bridge.prompt('hello again', 'resume-chat');
-      expect((b.bridge as unknown as { sessions: Map<string, string> }).sessions.get('resume-chat')).toBe(id1);
+      expect(
+        (b.bridge as unknown as { sessions: Map<string, string> }).sessions.get('resume-chat')
+      ).toBe(id1);
       expect(b.updates.join('')).toContain('ok.');
     } finally {
       await b.bridge.stop();

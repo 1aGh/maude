@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, browser, expect } from '@wdio/globals';
 
-import { aiConnected, clearComposer, openAssistant, setPermissionMode } from '../helpers/assistant';
+import { clearComposer, openAssistant, requireAi, setPermissionMode } from '../helpers/assistant';
 import { capture, startReport } from '../helpers/evidence';
 import { invokeTauri, isNativeShell } from '../helpers/native';
 import { appPid, isAlive, startApp, waitGone } from '../helpers/session';
@@ -23,10 +23,15 @@ import { focusTab, menuState, waitWindow } from '../helpers/windows';
  *   4. Relaunch → the chat ends "Stopped when the app quit · …" + Keep going, which asks again.
  *   5. A second ⌘Q while the dialog is open quits.
  *
- * Needs a real, signed-in `claude` (the ACP scenarios' assumption) — self-skips when the panel
- * says it is not connected — and an unlocked screen with the test window on top (memory
- * `maude-webkit-locked-screen-invalid`). Run: `pnpm test:e2e:desktop -- --spec ai-quit` with
- * wdio.ai-quit.conf.ts.
+ * RUNS ON THE FAKE AGENT (wdio.ai-quit.conf.ts, helpers/fake-ai.ts): what this proves is MAUDE's side of a quit —
+ * the dialog, the run registry, the sidecar's exit, the divider after a relaunch — none of which depends on what a
+ * model says. The scripted agent (fixtures/fake-acp/scripted-agent.mjs) gives it the three turns it needs: a shell
+ * call that waits for the person (NEEDS), forty slow edits (EDITING) and a long stream (SLOW); Stop ends them at
+ * once. Two things need the real thing and are V2-8.16 live journeys (ai-quit-real-run): that a REAL run's partial
+ * work is published from the real PostToolUse hooks' `touched` files (the scripted agent edits the file but no hook
+ * fires), and that quitting kills a real adapter's child processes. On the fake lane a missing connection is a
+ * failure, not a skip (requireAi). Needs an unlocked screen with the test window on top (memory
+ * `maude-webkit-locked-screen-invalid`). Run: `pnpm --filter @maude/desktop-e2e e2e:ai-quit`.
  */
 const A = process.env.MAUDE_PROJECT_ROOT as string;
 const B = process.env.MAUDE_E2E_SECONDARY_ROOT as string;
@@ -100,7 +105,7 @@ describe('ai-quit (native-desktop)', () => {
     await waitForSidecar();
     if (!(await isNativeShell())) this.skip();
     await openAssistant();
-    if (!(await aiConnected())) this.skip();
+    await requireAi(this);
     labelA = (await browser.getWindowHandle()) as string;
   });
 
