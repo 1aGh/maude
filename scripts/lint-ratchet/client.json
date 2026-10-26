@@ -28,16 +28,10 @@
     "apps/studio/client/dialogs/command-palette.jsx": {
       "lint/a11y/noStaticElementInteractions": 1
     },
-    "apps/studio/client/dialogs/export-dialog.jsx": {
-      "lint/a11y/noStaticElementInteractions": 1
-    },
     "apps/studio/client/dialogs/help-modal.jsx": {
       "lint/a11y/noStaticElementInteractions": 1
     },
     "apps/studio/client/dialogs/shortcuts-overlay.jsx": {
-      "lint/a11y/noStaticElementInteractions": 1
-    },
-    "apps/studio/client/export-center.jsx": {
       "lint/a11y/noStaticElementInteractions": 1
     },
     "apps/studio/client/file-tree.jsx": {
@@ -68,9 +62,6 @@
       "lint/a11y/noAutofocus": 1,
       "lint/a11y/noStaticElementInteractions": 1
     },
-    "apps/studio/client/panels/BrandUploadPanel.jsx": {
-      "lint/a11y/noStaticElementInteractions": 1
-    },
     "apps/studio/client/panels/CreateProject.jsx": {
       "lint/a11y/useSemanticElements": 3
     },
@@ -88,10 +79,6 @@
     "apps/studio/client/panels/ReadinessList.jsx": {
       "lint/a11y/noStaticElementInteractions": 1,
       "lint/suspicious/noAssignInExpressions": 1
-    },
-    "apps/studio/client/panels/RepoBranchSwitcher.jsx": {
-      "lint/a11y/noAutofocus": 1,
-      "lint/a11y/noStaticElementInteractions": 2
     },
     "apps/studio/client/panels/SettingsPanel.jsx": {
       "lint/a11y/useSemanticElements": 1
@@ -119,10 +106,6 @@
       "lint/a11y/noAutofocus": 1,
       "lint/a11y/noStaticElementInteractions": 1,
       "lint/a11y/useKeyWithClickEvents": 2
-    },
-    "apps/studio/client/shell/comments-panel.jsx": {
-      "lint/a11y/noStaticElementInteractions": 1,
-      "lint/a11y/useKeyWithClickEvents": 1
     },
     "apps/studio/client/shell/dock.jsx": {
       "lint/a11y/useSemanticElements": 1
@@ -156,7 +139,6 @@
       "lint/a11y/noAutofocus": 1,
       "lint/a11y/noStaticElementInteractions": 11,
       "lint/a11y/noSvgWithoutTitle": 1,
-      "lint/a11y/useAriaPropsSupportedByRole": 2,
       "lint/a11y/useKeyWithClickEvents": 5,
       "lint/a11y/useSemanticElements": 2
     },
