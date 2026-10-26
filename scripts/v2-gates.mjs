@@ -47,6 +47,9 @@ const E2E_LANES = Object.keys(
 // Single-quoted for bash, so `$l`-style variables expand in the INNER shell, not the outer one.
 const lane = (cmd) =>
   `scripts/v2-test-lane.sh --wait 3600 -- bash -c '${cmd.replace(/'/g, `'\\''`)}'`;
+/** The same hold, for a run longer than the lane's 45-min default (the desktop e2e ×3). */
+const laneLong = (cmd, max = 9000) =>
+  `scripts/v2-test-lane.sh --wait 3600 --max ${max} -- bash -c '${cmd.replace(/'/g, `'\\''`)}'`;
 
 // ── live checks ───────────────────────────────────────────────────────────────────────
 function cleanupCheck() {
@@ -140,7 +143,26 @@ const GATES = [
     id: 'V2-8.3',
     title: 'Desktop e2e — every lane, 3 consecutive runs (debug build)',
     kind: 'command',
-    cmd: `pnpm test:e2e:desktop:build && ${lane(`for i in 1 2 3; do for l in ${E2E_LANES.join(' ')}; do pnpm --filter @maude/desktop-e2e "$l" || exit 1; done; done`)}`,
+    // ONE lane hold (p8-e2e-fix-r6): the studio client release build first — the app's sidecar and the
+    // share-roles people's studios serve apps/studio/dist from source (decision
+    // v2-p8-e2e-fix-r5-share-roles-fresh-dist) — then the debug app, then every lane three times over with the
+    // window on top. The lane wrapper reverts dist/ afterwards. No `pnpm`: in a worktree whose node_modules are
+    // links it tries an install first; the package's own scripts run through `npm run`. Three full runs take
+    // ~1h40 (r5: one run ≈ 31 min), past the lane's 45-min default, hence --max.
+    cmd: laneLong(
+      [
+        'set -e',
+        // a stub `claude` first on PATH: no real claude, no keychain dialog from a throwaway HOME
+        'STUB="$(mktemp -d)/bin"; mkdir -p "$STUB"',
+        `printf '#!/bin/sh\\necho {\\\\"loggedIn\\\\":false}\\n' > "$STUB/claude"; chmod +x "$STUB/claude"`,
+        'export PATH="$STUB:$HOME/.cargo/bin:$PATH" MAUDE_CLAUDE_BIN= MAUDE_E2E_ON_TOP=1',
+        '(cd apps/studio && MAUDE_SKIP_RUNTIME_BUILD=1 bun run build.ts --release)',
+        'rm -f apps/studio/dist/maude-darwin-arm64',
+        '(cd apps/desktop && npx --no-install tauri build --debug --config src-tauri/tauri.e2e.conf.json)',
+        'cd apps/desktop/e2e',
+        `for i in 1 2 3; do for l in ${E2E_LANES.join(' ')}; do echo "== run $i lane $l"; npm run --silent "$l" || exit 1; done; done`,
+      ].join('\n')
+    ),
   },
   { id: 'V2-8.4', title: 'Cross-shell scenarios (scenario-runner)', kind: 'attest' },
   { id: 'V2-8.5', title: 'Design fidelity (critics ≥ 4.0, copy 0 blockers)', kind: 'attest' },
