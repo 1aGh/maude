@@ -850,9 +850,7 @@
     width: 224px;
     padding: var(--space-1);
     border-radius: var(--radius-lg);
-    box-shadow:
-      var(--shadow-lg),
-      inset 0 0 0 0.5px var(--island-edge, transparent);
+    box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge, transparent);
     font-size: var(--type-sm);
   }
   .insp-zmenu-h {

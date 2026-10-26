@@ -16,9 +16,7 @@
   /* P8 c5 (03 ai-long-pinned): docked (pinned layout) the slot is the 420 column when the chat shares it; the other
      panel (the Inspector opens by itself on a selection) keeps ITS width, flush to the window edge, instead of
      stretching or letting the chat overrun a 264 slot */
-  .sh-body:not(.sh-body--float) .sh-dockslot.has-ai
-    > .sh-dockslot-inner:not(.sh-dockslot-ai)
-    > .sh-rpanel,
+  .sh-body:not(.sh-body--float) .sh-dockslot.has-ai > .sh-dockslot-inner:not(.sh-dockslot-ai) > .sh-rpanel,
   .sh-body:not(.sh-body--float) .sh-dockslot.has-ai > .sh-rpanel {
     width: var(--dock-main-w, 100%);
     align-self: flex-end;

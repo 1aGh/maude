@@ -77,8 +77,7 @@
   }
   :where(.maude) .seg > button,
   /* a segmented control living inside a form row (AI › Advanced effort): hugs its options instead of filling */
-    :where(.maude)
-    .seg.k-in-seg {
+  :where(.maude) .seg.k-in-seg {
     width: auto;
     justify-self: start;
   }
@@ -288,10 +287,7 @@
     background: var(--accent);
   }
   :where(.maude)
-    :is(.switch, .lp-switch, .v2s-switch, .insp-cp-switch):is(
-      [aria-checked="true"],
-      :checked
-    )::after,
+    :is(.switch, .lp-switch, .v2s-switch, .insp-cp-switch):is([aria-checked="true"], :checked)::after,
   :where(.maude) .ex-switch[data-on] .ex-switch-k {
     transform: translateX(14px);
   }

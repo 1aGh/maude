@@ -248,20 +248,10 @@
   /* P8 r11 (03 `ai-long`): a full-height AI chat (`data-full`, AiChatIsland) reaches the top of its slot, so a folded
      panel's icon at that corner stood on the chat's header and hid its Hide chevron. It stands beside the chat, on
      the canvas side: the chat is 420 wide (or the slot, when wider — --rp-w / --sb-w) plus the slot's own gap. */
-  .sh-body--float:has(
-    > .sh-dockslot--right:not(.is-hidden):not(.is-collapsed)
-      .sh-dockslot-ai:not([hidden])
-      > .ai-island[data-full="true"]
-  )
-  > .sh-corner--right {
+  .sh-body--float:has(> .sh-dockslot--right:not(.is-hidden):not(.is-collapsed) .sh-dockslot-ai:not([hidden]) > .ai-island[data-full="true"]) > .sh-corner--right {
     right: calc(max(var(--rp-w, 0px), 420px + var(--float-gap, 16px)) + var(--space-2, 8px));
   }
-  .sh-body--float:has(
-      > .sh-dockslot--left:not(.is-hidden):not(.is-collapsed)
-        .sh-dockslot-ai:not([hidden])
-        > .ai-island[data-full="true"]
-    )
-    > .sh-corner--left {
+  .sh-body--float:has(> .sh-dockslot--left:not(.is-hidden):not(.is-collapsed) .sh-dockslot-ai:not([hidden]) > .ai-island[data-full="true"]) > .sh-corner--left {
     left: calc(max(var(--sb-w, 0px), 420px + var(--float-gap, 16px)) + var(--space-2, 8px));
   }
   .sh-corner--ai {
@@ -313,12 +303,10 @@
   }
   /* 06 ad-pinned (a11y V4) — a folded panel's icon floats over the CANVAS: with a pinned column open on its side
      (the AI chat alone keeps the right slot shown) it stands beside that column, not over its header. */
-  .sh-body:not(.sh-body--float):has(> .sh-dockslot--right:not(.is-collapsed):not(.is-hidden))
-  .sh-corner--right {
+  .sh-body:not(.sh-body--float):has(> .sh-dockslot--right:not(.is-collapsed):not(.is-hidden)) .sh-corner--right {
     right: calc(var(--rp-w, 0px) + 16px);
   }
-  .sh-body:not(.sh-body--float):has(> .sh-dockslot--left:not(.is-collapsed):not(.is-hidden))
-    .sh-corner--left {
+  .sh-body:not(.sh-body--float):has(> .sh-dockslot--left:not(.is-collapsed):not(.is-hidden)) .sh-corner--left {
     left: calc(var(--sb-w, 0px) + 16px);
   }
 
