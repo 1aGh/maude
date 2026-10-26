@@ -7,8 +7,8 @@
 // (`grantsFileFor`, the frame key's place — decision v2-gate-b-c4e-frame-key-outside-design-root).
 // V2-8.9 B1 (decision maude/v2-p8-grants-outside-design-root): the old home,
 // `<designRoot>/_state/ai-grants.json`, sat where the agent auto-writes, so a chat could grant itself
-// any folder. A legacy file is migrated once (its folders re-judged by `resolveFolder`) and deleted;
-// after that one is only ever deleted, never read. Every use re-judges a stored root too, so even a
+// any folder. A legacy file is deleted unread (re-check 2 M-a: nothing is migrated, consent is asked
+// again). Every use re-judges a stored root too, so even a
 // forged store cannot reach a folder the picker would refuse. A grant is consent; it is not access
 // on its own:
 //   • a chat reads a granted folder only while that folder is ATTACHED to that chat
@@ -460,38 +460,18 @@ export function createGrantStore(place: GrantPlace, now: () => number = Date.now
 }
 
 /**
- * V2-8.9 B1 — the one-time move of `<designRoot>/_state/ai-grants.json` to the app-owned store.
- * Only while no app-owned store exists yet does the legacy file's content count (each folder
- * re-judged by `resolveFolder`, so a forged `/` or `~/.ssh` is dropped); the store is created then,
- * empty if need be, so a legacy file planted afterwards is deleted unread. Never throws.
+ * V2-8.9 B1 + re-check 2 M-a (decision maude/v2-p8-legacy-grants-deleted-unread) — the old
+ * `<designRoot>/_state/ai-grants.json` is deleted UNREAD, always. It sat where the agent auto-writes
+ * and a cloned repo can force-commit it (chats keyed `default`, the default chat id), so on a fresh
+ * clone with no app-owned store its content would have become consent with no card. v2 has not
+ * shipped: nothing is migrated — a folder is asked for again. Never throws.
  */
-function migrateLegacyGrants(place: GrantPlace, file: string, misplaced: boolean): void {
-  const legacy = join(place.designRoot, LEGACY_GRANTS_REL);
+function migrateLegacyGrants(place: GrantPlace, _file: string, misplaced: boolean): void {
+  if (misplaced) return;
   try {
-    if (misplaced) return;
-    if (existsSync(file)) {
-      if (existsSync(legacy)) rmSync(legacy, { force: true });
-      return;
-    }
-    const old = readGrants(legacy);
-    const folders = old.folders.filter((f) => {
-      const r = resolveFolder(f.root, place);
-      return r.ok && r.root === f.root;
-    });
-    const kept = new Set(folders.map((f) => f.root));
-    const chats: Record<string, string[]> = {};
-    for (const [id, roots] of Object.entries(old.chats)) {
-      const next = roots.filter((r) => kept.has(r));
-      if (next.length) chats[id] = next;
-    }
-    mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
-    const tmp = `${file}.${process.pid}.tmp`;
-    writeFileSync(tmp, `${JSON.stringify({ v: 1, folders, chats }, null, 2)}\n`, { mode: 0o600 });
-    renameSync(tmp, file);
-    rmSync(legacy, { force: true });
+    rmSync(join(place.designRoot, LEGACY_GRANTS_REL), { force: true });
   } catch {
-    /* an unwritable index dir: the store stays absent and the legacy file is never read again
-       except by this same migration, which only ever drops refused folders */
+    /* unremovable: still never read */
   }
 }
 

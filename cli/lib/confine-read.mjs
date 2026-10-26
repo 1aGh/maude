@@ -47,6 +47,29 @@ export const SOURCE_VERBS = new Set([
   'photo-adjust',
 ]);
 
+/**
+ * V2-8.9 re-check 2 L1 — verbs that read a file only through some of their flags (their positionals
+ * and other values are canvas paths, element ids and free text): only those flags' values are checked.
+ * `annotate --board/--flow/--ops/--rects/--canvas-state <file>` read any file the agent named, and a
+ * parse error echoed a token of it back.
+ */
+export const SOURCE_FLAGS = new Map([
+  ['annotate', ['--board', '--flow', '--ops', '--rects', '--canvas-state']],
+]);
+
+/** The values of `flags` in `args` (`--f v` and `--f=v`). */
+export function flagValues(args, flags) {
+  const out = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = String(args[i]);
+    if (a === '--') break;
+    const eq = a.indexOf('=');
+    if (eq > 0 && flags.includes(a.slice(0, eq))) out.push(a.slice(eq + 1));
+    else if (flags.includes(a) && i + 1 < args.length) out.push(String(args[++i]));
+  }
+  return out;
+}
+
 const CHAT_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
 /** The Maude AI chat (the bridge's markers) — not a terminal Claude Code session. */
@@ -120,7 +143,9 @@ export function readViolation(
   args,
   { env = process.env, cwd = process.cwd(), home = homedir() } = {}
 ) {
-  if (!SOURCE_VERBS.has(verb) || !isMaudeChat(env)) return null;
+  const onlyFlags = SOURCE_FLAGS.get(verb);
+  if ((!SOURCE_VERBS.has(verb) && !onlyFlags) || !isMaudeChat(env)) return null;
+  if (onlyFlags && !flagValues(args, onlyFlags).length) return null;
   const fixed = (env.MAUDE_READ_ROOTS ?? '').split(delimiter).filter((r) => isAbsolute(r));
   if (!fixed.length) return { value: '', resolved: null, why: 'no-roots' };
   const fixedReal = fixed.map((r) => realpathDeep(r));
@@ -128,7 +153,7 @@ export function readViolation(
   const store = env.MAUDE_GRANTS_FILE ? realpathDeep(env.MAUDE_GRANTS_FILE) : null;
   const grants = store && !fixedReal.some((r) => inside(store, r)) ? chatGrantRoots(env) : [];
   const roots = [...fixedReal, ...grants.map((r) => realpathDeep(r))];
-  for (const w of sourceWords(args)) {
+  for (const w of onlyFlags ? flagValues(args, onlyFlags) : sourceWords(args)) {
     if (w.includes('\0')) return { value: w, resolved: null, why: 'outside' };
     const t = w.trim();
     if (!t) continue;

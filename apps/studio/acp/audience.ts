@@ -39,6 +39,7 @@
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 
 import { agentPath } from './agent-path.ts';
+import type { RepoPrivacy } from './repo-private.ts';
 import { resolveRealPath } from './write-scope.ts';
 
 /** One canvas-scoped audience of a write target. */
@@ -186,8 +187,13 @@ export function readPathsOf(
   repoRoot: string,
   designRoots: readonly string[],
   kindOf: (abs: string) => 'file' | 'dir' | null,
-  /** V2-8.9 M1 — roots whose files are not private (Maude's plugins/package, this chat's scratch). */
-  ownRoots: readonly string[] = []
+  /** V2-8.9 M1 — roots whose files are not private (Maude's plugins/package; never the temp roots). */
+  ownRoots: readonly string[] = [],
+  /**
+   * V2-8.9 re-check 2 M-c — a repo file outside the design root that git does not track (or one named
+   * like a secret) is private too (acp/repo-private.ts). Absent → every repo file counts as shared.
+   */
+  isPrivate?: RepoPrivacy
 ): TrackedRead[] {
   if (!toolName) return [];
   const raw = (toolCall?.rawInput ?? {}) as Record<string, unknown>;
@@ -216,6 +222,16 @@ export function readPathsOf(
     const real = resolveRealPath(abs, base);
     return owned.some((r) => [abs, real].some((c) => c === r || insideRoot(c, r)));
   };
+  // only the project's own files are judged by git; Maude's roots (plugins, package) are not
+  const isPrivateRepoFile = (abs: string, kind: 'file' | 'dir') => {
+    if (!isPrivate || !(abs === repoRoot || insideRoot(abs, repoRoot))) return false;
+    if (ownRoots.some((r) => abs === r || insideRoot(abs, r))) return false;
+    try {
+      return isPrivate(abs, kind);
+    } catch {
+      return true;
+    }
+  };
   for (const { p, bases } of words) {
     let outside: TrackedRead | null = null;
     for (const base of bases) {
@@ -233,7 +249,7 @@ export function readPathsOf(
           outside = null;
           break;
         }
-        if (!outside && !isOwned(abs, base))
+        if (!outside && (!isOwned(abs, base) || isPrivateRepoFile(abs, kind)))
           outside = { rel: abs, dir: kind === 'dir', outside: true };
         continue;
       }

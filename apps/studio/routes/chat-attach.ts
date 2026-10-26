@@ -30,6 +30,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { currentAccess, notInScopeResponse } from '../access/request.ts';
 import type { Access } from '../access/scope.ts';
+import { wipeChatScratch } from '../acp/may-scope.ts';
 import {
   ATTACH_FOLDER_LIMITS,
   countFiles,
@@ -277,6 +278,8 @@ export function createChatAttachRoutes(deps: ChatAttachDeps): RouteSpec[] {
         if (!b || typeof b.root !== 'string' || !isChatId(b.chatId))
           return json(400, { error: 'bad-body' });
         grants().detach(b.root, b.chatId);
+        // V2-8.9 re-check 2 M-b — what this chat copied to its scratch goes with the folder.
+        wipeChatScratch(deps.projectRoot, b.chatId);
         return json(200, { ok: true });
       },
     },
@@ -289,7 +292,10 @@ export function createChatAttachRoutes(deps: ChatAttachDeps): RouteSpec[] {
       handle: async (req) => {
         const b = await readJson(req);
         if (!b || typeof b.root !== 'string') return json(400, { error: 'bad-body' });
-        return json(200, { ok: true, revoked: grants().revoke(b.root) });
+        const revoked = grants().revoke(b.root);
+        // V2-8.9 re-check 2 M-b — gone from every chat: so is every chat's scratch content.
+        wipeChatScratch(deps.projectRoot);
+        return json(200, { ok: true, revoked });
       },
     },
     {
