@@ -617,3 +617,17 @@ Shot on the Mac mini (`scripts/remote-lane.sh`) with its installed Google Chrome
 | ds-where-gator, ds-where-studio | re-shot | re-shot |  |
 | ds-many-library | unreachable - a team library lives on a hub; no real hub is booted in this lane (safety rule), so the library rows cannot be drawn | unreachable - same | the pair is the grey "not reachable" card (unchanged) |
 | ds-many-linked | unreachable - a linked team library needs a hub; no real hub is booted in this lane | unreachable - same | the pair is the grey "not reachable" card (unchanged) |
+
+## Round 11 (p8-r11-1213) — three sheet pairs re-shot on a pre-convert fixture
+
+Re-shot 6 of 60 pairs (ds-multi-migrate, ds-edge-migrate, ds-multi-schema x light + dark), on the branch tip after D7. Everything else in this folder is unchanged (the D7 section above stands). Full-size pairs: last line of `full-size-path.txt` ("round 11: ..."). No match judged here.
+
+Why the D7 pairs differed: the harness fixture copied this repo's own `.design/system/{maude,maude-v2}`, which are Design system canvases since `88d671dee` (`ds convert`), so the Convert sheet was refused with the "already a Design system canvas" toast and Bring it up answered with the "can't update those yet ... Close" variant. The fixture now strips what that commit added (`design-system.{tsx,meta.json}`, `revisions/`, `"source": "canvas"` back to `"css"`; checked byte for byte against `88d671dee^`), so the shots show the board's sheets again.
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| ds-multi-migrate | re-shot | re-shot | "Convert 3 system folders?": folder rows with Design system canvas / Draft chips, Cancel / Convert |
+| ds-edge-migrate | re-shot | re-shot | "Convert system/maude-v2 into its Design system canvas?": the 7-section map, Cancel / Convert |
+| ds-multi-schema | re-shot | re-shot | "Bring maude up to the schema?": Adds 4 roles, Renames its components, Updates 0 canvases, Cancel / Bring it up; the amber dot "Made before the schema" on the `maude` row behind |
+
+Product check (amber dot next to the "already a Design system canvas" sheet): it only occurs for a system that is converted AND made before the schema (ds-check level 11), a state the D7 fixture built by accident. It is by decision (kg `S10.15a: bring-up refuses a converted system for now`, `S10.15b: the bring-up dialog's face derives from status`), and the board's own Convert sheet footnote names it ("A converted system made before the schema shows an amber dot — Bring it up lines it up"). On an unconverted pre-schema system dot and sheet agree (the shots above). Not changed; open question for the lead: Bring it up for a converted system needs the publish-based path.
