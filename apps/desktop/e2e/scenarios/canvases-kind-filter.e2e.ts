@@ -73,6 +73,7 @@ describe('canvases-kind-filter — the kind chips over the Canvases list', () =>
       async () => (await chip('all').getAttribute('aria-pressed')) === 'true'
     );
     expect(await $$('.cv-meta--count').length).toBe(0);
-    expect(await foot().getText()).toContain('canvases');
+    // P8 C5: the board draws no foot line at rest — the foot is a state's words, and the filter is off again.
+    expect(await foot().isExisting()).toBe(false);
   });
 });

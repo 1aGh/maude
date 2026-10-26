@@ -31,7 +31,9 @@ if (!process.env.MAUDE_E2E_FIRST_RUN_PROJECTS) {
   // The e2e bundle id is `com.maude.app.e2e` — its own app-config dir, isolated from a dev's real
   // Maude (com.maude.app). macOS app_config_dir = ~/Library/Application Support/<id>.
   const e2eConfigDir = join(homedir(), 'Library', 'Application Support', 'com.maude.app.e2e');
-  for (const f of ['app-state.json', 'last-project.txt']) {
+  // `home/home.json` holds Home's per-Mac "the first-run card was shown" flag (P8 C8,
+  // v2-p8-c8-first-run-card-once): any earlier lane's Home sets it, and then no first run is left to drive.
+  for (const f of ['app-state.json', 'last-project.txt', join('home', 'home.json')]) {
     rmSync(join(e2eConfigDir, f), { force: true });
   }
   process.env.MAUDE_INDEX_DIR = mkdtempSync(join(tmpdir(), 'maude-first-run-index-'));

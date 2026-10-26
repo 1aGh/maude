@@ -64,7 +64,9 @@ describe('ds-advanced — the system panel, Check the system, the files behind i
   });
 
   it('the fold: the folder path heads the files, CSS shows the tokens, JSON switches the file', async () => {
-    await (await $('[data-testid="ds-advanced-fold"] summary')).click();
+    // The fold comes up open (S10.19, `<details open>`) — a click on a fold that is already open would close it.
+    const fold = await $('[data-testid="ds-advanced-fold"]');
+    if ((await fold.getAttribute('open')) === null) await (await fold.$('summary')).click();
     const folder = await $('[data-testid="ds-advanced-folder"]');
     await folder.waitForDisplayed({ timeout: 10_000 });
     expect(await folder.getText()).toContain('system/acme/');

@@ -9,11 +9,13 @@
  * Run: `pnpm test:e2e:desktop:build` (one-time / on source change) then
  *      `pnpm test:e2e:desktop`.
  */
-import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { browser } from '@wdio/globals';
 
 import {
   baselineFixtureTree,
@@ -286,6 +288,19 @@ export const config: WebdriverIO.Config = {
   // (helpers/windows.ts `pinCurrentWindow`, the same call specs make).
   async beforeSuite() {
     await pinCurrentWindow();
+  },
+  // A red is only evidence when it can be seen: keep what the webview showed at the failing step next to the run's
+  // other evidence (<run dir>/failures/). Best effort — a dead session simply has nothing to shoot.
+  async afterTest(test, _context, { passed }) {
+    if (passed) return;
+    try {
+      const dir = join(process.env.MAUDE_E2E_RUN_DIR ?? tmpdir(), 'failures');
+      mkdirSync(dir, { recursive: true });
+      const name = `${test.parent}--${test.title}`.replace(/[^a-z0-9]+/gi, '-').slice(0, 90);
+      await browser.saveScreenshot(join(dir, `${name}.png`));
+    } catch {
+      // nothing to shoot
+    }
   },
   tsConfigPath: join(HERE, 'tsconfig.json'),
 

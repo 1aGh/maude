@@ -2,6 +2,7 @@ import { readdirSync } from 'node:fs';
 
 import { $, browser, expect } from '@wdio/globals';
 
+import { pressMenuRow } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { expandTree } from '../helpers/tree';
@@ -137,7 +138,7 @@ describe('native-first-run (native-desktop)', () => {
   it('5 · Help and guides adds the two guide canvases on request (S6.15, Q10)', async () => {
     // A new project starts empty; the guides are one button away. F1 opens Help and guides.
     expect(await (await $(tid('canvas-row-ui-how-to-use-maude'))).isExisting()).toBe(false);
-    await browser.keys('\uE031');
+    await pressMenuRow('help.guides', 'help'); // Help › Help and guides (F1 is swallowed while the AI composer holds focus)
     const add = await $(tid('help-add-guides'));
     await add.waitForDisplayed({ timeout: 15_000 });
     expect(await add.getText()).toBe('Add the guide canvases to this project');
@@ -162,7 +163,7 @@ describe('native-first-run (native-desktop)', () => {
       { timeout: 60_000, interval: 500, timeoutMsg: 'the two guides never appeared in the list' }
     );
     // a second press adds nothing and says so
-    await browser.keys('\uE031');
+    await pressMenuRow('help.guides', 'help'); // Help › Help and guides (F1 is swallowed while the AI composer holds focus)
     await (await $(tid('help-add-guides'))).click();
     await browser.waitUntil(
       async () =>
