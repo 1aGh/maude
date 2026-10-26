@@ -429,7 +429,7 @@ function withoutOverlapCheck(f: DisposableProviderFactory): DisposableProviderFa
   return wrapped;
 }
 
-function apartSuite(label: string, v1Bob: boolean) {
+function apartSuite(label: string, v1Bob: boolean, cellAlice = false) {
   describe.skipIf(!HUB_READY)(`[legacy] ${label}`, () => {
     let root: string;
     let hub: Hub;
@@ -460,7 +460,31 @@ function apartSuite(label: string, v1Bob: boolean) {
       factories.bob = v1Bob ? withoutOverlapCheck(bobFactory) : bobFactory;
       mkdirSync(join(root, 'alice', 'design', 'ui'), { recursive: true });
       writeFileSync(join(root, 'alice', 'design', 'ui', 'home.tsx'), src('Hello'));
-      alice = await startPeer('alice', join(root, 'alice'), aliceUrl, factories.alice);
+      // The cloud side: a cell's studio child pairs with its OWN hub over
+      // loopback (cell-pairing.ts) — the environment the hub gives it, set only
+      // while this runtime is built so the desktop peer below stays a desktop.
+      const cellEnv: Record<string, string> = {
+        MAUDE_WORKSPACE_MODE: '1',
+        MAUDE_CELL_PAIRING: '1',
+        MAUDE_LOOPBACK_SYNC_URL: aliceUrl,
+        MAUDE_LOOPBACK_SYNC_TOKEN: hub.tokens.alice,
+        MAUDE_SYNC_NO_AUTOCOMMIT: '1',
+      };
+      const before: Record<string, string | undefined> = {};
+      if (cellAlice) {
+        for (const [k, v] of Object.entries(cellEnv)) {
+          before[k] = process.env[k];
+          process.env[k] = v;
+        }
+      }
+      try {
+        alice = await startPeer('alice', join(root, 'alice'), aliceUrl, factories.alice);
+      } finally {
+        for (const [k, v] of Object.entries(before)) {
+          if (v === undefined) delete process.env[k];
+          else process.env[k] = v;
+        }
+      }
       await sleep(2_000);
       bob = await startPeer('bob', join(root, 'bob'), bobUrl, factories.bob);
       await waitFor(
@@ -561,7 +585,7 @@ function apartSuite(label: string, v1Bob: boolean) {
       120_000
     );
 
-    test.skipIf(v1Bob)(
+    test.skipIf(v1Bob || cellAlice)(
       'teammate offline; designer edits online; teammate reconnects',
       async () => {
         await settle('ui/a2.tsx', src('base a2'));
@@ -577,7 +601,7 @@ function apartSuite(label: string, v1Bob: boolean) {
       120_000
     );
 
-    test.skipIf(v1Bob)(
+    test.skipIf(v1Bob || cellAlice)(
       'both offline; the designer reconnects first',
       async () => {
         await settle('ui/a3.tsx', src('base a3'));
@@ -595,7 +619,7 @@ function apartSuite(label: string, v1Bob: boolean) {
       120_000
     );
 
-    test.skipIf(v1Bob)(
+    test.skipIf(v1Bob || cellAlice)(
       'both offline, different parts: merges silently on reconnect',
       async () => {
         const two = (title: string, label: string) =>
@@ -621,6 +645,34 @@ function apartSuite(label: string, v1Bob: boolean) {
           );
         });
         expect(holds(alice, 'ui/a4.tsx') || holds(bob, 'ui/a4.tsx')).toBe(false);
+      },
+      120_000
+    );
+
+    test.skipIf(v1Bob)(
+      'designer offline, the other side edits a different part online: merges silently',
+      async () => {
+        const two = (title: string, label: string) =>
+          `export default function Home() {\n  return <h1 title="${title}">${label}</h1>;\n}\n`;
+        await settle('ui/a7.tsx', two('base a7', 'Home'));
+        away(bob);
+        await sleep(1_000);
+        alice.write('ui/a7.tsx', two('base a7', 'Start'));
+        await sleep(2_000);
+        bob.write('ui/a7.tsx', two('designer away', 'Home'));
+        await sleep(2_000);
+        back(bob);
+        const merged = two('designer away', 'Start');
+        await waitFor(
+          () => alice.read('ui/a7.tsx') === merged && bob.read('ui/a7.tsx') === merged,
+          'both disks to hold the merge',
+          60_000
+        ).catch((e) => {
+          throw new Error(
+            `${(e as Error).message}\nalice: ${alice.read('ui/a7.tsx')}\nbob: ${bob.read('ui/a7.tsx')}`
+          );
+        });
+        expect(holds(alice, 'ui/a7.tsx') || holds(bob, 'ui/a7.tsx')).toBe(false);
       },
       120_000
     );
@@ -683,3 +735,5 @@ function apartSuite(label: string, v1Bob: boolean) {
 
 apartSuite('peers apart, both with the overlap check', false);
 apartSuite('a 1.x designer without the overlap check', true);
+// A cell is never away from its own hub; the desktop is the side that leaves.
+apartSuite('desktop and a cloud cell', false, true);
