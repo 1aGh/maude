@@ -25,34 +25,64 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, '../..');
 export const PLAN_PATH = join(here, 'st-rename-plan.json');
 
+// `_keep`: full names that are not classes but frozen hooks (a testid the v1 manifest records) — never renamed.
 const target = (plan, fam) => (plan[fam] === fam ? fam : `${plan[fam]}-${fam}`);
 function familyRe(plan) {
-  const fams = Object.keys(plan).sort((a, b) => b.length - a.length);
+  const fams = Object.keys(plan)
+    .filter((k) => !k.startsWith('_'))
+    .sort((a, b) => b.length - a.length);
   return new RegExp(`(?<![\\w$-])st-(${fams.join('|')})(?![a-z0-9_])`, 'g');
 }
 /** Rewrite every `st-<family>` token of `text` per `plan`; `onToken(old, next)` sees each full name. */
 export function renameText(text, plan, onToken) {
   if (!Object.keys(plan).length) return text;
+  const keep = new Set(plan._keep || []);
   return text.replace(familyRe(plan), (all, fam, off) => {
     const next = target(plan, fam);
-    if (onToken) {
-      const tail = text.slice(off + all.length).match(/^[a-z0-9_-]*/)[0];
-      const old = `${all}${tail}`.replace(/[-_]+$/, '');
-      onToken(old, next + old.slice(3 + fam.length));
-    }
+    const tail = text.slice(off + all.length).match(/^[a-z0-9_-]*/)[0];
+    const old = `${all}${tail}`.replace(/[-_]+$/, '');
+    if (keep.has(old)) return all;
+    onToken?.(old, next + old.slice(3 + fam.length));
     return next;
   });
 }
+
+/** The inverse: a renamed `<ns>-<family>…` back to its frozen v1 `st-<family>…` name. The nothing-deleted ledger
+ *  (v1 manifest ids, nothing-deleted.json, reachability.json) speaks frozen v1 names; its check reads the live
+ *  tree through this. */
+export function toV1Names(text, plan, { inSlug = false } = {}) {
+  const pairs = Object.keys(plan)
+    .filter((k) => !k.startsWith('_'))
+    .map((f) => [target(plan, f), f])
+    .sort((a, b) => b[0].length - a[0].length);
+  if (!pairs.length) return text;
+  const back = new Map(pairs);
+  const re = new RegExp(
+    `(?<![\\w$${inSlug ? '' : '-'}])(${pairs.map(([t]) => t).join('|')})(?![a-z0-9_])`,
+    'g'
+  );
+  return text.replace(re, (all) => `st-${back.get(all)}`);
+}
+export const readPlan = () => JSON.parse(readFileSync(PLAN_PATH, 'utf8'));
 
 const SKIP =
   /node_modules|\/dist\/|\/target\/|\/resources\/|\/\.git\/|\.sync-conflict|\/gen\/schemas\//;
 const FROZEN = [
   'apps/studio/client/v2/v1-manifest.json',
+  'apps/studio/client/v2/nothing-deleted.json',
+  'apps/studio/client/v2/reachability.json',
   'apps/studio/whats-new.json',
-  'scripts/v2-manifest/',
+  'scripts/v2-manifest/map-rules.mjs', // matches v1 manifest names, not the live DOM
   'scripts/v2-verify/st-rename',
 ];
-const SCAN = ['apps/studio', 'apps/desktop/e2e', 'scripts', '.ai/scenarios', 'cli'];
+const SCAN = [
+  'apps/studio',
+  'apps/desktop/e2e',
+  'apps/desktop/src-tauri/src',
+  'scripts',
+  '.ai/scenarios',
+  'cli',
+];
 function walk(d, out = []) {
   let names;
   try {
@@ -102,7 +132,7 @@ function main() {
   }
   const files = SCAN.flatMap((d) => walk(join(repo, d))).filter((f) => {
     const r = relative(repo, f);
-    return !FROZEN.some((z) => r.startsWith(z));
+    return !FROZEN.some((z) => r.startsWith(z)) && !r.includes('/evidence/'); // run records stay as recorded
   });
   const existing = new Set();
   for (const f of files) {

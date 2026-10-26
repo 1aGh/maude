@@ -142,15 +142,21 @@ try {
 const { scan } = await import('./v2-manifest/scan-v1.mjs');
 const { isV2Code } = await import('./v2-manifest/map-entries.mjs');
 const frozen = new Set(manifest.entries.map((e) => e.id));
-const late = scan().filter(
-  (e) => !frozen.has(e.id) && !e.file.includes('/client/v2/') && !isV2Code(e)
-);
+// V2-8.0 part C renamed the v1 `.st-*` classes (and the class hooks in testids.json) by family; the ledger keeps the
+// frozen v1 names, so the live tree is read back through the rename plan (decision:maude/v2-p8-st-rename-by-family).
+const { readPlan, toV1Names } = await import('./v2-verify/st-rename.mjs');
+const stPlan = readPlan();
+const late = scan()
+  .map((e) => ({ ...e, id: toV1Names(e.id, stPlan, { inSlug: true }) }))
+  .filter((e) => !frozen.has(e.id) && !e.file.includes('/client/v2/') && !isV2Code(e));
 const excluded = nd.excluded ?? {};
 
 const rowIds = new Set(nd.rows.filter((r) => !r.orphaned).map((r) => r.id));
 const { ACTIONS_BY_ID } = await import('../apps/studio/actions/index.ts');
 const hookSet = new Set(
-  JSON.parse(readFileSync(join(ROOT, 'apps/studio/client/testids.json'), 'utf8')).map((h) => h.hook)
+  JSON.parse(readFileSync(join(ROOT, 'apps/studio/client/testids.json'), 'utf8')).map((h) =>
+    toV1Names(h.hook, stPlan)
+  )
 );
 const validTarget = (t) =>
   !!t &&

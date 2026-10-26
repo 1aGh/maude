@@ -3,7 +3,7 @@
 //
 //   node scripts/v2-verify/css-ab-rig.mjs (--a <styles.css> | --a-rev <rev>) (--b <styles.css> | --b-rev <rev>)
 //        [--out <dir>]
-//        [--states home,shell,...] [--themes dark,light] [--keep] [--a-rename]
+//        [--states home,shell,...] [--themes dark,light] [--keep] [--a-rename] [--ignore-props '^--(u-|…)']
 //
 // Boots this tree's studio (its built dist/, release) on a scratch copy of the desktop e2e fixture project, and a
 // Home server, in a throwaway HOME/XDG with the stub `claude` (no keychain, no real CLI, no real cloud). Every
@@ -75,6 +75,11 @@ const cssA = args.includes('--a-rename')
   ? renameText(cssFor('a'), JSON.parse(readFileSync(PLAN_PATH, 'utf8')))
   : cssFor('a');
 const cssB = cssFor('b');
+// --ignore-props <regex>: computed-style names left out of the fingerprint — only for custom properties a change
+// retires on purpose (e.g. the v1 `--u-*` aliases), never for a real property.
+const IGNORE_PROPS = opt('--ignore-props', '');
+if (IGNORE_PROPS && !/^\^--/.test(IGNORE_PROPS))
+  throw new Error('--ignore-props must match custom properties only (^--…)');
 const out = resolve(opt('--out', join(tmpdir(), `css-ab-${Date.now()}`)));
 const onlyStates = opt('--states')?.split(',');
 const themes = opt('--themes', 'dark,light').split(',');
@@ -169,7 +174,8 @@ async function useCss(page, which) {
   );
   await page.waitForTimeout(250);
 }
-const FINGERPRINT = () => {
+const FINGERPRINT = (ignore) => {
+  const ig = ignore ? new RegExp(ignore) : null;
   const h = (s) => {
     let x = 2166136261;
     for (let i = 0; i < s.length; i++) x = Math.imul(x ^ s.charCodeAt(i), 16777619);
@@ -193,7 +199,8 @@ const FINGERPRINT = () => {
       const cs = getComputedStyle(el, ps);
       if (ps && (cs.content === 'none' || cs.content === 'normal')) continue;
       let s = '';
-      for (let i = 0; i < cs.length; i++) s += `${cs[i]}:${cs.getPropertyValue(cs[i])};`;
+      for (let i = 0; i < cs.length; i++)
+        if (!ig?.test(cs[i])) s += `${cs[i]}:${cs.getPropertyValue(cs[i])};`;
       res[k + (ps || '')] = h(s);
     }
   }
@@ -227,7 +234,7 @@ const PROPS = (keys) => {
 async function capture(page, which) {
   await useCss(page, which);
   const png = await page.screenshot({ animations: 'disabled', caret: 'hide' });
-  const fp = await page.evaluate(FINGERPRINT);
+  const fp = await page.evaluate(FINGERPRINT, IGNORE_PROPS);
   return { png, fp };
 }
 async function pixelDiff(page, a, b) {
@@ -540,7 +547,7 @@ try {
             const a = pa[k] || {},
               b = pb[k] || {};
             const props = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(
-              (p) => a[p] !== b[p]
+              (p) => a[p] !== b[p] && !(IGNORE_PROPS && new RegExp(IGNORE_PROPS).test(p))
             );
             return {
               el: k.split('>').slice(-3).join('>'),
