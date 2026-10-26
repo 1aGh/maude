@@ -1,0 +1,8 @@
+
+## lod lane — Chromium, studio shell, dpr 2, mixed annotation board (1,500 elements, 64 boards) at a fit-all zoom below 25 %, fit-all
+| batch | arm | p50 | p95 | p95 spread | zoom p95 | long frames (range) | jank ≥25 | artboard renders | boards | kept |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| webkit-fix-lod-vs-feat | base | 50.7 | 133.3 | 17.7 | 150 | 76 (6) | 99 | 5312 | 64 | 6, scale 0.113 |
+| webkit-fix-lod-vs-feat | v2 | 50.9 | 116.7 | 15.8 | 117.6 | 74 (17) | 99 | 512 | 64 | 6, scale 0.113 |
+
+pooled (1 batch): p95 v2 116.7 vs pre-v2 133.3 + spread 17.7 → PASS; long frames v2 74 vs 76 + range 6 → PASS

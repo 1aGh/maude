@@ -1,0 +1,8 @@
+
+## studio lane — Chromium, studio shell, dpr 2, fit-all
+| batch | arm | p50 | p95 | p95 spread | zoom p95 | long frames (range) | jank ≥25 | artboard renders | boards | kept |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| webkit-fix-chromium | base | 16.7 | 17.5 | 0.3 | 17.5 | 0 (0) | 0 | 966 | 21 | 6, scale 0.12 |
+| webkit-fix-chromium | v2 | 16.7 | 17.6 | 0.3 | 17.5 | 0 (0) | 0 | 1743 | 21 | 6, scale 0.113 |
+
+pooled (1 batch): p95 v2 17.6 vs pre-v2 17.5 + spread 0.3 → PASS; long frames v2 0 vs 0 + range 0 → PASS
