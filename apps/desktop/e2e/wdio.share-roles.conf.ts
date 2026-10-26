@@ -31,12 +31,15 @@
  * The link step needs a hub that hands out links (`/health.access.links`); the
  * scenario fails loud on one that does not, it never skips.
  *
- * Run: MAUDE_SHARE_ROLES_CONFIG=<run.json> pnpm --filter @maude/desktop-e2e e2e:share-roles
+ * Run: pnpm --filter @maude/desktop-e2e e2e:share-roles   (run-share-roles.mjs stands the world up, writes the run
+ * file, calls this config and tears down — share-roles/stand-up.mjs says what is real)
+ *      MAUDE_SHARE_ROLES_CONFIG=<run.json> pnpm --filter @maude/desktop-e2e e2e:share-roles:wdio   (a world of your own)
  */
 import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { useStubClaude } from './helpers/fake-ai';
 import { config as base } from './wdio.conf';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -74,6 +77,8 @@ process.env.MAUDE_NO_AUTOBUILD = '1';
 // A throwaway profile registry and keychain, never the person's own.
 process.env.XDG_CONFIG_HOME ??= mkdtempSync(join(tmpdir(), 'maude-e2e-share-roles-'));
 process.env.MAUDE_E2E_FAKE_KEYCHAIN = '1';
+// No real `claude` (and so no keychain dialog over the test window) in a lane that never uses AI.
+useStubClaude();
 
 export const config: WebdriverIO.Config = {
   ...base,
