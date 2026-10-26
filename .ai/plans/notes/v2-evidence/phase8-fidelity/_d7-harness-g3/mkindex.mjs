@@ -14,6 +14,6 @@ if (tail) md += `\n${tail}\n`;
 appendFileSync(join(root, 'INDEX.md'), md);
 appendFileSync(
   join(root, 'full-size-path.txt'),
-  `\nfinal (D7, ${tip}): ${pairs} (full-size PNG pairs:<id>-<theme>.png, spec | impl; spec PNGs reused from stage A (boards unchanged since), raw impl frames in ${pairs.replace('/pairs/', '/impl/')}; merged tip of feat/maude-v2 after stage C round 10, release-built client, Mac mini with Google Chrome, harness _d7-harness-g3)\n`,
+  `\nfinal (D7, ${tip}): ${pairs} (full-size PNG pairs: <id>-<theme>.png, spec | impl; spec PNGs reused from stage A (boards unchanged since), raw impl frames in ${pairs.replace('/pairs/', '/impl/')}; merged tip of feat/maude-v2 after stage C round 10, release-built client, Mac mini with Google Chrome, harness _d7-harness-g3)\n`,
 );
 console.log('index + path written for', dir);
