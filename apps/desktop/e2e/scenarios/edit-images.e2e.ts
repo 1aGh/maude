@@ -124,6 +124,16 @@ const undoTo = (target: string) =>
   );
 
 const click = async (id: string, detail = 1) => {
+  // a ⌘Z is on disk before the frame re-renders from it: until then the element may still be the undone one
+  // (a dropped picture that never loaded draws 0 × 0, so the press lands on its frame). Press a drawn element.
+  await browser.waitUntil(
+    async () =>
+      inFrame((doc, _w, elId: string) => {
+        const r = doc.querySelector(`[data-cd-id="${elId}"]`)?.getBoundingClientRect();
+        return !!r && r.width > 0 && r.height > 0;
+      }, id),
+    { timeout: 10_000, timeoutMsg: `"${id}" never drew a box to press` }
+  );
   await clickNow(id, detail);
   // the selection settles (halo, inspector, crop affordance) a beat after the press: a double-click sent
   // at once is read as a press on something not yet selected
