@@ -33,8 +33,8 @@ beforeAll(() => {
   }) as unknown as typeof fetch;
 });
 afterAll(async () => {
-  const { unregisterSections } = await import('../client/v2/inspector/sections/index.js');
-  unregisterSections();
+  // No `unregisterSections()`: the bodies register once per process (module cache) — taking them out here left
+  // every later file in a combined run with no inspector sections. `stashSlots()` is the reversible way.
   globalThis.fetch = realFetch;
   GlobalRegistrator.unregister();
 });

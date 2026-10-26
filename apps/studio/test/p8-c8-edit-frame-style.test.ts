@@ -1,6 +1,6 @@
 // P8 stage C round 8 (14 ed-inspector): a button / frame that holds text of its own shows the Style row in its Type
 // group ("Aa Link"), like a text object does; a frame with no text of its own does not.
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { beforeAll, describe, expect, test } from 'bun:test';
 
 import '../client/v2/inspector/sections/index.js';
 import { slotsFor } from '../client/v2/inspector/slots.js';
@@ -11,21 +11,14 @@ const ids = (kind: string, selection: unknown) =>
 // The slot registry is process-wide and the section modules register ONCE, when first imported. A file that
 // ran earlier in the same bun process and called `unregisterSections()` leaves this one with no Type slots
 // (the import above is a cache hit). So this file takes whatever is left of the text slots out and registers
-// its own copy from a fresh evaluation of the module, and removes that copy again afterwards.
-let fresh: { offTextStyle(): void; offTextBody(): void } | null = null;
+// its own copy from a fresh evaluation of the module. That copy STAYS registered afterwards (it is the same bodies
+// the first import would have left), so a later file in the run still finds the text slots.
 beforeAll(async () => {
   const original = await import('../client/v2/inspector/kinds/text.jsx');
   original.offTextStyle();
   original.offTextBody();
-  fresh = await import('../client/v2/inspector/kinds/text.jsx?p8-c8-edit-frame-style');
+  await import('../client/v2/inspector/kinds/text.jsx?p8-c8-edit-frame-style');
 });
-afterAll(async () => {
-  fresh?.offTextStyle();
-  fresh?.offTextBody();
-  const { unregisterSections } = await import('../client/v2/inspector/sections/index.js');
-  unregisterSections();
-});
-
 describe('14 ed-inspector: the Style row of a frame that holds text', () => {
   test('a frame with textInfo gets type.style; one without does not', () => {
     expect(ids('frame', { textInfo: { role: null, differs: [] } })).toContain('type.style');

@@ -153,6 +153,17 @@
         -webkit-user-select: none;
         cursor: default;
       }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
+      }
       .strip {
         display: flex;
         align-items: stretch;
@@ -577,6 +588,9 @@
     </style>
   </head>
   <body>
+    <!-- V2-8.7: the page's one main landmark + h1 (p8-fixups2); the h1 is read, never drawn. -->
+    <main>
+    <h1 class="sr-only">Maude tabs</h1>
     <nav class="strip" data-tauri-drag-region data-testid="tab-strip" aria-label="Tabs">
       <div class="lights" data-tauri-drag-region></div>
       <!-- V2-8.7: Home and the project tabs are ONE tablist (a tab needs a tablist parent); the wrapper draws no box. -->
@@ -635,6 +649,7 @@
         <div class="list" id="list" role="listbox" aria-label="Open tabs" tabindex="0"></div>
       </div>
     </div>
+    </main>
     <script src="strip.js"></script>
   </body>
 </html>

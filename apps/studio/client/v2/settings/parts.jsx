@@ -1,10 +1,12 @@
 // client/v2/settings/parts.jsx — V2-4.7a: the few pieces every Settings section draws with.
 // A group is a titled block; a row is a label + its control (06 ad-settings' SGroup / ARow).
 
-/** A titled block of rows. `testid` is optional — only a group a scenario must find by name has one. */
+/** A titled block of rows. `testid` is optional — only a group a scenario must find by name has one.
+ *  The landmark's NAME says where it is ("Layout settings"): Settings open over the inspector would otherwise
+ *  carry two sections both named "Layout" (axe landmark-unique). The visible title stays the title. */
 export function Group({ title, children, testid }) {
   return (
-    <section className="v2s-group" aria-label={title} data-testid={testid}>
+    <section className="v2s-group" aria-label={`${title} settings`} data-testid={testid}>
       <h3 className="v2s-group-t">{title}</h3>
       {children}
     </section>
