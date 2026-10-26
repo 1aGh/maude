@@ -10,9 +10,11 @@ import { focusTab, labels, openTab, pinCurrentWindow, strip, waitWindow } from '
  *
  * A Can view account gets `409 {reason:'browser-door', url}` from the mint door (no peer token, no
  * local copy). The page relays that URL to `open_cell_tab`; Rust opens the cell as a `c-*` tab:
- * once per (account, cell), pinned to the cell's https origin, in no capability. The cell itself is
- * not reachable from the e2e machine, so the scenario asserts the TAB (strip, label, open-once,
- * refusals), not the cell's page.
+ * once per (account, cell), pinned to the cell's https origin, in no capability. The scenario asserts the TAB
+ * (strip, label, open-once, refusals), not the cell's page — and it needs no cell: the door URL names a project that
+ * does not exist (`e2e-cell.cloud.maude.sh` is NXDOMAIN; the tab loads nothing), so nothing here reaches Maude Cloud.
+ * The shell's door rule (windows.rs `cell_door`) accepts only https `*.cloud.maude.sh`, so a LOCAL cell cannot be
+ * named — a page that actually loads through the door is a V2-8.16 live journey (cell-door-page), not this lane's.
  *
  * Mentions: a project tab reports its unread mentioned threads (`mention_notice`); the count joins
  * the Dock badge (`e2e_dock_badge`) and leaves with the read.
@@ -62,6 +64,24 @@ describe('cell-tab-browser-door (native-desktop)', () => {
     expect(cell).toMatch(/^c-[0-9a-f]{16}$/);
     expect(first.opened).toBe('new');
     await waitWindow(cell);
+    // The webview exists the moment the shell builds it; the STRIP draws it when the shell's next tab push lands —
+    // a read right after `waitWindow` raced that push (the lane's one red: the strip still listed only the project
+    // tab). Wait for the strip to show the tab and mark it active, then assert.
+    await browser
+      .waitUntil(
+        async () => {
+          const now = await strip();
+          return now.tabs.includes(cell) && now.active === cell;
+        },
+        { timeout: 10_000, interval: 100 }
+      )
+      .catch(async () => {
+        // Still absent after 10 s is NOT a race: say what the strip drew, so the red names a product finding
+        // (the strip does not list cell tabs) rather than a timing guess.
+        throw new Error(
+          `the strip never drew ${cell} as the active tab — it drew ${JSON.stringify(await strip())}`
+        );
+      });
     const s = await strip();
     expect(s.tabs).toContain(cell);
     expect(s.active).toBe(cell);

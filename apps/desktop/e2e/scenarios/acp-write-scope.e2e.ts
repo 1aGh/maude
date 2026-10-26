@@ -5,10 +5,10 @@ import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
 
 import {
-  aiConnected,
   clearComposer,
   messageCount,
   openAssistant,
+  requireAi,
   setPermissionMode,
   waitForTurnSettled,
 } from '../helpers/assistant';
@@ -33,11 +33,13 @@ import { waitForSidecar } from '../helpers/sidecar';
  *  2. A write OUTSIDE the project RAISES the prompt, and the card names the
  *     RESOLVED absolute path. This is the security half.
  *
- * Both need a REAL model turn (the model has to actually decide to call the
- * write tool), which is inherently less deterministic than a client-side event
- * — same caveat as acp-ask-user-question, and the same mitigation: an explicit
- * instruction plus a generous timeout that absorbs latency, not unreliability.
- * Requires a real, signed-in `claude`; self-skips if the panel is not connected.
+ * RUNS ON THE FAKE AGENT (wdio.acp-fake.conf.ts). What this proves is MAUDE's gate and card, not a model's choice
+ * to call Write: a scripted ACP agent (fixtures/fake-acp/scripted-agent.mjs) answers each prompt with the adapter's
+ * recorded wire — a `tool_call` carrying the tool name, then `session/request_permission` — and the REAL bridge
+ * decides. Two things only a real adapter can show are V2-8.16 live journeys (ai-write-scope-real-adapter): that a
+ * real model reaches for Write when asked, and that the person's own `~/.claude/settings.json` `permissions.allow`
+ * rule for Write (which makes the CLI approve the call itself, so `requestPermission` is never asked) leaves no card
+ * on a real session. On the fake agent neither can occur, so this spec no longer reads the person's settings at all.
  *
  * THE MODE IS PINNED TO MANUAL (`default`). The gate lives in the bridge's
  * `requestPermission`, and `bypassPermissions` / `dontAsk` short-circuit in the
@@ -46,14 +48,6 @@ import { waitForSidecar } from '../helpers/sidecar';
  * whose default is Bypass neither half exercised the gate at all: half 1 passed
  * vacuously and half 2 could never see a card. Manual is the mode in which the
  * gate decides BOTH halves.
- *
- * ONE PRECONDITION THE SCENARIO CANNOT SET: the session reads the user's own
- * `~/.claude/settings.json` (`settingSources: ['user']`, DDR-144), and a bare
- * `permissions.allow` entry for `Write`/`Edit` makes the CLI approve those calls
- * itself — `requestPermission`, and the gate in it, is never asked. On such a
- * machine half 2 fails with that diagnosis (and half 1 cannot tell the gate's
- * approval from the CLI's). The scenario reports it rather than editing the
- * user's settings or skipping.
  *
  * NOTHING IS EVER APPROVED HERE. The out-of-project case is rejected, so the
  * scenario proves the gate without the test suite writing outside its own
@@ -79,23 +73,6 @@ const IN_PROJECT_CANDIDATES = [
 const OUTSIDE_NAME = `.maude-e2e-write-scope-probe-${process.pid}-${Date.now()}.txt`;
 const OUTSIDE_PATH = `~/${OUTSIDE_NAME}`;
 const OUTSIDE_ABS = join(homedir(), OUTSIDE_NAME);
-
-/**
- * V2-2.8 P3 (Michal, 2026-10-09: the AI chat keeps Claude Code's default behaviour). Does the
- * person's OWN ~/.claude/settings.json pre-approve Write? Then the CLI approves the call itself,
- * `requestPermission` is never asked, and "no card" is the behaviour the person chose — the
- * scenario asserts THAT instead of a card. Read-only: the scenario never edits user settings.
- */
-function userPreApprovesWrite(): boolean {
-  try {
-    const cfg = JSON.parse(readFileSync(join(homedir(), '.claude', 'settings.json'), 'utf8'));
-    const allow: unknown[] = cfg?.permissions?.allow ?? [];
-    return allow.some((r) => typeof r === 'string' && /^(Write|Edit|MultiEdit)(\(\*?\))?$/.test(r));
-  } catch {
-    return false;
-  }
-}
-const PRE_APPROVED = userPreApprovesWrite();
 
 function removeProbes(): void {
   for (const f of IN_PROJECT_CANDIDATES) rmSync(f, { force: true });
@@ -125,10 +102,7 @@ describe('acp-write-scope (native-desktop)', () => {
     if (!(await isNativeShell())) this.skip(); // ACP panel is native-only (DDR-123)
 
     await openAssistant();
-
-    if (!(await aiConnected())) {
-      this.skip(); // no signed-in claude on this machine — not this scenario's job to set that up
-    }
+    await requireAi(this);
 
     modeBefore = await setPermissionMode('default');
     await capture('00-manual-mode');
@@ -195,18 +169,11 @@ describe('acp-write-scope (native-desktop)', () => {
       },
     });
     await capture('02-out-of-project-prompt');
-    if (PRE_APPROVED && !sawPrompt) {
-      // The person's own allow rule approved it: no card is correct, and the write landed as their
-      // settings allow (removed again in after()).
-      expect(existsSync(OUTSIDE_ABS)).toBe(true);
-      return;
-    }
     const outcome = sawPrompt
       ? 'prompt shown'
       : existsSync(OUTSIDE_ABS)
-        ? `the write to ${OUTSIDE_ABS} COMPLETED with no prompt — the gate failed open or was never ` +
-          'asked (a Write pre-approved by ~/.claude/settings.json permissions.allow skips requestPermission)'
-        : 'the turn ended with no prompt and no write (the model did not call Write)';
+        ? `the write to ${OUTSIDE_ABS} COMPLETED with no prompt — the gate failed open`
+        : 'the turn ended with no prompt and no write (the scripted agent did not call Write)';
     expect(outcome).toBe('prompt shown');
 
     // The out-of-project BLOCK, not just any permission card — a generic prompt
@@ -227,9 +194,7 @@ describe('acp-write-scope (native-desktop)', () => {
     expect(cardText).not.toContain('always');
   });
 
-  it('3 · rejecting it leaves the turn resolved and the composer usable', async function () {
-    // With a user allow rule there is no card to reject (P3: the person's choice stands).
-    if (PRE_APPROVED) this.skip();
+  it('3 · rejecting it leaves the turn resolved and the composer usable', async () => {
     // Deliberately REJECT — approving would have the test suite write outside
     // its own project, which is the behaviour this whole feature calls unsafe.
     const card = await $(tid('chat-permission-prompt'));

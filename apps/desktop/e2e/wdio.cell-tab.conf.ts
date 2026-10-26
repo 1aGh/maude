@@ -3,6 +3,9 @@
  * opens the cell as a `c-*` tab (once per account and cell, pinned to the cell's https origin, no
  * IPC), a foreign or malformed door is refused, and a project's unread mentions join the Dock
  * badge. Same two-project fixture as wdio.tabs-identity.conf.ts.
+ * Needs NO cell (see the scenario's header: the door names a project that does not exist, NXDOMAIN, and the tab
+ * loads nothing) — the lane's one red was a strip-draw race in the scenario, fixed there. A stub `claude` is first
+ * on PATH (helpers/fake-ai.ts useStubClaude) so the studio's readiness probe never reaches the real CLI.
  * Run: `pnpm --filter @maude/desktop-e2e e2e:cell-tab` (macOS ≥ 14: cell tabs need per-account
  * WebKit data stores; elsewhere the scenario asserts the refusal instead).
  */
@@ -11,9 +14,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { lifecycleFixtureOnce } from './fixtures/make-lifecycle-fixture';
+import { useStubClaude } from './helpers/fake-ai';
 import { config as base } from './wdio.conf';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+
+useStubClaude();
 
 const { primary, secondary } = lifecycleFixtureOnce();
 process.env.MAUDE_PROJECT_ROOT = primary;

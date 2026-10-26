@@ -1,13 +1,14 @@
 /**
  * WebdriverIO config — the Maude Cloud lane (Phase 23 C4 + Phase 17).
  *
- * Everything the CloudBar talks to is STUBBED here, in this process: the
- * control plane (device code / token / projects / handoff exchange) and the
- * "cell" (POST /auth/login) are one loopback server whose port lands in
- * MAUDE_CLOUD_URL before the app spawns. No account, no network, no cleanup
- * on anyone's real credential: MAUDE_CLOUD_CONFIG + HUBS_CONFIG_PATH point
- * into the run dir, so the developer's ~/.config/maude is never read or
- * written.
+ * The CONTROL PLANE is stubbed here, in this process (device code / token / projects / handoff exchange): one
+ * loopback server whose port lands in MAUDE_CLOUD_URL before the app spawns. The CELL it hands out is a REAL hub,
+ * LOCAL and throwaway (fixtures/local-hub.mjs: apps/hub from source on 127.0.0.1, Node 24, cloud-identity mode with
+ * a per-run project-token key) — so a project that is "attached" really signs in at the hub's own /auth/login with a
+ * token the stub mints the way the control plane does, really syncs, and Resync really finishes (it used to dead-end
+ * on a stub that answered nothing, hence "Resync never finished"). No account, no network, no production hub, cell,
+ * Stripe or Cloudflare: MAUDE_CLOUD_CONFIG + HUBS_CONFIG_PATH point into the run dir, so the developer's
+ * ~/.config/maude is never read or written.
  *
  * The e2e bundle registers the `maude-e2e` scheme, NOT `maude` (see
  * tauri.e2e.conf.json): registering the real scheme would teach this
@@ -23,10 +24,24 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { mintProjectToken, startLocalHub } from './fixtures/local-hub.mjs';
+import { useStubClaude } from './helpers/fake-ai';
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 // ── The stub control plane + cell (one server) ────────────────────────────
 export const STUB_CODE = `mhc_${'a'.repeat(64)}`;
+
+/** The local hub's address and the key its project tokens verify against — set by the launcher, read by the stub. */
+const hubUrl = () => process.env.MAUDE_E2E_CLOUD_HUB as string;
+const cloudKey = () => process.env.MAUDE_E2E_CLOUD_KEY as string;
+/** What the control plane hands a person who opens a project: a project access token for the local hub. */
+const projectToken = () =>
+  mintProjectToken(cloudKey(), {
+    email: 'e2e@example.com',
+    role: 'owner',
+    project: 'stub-project',
+  });
 
 function startStub(): Promise<{ port: number; close: () => void }> {
   /** S9.20b — set once step 2b's Move to cloud created the project. */
@@ -46,7 +61,7 @@ function startStub(): Promise<{ port: number; close: () => void }> {
           return {};
         }
       };
-      const origin = `http://127.0.0.1:${(srv.address() as { port: number }).port}`;
+      const cell = hubUrl();
       // S9.20b — Move to cloud (step 2b): POST /api/projects creates `stub-moved`, which the
       // listing reports active from then on, so the move goes straight to open → attach.
       if (req.url === '/api/projects' && req.method === 'POST') {
@@ -86,7 +101,7 @@ function startStub(): Promise<{ port: number; close: () => void }> {
               state: 'active',
               role: 'owner',
               stateLabel: 'Ready',
-              url: origin,
+              url: cell,
             },
             {
               id: 'stub-gallery',
@@ -94,7 +109,7 @@ function startStub(): Promise<{ port: number; close: () => void }> {
               state: 'active',
               role: 'viewer',
               stateLabel: 'Ready',
-              url: origin,
+              url: cell,
             },
             ...(moved
               ? [
@@ -104,7 +119,7 @@ function startStub(): Promise<{ port: number; close: () => void }> {
                     state: 'active',
                     role: 'owner',
                     stateLabel: 'Ready',
-                    url: origin,
+                    url: cell,
                   },
                 ]
               : []),
@@ -113,9 +128,9 @@ function startStub(): Promise<{ port: number; close: () => void }> {
       }
       if (req.url === '/projects/open') {
         return send(200, {
-          token: 'x.y',
+          token: await projectToken(),
           role: 'owner',
-          url: origin,
+          url: cell,
           expiresAt: Date.now() + 3600_000,
         });
       }
@@ -123,29 +138,20 @@ function startStub(): Promise<{ port: number; close: () => void }> {
         const body = await read();
         if (body?.code === STUB_CODE) {
           return send(200, {
-            token: 'x.y',
+            token: await projectToken(),
             role: 'owner',
             // Deliberately the FIXTURE FOLDER's own name (e2e/fixtures/project),
             // so the deep-link scenario exercises the one verdict that is allowed
             // to be silent: an exact identity match. Anything else — including a
             // near-match — now warns, by design (attacker pass B1).
             project: 'project',
-            url: origin,
+            url: cell,
             expiresAt: Date.now() + 3600_000,
           });
         }
         return send(400, { error: 'that code is not valid or has expired' });
       }
-      if (req.url === '/auth/login') {
-        const body = await read();
-        return body?.token === 'x.y'
-          ? send(200, {
-              token: 'mau_stub_hub',
-              user: { email: 'e2e@example.com', role: 'owner' },
-              expiresAt: Date.now() + 3600_000,
-            })
-          : send(401, { error: 'no' });
-      }
+      // /auth/login is the LOCAL HUB's own now (a project token minted above).
       if (req.url === '/health') return send(200, { ok: true, version: 'stub' });
       send(404, { error: 'not stubbed' });
     });
@@ -155,9 +161,18 @@ function startStub(): Promise<{ port: number; close: () => void }> {
   });
 }
 
-const stub = await startStub();
+// WDIO evaluates this file in the launcher AND in each worker: the launcher starts the hub once (the app it launches
+// inherits the env); a worker finds the env set and only runs its own stub for the spec's deep-link code.
+useStubClaude();
+let hub: Awaited<ReturnType<typeof startLocalHub>> | null = null;
 const scratch = mkdtempSync(join(tmpdir(), 'maude-e2e-cloud-'));
 mkdirSync(scratch, { recursive: true });
+if (!process.env.MAUDE_E2E_CLOUD_HUB) {
+  process.env.MAUDE_E2E_CLOUD_KEY = `e2e-cloud-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+  hub = await startLocalHub({ dir: join(scratch, 'hub'), cloudKey: cloudKey() });
+  process.env.MAUDE_E2E_CLOUD_HUB = hub.http;
+}
+const stub = await startStub();
 
 // THE CROSS-ORIGIN SPLIT STAYS ON IN THIS LANE — the "revisit if a scenario
 // must exercise the split-origin path" the base config's comment left open.
@@ -182,12 +197,13 @@ process.env.MAUDE_E2E_RUN_DIR = resolve(
 );
 
 // Base config AFTER env is primed (it resolves the fixture + app path).
-const { config: base } = await import('./wdio.conf.ts');
+const { config: base } = await import('./wdio.conf');
 
 export const config: WebdriverIO.Config = {
   ...base,
   specs: [join(HERE, 'scenarios', 'cloud-attach.e2e.ts')],
   onComplete: () => {
     stub.close();
+    hub?.stop();
   },
 };

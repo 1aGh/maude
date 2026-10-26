@@ -1,5 +1,7 @@
 import { $, browser } from '@wdio/globals';
 
+import { onFakeAi } from './fake-ai';
+
 /**
  * The Assistant (ACP chat) panel, driven the way the ACP scenarios need it.
  *
@@ -32,6 +34,30 @@ export async function openAssistant(): Promise<void> {
     timeout: 10_000,
     timeoutMsg: 'the Assistant panel never opened',
   });
+}
+
+/** Open the panel's "Advanced" fold if it is closed — never toggles an open one shut. The "Ask before" picker
+ *  (`chat-mode-picker`), Model, Effort and the rest live inside it (V2-4.8 S5.12): a closed fold has no body in the
+ *  DOM at all, so a spec that reads the picker without this finds nothing. The fold is remembered per Mac. */
+export async function openAdvanced(): Promise<void> {
+  const body = await $(tid('fold-ai.chat-body'));
+  if (await body.isDisplayed().catch(() => false)) return;
+  const toggle = await $(tid('ai-advanced'));
+  await toggle.waitForDisplayed({ timeout: 30_000 });
+  await toggle.click();
+  await body.waitForDisplayed({ timeout: 10_000 });
+}
+
+/** The lane's AI gate. On the fake-AI lanes a missing connection is a FAILURE (the stub was meant to supply it);
+ *  on any other lane it is a quiet skip, as before. Call from a `before` with `this`. */
+export async function requireAi(ctx: { skip(): void }): Promise<void> {
+  if (await aiConnected()) return;
+  if (onFakeAi()) {
+    throw new Error(
+      'the fake AI lane is not connected: /_api/acp/status says unavailable — check MAUDE_CLAUDE_BIN / MAUDE_ACP_ADAPTER_ENTRY in the lane conf'
+    );
+  }
+  ctx.skip();
 }
 
 /** Is a signed-in Claude connected? gate-b-polish2 (CONTRACT §7): the panel looks the same either way (the
@@ -83,6 +109,7 @@ export async function clearComposer(): Promise<void> {
  * session itself has switched — reading it back is the round-trip check.
  */
 export async function pickMode(value: string): Promise<void> {
+  await openAdvanced();
   await browser.execute((v: string) => {
     const sel = document.querySelector(
       '[data-testid="chat-mode-picker"]'
@@ -97,21 +124,17 @@ export async function pickMode(value: string): Promise<void> {
  * Switch the live session to permission mode `id` (an ACP mode id, e.g.
  * `default` = "Manual") and wait for the session to report it back.
  *
- * Typing `/` warms the session (acp-capability-picker's trick) so the picker
- * exists even on a chat that has never run a turn; the composer is cleared
- * again afterwards. Returns the mode the session was in before, so a spec can
- * hand the shared session back unchanged.
+ * Opens the Advanced fold (the picker lives in it) and waits for the session's roster — the visible chat warms its
+ * session on its own, no `/` needed. Returns the mode the session was in before, so a spec can hand the shared
+ * session back unchanged.
  */
 export async function setPermissionMode(id: string): Promise<string> {
   const composer = await $(tid('chat-composer'));
   await composer.waitForDisplayed({ timeout: 60_000 });
+  // The panel warms its session when it is on screen, and the picker sits in the Advanced fold.
+  await openAdvanced();
   const picker = await $(tid('chat-mode-picker'));
-  if (!(await picker.isDisplayed().catch(() => false))) {
-    const input = await composer.$('.chat-input');
-    await input.click();
-    await input.addValue('/');
-    await picker.waitForDisplayed({ timeout: 30_000 });
-  }
+  await picker.waitForDisplayed({ timeout: 30_000 });
   const previous = await picker.getValue();
   if (previous !== id) await pickMode(id);
   await browser.waitUntil(async () => (await picker.getValue()) === id, {

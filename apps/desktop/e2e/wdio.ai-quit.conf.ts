@@ -6,16 +6,20 @@
  * The spec quits its own app (⌘Q → Quit, then a second ⌘Q) and starts it again
  * (helpers/session.ts `startApp`) — the embedded WebDriver service cannot relaunch mid-spec, so
  * a relaunched app left at the end is stopped here, as wdio.relaunch.conf.ts does.
- * Needs a signed-in `claude` and an unlocked screen. Not run in CI.
+ * Runs on the FAKE agent (helpers/fake-ai.ts: a signed-in `claude` stub + the scripted ACP agent), never a real
+ * model; the config home is the throwaway wdio.conf.ts sets. Needs an unlocked screen. Not run in CI.
  */
 import { readFileSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { lifecycleFixtureOnce } from './fixtures/make-lifecycle-fixture';
+import { useFakeAi } from './helpers/fake-ai';
 import { RELAUNCHED_PID_FILE } from './helpers/session';
 import { config as base } from './wdio.conf';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+
+useFakeAi();
 
 const { primary, secondary } = lifecycleFixtureOnce();
 process.env.MAUDE_PROJECT_ROOT = primary;
