@@ -31,6 +31,7 @@ export const V2_CODE_PATHS = [
 export const V2_CODE_IDS = new Set([
   'button:studio/client/shell/banners.jsx#FormatGateBanner/format-gate-update', // V2-1.12 file formats
   'keydown:studio/client/hooks/use-action-keys.jsx#useActionKeys/listener', // V2-2.4 registry keys
+  'testid:studio/client/inspector/inspector-panel.jsx#inspector/inspector-view-id', // P8-C2 picture view switch (css / photo)
 ]);
 
 /** Entries that are infrastructure, not features (lead decision, V2-4.gate-b): id → reason. Excluded
