@@ -264,6 +264,23 @@ describe('a link turned off: the viewer is a plain browser on the cell door', ()
       ...(process.env.MAUDE_E2E_CHROMIUM ? { executablePath: process.env.MAUDE_E2E_CHROMIUM } : {}),
     });
     const page = await chromium.newPage({ viewport: { width: 1440, height: 900 } });
+    // Evidence for a red run: what the page said and every refused answer it got.
+    const seen = [];
+    page.on('console', (m) => {
+      if (m.type() === 'error' || m.type() === 'warning') seen.push(`console ${m.type()}: ${m.text()}`);
+    });
+    page.on('response', (r) => {
+      if (r.status() >= 400) seen.push(`${r.status()} ${r.request().method()} ${r.url()}`);
+    });
+    page.on('requestfailed', (r) => seen.push(`failed ${r.url()} ${r.failure()?.errorText}`));
+    const evidence = async (label) => {
+      await page.screenshot({ path: join(rig.run.out, `${label}.png`) }).catch(() => {});
+      const src = await page
+        .locator('[data-testid="canvas-frame"]')
+        .getAttribute('src', { timeout: 1000 })
+        .catch(() => null);
+      writeFileSync(join(rig.run.out, `${label}.log`), `frame src ${src}\n${seen.join('\n')}\n`);
+    };
     await page.goto(body.url);
     const session = await until('the cell’s session cookie', async () =>
       (await page.context().cookies(rig.cell.public)).find((c) => c.name === 'maude_studio')
@@ -278,12 +295,17 @@ describe('a link turned off: the viewer is a plain browser on the cell door', ()
     assert.deepEqual(cfg.body.access, { role: null, grants: [{ c: rig.run.canvas, r: 'observer' }] });
     // …and it shows the canvas: the tree row, then the canvas through the cell's canvas door.
     const row = `canvas-row-${rig.run.canvas.replace(/\.tsx$/, '').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
-    await page.locator(`[data-testid="${row}"]`).click({ timeout: 30_000 });
-    await page
-      .frameLocator('[data-testid="canvas-frame"]')
-      .locator('h1')
-      .first()
-      .waitFor({ timeout: 30_000 });
+    try {
+      await page.locator(`[data-testid="${row}"]`).click({ timeout: 30_000 });
+      await page
+        .frameLocator('[data-testid="canvas-frame"]')
+        .locator('h1')
+        .first()
+        .waitFor({ timeout: 30_000 });
+    } catch (e) {
+      await evidence('viewer-canvas-red');
+      throw e;
+    }
     await page.screenshot({ path: join(rig.run.out, 'viewer-on-cell.png') });
 
     // The owner turns it off (the Share sheet's own call).
