@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { $, browser, expect } from '@wdio/globals';
@@ -13,16 +14,29 @@ import { waitForSidecar } from '../helpers/sidecar';
 /**
  * DDR-133 — the COMPLETE git lifecycle, driven through the desktop app UI (S11.10: Menu › Version
  * history › Advanced — the Branch select, New branch…, Fetch, Save a version with a note…,
- * Publish, Add to main), DOM-driven, one screenshot per operation. Boots into a real github-backed
- * clone (wdio.lifecycle.conf.ts → make-lifecycle-fixture); MAUDE_USE_SYSTEM_GIT=1 lets
- * push/pull/fetch authenticate via the developer's git credential helper.
+ * Publish, Add to main), DOM-driven, one screenshot per operation. Boots into a clone of a LOCAL bare
+ * repo (wdio.lifecycle.conf.ts → make-lifecycle-fixture) — no GitHub, no network, no credentials
+ * (decision `v2-p8-e2e-lifecycle-local-bare-remote`); the bare repo plays the team's remote and is read
+ * and moved with `git --git-dir`. The real GitHub push is checked once in the live checks.
  *
  * Covers: switch repos · switch branches · new branch · commit (Save version) ·
  * push (Publish) · fetch remote branches · pull (Get latest) · merge to main (fold).
  */
 const PRIMARY = process.env.MAUDE_PROJECT_ROOT as string;
-const API = 'repos/iagh66/maude-git-smoke';
+const WORLD = JSON.parse(process.env.MAUDE_E2E_LIFECYCLE_FIXTURE as string) as {
+  remote: string;
+  env: Record<string, string>;
+};
 const BR = 'smoke/ui-lifecycle';
+const GIT_ENV = {
+  ...process.env,
+  ...WORLD.env,
+  GIT_TERMINAL_PROMPT: '0',
+  GIT_AUTHOR_NAME: 'Teammate',
+  GIT_AUTHOR_EMAIL: 'team@maude.local',
+  GIT_COMMITTER_NAME: 'Teammate',
+  GIT_COMMITTER_EMAIL: 'team@maude.local',
+};
 
 function git(...args: string[]): string {
   return execFileSync('git', args, {
@@ -31,8 +45,39 @@ function git(...args: string[]): string {
     env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
   }).trim();
 }
-function gh(...args: string[]): string {
-  return execFileSync('gh', args, { encoding: 'utf8' }).trim();
+/** The team's remote (the bare repo), read and moved directly. */
+function remoteGit(...args: string[]): string {
+  return execFileSync('git', ['--git-dir', WORLD.remote, ...args], {
+    encoding: 'utf8',
+    env: GIT_ENV,
+  }).trim();
+}
+const onRemote = (ref: string): boolean => {
+  try {
+    remoteGit('rev-parse', '--verify', '--quiet', ref);
+    return true;
+  } catch {
+    return false;
+  }
+};
+/** A teammate's out-of-band commit on the remote's main: a scratch clone through the same shim, one file, push. */
+function teammateCommit(rel: string, text: string): void {
+  const dir = mkdtempSync(join(tmpdir(), 'maude-e2e-teammate-'));
+  try {
+    const url = execFileSync('git', ['-C', PRIMARY, 'remote', 'get-url', 'origin'], {
+      encoding: 'utf8',
+      env: GIT_ENV,
+    }).trim();
+    const run = (...args: string[]) =>
+      execFileSync('git', args, { cwd: dir, encoding: 'utf8', env: GIT_ENV });
+    run('clone', '--quiet', url, '.');
+    writeFileSync(join(dir, rel), text);
+    run('add', rel);
+    run('commit', '--quiet', '-m', 'team: out-of-band change');
+    run('push', '--quiet', 'origin', 'main');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 const tid = (s: string) => `[data-testid="${s}"]`;
 
@@ -74,16 +119,7 @@ describe('git-lifecycle (native-desktop)', () => {
     await browser.setTimeout({ script: 60_000 });
   });
 
-  after(() => {
-    // Clean up the remote test branches this run pushed (best-effort).
-    for (const ref of [`heads/${BR}`, 'heads/smoke/from-remote']) {
-      try {
-        gh('api', '-X', 'DELETE', `${API}/git/refs/${ref}`);
-      } catch {
-        /* already gone */
-      }
-    }
-  });
+  // nothing to clean up: the remote is a throwaway bare repo the next run's fixture recreates
 
   it('drives switch-repos, branches, commit, push, fetch, pull, merge through the UI', async () => {
     // ── boot ──────────────────────────────────────────────────────────────────
@@ -151,30 +187,19 @@ describe('git-lifecycle (native-desktop)', () => {
     const publish = await $(tid('git-publish'));
     await publish.waitForDisplayed({ timeout: 20_000 });
     await publish.click();
-    await browser.pause(4_000); // real network push via the credential helper
     await capture('06-published');
-    // verify on GitHub
-    await browser.waitUntil(
-      () => {
-        try {
-          return gh('api', `${API}/branches/${encodeURIComponent(BR)}`, '--jq', '.name') === BR;
-        } catch {
-          return false;
-        }
-      },
-      { timeout: 30_000, timeoutMsg: 'push: branch never appeared on the remote' }
-    );
+    // the branch is on the team's remote, at the commit this clone made
+    await browser.waitUntil(() => onRemote(`refs/heads/${BR}`), {
+      timeout: 30_000,
+      timeoutMsg: 'push: branch never appeared on the remote',
+    });
+    expect(remoteGit('rev-parse', `refs/heads/${BR}`)).toBe(git('rev-parse', 'HEAD'));
 
     // ── 5. FETCH remote branches (a teammate branch appears) ───────────────────
-    gh(
-      'api',
-      '-X',
-      'POST',
-      `${API}/git/refs`,
-      '-f',
-      'ref=refs/heads/smoke/from-remote',
-      '-f',
-      `sha=${git('rev-parse', 'origin/main')}`
+    remoteGit(
+      'update-ref',
+      'refs/heads/smoke/from-remote',
+      remoteGit('rev-parse', 'refs/heads/main')
     );
     await openAdvanced();
     await $(tid('switcher-fetch')).click();
@@ -199,7 +224,7 @@ describe('git-lifecycle (native-desktop)', () => {
     await browser.waitUntil(
       () => {
         try {
-          gh('api', `${API}/contents/.design/ui-lifecycle.txt?ref=main`, '--jq', '.name');
+          remoteGit('cat-file', '-e', 'refs/heads/main:.design/ui-lifecycle.txt');
           return true;
         } catch {
           return false;
@@ -211,18 +236,7 @@ describe('git-lifecycle (native-desktop)', () => {
     // ── 7. PULL (Get latest) — last, isolated, best-effort. We're on main (synced
     // after the fold). Move the remote, then open Changes: the fold invalidated the
     // remote probe, so it re-fetches and surfaces the "Get latest" nudge. ─────────
-    gh(
-      'api',
-      '-X',
-      'PUT',
-      `${API}/contents/.design/from-team.txt`,
-      '-f',
-      'message=team: out-of-band change',
-      '-f',
-      `content=${Buffer.from('from the team').toString('base64')}`,
-      '-f',
-      'branch=main'
-    );
+    teammateCommit('.design/from-team.txt', 'from the team');
     await openHistory();
     await $(tid('git-panel')).waitForDisplayed({ timeout: 20_000 });
     let pulled = false;
