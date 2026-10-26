@@ -14,7 +14,22 @@ const tid = (s: string) => `[data-testid="${s}"]`;
 
 /** The one menu: project pill → (a submenu, by its slug) → the row for an action id. */
 export async function pressMenuRow(actionId: string, submenu?: string): Promise<void> {
-  await (await $(tid('project-pill'))).click();
+  // The pill is a TOGGLE (r6 flake, import-figma 2/4): a click while the menu is still open from the step before,
+  // or while it is closing, shut it instead — the submenu row then never showed. Open it until the root menu is
+  // up; a menu already open is used as it is.
+  const menu = await $(tid('project-menu'));
+  const shown = () => menu.isDisplayed().catch(() => false);
+  await browser.waitUntil(
+    async () => {
+      if (await shown()) return true;
+      await (await $(tid('project-pill'))).click();
+      return browser
+        .waitUntil(shown, { timeout: 1_500, interval: 100 })
+        .then(() => true)
+        .catch(() => false);
+    },
+    { timeout: 10_000, interval: 250, timeoutMsg: 'the project menu never opened' }
+  );
   if (submenu) {
     const sub = await $(tid(`project-menu-row-sub-${submenu}`));
     await sub.waitForDisplayed({ timeout: 10_000 });

@@ -120,22 +120,45 @@ const ghost = () =>
  * A person's ⌘-click on the element with this id: down, up and click AT ITS CENTRE (the router picks its target by
  * the pointer's position, not by where the event was fired), so the deepest object there is selected.
  */
+/** The selection the server mirrors from the studio (`_active.json`, inspect.ts): the selected element's id. */
+const ACTIVE = join(HERE, '../fixtures/project/.design/_active.json');
+const selectedId = () => {
+  try {
+    const s = JSON.parse(readFileSync(ACTIVE, 'utf8'))?.selected;
+    return (Array.isArray(s) ? s[0] : s)?.id ?? null;
+  } catch {
+    return null;
+  }
+};
 const selectFrame = async (id: string) => {
-  await inFrame((doc, win, elId: string) => {
-    const el = doc.querySelector(`[data-cd-id="${elId}"]`) as HTMLElement;
-    const r = el.getBoundingClientRect();
-    const at = {
-      bubbles: true,
-      cancelable: true,
-      clientX: r.left + r.width / 2,
-      clientY: r.top + r.height / 2,
-      button: 0,
-      metaKey: true,
-    };
-    for (const t of ['pointerdown', 'pointerup', 'click'])
-      el.dispatchEvent(new (win as any).MouseEvent(t, at));
-  }, id);
-  await browser.pause(700); // the selection settles a beat after the press
+  // r6 flake: a press sent while the canvas was still reloading from the step before (⌘Z rewrote the source)
+  // landed in the outgoing document and selected nothing, so ↵ placed at the artboard. Press until the
+  // selection the server holds IS this element.
+  await browser.waitUntil(
+    async () => {
+      if (selectedId() === id) return true;
+      await inFrame((doc, win, elId: string) => {
+        const el = doc.querySelector(`[data-cd-id="${elId}"]`) as HTMLElement | null;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        const at = {
+          bubbles: true,
+          cancelable: true,
+          clientX: r.left + r.width / 2,
+          clientY: r.top + r.height / 2,
+          button: 0,
+          metaKey: true,
+        };
+        for (const t of ['pointerdown', 'pointerup', 'click'])
+          el.dispatchEvent(new (win as any).MouseEvent(t, at));
+      }, id);
+      return browser
+        .waitUntil(async () => selectedId() === id, { timeout: 1_500, interval: 100 })
+        .then(() => true)
+        .catch(() => false);
+    },
+    { timeout: 15_000, interval: 250, timeoutMsg: `the selection never became ${id}` }
+  );
 };
 
 const openPicker = async () => {
