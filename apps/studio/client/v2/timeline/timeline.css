@@ -1642,4 +1642,28 @@
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
+  /* p8-r11-15 (15 · an-video): a note pinned to this video — a bar in its paper over the hairline, from its start
+     to its end (the board's `an-tl-mk--st`); the one at the playhead wears the accent ring. */
+  .tl-cs-note {
+    appearance: none;
+    position: absolute;
+    top: 50%;
+    height: 10px;
+    min-width: 6px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-pill);
+    translate: 0 -50%;
+    cursor: pointer;
+    box-shadow: 0 0 0 1.5px var(--bg-2);
+  }
+  .tl-cs-note[data-on] {
+    box-shadow:
+      0 0 0 1.5px var(--bg-2),
+      0 0 0 3px var(--accent);
+  }
+  .tl-cs-note:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
 }

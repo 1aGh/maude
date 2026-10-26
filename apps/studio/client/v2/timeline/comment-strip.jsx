@@ -3,6 +3,9 @@
 // video's name, "2 comments on this video") and one face per timed thread at its second. A face seeks the
 // player to its moment; nothing here edits, adds or removes a thread — the threads live on the picture.
 //
+// p8-r11-15 (15 · an-video): the same strip also marks the NOTES pinned to this video — a bar in the note's paper
+// from its start to its end (the board's `an-tl-mk--st`), and "2 notes · 1 comment" in the header. A click seeks.
+//
 // Mounted by `CommentStripHost` (Preview only). The model is comment-strip-model.js.
 
 import { Person } from '../share/person.jsx';
@@ -34,7 +37,7 @@ export function CommentStrip({ strip, placement, onSeek }) {
           {strip.artboardLabel}
         </span>
         <span className="tl-comments-n" data-testid="comment-strip-count">
-          <TGlyph name="comment" size={12} />
+          <TGlyph name={strip.notes.length ? 'note' : 'comment'} size={12} />
           {strip.countLine}
         </span>
       </div>
@@ -48,6 +51,18 @@ export function CommentStrip({ strip, placement, onSeek }) {
             style={{ left: `${strip.playhead * 100}%` }}
           />
         ) : null}
+        {strip.notes.map((n) => (
+          <button
+            key={n.id}
+            type="button"
+            className="tl-cs-note"
+            data-testid={`comment-strip-note-${n.id}`}
+            data-on={n.on ? 'true' : undefined}
+            aria-label="Note on this part of the video"
+            style={{ left: `${n.at * 100}%`, width: `${n.width * 100}%`, background: n.colour }}
+            onClick={() => onSeek?.(n.id, n.seconds)}
+          />
+        ))}
         {strip.marks.map((m) => (
           <button
             key={m.id}

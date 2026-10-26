@@ -12,6 +12,7 @@ import { shellMode } from '../shell/use-canvas-mode-lane.js';
 import { placeCompact } from './anchor.js';
 import { CommentStrip } from './comment-strip.jsx';
 import { commentStrip } from './comment-strip-model.js';
+import { useBoard } from './marks.jsx';
 
 const STRIP_W = 600;
 const modeNow = () => shellMode.get().mode;
@@ -32,17 +33,21 @@ export function CommentStripHost() {
   const mode = useSyncExternalStore(shellMode.subscribe, modeNow, modeNow);
   const canvasOpen = !!activePath && activePath !== SYSTEM_TAB;
   const comments = canvasOpen ? commentsByFile?.[activePath] : null;
+  // p8-r11-15 (an-video): the notes pinned to a video live on the canvas's annotation board — the same read the
+  // Layers list and the Edit timeline's ruler marks make; only read while Preview draws the strip.
+  const board = useBoard(mode === 'preview' && canvasOpen ? activePath : null);
   const strip = useMemo(
     () =>
       mode === 'preview' && canvasOpen
         ? commentStrip({
             comments,
+            board,
             comps: activeComps,
             compId: timelineCompId,
             frame: timelineFrame,
           })
         : null,
-    [mode, canvasOpen, comments, activeComps, timelineCompId, timelineFrame]
+    [mode, canvasOpen, comments, board, activeComps, timelineCompId, timelineFrame]
   );
 
   const [vw, setVw] = useState(() => (typeof window === 'undefined' ? 1440 : window.innerWidth));

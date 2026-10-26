@@ -37,6 +37,10 @@ const PATHS = {
   comment: (
     <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v8.5H5A2.5 2.5 0 0 1 2.5 11V5A2.5 2.5 0 0 1 5 2.5z" />
   ),
+  // a sticky note (folded corner) — the Preview strip's "2 notes" (15 · an-video)
+  note: (
+    <path d="M4.5 2.5h7A2 2 0 0 1 13.5 4.5V9L9 13.5H4.5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2zM9 13.5V11A2 2 0 0 1 11 9h2.5" />
+  ),
   sync: (
     <path d="M3 7.25a5 5 0 0 1 8.6-3L13 5.5M13 2.5v3h-3M13 8.75a5 5 0 0 1-8.6 3L3 10.5M3 13.5v-3h3" />
   ),
