@@ -1572,4 +1572,74 @@
       rotate: 0deg;
     }
   }
+  /* ─── Round 11 (10 · co-comment-video): the read-only comment strip of a video board in Preview ───
+     The island's own material (`.tl-island`); the header is the board's (`0:12 / 0:30`, name, count), the track a
+     hairline with each timed thread's face on its second. Nothing here is a control but the faces (they seek). */
+  .tl-cs {
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3) var(--space-3);
+  }
+  .tl-cs-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 24px;
+  }
+  .tl-cs-track {
+    position: relative;
+    height: 28px;
+    margin: 0 10px; /* a face at either end stays inside the island */
+  }
+  .tl-cs-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 2px;
+    translate: 0 -50%;
+    border-radius: var(--radius-pill);
+    background: var(--border-strong);
+  }
+  .tl-cs-playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    translate: -50% 0;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    pointer-events: none;
+  }
+  .tl-cs-mark {
+    appearance: none;
+    position: absolute;
+    top: 4px;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: none;
+    translate: -50% 0;
+    cursor: pointer;
+  }
+  .tl-cs-mark .k-av {
+    box-shadow:
+      var(--shadow-sm),
+      0 0 0 2px var(--bg-2);
+  }
+  /* the thread at the playhead wears the accent ring (the board's `data-on`) */
+  .tl-cs-mark.is-on .k-av {
+    box-shadow:
+      var(--shadow-sm),
+      0 0 0 2px var(--bg-2),
+      0 0 0 4px var(--accent);
+  }
+  .tl-cs-mark.is-resolved {
+    opacity: 0.55;
+  }
+  .tl-cs-mark:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
 }
