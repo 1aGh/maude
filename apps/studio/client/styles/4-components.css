@@ -617,41 +617,6 @@
     color: var(--fg-2);
   }
 
-  /* ── Generate dialog (feature-ai-media-generation, DDR-16x) ─────────────── */
-  .ai-gen-prompt {
-    width: 100%;
-    resize: vertical;
-    min-height: 60px;
-    font-family: var(--font-body, system-ui, sans-serif);
-    margin-bottom: 10px;
-  }
-  .ai-gen-go {
-    color: var(--accent);
-    border-color: var(--accent-muted, var(--accent));
-  }
-  .ai-gen-result {
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-    margin-top: 12px;
-    padding: 10px;
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-sm);
-    background: var(--bg-2);
-  }
-  .ai-gen-thumb {
-    width: 96px;
-    height: 96px;
-    object-fit: cover;
-    border-radius: var(--radius-sm);
-    background: var(--bg-3);
-  }
-  .ai-gen-result-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
   /* Seed progress (feature-large-project-seed).
    A bar rather than a number alone: a large project's seed is minutes to hours
    of work, and "1 412" reads the same whether it is a quarter done or finished.

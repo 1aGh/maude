@@ -38,6 +38,8 @@
 @import url("../v2/help/help.css");
 /* Phase 31 (DDR-123) — ACP chat sidepanel (chat-* inside the Assistant sh-rpanel). */
 @import url("../v2/ai/chat.css");
+/* V2-8.0 — Create a project (cp-*): after the dialog chrome it shares with Generate (.gi-dialog, .cp-dialog), before the Component picker's own .cp-* names. */
+@import url("../v2/create/create-project.css");
 /* S5.8 — the AI chat panel host: scope chip + menu, suggestion strip, answer note, azure send. */
 @import url("../v2/ai/ai.css");
 /* S5.9 — the AI chat's run surface: working line, result card, Jump to latest, full height. */
