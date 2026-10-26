@@ -80,7 +80,9 @@ const metaOf = () =>
   JSON.parse(readFileSync(CANVAS.replace(/\.tsx$/, '.meta.json'), 'utf8')) as {
     layout?: { artboards?: Array<{ id: string; x: number; y: number }> };
   };
-const artboardIds = () => [...source().matchAll(/<DCArtboard\s+id="([^"]+)"/g)].map((m) => m[1]);
+// the id is wherever the writer put it among the attributes (an inserted preset writes `kind` first)
+const artboardIds = () =>
+  [...source().matchAll(/<DCArtboard\b[^>]*?\sid="([^"]+)"/g)].map((m) => m[1]);
 
 // ── driving the shell and the canvas frame ───────────────────────────────────────────────────────────────────
 async function onServer(tab: string): Promise<void> {
@@ -138,6 +140,8 @@ function mouseAt(p: Pt, types: string[], extra: Record<string, unknown> = {}) {
             ...ex,
           })
         );
+      // what the events landed on — a failure message names it (an overlay over the element is the usual culprit)
+      return `${target.tagName.toLowerCase()}${target.getAttribute('data-cd-id') ? `[data-cd-id=${target.getAttribute('data-cd-id')}]` : ''}.${String(target.className).slice(0, 60)}`;
     },
     p.x,
     p.y,
@@ -243,9 +247,14 @@ describe('first canvas (S6.16) — a sentence on Home to a saved, shared canvas'
     // Inspector island appears in the shell, naming where the pick sits (01 cf-select-tweak)
     const headline = await centreOf('[data-cd-id="desktop-headline"]');
     expect(headline).not.toBeNull();
-    await mouseAt(headline as Pt, ['pointerdown', 'pointerup', 'click'], { metaKey: true });
+    const hit = await mouseAt(headline as Pt, ['pointerdown', 'pointerup', 'click'], {
+      metaKey: true,
+    });
     const frame = await $(tid('inspector-frame'));
-    await frame.waitForExist({ timeout: 20_000, timeoutMsg: 'the inspector did not arrive' });
+    await frame.waitForExist({
+      timeout: 20_000,
+      timeoutMsg: `the inspector did not arrive (the ⌘-click landed on ${hit})`,
+    });
     const read = () =>
       browser.execute(
         () =>
@@ -275,6 +284,12 @@ describe('first canvas (S6.16) — a sentence on Home to a saved, shared canvas'
       { timeout: 15_000, interval: 100, timeoutMsg: 'esc never cleared the selection' }
     );
     const before = artboardIds().length;
+    // The person's keys go to the canvas they are working in: after the sentence the AI chat's composer holds the
+    // focus, and the shell opens a tool panel only for a FOCUSED canvas (use-tool-panels.js hasFocus — EH-P4-2). A
+    // click on the canvas gives it the focus; the frame's own focus() is that, without a click that would select.
+    await browser.execute(() =>
+      (document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement).focus()
+    );
     await keyEvent('f', {});
     await (await $(tid('size-picker-search'))).waitForDisplayed({
       timeout: 15_000,
@@ -288,7 +303,7 @@ describe('first canvas (S6.16) — a sentence on Home to a saved, shared canvas'
     });
     // the kind follows the preset: App sizes are fixed screens
     const added = source()
-      .split(/<DCArtboard\s+id=/)
+      .split(/<DCArtboard\b/)
       .pop() as string;
     expect(added).toMatch(/width=\{1280\}/);
     expect(added).toMatch(/height=\{800\}/);
@@ -344,10 +359,15 @@ describe('first canvas (S6.16) — a sentence on Home to a saved, shared canvas'
     const p = await centreOf(sel);
     expect(p).not.toBeNull();
     await mouseAt(p as Pt, ['pointerdown', 'pointerup', 'click', 'dblclick'], { detail: 2 }); // selects
-    await mouseAt(p as Pt, ['pointerdown', 'pointerup', 'click', 'dblclick'], { detail: 2 }); // the caret
+    const hit = await mouseAt(p as Pt, ['pointerdown', 'pointerup', 'click', 'dblclick'], {
+      detail: 2,
+    }); // the caret
     await browser.waitUntil(
       async () => inFrame((d) => !!d.querySelector('[contenteditable].dc-text-editing')),
-      { timeout: 10_000, timeoutMsg: 'no caret in the headline' }
+      {
+        timeout: 10_000,
+        timeoutMsg: `no caret in the headline (the double-click landed on ${hit})`,
+      }
     );
     await browser.execute((t) => {
       const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;

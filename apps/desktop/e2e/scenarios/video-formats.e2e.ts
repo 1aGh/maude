@@ -245,7 +245,21 @@ describe('video-formats — Add a format, Make an unlinked copy, Re-frame a clip
     });
     const framed = onDisk();
     expect(framed.match(/<Reframe/g)?.length).toBe(1);
-    await (await $('[data-testid="reframe-reset"]')).click();
+    // Reset is offered once the island has the keyframe (the canvas re-announces the clip with it): a click before
+    // that lands on a disabled button and does nothing — wait for what a person sees, the count and an enabled Reset
+    const reset = await $('[data-testid="reframe-reset"]');
+    await browser.waitUntil(
+      async () =>
+        (await reset.isEnabled()) &&
+        (await browser.execute(
+          () => document.querySelector('[data-testid="reframe-count"]')?.textContent?.trim() ?? null
+        )) === '1 keyframe',
+      {
+        timeout: 15_000,
+        timeoutMsg: 'the island never showed the keyframe it wrote (Reset stayed off)',
+      }
+    );
+    await reset.click();
     await browser.waitUntil(async () => !onDisk().includes('<Reframe'), {
       timeout: 15_000,
       timeoutMsg: 'Reset did not take the <Reframe> away',
