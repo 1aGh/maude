@@ -7,7 +7,7 @@ import { waitForCanvasRects, waitForEditChrome } from '../helpers/canvas-frame';
 import { syncStatusText } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { invokeTauri } from '../helpers/native';
-import { pointerClick } from '../helpers/pointer';
+import { pointerDown, pointerUp } from '../helpers/pointer';
 import {
   activeTab,
   closeTab,
@@ -442,7 +442,12 @@ describe('first canvas (S6.16) — a sentence on Home to a saved, shared canvas'
       ).getBoundingClientRect();
       return { x: r.left, y: r.top };
     })) as Pt;
-    await pointerClick(off.x + (m as Pt).x + 40, off.y + (m as Pt).y + 160);
+    // …and a press and a release are two moments, not one task: the board's draw starts on pointerdown (React state
+    // the release then reads, set on the next render), so a down+up fired back to back released a stroke not yet begun
+    const at = { x: off.x + (m as Pt).x + 40, y: off.y + (m as Pt).y + 160 };
+    await pointerDown(at.x, at.y);
+    await browser.pause(80);
+    await pointerUp(at.x, at.y);
     await browser.waitUntil(
       () =>
         walk(designDir(), (rel) => /\.annotations\.json$/.test(rel)).some((f) =>
