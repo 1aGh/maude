@@ -168,6 +168,8 @@ export const WS_FRAME_CLASSES = Object.freeze({
   // S9.21b — an access change names no canvas and carries no text (a canvas-only session hears its
   // own ending); a request names a person and a canvas for the owner — never a canvas-only session.
   access: 'none',
+  // p8-e2e-rolefix (2) — hubs.json changed: `{ type }` only, the shell re-reads its own /_config.
+  'access-changed': 'none',
   'access-request': 'project',
   'fs:html': 'canvas',
   'fs:css': 'canvas',

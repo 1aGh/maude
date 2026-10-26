@@ -356,6 +356,9 @@ export function createWs(
         at: frame.at,
       });
   });
+  // p8-e2e-rolefix (2) — hubs.json changed (a re-exchange, a raise or a drop): desktop shells re-read
+  // /_config so Viewing / editing follows the new claim. No claim data rides along.
+  ctx.bus.on('access:changed', () => toDesktopShell({ type: 'access-changed' }));
   ctx.bus.on('trash:changed', (p: { seq?: unknown }) =>
     broadcast({ type: 'trash:changed', payload: { seq: typeof p?.seq === 'number' ? p.seq : 0 } })
   );

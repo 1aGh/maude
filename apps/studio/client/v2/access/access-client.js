@@ -43,6 +43,51 @@ export function sessionRole(cfg, rel) {
   return best ?? undefined;
 }
 
+const EDIT_RANK = RANK.member;
+
+/**
+ * p8-e2e-rolefix (2) — may the shell offer EDITING on canvas `rel` (designRoot-relative)? What the server's
+ * doors allow there: not read-only at all; or read-only by role only (no format gate) and the higher of the
+ * project role and THAT canvas's own grant is Can edit or up. Never another canvas's grant (a canvas-only
+ * editor of A views B). A server too old to send `access` keeps the project-level `readOnly` answer.
+ */
+export function canEditOn(cfg, rel) {
+  if (!cfg?.readOnly) return true;
+  if (cfg.formatGate || cfg.readOnlyReason !== 'role') return false;
+  const access = cfg.access;
+  if (!access || typeof access !== 'object' || !rel) return false;
+  if (RANK[access.role] >= EDIT_RANK) return true;
+  return (Array.isArray(access.grants) ? access.grants : []).some(
+    (g) => g?.c === rel && RANK[g?.r] >= EDIT_RANK
+  );
+}
+
+/** The canvas's designRoot-relative path from an open (repo-relative) path: `.design/ui/a.tsx` → `ui/a.tsx`. */
+function underDesignRoot(cfg, path) {
+  if (typeof path !== 'string' || !path) return null;
+  const designRel = (cfg?.designRel || '.design').replace(/^\/+|\/+$/g, '');
+  return path.startsWith(`${designRel}/`) ? path.slice(designRel.length + 1) : path;
+}
+
+/** The shell's Viewing state for the open tab (`activePath`, repo-relative): the inverse of `canEditOn`. */
+export function viewerModeOn(cfg, activePath) {
+  return !canEditOn(cfg, underDesignRoot(cfg, activePath));
+}
+
+/** The frame's flags for canvas `path`: `ro` = Viewing there; `cm` = still comments there (Can comment +). */
+export function frameAccessOn(cfg, path) {
+  const rel = underDesignRoot(cfg, path);
+  const ro = !canEditOn(cfg, rel);
+  if (!ro) return { ro: false, cm: false };
+  if (cfg.access && typeof cfg.access === 'object' && !cfg.formatGate) {
+    const own = (Array.isArray(cfg.access.grants) ? cfg.access.grants : []).some(
+      (g) => g?.c === rel && RANK[g?.r] >= RANK.viewer
+    );
+    return { ro, cm: !!cfg.canComment || own };
+  }
+  return { ro, cm: !!cfg.canComment };
+}
+
 export const WORDS = Object.freeze({
   asked: 'Asked. The owner will see your request.',
   queued: 'Queued — sends when this Mac is online.',

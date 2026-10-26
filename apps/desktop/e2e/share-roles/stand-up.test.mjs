@@ -189,6 +189,14 @@ describe('Petra: Can view on one canvas, Ask to edit, Let Petra edit', () => {
     const me = await json(await hub('/api/access/me', { token: rec.token }));
     assert.equal(me.canvasCaps[rig.run.canvas].edit, true);
     assert.deepEqual(me.grants, [{ c: rig.run.canvas, r: 'member' }]);
+    // Her studio hands the shell the raised claim (p8-e2e-rolefix): project-level still read-only, Can edit
+    // on that canvas — the shell opens it editable from this (access-client.js `canEditOn`).
+    const cfg = await until('Petra’s studio to read the raised claim', async () => {
+      const c = await json(await fetch(`${rig.studios.petra.url}/_config`));
+      return c?.access?.grants?.[0]?.r === 'member' ? c : null;
+    });
+    assert.equal(cfg.readOnlyReason, 'role');
+    assert.deepEqual(cfg.access, { role: null, grants: [{ c: rig.run.canvas, r: 'member' }] });
     // Still nothing of the owner's other canvas.
     assert.ok(!(await docs(rec.token)).some((n) => /private/i.test(n)));
   });

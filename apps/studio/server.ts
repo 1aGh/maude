@@ -407,7 +407,12 @@ setAccessFallback(() => http.accessOf());
 // sockets are closed by the hub's proxy instead (studio-proxy.mjs `closeUpgrades`).
 if (!isWorkspaceMode()) {
   const narrowSockets = () => ws.closeWiderThan(http.accessOf());
-  watchHubsConfig(narrowSockets);
+  // p8-e2e-rolefix (2) — a raise closes no socket, so the shell is also TOLD (ws.ts `access-changed`) and
+  // re-reads /_config: a canvas-only Can edit grant must open its canvas for editing without a reload.
+  watchHubsConfig(() => {
+    narrowSockets();
+    ctx.bus.emit('access:changed');
+  });
   ctx.bus.on('config-updated', narrowSockets);
 }
 const fsWatch = createFsWatch(ctx);

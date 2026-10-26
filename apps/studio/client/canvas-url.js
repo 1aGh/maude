@@ -10,6 +10,7 @@
 // subtree — so every `var(--*)` went undefined and the canvas rendered white.
 
 import { frameCapFor } from './frame-cap.js';
+import { frameAccessOn } from './v2/access/access-client.js';
 
 // THE CANVAS CAPABILITY EXPIRES (render-token.mjs: 15 minutes) and cannot be
 // revoked, so it is short on purpose. A tab open longer than that must carry a
@@ -237,10 +238,13 @@ export function canvasUrl(p, cfg, opts) {
   // mutating interactions are ABSENT from the iframe chrome (read-only-mode.ts
   // reads this flag). Boot-static on purpose — a role is per-session, and a
   // query param can't race the way a post-load message could.
-  if (cfg?.readOnly) params.set('ro', '1');
+  // p8-e2e-rolefix (2) — per CANVAS, the way the server decides: a canvas-only Can edit grant opens ITS
+  // canvas editable and every other canvas read-only (access-client.js `frameAccessOn`).
+  const frameAccess = frameAccessOn(cfg, p);
+  if (frameAccess.ro) params.set('ro', '1');
   // S9.22 — a Can comment session is read-only for the design but may still reply, resolve and reopen:
-  // `/_config.canComment` (a role that holds `comment`) says so, and the thread offers those buttons.
-  if (cfg?.readOnly && cfg?.canComment) params.set('cm', '1');
+  // `/_config.canComment` (a role that holds `comment`) — or a Can comment grant on THIS canvas — says so.
+  if (frameAccess.cm) params.set('cm', '1');
   // S9.23 (S9-slices Q9) — presence `surface`: a canvas open in a browser tab says so in the room
   // ("in a browser"). Only a studio window outside the Mac app; previews / embeds / follows publish nothing.
   if (
