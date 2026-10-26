@@ -62,6 +62,57 @@ describe('readResync — one reading of the new runtime', () => {
   });
 });
 
+describe('readResync — a journal-less hub (the v1 manifest lane, no denominator)', () => {
+  // p8-e2e-headless: a self-hosted team hub and a cell without a checkout carry no journal, so the file
+  // plane never starts and `files` never gets a `progress` — the trace sat on "Resyncing…" until its
+  // 15-minute give-up (team-project 10, cloud-attach 9). The v1 pass is the comparison there: one report
+  // from the NEW runtime's v1 lane is one whole pass.
+  const v1 = (extra: Record<string, unknown> = {}): Status =>
+    ({
+      canvases: 2,
+      coldOpen: { canvasesMs: 9 },
+      files: { synced: 2, pulled: 1, conflicts: 0, lane: 'v1', ...extra },
+    }) as unknown as Status;
+
+  test('a v1 pass report ends the trace: done, with what that pass counted', () => {
+    const r = readResync(v1(), true);
+    expect(r?.state).toBe('done');
+    expect(r?.summary).toEqual({ checked: 2, sent: 0, fetched: 1, conflicts: 0 });
+    expect([r?.done, r?.total]).toEqual([2, 2]);
+    expect(readResync(v1({ conflicts: 1 }), true)?.summary.conflicts).toBe(1);
+  });
+
+  test('a report that does not say it is the v1 lane still waits for the plane to walk its tree', () => {
+    const early = {
+      canvases: 2,
+      files: { synced: 0, pulled: 0, conflicts: 0 },
+    } as unknown as Status;
+    expect(readResync(early, true)?.state).toBe('running');
+  });
+
+  test('the trace finishes on a journal-less hub instead of running to its give-up', () => {
+    let status: Status | null = null;
+    const ticks: Array<() => void> = [];
+    const trace = createResyncTrace({
+      read: () => status,
+      expectFiles: () => true,
+      log: () => {},
+      setTimer: (fn) => {
+        ticks.push(fn);
+        return ticks.length;
+      },
+      clearTimer: () => {},
+    });
+    trace.begin();
+    status = { canvases: 2, coldOpen: { canvasesMs: 9 } } as unknown as Status;
+    trace.tick();
+    expect(trace.view()?.state).toBe('running');
+    status = v1();
+    trace.tick();
+    expect(trace.view()?.state).toBe('done');
+  });
+});
+
 describe('the log line and the digits', () => {
   test('groupDigits uses the canvases’ plain space', () => {
     expect(groupDigits(1318)).toBe('1 318');

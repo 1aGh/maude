@@ -76,6 +76,17 @@ export function readResync(
       return { state: 'attention', done, total, summary };
     return { state: 'running', done, total, summary };
   }
+  if (f?.lane === 'v1') {
+    // A journal-less hub: no file plane, so no denominator. One v1 pass of the NEW runtime is the whole
+    // comparison — the counters are this runtime's, so they are the resync's.
+    const checked = f.synced ?? 0;
+    return {
+      state: 'done',
+      done: checked,
+      total: checked,
+      summary: { checked, sent, fetched, conflicts },
+    };
+  }
   if (f) {
     // A file plane that has not yet walked its tree: nothing to count yet.
     return {

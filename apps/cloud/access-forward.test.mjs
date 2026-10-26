@@ -378,6 +378,8 @@ describe('access requests', () => {
     for (const who of ['viewer', 'observer']) {
       const r = await forward(env, 'requests', { method: 'POST', actor: who, body: {} });
       assert.equal(r.status, 201, who);
+      // the cell's owner toast names the person as the owner's list does (their account name), not an e-mail part
+      assert.deepEqual((await r.json()).from, { name: who }, who);
       const again = await forward(env, 'requests', { method: 'POST', actor: who, body: {} });
       assert.equal(again.status, 409);
       assert.equal((await again.json()).reason, 'pending');
