@@ -2,7 +2,7 @@
  *
  * Floating (the default, `.st-body--float`): the left / right dock slots are `.island`s laid over the
  * canvas viewport (`.main`, which keeps the whole body), and a panel that is not showing leaves its
- * corner icon (`.st-corner`). Pinned (View › Advanced › "Pin panels to the side") is today's docked
+ * corner icon (`.sh-corner`). Pinned (View › Advanced › "Pin panels to the side") is today's docked
  * column layout — no rule here applies, `.st-dockslot-inner` is `display: contents`. ⌘\ (`.is-hidden`)
  * takes every slot out of the layout in both; the corner icons are the way back.
  *
@@ -90,13 +90,13 @@
     /* V2-4.3a: the Share cluster is the top-right island; the panel starts below it (kit: 68px). */
     padding-top: calc(var(--float-gap) + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
-  /* A folded AI chat leaves its icon in the slot's bottom corner (.st-corner--ai): the panel above stops short of
+  /* A folded AI chat leaves its icon in the slot's bottom corner (.sh-corner--ai): the panel above stops short of
      it, or the icon sat on the panel's last row (P8 B1: Version history's "Advanced · Branch, git, changed fi…").
      28px button + the corner's own padding, and a gap. */
-  .st-body--float:has(> .st-corner--ai) > .st-dockslot--right {
+  .st-body--float:has(> .sh-corner--ai) > .st-dockslot--right {
     padding-bottom: calc(var(--float-gap) + 44px);
   }
-  .st-body--float:has(> .st-corner--ai-left) > .st-dockslot--left {
+  .st-body--float:has(> .sh-corner--ai-left) > .st-dockslot--left {
     padding-bottom: max(72px, calc(var(--float-gap) + 44px));
   }
   .st-body--float .st-dockslot-inner {
@@ -106,7 +106,7 @@
     flex-direction: column;
     overflow: hidden;
     pointer-events: auto;
-    animation: st-island-in var(--dur-panel) var(--ease-out);
+    animation: sh-island-in var(--dur-panel) var(--ease-out);
   }
   .st-body--float .st-dockslot-inner > .st-sidebar,
   .st-body--float .st-dockslot-inner > .st-rpanel {
@@ -229,18 +229,18 @@
   }
 
   /* ── folded corner icons ── */
-  .st-corner {
+  .sh-corner {
     position: absolute;
     z-index: 21;
     display: grid;
     padding: var(--space-1);
-    animation: st-island-in var(--dur-panel) var(--ease-out);
+    animation: sh-island-in var(--dur-panel) var(--ease-out);
   }
-  .st-corner--left {
+  .sh-corner--left {
     left: var(--float-gap, 16px);
     top: calc(var(--float-gap, 16px) + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
-  .st-corner--right {
+  .sh-corner--right {
     right: var(--float-gap, 16px);
     /* V2-4.3a: below the Share cluster (kit: 68px). */
     top: calc(var(--float-gap, 16px) + var(--pill-h, 40px) + var(--pill-gap, 12px));
@@ -248,26 +248,26 @@
   /* P8 r11 (03 `ai-long`): a full-height AI chat (`data-full`, AiChatIsland) reaches the top of its slot, so a folded
      panel's icon at that corner stood on the chat's header and hid its Hide chevron. It stands beside the chat, on
      the canvas side: the chat is 420 wide (or the slot, when wider — --rp-w / --sb-w) plus the slot's own gap. */
-  .st-body--float:has(> .st-dockslot--right:not(.is-hidden):not(.is-collapsed) .st-dockslot-ai:not([hidden]) > .ai-island[data-full="true"]) > .st-corner--right {
+  .st-body--float:has(> .st-dockslot--right:not(.is-hidden):not(.is-collapsed) .st-dockslot-ai:not([hidden]) > .ai-island[data-full="true"]) > .sh-corner--right {
     right: calc(max(var(--rp-w, 0px), 420px + var(--float-gap, 16px)) + var(--space-2, 8px));
   }
-  .st-body--float:has(> .st-dockslot--left:not(.is-hidden):not(.is-collapsed) .st-dockslot-ai:not([hidden]) > .ai-island[data-full="true"]) > .st-corner--left {
+  .st-body--float:has(> .st-dockslot--left:not(.is-hidden):not(.is-collapsed) .st-dockslot-ai:not([hidden]) > .ai-island[data-full="true"]) > .sh-corner--left {
     left: calc(max(var(--sb-w, 0px), 420px + var(--float-gap, 16px)) + var(--space-2, 8px));
   }
-  .st-corner--ai {
+  .sh-corner--ai {
     right: var(--float-gap, 16px);
     bottom: var(--float-gap, 16px);
   }
-  .st-corner--ai-left {
+  .sh-corner--ai-left {
     left: var(--float-gap, 16px);
     bottom: var(--float-gap, 16px);
   }
-  .st-corner .st-iconbtn {
+  .sh-corner .st-iconbtn {
     position: relative;
     width: 28px;
     height: 28px;
   }
-  .st-corner-dot {
+  .sh-corner-dot {
     position: absolute;
     top: 3px;
     right: 3px;
@@ -278,55 +278,55 @@
     box-shadow: 0 0 0 2px var(--island-bg, var(--bg-1));
   }
   /* Pinned + ⌘\: the icons float over the canvas with the same material. */
-  .st-body:not(.st-body--float) .st-corner {
+  .st-body:not(.st-body--float) .sh-corner {
     background: var(--bg-1);
     border-radius: 14px;
     box-shadow: var(--shadow-md);
   }
-  .st-body:not(.st-body--float) .st-corner--left,
-  .st-body:not(.st-body--float) .st-corner--ai-left {
+  .st-body:not(.st-body--float) .sh-corner--left,
+  .st-body:not(.st-body--float) .sh-corner--ai-left {
     left: 16px;
   }
-  .st-body:not(.st-body--float) .st-corner--right,
-  .st-body:not(.st-body--float) .st-corner--ai {
+  .st-body:not(.st-body--float) .sh-corner--right,
+  .st-body:not(.st-body--float) .sh-corner--ai {
     right: 16px;
   }
-  .st-body:not(.st-body--float) .st-corner--right {
+  .st-body:not(.st-body--float) .sh-corner--right {
     top: calc(16px + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
-  .st-body:not(.st-body--float) .st-corner--left {
+  .st-body:not(.st-body--float) .sh-corner--left {
     top: calc(16px + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
-  .st-body:not(.st-body--float) .st-corner--ai,
-  .st-body:not(.st-body--float) .st-corner--ai-left {
+  .st-body:not(.st-body--float) .sh-corner--ai,
+  .st-body:not(.st-body--float) .sh-corner--ai-left {
     bottom: 16px;
   }
   /* 06 ad-pinned (a11y V4) — a folded panel's icon floats over the CANVAS: with a pinned column open on its side
      (the AI chat alone keeps the right slot shown) it stands beside that column, not over its header. */
-  .st-body:not(.st-body--float):has(> .st-dockslot--right:not(.is-collapsed):not(.is-hidden)) .st-corner--right {
+  .st-body:not(.st-body--float):has(> .st-dockslot--right:not(.is-collapsed):not(.is-hidden)) .sh-corner--right {
     right: calc(var(--rp-w, 0px) + 16px);
   }
-  .st-body:not(.st-body--float):has(> .st-dockslot--left:not(.is-collapsed):not(.is-hidden)) .st-corner--left {
+  .st-body:not(.st-body--float):has(> .st-dockslot--left:not(.is-collapsed):not(.is-hidden)) .sh-corner--left {
     left: calc(var(--sb-w, 0px) + 16px);
   }
 
   /* S3.14 (G4, 04 md-motion): a panel that stops showing shrinks toward its corner icon. The ghost is a picture
      of it (fold-ghost.js) — no hook, no focus, no clicks — gone when the animation ends. */
-  .st-body .st-fold-ghost {
+  .st-body .sh-fold-ghost {
     z-index: 20;
     transform-origin: top left;
-    animation: st-island-fold var(--dur-panel) var(--ease-out) forwards;
+    animation: sh-island-fold var(--dur-panel) var(--ease-out) forwards;
   }
-  .st-body .st-fold-ghost[data-fold="top-right"] {
+  .st-body .sh-fold-ghost[data-fold="top-right"] {
     transform-origin: top right;
   }
-  .st-body .st-fold-ghost[data-fold="bottom-left"] {
+  .st-body .sh-fold-ghost[data-fold="bottom-left"] {
     transform-origin: bottom left;
   }
-  .st-body .st-fold-ghost[data-fold="bottom-right"] {
+  .st-body .sh-fold-ghost[data-fold="bottom-right"] {
     transform-origin: bottom right;
   }
-  @keyframes st-island-fold {
+  @keyframes sh-island-fold {
     from {
       opacity: 1;
       transform: none;
@@ -336,7 +336,7 @@
       transform: scale(0.12);
     }
   }
-  @keyframes st-island-in {
+  @keyframes sh-island-in {
     from {
       opacity: 0;
       transform: scale(0.96);
@@ -348,10 +348,10 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .st-body--float .st-dockslot-inner,
-    .st-corner {
+    .sh-corner {
       animation: none;
     }
-    .st-body .st-fold-ghost {
+    .st-body .sh-fold-ghost {
       display: none; /* a cut (and fold-ghost.js spawns none at 1 ms) */
     }
   }

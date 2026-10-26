@@ -24,13 +24,13 @@ export const OFFLINE_INVITE_TIP = 'Invites send when this Mac is online.';
 
 function Ring({ value }) {
   return (
-    <svg className="st-ex-ring" viewBox="0 0 36 36" aria-hidden="true">
+    <svg className="sh-ex-ring" viewBox="0 0 36 36" aria-hidden="true">
       <circle cx="18" cy="18" r="15" />
       <circle
         cx="18"
         cy="18"
         r="15"
-        className="st-ex-ring-v"
+        className="sh-ex-ring-v"
         strokeDasharray={`${(value * 0.942).toFixed(1)} 100`}
       />
     </svg>
@@ -95,7 +95,7 @@ export function ShareCluster({
   const shareButton = (
     <button
       type="button"
-      className="btn btn--primary btn--sm st-share-btn"
+      className="btn btn--primary btn--sm sh-share-btn"
       data-testid="share-cluster-share"
       aria-disabled={canShare ? undefined : 'true'}
       aria-describedby={offline ? 'share-offline-tip' : undefined}
@@ -117,7 +117,7 @@ export function ShareCluster({
       : 'Comments';
   return (
     <div
-      className="st-share island"
+      className="sh-share island"
       data-testid="share-cluster"
       data-tour="status"
       data-occludes={docked ? undefined : 'top'}
@@ -131,7 +131,7 @@ export function ShareCluster({
       <PresenceFaces faces={faces} onFollow={onFollow} presence={presence} />
       {access ? (
         <span
-          className="st-saved"
+          className="sh-saved"
           data-testid="share-cluster-status"
           data-status="access"
           role="status"
@@ -141,7 +141,7 @@ export function ShareCluster({
       ) : status ? (
         <>
           <span
-            className={`st-saved${status.tone ? ` st-saved--${status.tone}` : ''}`}
+            className={`sh-saved${status.tone ? ` sh-saved--${status.tone}` : ''}`}
             data-testid="share-cluster-status"
             data-status={status.kind}
             // The old status-bar chip's detail (its tooltip and its short label — "3 to review",
@@ -153,13 +153,13 @@ export function ShareCluster({
             title={status.detail || status.title || undefined}
           >
             <StIcon name={status.icon} size={16} />
-            <span className="st-saved-w">{status.word}</span>
+            <span className="sh-saved-w">{status.word}</span>
           </span>
           {status.actions.map((a) => (
             <button
               key={a.id}
               type="button"
-              className="st-share-act"
+              className="sh-share-act"
               data-testid={`share-cluster-${a.id}`}
               onClick={() => onStatusAction?.(a.id)}
             >
@@ -171,7 +171,7 @@ export function ShareCluster({
       {commentsShown ? (
         <button
           type="button"
-          className={`st-share-ic${commentsOpen ? ' is-on' : ''}`}
+          className={`sh-share-ic${commentsOpen ? ' is-on' : ''}`}
           data-testid="share-cluster-comments"
           aria-label={commentsLabel}
           aria-pressed={commentsOpen}
@@ -180,7 +180,7 @@ export function ShareCluster({
         >
           <StIcon name="comment-bubble" size={16} />
           {commentsCount > 0 ? (
-            <span className="st-share-count" data-testid="share-cluster-comments-count">
+            <span className="sh-share-count" data-testid="share-cluster-comments-count">
               {commentsCount > 99 ? '99+' : commentsCount}
             </span>
           ) : null}
@@ -190,7 +190,7 @@ export function ShareCluster({
       {ex.show ? (
         <button
           type="button"
-          className={`st-share-ic st-ex${exportsOpen ? ' is-on' : ''}`}
+          className={`sh-share-ic sh-ex${exportsOpen ? ' is-on' : ''}`}
           data-testid="share-cluster-exports"
           data-tour="exports"
           data-busy={ex.busy > 0 ? 'true' : 'false'}
@@ -205,7 +205,7 @@ export function ShareCluster({
       ) : null}
       <button
         type="button"
-        className={`st-share-ic${panelsHidden ? ' is-on' : ''}`}
+        className={`sh-share-ic${panelsHidden ? ' is-on' : ''}`}
         data-testid="share-cluster-panels"
         aria-label={panelsLabel}
         // The label flips ("Hide panels" / "Show panels") and names what a press does, so there is no
@@ -218,7 +218,7 @@ export function ShareCluster({
       {access ? (
         <button
           type="button"
-          className="btn btn--primary btn--sm st-share-btn"
+          className="btn btn--primary btn--sm sh-share-btn"
           data-testid="share-cluster-ask"
           onClick={() => onAskToEdit?.()}
         >
@@ -228,12 +228,12 @@ export function ShareCluster({
         // 10 co-sync-offline: an invite made offline waits in line; the tooltip says so before the
         // press (the sheet repeats it once an invite is queued). Wrapped only while offline, so the
         // cluster's child order is the same in every other state.
-        <span className="st-tipwrap">
+        <span className="sh-tipwrap">
           {shareButton}
           <span
             id="share-offline-tip"
             role="tooltip"
-            className="st-tip"
+            className="sh-tip"
             data-testid="share-offline-tip"
           >
             {OFFLINE_INVITE_TIP}
@@ -244,7 +244,7 @@ export function ShareCluster({
       )}
       {status?.detail && !access ? (
         // The full-disk sentence (C37): a note under the cluster, in the popover plane's place.
-        <div className="st-share-note" data-testid="share-cluster-detail">
+        <div className="sh-share-note" data-testid="share-cluster-detail">
           {status.detail}
         </div>
       ) : null}

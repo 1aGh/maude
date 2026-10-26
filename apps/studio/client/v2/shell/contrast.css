@@ -8,14 +8,14 @@
 
 @layer utilities {
   /* R1 */
-  :is(.st-pm-row:hover, .st-pm-row:focus-visible, .st-pm-row[aria-expanded="true"])
-    :is(.st-pm-status, .st-pm-ic, .st-pm-ch, .st-mode-menu-note),
-  .st-pm-row--adv:is(:hover, :focus-visible, [aria-expanded="true"]) .st-pm-lab,
+  :is(.sh-pm-row:hover, .sh-pm-row:focus-visible, .sh-pm-row[aria-expanded="true"])
+    :is(.sh-pm-status, .sh-pm-ic, .sh-pm-ch, .sh-mode-menu-note),
+  .sh-pm-row--adv:is(:hover, :focus-visible, [aria-expanded="true"]) .sh-pm-lab,
   .dg-tab[aria-selected="true"] .dg-word {
     color: inherit;
   }
   /* the "› Advanced" row is itself --fg-1, so its highlighted label takes --fg-0 (dark was 3.74:1) */
-  .st-pm-row--adv:is(:hover, :focus-visible, [aria-expanded="true"]) {
+  .sh-pm-row--adv:is(:hover, :focus-visible, [aria-expanded="true"]) {
     color: var(--fg-0);
   }
 

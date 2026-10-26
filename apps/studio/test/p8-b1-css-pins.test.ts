@@ -14,10 +14,10 @@ describe('P8 B1 — layout rules', () => {
   test('the right (and left) slot clears the folded AI chat icon in its bottom corner', () => {
     const css = read('client/v2/shell/floating-panels.css');
     expect(css).toMatch(
-      /\.st-body--float:has\(> \.st-corner--ai\) > \.st-dockslot--right\s*\{[^}]*padding-bottom:/
+      /\.st-body--float:has\(> \.sh-corner--ai\) > \.st-dockslot--right\s*\{[^}]*padding-bottom:/
     );
     expect(css).toMatch(
-      /\.st-body--float:has\(> \.st-corner--ai-left\) > \.st-dockslot--left\s*\{[^}]*padding-bottom:/
+      /\.st-body--float:has\(> \.sh-corner--ai-left\) > \.st-dockslot--left\s*\{[^}]*padding-bottom:/
     );
   });
 

@@ -78,7 +78,7 @@ function toneStyle(name, you = false) {
 /** The pre-S9.23 strip: a peer's face IS the Follow control. */
 function LegacyFaces({ faces, onFollow }) {
   return (
-    <ul className="st-faces" aria-label="People here" data-testid="share-cluster-faces">
+    <ul className="sh-faces" aria-label="People here" data-testid="share-cluster-faces">
       {faces.map((f) => {
         const key = `${f.you ? 'you' : f.agent ? 'agent' : `peer-${f.clientID}`}:${f.name}`;
         if (isPeer(f) && onFollow) {
@@ -86,10 +86,10 @@ function LegacyFaces({ faces, onFollow }) {
             ? `Stop following ${firstName(f.name)}`
             : `Follow ${firstName(f.name)}`;
           return (
-            <li key={key} className="st-face-li">
+            <li key={key} className="sh-face-li">
               <button
                 type="button"
-                className={`st-face${f.following ? ' is-following' : ''}`}
+                className={`sh-face${f.following ? ' is-following' : ''}`}
                 title={`${f.name} · ${label}`}
                 aria-label={label}
                 aria-pressed={f.following ? 'true' : 'false'}
@@ -104,7 +104,7 @@ function LegacyFaces({ faces, onFollow }) {
         return (
           <li
             key={key}
-            className={`st-face${f.agent ? ' is-agent' : ''}`}
+            className={`sh-face${f.agent ? ' is-agent' : ''}`}
             title={f.name}
             aria-label={f.name}
           >
@@ -130,30 +130,30 @@ function FaceMenu({ peer, presence, close, now }) {
     // biome-ignore lint/a11y/useKeyWithClickEvents: the keys live on the menu (roving), not on the wrapper
     <div
       ref={ref}
-      className="st-pmenu island"
+      className="sh-pmenu island"
       role="menu"
       data-testid="presence-face-menu"
       aria-label={peer.name}
       onKeyDown={onKeyDown}
     >
-      <div className="st-pmenu-hd">
-        <span className="st-pface st-pface--lg" style={toneStyle(peer.name)} aria-hidden="true">
+      <div className="sh-pmenu-hd">
+        <span className="sh-pface sh-pface--lg" style={toneStyle(peer.name)} aria-hidden="true">
           {peer.initials}
         </span>
-        <span className="st-pmenu-who">
+        <span className="sh-pmenu-who">
           <strong>{peer.name}</strong>
           <em data-testid="presence-face-menu-where">{menuSubline(peer, where)}</em>
         </span>
       </div>
-      <hr className="st-pmenu-sep" />
+      <hr className="sh-pmenu-sep" />
       <button
         type="button"
         role="menuitem"
-        className="st-pmenu-row"
+        className="sh-pmenu-row"
         data-testid="presence-face-menu-follow"
         onClick={() => run('presence.follow', { clientID: peer.clientID })}
       >
-        <span className="st-pmenu-ic" aria-hidden="true">
+        <span className="sh-pmenu-ic" aria-hidden="true">
           <Glyph name="view" size={14} />
         </span>
         {peer.following ? `Stop following ${first}` : `Follow ${first}`}
@@ -162,11 +162,11 @@ function FaceMenu({ peer, presence, close, now }) {
         <button
           type="button"
           role="menuitem"
-          className="st-pmenu-row"
+          className="sh-pmenu-row"
           data-testid="presence-face-menu-go-to"
           onClick={() => run('presence.go-to', { clientID: peer.clientID })}
         >
-          <span className="st-pmenu-ic" aria-hidden="true">
+          <span className="sh-pmenu-ic" aria-hidden="true">
             <Glyph name="arrow" size={14} />
           </span>
           Go to {board}
@@ -174,15 +174,15 @@ function FaceMenu({ peer, presence, close, now }) {
       )}
       {presence.canSummon && (
         <>
-          <hr className="st-pmenu-sep" />
+          <hr className="sh-pmenu-sep" />
           <button
             type="button"
             role="menuitem"
-            className="st-pmenu-row"
+            className="sh-pmenu-row"
             data-testid="presence-face-menu-bring"
             onClick={() => run('presence.bring-everyone')}
           >
-            <span className="st-pmenu-ic" aria-hidden="true">
+            <span className="sh-pmenu-ic" aria-hidden="true">
               <Glyph name="people" size={14} />
             </span>
             Bring everyone here
@@ -206,31 +206,31 @@ function PeopleList({ peers, presence, close, now, onPick }) {
     // biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useSemanticElements: the keys rove the buttons inside (↑ ↓ Home End); a labelled list of people, not a form fieldset
     <div
       ref={ref}
-      className="st-pmenu st-plist island"
+      className="sh-pmenu sh-plist island"
       role="group"
       data-testid="presence-people-list"
       aria-label="People here"
       onKeyDown={onKeyDown}
     >
-      <p className="st-plist-h">
+      <p className="sh-plist-h">
         <span>{list.heading}</span>
         {list.sub && <span>{list.sub}</span>}
       </p>
-      <ul className="st-plist-rows">
+      <ul className="sh-plist-rows">
         {list.rows.map((r) => {
           const peer = peers.find((p) => p.clientID === r.clientID);
           return (
             <li key={r.clientID}>
               <button
                 type="button"
-                className={`st-plist-row${r.idle ? ' is-idle' : ''}`}
+                className={`sh-plist-row${r.idle ? ' is-idle' : ''}`}
                 data-testid={`presence-people-row-${r.clientID}`}
                 onClick={() => onPick(peer)}
               >
-                <span className="st-pface" style={toneStyle(r.name)} aria-hidden="true">
+                <span className="sh-pface" style={toneStyle(r.name)} aria-hidden="true">
                   {peer?.initials}
                 </span>
-                <span className="st-plist-name">{r.name}</span>
+                <span className="sh-plist-name">{r.name}</span>
                 <em>{r.where}</em>
               </button>
             </li>
@@ -239,10 +239,10 @@ function PeopleList({ peers, presence, close, now, onPick }) {
       </ul>
       {presence.canSummon && (
         <>
-          <hr className="st-pmenu-sep" />
+          <hr className="sh-pmenu-sep" />
           <button
             type="button"
-            className="st-pmenu-row"
+            className="sh-pmenu-row"
             data-testid="presence-people-bring"
             onClick={() => {
               close();
@@ -278,12 +278,12 @@ export function PresenceFaces({ faces, onFollow, presence = null }) {
   const menuPeer = open?.kind === 'face' ? peers.find((p) => p.clientID === open.clientID) : null;
 
   return (
-    <span className="st-faces-host" ref={hostRef}>
-      <ul className="st-faces" aria-label="People here" data-testid="share-cluster-faces">
+    <span className="sh-faces-host" ref={hostRef}>
+      <ul className="sh-faces" aria-label="People here" data-testid="share-cluster-faces">
         {lead.map((f) => (
           <li
             key={f.you ? `you:${f.name}` : `agent:${f.name}`}
-            className={`st-face${f.agent ? ' is-agent' : ''}${f.you ? ' is-you' : ''}`}
+            className={`sh-face${f.agent ? ' is-agent' : ''}${f.you ? ' is-you' : ''}`}
             style={f.you ? toneStyle(f.name, true) : undefined}
             title={f.name}
             aria-label={f.name}
@@ -295,10 +295,10 @@ export function PresenceFaces({ faces, onFollow, presence = null }) {
           const idle = typeof f.idleSince === 'number' && f.idleSince > 0;
           const label = `${f.name} — ${whereOf(f, { labelOf: presence.labelOf, roleOf: presence.roleOf, now })}`;
           return (
-            <li key={`peer-${f.clientID}:${f.name}`} className="st-face-li">
+            <li key={`peer-${f.clientID}:${f.name}`} className="sh-face-li">
               <button
                 type="button"
-                className={`st-face${f.following ? ' is-following' : ''}${idle ? ' is-idle' : ''}`}
+                className={`sh-face${f.following ? ' is-following' : ''}${idle ? ' is-idle' : ''}`}
                 style={toneStyle(f.name)}
                 title={label}
                 aria-label={label}
@@ -322,10 +322,10 @@ export function PresenceFaces({ faces, onFollow, presence = null }) {
           );
         })}
         {more > 0 && (
-          <li className="st-face-li">
+          <li className="sh-face-li">
             <button
               type="button"
-              className="st-face st-face--more"
+              className="sh-face sh-face--more"
               aria-label={`${more} more here`}
               title={`${more} more here`}
               aria-haspopup="true"

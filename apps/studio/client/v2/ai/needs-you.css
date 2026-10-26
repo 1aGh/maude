@@ -540,7 +540,7 @@
   }
 
   /* ── The folded spark (v2/shell/corner-icons.jsx): an azure count wins over the busy dot ── */
-  .st-corner--needs {
+  .sh-corner--needs {
     box-shadow:
       var(--island-shadow),
       0 0 0 2px var(--accent);

@@ -68,12 +68,12 @@
 
   /* The folded AI chat (03 `.k-iconbtn--ai`): the spark in the AI's vermilion, and its "working" dot is the agent
      presence colour — not the azure of "your turn". */
-  .st-corner--ai .st-iconbtn,
-  .st-corner--ai-left .st-iconbtn {
+  .sh-corner--ai .st-iconbtn,
+  .sh-corner--ai-left .st-iconbtn {
     color: var(--spark);
   }
-  .st-corner--ai .st-corner-dot,
-  .st-corner--ai-left .st-corner-dot {
+  .sh-corner--ai .sh-corner-dot,
+  .sh-corner--ai-left .sh-corner-dot {
     background: var(--presence-agent);
   }
 }

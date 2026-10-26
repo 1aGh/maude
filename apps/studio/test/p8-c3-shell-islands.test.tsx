@@ -82,14 +82,14 @@ describe('06 ad-pinned: the bottom-left island sits in the canvas column', () =>
   test('pinned with a Canvases column open, the island starts after it', () => {
     const css = read('client/v2/preview/preview.css');
     expect(css).toContain(
-      '.st-body:not(.st-body--float):has(> .st-dockslot--left:not(.is-collapsed):not(.is-hidden)) .st-zoomundo.island'
+      '.st-body:not(.st-body--float):has(> .st-dockslot--left:not(.is-collapsed):not(.is-hidden)) .sh-zoomundo.island'
     );
     expect(css).toContain('left: calc(var(--sb-w, 0px) + var(--float-gap, 16px))');
   });
   test('a folded panel icon stands beside a pinned column, not over its header (a11y V4)', () => {
     const css = read('client/v2/shell/floating-panels.css');
     const sel =
-      '.st-body:not(.st-body--float):has(> .st-dockslot--right:not(.is-collapsed):not(.is-hidden)) .st-corner--right';
+      '.st-body:not(.st-body--float):has(> .st-dockslot--right:not(.is-collapsed):not(.is-hidden)) .sh-corner--right';
     expect(css).toContain(sel);
     const at = css.indexOf(sel);
     expect(css.slice(css.indexOf('{', at), css.indexOf('}', at))).toContain(

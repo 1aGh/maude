@@ -261,7 +261,7 @@ describe('the host: each trigger state reaches the person', () => {
   test('format gate keeps its testids, drawn as a callout in the same stack', async () => {
     await mount({ cfg: { formatGate: { projectFormat: 2, supported: 1 } }, updateReady: null });
     const gate = q('format-gate-banner');
-    expect(gate?.className).toContain('st-callout');
+    expect(gate?.className).toContain('sh-callout');
     expect(q('callouts')?.contains(gate)).toBe(true);
     expect(q('format-gate-update')).not.toBeNull();
   });

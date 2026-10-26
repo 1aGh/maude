@@ -16,7 +16,7 @@ import { StIcon } from '../../shell/icons.jsx';
 
 function Face({ initial, tone, size = 'md' }) {
   return (
-    <span className={`st-acct-face st-acct-face--${size}`} data-tone={tone} aria-hidden="true">
+    <span className={`sh-acct-face sh-acct-face--${size}`} data-tone={tone} aria-hidden="true">
       {initial}
     </span>
   );
@@ -64,11 +64,11 @@ export function AccountChip({ chip, card, onSwitch, onSignOut }) {
   };
 
   return (
-    <div className="st-acct" ref={wrap}>
+    <div className="sh-acct" ref={wrap}>
       <button
         ref={btn}
         type="button"
-        className={`st-acct-chip${open ? ' is-on' : ''}`}
+        className={`sh-acct-chip${open ? ' is-on' : ''}`}
         data-testid="share-cluster-account"
         data-account={chip.id}
         aria-haspopup="dialog"
@@ -78,12 +78,12 @@ export function AccountChip({ chip, card, onSwitch, onSignOut }) {
         onClick={() => (open ? close(false) : setOpen(true))}
       >
         <Face initial={chip.initial} tone={chip.tone} />
-        <span className="st-acct-name">{chip.label}</span>
+        <span className="sh-acct-name">{chip.label}</span>
         <StIcon name="chevron-down" size={12} />
       </button>
       {open ? (
         <div
-          className="st-acct-card"
+          className="sh-acct-card"
           role="dialog"
           aria-labelledby={titleId}
           data-testid="account-card"
@@ -94,25 +94,25 @@ export function AccountChip({ chip, card, onSwitch, onSignOut }) {
             }
           }}
         >
-          <div className="st-acct-row" data-testid="account-card-current">
+          <div className="sh-acct-row" data-testid="account-card-current">
             <Face initial={card.current.initial} tone={card.current.tone} size="lg" />
-            <span className="st-acct-txt">
+            <span className="sh-acct-txt">
               <strong id={titleId}>{card.current.title}</strong>
               <span>{card.current.sub}</span>
             </span>
           </div>
           {card.others.length > 0 ? (
             <>
-              <hr className="st-acct-sep" />
-              <p className="st-acct-gt">Also on this Mac</p>
+              <hr className="sh-acct-sep" />
+              <p className="sh-acct-gt">Also on this Mac</p>
               {card.others.map((o) => (
                 <div
                   key={o.id}
-                  className="st-acct-row st-acct-row--sm"
+                  className="sh-acct-row sh-acct-row--sm"
                   data-testid={`account-card-other-${o.id}`}
                 >
                   <Face initial={o.initial} tone={o.tone} />
-                  <span className="st-acct-txt">
+                  <span className="sh-acct-txt">
                     <strong>{o.title}</strong>
                     <span>{o.sub}</span>
                   </span>
@@ -120,10 +120,10 @@ export function AccountChip({ chip, card, onSwitch, onSignOut }) {
               ))}
             </>
           ) : null}
-          <hr className="st-acct-sep" />
+          <hr className="sh-acct-sep" />
           <button
             type="button"
-            className="st-acct-act"
+            className="sh-acct-act"
             data-testid="account-card-switch"
             onClick={() => {
               close(false);
@@ -133,10 +133,10 @@ export function AccountChip({ chip, card, onSwitch, onSignOut }) {
             {card.switchLabel}
           </button>
           {asking ? (
-            <div className="st-acct-ask" role="alertdialog" data-testid="account-card-confirm">
+            <div className="sh-acct-ask" role="alertdialog" data-testid="account-card-confirm">
               <strong>{card.signOut.confirm.title}</strong>
               <span>{card.signOut.confirm.body}</span>
-              <span className="st-acct-btns">
+              <span className="sh-acct-btns">
                 <button
                   type="button"
                   className="btn btn--sm"
@@ -159,15 +159,15 @@ export function AccountChip({ chip, card, onSwitch, onSignOut }) {
           ) : (
             <button
               type="button"
-              className="st-acct-act st-acct-act--two"
+              className="sh-acct-act sh-acct-act--two"
               data-testid="account-card-signout"
               onClick={() => setAsking(true)}
             >
               <span>{card.signOut.label}</span>
-              <span className="st-acct-sub">{card.signOut.sub}</span>
+              <span className="sh-acct-sub">{card.signOut.sub}</span>
             </button>
           )}
-          <p className="st-acct-foot" data-testid="account-card-foot">
+          <p className="sh-acct-foot" data-testid="account-card-foot">
             {card.foot}
           </p>
         </div>

@@ -89,7 +89,7 @@ export function shellStepBack({ canEdit, typing = false, forward } = {}) {
   const overlayOpen =
     modalOpenNow() ||
     (typeof document !== 'undefined' &&
-      !!document.querySelector('[role="menu"], [data-esc-owner], .st-overlay'));
+      !!document.querySelector('[role="menu"], [data-esc-owner], .sh-overlay'));
   const presenting = presentingOf(snap);
   if (!typing && !overlayOpen && !presenting && !snap.viewing && forward?.()) return 'forward';
   const d = shellEscDecision({

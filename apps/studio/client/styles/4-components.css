@@ -1116,7 +1116,7 @@
   }
 
   /* Share links reuse the shell dialog material. */
-  .st-share-btn {
+  .sh-share-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1128,15 +1128,15 @@
     color: var(--fg-2);
     cursor: pointer;
   }
-  .st-share-btn:hover {
+  .sh-share-btn:hover {
     background: var(--bg-2);
     color: var(--fg-0);
   }
-  .st-share-btn:disabled {
+  .sh-share-btn:disabled {
     opacity: 0.4;
     cursor: default;
   }
-  .st-share-btn:focus-visible {
+  .sh-share-btn:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }

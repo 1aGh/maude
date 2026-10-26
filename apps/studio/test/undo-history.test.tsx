@@ -159,7 +159,7 @@ describe('S2.20 Undo history popover', () => {
     await mountHost();
     expect(q('[data-testid="undo-history"]')?.textContent).toContain('Undo historynewest first');
     const rows = [...document.querySelectorAll('[data-testid^="undo-history-row-"]')];
-    expect(rows.map((r) => r.querySelector('.st-uh-txt > span')?.textContent)).toEqual([
+    expect(rows.map((r) => r.querySelector('.sh-uh-txt > span')?.textContent)).toEqual([
       'Footer — 14 changes, one step',
       'Headline text',
       'Moved See pricing 10 px',
@@ -175,7 +175,7 @@ describe('S2.20 Undo history popover', () => {
 
   test('S2.24: the popover says where it was opened from (14 ed-edge-undo)', async () => {
     await mountHost();
-    expect(q('[data-testid="undo-history"] .st-uh-from')?.textContent).toBe(
+    expect(q('[data-testid="undo-history"] .sh-uh-from')?.textContent).toBe(
       'Opened from Menu › Edit › Undo history'
     );
   });

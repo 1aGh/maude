@@ -160,39 +160,39 @@ export function ExternalLinkConfirm({ sheet, onOpen, onCopy, onCancel }) {
   const copyRef = useRef(null);
   const ref = useModalFocus({ onClose: onCancel, initialRef: sheet.fallback ? copyRef : openRef });
   return (
-    <div className="st-xlink-scrim" data-testid="ext-link-scrim">
+    <div className="sh-xlink-scrim" data-testid="ext-link-scrim">
       <div
         ref={ref}
-        className="st-xlink island"
+        className="sh-xlink island"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="st-xlink-t"
-        aria-describedby="st-xlink-b"
+        aria-labelledby="sh-xlink-t"
+        aria-describedby="sh-xlink-b"
         tabIndex={-1}
         data-testid="ext-link-confirm"
         data-fallback={sheet.fallback ? 'true' : undefined}
       >
-        <h2 id="st-xlink-t" className="st-xlink-t">
+        <h2 id="sh-xlink-t" className="sh-xlink-t">
           {EXTERNAL_TITLE}
         </h2>
-        <div id="st-xlink-b" className="st-xlink-b">
-          <strong className="st-xlink-host" data-testid="ext-link-host">
+        <div id="sh-xlink-b" className="sh-xlink-b">
+          <strong className="sh-xlink-host" data-testid="ext-link-host">
             {sheet.host}
           </strong>
           {sheet.fallback ? (
             <>
-              <code className="st-xlink-url" data-testid="ext-link-url">
+              <code className="sh-xlink-url" data-testid="ext-link-url">
                 {sheet.url}
               </code>
-              <span className="st-xlink-hint">{EXTERNAL_PASTE}</span>
+              <span className="sh-xlink-hint">{EXTERNAL_PASTE}</span>
             </>
           ) : (
-            <span className="st-xlink-display" data-testid="ext-link-display">
+            <span className="sh-xlink-display" data-testid="ext-link-display">
               {sheet.display}
             </span>
           )}
         </div>
-        <div className="st-xlink-acts">
+        <div className="sh-xlink-acts">
           <button
             type="button"
             className="btn btn--sm btn--ghost"

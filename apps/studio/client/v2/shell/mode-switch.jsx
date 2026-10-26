@@ -60,7 +60,7 @@ const GLYPH = {
 function ModeGlyph({ m }) {
   return (
     <svg
-      className="st-mode-g"
+      className="sh-mode-g"
       width="15"
       height="15"
       viewBox="0 0 24 24"
@@ -192,7 +192,7 @@ export function ModeSwitch({
     const lostPressed =
       at instanceof HTMLElement &&
       rootRef.current?.contains(at) &&
-      at.matches('.st-mode-b, .st-mode-hit') &&
+      at.matches('.sh-mode-b, .sh-mode-hit') &&
       at.getAttribute('aria-pressed') === 'false';
     if (lostPressed) at.blur();
   }, [mode]);
@@ -221,17 +221,17 @@ export function ModeSwitch({
     // biome-ignore lint/a11y/useSemanticElements: a segmented control of buttons, not a form
     <div
       ref={rootRef}
-      className="st-modes"
+      className="sh-modes"
       role="group"
       aria-label="Mode"
       data-testid="share-cluster-mode"
     >
       {modeSegments(caps).map((id) =>
         id === 'present' ? (
-          <span key={id} className={`st-mode-b st-mode-b--menu${menu ? ' is-open' : ''}`}>
+          <span key={id} className={`sh-mode-b sh-mode-b--menu${menu ? ' is-open' : ''}`}>
             <button
               type="button"
-              className="st-mode-hit"
+              className="sh-mode-hit"
               data-testid="palette-mode-present"
               aria-label={LABEL.present}
               aria-pressed={mode === 'present'}
@@ -243,7 +243,7 @@ export function ModeSwitch({
             </button>
             <button
               type="button"
-              className="st-mode-ch"
+              className="sh-mode-ch"
               data-testid="mode-present-menu"
               aria-label="Present options"
               aria-haspopup="menu"
@@ -266,7 +266,7 @@ export function ModeSwitch({
           <button
             key={id}
             type="button"
-            className="st-mode-b"
+            className="sh-mode-b"
             data-testid={`palette-mode-${id}`}
             aria-label={LABEL[id]}
             aria-pressed={mode === id}
@@ -279,21 +279,21 @@ export function ModeSwitch({
       )}
       {menu ? (
         <div
-          className="st-pm st-mode-menu"
+          className="sh-pm sh-mode-menu"
           role="menu"
           aria-label="Present"
           data-testid="mode-present-list"
         >
           {presentRows(caps, presenterView, copyLink).map((row, i) =>
             row.sep ? (
-              <hr key={`sep-${row.sep}`} className="st-pm-sep" />
+              <hr key={`sep-${row.sep}`} className="sh-pm-sep" />
             ) : row.kind === 'presenter' ? (
-              <div key={row.kind} role="none" className="st-pm-li">
+              <div key={row.kind} role="none" className="sh-pm-li">
                 <button
                   type="button"
                   role="menuitemcheckbox"
                   aria-checked={!!presenterView?.on}
-                  className="st-pm-row"
+                  className="sh-pm-row"
                   data-testid={row.testid}
                   aria-disabled={presenterView ? undefined : 'true'}
                   onClick={() => {
@@ -302,21 +302,21 @@ export function ModeSwitch({
                     onPresenterView?.();
                   }}
                 >
-                  <span className="st-pm-ic" aria-hidden="true">
+                  <span className="sh-pm-ic" aria-hidden="true">
                     {presenterView?.on ? <StIcon name="check" size={13} /> : null}
                   </span>
-                  <span className="st-pm-lab">{row.label}</span>
-                  <span className="st-mode-menu-note">
+                  <span className="sh-pm-lab">{row.label}</span>
+                  <span className="sh-mode-menu-note">
                     {presenterView ? (presenterView.name ?? '') : 'Needs a second display'}
                   </span>
                 </button>
               </div>
             ) : row.kind === 'copy-link' ? (
-              <div key={row.kind} role="none" className="st-pm-li">
+              <div key={row.kind} role="none" className="sh-pm-li">
                 <button
                   type="button"
                   role="menuitem"
-                  className="st-pm-row"
+                  className="sh-pm-row"
                   data-testid={row.testid}
                   aria-disabled={copyLink?.enabled ? undefined : 'true'}
                   onClick={() => {
@@ -325,22 +325,22 @@ export function ModeSwitch({
                     run(row.kind);
                   }}
                 >
-                  <span className="st-pm-ic" aria-hidden="true" />
-                  <span className="st-pm-lab">{row.label}</span>
-                  <span className="st-mode-menu-note">{copyLink?.note ?? ''}</span>
+                  <span className="sh-pm-ic" aria-hidden="true" />
+                  <span className="sh-pm-lab">{row.label}</span>
+                  <span className="sh-mode-menu-note">{copyLink?.note ?? ''}</span>
                 </button>
               </div>
             ) : row.group ? (
-              <div key={row.group} className="st-mode-menu-hd" role="presentation">
+              <div key={row.group} className="sh-mode-menu-hd" role="presentation">
                 {row.group}
               </div>
             ) : (
-              <div key={row.kind} role="none" className="st-pm-li">
+              <div key={row.kind} role="none" className="sh-pm-li">
                 <button
                   ref={i === 1 ? firstRowRef : undefined}
                   type="button"
                   role="menuitem"
-                  className="st-pm-row"
+                  className="sh-pm-row"
                   // 04 md-present-menu: the first row - Present from the selection, the click's own default -
                   // wears the accent-muted highlight
                   data-hl={row.kind === 'selection' ? 'true' : undefined}
@@ -351,13 +351,13 @@ export function ModeSwitch({
                     run(row.kind);
                   }}
                 >
-                  <span className="st-pm-ic" aria-hidden="true" />
-                  <span className="st-pm-lab">
+                  <span className="sh-pm-ic" aria-hidden="true" />
+                  <span className="sh-pm-lab">
                     {row.kind === 'selection' && presentFromLabel
                       ? `Present from “${presentFromLabel}”`
                       : row.label}
                   </span>
-                  <span className="st-mode-menu-note">{row.keys ?? row.note}</span>
+                  <span className="sh-mode-menu-note">{row.keys ?? row.note}</span>
                 </button>
               </div>
             )

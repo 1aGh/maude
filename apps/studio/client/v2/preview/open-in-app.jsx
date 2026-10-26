@@ -33,7 +33,7 @@ export function OpenInApp({ href, state = 'in' }) {
   if (!href) return null;
   return (
     <a
-      className="st-openapp island"
+      className="sh-openapp island"
       data-testid="preview-open-app"
       data-occludes="bottom"
       data-state={state}

@@ -41,7 +41,7 @@ describe('reduced motion is a cut', () => {
     const rm =
       /@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n  \}/.exec(FLOAT)?.[1] ?? '';
     expect(rm).toMatch(/\.st-dockslot-inner/);
-    expect(rm).toMatch(/\.st-corner/);
+    expect(rm).toMatch(/\.sh-corner/);
     expect(rm).toMatch(/animation:\s*none/);
   });
 });

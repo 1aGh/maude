@@ -7,9 +7,9 @@
  * Material is the `.island` rule's (floating) or, pinned, given below — never a backdrop-filter (V2-1.8 M1). */
 
 @layer shell {
-  .st-pbar.island,
-  .st-zoomundo.island,
-  .st-zoomonly.island {
+  .sh-pbar.island,
+  .sh-zoomundo.island,
+  .sh-zoomonly.island {
     position: absolute;
     z-index: 30;
     transition:
@@ -17,15 +17,15 @@
       translate var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
   }
   /* Pinned layout: the island chrome that `.st-body--float .island` gives is not applied. */
-  .st-body:not(.st-body--float) .st-pbar,
-  .st-body:not(.st-body--float) .st-zoomundo,
-  .st-body:not(.st-body--float) .st-zoomonly {
+  .st-body:not(.st-body--float) .sh-pbar,
+  .st-body:not(.st-body--float) .sh-zoomundo,
+  .st-body:not(.st-body--float) .sh-zoomonly {
     background: var(--bg-1);
     border-radius: 14px;
     box-shadow: var(--shadow-md);
   }
 
-  .st-pbar.island {
+  .sh-pbar.island {
     left: 50%;
     top: var(--float-gap, 16px);
     translate: -50% 0;
@@ -36,42 +36,42 @@
     padding: 0 var(--space-1, 4px) 0 var(--space-3, 12px);
     font-size: var(--type-sm, 13px);
     white-space: nowrap;
-    animation: st-pbar-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
+    animation: sh-pbar-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
   }
-  .st-pbar.island:has(.st-pbar-back) {
+  .sh-pbar.island:has(.sh-pbar-back) {
     padding-left: var(--space-1, 4px);
   }
-  .st-pbar[data-state="out"] {
+  .sh-pbar[data-state="out"] {
     opacity: 0;
     translate: -50% -10px;
     pointer-events: none;
     animation: none;
   }
-  @keyframes st-pbar-in {
+  @keyframes sh-pbar-in {
     from {
       opacity: 0;
       translate: -50% -10px;
     }
   }
 
-  .st-pbar-ic {
+  .sh-pbar-ic {
     display: grid;
     color: var(--fg-2);
   }
-  .st-pbar-t {
+  .sh-pbar-t {
     color: var(--fg-1);
   }
-  .st-pbar-t strong {
+  .sh-pbar-t strong {
     color: var(--fg-0);
     font-weight: var(--w-semibold, 600);
   }
-  .st-pbar-div {
+  .sh-pbar-div {
     flex: none;
     width: 1px;
     height: 20px;
     background: var(--border-default);
   }
-  .st-pbar-esc {
+  .sh-pbar-esc {
     display: inline-flex;
     align-items: center;
     gap: var(--space-1, 4px);
@@ -81,7 +81,7 @@
   }
 
   /* The way back after a followed link (S3.10a): a quiet ghost button, "‹ Homepage". */
-  .st-pbar-back {
+  .sh-pbar-back {
     appearance: none;
     display: inline-flex;
     align-items: center;
@@ -96,28 +96,28 @@
     font-size: var(--type-sm, 13px);
     cursor: pointer;
   }
-  .st-pbar-back:hover {
+  .sh-pbar-back:hover {
     background: var(--bg-2);
     color: var(--fg-0);
   }
-  .st-pbar-back:focus-visible {
+  .sh-pbar-back:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: -2px;
   }
-  .st-pbar-flip {
+  .sh-pbar-flip {
     display: inline-grid;
     rotate: 180deg;
   }
 
-  .st-zoomonly.island {
+  .sh-zoomonly.island {
     left: var(--float-gap, 16px);
     bottom: var(--float-gap, 16px);
     padding: var(--space-1, 4px);
-    animation: st-zoomonly-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
+    animation: sh-zoomonly-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
   }
   /* P8 C3 — Edit's Undo · Redo · zoom % island (kit `.k-uz`): bottom left, 2 px between the buttons, a hairline
      before the percentage; Viewing's is the percentage alone (10 `co-zoom-only`). */
-  .st-zoomundo.island {
+  .sh-zoomundo.island {
     left: var(--float-gap, 16px);
     bottom: var(--float-gap, 16px);
     display: flex;
@@ -127,23 +127,23 @@
   }
   /* Pinned (View › Advanced › Pin panels to the side): the island sits in the CANVAS column, clear of the docked
      Canvases column (06 ad-pinned draws it in the centre column's bottom-left). */
-  .st-body:not(.st-body--float):has(> .st-dockslot--left:not(.is-collapsed):not(.is-hidden)) .st-zoomundo.island,
-  .st-body:not(.st-body--float):has(> .st-dockslot--left:not(.is-collapsed):not(.is-hidden)) .st-zoomonly.island {
+  .st-body:not(.st-body--float):has(> .st-dockslot--left:not(.is-collapsed):not(.is-hidden)) .sh-zoomundo.island,
+  .st-body:not(.st-body--float):has(> .st-dockslot--left:not(.is-collapsed):not(.is-hidden)) .sh-zoomonly.island {
     left: calc(var(--sb-w, 0px) + var(--float-gap, 16px));
   }
-  .st-zoomundo-div {
+  .sh-zoomundo-div {
     width: 1px;
     height: 20px;
     margin: 0 var(--space-1, 4px);
     background: var(--border-default);
   }
-  .st-zoomundo-pct.btn {
+  .sh-zoomundo-pct.btn {
     min-width: 52px;
     white-space: nowrap; /* "Zoom to fit · 10%" right after ⌘0 */
     font-variant-numeric: tabular-nums;
   }
   /* S9.21c (10 co-browser-view) — "Open in the Mac app", bottom right, in a browser on a cloud cell only. */
-  .st-openapp.island {
+  .sh-openapp.island {
     position: absolute;
     z-index: 30;
     right: var(--float-gap, 16px);
@@ -157,34 +157,34 @@
     font-weight: var(--w-medium, 500);
     color: var(--fg-0);
     text-decoration: none;
-    animation: st-zoomonly-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
+    animation: sh-zoomonly-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
     transition: opacity var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
   }
-  .st-body:not(.st-body--float) .st-openapp {
+  .st-body:not(.st-body--float) .sh-openapp {
     background: var(--bg-1);
     border-radius: 14px;
     box-shadow: var(--shadow-md);
   }
-  .st-openapp:focus-visible {
+  .sh-openapp:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
-  .st-openapp[data-state="out"] {
+  .sh-openapp[data-state="out"] {
     opacity: 0;
     pointer-events: none;
     animation: none;
   }
-  .st-zoomonly[data-state="out"] {
+  .sh-zoomonly[data-state="out"] {
     opacity: 0;
     pointer-events: none;
     animation: none;
   }
-  @keyframes st-zoomonly-in {
+  @keyframes sh-zoomonly-in {
     from {
       opacity: 0;
     }
   }
-  .st-zoomonly-v {
+  .sh-zoomonly-v {
     display: inline-flex;
     align-items: center;
     height: 28px;
@@ -195,7 +195,7 @@
   }
 
   /* S3.10b — "Open a website?" (external-link-confirm.jsx): trusted shell chrome over the canvas. */
-  .st-xlink-scrim {
+  .sh-xlink-scrim {
     position: fixed;
     inset: 0;
     z-index: 60;
@@ -204,42 +204,42 @@
     padding: var(--space-4, 16px);
     background: var(--scrim);
   }
-  .st-xlink.island {
+  .sh-xlink.island {
     position: relative;
     width: min(100%, 360px);
     padding: var(--space-4, 16px);
     border-radius: var(--radius-lg, 14px);
     background: var(--bg-1);
     box-shadow: var(--shadow-md);
-    animation: st-xlink-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
+    animation: sh-xlink-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
   }
-  @keyframes st-xlink-in {
+  @keyframes sh-xlink-in {
     from {
       opacity: 0;
       translate: 0 6px;
     }
   }
-  .st-xlink-t {
+  .sh-xlink-t {
     margin: 0 0 var(--space-2, 8px);
     font-size: var(--type-md, 15px);
     color: var(--fg-0);
   }
-  .st-xlink-b {
+  .sh-xlink-b {
     display: grid;
     gap: var(--space-1, 4px);
     margin-bottom: var(--space-4, 16px);
     font-size: var(--type-sm, 13px);
     color: var(--fg-1);
   }
-  .st-xlink-host {
+  .sh-xlink-host {
     color: var(--fg-0);
     overflow-wrap: anywhere;
   }
-  .st-xlink-display {
+  .sh-xlink-display {
     color: var(--fg-2);
     overflow-wrap: anywhere;
   }
-  .st-xlink-url {
+  .sh-xlink-url {
     padding: var(--space-2, 8px);
     border-radius: var(--radius-md, 8px);
     background: var(--bg-2);
@@ -249,10 +249,10 @@
     user-select: all;
     -webkit-user-select: all;
   }
-  .st-xlink-hint {
+  .sh-xlink-hint {
     color: var(--fg-2);
   }
-  .st-xlink-acts {
+  .sh-xlink-acts {
     display: flex;
     justify-content: flex-end;
     gap: var(--space-2, 8px);

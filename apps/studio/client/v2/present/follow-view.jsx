@@ -55,7 +55,7 @@ export function FollowBar({ state, openHref, onCatchUp }) {
   const initial = m.name.slice(0, 1).toUpperCase();
   return (
     <>
-      <div className="st-follow island" role="status" aria-live="polite" data-testid="follow-bar">
+      <div className="pv-follow island" role="status" aria-live="polite" data-testid="follow-bar">
         {m.phase === 'waiting' ? (
           <span>Waiting for the presenter…</span>
         ) : m.phase === 'ended' ? (
@@ -70,13 +70,13 @@ export function FollowBar({ state, openHref, onCatchUp }) {
         ) : (
           <>
             <span
-              className={`st-follow-live${m.live ? '' : ' st-follow-live--off'}`}
+              className={`pv-follow-live${m.live ? '' : ' pv-follow-live--off'}`}
               data-testid="follow-live"
             >
               <i aria-hidden="true" />
               Live
             </span>
-            <span className="st-follow-av" aria-hidden="true">
+            <span className="pv-follow-av" aria-hidden="true">
               {initial}
             </span>
             <span>
@@ -97,7 +97,7 @@ export function FollowBar({ state, openHref, onCatchUp }) {
         )}
       </div>
       {m.phase !== 'waiting' && (
-        <span className="st-follow-watch" data-testid="follow-watchers">
+        <span className="pv-follow-watch" data-testid="follow-watchers">
           {m.watchers}
         </span>
       )}
@@ -318,7 +318,7 @@ export default function FollowView() {
   return (
     <div className="maude" data-theme={theme}>
       <div
-        className={`st-body--float st-follow-root${audience ? ' st-follow-root--audience' : ''}`}
+        className={`st-body--float pv-follow-root${audience ? ' pv-follow-root--audience' : ''}`}
         data-testid="follow-view"
         data-audience={audience ? '1' : undefined}
       >
@@ -327,7 +327,7 @@ export default function FollowView() {
             ref={frameRef}
             src={view.src}
             title={`Presentation: ${view.path}`}
-            className="st-follow-frame"
+            className="pv-follow-frame"
             data-testid="follow-canvas-frame"
             {...(view.cfg.canvasOrigin
               ? { sandbox: 'allow-scripts allow-same-origin', allow: 'autoplay' }
@@ -339,12 +339,12 @@ export default function FollowView() {
         )}
         {/* The audience window shows nothing at all when it cannot follow; it never shows the editor. */}
         {(view.phase === 'missing' || view.phase === 'refused') && !audience && (
-          <div className="st-follow-note" role="status">
+          <div className="pv-follow-note" role="status">
             Nothing to follow — this design is not in the project, or it could not be loaded.
           </div>
         )}
         {view.phase === 'signed-out' && (
-          <div className="st-follow-note" role="status">
+          <div className="pv-follow-note" role="status">
             Sign in to the design hub to follow this presentation.
           </div>
         )}

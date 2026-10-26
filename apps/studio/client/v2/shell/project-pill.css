@@ -102,12 +102,12 @@
   }
 
   /* ── the menu ── */
-  .st-pm-root {
+  .sh-pm-root {
     position: absolute;
     left: 0;
     top: calc(100% + 6px);
   }
-  .st-pm {
+  .sh-pm {
     display: flex;
     flex-direction: column;
     width: 252px;
@@ -121,7 +121,7 @@
     font-size: var(--type-sm, 13px);
     text-align: left;
   }
-  .st-pm--sub {
+  .sh-pm--sub {
     position: absolute;
     left: calc(100% + var(--space-2, 8px));
     top: -4px;
@@ -131,11 +131,11 @@
     /* a scroll box never scrolls sideways: the panel nested in it is placed on the window (placeNested) */
     overflow-x: hidden;
   }
-  .st-pm-li {
+  .sh-pm-li {
     position: relative;
     display: block;
   }
-  .st-pm-row {
+  .sh-pm-row {
     appearance: none;
     border: 0;
     background: transparent;
@@ -152,38 +152,38 @@
     white-space: nowrap;
     cursor: default;
   }
-  .st-pm-row:hover,
-  .st-pm-row:focus-visible,
-  .st-pm-row[aria-expanded="true"] {
+  .sh-pm-row:hover,
+  .sh-pm-row:focus-visible,
+  .sh-pm-row[aria-expanded="true"] {
     background: var(--accent-muted, var(--bg-3));
     outline: none;
   }
-  .st-pm-row[aria-disabled="true"] {
+  .sh-pm-row[aria-disabled="true"] {
     color: var(--fg-3, var(--fg-2));
   }
-  .st-pm-row--adv {
+  .sh-pm-row--adv {
     min-height: 26px;
     font-size: var(--type-xs, 12px);
     font-weight: var(--w-semibold, 600);
     color: var(--fg-1);
   }
-  .st-pm-ic {
+  .sh-pm-ic {
     display: grid;
     place-items: center;
     width: 16px;
     flex: none;
     color: var(--fg-2);
   }
-  .st-pm-lab {
+  .sh-pm-lab {
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .st-pm-ch {
+  .sh-pm-ch {
     display: grid;
     color: var(--fg-2);
   }
-  .st-pm-sep {
+  .sh-pm-sep {
     display: block;
     flex: none;
     border: 0;
@@ -191,7 +191,7 @@
     margin: var(--space-1, 4px) var(--space-2, 8px);
     background: var(--border-subtle);
   }
-  .st-pm-row .kbd {
+  .sh-pm-row .kbd {
     margin-left: auto;
     font-size: var(--type-xs, 12px);
     color: var(--fg-2);

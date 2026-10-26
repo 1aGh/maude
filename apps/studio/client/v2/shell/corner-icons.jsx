@@ -35,7 +35,7 @@ const LABEL = {
 function Corner({ at, edge, icon, label, title, working, needs = 0, onClick, testid }) {
   return (
     <span
-      className={`st-corner st-corner--${at} island${needs > 0 ? ' st-corner--needs' : ''}`}
+      className={`sh-corner sh-corner--${at} island${needs > 0 ? ' sh-corner--needs' : ''}`}
       data-occludes={edge}
     >
       <button
@@ -51,7 +51,7 @@ function Corner({ at, edge, icon, label, title, working, needs = 0, onClick, tes
         {needs > 0 ? (
           <FoldNeeds count={needs} />
         ) : working ? (
-          <i className="st-corner-dot" aria-hidden="true" />
+          <i className="sh-corner-dot" aria-hidden="true" />
         ) : null}
       </button>
     </span>

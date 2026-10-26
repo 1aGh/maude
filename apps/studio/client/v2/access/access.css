@@ -157,7 +157,7 @@
     font-size: var(--type-xs);
     line-height: var(--lh-xs);
   }
-  body:has(.v2ac-banner) .st-pbar.island {
+  body:has(.v2ac-banner) .sh-pbar.island {
     display: none;
   }
 }

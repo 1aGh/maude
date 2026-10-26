@@ -287,9 +287,9 @@ describe('the compact cluster keeps the access word', () => {
   test('Preview hides faces and status, never the word that says what this person may do', () => {
     const css = readFileSync(join(import.meta.dir, '../client/v2/shell/share-cluster.css'), 'utf8');
     expect(css).toContain(
-      '.st-share[data-cluster="compact"] > .st-saved:not([data-status="access"])'
+      '.sh-share[data-cluster="compact"] > .sh-saved:not([data-status="access"])'
     );
-    expect(css).not.toMatch(/\.st-share\[data-mode="preview"\] > \.st-saved/);
+    expect(css).not.toMatch(/\.sh-share\[data-mode="preview"\] > \.sh-saved/);
   });
 });
 

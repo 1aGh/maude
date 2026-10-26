@@ -335,7 +335,7 @@ describe('a submenu inside a submenu (View › Advanced, p8-bugs3 #2)', () => {
     Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
     HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
       if (this.matches('[data-testid="project-menu-sub-advanced"]')) return rect(0, 0, 272, 260);
-      if (this.classList.contains('st-pm-li')) return rect(276, 574, 264, 28);
+      if (this.classList.contains('sh-pm-li')) return rect(276, 574, 264, 28);
       return rect(0, 0, 0, 0);
     };
     await openAdvanced();
@@ -354,7 +354,7 @@ describe('a submenu inside a submenu (View › Advanced, p8-bugs3 #2)', () => {
     Object.defineProperty(window, 'innerWidth', { value: 700, configurable: true });
     HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
       if (this.matches('[data-testid="project-menu-sub-advanced"]')) return rect(0, 0, 272, 260);
-      if (this.classList.contains('st-pm-li')) return rect(276, 574, 264, 28);
+      if (this.classList.contains('sh-pm-li')) return rect(276, 574, 264, 28);
       return rect(0, 0, 0, 0);
     };
     await openAdvanced();

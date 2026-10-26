@@ -103,9 +103,9 @@ describe('class collisions and stacking (CSS wiring)', () => {
     const dg = read('../client/v2/diagnostics/diagnostics.css');
     const co = read('../client/v2/shell/callouts.css');
     const sheet = Number(dg.match(/\.dg-sheet\s*\{[^}]*?z-index:\s*(\d+)/)?.[1]);
-    const info = Number(co.match(/\.st-callouts\s*\{[^}]*?z-index:\s*(\d+)/)?.[1]);
+    const info = Number(co.match(/\.sh-callouts\s*\{[^}]*?z-index:\s*(\d+)/)?.[1]);
     const warn = Number(
-      co.match(/\.st-callouts:has\(\.st-callout--warn[^{]*\{[^}]*?z-index:\s*(\d+)/)?.[1]
+      co.match(/\.sh-callouts:has\(\.sh-callout--warn[^{]*\{[^}]*?z-index:\s*(\d+)/)?.[1]
     );
     const scrim = Number(
       read('../client/styles/3-shell-maude.css').match(/\.st-scrim\s*\{[^}]*?z-index:\s*(\d+)/)?.[1]

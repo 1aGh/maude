@@ -1688,7 +1688,7 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `follow-view` | testid | Root of the Present follower page (`?present=follow`; `data-audience="1"` in the locked audience window). | `client/v2/present/follow-view.jsx` · `FollowView` | — | stable |
 | `follow-canvas-frame` | testid | The read-only canvas iframe the follower page frames (`ro=1&comments=0&follow=1`). | `client/v2/present/follow-view.jsx` · `FollowView` | — | stable |
 | `follow-bar` | testid | The follow bar: Live · presenter · "<name> is on 6 of 14 · you're on 5" · Catch up; or Waiting / ended. Absent with `audience=1`. | `client/v2/present/follow-view.jsx` · `FollowBar` | — | stable |
-| `follow-live` | testid | The Live mark in the follow bar (`st-follow-live--off` once you looked away). | `client/v2/present/follow-view.jsx` · `FollowBar` | — | stable |
+| `follow-live` | testid | The Live mark in the follow bar (`pv-follow-live--off` once you looked away). | `client/v2/present/follow-view.jsx` · `FollowBar` | — | stable |
 | `follow-catch-up` | testid | Catch up: back to the presenter's artboard, Live again (only while drifted). | `client/v2/present/follow-view.jsx` · `FollowBar` | — | stable |
 | `follow-open-canvas` | testid | "Open the canvas" after the presenter ended the presentation. | `client/v2/present/follow-view.jsx` · `FollowBar` | — | stable |
 | `follow-watchers` | testid | "N watching" ("99+" above 99), this follower included. | `client/v2/present/follow-view.jsx` · `FollowBar` | — | stable |

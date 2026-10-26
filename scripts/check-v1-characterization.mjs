@@ -62,14 +62,14 @@
 // with nothing typed is unchanged (the menu's rows join it once something is typed).
 // Approved delta (V2-4.3a, decision:maude/v2-4.3a-share-cluster-and-status-machine): all 21 states that show the
 // shell body gain ONE element after the project pill — the Share cluster
-// `div.island.st-share[data-testid="share-cluster"]`: `ul.st-faces` (you), the status word
-// `span.st-saved[data-testid="share-cluster-status"]` ("Local project" in the local fixture, "Offline — kept on this
+// `div.island.sh-share[data-testid="share-cluster"]`: `ul.sh-faces` (you), the status word
+// `span.sh-saved[data-testid="share-cluster-status"]` ("Local project" in the local fixture, "Offline — kept on this
 // Mac" in `sync-offline/`, "Can comment" in the viewer shells), the comments button, Hide panels, and Share (Ask to
 // edit for the viewer shells). The right panel and the right corner icon sit 52px lower (CSS only). `browser/palette-query`
 // also gains the registered "Exports" row under View (`view.exports`: Menu › View › Exports, ⌘K "Exports"). The
 // menubar and the status bar stay until V2-4.8.
 // Approved delta (V2-4.3b, decision:maude/v2-4.3b-shell-owns-mode-switch — V2-1.2 §8 step 7): the 21 shell states gain
-// the mode switch inside the Share cluster, after Comments — `div.st-modes[data-testid="share-cluster-mode"]` ›
+// the mode switch inside the Share cluster, after Comments — `div.sh-modes[data-testid="share-cluster-mode"]` ›
 // `palette-mode-edit` (Edit, pressed) or, in `viewer/` and `cloud-viewer/`, `palette-mode-viewing` with
 // `palette-mode-preview` pressed (a view-only link boots Preview, DDR-223), then Preview and the Present slot
 // (`palette-mode-present` + the `mode-present-menu` chevron; both [disabled] with no canvas open). `browser/palette-open`
@@ -96,8 +96,8 @@
 // states open the project pill's menu instead (see `MENU_SECTION`). Goldens are refreshed by the lead.
 //
 // Approved delta (wave-B gate, 2026-10-20, decision:maude/v2-waveB-gate-v1-goldens): all 30 states move with shipped
-// wave-A/B slices and nothing else. The Share cluster wraps the faces in `span.st-faces-host` and marks the session's
-// own face `.is-you` (S9); the project pill's menu gains `hr.st-pm-sep` group separators (S11.18); ⌘K opens on a
+// wave-A/B slices and nothing else. The Share cluster wraps the faces in `span.sh-faces-host` and marks the session's
+// own face `.is-you` (S9); the project pill's menu gains `hr.sh-pm-sep` group separators (S11.18); ⌘K opens on a
 // "Recent" group (`palette-recent-empty` "Nothing opened yet." on a fresh fixture, S1.4) and a near-miss row reads
 // `.is-quiet` with its `.st-pal-where` place (S1.4/S11.18); the remaining states carry the same cluster/menu rows.
 // Refreshed with `--build --update`, then `--build --repeat` all 30 identical.
@@ -122,6 +122,11 @@
 // slices, not from C0: the no-selection export sheet is the whole-project sheet grouped by kind, the handoff sheet
 // is not reachable without a canvas, the project menu's canvas rows read aria-disabled with no canvas open, and a
 // Settings row reads "Version history" (was "Changes"). `--build --update`, then `--build --repeat`: all 30 identical.
+//
+// Approved delta (V2-8.0 part C, decision:maude/v2-p8-st-rename-by-family): class names only. Every `st-<family>…`
+// class moves to its area's v2 namespace (the share family → `sh-share…`, follow → `pv-follow…`, …); the
+// goldens were rewritten with the same rename map and re-sorted (the snapshot sorts classes). No structure, text or
+// attribute moved.
 //
 // Usage (from the repo root):
 //   node scripts/check-v1-characterization.mjs [--update] [--only <state-prefix>]

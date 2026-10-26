@@ -5,7 +5,7 @@
  * canvas (presence/canvas-presence.tsx), which collapses them to 1 ms under reduced motion. */
 
 @layer shell {
-  .st-faces-host {
+  .sh-faces-host {
     position: relative;
     display: inline-flex;
     flex: none;
@@ -13,26 +13,26 @@
   /* 10 co-presence: a face is a tone FILL with the object ink and ONE letter (kit `.k-av--<tone>`), with
      the cluster's 2 px ring around it — not an accent wash with the tone as a ring. The AI wears the
      spark on the agent fill. The tone ring is reserved for Follow (below), where it means something. */
-  .st-faces .st-face[style*="--face-tone"],
-  .st-faces .st-face.is-you {
+  .sh-faces .sh-face[style*="--face-tone"],
+  .sh-faces .sh-face.is-you {
     background: var(--face-tone);
     color: var(--object-ink);
   }
-  .st-faces .st-face.is-agent {
+  .sh-faces .sh-face.is-agent {
     background: var(--presence-agent, var(--spark));
     color: var(--spark-fg);
   }
-  .st-faces .st-face.is-idle {
+  .sh-faces .sh-face.is-idle {
     opacity: 0.55;
     filter: grayscale(1);
   }
-  .st-faces .st-face.is-following {
+  .sh-faces .sh-face.is-following {
     box-shadow:
       0 0 0 2px var(--island-bg, var(--bg-1)),
       0 0 0 4px var(--face-tone, var(--accent));
   }
   /* "+4" — a grey face (kit: a Who with the grey tone), tabular so 9 → 10 does not shift the row */
-  .st-faces .st-face.st-face--more {
+  .sh-faces .sh-face.sh-face--more {
     width: auto;
     min-width: 24px;
     padding: 0 6px;
@@ -47,7 +47,7 @@
     cursor: pointer;
   }
 
-  .st-pmenu {
+  .sh-pmenu {
     position: absolute;
     right: 0;
     top: calc(100% + 12px);
@@ -60,23 +60,23 @@
     color: var(--fg-0);
     font-size: var(--type-sm, 13px);
   }
-  .st-pmenu-hd {
+  .sh-pmenu-hd {
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 6px 8px 8px;
   }
-  .st-pmenu-who {
+  .sh-pmenu-who {
     display: flex;
     flex-direction: column;
     min-width: 0;
   }
-  .st-pmenu-who em {
+  .sh-pmenu-who em {
     font-style: normal;
     font-size: var(--type-xs, 12px);
     color: var(--fg-2);
   }
-  .st-pface {
+  .sh-pface {
     display: grid;
     place-items: center;
     flex: none;
@@ -89,17 +89,17 @@
     color: var(--object-ink);
     background: var(--face-tone, var(--object-grey));
   }
-  .st-pface--lg {
+  .sh-pface--lg {
     width: 32px;
     height: 32px;
   }
-  .st-pmenu-sep {
+  .sh-pmenu-sep {
     border: 0;
     height: 1px;
     margin: 4px 0;
     background: var(--border-subtle, rgba(127, 127, 127, 0.2));
   }
-  .st-pmenu-row {
+  .sh-pmenu-row {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -114,16 +114,16 @@
     background: transparent;
     cursor: pointer;
   }
-  .st-pmenu-row:hover,
-  .st-pmenu-row:focus-visible {
+  .sh-pmenu-row:hover,
+  .sh-pmenu-row:focus-visible {
     background: var(--bg-3);
   }
-  .st-pmenu-row:focus-visible {
+  .sh-pmenu-row:focus-visible {
     outline: 2px solid var(--focus-ring);
     outline-offset: -2px;
   }
   /* `.k-mi-ic` — the 16 px glyph column of a menu row */
-  .st-pmenu-ic {
+  .sh-pmenu-ic {
     display: grid;
     place-items: center;
     width: 16px;
@@ -131,28 +131,28 @@
     color: var(--fg-2);
   }
 
-  .st-plist {
+  .sh-plist {
     min-width: 300px;
   }
-  .st-plist-h {
+  .sh-plist-h {
     display: flex;
     justify-content: space-between;
     margin: 0;
     padding: 6px 8px 4px;
     font-weight: var(--w-semibold, 600);
   }
-  .st-plist-h span + span {
+  .sh-plist-h span + span {
     font-weight: var(--w-regular, 400);
     color: var(--fg-2);
   }
-  .st-plist-rows {
+  .sh-plist-rows {
     margin: 0;
     padding: 0;
     list-style: none;
     max-height: 320px;
     overflow: auto;
   }
-  .st-plist-row {
+  .sh-plist-row {
     display: grid;
     grid-template-columns: 24px 1fr auto;
     align-items: center;
@@ -168,20 +168,20 @@
     background: transparent;
     cursor: pointer;
   }
-  .st-plist-row:hover,
-  .st-plist-row:focus-visible {
+  .sh-plist-row:hover,
+  .sh-plist-row:focus-visible {
     background: var(--bg-3);
   }
-  .st-plist-row em {
+  .sh-plist-row em {
     font-style: normal;
     font-size: var(--type-xs, 12px);
     color: var(--fg-2);
     white-space: nowrap;
   }
-  .st-plist-row.is-idle {
+  .sh-plist-row.is-idle {
     opacity: 0.6;
   }
-  .st-plist-row.is-idle .st-pface {
+  .sh-plist-row.is-idle .sh-pface {
     filter: grayscale(1);
   }
 }

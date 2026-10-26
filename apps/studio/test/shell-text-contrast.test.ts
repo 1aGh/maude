@@ -22,7 +22,7 @@ for (const theme of ['light', 'dark']) {
   // P8 C0: the generated maude-v2 shell ladder; translucent values composite over the island (--bg-1)
   const color = (token: string) => shellColor(theme as 'light' | 'dark', token);
   for (const [selector, css] of [
-    ['.st-callout-t > span', callouts],
+    ['.sh-callout-t > span', callouts],
     ['.lp-tab', leftPanel],
     ['.dv-zoom-sync', shell],
   ]) {

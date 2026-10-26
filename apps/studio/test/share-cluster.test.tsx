@@ -191,13 +191,13 @@ describe('the cluster', () => {
     host?.remove();
     const done = await mount({ exports: exportsRing([{ status: 'done' }]) });
     expect(done.q('share-cluster-exports')).not.toBeNull();
-    expect(done.q('share-cluster-exports')?.querySelector('.st-ex-ring')).toBeNull();
+    expect(done.q('share-cluster-exports')?.querySelector('.sh-ex-ring')).toBeNull();
     act(() => root?.unmount());
     host?.remove();
     const run = await mount({
       exports: exportsRing([{ status: 'running', progress: { current: 1, total: 4 } }]),
     });
-    expect(run.q('share-cluster-exports')?.querySelector('.st-ex-ring')).not.toBeNull();
+    expect(run.q('share-cluster-exports')?.querySelector('.sh-ex-ring')).not.toBeNull();
     expect(run.q('share-cluster-exports')?.getAttribute('aria-label')).toBe('Exports — 25 % done');
     await act(async () => run.q('share-cluster-exports')?.click());
     expect(run.ran).toEqual(['view.exports']);

@@ -35,7 +35,7 @@ const PILL_GAP = Number(/--pill-gap:\s*(\d+)px/.exec(PILL)?.[1]);
 const BELOW_PILL = GAP + PILL_H + PILL_GAP; // V2-4.2: the left panel and its corner icon start under the pill
 const PILL_W = 220;
 const CLUSTER_W = 380; // faces + status word + comments + Hide panels + Share (measured on screen)
-const ICON = 28 + 2 * 2; // .st-corner .st-iconbtn 28px + the island's 2×--space-1 (v1: 2px)
+const ICON = 28 + 2 * 2; // .sh-corner .st-iconbtn 28px + the island's 2×--space-1 (v1: 2px)
 
 const AI_H = Number(/--ai-h,\s*(\d+)px/.exec(CSS)?.[1]);
 const W = 1440;
@@ -58,16 +58,16 @@ function layout(el: Element, sbW: number, rpW: number): Box {
   if (cls0 === 'st-pill island')
     return { left: GAP, top: GAP, right: GAP + PILL_W, bottom: GAP + PILL_H };
   if (isSlot && side === 'left') return { left: GAP, top: BELOW_PILL, right: sbW, bottom: H - GAP };
-  if (cls0 === 'st-share island')
+  if (cls0 === 'sh-share island')
     return { left: W - GAP - CLUSTER_W, top: GAP, right: W - GAP, bottom: GAP + PILL_H };
   // V2-4.3a: the right panel and the right corner icon start under the Share cluster, like the left under the pill.
   if (isSlot) return { left: W - rpW, top: BELOW_PILL, right: W - GAP, bottom: H - GAP };
   const cls = el.className;
   const corner = (x: number, y: number) => ({ left: x, top: y, right: x + ICON, bottom: y + ICON });
-  if (cls.includes('st-corner--left') && !cls.includes('ai')) return corner(GAP, BELOW_PILL);
-  if (cls.includes('st-corner--right')) return corner(W - GAP - ICON, BELOW_PILL);
-  if (cls.includes('st-corner--ai-left')) return corner(GAP, H - GAP - ICON);
-  if (cls.includes('st-corner--ai')) return corner(W - GAP - ICON, H - GAP - ICON);
+  if (cls.includes('sh-corner--left') && !cls.includes('ai')) return corner(GAP, BELOW_PILL);
+  if (cls.includes('sh-corner--right')) return corner(W - GAP - ICON, BELOW_PILL);
+  if (cls.includes('sh-corner--ai-left')) return corner(GAP, H - GAP - ICON);
+  if (cls.includes('sh-corner--ai')) return corner(W - GAP - ICON, H - GAP - ICON);
   throw new Error(`unplaced island ${edge}`);
 }
 
@@ -263,7 +263,7 @@ describe('every floating island root declares its edge', () => {
     expect(
       hiddenBody.querySelector('[data-testid="dock-slot-left"]')?.hasAttribute('data-occludes')
     ).toBe(false);
-    const edges = [...hiddenBody.querySelectorAll('.st-corner')].map((e) =>
+    const edges = [...hiddenBody.querySelectorAll('.sh-corner')].map((e) =>
       e.getAttribute('data-occludes')
     );
     expect(edges.sort()).toEqual(['left', 'right', 'right']);
@@ -301,10 +301,10 @@ describe('V2-4.3a — the Share cluster is the top-right island', () => {
     expect(slot).toContain(`padding-top: ${below}`);
     const grip = /\.st-body--float > \.st-grip--r \{[^}]*\}/.exec(CSS)?.[0] ?? '';
     expect(grip).toContain(`top: ${below}`);
-    const corner = /\.st-corner--right \{[^}]*\}/.exec(CSS)?.[0] ?? '';
+    const corner = /\.sh-corner--right \{[^}]*\}/.exec(CSS)?.[0] ?? '';
     expect(corner).toContain('var(--pill-h, 40px)');
     const cluster = readFileSync(join(ROOT, 'client/v2/shell/share-cluster.css'), 'utf8');
-    expect(cluster).toMatch(/\.st-share \{[^}]*height: var\(--pill-h, 40px\)/);
+    expect(cluster).toMatch(/\.sh-share \{[^}]*height: var\(--pill-h, 40px\)/);
     expect(cluster).not.toMatch(/backdrop-filter\s*:\s*(?!none)/); // M1: material is the island's
   });
   test('pinned with a right panel showing, the cluster heads the column and declares no edge', () => {

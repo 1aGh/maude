@@ -321,8 +321,8 @@ describe('mode-toggle / the Share cluster switch', () => {
     expect(row?.getAttribute('role')).toBe('menuitem');
     // the rule, the greyed Presenter view row, then Order and notes…
     const presenter = document.querySelector('[data-testid="mode-present-presenter-view"]');
-    expect(row?.closest('.st-pm-li')?.previousElementSibling).toBe(presenter?.closest('.st-pm-li'));
-    expect(presenter?.closest('.st-pm-li')?.previousElementSibling?.tagName).toBe('HR');
+    expect(row?.closest('.sh-pm-li')?.previousElementSibling).toBe(presenter?.closest('.sh-pm-li'));
+    expect(presenter?.closest('.sh-pm-li')?.previousElementSibling?.tagName).toBe('HR');
     act(() => row?.click());
     expect(asked).toEqual(['order-notes']);
     act(() => root?.unmount());

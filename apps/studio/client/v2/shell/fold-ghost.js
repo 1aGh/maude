@@ -5,7 +5,7 @@
 // not showing is UNMOUNTED (dock.jsx — the DockSlot / its island go away, the corner icon takes over), so there
 // is nothing left to animate. The one thing that survives the unmount is a picture of it: just before the node
 // leaves the DOM, `spawnFoldGhost` clones it into the window body, takes the clone out of every hook
-// (testids, ids, focus, clicks) and lets CSS (`st-fold-ghost`, floating-panels.css) shrink it toward its corner.
+// (testids, ids, focus, clicks) and lets CSS (`sh-fold-ghost`, floating-panels.css) shrink it toward its corner.
 // The ghost is decoration: it never owns a test hook, a focus stop or an inset (the insets are measured on the
 // real islands, which are already gone — the camera eases onto the post-fold area from the first frame).
 //
@@ -49,7 +49,7 @@ export function spawnFoldGhost(node, host, origin = 'top-left', knownBox = null)
     el.removeAttribute?.('hidden');
     el.setAttribute?.('tabindex', '-1');
   }
-  ghost.classList.add('st-fold-ghost');
+  ghost.classList.add('sh-fold-ghost');
   ghost.setAttribute('aria-hidden', 'true');
   ghost.setAttribute('inert', '');
   ghost.setAttribute('data-fold', origin);

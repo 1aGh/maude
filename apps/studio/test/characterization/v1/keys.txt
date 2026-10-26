@@ -89,7 +89,7 @@
     + button .cmp-seg-b [data-testid="comment-filter-resolved"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Resolved"
     + button .cmp-seg-b.is-active [data-testid="comment-filter-open"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Open"
     + button .cmp-x [data-testid="comments-panel-close"] [aria-label="Hide Comments"] [title="Hide Comments"] [type="button"]
-    + button .is-on.st-share-ic [data-testid="share-cluster-comments"] [aria-label="Comments"] [aria-pressed="true"] [title="Comments ⇧⌘M"] [type="button"]
+    + button .is-on.sh-share-ic [data-testid="share-cluster-comments"] [aria-label="Comments"] [aria-pressed="true"] [title="Comments ⇧⌘M"] [type="button"]
     + … 9 more
   canvas: =
 ## browser/canvas/chrome Meta+Shift+G
@@ -273,18 +273,18 @@
   writes: (none)
   shell: +105 -19 #2bca405685
     - @focus body
-    - button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
+    - button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
     - button .icon-btn [data-testid="zoom-undo-redo"] [aria-label="Redo"] [title="Redo ⇧⌘Z"] [type="button"]
     - button .icon-btn [data-testid="zoom-undo-undo"] [aria-label="Undo"] [title="Undo ⌘Z"] [type="button"]
     - button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
-    - button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
-    - button .st-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="false"] [title="Preview"] [type="button"]
-    - div .island.st-zoomundo [data-testid="zoom-undo"]
+    - button .sh-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
+    - button .sh-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="false"] [title="Preview"] [type="button"]
+    - div .island.sh-zoomundo [data-testid="zoom-undo"]
     - … 7 more
     + @focus button[data-testid="templates-tile-kanban"][type="button"]
     + button .st-iconbtn [data-testid="panel-icon-left"] [aria-label="Open Canvases"] [title="Canvases (⌘\\ shows all panels)"] [type="button"]
-    + button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="false"] [title="Edit"] [type="button"]
-    + button .st-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="true"] [title="Preview"] [type="button"]
+    + button .sh-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="false"] [title="Edit"] [type="button"]
+    + button .sh-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="true"] [title="Preview"] [type="button"]
     + button .tp-send [data-testid="templates-ask-send"] [aria-label="Ask AI to build it"] [type="button"] [disabled]
     + button .tp-tile [data-testid="templates-tile-blank"] [type="button"]
     + button .tp-tile [data-testid="templates-tile-brainstorm"] [type="button"]
@@ -316,22 +316,22 @@
   writes: (none)
   shell: +15 -20 #84bdfd0c9b
     - @focus body
-    - button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
+    - button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
     - button .icon-btn [data-testid="zoom-undo-redo"] [aria-label="Redo"] [title="Redo ⇧⌘Z"] [type="button"]
     - button .icon-btn [data-testid="zoom-undo-undo"] [aria-label="Undo"] [title="Undo ⌘Z"] [type="button"]
     - button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
-    - button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
-    - button .st-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="false"] [title="Preview"] [type="button"]
-    - div .island.st-zoomundo [data-testid="zoom-undo"]
+    - button .sh-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
+    - button .sh-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="false"] [title="Preview"] [type="button"]
+    - div .island.sh-zoomundo [data-testid="zoom-undo"]
     - … 8 more
     + @focus iframe[data-testid="canvas-frame"]
     + button .st-iconbtn [data-testid="panel-icon-left"] [aria-label="Open Canvases"] [title="Canvases (⌘\\ shows all panels)"] [type="button"]
-    + button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="false"] [title="Edit"] [type="button"]
-    + button .st-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="true"] [title="Preview"] [type="button"]
-    + div .island.st-pbar [data-testid="preview-bar"] [data-state="in"]
-    + div .island.st-zoomonly [data-testid="zoom-only"] [data-state="in"]
-    + span .st-pbar-div [aria-hidden="true"]
-    + span .st-pbar-esc [data-testid="preview-bar-esc"] "to edit"
+    + button .sh-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="false"] [title="Edit"] [type="button"]
+    + button .sh-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="true"] [title="Preview"] [type="button"]
+    + div .island.sh-pbar [data-testid="preview-bar"] [data-state="in"]
+    + div .island.sh-zoomonly [data-testid="zoom-only"] [data-state="in"]
+    + span .sh-pbar-div [aria-hidden="true"]
+    + span .sh-pbar-esc [data-testid="preview-bar-esc"] "to edit"
     + … 2 more
   canvas: +28 -16 #aabfb28724
     - @focus body
@@ -480,13 +480,13 @@
   writes: (none)
   shell: +41 -16 #1004870d8b
     - @focus body
-    - button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
+    - button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
     - button .icon-btn [data-testid="zoom-undo-redo"] [aria-label="Redo"] [title="Redo ⇧⌘Z"] [type="button"]
     - button .icon-btn [data-testid="zoom-undo-undo"] [aria-label="Undo"] [title="Undo ⌘Z"] [type="button"]
     - button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
-    - button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
-    - button .st-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="false"] [title="Preview"] [type="button"]
-    - div .island.st-zoomundo [data-testid="zoom-undo"]
+    - button .sh-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
+    - button .sh-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="false"] [title="Preview"] [type="button"]
+    - div .island.sh-zoomundo [data-testid="zoom-undo"]
     - … 4 more
     + @focus iframe[data-testid="canvas-frame"]
     + aside .cmp.st-rpanel [data-testid="comments-panel"] [aria-label="Comments"]
@@ -627,7 +627,7 @@
     + button .cmp-seg-b [data-testid="comment-filter-resolved"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Resolved"
     + button .cmp-seg-b.is-active [data-testid="comment-filter-open"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Open"
     + button .cmp-x [data-testid="comments-panel-close"] [aria-label="Hide Comments"] [title="Hide Comments"] [type="button"]
-    + button .is-on.st-share-ic [data-testid="share-cluster-comments"] [aria-label="Comments"] [aria-pressed="true"] [title="Comments ⇧⌘M"] [type="button"]
+    + button .is-on.sh-share-ic [data-testid="share-cluster-comments"] [aria-label="Comments"] [aria-pressed="true"] [title="Comments ⇧⌘M"] [type="button"]
     + … 9 more
   canvas: =
 ## browser/canvas/text Meta+Shift+G
@@ -1312,7 +1312,7 @@
   writes: (none)
   shell: +89 -229 #66e086bd8e
     - aside .st-rpanel.st-rpanel--insp [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
-    - button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
+    - button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .icon-btn [data-testid="zoom-undo-redo"] [aria-label="Redo"] [title="Redo ⇧⌘Z"] [type="button"]
     - button .icon-btn [data-testid="zoom-undo-undo"] [aria-label="Undo"] [title="Undo ⌘Z"] [type="button"]
@@ -1408,7 +1408,7 @@
   writes: (none)
   shell: +67 -237 #1ca2ca36f7
     - aside .st-rpanel.st-rpanel--insp [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
-    - button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
+    - button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .icon-btn [data-testid="zoom-undo-redo"] [aria-label="Redo"] [title="Redo ⇧⌘Z"] [type="button"]
     - button .icon-btn [data-testid="zoom-undo-undo"] [aria-label="Undo"] [title="Undo ⌘Z"] [type="button"]
@@ -1451,7 +1451,7 @@
   writes: (none)
   shell: +67 -237 #bc98016cd1
     - aside .st-rpanel.st-rpanel--insp [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
-    - button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 83%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "83%"
+    - button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 83%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "83%"
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .icon-btn [data-testid="zoom-undo-redo"] [aria-label="Redo"] [title="Redo ⇧⌘Z"] [type="button"]
     - button .icon-btn [data-testid="zoom-undo-undo"] [aria-label="Undo"] [title="Undo ⌘Z"] [type="button"]
@@ -1523,7 +1523,7 @@
   shell: +158 -237 #bcea21a2e8
     - @focus iframe[data-testid="canvas-frame"]
     - aside .st-rpanel.st-rpanel--insp [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
-    - button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
+    - button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .icon-btn [data-testid="zoom-undo-redo"] [aria-label="Redo"] [title="Redo ⇧⌘Z"] [type="button"]
     - button .icon-btn [data-testid="zoom-undo-undo"] [aria-label="Undo"] [title="Undo ⌘Z"] [type="button"]
@@ -1566,7 +1566,7 @@
   shell: +165 -237 #7f686abed6
     - @focus iframe[data-testid="canvas-frame"]
     - aside .st-rpanel.st-rpanel--insp [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
-    - button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
+    - button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .icon-btn [data-testid="zoom-undo-redo"] [aria-label="Redo"] [title="Redo ⇧⌘Z"] [type="button"]
     - button .icon-btn [data-testid="zoom-undo-undo"] [aria-label="Undo"] [title="Undo ⌘Z"] [type="button"]
@@ -1808,7 +1808,7 @@
     + button .cmp-seg-b [data-testid="comment-filter-resolved"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Resolved"
     + button .cmp-seg-b.is-active [data-testid="comment-filter-open"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Open"
     + button .cmp-x [data-testid="comments-panel-close"] [aria-label="Hide Comments"] [title="Hide Comments"] [type="button"]
-    + button .is-on.st-share-ic [data-testid="share-cluster-comments"] [aria-label="Comments"] [aria-pressed="true"] [title="Comments ⇧⌘M"] [type="button"]
+    + button .is-on.sh-share-ic [data-testid="share-cluster-comments"] [aria-label="Comments"] [aria-pressed="true"] [title="Comments ⇧⌘M"] [type="button"]
     + … 3 more
   canvas: =
 ## browser/in-canvas/canvas Meta+Shift+E
@@ -1877,7 +1877,7 @@
   writes: (none)
   shell: +67 -237 #1ca2ca36f7
     - aside .st-rpanel.st-rpanel--insp [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
-    - button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
+    - button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .icon-btn [data-testid="zoom-undo-redo"] [aria-label="Redo"] [title="Redo ⇧⌘Z"] [type="button"]
     - button .icon-btn [data-testid="zoom-undo-undo"] [aria-label="Undo"] [title="Undo ⌘Z"] [type="button"]
@@ -1985,9 +1985,9 @@
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: +2 -2 #b1863f1278
-    - button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
+    - button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
     - strong .insp-title [data-testid="inspector-title"] "Page"
-    + button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom to fit, 63%"] [title="Zoom to fit ⌘0"] [type="button"] "Zoom to f
+    + button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom to fit, 63%"] [title="Zoom to fit ⌘0"] [type="button"] "Zoom to f
     + strong .insp-title [data-testid="inspector-title"] "Frame"
   canvas: =
 ## browser/in-canvas/canvas Meta+1
@@ -2003,8 +2003,8 @@
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: +1 -1 #135cff1aeb
-    - button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
-    + button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 100%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "100
+    - button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
+    + button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 100%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "100
   canvas: +1 -1 #20331326be
     - @world translate(492.906px, 513.925px)
     + @world translate(71.7736px, 250.717px)
@@ -2014,8 +2014,8 @@
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: +1 -1 #334b5afe92
-    - button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 83%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "83%"
-    + button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 99%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "99%"
+    - button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 83%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "83%"
+    + button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 99%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "99%"
   canvas: =
 ## browser/in-canvas/canvas Meta+Minus
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="-" PREVENTED
@@ -2023,8 +2023,8 @@
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: +1 -1 #0095a810eb
-    - button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
-    + button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 53%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "53%"
+    - button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
+    + button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 53%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "53%"
   canvas: =
 ## browser/in-canvas/canvas Shift+P
   keydown: canvas ⇧key="Shift" default · canvas ⇧key="P" PREVENTED
@@ -2555,7 +2555,7 @@
   writes: (none)
   shell: +67 -237 #1ca2ca36f7
     - aside .st-rpanel.st-rpanel--insp [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
-    - button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
+    - button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .icon-btn [data-testid="zoom-undo-redo"] [aria-label="Redo"] [title="Redo ⇧⌘Z"] [type="button"]
     - button .icon-btn [data-testid="zoom-undo-undo"] [aria-label="Undo"] [title="Undo ⌘Z"] [type="button"]
@@ -2936,17 +2936,17 @@
   writes: (none)
   shell: +9 -11 #92d7ca908b
     - button .pr-pill.st-present-exit [data-testid="present-pill"] [aria-label="Exit presentation mode"] [title="Exit presentation mode (Esc)"] [type="button"]
-    - button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="false"] [title="Edit"] [type="button"]
-    - button .st-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="true"] [title="Present"] [type="button"]
+    - button .sh-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="false"] [title="Edit"] [type="button"]
+    - button .sh-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="true"] [title="Present"] [type="button"]
     - span .pr-div [aria-hidden="true"]
     - span .pr-div [aria-hidden="true"]
-    + button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
+    + button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
     + button .icon-btn [data-testid="zoom-undo-redo"] [aria-label="Redo"] [title="Redo ⇧⌘Z"] [type="button"]
     + button .icon-btn [data-testid="zoom-undo-undo"] [aria-label="Undo"] [title="Undo ⌘Z"] [type="button"]
-    + button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
-    + button .st-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="false"] [title="Present"] [type="button"]
-    + div .island.st-zoomundo [data-testid="zoom-undo"]
-    + span .st-zoomundo-div [aria-hidden="true"]
+    + button .sh-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
+    + button .sh-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="false"] [title="Present"] [type="button"]
+    + div .island.sh-zoomundo [data-testid="zoom-undo"]
+    + span .sh-zoomundo-div [aria-hidden="true"]
     + svg [aria-hidden="true"]
   canvas: +35 -4 #8ae5ad225a
     - @html data-maude-presenting= data-maude-theme=dark lang=en
@@ -2969,17 +2969,17 @@
   writes: (none)
   shell: +9 -11 #92d7ca908b
     - button .pr-pill.st-present-exit [data-testid="present-pill"] [aria-label="Exit presentation mode"] [title="Exit presentation mode (Esc)"] [type="button"]
-    - button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="false"] [title="Edit"] [type="button"]
-    - button .st-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="true"] [title="Present"] [type="button"]
+    - button .sh-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="false"] [title="Edit"] [type="button"]
+    - button .sh-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="true"] [title="Present"] [type="button"]
     - span .pr-div [aria-hidden="true"]
     - span .pr-div [aria-hidden="true"]
-    + button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
+    + button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
     + button .icon-btn [data-testid="zoom-undo-redo"] [aria-label="Redo"] [title="Redo ⇧⌘Z"] [type="button"]
     + button .icon-btn [data-testid="zoom-undo-undo"] [aria-label="Undo"] [title="Undo ⌘Z"] [type="button"]
-    + button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
-    + button .st-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="false"] [title="Present"] [type="button"]
-    + div .island.st-zoomundo [data-testid="zoom-undo"]
-    + span .st-zoomundo-div [aria-hidden="true"]
+    + button .sh-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
+    + button .sh-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="false"] [title="Present"] [type="button"]
+    + div .island.sh-zoomundo [data-testid="zoom-undo"]
+    + span .sh-zoomundo-div [aria-hidden="true"]
     + svg [aria-hidden="true"]
   canvas: +35 -4 #8ae5ad225a
     - @html data-maude-presenting= data-maude-theme=dark lang=en
@@ -3009,17 +3009,17 @@
   writes: (none)
   shell: +9 -11 #92d7ca908b
     - button .pr-pill.st-present-exit [data-testid="present-pill"] [aria-label="Exit presentation mode"] [title="Exit presentation mode (Esc)"] [type="button"]
-    - button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="false"] [title="Edit"] [type="button"]
-    - button .st-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="true"] [title="Present"] [type="button"]
+    - button .sh-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="false"] [title="Edit"] [type="button"]
+    - button .sh-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="true"] [title="Present"] [type="button"]
     - span .pr-div [aria-hidden="true"]
     - span .pr-div [aria-hidden="true"]
-    + button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
+    + button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
     + button .icon-btn [data-testid="zoom-undo-redo"] [aria-label="Redo"] [title="Redo ⇧⌘Z"] [type="button"]
     + button .icon-btn [data-testid="zoom-undo-undo"] [aria-label="Undo"] [title="Undo ⌘Z"] [type="button"]
-    + button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
-    + button .st-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="false"] [title="Present"] [type="button"]
-    + div .island.st-zoomundo [data-testid="zoom-undo"]
-    + span .st-zoomundo-div [aria-hidden="true"]
+    + button .sh-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
+    + button .sh-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="false"] [title="Present"] [type="button"]
+    + div .island.sh-zoomundo [data-testid="zoom-undo"]
+    + span .sh-zoomundo-div [aria-hidden="true"]
     + svg [aria-hidden="true"]
   canvas: +35 -4 #8ae5ad225a
     - @html data-maude-presenting= data-maude-theme=dark lang=en
@@ -3042,17 +3042,17 @@
   writes: (none)
   shell: +9 -11 #92d7ca908b
     - button .pr-pill.st-present-exit [data-testid="present-pill"] [aria-label="Exit presentation mode"] [title="Exit presentation mode (Esc)"] [type="button"]
-    - button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="false"] [title="Edit"] [type="button"]
-    - button .st-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="true"] [title="Present"] [type="button"]
+    - button .sh-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="false"] [title="Edit"] [type="button"]
+    - button .sh-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="true"] [title="Present"] [type="button"]
     - span .pr-div [aria-hidden="true"]
     - span .pr-div [aria-hidden="true"]
-    + button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
+    + button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
     + button .icon-btn [data-testid="zoom-undo-redo"] [aria-label="Redo"] [title="Redo ⇧⌘Z"] [type="button"]
     + button .icon-btn [data-testid="zoom-undo-undo"] [aria-label="Undo"] [title="Undo ⌘Z"] [type="button"]
-    + button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
-    + button .st-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="false"] [title="Present"] [type="button"]
-    + div .island.st-zoomundo [data-testid="zoom-undo"]
-    + span .st-zoomundo-div [aria-hidden="true"]
+    + button .sh-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
+    + button .sh-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="false"] [title="Present"] [type="button"]
+    + div .island.sh-zoomundo [data-testid="zoom-undo"]
+    + span .sh-zoomundo-div [aria-hidden="true"]
     + svg [aria-hidden="true"]
   canvas: +35 -4 #8ae5ad225a
     - @html data-maude-presenting= data-maude-theme=dark lang=en
@@ -3081,13 +3081,13 @@
   to-canvas: (canvas reloaded) parent gen-takes · parent vote-state · parent comments-set · parent theme · parent view-chrome
   writes: POST /_api/canvas
   shell: +29 -6 #fd7aa63ebf
-    - button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
+    - button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
     - button .cv-sort.cv-sort--quiet [data-testid="canvases-sort"] [aria-label="1 canvas — sort canvases (Recently opened)"] [aria-expanded="false"] [type="button"] "
     - button .st-pill-btn [data-testid="project-pill"] [aria-label="v1-keys / Home, project menu"] [aria-expanded="false"] [data-tour="menus"] [title="Project menu"] 
     - div .cv-item [role="treeitem"] [aria-label="Home"] [aria-expanded="false"] [aria-selected="true"] [tabindex="0"]
     - iframe .active [data-testid="canvas-frame"] [data-path=".design/ui/Home.tsx"] [title="Canvas: .design/ui/Home.tsx"]
     + button .btn.btn--ghost.btn--sm [data-testid="empty-canvas-door"] [type="button"] "New artboard"
-    + button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 100%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "100
+    + button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 100%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "100
     + button .cv-act [data-testid="tree-row-menu-ui-untitled-canvas"] [aria-label="Actions for Untitled canvas"] [title="Actions for Untitled canvas"] [type="button"]
     + button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-untitled-canvas"] [aria-label="Pin Untitled canvas"] [aria-pressed="false"] [title="Pin"] [type="button"]
     + button .cv-main [data-testid="canvas-row-ui-untitled-canvas"] [title=".design/ui/Untitled canvas.tsx"] [type="button"] [tabindex="-1"]
@@ -3128,7 +3128,7 @@
   shell: +72 -240 #582e1c5014
     - aside .st-rpanel.st-rpanel--insp [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .ai-scope-chip [data-testid="ai-scope-chip"] [aria-expanded="false"] [title="AI works on Hero"] [type="button"]
-    - button .btn.btn--ghost.btn--sm.st-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
+    - button .btn.btn--ghost.btn--sm.sh-zoomundo-pct [data-testid="zoom-undo-pct"] [aria-label="Zoom 63%, zoom to fit"] [title="Zoom to fit ⌘0"] [type="button"] "63%"
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .icon-btn [data-testid="zoom-undo-redo"] [aria-label="Redo"] [title="Redo ⇧⌘Z"] [type="button"]
     - button .icon-btn [data-testid="zoom-undo-undo"] [aria-label="Undo"] [title="Undo ⌘Z"] [type="button"]
@@ -3240,7 +3240,7 @@
     + button .cmp-seg-b [data-testid="comment-filter-resolved"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Resolved"
     + button .cmp-seg-b.is-active [data-testid="comment-filter-open"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Open"
     + button .cmp-x [data-testid="comments-panel-close"] [aria-label="Hide Comments"] [title="Hide Comments"] [type="button"]
-    + button .is-on.st-share-ic [data-testid="share-cluster-comments"] [aria-label="Comments"] [aria-pressed="true"] [title="Comments ⇧⌘M"] [type="button"]
+    + button .is-on.sh-share-ic [data-testid="share-cluster-comments"] [aria-label="Comments"] [aria-pressed="true"] [title="Comments ⇧⌘M"] [type="button"]
     + div .cmp-seg [role="tablist"] [aria-label="Show"]
     + … 7 more
   canvas: +5 -5 #b0ab631212

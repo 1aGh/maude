@@ -98,7 +98,7 @@ describe('the shell side of the fold', () => {
     expect(cluster).toContain("data-zen={panelsHidden ? 'true' : undefined}");
     const css = readFileSync(join(client, 'v2/shell/share-cluster.css'), 'utf8');
     expect(css).toContain(
-      '.st-share[data-zen="true"] > :not([data-testid="share-cluster-panels"])'
+      '.sh-share[data-zen="true"] > :not([data-testid="share-cluster-panels"])'
     );
   });
 });

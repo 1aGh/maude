@@ -6,7 +6,7 @@
  * (V2-1.8 M1). Motion is one fade over `--dur-panel` (1 ms under reduced motion: the token collapses). */
 
 @layer shell {
-  .st-inspect.island {
+  .sh-inspect.island {
     position: absolute;
     z-index: 30;
     right: var(--float-gap, 16px);
@@ -17,70 +17,70 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-1, 4px);
-    animation: st-inspect-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
+    animation: sh-inspect-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
   }
-  .st-body:not(.st-body--float) .st-inspect {
+  .st-body:not(.st-body--float) .sh-inspect {
     background: var(--bg-1);
     border-radius: 14px;
     box-shadow: var(--shadow-md);
   }
-  @keyframes st-inspect-in {
+  @keyframes sh-inspect-in {
     from {
       opacity: 0;
     }
   }
 
   /* gate-a-polish: the label column was 7rem, so "Gap to Three plans. No surprises" wrapped and truncated */
-  .st-inspect .insp-arow {
+  .sh-inspect .insp-arow {
     grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr);
     padding: 2px var(--space-1, 4px);
   }
-  .st-inspect-g {
+  .sh-inspect-g {
     margin: var(--space-2, 8px) var(--space-1, 4px) 2px;
     font-size: var(--type-xs, 11px);
     font-weight: var(--w-semibold, 600);
     color: var(--fg-2);
   }
-  .st-inspect-v {
+  .sh-inspect-v {
     display: inline-flex;
     align-items: center;
     gap: var(--space-2, 8px);
   }
-  .st-inspect-sw {
+  .sh-inspect-sw {
     flex: none;
     width: 12px;
     height: 12px;
     border-radius: var(--radius-sm, 4px);
     box-shadow: inset 0 0 0 1px var(--border-strong);
   }
-  .st-inspect-ex {
+  .sh-inspect-ex {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-1, 4px);
     padding: 2px var(--space-1, 4px);
   }
-  .st-inspect-acts {
+  .sh-inspect-acts {
     display: grid;
     grid-template-columns: 1fr auto;
     gap: var(--space-1, 4px);
     margin: var(--space-3, 12px) var(--space-1, 4px) 0;
   }
-  .st-inspect-acts .btn {
+  .sh-inspect-acts .btn {
     justify-content: center;
     gap: var(--space-1, 4px);
   }
-  .st-inspect-note {
+  .sh-inspect-note {
     margin: var(--space-1, 4px);
   }
-  .st-inspect-css {
+  .sh-inspect-css {
     display: grid;
     grid-template-columns: minmax(0, 9ch) minmax(0, 1fr);
     gap: var(--space-2, 8px);
   }
-  .st-inspect-ck {
+  .sh-inspect-ck {
     color: var(--fg-2);
   }
-  .st-inspect-cv {
+  .sh-inspect-cv {
     color: var(--fg-0);
     overflow-wrap: anywhere;
   }

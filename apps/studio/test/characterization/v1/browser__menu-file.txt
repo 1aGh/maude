@@ -6,110 +6,110 @@ span .island.st-pill
     span .st-pill-name "characterization"
     span .st-pill-caret [aria-hidden="true"]
       svg [aria-hidden="true"]
-  div .st-pm-root
-    div .st-pm [data-testid="project-menu"] [role="menu"] [aria-label="Project menu"]
-      div .st-pm-li [role="none"]
-        button .st-pm-row [data-testid="project-menu-row-sub-file"] [role="menuitem"] [aria-expanded="true"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
-          span .st-pm-ic [aria-hidden="true"]
-          span .st-pm-lab "File"
-          span .st-pm-ch [aria-hidden="true"]
+  div .sh-pm-root
+    div .sh-pm [data-testid="project-menu"] [role="menu"] [aria-label="Project menu"]
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-sub-file"] [role="menuitem"] [aria-expanded="true"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "File"
+          span .sh-pm-ch [aria-hidden="true"]
             svg [aria-hidden="true"]
-        div .st-pm.st-pm--sub [data-testid="project-menu-sub-file"] [role="menu"] [aria-label="File"]
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-canvas.new"] [role="menuitem"] [type="button"] [tabindex="0"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "New canvas"
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-project.new"] [role="menuitem"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "New project…"
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-project.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Open project…"
-          hr .st-pm-sep
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-canvas.duplicate"] [role="menuitem"] [aria-disabled="true"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Duplicate canvas"
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-canvas.rename"] [role="menuitem"] [aria-disabled="true"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Rename canvas"
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-canvas.move"] [role="menuitem"] [aria-disabled="true"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Move to…"
-          hr .st-pm-sep
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-import.figma"] [role="menuitem"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Import from Figma…"
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-import.brand"] [role="menuitem"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Import a brand…"
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-video.assemble"] [role="menuitem"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Assemble clips into a video"
-          hr .st-pm-sep
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-export.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Export…"
+        div .sh-pm.sh-pm--sub [data-testid="project-menu-sub-file"] [role="menu"] [aria-label="File"]
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-canvas.new"] [role="menuitem"] [type="button"] [tabindex="0"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "New canvas"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-project.new"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "New project…"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-project.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Open project…"
+          hr .sh-pm-sep
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-canvas.duplicate"] [role="menuitem"] [aria-disabled="true"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Duplicate canvas"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-canvas.rename"] [role="menuitem"] [aria-disabled="true"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Rename canvas"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-canvas.move"] [role="menuitem"] [aria-disabled="true"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Move to…"
+          hr .sh-pm-sep
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-import.figma"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Import from Figma…"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-import.brand"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Import a brand…"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-video.assemble"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Assemble clips into a video"
+          hr .sh-pm-sep
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-export.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Export…"
               span .kbd "⇧⌘E"
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-handoff.open"] [role="menuitem"] [aria-disabled="true"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Handoff to production"
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-handoff.open"] [role="menuitem"] [aria-disabled="true"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Handoff to production"
               span .kbd "⇧⌘H"
-          div .st-pm-li [role="none"]
-            button .st-pm-row [data-testid="project-menu-row-canvas.close"] [role="menuitem"] [aria-disabled="true"] [type="button"] [tabindex="-1"]
-              span .st-pm-ic [aria-hidden="true"]
-              span .st-pm-lab "Close canvas"
-      div .st-pm-li [role="none"]
-        button .st-pm-row [data-testid="project-menu-row-sub-edit"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
-          span .st-pm-ic [aria-hidden="true"]
-          span .st-pm-lab "Edit"
-          span .st-pm-ch [aria-hidden="true"]
+          div .sh-pm-li [role="none"]
+            button .sh-pm-row [data-testid="project-menu-row-canvas.close"] [role="menuitem"] [aria-disabled="true"] [type="button"] [tabindex="-1"]
+              span .sh-pm-ic [aria-hidden="true"]
+              span .sh-pm-lab "Close canvas"
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-sub-edit"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Edit"
+          span .sh-pm-ch [aria-hidden="true"]
             svg [aria-hidden="true"]
-      div .st-pm-li [role="none"]
-        button .st-pm-row [data-testid="project-menu-row-sub-view"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
-          span .st-pm-ic [aria-hidden="true"]
-          span .st-pm-lab "View"
-          span .st-pm-ch [aria-hidden="true"]
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-sub-view"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "View"
+          span .sh-pm-ch [aria-hidden="true"]
             svg [aria-hidden="true"]
-      div .st-pm-li [role="none"]
-        button .st-pm-row [data-testid="project-menu-row-sub-help"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
-          span .st-pm-ic [aria-hidden="true"]
-          span .st-pm-lab "Help"
-          span .st-pm-ch [aria-hidden="true"]
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-sub-help"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Help"
+          span .sh-pm-ch [aria-hidden="true"]
             svg [aria-hidden="true"]
-      hr .st-pm-sep
-      div .st-pm-li [role="none"]
-        button .st-pm-row [data-testid="project-menu-row-history.open"] [role="menuitemcheckbox"] [aria-checked="false"] [type="button"] [tabindex="-1"]
-          span .st-pm-ic [aria-hidden="true"]
-          span .st-pm-lab "Version history"
+      hr .sh-pm-sep
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-history.open"] [role="menuitemcheckbox"] [aria-checked="false"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Version history"
           span .kbd "⌥⌘H"
-      div .st-pm-li [role="none"]
-        button .st-pm-row [data-testid="project-menu-row-share.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
-          span .st-pm-ic [aria-hidden="true"]
-          span .st-pm-lab "Share…"
-      div .st-pm-li [role="none"]
-        button .st-pm-row [data-testid="project-menu-row-export.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
-          span .st-pm-ic [aria-hidden="true"]
-          span .st-pm-lab "Export…"
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-share.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Share…"
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-export.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Export…"
           span .kbd "⇧⌘E"
-      hr .st-pm-sep
-      div .st-pm-li [role="none"]
-        button .st-pm-row [data-testid="project-menu-row-sub-diagnostics"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
-          span .st-pm-ic [aria-hidden="true"]
-          span .st-pm-lab "Diagnostics"
-          span .st-pm-ch [aria-hidden="true"]
+      hr .sh-pm-sep
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-sub-diagnostics"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Diagnostics"
+          span .sh-pm-ch [aria-hidden="true"]
             svg [aria-hidden="true"]
-      div .st-pm-li [role="none"]
-        button .st-pm-row [data-testid="project-menu-row-settings.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
-          span .st-pm-ic [aria-hidden="true"]
-          span .st-pm-lab "Settings…"
+      div .sh-pm-li [role="none"]
+        button .sh-pm-row [data-testid="project-menu-row-settings.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
+          span .sh-pm-ic [aria-hidden="true"]
+          span .sh-pm-lab "Settings…"
           span .kbd "⌘,"

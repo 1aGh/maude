@@ -41,7 +41,7 @@ export const EXPORT_BUTTONS = Object.freeze([
 function Group({ title, children }) {
   return (
     <>
-      <p className="st-inspect-g">{title}</p>
+      <p className="sh-inspect-g">{title}</p>
       {children}
     </>
   );
@@ -51,9 +51,9 @@ function ValueRow({ k, v, swatch }) {
   return (
     <div className="insp-arow">
       <span className="insp-ak">{k}</span>
-      <span className="insp-av st-inspect-v">
+      <span className="insp-av sh-inspect-v">
         {swatch ? (
-          <span className="st-inspect-sw" style={{ background: swatch }} aria-hidden="true" />
+          <span className="sh-inspect-sw" style={{ background: swatch }} aria-hidden="true" />
         ) : null}
         {v}
       </span>
@@ -121,7 +121,7 @@ export function InspectPanel({
 
   return (
     <aside
-      className="island island--pad st-inspect"
+      className="island island--pad sh-inspect"
       style={style}
       aria-label="Inspect"
       data-testid="inspect-panel"
@@ -150,7 +150,7 @@ export function InspectPanel({
       ) : null}
 
       <Group title="Export">
-        <div className="st-inspect-ex">
+        <div className="sh-inspect-ex">
           {EXPORT_BUTTONS.map((b) => (
             <button
               key={b.id}
@@ -166,7 +166,7 @@ export function InspectPanel({
       </Group>
 
       {canCode || canEdit ? (
-        <div className="st-inspect-acts">
+        <div className="sh-inspect-acts">
           {canCode ? (
             <button
               type="button"
@@ -192,7 +192,7 @@ export function InspectPanel({
         </div>
       ) : null}
       {note ? (
-        <p className="insp-err st-inspect-note" role="alert" data-testid="inspect-copy-code-note">
+        <p className="insp-err sh-inspect-note" role="alert" data-testid="inspect-copy-code-note">
           {note}
         </p>
       ) : null}
@@ -201,9 +201,9 @@ export function InspectPanel({
         <AdvancedFold panel="inspect" hint="CSS" testid="inspect-advanced">
           <div className="insp-csslist">
             {rows.css.map(([k, v]) => (
-              <div className="st-inspect-css" key={k}>
-                <span className="insp-mono st-inspect-ck">{k}</span>
-                <span className="insp-mono st-inspect-cv">{v}</span>
+              <div className="sh-inspect-css" key={k}>
+                <span className="insp-mono sh-inspect-ck">{k}</span>
+                <span className="insp-mono sh-inspect-cv">{v}</span>
               </div>
             ))}
           </div>

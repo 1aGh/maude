@@ -9,7 +9,7 @@ const css = (rel: string) => readFileSync(join(V2, rel), 'utf8');
 describe('06 ad-diag ③: a menu row that carries a value keeps its label whole', () => {
   test('the label does not shrink to an ellipsis beside a status value ("Project folder", not "Project fo…")', () => {
     const src = css('diagnostics/diagnostics.css');
-    const rule = /\.st-pm-row:has\(\.st-pm-status\) \.st-pm-lab\s*\{([^}]*)\}/.exec(src);
+    const rule = /\.sh-pm-row:has\(\.sh-pm-status\) \.sh-pm-lab\s*\{([^}]*)\}/.exec(src);
     expect(rule).not.toBeNull();
     expect(rule?.[1]).toMatch(/flex:\s*0 0 auto/);
     expect(rule?.[1]).toMatch(/overflow:\s*visible/);
