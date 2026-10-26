@@ -183,8 +183,25 @@ export function createHmrBroadcaster(
   // the Design system board draws the system's working files through a model built INTO its module
   // (ds/ds-resolver.ts boardDeps): a swapped stylesheet link or a head.json write changes nothing on it
   // until the board itself remounts — an AI making the system while it is open would watch outlines.
+  // `dsPending` (the waiting changes the board's bar counts) sits in the board's own meta beside its layout: a meta
+  // write remounts the board only when that part moved, so dragging an artboard stays a light `meta` echo.
+  const pendingSeen = new Map<string, string>();
   function queueBoard(normalized: string) {
-    const board = boardCanvasOf(normalized);
+    let board = boardCanvasOf(normalized);
+    const meta = BOARD_META_RE.exec(normalized);
+    if (meta && ctx.paths?.designRoot) {
+      let text: string | null = null;
+      try {
+        text = readFileSync(path.join(ctx.paths.designRoot, normalized), 'utf8');
+      } catch {
+        // gone: its pending is gone with it
+      }
+      const key = boardPendingKey(text);
+      if (key === '?' || pendingSeen.get(normalized) === key) return;
+      pendingSeen.set(normalized, key);
+      if (pendingSeen.size > 64) pendingSeen.delete(pendingSeen.keys().next().value as string);
+      board = `${meta[1]}/design-system.tsx`;
+    }
     if (board && ctx.paths?.designRoot && existsSync(path.join(ctx.paths.designRoot, board)))
       enqueue({
         type: 'canvas-hmr',
@@ -240,6 +257,18 @@ export const HMR_DEBOUNCE_MS = DEBOUNCE_MS;
 
 const BOARD_DEP_RE =
   /^(system\/[^/]+)\/(?:colors_and_type\.css|tokens\.json|components\.json|preview\/_components\.css|revisions\/head\.json)$/;
+
+const BOARD_META_RE = /^(system\/[^/]+)\/design-system\.meta\.json$/;
+
+/** The part of a Design system canvas's meta its board draws (`dsPending`), as a comparable key. */
+export function boardPendingKey(metaText: string | null): string {
+  if (metaText == null) return 'null';
+  try {
+    return JSON.stringify((JSON.parse(metaText) as { dsPending?: unknown })?.dsPending ?? null);
+  } catch {
+    return '?'; // half-written: the next write settles it
+  }
+}
 
 /** The Design system canvas whose model a working-file change under `system/<ds>/` changes (null = none). */
 export function boardCanvasOf(rel: string): string | null {

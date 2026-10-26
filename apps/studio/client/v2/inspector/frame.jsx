@@ -199,6 +199,8 @@ export function InspectorFrame({
     canvasFile,
     cfg,
     editable: !!el.id && !readOnly,
+    // the access alone, for a kind whose writes are not element edits (a ds direction's pick, direction-bar.jsx)
+    readOnly: !!readOnly,
     // V2-8.5 c6 (14 ed-obj-enter): "In Services · Set by Services · 2 of 3"
     placement: placementOf(layersTree, Array.isArray(selected) ? null : el),
     // 14 ed-lay-free: the object's own name, for the sentence "Post places things freely … keep Datum 64 from …"

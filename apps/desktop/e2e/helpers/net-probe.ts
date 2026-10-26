@@ -10,7 +10,7 @@ import { capture } from './evidence';
 export async function installNetProbe(): Promise<void> {
   await browser.execute(() => {
     const w = window as unknown as {
-      __netProbe?: { m: string; u: string; s: number; b: string }[];
+      __netProbe?: { m: string; u: string; s: number; b: string; q?: string }[];
       __netProbeOn?: boolean;
     };
     if (w.__netProbeOn) return;
@@ -34,6 +34,8 @@ export async function installNetProbe(): Promise<void> {
               u: u.slice(0, 160),
               s: res.status,
               b: b.slice(0, 400),
+              // what was ASKED, for a write the studio refused (the params, e.g. a split's frame)
+              ...(typeof init?.body === 'string' ? { q: init.body.slice(0, 300) } : {}),
             });
           }
         } catch {
@@ -78,10 +80,10 @@ export async function withNetProbe<T>(step: () => Promise<T>, writesOnly = true)
 export async function netProbeLog(writesOnly = true): Promise<string> {
   const rows = (await browser.execute(
     () => (window as unknown as { __netProbe?: unknown[] }).__netProbe ?? []
-  )) as { m: string; u: string; s: number; b: string }[];
+  )) as { m: string; u: string; s: number; b: string; q?: string }[];
   return rows
     .filter((r) => !writesOnly || !r.m.endsWith('GET'))
-    .map((r) => `${r.m} ${r.u} -> ${r.s} ${r.b}`)
+    .map((r) => `${r.m} ${r.u}${r.q ? ` <- ${r.q}` : ''} -> ${r.s} ${r.b}`)
     .join('\n');
 }
 

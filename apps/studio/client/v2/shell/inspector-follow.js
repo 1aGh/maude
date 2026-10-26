@@ -23,6 +23,15 @@ export function isFollowable(sel) {
 /** A whole-artboard pick (its selector names the screen), as against an element inside it. */
 export const isArtboardSelection = (sel) => ARTBOARD_SELECTOR.test(sel?.selector || '');
 
+// A design-system direction (`ds-dir-a`…, S10.16b): picking it IS the system's choice. Board 13 · ds-make-mix draws
+// the chat open (scope "Direction A") with the pick bar "Use A · Mix with…" — the bar is an Inspector kind
+// (client/v2/ds/direction-bar.jsx), and making a system always runs with the chat open.
+const DIRECTION_SELECTOR = /^\[data-dc-screen="ds-dir-[a-z]{1,8}"\]$/;
+
+/** A whole-artboard pick that, with the chat open, is the ask's scope (board 03) — every artboard but a direction. */
+export const isAskScopePick = (sel) =>
+  isArtboardSelection(sel) && !DIRECTION_SELECTOR.test(sel?.selector || '');
+
 /**
  * `askingAi` (P8 c6, board 03): the AI chat is open and the pick is a WHOLE artboard. That pick is the ask's
  * scope ("Post 1:1" on the chip), not an edit, and every board-03 frame shows it with the chat and no Inspector.
