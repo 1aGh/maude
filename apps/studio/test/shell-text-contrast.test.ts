@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { contrastRatio } from '../draw/palette';
-import { shellColor } from './fixtures/shell-palette';
 import { shellCss } from './_shell-css';
+import { shellColor } from './fixtures/shell-palette';
 
 const shell = shellCss();
 const leftPanel = readFileSync(

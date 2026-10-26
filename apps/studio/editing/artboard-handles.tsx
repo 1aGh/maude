@@ -31,8 +31,8 @@ import {
   sizeText,
 } from './artboard-resize.ts';
 import { runEditOp } from './edit-op.ts';
-import { videoLabelTail } from './video-label.ts';
 import { PresetRuler, type RulerHud, type ScreenRect } from './preset-ruler.tsx';
+import { videoLabelTail } from './video-label.ts';
 
 /** The two attributes a size on paper is read from (`kind`, `print`), off the artboard's frame. */
 const attrsOf = (el: HTMLElement) => ({

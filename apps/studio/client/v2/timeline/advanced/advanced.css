@@ -185,7 +185,6 @@
     border-radius: var(--radius-sm);
     background: var(--bg-3);
     color: var(--fg-0);
-    font-size: var(--type-xs);
     white-space: nowrap;
     transition: background var(--dur-soft) var(--ease-out);
   }

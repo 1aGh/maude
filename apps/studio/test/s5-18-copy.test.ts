@@ -113,8 +113,8 @@ describe('metaWithCopy — the place', () => {
       { layout: { artboards: LAYOUT } },
       { source: SOURCE, artboardId: 'P', copyId: 'P-copy-abc123', label: 'l' }
     );
-    const placed = (next?.layout as { artboards: Array<{ id: string; x: number; y: number }> })
-      .artboards;
+    const layout = next?.layout as { artboards: Array<{ id: string; x: number; y: number }> };
+    const placed = layout.artboards;
     const me = placed.find((e) => e.id === 'P-copy-abc123');
     expect(me).toBeDefined();
     const rects = artboardRects(SOURCE, placed);

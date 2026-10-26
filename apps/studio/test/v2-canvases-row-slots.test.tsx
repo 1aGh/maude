@@ -449,7 +449,8 @@ describe('the Canvases panel reads the slots', () => {
     expect(ghost?.querySelector('.cv-names > .cv-sub--slot')?.textContent).toContain('open here');
     expect(ghost?.closest('.cv-row')?.classList.contains('is-sel')).toBe(true);
     expect(ghost?.closest('[role="treeitem"]')?.getAttribute('aria-selected')).toBe('true');
-    expect((ghost?.closest('[role="treeitem"]') as HTMLElement).style.height).toBe('42px');
+    const ghostItem = ghost?.closest('[role="treeitem"]') as HTMLElement;
+    expect(ghostItem.style.height).toBe('42px');
     expect(q(host, 'canvases-foot')).toBeNull(); // not counted: and no foot at rest to count it in
     await act(async () => {
       ghost?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));

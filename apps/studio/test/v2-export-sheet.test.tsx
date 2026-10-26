@@ -829,7 +829,8 @@ describe('P8-C4: the sheet anatomy (09 ex-social)', () => {
       await tick(10);
     });
     await click('[data-testid="export-submit"]');
-    expect((posts()[0].body?.spec?.options as { saveTo?: string }).saveTo).toBe('ask');
+    const sent = posts()[0].body?.spec?.options as { saveTo?: string };
+    expect(sent.saveTo).toBe('ask');
   });
 
   test('a folder is named by its own name and counts canvases; the project says what is in it', async () => {

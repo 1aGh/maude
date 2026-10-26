@@ -1,5 +1,6 @@
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+
 const root = process.argv[2];
 const ui = join(root, '.design/ui');
 rmSync(ui, { recursive: true, force: true });

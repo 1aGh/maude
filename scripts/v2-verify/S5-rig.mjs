@@ -8,6 +8,7 @@
 // Env: S5V_PROJ (scratch project root), S5V_WT (this worktree, for cli/bin/maude.mjs), VERIFY_PRE=1 (also run the pre-edit hook half).
 import { Readable, Writable } from 'node:stream';
 import * as acp from '/Users/iagh/git/personal/maude/apps/studio/node_modules/@agentclientprotocol/sdk/dist/acp.js';
+
 const stream = acp.ndJsonStream(Writable.toWeb(process.stdout), Readable.toWeb(process.stdin));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let n = 0;

@@ -36,15 +36,15 @@ import { applyCaptions, captionsPatch } from './captions.ts';
 import { applyCutSourceRange } from './cut-source-range.ts';
 import { applyCutToBeat } from './cut-to-beat.ts';
 import { applyDuck, applyMusicVolume, duckPatch } from './duck.ts';
-import { applyFormatAdd, applyFormatUnlink } from './formats.ts';
 import { applyEasing, easingPatch } from './easing.ts';
+import { applyFormatAdd, applyFormatUnlink } from './formats.ts';
 import { CLIP_GESTURE_OPS } from './gestures.ts';
 import { applyPlace, placePatch } from './place.ts';
 import { applyReframe, reframePatch } from './reframe.ts';
 import { applyTakeSwap } from './take-swap.ts';
-import { applyTrack, trackPatch } from './track.ts';
 import { applyTitleMotion, titleMotionPatch } from './title-motion.ts';
 import { applyTitleStyle, titleStylePatch } from './title-style.ts';
+import { applyTrack, trackPatch } from './track.ts';
 
 export interface ClipTarget {
   /** designRoot-relative canvas (the appliers use it for messages + the parser's file name) */

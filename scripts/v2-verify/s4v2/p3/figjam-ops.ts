@@ -1,5 +1,6 @@
 // Offline FigJam fixture -> board ops (the engine's own mapping, no network, never calls Figma).
 import { writeFileSync } from 'node:fs';
+
 const W = '/Users/iagh/git/personal/maude/.claude/worktrees/agent-ada3048713dd57bcb/apps/studio';
 const { strokesIntoOps } = await import(`${W}/figma/into-board.ts`);
 const { toStrokes } = await import(`${W}/figma/to-strokes.ts`);

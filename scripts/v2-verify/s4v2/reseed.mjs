@@ -1,6 +1,7 @@
 // reseed.mjs [seedfile]  — rig reset + wipe board + annotate seed (default seed1.json)
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
+
 const WT = '/Users/iagh/git/personal/maude/.claude/worktrees/agent-af2a233f610c7fca6';
 const SC = '/private/tmp/claude-501/sc';
 const run = (c) => execSync(c, { cwd: WT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });

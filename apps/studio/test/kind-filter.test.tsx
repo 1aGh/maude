@@ -1,11 +1,11 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 // S7.24 — the kind filter chips (08 · ak-mixed-filter, 05 · es-filter). Pinned here: the counts come from the
 // index's artboard kinds and a canvas counts ONCE per kind it has; the chip words and accessible names; the
 // shared store (one filter for Canvases and Layers); the Canvases list under a filter (flat hits with their folder
 // and "N of M" artboards, the Pinned head and the project row step aside, a search narrows within the filter);
 // the foot sentence; a filter that hides everything says which one and clears in one click (the kit's block).
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';

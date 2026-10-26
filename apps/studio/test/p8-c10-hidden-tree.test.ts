@@ -5,8 +5,8 @@ import { supportIcon, supportIndex } from '../client/v2/canvases/support-model.j
 import {
   buildTree,
   navigate,
-  rowHeight,
   ROW_H,
+  rowHeight,
   visibleRows,
 } from '../client/v2/canvases/tree-model.js';
 

@@ -200,7 +200,6 @@ describe('a booted, hub-linked desktop (the real gate)', () => {
         'content-type': 'application/json',
         'sec-fetch-site': 'same-origin',
         origin: base,
-        'sec-fetch-site': 'same-origin',
       },
       body: JSON.stringify(body),
     });

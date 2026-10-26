@@ -22,7 +22,7 @@
 import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { parseSync } from 'oxc-parser';
-
+import { registerVideoDeps } from '../access/closure.ts';
 import { jsxElements, literalProp, type Node, tagOf } from '../edit-ops/clip/jsx.ts';
 import {
   type CaptionFix,
@@ -32,7 +32,6 @@ import {
   compSpeech,
   compWords,
 } from './derive.ts';
-import { registerVideoDeps } from '../access/closure.ts';
 import { type CaptionWordFrames, DUCK_DEFAULTS, msToFrames } from './framing.ts';
 import { readTranscript, sidecarRelFor, TRANSCRIPT_MAX_BYTES, type Transcript } from './schema.ts';
 

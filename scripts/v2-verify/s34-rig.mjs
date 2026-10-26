@@ -136,6 +136,7 @@ if (cmd === 'setup') {
   };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const fs = await import('node:fs');
+  // biome-ignore lint/security/noGlobalEval: local verify rig — compiles our own committed probe file into an async fn
   const fn = eval(
     `(async (page, frame, shot, sleep, ctx, fs) => {${PRELUDE}\n${readFileSync(a, 'utf8')}\n})`
   );

@@ -12,9 +12,9 @@ import type { ElementDef } from '../types.ts';
 import {
   BOX_FIELDS,
   boxOf,
+  isoTimeField,
   ROT_FIELD,
   resizeBox,
-  isoTimeField,
   resolvedField,
   solidBoxHit,
   textStyleFields,

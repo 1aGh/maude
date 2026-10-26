@@ -65,10 +65,10 @@ import {
   IconArrowNone,
   IconBold,
   IconChevronDown,
+  IconComment,
   IconDash,
   IconDistributeH,
   IconDistributeV,
-  IconComment,
   IconDuplicate,
   IconFlip,
   IconGroup,
@@ -1970,6 +1970,7 @@ function ToolbarMore({
       {open ? (
         <div className="dc-annot-ctx-menu dc-annot-ctx-menu--words" role="menu" aria-label="More">
           {items.map((it) => (
+            // biome-ignore lint/a11y/useAriaPropsSupportedByRole: aria-checked is set only when the role is menuitemcheckbox
             <button
               key={it.key}
               type="button"

@@ -1,9 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, $$, expect } from '@wdio/globals';
+import { waitForCanvasOpened } from '../helpers/canvas-frame';
 import { openInspector } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
-import { waitForCanvasOpened } from '../helpers/canvas-frame';
 import { waitForSidecar } from '../helpers/sidecar';
 import { dsRow } from '../helpers/tree';
 

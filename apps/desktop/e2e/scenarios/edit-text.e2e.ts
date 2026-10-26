@@ -94,9 +94,10 @@ async function typeAndCommit(text: string): Promise<void> {
 const commit = () =>
   browser.execute(() => {
     const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
-    (
-      frame.contentDocument?.querySelector('[contenteditable].dc-text-editing') as HTMLElement
-    ).blur();
+    const editing = frame.contentDocument?.querySelector(
+      '[contenteditable].dc-text-editing'
+    ) as HTMLElement | null;
+    editing?.blur();
   });
 
 describe('text in place, styles and the Czech ties (S2.12)', () => {

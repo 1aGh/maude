@@ -1,9 +1,8 @@
 // P8 C8 (07 · ve-export, 09 · ex-video) — the footer names the lane the Render row PICKED.
 
 import { describe, expect, test } from 'bun:test';
-
-import { estimateForLane, summaryWords } from '../client/v2/export/export-copy.js';
 import { renderChoice } from '../client/export-lane.js';
+import { estimateForLane, summaryWords } from '../client/v2/export/export-copy.js';
 
 const est = { files: 1, bytes: 12_000_000, seconds: 45, lane: 'this-mac' };
 const render = (picked: string | null) =>
