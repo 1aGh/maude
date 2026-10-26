@@ -319,7 +319,14 @@ function suite(mode: HubMode) {
             expect(readFileSync(incoming, 'utf8')).toBe(h as string);
           }
         } else if (rows[0].disk !== rows[1].disk) {
+          // V2-8.17 (#121): the peer that holds the conflict kept its own text
+          // and saved the project's version — the other peer's disk — beside it.
           expect(rows.some((r) => r.held)).toBe(true);
+          for (const r of rows.filter((x) => x.held)) {
+            const other = rows.find((x) => x !== r);
+            const incoming = join(r.p.ctx.paths.historyDir, slug, 'sync-recovery', 'incoming.tsx');
+            expect(readFileSync(incoming, 'utf8')).toBe(other?.disk as string);
+          }
         }
         const titleOf = (s: string) => /title="([^"]*)"/.exec(s)?.[1] ?? s;
         const world = [h ?? '', ...rows.map((r) => r.disk ?? '')].join('\n');
@@ -362,29 +369,24 @@ function suite(mode: HubMode) {
         });
       }, 120_000);
 
-      // Legacy (the shared Y.Text, DDR-064) merges two concurrent full-file
-      // edits of the same span character by character — both peers converge on
-      // an interleaving of the two titles with no notice. Known: ticket #121
-      // (RCA 2026-09-11, "concurrent full-file edits can merge valid TSX into
-      // invalid source"); accepted revisions (DDR-241) are its answer. Pinned
-      // for transactions mode only.
-      test.skipIf(mode === 'legacy')(
-        'both edit while the hub is frozen',
-        async () => {
-          await settle('ui/s3.tsx', src('base 3'));
-          hub.proc.kill('SIGSTOP');
-          bob.write('ui/s3.tsx', src('designer frozen'));
-          await sleep(1_000);
-          alice.write('ui/s3.tsx', src('teammate frozen'));
-          await sleep(5_000);
-          hub.proc.kill('SIGCONT');
-          await expectNoSilentLoss('ui/s3.tsx', {
-            bob: src('designer frozen'),
-            alice: src('teammate frozen'),
-          });
-        },
-        120_000
-      );
+      // Legacy (the shared Y.Text, DDR-064) used to merge two concurrent
+      // full-file edits of the same span character by character — both peers
+      // converged on an interleaving of the two titles with no notice (#121).
+      // V2-8.17: the peer whose edit the hub took second detects the overlap
+      // on reconnect, keeps its own text, and surfaces the conflict.
+      test('both edit while the hub is frozen', async () => {
+        await settle('ui/s3.tsx', src('base 3'));
+        hub.proc.kill('SIGSTOP');
+        bob.write('ui/s3.tsx', src('designer frozen'));
+        await sleep(1_000);
+        alice.write('ui/s3.tsx', src('teammate frozen'));
+        await sleep(5_000);
+        hub.proc.kill('SIGCONT');
+        await expectNoSilentLoss('ui/s3.tsx', {
+          bob: src('designer frozen'),
+          alice: src('teammate frozen'),
+        });
+      }, 120_000);
     }
   );
 }
