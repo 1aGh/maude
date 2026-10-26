@@ -318,22 +318,20 @@ describe('a link turned off: the viewer is a plain browser on the cell door', ()
   // (studio-proxy.mjs `canvasTokenFor`: `if (canvasOnly) return null`, decision S3.7c), so its frame carries
   // no `t=` and the canvas door answers 401 "this canvas link has expired". A Can view link opened in a
   // browser shows the shell and no canvas. Left red as a todo until the lead decides the capability shape.
-  it(
-    'the viewer sees the canvas through the cell’s canvas door',
-    { todo: 'a canvas-only session gets no canvas capability on a cell (finding)' },
-    async () => {
-      try {
-        await page
-          .frameLocator('[data-testid="canvas-frame"]')
-          .locator('h1')
-          .first()
-          .waitFor({ timeout: 20_000 });
-      } catch (e) {
-        await evidence('viewer-canvas-red');
-        throw e;
-      }
+  it('the viewer sees the canvas through the cell’s canvas door', {
+    todo: 'a canvas-only session gets no canvas capability on a cell (finding)',
+  }, async () => {
+    try {
+      await page
+        .frameLocator('[data-testid="canvas-frame"]')
+        .locator('h1')
+        .first()
+        .waitFor({ timeout: 20_000 });
+    } catch (e) {
+      await evidence('viewer-canvas-red');
+      throw e;
     }
-  );
+  });
 
   it('the owner turns the link off: the next request is refused link-off and the shell shows the link card', async () => {
     const off = await hub(`/api/access/links/${link.id}`, {

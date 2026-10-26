@@ -489,7 +489,11 @@ export async function standUp(opts = {}) {
     function seedProject(root, { canvas, withPrivate = false, linked = true }) {
       const design = join(root, '.design');
       mkdirSync(join(design, 'ui'), { recursive: true });
-      const config = { ...baseConfig, name: PROJECT_NAME, ...(linked ? { linkedHub: linkedHub() } : {}) };
+      const config = {
+        ...baseConfig,
+        name: PROJECT_NAME,
+        ...(linked ? { linkedHub: linkedHub() } : {}),
+      };
       writeFileSync(join(design, 'config.json'), `${JSON.stringify(config, null, 2)}\n`);
       if (canvas) {
         cpSync(join(fixture, 'ui/Smoke.tsx'), join(design, 'ui/Smoke.tsx'));
@@ -668,7 +672,9 @@ export async function standUp(opts = {}) {
         );
         proc.on('exit', (code) => {
           clearTimeout(timer);
-          fail(new Error(`the viewer's cell exited (${code}) before it served: ${buf.slice(-600)}`));
+          fail(
+            new Error(`the viewer's cell exited (${code}) before it served: ${buf.slice(-600)}`)
+          );
         });
         proc.stdout.on('data', (c) => {
           writeSync(cellLog, c);
@@ -754,7 +760,9 @@ export async function standUp(opts = {}) {
       for (let hop = 0; hop < 5; hop++) {
         if (at.hostname === cellHost) {
           if (at.pathname !== '/auth/browser' || !at.searchParams.get('code'))
-            throw new Error(`the control plane sent the viewer to ${at.pathname}, not a sign-in code`);
+            throw new Error(
+              `the control plane sent the viewer to ${at.pathname}, not a sign-in code`
+            );
           return `${cell.public}${at.pathname}${at.search}`;
         }
         if (at.origin !== cpUrl) throw new Error(`the link led off the rig (${at.origin})`);
