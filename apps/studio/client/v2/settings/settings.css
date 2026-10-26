@@ -4,6 +4,352 @@
  * (V2-4.3 hit a collision on `.sh-share-btn`). Tokens are the shell's (maude-v2 since P8 C0).
  * The inner cards (provider keys, engines, theme radios) keep their own `st-*` look from 3-shell-maude.css. */
 
+/* ── V2-8.0: rules moved here from the retired styles/ layer files, in their original order and ahead of this file's own rules, so the cascade is unchanged. ── */
+
+/* from styles/3-shell-maude.css */
+@layer shell {
+  /* The scrolling pane — this is the fix for the AI-generation section overflowing
+ * the viewport; the pane scrolls, the page never does. */
+  .v2s-pref-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    justify-content: space-between;
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--border-subtle);
+    cursor: pointer;
+  }
+
+  .v2s-pref-row:last-child {
+    border-bottom: 0;
+  }
+
+  .v2s-pref-row.is-disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+
+  .v2s-pref-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .v2s-pref-label {
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+    font-weight: 500;
+  }
+
+  .v2s-pref-note {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    line-height: 1.45;
+  }
+
+  /* .v2s-switch: the DS switch — 3-kit-maude-v2.css "Switch" (Phase 8 C1-kit: one switch, not four). */
+  /* Layout tab — left/right segmented control per panel. */
+  .v2s-sidetoggle {
+    display: inline-flex;
+    flex: none;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+
+  .v2s-sidebtn {
+    appearance: none;
+    border: 0;
+    background: var(--bg-2);
+    color: var(--fg-2);
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    padding: 2px var(--space-2);
+    min-width: 46px;
+    transition:
+      background var(--dur-soft) var(--ease-out),
+      color var(--dur-soft) var(--ease-out);
+  }
+
+  .v2s-sidebtn + .v2s-sidebtn {
+    border-left: 1px solid var(--border-default);
+  }
+
+  .v2s-sidebtn:hover:not(:disabled) {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+
+  .v2s-sidebtn.is-active {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+
+  .v2s-sidebtn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .v2s-sidebtn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  /* First-upgrade sync consent (feature-before-first-external-users Task 2) —
+   rides the shared .sh-scrim/.sh-dialog shell. */
+  .v2s-consent .sh-dialog-bd {
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    line-height: var(--lh-base);
+  }
+
+  .v2s-consent .sh-dialog-bd p {
+    margin: 0 0 var(--space-1);
+  }
+
+  .v2s-consent-list {
+    margin: 0 0 var(--space-1);
+    padding-left: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .v2s-consent-fine {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  .v2s-consent-note {
+    font-size: var(--type-xs);
+    color: var(--status-error);
+  }
+
+  .v2s-consent .sh-dialog-ft {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-1);
+  }
+}
+
+/* from styles/4-components.css */
+@layer components {
+  /* ── Settings — AI generation (feature-ai-media-generation, DDR-16x) ─────── */
+  .v2s-provider-card {
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+
+  .v2s-provider-hd {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .v2s-provider-name {
+    font-family: var(--font-mono);
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-1);
+    font-weight: 600;
+  }
+
+  .v2s-provider-card .sh-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--fg-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-pill, 999px);
+    padding: 1px 7px;
+  }
+
+  .v2s-provider-card .sh-pill.is-local {
+    color: var(--accent);
+    border-color: var(--accent-muted, var(--accent));
+  }
+
+  .v2s-provider-configured {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--accent);
+  }
+
+  .v2s-provider-modalities {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-2);
+    margin-top: 4px;
+  }
+
+  .v2s-provider-notes {
+    font-size: 11px;
+    color: var(--fg-2);
+    line-height: 1.5;
+    margin-top: 6px;
+  }
+
+  /* Scout setup (feature-scene-aware-keyframes) — the shortest path as numbered
+   steps; every alternative route folds behind one disclosure so the default
+   view is two commands, not seven. */
+  .v2s-setup {
+    margin-top: 8px;
+  }
+
+  .v2s-step {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin-top: 8px;
+  }
+
+  .v2s-step-n {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid var(--border-subtle);
+    color: var(--fg-2);
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
+  }
+
+  .v2s-step.is-done .v2s-step-n {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .v2s-step-body {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .v2s-step-title {
+    display: block;
+    font-size: 11px;
+    color: var(--fg-1);
+  }
+
+  .v2s-step.is-done .v2s-step-title {
+    color: var(--fg-2);
+  }
+
+  .v2s-setup-more {
+    margin-top: 10px;
+  }
+
+  .v2s-setup-more > summary {
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--fg-2);
+  }
+
+  .v2s-setup-more > summary:hover {
+    color: var(--fg-1);
+  }
+
+  .v2s-setup-option {
+    display: block;
+    margin-top: 8px;
+  }
+
+  .v2s-setup-option-label {
+    display: block;
+    font-size: 11px;
+    color: var(--fg-2);
+  }
+
+  .v2s-provider-keylink {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--accent);
+    text-decoration: none;
+    margin-top: 6px;
+  }
+
+  .v2s-provider-keylink:hover {
+    text-decoration: underline;
+  }
+
+  .v2s-provider-keyrow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .v2s-provider-keyinput {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .v2s-provider-status {
+    font-size: 11px;
+    margin-top: 6px;
+  }
+
+  /* ── Transcription-engine selector (Task 2.6) ───────────────────────────── */
+  .v2s-engine-radios {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .v2s-engine-radio {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 9px 11px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-1);
+    cursor: pointer;
+  }
+
+  .v2s-engine-radio.is-selected {
+    border-color: var(--accent);
+    background: var(--bg-2);
+  }
+
+  .v2s-engine-radio input {
+    margin-top: 2px;
+    accent-color: var(--accent);
+  }
+
+  .v2s-engine-radio-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .v2s-engine-radio-label {
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-1);
+    font-weight: 600;
+  }
+
+  .v2s-engine-radio-note {
+    font-size: 11px;
+    color: var(--fg-2);
+  }
+}
+
+/* ── end of the moved rules ── */
+
 @layer shell {
   .v2s-scrim {
     position: fixed;

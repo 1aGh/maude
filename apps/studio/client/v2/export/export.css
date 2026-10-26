@@ -4,6 +4,139 @@
  * the sheet's entrance runs on --dur-panel, which collapses to 1 ms under prefers-reduced-motion. The
  * kit's `.seg` / `.k-seg-b` / `.k-dialog` are canvas-only, so their look is rebuilt here from the tokens. */
 
+/* ── V2-8.0: rules moved here from the retired styles/ layer files, in their original order and ahead of this file's own rules, so the cascade is unchanged. ── */
+
+/* from styles/3-shell-maude.css */
+@layer shell {
+  .ex-export-recent {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 132px;
+    overflow-y: auto;
+  }
+
+  .ex-export-recent-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  .ex-export-recent-row:hover {
+    background: var(--bg-2);
+  }
+
+  .ex-export-recent-row .sh-mono {
+    color: var(--fg-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 50%;
+  }
+}
+
+/* from styles/4-components.css */
+@layer components {
+  /* ───────── Export notification center — feature-background-export-notification-center ─────────
+   Panel shell reuses .help-modal-backdrop (above); list/item/progress are new
+   — no prior job-row or progress-bar component existed in the client. */
+  .ex-export-item__error {
+    color: var(--status-error);
+    font-size: 12px;
+  }
+
+  /* A degraded export is `done` but not clean — it must never read as success.
+   Overrides --done, so declaration order matters. */
+  .ex-export-degraded {
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--status-warn, var(--accent));
+    padding: 6px 8px;
+    border-radius: var(--radius-sm, 6px);
+    background: color-mix(in oklab, var(--status-warn, var(--accent)) 10%, transparent);
+  }
+
+  .ex-export-degraded__fix {
+    margin-top: 4px;
+    color: var(--fg-2);
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
+
+  .ex-export-progress {
+    position: relative;
+    height: 4px;
+    border-radius: var(--radius-pill, 999px);
+    background: var(--bg-3);
+    overflow: hidden;
+  }
+
+  .ex-export-progress-bar {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.2s ease-out;
+  }
+
+  .ex-export-progress--indeterminate::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 40%;
+    background: var(--accent);
+    border-radius: var(--radius-pill, 999px);
+    animation: ex-export-indeterminate 1.2s ease-in-out infinite;
+  }
+
+  @keyframes ex-export-indeterminate {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(350%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ex-export-progress--indeterminate::after {
+      animation-duration: 1ms;
+    }
+  }
+
+  .maude-notice .ex-export-progress {
+    margin-top: 2px;
+  }
+
+  /* Seed progress (feature-large-project-seed).
+   A bar rather than a number alone: a large project's seed is minutes to hours
+   of work, and "1 412" reads the same whether it is a quarter done or finished.
+   Track and fill use existing tokens — no new colours enter the system here. */
+  /* Issue #103: full export diagnostics are opt-in and stay inside the panel. */
+  .ex-export-item__error {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .ex-export-item__error summary {
+    cursor: pointer;
+  }
+
+  .ex-export-item__error pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-height: 320px;
+    overflow: auto;
+    font: inherit;
+  }
+}
+
+/* ── end of the moved rules ── */
+
 @layer shell {
   .ex-scrim {
     position: fixed;

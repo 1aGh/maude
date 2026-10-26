@@ -2,6 +2,46 @@
  * Canvas truth: 10 · co-comment-thread (`.co-cm*`). Namespaced `cmp-` — v1 owns `.st-comment*` and
  * `.sh-cm-*`, and a bare reuse collided before (V2-4.3). Tokens are the shell's, as floating-panels.css. */
 
+/* ── V2-8.0: rules moved here from the retired styles/ layer files, in their original order and ahead of this file's own rules, so the cascade is unchanged. ── */
+
+/* from styles/4-components.css */
+@layer components {
+  /* The shell-side comment bar was removed — the iframe overlay
+ * (apps/studio/comments-overlay.tsx) owns the composer + pin bubbles + thread
+ * popover, and the StatusBar's "comments N open" slot covers the open-count
+ * summary, so the standalone `.comment-bar` strip was redundant. */
+  /* Header — comments toggle button */
+  .actions .rs-toggle {
+    position: relative;
+  }
+
+  .actions .rs-toggle.active {
+    background: var(--accent-tint);
+    color: var(--accent);
+    border-color: var(--accent-hover);
+  }
+
+  /* Status bar — add comment button */
+  .add-comment {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent-hover);
+    border-radius: var(--radius-xs);
+    padding: 1px 8px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1.4;
+    cursor: pointer;
+  }
+
+  .add-comment:hover {
+    background: var(--accent-tint);
+    color: var(--accent);
+  }
+}
+
+/* ── end of the moved rules ── */
+
 @layer shell {
   .cmp {
     display: flex;

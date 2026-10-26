@@ -1,6 +1,523 @@
 /* client/v2/history/history.css — S1.14: Version history (11 · pn-history) and its Viewing bar.
  * Classes are `vh-*` (nothing reuses a bare v1 name); values are the shell's tokens. */
 
+/* ── V2-8.0: rules moved here from the retired styles/ layer files, in their original order and ahead of this file's own rules, so the cascade is unchanged. ── */
+
+/* from styles/3-shell-maude.css */
+@layer shell {
+  /* ── Phase 27 (E2) — DiffView: clean rendered before/after, SYNCED zoom/pan ────
+ * Ported from `.design/ui/DiffView.css`. Each pane renders a CLEAN canvas
+ * (hide-chrome: no toolbar/minimap/devtools) inside a zoom/pan viewport. Both
+ * panes share ONE view transform (locked): scroll to zoom, drag to pan, both
+ * track the same region. Header reuses the app brand (.sh-brand). */
+  /* The shared .sh-scrim top-anchors short dialogs (place-items:start center + 12vh
+ * pad). The DiffView sheet is tall (92vh), so top-anchoring overflows the bottom
+ * (12vh + 92vh > 100vh — the footer got cut off). Center it instead. */
+  .dv-scrim {
+    place-items: center;
+    padding-top: 0;
+  }
+
+  .dv-sheet {
+    width: min(1280px, 96vw);
+    height: min(900px, 92vh);
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-1);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+
+  .dv-hd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border-default);
+    flex: none;
+  }
+
+  .dv-hd .sh-brand {
+    padding-right: var(--space-2);
+    border-right: 1px solid var(--border-default);
+  }
+
+  .dv-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: var(--type-lg);
+    color: var(--fg-0);
+  }
+
+  .dv-file {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 2px var(--space-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    font-family: var(--font-mono);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+
+  .dv-spacer {
+    flex: 1;
+  }
+
+  .dv-close {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--fg-2);
+    cursor: pointer;
+    padding: var(--space-1);
+    border-radius: var(--radius-xs);
+    display: grid;
+    place-items: center;
+  }
+
+  .dv-close:hover {
+    color: var(--fg-0);
+    background: var(--bg-3);
+  }
+
+  /* segmented mode toggle (DS .seg) */
+  .dv-seg {
+    display: inline-flex;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: var(--bg-2);
+  }
+
+  .dv-seg-btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+    font-family: var(--font-mono);
+    padding: var(--space-1) var(--space-3);
+    cursor: pointer;
+  }
+
+  .dv-seg-btn[aria-pressed="true"] {
+    background: var(--bg-4);
+    color: var(--fg-0);
+  }
+
+  .dv-seg-btn + .dv-seg-btn {
+    border-left: 1px solid var(--border-subtle);
+  }
+
+  /* phase-27.1 — "Saved version" picker: pick which past version the before pane shows */
+  .dv-verpick {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .dv-verpick-lbl {
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+
+  .dv-verpick-sel {
+    appearance: none;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    color: var(--fg-0);
+    font-size: var(--type-xs);
+    font-family: var(--font-mono);
+    padding: var(--space-1) var(--space-4) var(--space-1) var(--space-2);
+    max-width: 22ch;
+    cursor: pointer;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--fg-2) 50%),
+      linear-gradient(135deg, var(--fg-2) 50%, transparent 50%);
+    background-position:
+      right 12px center,
+      right 7px center;
+    background-size:
+      5px 5px,
+      5px 5px;
+    background-repeat: no-repeat;
+  }
+
+  .dv-verpick-sel:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+    border-color: var(--accent);
+  }
+
+  .dv-stage {
+    padding: var(--space-3) var(--space-4) var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    flex: 1;
+    min-height: 0;
+  }
+
+  .dv-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+    align-items: stretch;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .dv-col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .dv-col-hd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    flex: none;
+  }
+
+  .dv-col-tag {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--fg-2);
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .dv-col-tag.is-after {
+    color: var(--accent);
+  }
+
+  .dv-col-who {
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+    margin-left: auto;
+  }
+
+  /* the rendered-canvas thumbnail = a zoom/pan viewport over a clean iframe */
+  .dv-thumb {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    background: var(--bg-0);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .dv-thumb.is-after {
+    border-color: var(--accent-muted);
+  }
+
+  .dv-thumb.ring-mine {
+    box-shadow: 0 0 0 2px var(--accent);
+    border-color: var(--accent);
+  }
+
+  .dv-thumb.ring-theirs {
+    box-shadow: 0 0 0 2px var(--status-info);
+    border-color: var(--status-info);
+  }
+
+  .dv-viewport {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .dv-viewport.is-panning {
+    cursor: grabbing;
+  }
+
+  .dv-frame-wrap {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform-origin: 0 0;
+    will-change: transform;
+  }
+
+  .dv-frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: var(--bg-0);
+    display: block;
+    pointer-events: none;
+  }
+
+  .dv-thumb-note {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: var(--space-3);
+    text-align: center;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    background: repeating-linear-gradient(
+      45deg,
+      var(--bg-1),
+      var(--bg-1) 8px,
+      var(--bg-2) 8px,
+      var(--bg-2) 16px
+    );
+  }
+
+  /* shared zoom toolbar — drives the locked view for both panes */
+  .dv-zoombar {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    align-self: center;
+    background: var(--bg-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-pill);
+    padding: 2px;
+    flex: none;
+  }
+
+  .dv-zoom-btn {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--fg-1);
+    cursor: pointer;
+    width: 26px;
+    height: 22px;
+    border-radius: var(--radius-pill);
+    font-size: var(--type-sm);
+    line-height: 1;
+    display: grid;
+    place-items: center;
+  }
+
+  .dv-zoom-btn:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+
+  .dv-zoom-val {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    min-width: 44px;
+    text-align: center;
+    cursor: pointer;
+    appearance: none;
+    border: none;
+    background: transparent;
+  }
+
+  .dv-zoom-val:hover {
+    color: var(--fg-0);
+  }
+
+  .dv-zoom-sync {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    padding-left: var(--space-1);
+    border-left: 1px solid var(--border-subtle);
+    margin-left: 2px;
+  }
+
+  /* overlay / slider compare (shares the locked view; frozen layers for the wipe) */
+  .dv-overlay {
+    --dv-split: 52%;
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 900px;
+    background: var(--bg-0);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .dv-overlay-layer {
+    position: absolute;
+    inset: 0;
+  }
+
+  .dv-overlay-after {
+    position: absolute;
+    inset: 0;
+    clip-path: inset(0 0 0 var(--dv-split));
+  }
+
+  .dv-split {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--dv-split);
+    width: 2px;
+    background: var(--accent);
+    z-index: 3;
+  }
+
+  .dv-split-handle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 26px;
+    height: 26px;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    color: var(--accent-fg);
+    display: grid;
+    place-items: center;
+    box-shadow: var(--shadow-md);
+    cursor: ew-resize;
+  }
+
+  .dv-split-handle:focus-visible {
+    outline: 2px solid var(--fg-0);
+    outline-offset: 2px;
+  }
+
+  .dv-overlay-tag {
+    position: absolute;
+    bottom: var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-sm);
+    background: color-mix(in oklab, var(--bg-0) 70%, transparent);
+    color: var(--fg-1);
+    z-index: 4;
+  }
+
+  .dv-overlay-tag.l {
+    left: var(--space-2);
+  }
+
+  .dv-overlay-tag.r {
+    right: var(--space-2);
+    color: var(--accent);
+  }
+
+  /* conflict picker */
+  .dv-pick-intro {
+    padding: var(--space-3) var(--space-5) 0;
+    flex: none;
+  }
+
+  .dv-picker {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-5) var(--space-1);
+    flex: none;
+  }
+
+  .dv-pick {
+    text-align: left;
+    appearance: none;
+    cursor: pointer;
+    background: var(--bg-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    color: var(--fg-1);
+  }
+
+  .dv-pick:hover {
+    border-color: var(--border-strong);
+    background: var(--bg-3);
+  }
+
+  .dv-pick.is-rec {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+    background: var(--accent-tint);
+  }
+
+  .dv-pick:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .dv-pick.is-rec .dv-pick-desc {
+    color: var(--fg-1);
+  }
+
+  .dv-pick-hd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .dv-pick-title {
+    font-weight: 600;
+    color: var(--fg-0);
+    font-size: var(--type-sm);
+  }
+
+  .dv-pick-rec {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--accent-fg);
+    background: var(--accent);
+    border-radius: var(--radius-pill);
+    padding: 1px var(--space-1);
+  }
+
+  .dv-pick-desc {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    line-height: var(--lh-xs);
+  }
+
+  /* footer */
+  .dv-ft {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-5);
+    border-top: 1px solid var(--border-default);
+    flex: none;
+  }
+
+  .dv-note {
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+    flex: 1;
+  }
+}
+
+/* ── end of the moved rules ── */
+
 @layer shell {
   .vh-panel {
     display: flex;

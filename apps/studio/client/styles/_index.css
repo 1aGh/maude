@@ -32,8 +32,6 @@
 @import url("./4-components.css");
 /* Plan B — maude DS shared component classes (.btn/.kbd/.callout), scoped under `.maude`. */
 @import url("./4-components-maude.css");
-/* Plan B — maude redesign of remaining legacy shell surfaces (HelpModal, tour, what's-new, SystemView, CommentBar). */
-@import url("./5-maude-overrides.css");
 /* V2-8.0 — Help (help modal, What's new + tour, Report a bug): its rules left the retired styles/ layer files; it keeps their slot. */
 @import url("../v2/help/help.css");
 /* Phase 31 (DDR-123) — ACP chat sidepanel (chat-* inside the Assistant sh-rpanel). */

@@ -3,6 +3,236 @@
  * Assets tab are `.lp-*`. Every class is namespaced `lp-` (V2-4.3 hit a v1 class collision — `.sh-share-btn`
  * — so nothing here reuses a bare v1 name). Tokens are the shell's (maude-v2 since P8 C0). */
 
+/* ── V2-8.0: rules moved here from the retired styles/ layer files, in their original order and ahead of this file's own rules, so the cascade is unchanged. ── */
+
+/* from styles/3-shell-maude.css */
+@layer shell {
+  .cv-sb-hd {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2) 0;
+  }
+
+  /* Visually hidden, not removed: the tab row above already says "Canvases". */
+  .cv-sb-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .cv-search {
+    padding: var(--space-2) var(--space-2) var(--space-1);
+  }
+
+  .cv-search-box {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    background: var(--bg-3);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    padding: var(--space-1) var(--space-2);
+    color: var(--fg-2);
+  }
+
+  .cv-search-box svg {
+    flex: none;
+  }
+
+  .cv-search-box input {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-0);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    width: 100%;
+    min-width: 0;
+  }
+
+  .cv-search-box input::placeholder {
+    color: var(--fg-2);
+  }
+
+  .cv-search-box .kbd {
+    margin-left: auto;
+  }
+
+  .cv-search-clear {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-2);
+    cursor: pointer;
+    margin-left: auto;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 2px;
+  }
+
+  .cv-search-clear:hover {
+    color: var(--fg-0);
+  }
+
+  /* New-board composer (Phase 22) — opens inline below the header on the + click. */
+  .cv-newboard {
+    display: flex;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .cv-newboard input {
+    flex: 1;
+    min-width: 0;
+    appearance: none;
+    background: var(--bg-3);
+    border: 1px solid var(--accent-muted);
+    border-radius: var(--radius-sm);
+    color: var(--fg-0);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .cv-newboard-go {
+    appearance: none;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--accent-fg);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    padding: 0 var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--type-sm);
+  }
+
+  .cv-newboard-go:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .cv-newboard-err {
+    padding: 2px var(--space-3) var(--space-1);
+    color: var(--status-error);
+    font-size: var(--type-xs);
+  }
+
+  /* DS-folder row — chevron toggles disclosure, name opens the system view. */
+  .cv-ds-folder {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0;
+  }
+
+  .cv-ds-folder.is-sel {
+    background: var(--accent-tint);
+    border-radius: var(--radius-xs);
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+
+  .cv-ds-chev {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    color: var(--fg-2);
+    display: inline-flex;
+    padding: var(--space-1) 0 var(--space-1) var(--space-1);
+  }
+
+  .cv-ds-open {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    color: var(--fg-1);
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    text-align: left;
+    padding: var(--space-1) var(--space-2) var(--space-1) 0;
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+  }
+
+  .cv-ds-folder.is-sel .cv-ds-open {
+    color: var(--fg-0);
+  }
+
+  /* DS input recipe (`_components.css` .input:focus) — accent hairline + 3px tint
+ * ring, never the default UA outline. */
+  .cv-search-box:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+    color: var(--fg-2);
+  }
+
+  .cv-search-box input:focus {
+    outline: none;
+  }
+
+  .cv-newboard input:focus,
+  .cv-newboard input:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
+
+  /* tree disclosure chevron — one glyph, rotated (animatable) */
+  .cv-chev {
+    transition: transform var(--dur-flip) var(--ease-out);
+  }
+
+  .cv-chev.is-open {
+    transform: rotate(90deg);
+  }
+
+  /* tree dirty badge — mirrors the activity-overlay badge style (DDR-075) */
+  .cv-git-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    margin-left: auto;
+    border-radius: var(--radius-xs);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+    color: oklch(0.11 0.012 260);
+    flex: none;
+  }
+
+  .cv-git-badge[data-kind="M"] {
+    background: var(--status-warn);
+  }
+
+  .cv-git-badge[data-kind="A"] {
+    background: var(--status-success);
+  }
+
+  .cv-git-badge[data-kind="D"] {
+    background: var(--status-error);
+  }
+
+  .cv-git-badge[data-kind="U"] {
+    background: transparent;
+    border: 1px dashed var(--border-strong);
+    color: var(--fg-2);
+  }
+}
+
+/* ── end of the moved rules ── */
+
 @layer shell {
   /* ── the panel's own header: Canvases · Layers · Assets, then Hide (V2-4.4b — was the dock's tab strip) ── */
   .lp-head {
