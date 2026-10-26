@@ -6,6 +6,7 @@ import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { dismissNotices } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { withNetProbe } from '../helpers/net-probe';
 import { pointerClick, pointerDown, pointerMove, pointerUp } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
@@ -131,10 +132,25 @@ describe('video-edit-basics — trim, split, the clip menu, drop', () => {
     // with ⇧→ × 3 = a second each, frame 90.
     for (let i = 0; i < 3; i++)
       await key({ key: 'ArrowRight', code: 'ArrowRight', shiftKey: true });
-    await key({ key: 's', code: 'KeyS' });
-    await browser.waitUntil(async () => (await beatCount()) === 4, {
-      timeout: 20_000,
-      timeoutMsg: 'S did not split (expected 4 beats)',
+    await withNetProbe(async () => {
+      await key({ key: 's', code: 'KeyS' });
+      try {
+        await browser.waitUntil(async () => (await beatCount()) === 4, { timeout: 20_000 });
+      } catch {
+        const state = await browser.execute(() => ({
+          beats: document.querySelectorAll('[data-testid^="timeline-seq-"]').length,
+          readout: document.querySelector('[data-testid="timeline-readout"]')?.textContent ?? null,
+          picked:
+            document.querySelector('.tl-seq-block.is-selected')?.getAttribute('data-testid') ??
+            null,
+          active:
+            document.activeElement?.getAttribute('data-testid') ?? document.activeElement?.tagName,
+          said: [...document.querySelectorAll('[role="status"], [role="alert"]')]
+            .map((n) => (n.textContent ?? '').trim())
+            .filter(Boolean),
+        }));
+        throw new Error(`S did not split (expected 4 beats) ${JSON.stringify(state)}`);
+      }
     });
     const toast = await $('//*[contains(text(), "Split ")]');
     await toast.waitForExist({ timeout: 5000, timeoutMsg: 'no "Split … at 0:…." toast' });

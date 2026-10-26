@@ -235,22 +235,45 @@ describe('first canvas (S6.16) — a sentence on Home to a saved, shared canvas'
       timeout: 15_000,
       timeoutMsg: 'Desktop never became the selection',
     });
-    // CONTRACT §1: Open inspector on select (on by default) — the Inspector island appears in the shell
-    const preset = await $(tid('insp-ab-preset'));
-    await preset.waitForExist({ timeout: 20_000, timeoutMsg: 'the inspector did not arrive' });
-    const read = await browser.execute(() => {
-      const el = document.querySelector('[data-testid="insp-ab-preset"]') as
-        | (HTMLElement & { value?: string })
-        | null;
-      return el ? `${el.value ?? ''} ${el.textContent ?? ''}` : '';
-    });
-    expect(read).toContain('Desktop'); // 1440 is the Desktop preset; a size that is no preset reads Custom
+    // The AI chat is open (the sentence's run is in it): a whole-artboard pick is the ASK's scope, not an edit, so no
+    // Inspector comes (decision v2-p8-c6-ask-scope-pick-no-inspector, board 03)…
+    await browser.pause(1500);
+    expect(await $(tid('inspector-frame')).isExisting()).toBe(false);
+    // …and an ELEMENT picked inside it is an edit: CONTRACT §1 Open inspector on select (on by default) — the
+    // Inspector island appears in the shell, naming where the pick sits (01 cf-select-tweak)
+    const headline = await centreOf('[data-cd-id="desktop-headline"]');
+    expect(headline).not.toBeNull();
+    await mouseAt(headline as Pt, ['pointerdown', 'pointerup', 'click'], { metaKey: true });
+    const frame = await $(tid('inspector-frame'));
+    await frame.waitForExist({ timeout: 20_000, timeoutMsg: 'the inspector did not arrive' });
+    const read = () =>
+      browser.execute(
+        () =>
+          (document.querySelector('[data-testid="inspector-frame"]') as HTMLElement | null)
+            ?.innerText ?? ''
+      ) as Promise<string>;
+    // the crumbs name the artboard the heading sits in
+    await browser
+      .waitUntil(async () => (await read()).includes('Desktop'), { timeout: 5_000 })
+      .catch(async () => {
+        throw new Error(`the inspector does not name Desktop: ${JSON.stringify(await read())}`);
+      });
     await capture('02-select-inspector');
   });
 
   it('3 · F with nothing selected: the size picker; Laptop adds a 1280 × 800 artboard (cf-add-artboard)', async () => {
-    await keyEvent('Escape', {});
-    await browser.waitUntil(async () => (await selected()) === null, { timeout: 10_000 });
+    // step 2 left the HEADLINE selected: esc climbs one level at a time (heading → its frame → the artboard →
+    // nothing), so press it until nothing is selected — the Inspector the pick opened leaves with the selection
+    await browser.waitUntil(
+      async () => {
+        if ((await selected()) === null && !(await $(tid('inspector-frame')).isExisting()))
+          return true;
+        await keyEvent('Escape', {});
+        await browser.pause(400);
+        return false;
+      },
+      { timeout: 15_000, interval: 100, timeoutMsg: 'esc never cleared the selection' }
+    );
     const before = artboardIds().length;
     await keyEvent('f', {});
     await (await $(tid('size-picker-search'))).waitForDisplayed({
