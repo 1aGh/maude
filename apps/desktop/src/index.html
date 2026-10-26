@@ -23,7 +23,7 @@
         gap: 18px;
         user-select: none;
       }
-      .wordmark { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
+      .wordmark { margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
       .status { color: #8a8a92; font-size: 13px; }
       .retry {
         padding: 6px 16px;
@@ -52,7 +52,7 @@
   <body>
     <main class="splash">
       <div class="spinner" aria-hidden="true"></div>
-      <div class="wordmark" data-testid="splash-name">Maude</div>
+      <h1 class="wordmark" data-testid="splash-name">Maude</h1>
       <div class="status" data-testid="splash-status">Starting…</div>
     </main>
     <script>
