@@ -2,8 +2,9 @@ import { expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { contrastRatio } from '../draw/palette';
 import { shellColor } from './fixtures/shell-palette';
+import { shellCss } from './_shell-css';
 
-const shell = readFileSync(new URL('../client/styles/3-shell-maude.css', import.meta.url), 'utf8');
+const shell = shellCss();
 const leftPanel = readFileSync(
   new URL('../client/v2/left-panel/left-panel.css', import.meta.url),
   'utf8'
@@ -45,7 +46,7 @@ for (const theme of ['light', 'dark']) {
 // V2-8.0 B: `.sh-skel-cap`, `.sh-pal-empty`, `.sh-rp-hint` and `.v2s-settings-intro` left with their rules — no
 // element the shell bundle renders carries them any more (scripts/v2-css-inventory.mjs).
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), 'utf8');
-const components = read('../client/styles/4-components.css');
+const components = shellCss();
 const search = read('../client/v2/search/search.css');
 const fold = read('../client/v2/fold/fold.css');
 

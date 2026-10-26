@@ -21,6 +21,7 @@ afterAll(() => {
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import VoteSheet from '../client/v2/annotations/vote-sheet.jsx';
+import { shellCss } from './_shell-css';
 
 const ROOT = join(import.meta.dir, '..');
 const read = (rel: string) => readFileSync(join(ROOT, rel), 'utf8');
@@ -156,21 +157,48 @@ describe("the v1 chrome's meta text grade (--fg-2, was --fg-3) is text-safe (a11
       expect(ratio(tokenIn(light, 'fg-2'), tokenIn(light, bg))).toBeGreaterThanOrEqual(4.5);
     }
   });
-  test('the v1 chrome files never use the disabled grade for text', () => {
-    for (const f of [
-      'styles/3-shell-maude',
-      'styles/4-components',
-      'styles/4-components-maude',
-      'styles/5-maude-overrides',
-      'v2/ai/chat',
-    ])
-      expect(textUsesOfDisabledGrade(read(`client/${f}.css`))).toEqual([]);
+  // The whole shell stylesheet (test/_shell-css.ts), so the pin holds wherever a rule lives. These fg-3 uses are
+  // decoration, off states and placeholders the v2 areas chose (the v1 chrome had none); a new one fails here.
+  const KNOWN_FG3 = new Set([
+    ':where(.maude) .k-sw--off i',
+    '.sz-shape[data-k="print"]::after',
+    '.sz-shape--custom',
+    '.kf-chip[data-zero]',
+    '.lp-newrow-folder',
+    '.lp-live',
+    '.lp-selector::placeholder',
+    '.cv-head-aside',
+    '.cv-menu-note',
+    '.cv-foot',
+    '.cmp-who.is-none',
+    '.dsa-adv > summary > span',
+    '.dsl-field em',
+    '.sh-pm-status:is( [data-tone="ok"], [data-tone="warn"], [data-tone="error"], [data-tone="info"] )::before, .dg-word:is([data-tone], [data-state])::before',
+    '.v2sh-mx-no',
+    '.pon-row.is-skipped .pon-label',
+    '.fi-sum-m--skip',
+    '.sh-pal-item.is-dim .sh-pal-ltxt',
+    '.so-mv svg',
+    '.insp-crumb-ch',
+    '.asset-absent-t strong::before',
+    '.home-create-name',
+    '.home-art--home > i:nth-child(2)',
+    '.home-art--price > i:nth-child(1)',
+    '.home-art--brand > i:nth-child(3)',
+    '.si-door .btn.si-btn-off, .si-door .btn.si-btn-off:hover',
+    '.tl-lab-b.is-off',
+    '.tl-music-or',
+    '.tl-flag.is-resolved',
+  ]);
+  test('the shell stylesheet never uses the disabled grade for text', () => {
+    const uses = textUsesOfDisabledGrade(shellCss()).map((s) => s.replace(/\s+/g, ' '));
+    expect(uses.filter((s) => !KNOWN_FG3.has(s))).toEqual([]);
   });
 });
 
 describe('the visual fixes are in the source', () => {
   test('segmented controls inherit the font (no UA 15px button face)', () => {
-    const css = read('client/styles/3-shell-maude.css');
+    const css = shellCss();
     const rule = css.slice(
       css.indexOf('.insp-cp-segbtn {'),
       css.indexOf('.insp-cp-segbtn:last-child')
@@ -188,7 +216,7 @@ describe('the visual fixes are in the source', () => {
     expect(css).toContain('--maude-chrome-font-body');
     expect(css).not.toContain('font-mono');
     expect(css).not.toMatch(/#c0392b;\s*\n\s*color: #fff/);
-    const shell = read('client/styles/3-shell-maude.css');
+    const shell = shellCss();
     const block = shell.slice(shell.indexOf('.dc-context-menu {\n    --maude-chrome-bg-2'));
     expect(block.slice(0, 600)).not.toMatch(/oklch\(/);
   });

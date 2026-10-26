@@ -23,6 +23,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { ArtboardLayers, currentBoard } from '../client/v2/layers/artboard-layers.jsx';
 import { CommentComposer, placeWords } from '../comments-overlay.tsx';
+import { shellCss } from './_shell-css';
 
 const STUDIO = join(import.meta.dir, '..');
 const css = (rel: string) => readFileSync(join(STUDIO, rel), 'utf8');
@@ -119,7 +120,7 @@ describe('10 · the comment composer', () => {
 
 describe('07 · the timeline clip name', () => {
   test('one centred chip, body face at --type-xs, the current theme ink — not pinned top AND bottom', () => {
-    const r = rule(css('client/styles/3-shell-maude.css'), '.tl-seq-block .tl-seq-name');
+    const r = rule(shellCss(), '.tl-seq-block .tl-seq-name');
     expect(r).toMatch(/top:\s*50%/);
     expect(r).toMatch(/bottom:\s*auto/);
     expect(r).toMatch(/color:\s*var\(--fg-0\)/);
@@ -187,7 +188,7 @@ describe('08 · Layers by artboard', () => {
   });
 
   test('the element rows speak the body face; the type word is not 9 px caps', () => {
-    const src = css('client/styles/3-shell-maude.css');
+    const src = shellCss();
     const layer = src.slice(
       src.indexOf('  .sh-layer {'),
       src.indexOf('}', src.indexOf('  .sh-layer {'))

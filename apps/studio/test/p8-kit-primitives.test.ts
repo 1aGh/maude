@@ -4,8 +4,12 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { shellCss } from './_shell-css';
 
-const css = (rel: string) => readFileSync(join(import.meta.dir, '..', 'client', rel), 'utf8');
+// BUNDLE = the whole shell stylesheet in _index.css order (test/_shell-css.ts), for rules that may move between files.
+const BUNDLE = 'bundle';
+const css = (rel: string) =>
+  rel === BUNDLE ? shellCss() : readFileSync(join(import.meta.dir, '..', 'client', rel), 'utf8');
 /** The declaration block of the first rule whose selector list ends with `sel`. */
 const rule = (src: string, sel: string): string => {
   const esc = sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -23,7 +27,8 @@ describe('buttons are the kit button', () => {
     expect(r).toMatch(/background:\s*var\(--bg-3\)/);
     expect(r).toMatch(/border-radius:\s*var\(--radius-md\)/);
     expect(r).toMatch(/font-weight:\s*var\(--w-semibold\)/);
-    expect(css('styles/4-components-maude.css')).not.toMatch(/\.maude \.btn\s*\{/);
+    // the kit's is the only `.maude .btn` rule in the shell stylesheet
+    expect(shellCss().match(/\.maude \.btn\s*\{/g)).toHaveLength(1);
   });
   test('a disabled primary is a muted bg-3 fill with fg-3 words, not an accent outline', () => {
     const r = rule(KIT, '.maude .btn--danger:disabled');
@@ -49,8 +54,8 @@ describe('one switch', () => {
   test('the four local switches have no rule of their own; the kit one uses --control-off', () => {
     for (const [file, cls] of [
       ['v2/left-panel/left-panel.css', '.lp-switch'],
-      ['styles/3-shell-maude.css', '.v2s-switch'],
-      ['styles/3-shell-maude.css', '.insp-cp-switch'],
+      [BUNDLE, '.v2s-switch'],
+      [BUNDLE, '.insp-cp-switch'],
       ['v2/export/advanced/advanced.css', '.ex-switch'],
     ] as const) {
       expect(() => rule(css(file), cls)).toThrow();
@@ -75,7 +80,7 @@ describe('a pressed segment carries the accent ring', () => {
     ['v2/history/history.css', '.vh-seg-b[aria-pressed="true"]'],
     ['v2/diagnostics/diagnostics.css', '.dg-seg-b[aria-pressed="true"]'],
     ['v2/left-panel/left-panel.css', '.lp-browse-size-b[aria-pressed="true"]'],
-    ['styles/3-shell-maude.css', '.insp-cp-segbtn[aria-checked="true"]'],
+    [BUNDLE, '.insp-cp-segbtn[aria-checked="true"]'],
   ] as const) {
     test(`${file} ${sel}`, () => {
       const r = rule(css(file), sel);
@@ -89,7 +94,7 @@ describe('sheets and dialogs are the kit dialog material (bg-2, radius-xl, the i
   for (const [file, sel] of [
     ['v2/export/export.css', '.ex-sheet.island'],
     ['v2/settings/settings.css', '.v2s-sheet'],
-    ['styles/3-shell-maude.css', '.cp-dialog'],
+    [BUNDLE, '.cp-dialog'],
     ['v2/import/brand.css', '.bi-sheet'],
   ] as const) {
     test(`${file} ${sel}`, () => {
