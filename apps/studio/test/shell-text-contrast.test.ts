@@ -25,7 +25,6 @@ for (const theme of ['light', 'dark']) {
     ['.st-callout-t > span', callouts],
     ['.lp-tab', leftPanel],
     ['.dv-zoom-sync', shell],
-    ['.st-skel-cap', shell],
   ]) {
     test(`${theme} ${selector} text meets AA on shell surfaces`, () => {
       const foreground = block(css, selector).match(/(?:^|;)\s*color:\s*var\((--[^)]+)\)/)?.[1];
@@ -43,6 +42,8 @@ for (const theme of ['light', 'dark']) {
 // had been used for real text — palette group labels and footer, Settings notes, Layers type labels, the
 // "?" sheet's "or" and notes, placeholders. Every rule below carries text, so each must resolve to a token
 // that holds 4.5:1 on the three surfaces text sits on (--bg-1 island, --bg-2 popover, --bg-3 well).
+// V2-8.0 B: `.st-skel-cap`, `.st-pal-empty`, `.st-rp-hint` and `.st-settings-intro` left with their rules — no
+// element the shell bundle renders carries them any more (scripts/v2-css-inventory.mjs).
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const components = read('../client/styles/4-components.css');
 const search = read('../client/v2/search/search.css');
@@ -55,17 +56,14 @@ const TEXT_RULES: [string, string, string][] = [
   ['shell', '.st-pal-search', shell],
   ['shell', '.st-pal-search input::placeholder', shell],
   ['shell', '.st-pal-group', shell],
-  ['shell', '.st-pal-empty', shell],
   ['shell', '.st-pref-note', shell],
   ['shell', '.st-layer-caret', shell],
   ['shell', '.st-layer-type', shell],
-  ['shell', '.st-rp-hint', shell],
   ['shell', '.so-or', shell],
   ['shell', '.so-section-hd', shell],
   ['shell', '.st-present-exit-kbd', shell],
   ['shell', '.st-tree-sec-hd .st-sec-name', shell],
   ['shell', '.st-tree-sec-hd .st-sec-count', shell],
-  ['components', '.st-settings-intro', components],
   ['components', '.st-provider-notes', components],
   ['components', '.st-engine-radio-note', components],
   ['search', '.st-pal-aside', search],

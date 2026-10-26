@@ -69,15 +69,6 @@
     white-space: nowrap;
     text-align: left;
   }
-  .chat-switch-caret {
-    color: var(--fg-2);
-    flex-shrink: 0;
-  }
-  .chat-menu-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 50;
-  }
   .chat-menu {
     position: absolute;
     top: calc(100% + 4px);
@@ -92,32 +83,6 @@
     box-shadow: var(--shadow-lg);
     padding: 2px;
   }
-  .chat-menu-row {
-    position: relative;
-    display: flex;
-    align-items: center;
-    border-radius: var(--radius-xs);
-  }
-  .chat-menu-row:hover,
-  .chat-menu-row.is-active {
-    background: var(--bg-3);
-  }
-  .chat-menu-open {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-    appearance: none;
-    border: 0;
-    background: transparent;
-    cursor: pointer;
-    color: var(--fg-1);
-    font-family: var(--font-body);
-    font-size: var(--type-xs);
-    padding: var(--space-1);
-    text-align: left;
-  }
   .chat-menu-title {
     flex: 1;
     min-width: 0;
@@ -125,138 +90,12 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  /* Inline rename input (Task C5) — same box model as .chat-menu-open so the
-     row doesn't jump when switching between the button and the input. */
-  .chat-menu-rename-input {
-    flex: 1;
-    min-width: 0;
-    appearance: none;
-    border: 1px solid var(--accent);
-    border-radius: var(--radius-xs);
-    background: var(--bg-1);
-    color: var(--fg-0);
-    font-family: var(--font-body);
-    font-size: var(--type-xs);
-    padding: var(--space-1);
-    margin: 2px;
-    outline: none;
-  }
-
-  /* Per-chat overflow (⋯ → Rename / Archive / Copy transcript / Delete). */
-  .chat-menu-overflow-wrap {
-    position: relative;
-    flex-shrink: 0;
-  }
-  .chat-menu-more {
-    appearance: none;
-    border: 0;
-    background: transparent;
-    cursor: pointer;
-    color: var(--fg-2);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    padding: 0;
-    border-radius: var(--radius-xs);
-    flex-shrink: 0;
-    font-size: var(--type-sm);
-  }
-  .chat-menu-more:hover {
-    background: var(--bg-4, var(--bg-3));
-    color: var(--fg-0);
-  }
-  .chat-menu-overflow {
-    position: absolute;
-    top: calc(100% + 2px);
-    right: 0;
-    z-index: 52;
-    display: flex;
-    flex-direction: column;
-    min-width: 150px;
-    padding: 2px;
-    background: var(--bg-2);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-lg);
-  }
-  .chat-menu-overflow button {
-    appearance: none;
-    border: 0;
-    background: transparent;
-    text-align: left;
-    cursor: pointer;
-    color: var(--fg-1);
-    font-family: var(--font-body);
-    font-size: var(--type-xs);
-    padding: var(--space-1);
-    border-radius: var(--radius-xs);
-  }
-  .chat-menu-overflow button:hover {
-    background: var(--bg-3);
-  }
-  .chat-menu-overflow-danger {
-    color: var(--status-error);
-  }
-  .chat-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: var(--radius-pill);
-    flex-shrink: 0;
-  }
-  .chat-dot--busy {
-    background: var(--presence-agent);
-    animation: chat-pip 1s var(--ease-out) infinite;
-  }
-  .chat-dot--idle {
-    background: var(--status-success);
-  }
-  .chat-dot--off {
-    background: var(--border-strong);
-  }
-  /* Transcript view label (Task C4/C5) — a bare unlabeled select read as
-     unexplained UI in dogfooding; this small caption fixes that. */
-  .chat-view-label {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex-shrink: 0;
-  }
-  .chat-view-label-tx {
-    font-family: var(--font-mono);
-    font-size: var(--type-xs);
-    color: var(--fg-2);
-    white-space: nowrap;
-  }
   /* Connection status strip */
-  .chat-statusrow {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-    padding: var(--space-1) var(--space-3);
-    border-bottom: 1px solid var(--border-subtle);
-    font-family: var(--font-mono);
-    font-size: var(--type-xs);
-    color: var(--fg-2);
-  }
-  .chat-statusrow-sep {
-    color: var(--fg-2);
-  }
-  .chat-statusrow-cc {
-    color: var(--fg-1);
-  }
-  .chat-statusrow-spacer {
-    flex: 1;
-  }
   .chat-status-dot {
     width: 7px;
     height: 7px;
     border-radius: var(--radius-pill);
     background: var(--presence-offline);
-  }
-  .chat-status-dot--ready {
-    background: var(--status-success);
   }
   .chat-status-dot--working {
     background: var(--presence-agent);
@@ -315,96 +154,6 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
-  }
-
-  /* Empty state */
-  .chat-empty {
-    margin: auto 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-2);
-    text-align: center;
-    padding: var(--space-3) var(--space-1);
-  }
-  .chat-empty-mark {
-    color: var(--accent-muted);
-  }
-  .chat-empty-title {
-    font-size: var(--type-base);
-    font-weight: 600;
-    color: var(--fg-0);
-  }
-  .chat-empty-sub {
-    font-size: var(--type-sm);
-    color: var(--fg-2);
-    line-height: var(--lh-sm);
-    max-width: 240px;
-  }
-  /* One-time "Create new design system" CTA — the prominent accent button in the
-     empty state (prefills /design:setup-ds). Sits above the muted suggestion list. */
-  .chat-empty-cta {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-1);
-    width: 100%;
-    margin-top: var(--space-1);
-    font-family: var(--font-body);
-    font-size: var(--type-sm);
-    font-weight: 600;
-    color: var(--accent-fg);
-    background: var(--accent);
-    border: 1px solid var(--accent);
-    border-radius: var(--radius-sm);
-    padding: var(--space-2) var(--space-3);
-    cursor: pointer;
-    transition:
-      background var(--dur-soft) var(--ease-out),
-      border-color var(--dur-soft) var(--ease-out);
-  }
-  .chat-empty-cta:hover {
-    background: var(--accent-hover);
-    border-color: var(--accent-hover);
-  }
-  .chat-empty-cta:focus-visible {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-tint);
-  }
-  .chat-empty-cta-ic {
-    display: inline-flex;
-    color: currentColor;
-  }
-  .chat-sugs {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    width: 100%;
-    margin-top: var(--space-1);
-  }
-  .chat-sug {
-    text-align: left;
-    width: 100%;
-    font-family: var(--font-body);
-    font-size: var(--type-sm);
-    color: var(--fg-1);
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    background: var(--bg-2);
-    cursor: pointer;
-    transition:
-      border-color var(--dur-soft) var(--ease-out),
-      background var(--dur-soft) var(--ease-out);
-  }
-  .chat-sug:hover {
-    border-color: var(--border-strong);
-    background: var(--bg-3);
-  }
-  .chat-sug:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
   }
 
   /* Messages */
@@ -791,60 +540,16 @@
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
-
-  /* Permission approve/deny card (Milestone B — retires DDR-125 F2's blanket
-     auto-approve). Sits between the feed and the composer, one at a time. */
-  .chat-perm {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    margin: 0 var(--space-3);
-    padding: var(--space-2);
-    border: 1px solid var(--accent);
-    border-radius: var(--radius-sm);
-    background: var(--bg-2);
-  }
-  .chat-perm:focus-visible {
-    outline: none;
-  }
-  .chat-perm-hd {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-    font-family: var(--font-mono);
-    font-size: var(--type-xs);
-    color: var(--fg-1);
-  }
   /* SECURITY (ethical-hacker finding) — the title is adapter/model-controlled
      (for Bash, it's the raw shell command) with no length bound; without a
      clamp a crafted/long command could push its dangerous tail off-screen in
      a card whose entire point is "you can see what you're approving". Clamps
      to one legible line; the full string is still reachable via the native
      title-attribute tooltip (see PermissionPrompt.jsx). */
-  .chat-perm-hd b {
-    display: block;
-    min-width: 0;
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--accent);
-    font-weight: 600;
-  }
   .chat-perm-queue {
     flex-shrink: 0;
     color: var(--fg-2);
     font-weight: 400;
-  }
-  .chat-perm-body {
-    margin: 0;
-    font-size: var(--type-xs);
-    color: var(--fg-2);
-  }
-  .chat-perm-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1);
   }
 
   /* feature-acp-write-path-scope Task 4 — the out-of-project WRITE variant.
@@ -854,12 +559,6 @@
      project's history stack cannot roll back". The danger tint is the whole
      point — a card that looks identical to the routine one gets clicked
      through at the same rate. */
-  .chat-perm--outside {
-    border-color: var(--danger, #d9534f);
-  }
-  .chat-perm--outside .chat-perm-hd b {
-    color: var(--danger, #d9534f);
-  }
   .chat-perm-outside {
     display: flex;
     flex-direction: column;
@@ -877,25 +576,6 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-  }
-  .chat-perm-path {
-    padding: 2px var(--space-1);
-    border-radius: var(--radius-xs);
-    background: var(--bg-1);
-    color: var(--fg-0);
-    font-family: var(--font-mono);
-    font-size: var(--type-xs);
-    overflow-wrap: anywhere;
-  }
-  .chat-perm-scope,
-  .chat-perm-note {
-    margin: 0;
-    font-size: var(--type-xs);
-    color: var(--fg-2);
-  }
-  .chat-perm-root {
-    font-family: var(--font-mono);
-    overflow-wrap: anywhere;
   }
 
   /* Form-elicitation card (feature-acp-ask-user-question — AskUserQuestion +
@@ -1088,26 +768,10 @@
     border-radius: var(--radius-sm);
     background: var(--bg-2);
   }
-  .chat-error-hd {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-    font-family: var(--font-mono);
-    font-size: var(--type-xs);
-    color: var(--status-error);
-  }
   .chat-error-detail {
     margin: 0;
     font-size: var(--type-xs);
     color: var(--fg-2);
-  }
-  .chat-error-detail--muted {
-    color: var(--fg-2);
-  }
-  .chat-error-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1);
   }
 
   /* Usage (Milestone D) — context-window bar, rendered inside .chat-foot-popover. */
@@ -1197,36 +861,8 @@
     border-top: 0;
     margin-top: 0;
   }
-  .chat-ctx {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    margin-bottom: var(--space-2);
-    font-size: var(--type-xs);
-    color: var(--fg-2);
-  }
-  .chat-ctx b {
-    color: var(--fg-1);
-    font-weight: 600;
-  }
   /* Context attachment chip (feature-acp-context-hardening) — the visible
      reveal of the frozen <maude-context> block; label + a remove ×. */
-  .chat-ctx-label {
-    display: inline-block;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    padding: 2px var(--space-1);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    background: var(--bg-2);
-    color: var(--fg-1);
-  }
-  .chat-ctx--stale .chat-ctx-label {
-    border-color: var(--status-warn, hsl(38 92% 50%));
-    color: var(--status-warn-text, hsl(38 92% 50%));
-  }
   .chat-ctx-x {
     flex: none;
     padding: 0 2px;
@@ -1323,23 +959,6 @@
     gap: 2px;
     padding: 2px var(--space-1);
   }
-  .chat-toolbar-spacer {
-    flex: 1;
-  }
-  /* Model/effort/mode picker row (feature-acp-panel-dynamic-claude-code-
-     capabilities) — a flex row of .chat-select dropdowns inside .chat-toolbar. */
-  .chat-caps {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    flex-wrap: wrap;
-  }
-  .chat-caps--connecting {
-    font-family: var(--font-body);
-    font-size: var(--type-xs);
-    color: var(--fg-2);
-    padding: 2px var(--space-1);
-  }
   /* Compact toolbar dropdowns — borderless, hover-revealed (Zed-style).
      Without `field-sizing`, a closed <select> sizes itself to its WIDEST
      option (not the one it's currently showing) — Model ends up as wide as
@@ -1350,37 +969,6 @@
      harmlessly where unsupported (the max-width + ellipsis below is that
      fallback net), and `flex-shrink: 0` keeps the (now much smaller) content
      width from being squeezed further by the toolbar row. */
-  .chat-select {
-    appearance: none;
-    font-family: var(--font-body);
-    font-size: var(--type-xs);
-    color: var(--fg-2);
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: var(--radius-xs);
-    padding: 2px var(--space-1);
-    cursor: pointer;
-    flex-shrink: 0;
-    field-sizing: content;
-    min-width: 44px;
-    max-width: 140px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    transition:
-      border-color var(--dur-soft) var(--ease-out),
-      background var(--dur-soft) var(--ease-out),
-      color var(--dur-soft) var(--ease-out);
-  }
-  .chat-select:hover {
-    border-color: var(--border-default);
-    background: var(--bg-2);
-    color: var(--fg-1);
-  }
-  .chat-select:focus-visible {
-    outline: none;
-    border-color: var(--accent);
-  }
   .chat-send {
     width: 28px;
     height: 28px;
@@ -1654,12 +1242,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .chat-cmd-arg {
-    flex-shrink: 0;
-    font-family: var(--font-mono);
-    font-size: var(--type-xs);
-    color: var(--fg-2);
-  }
 
   /* Streaming → Stop bar */
   .chat-stopbar {
@@ -1673,59 +1255,6 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
-  }
-
-  /* Not-connected explainer */
-  .chat-disabled {
-    margin: auto 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-    padding: var(--space-3);
-  }
-  .chat-disabled-mark {
-    color: var(--fg-2);
-    align-self: center;
-  }
-  .chat-disabled-title {
-    font-size: var(--type-base);
-    font-weight: 600;
-    color: var(--fg-0);
-    text-align: center;
-  }
-  .chat-disabled-sub {
-    font-size: var(--type-sm);
-    color: var(--fg-2);
-    line-height: var(--lh-base);
-    text-align: center;
-  }
-  .chat-disabled-sub code {
-    font-family: var(--font-mono);
-    font-size: var(--type-xs);
-    color: var(--fg-0);
-    background: var(--bg-3);
-    padding: 1px 5px;
-    border-radius: var(--radius-xs);
-  }
-  .chat-trust {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    padding: var(--space-2);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    background: var(--bg-2);
-  }
-  .chat-trust-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-    font-size: var(--type-xs);
-    color: var(--fg-2);
-  }
-  .chat-trust-row svg {
-    color: var(--status-success);
-    flex-shrink: 0;
   }
 
   /* Pasted-image thumbnail — a focusable button in the user bubble; clicking
@@ -1850,7 +1379,6 @@
     .chat-status-dot--working,
     .chat-tool-dot--run,
     .chat-activity-spin,
-    .chat-dot--busy,
     .chat-msg,
     .chat-lightbox {
       animation: none;
@@ -2185,73 +1713,10 @@
 /* T12 (DDR-173) — the in-app Brand-upload panel (BrandUploadPanel.jsx).
    Reuses .help-modal-* chrome; new rules cover the pick/result content only. */
 @layer components {
-  .brand-up-modal {
-    max-width: 480px;
-  }
-  .brand-up-note {
-    margin: 0 0 var(--space-3);
-    color: var(--fg-2);
-    font-size: var(--type-sm);
-    line-height: var(--lh-md);
-  }
-  .brand-up-pick {
-    display: flex;
-    justify-content: center;
-    padding: var(--space-4) 0;
-  }
   .brand-up-error {
     margin: var(--space-1) 0 0;
     color: var(--status-error);
     font-size: var(--type-sm);
-  }
-  .brand-up-empty {
-    margin: 0;
-    color: var(--fg-2);
-    font-size: var(--type-xs);
-    line-height: var(--lh-sm);
-  }
-  .brand-up-preview {
-    display: block;
-    max-width: 100%;
-    max-height: 120px;
-    margin: 0 auto var(--space-3);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    background: var(--bg-3);
-    padding: var(--space-2);
-  }
-  .brand-up-sechd {
-    margin: var(--space-3) 0 var(--space-1);
-    font-size: var(--type-xs);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: var(--tracking-wide);
-    color: var(--fg-2);
-  }
-  .brand-up-swatches {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1);
-  }
-  .brand-up-swatch {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-  }
-  .brand-up-swatch-chip {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border-radius: var(--radius-xs);
-    border: 1px solid var(--border-default);
-  }
-  .brand-up-swatch-value {
-    font-family: var(--font-mono);
-    font-size: var(--type-xs);
-    color: var(--fg-2);
   }
   .brand-up-fonts {
     list-style: none;
@@ -2260,31 +1725,6 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-1);
-  }
-  .brand-up-font-chip {
-    padding: 2px var(--space-1);
-    border-radius: var(--radius-pill);
-    border: 1px solid var(--border-default);
-    background: var(--bg-2);
-    font-size: var(--type-xs);
-    color: var(--fg-1);
-  }
-  .brand-up-nextstep {
-    margin: var(--space-3) 0 0;
-    font-size: var(--type-sm);
-    color: var(--fg-1);
-    line-height: var(--lh-md);
-  }
-  .brand-up-nextstep code {
-    font-family: var(--font-mono);
-    background: var(--bg-3);
-    padding: 1px 4px;
-    border-radius: var(--radius-xs);
-  }
-  .brand-up-actions {
-    display: flex;
-    gap: var(--space-1);
-    margin-top: var(--space-2);
   }
 
   /* DDR-184 #3 — loud top-of-thread alert while the current mode can't edit
@@ -2303,28 +1743,10 @@
     font-size: var(--type-xs);
     line-height: var(--lh-md);
   }
-  .chat-mode-banner-icon {
-    flex-shrink: 0;
-    color: var(--status-warn-text, hsl(38 92% 50%));
-  }
   .chat-mode-banner-text {
     flex: 1 1 auto;
   }
   .chat-mode-banner-text b {
     color: var(--fg-0);
-  }
-  .chat-mode-banner-cta {
-    flex-shrink: 0;
-    appearance: none;
-    cursor: pointer;
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-xs);
-    background: var(--bg-3);
-    color: var(--fg-0);
-    font-size: var(--type-xs);
-    padding: 2px var(--space-1);
-  }
-  .chat-mode-banner-cta:hover {
-    background: var(--bg-4);
   }
 }
