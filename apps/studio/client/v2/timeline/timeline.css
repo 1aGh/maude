@@ -1374,7 +1374,7 @@
   }
 
   /* ═══ P8 C3 — the board's body (07 Video Editing · `_video.css` .ve-tl*, lifted) ═══════════════════════════════
-     The v1 TimelinePanel rules live in @layer shell (3-shell-maude.css); these are @layer components, so they win
+     The v1 TimelinePanel rules live in @layer shell (the top of this file); these are @layer components, so they win
      whatever the specificity. Every property the v1 rule set is set again here, so no v1 paint leaks through. */
 
   .tl-panel {

@@ -6,7 +6,7 @@
 // Get latest — visible, has buttons). The two layers are NEVER mixed into one
 // diagram — that split is the whole point. Rendered as the centered tour step's
 // graphic (overlay.jsx `render` field) and embeddable elsewhere (e.g. the wizard
-// success state). Pure presentational; cm-* classes live in 3-shell-maude.css.
+// success state). Pure presentational; cm-* classes live in v2/share/share.css.
 
 function Glyph({ name, size = 16 }) {
   const p = {

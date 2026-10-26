@@ -546,7 +546,7 @@
 /* from styles/4-components-maude.css */
 @layer components {
   /* ── Report-a-Bug dialog (feature-bug-report-button) ─────────────────────────
- * Rides the shared .sh-scrim/.sh-dialog shell (3-shell-maude.css); rb-* covers
+ * Rides the shared .sh-scrim/.sh-dialog shell (v2/shell/floating-panels.css); rb-* covers
  * only what the shell doesn't: the consent checklist, screenshot tiles, and
  * the redaction overlay. Same DS voice as the generate/github dialogs —
  * body-font copy, mono uppercase section heads, accent focus rings. */
@@ -567,7 +567,7 @@
   }
 
   /* base field styling joins the shared .gi-dialog/.cp-dialog recipe in
- * 3-shell-maude.css (F3 — one source for field + focus ring); only the
+ * v2/shell/floating-panels.css (F3 — one source for field + focus ring); only the
  * rb-specific sizing lives here. */
   .rb-dialog .textarea {
     resize: vertical;

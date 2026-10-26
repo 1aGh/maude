@@ -7872,7 +7872,7 @@
     "region": "menubar",
     "consumers": [],
     "v2": "retired",
-    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. The project pill's name is `.sh-pill-name`. Was: CSS consumer: `test/shell-text-contrast.test.ts` reads the rule in `styles/3-shell-maude.css`, not the DOM."
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. The project pill's name is `.sh-pill-name`. Was: CSS consumer: `test/shell-text-contrast.test.ts` reads the rule in the shell stylesheet, not the DOM."
   },
   {
     "hook": ".st-cloudwho-out",
@@ -10418,7 +10418,7 @@
       "apps/studio/test/shell-text-contrast.test.ts"
     ],
     "v2": "historical",
-    "notes": "CSS consumer; the rule still exists in `styles/3-shell-maude.css`.",
+    "notes": "CSS consumer; the rule still exists in the shell stylesheet.",
     "dangling": true
   },
   {

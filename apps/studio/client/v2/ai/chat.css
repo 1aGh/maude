@@ -3,7 +3,7 @@
  * Ported from `.design/ui/ChatPanel.css` (the approved mock), styling only the
  * canvas-LOCAL `chat-*` content inside the `sh-rpanel` Assistant tab. Every value
  * is a maude token from `1-tokens-maude.css` / a component class from
- * `4-components-maude.css`. Differences from the mock: the feed scrolls live
+ * the shell kit / `v2/shell/floating-panels.css`. Differences from the mock: the feed scrolls live
  * (`overflow-y:auto`, not the mock's static `hidden`) and a few wrappers
  * (`.chat-thread`, `.sh-rp-body--chat`, `.chat-tool-path`) the live panel needs.
  */

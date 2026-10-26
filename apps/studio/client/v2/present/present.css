@@ -2,7 +2,7 @@
  *
  * Present hides every other piece of chrome (DDR-117, `.maude.is-present`), so these two sit on the
  * `.maude` root, not inside `.sh-body--float` — they cannot lean on `.island`'s variables and use the
- * shell's surface tokens, as the v1 exit pill did (3-shell-maude.css `.pv-present-exit`, which the pill
+ * shell's surface tokens, as the v1 exit pill did (`.pv-present-exit`, at the top of this file, which the pill
  * keeps wearing: its colours are pinned to AA by shell-text-contrast.test.ts).
  *
  * Motion is tokens only (`--dur-*`); Reduce motion collapses them to 1 ms and the controls simply hide.
@@ -227,7 +227,7 @@
   }
 
   /* ── Present the canvas: the pill ─────────────────────────────────────────────────────────────
-     It wears `.pv-present-exit` (position, surface, AA colours — 3-shell-maude.css); this adds the
+     It wears `.pv-present-exit` (position, surface, AA colours — the top of this file); this adds the
      three parts of the 04 pill. Never faded: the AA gate pins the full-strength pill. */
   .maude .pr-pill {
     top: auto;
