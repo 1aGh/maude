@@ -247,8 +247,17 @@ describe(`shell parity (${target()})`, () => {
     const home = await browser.getUrl();
     const base = home.split('?')[0].split('#')[0];
     await browser.url(`${base}?embed=1&open=ui/Smoke.tsx`);
+    // The WKWebView driver answers navigateTo before the new document replaces the old one, so a bare
+    // `#root iframe` check is satisfied by the STUDIO page still on screen (r5: project-pill "drawn"
+    // 3 ms after the navigate). Wait for the embed root itself and a frame it built (embed=1 in src).
     await browser.waitUntil(
-      () => browser.execute(() => Boolean(document.querySelector('#root iframe'))),
+      () =>
+        browser.execute(
+          () =>
+            /[?&]embed=1\b/.test(location.search) &&
+            Boolean(document.querySelector('[data-testid="embed-view"]')) &&
+            (document.querySelector('#root iframe')?.getAttribute('src') ?? '').includes('embed=1')
+        ),
       { timeout: 60_000, interval: 500, timeoutMsg: 'the embed never framed a canvas' }
     );
     // the chrome the other shells draw is not here
