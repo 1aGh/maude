@@ -31,7 +31,6 @@ const KEPT_WHERE = Object.freeze({
   'mdcc-whatsnew-toast-dismissed': 'What’s New (version watermark, unchanged)',
   'maude-cloud-role-seen:*': 'Cloud role line (unchanged)',
   'maude-sync-consent': 'Connections › sync consent (unchanged)',
-  'maude-sync-notice-ack': 'Connections › sync notices (unchanged)',
   'maude-acp-picks': 'AI chat model / effort / mode picks (unchanged)',
   'maude-acp-transcript-view': 'AI chat transcript view (unchanged)',
   'maude-install-id': 'Bug reports (anonymous install id, never re-keyed)',
