@@ -56,7 +56,8 @@ if (flag('--check')) {
   );
   await new Promise(() => {}); // until a signal
 } else {
-  const wdio = spawn('wdio', ['run', './wdio.share-roles.conf.ts'], {
+  // the package's own wdio — pnpm puts node_modules/.bin on PATH, a plain `node run-share-roles.mjs` does not
+  const wdio = spawn(resolve(HERE, 'node_modules/.bin/wdio'), ['run', './wdio.share-roles.conf.ts'], {
     cwd: HERE,
     stdio: 'inherit',
     env: { ...process.env, MAUDE_SHARE_ROLES_CONFIG: world.runFile },
