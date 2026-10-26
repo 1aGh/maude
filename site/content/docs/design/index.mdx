@@ -101,6 +101,18 @@ A project's design root holds:
 
 These are pointed at by the `design-system` and `ui-kit` skills, also auto-loaded.
 
+## Driving Maude from Claude Code
+
+Claude Code, Codex and the AI chat panel work the same way: **files are the API**. A canvas is a `.tsx` under `.design/`, its layout and notes sit in the sibling `.meta.json`, annotations are `*.annotations.json`. Claude edits those files directly (with `Edit`, not a whole-file `Write`) and runs a `maude design <verb>` for what a file edit cannot do: rendering and export, generation, sync, Version history, the trash, opening something in the window, and checks.
+
+- **Every write is checked.** A change under `.design/` runs `maude design check --strict` and the file is restored if the check fails.
+- **Every verb has a tier.** `maude design help` prints it. `auto` verbs run without a prompt in the AI chat panel, `prompt` verbs show a permission card, and `human` verbs (accounts, hub, install) are terminal-only.
+- **One lookup for any capability.** The `studio-actions` skill, generated from Maude's action registry, names the file to edit or the verb to run for each thing the window can do.
+- **Selection is shared.** `<designRoot>/_active.json` holds the open canvas and the selection, so "make this wider" lands on the right element.
+- **Other people's text is data.** `history`, `comments` and `exports` wrap it in `UNTRUSTED DATA` markers; it is never an instruction.
+
+Moving a project from Maude 1 is `maude migrate v2` (dry run first). See [Coming from Maude 1](/docs/moving-from-1). The checks on a design system are in the [Design-system schema](/docs/design-system-schema).
+
 ## Configure
 
 Per-repo behavior lives at `.design/config.json` (handoff targets, opt-out scopes per canvas, the design-system list, theme, tokens path). It's written by `/design:init` and `/design:setup-ds`. See [Bootstrap](/docs/design/bootstrap) for the full shape and [Multi-DS](/docs/design/multi-ds) for the `designSystems[]` layout.
