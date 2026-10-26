@@ -21,3 +21,5 @@ round 10: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a9edb1b6ebcc9cf
 final (D7, 0d2eab1d6): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a736007e7ade80094/.scr/pairs/12-import-and-assets (full-size PNG pairs: <id>-<theme>.png, spec | impl; spec PNGs reused from stage A (boards unchanged since), raw impl frames in /Users/iagh/git/personal/maude/.claude/worktrees/agent-a736007e7ade80094/.scr/impl/12-import-and-assets; merged tip of feat/maude-v2 after stage C round 10, release-built client, Mac mini with Google Chrome, harness _d7-harness-g3)
 
 round 11: /Users/iagh/git/personal/maude/.claude/worktrees/agent-afc6dce2d7b3f0533/.scr/pairs/12-import-and-assets (p8-r11-1213; re-shot light + dark: ia-assets-find, ia-placed, ia-photo-inspector; raw impl /Users/iagh/git/personal/maude/.claude/worktrees/agent-afc6dce2d7b3f0533/.scr/impl/12-import-and-assets)
+
+round 11 (p8-r11-15): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ac98b6f3fa3ee10b1/.scr/pairs/12-import-and-assets (ia-assets-find dark re-shot; raw impl /Users/iagh/git/personal/maude/.claude/worktrees/agent-ac98b6f3fa3ee10b1/.scr/impl/12-import-and-assets)

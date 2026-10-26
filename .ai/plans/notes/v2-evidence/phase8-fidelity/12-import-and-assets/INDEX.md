@@ -187,3 +187,5 @@ Re-shot 6 of 38 pairs, 5 changed (ia-assets-find, ia-placed, ia-photo-inspector 
 | ia-assets-find | re-shot (pixel-identical to D7: the fix was dark only) | re-shot | `s12` |
 | ia-placed | re-shot | re-shot | `s12h` (the first `s12` try logs `no filechooser`; a later scenario wins) |
 | ia-photo-inspector | re-shot | re-shot | `s12c7` |
+
+Round 11 (p8-r11-15) — `ia-assets-find` dark re-shot once more on the p8-r11-15 tip (the dark contrast rule was rescoped in `10c7d0b3d`; scenario `s12`, harness `_r11-15-harness-g4` run 12). The light pair and everything else in this folder is unchanged. Full-size pair: last line of `full-size-path.txt` ("round 11 (p8-r11-15): ..."). No match judged here.
