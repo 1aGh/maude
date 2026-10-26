@@ -425,3 +425,76 @@ Harness `_c10ann-harness-g5` (copy of `_d6f-harness-g5`; s15 groups a–f + the 
 | an-today | the whole catalogue in one frame (text sizes, shapes, picture, link card, video + audio chips, dashed arrow, lists) with two notes selected: the group bar |
 | an-plan | the plan alone: toned columns, count chips, channel-coloured cards, the Done cards pointing at the Tablet and Mobile artboards, whole board in frame |
 | an-follow | a loose note beside Mobile; Tereza's bound sticky on the far side, its elbow routed around Tablet and Mobile |
+
+## FINAL (D7, 0e926b7dc)
+
+Final verification re-shoot of the IMPL side (every artboard id x light + dark) on the merged `feat/maude-v2` tip 0e926b7dc (stage C rounds 1–10 merged, release client); no product code changed. Supersedes every earlier "after" / FINAL / round section, round 10 included. 60 of 62 pairs re-shot, 2 unreachable. Evidence only: no match / mismatch judged here. The `<id>-<theme>.jpg` pairs in this folder (JPEG q55, max 1100 px wide) show the product at 0e926b7dc; the SPEC side is unchanged (the boards `.design/ui/v2/15*` have not changed since the stage-A shot), so the stage-A spec PNGs are reused. Full-size pairs: last line of `full-size-path.txt` ("final (D7").
+
+Shot on the Mac mini (`scripts/remote-lane.sh`) with its installed Google Chrome (`SHOT_CHANNEL=chrome`, viewport 1600 x 1000), throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, release-built client; harness `_d7-harness-g4/` (see its README).
+- Chain (`_d7-harness-g4/run.sh 15`): `s15.mjs` groups a–f and p, then `s15g.mjs` g1–g5 (round 10, `_c10ann-harness-g5`), with the round-10 print step (View > Print guides on before `an-print`, p8-c10-print) folded into `scr15/s15.mjs`.
+- Extra impl-only shots from the same run (no spec pair): `an-today-size`, `an-today-shape`, `an-today-marker`.
+
+| id | theme | FINAL (D7) | spec |
+| --- | --- | --- | --- |
+| `an-ai-apply` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-ai-apply` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-ai-read` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-ai-read` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-ai-stickers` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-ai-stickers` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-ai-write` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-ai-write` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-arrow-bind` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-arrow-bind` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-arrow-kinds` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-arrow-kinds` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-convert` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-convert` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-crowd` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-crowd` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-dangling` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-dangling` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-enter` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-enter` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-figjam` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-figjam` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-follow` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-follow` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-layers` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-layers` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-marker` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-marker` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-place` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-place` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-plan` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-plan` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-print` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-print` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-rebind` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-rebind` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-section` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-section` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-stamps` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-stamps` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-sticky` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-sticky` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-stk-drop` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-stk-drop` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-stk-gallery` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-stk-gallery` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-stk-search` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-stk-search` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-templates` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-templates` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-today` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-today` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-video` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-video` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-viewer` | dark | unreachable — Can comment (viewer role: Hand + Comment only) needs a share-grant session; no local way to open the app as a viewer | spec reused (board unchanged since the stage-A shot) |
+| `an-viewer` | light | unreachable — Can comment (viewer role: Hand + Comment only) needs a share-grant session; no local way to open the app as a viewer | spec reused (board unchanged since the stage-A shot) |
+| `an-visibility` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-visibility` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-vote` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-vote` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-vs` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-vs` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
