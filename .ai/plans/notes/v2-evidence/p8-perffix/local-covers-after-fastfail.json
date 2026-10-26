@@ -1,0 +1,97 @@
+{
+  "root": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/pf/alli",
+  "at": "2026-10-26T02:01:49.703Z",
+  "index": {
+    "canvases": 95,
+    "staticArtboards": 225,
+    "buildMs": {
+      "p50": 249,
+      "p95": 252,
+      "budgetP95": 250
+    },
+    "stampMs": {
+      "p50": 4,
+      "p95": 6,
+      "budget": 10
+    },
+    "homeMerge20Ms": {
+      "p50": 45,
+      "p95": 46,
+      "budget": 150,
+      "note": "20 × (read + stamp) of this snapshot"
+    }
+  },
+  "coversCold": {
+    "totalMs": 69550,
+    "first12Ms": 6649,
+    "budget": {
+      "totalMs": 45000,
+      "first12Ms": 3000
+    },
+    "perCanvasMs": {
+      "p50": 736,
+      "p95": 1480
+    },
+    "tally": {
+      "ready": 87,
+      "unavailable:failed": 8
+    },
+    "failed": [
+      {
+        "rel": "ui/2026/combine/Combine-admin.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/admin-details.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/admin-states.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/admin.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/flows.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/public-states.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/responsive.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      },
+      {
+        "rel": "ui/club-web/website.tsx",
+        "status": "unavailable",
+        "reason": "failed"
+      }
+    ],
+    "avgBytes": 19476,
+    "artboardsAfterHarvest": 345
+  },
+  "coversWarm": {
+    "totalMs": 49522,
+    "first12Ms": 3627,
+    "perCanvasMs": {
+      "p50": 559,
+      "p95": 932
+    }
+  },
+  "chromiumLaunchMs": {
+    "cold": 691,
+    "warm": 250,
+    "budgetWarm": 500
+  }
+}
