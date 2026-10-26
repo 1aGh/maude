@@ -63,3 +63,4 @@ round 10 IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/age
 round 10 SPEC images (reused from stage A): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a56999ac67afdc39a/.scr/spec/03/
 round 10 harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_c10-ai-harness/ (chain.sh 03 on the remote lane, then mkpairs.sh 03-ai-chat)
 final (D7, 98ed9c011): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a04ea748cd3666ab7/.scr/pairs/03-ai-chat (raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a04ea748cd3666ab7/.scr/d7/03-ai-chat; spec: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a04ea748cd3666ab7/.scr/spec/03; harness _d7-harness-g1/g2/)
+round 11 (p8-r11-03): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ab76ed67b7618ff98/.scr/pairs/03-ai-chat/ (ai-done, ai-question, ai-long, ai-long-pinned only; IMPL frames alone: .scr/d7/03-ai-chat/; harness _r11-harness-g1/, spec reused from D7)

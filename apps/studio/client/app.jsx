@@ -75,6 +75,7 @@ import { FilePreview, prefetchPreviewImage, sanitizeDisplayText } from './panels
 import SetupChecklistDialog, { useSetupReadiness } from './panels/SetupChecklist.jsx';
 import TimelinePanel from './v2/timeline/Timeline.jsx';
 import TimelineHost from './v2/timeline/TimelineHost.jsx';
+import { CommentStripHost } from './v2/timeline/comment-strip-host.jsx';
 import { timelineSelection } from './v2/timeline/selection.js';
 import { useTimelineKept } from './v2/timeline/timeline-store.js';
 import TranscriptHost from './v2/transcript/TranscriptHost.jsx';
@@ -250,6 +251,7 @@ import { ShellPreviewChrome, usePreviewMode } from './v2/preview/preview-chrome-
 import { ShellTakes } from './v2/assets/takes-overlay.jsx';
 import { ViewBarHost } from './v2/history/history-host.jsx';
 import { SyncStatesHost } from './v2/sync-states/conflict-card.jsx';
+import { useQueuedMarkedByFile } from './v2/sync-states/row-words.js';
 import { panelOpenDecision, rightMainWidth, rightPanelWidth } from './v2/shell/panel-layout.js';
 import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/use-panel-layout.js';
 import { useFitOnAiPin } from './v2/shell/use-fit-on-ai-pin.js';
@@ -1069,15 +1071,17 @@ function ShellState({ children }) {
   // ----- Push comments to iframe whenever they change for active file -----
   // Presentation Mode hides comment pins: post an empty list while present
   // (re-posting the real list on exit, since this effect re-runs on the flag).
+  // Round 11 (10 co-sync-offline): the comments the outbox still holds while offline carry `queued`.
+  const commentsOnCanvas = useQueuedMarkedByFile(commentsByFile);
   useEffect(() => {
     if (!activePath || activePath === SYSTEM_TAB) return;
     const el = iframesRef.current.get(activePath);
     if (!el || !el.contentWindow) return;
-    const list = presentMode ? [] : commentsByFile[activePath] || [];
+    const list = presentMode ? [] : commentsOnCanvas[activePath] || [];
     try {
       el.contentWindow.postMessage({ dgn: 'comments-set', comments: list }, '*');
     } catch {}
-  }, [activePath, commentsByFile, presentMode]);
+  }, [activePath, commentsOnCanvas, presentMode]);
   const {
     applyOptimisticStyle,
     assetPickerReq,
@@ -1127,7 +1131,7 @@ function ShellState({ children }) {
     setLoadedPath,
     cfg,
     viewerMode,
-    commentsByFile,
+    commentsByFile: commentsOnCanvas,
     focusedCommentId,
     setFocusedCommentId,
     theme,
@@ -3132,6 +3136,8 @@ function ShellTree() {
           <TimelineHost>
             <ShellTimelinePanel />
           </TimelineHost>
+          {/* Round 11 (10 co-comment-video): Preview's read-only comment strip under a video board. */}
+          <CommentStripHost />
           {/* S7.11 — the Transcript panel (left slot, Q17) and the feed that keeps a video's words fresh. */}
           <TranscriptHost />
           {/* S6.3 — the intent Home parked for this window (a canvas from one sentence, an import): taken once. */}

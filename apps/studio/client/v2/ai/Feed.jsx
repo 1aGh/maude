@@ -15,6 +15,7 @@ import {
 import { stripOffer } from './ai-offer.js';
 import { alreadySaysUnchanged, CANVAS_UNCHANGED, canvasUnchanged } from './answer-note.js';
 import { OfferSlot } from './OfferCard.jsx';
+import { PickedShots } from './PickedShots.jsx';
 import { SentStrip } from './SentStrip.jsx';
 import { sentFromTranscript, useRecordedSent } from './sent-attachments.js';
 import { TurnResult, useTurnRun } from './TurnResult.jsx';
@@ -402,6 +403,8 @@ export function AssistantMessage() {
           {CANVAS_UNCHANGED}
         </p>
       ) : null}
+      {/* P8 r11 (03 `ai-long-pinned`): the shots a reply picked, under its words, above its steps */}
+      <PickedShots parts={rawParts} designRel={media?.designRel} onOpen={media?.openLightbox} />
       {turnRun ? <TurnResult run={turnRun} parts={rawParts} designRel={media?.designRel} /> : null}
       <div className="chat-msg-actions" data-testid="chat-msg-actions">
         <ActionBarPrimitive.Copy

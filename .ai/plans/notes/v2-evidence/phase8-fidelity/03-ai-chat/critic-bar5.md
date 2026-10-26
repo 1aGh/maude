@@ -86,3 +86,16 @@ Every id read fresh from the D7 impl frames (`.scr/d7/03-ai-chat`) against the s
 - ai-long/resize-tooltip · "Drag to resize - double-click for full height" · reachable, not shot
 - ai-long-pinned/unpin-tooltip · "Unpin - float over the canvas" · reachable, not shot
 - ai-quit/next-launch · "Stopped" divider + half-done result · reachable via relaunch, not driven
+
+## Round 11
+Judged fresh from the round-11 re-shots (`ai-done`, `ai-question`, `ai-long`, `ai-long-pinned`, both themes; committed jpg pairs + full-size pairs in `.scr/pairs/03-ai-chat/` of p8-r11-03). Same lead decisions as above.
+
+- ai-done · verified (both) · none. Light now shows the settled "Made by AI" under Post 1:1 (selection frame, `+ Made by AI`), same as dark; Done reply, Undo / Keep going, follow-up chips, closed composer + Advanced all present.
+- ai-question · verified (both) · none. The spark ring on the A4 date line with its chip ("+ 17 pt") is now in both themes (board's whole point); answer strip "Make that change / Check the other artboards too" and the closed Ask card are right. The ask bubble lingering over the answer is the product's 10 s no-outline grace (`ask-selection-lane.js` GRACE_MS, a question has no AI outline), so it is a capture-timing matter, not a missing/extra control.
+- ai-long · verified (both) · none. The inspector toggle now stands left of the full-height panel (x~1680), the "Hide the AI chat panel" chevron is clear in both themes; "What AI did · 6 steps · 41 s" fold present in dark as in light; Before/After pair, Undo / Compare, sent-thumbnail strip, day divider, Jump to latest, prefilled prompt + footage chip all there.
+- ai-long-pinned · verified (both) · none. Six-thumbnail strip under "Six shots picked ..." is built (six 44 px tiles) in both themes, with the "What AI did" fold below; header, pressed pin, running row + Stop, composer, Advanced match.
+
+### New polish rows
+- ai-question · shot inside the 10 s ask-bubble grace: the bubble (+ "One step - ⌘Z undoes all of it" hint) covers the first lines of the answer; the harness should wait out GRACE_MS before shooting. Dark shows a stray "+ Made by AI" under A4 that light does not (a question changed nothing; harness/fixture residue); chip "17 pt" vs "9 pt" (fixture); scope chip "Whole canvas" vs "A4 · plakát"; chat title truncated "Is the A4 poster readable from..."; A4 sits low next to the dock.
+- ai-long · the "Post 1:1" artboard wears an "AI is working" tag while the chat reads Done (harness's hung next ask); sent thumbnails are flat green gradients (fixture) and the dark Before thumbnail stacks two "MBINE 2026" crops; board's "Today, 09:12" second divider and "2 new" count still absent; scope chip "Post 1:1" vs "Reels 9:16 · recap".
+- ai-long-pinned · all five artboards carry "AI is working" (scope "Whole canvas") vs the board's single Reels artboard + "AI is cutting the recap"; strip tiles are generic photo fixtures; Canvases panel open at left; top-right chrome (inspector toggle) beside the panel; "Unpin" tooltip not shown (side row); fold reads "4 steps · 0 s" vs "1 min".
