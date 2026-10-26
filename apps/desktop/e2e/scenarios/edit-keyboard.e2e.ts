@@ -128,7 +128,15 @@ describe('keyboard only (S2.21)', () => {
   it('↵ goes inside; tab then numbers 3.1…3.3 in the order the cards are drawn', async () => {
     const report = startReport('edit-keyboard-inside');
     await press('Enter');
-    await settle();
+    // A keydown dispatched on the frame DOCUMENT is not a bare-canvas target for the canvas's own ↵ listener
+    // (focus-model.tsx `isBareCanvasTarget`), so ↵ goes inside through the shell's keymap round trip — longer than a
+    // fixed settle under a loaded lane (r7, r7fix/a3). Wait for the words instead.
+    await browser
+      .waitUntil(async () => (await readFrame()).said.includes('Brand systems'), {
+        timeout: 5000,
+        interval: 100,
+      })
+      .catch(() => undefined);
     const s = await readFrame();
     expect(s.badges.filter((b) => b.includes('.'))).toEqual(['3.1', '3.2', '3.3']);
     // inside, the first stop is the first card DRAWN (Brand systems), not the one that reads first by name
@@ -140,7 +148,13 @@ describe('keyboard only (S2.21)', () => {
     expect(second.said).toContain('Websites');
     await capture(report, 'inside');
     await press('Escape');
-    await settle();
+    // esc steps out through the same shell round trip (`object.step-out` comes back as a run-action)
+    await browser
+      .waitUntil(async () => (await readFrame()).on === '3', {
+        timeout: 5000,
+        interval: 100,
+      })
+      .catch(() => undefined);
     expect((await readFrame()).on).toBe('3');
   });
 

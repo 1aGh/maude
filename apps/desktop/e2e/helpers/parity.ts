@@ -123,7 +123,10 @@ export async function walkProjectMenu(): Promise<{ top: string[]; rows: string[]
           continue;
         }
         for (const label of path) {
-          const b = items(menu).find((x) => x.getAttribute('data-sub') === label);
+          const here: Element = menu;
+          const b: HTMLElement | undefined = items(here).find(
+            (x) => x.getAttribute('data-sub') === label
+          );
           if (!b) {
             menu = null;
             break;
