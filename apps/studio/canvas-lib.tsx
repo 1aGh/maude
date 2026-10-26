@@ -616,6 +616,14 @@ input.dc-artboard-rename {
   transform: scale(calc(1 / var(--dc-zoom, 1)));
   transform-origin: 0 100%;
 }
+/* V2-8.8 (WebKit M7) - on the WebKit scale path (transform, see writeTransform) the name and the video badge get
+   their OWN compositor layer. They are re-sized every zoom frame by the counter-scale above and paint outside the
+   frame, so inside the board's layer (will-change, the per-board raster freeze) they moved its bounds every frame
+   and WebKit re-rastered every board on every zoom frame. Blink (CSS zoom) relayouts the world anyway; untouched. */
+.dc-world[data-dc-scale='transform'] .dc-artboard.dc-positioned > .dc-artboard-label,
+.dc-world[data-dc-scale='transform'] .dc-artboard.dc-positioned > .dc-artboard-video-badge {
+  will-change: transform;
+}
 .dc-canvas .dc-artboard.dc-positioned > .dc-artboard-label:focus-visible { outline-offset: 0; }
 .dc-canvas .dc-artboard.dc-positioned > input.dc-artboard-rename {
   background: var(--maude-chrome-bg-2, #fff);
@@ -2561,7 +2569,12 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
 
   const inner = (
     <div className="dc-canvas" ref={hostRef}>
-      <div className="dc-world" ref={worldRef} style={worldStyle}>
+      <div
+        className="dc-world"
+        ref={worldRef}
+        style={worldStyle}
+        data-dc-scale={IS_WEBKIT ? 'transform' : 'zoom'}
+      >
         {children}
         {/* S11.5 — the outlines an all-trashed canvas keeps (world coords, no hit area, shell-told). */}
         <ArtboardGhostsLayer />
