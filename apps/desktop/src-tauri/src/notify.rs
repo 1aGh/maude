@@ -236,10 +236,17 @@ impl RunsSnapshot {
     /// The chats the quit dialog names (03 `ai-quit` "N chats"): distinct chats
     /// over the live runs — a waiting ask behind its own chat's run is the same
     /// chat (R10: 2 running + 1 waiting → "2 chats"); a run with no chat (a
-    /// terminal agent) counts once.
+    /// terminal agent) counts once. Only STARTED runs count: a waiting ask (in
+    /// line behind another run on its artboard, A4) has not begun, so it does
+    /// not "stop where it is" — it is stopped unstarted. The quit flow keeps
+    /// `max(1)` for a project where only asks wait.
     pub fn live_chats(&self) -> u32 {
         let mut seen = std::collections::BTreeSet::new();
-        for r in self.mine.iter().filter(|r| r.phase().live()) {
+        for r in self
+            .mine
+            .iter()
+            .filter(|r| matches!(r.phase(), RunPhase::Working | RunPhase::NeedsYou))
+        {
             seen.insert(r.chat_id.clone().unwrap_or_else(|| format!("run:{}", r.run_id)));
         }
         seen.len() as u32
@@ -1284,6 +1291,15 @@ mod tests {
     fn the_runs_snapshot_counts_chats_and_never_reads_the_question() {
         let snap = parse_runs(RUNS_BODY.as_bytes()).expect("parses");
         assert_eq!(snap.live_chats(), 2, "a waiting ask behind its own chat is that chat");
+        // A4 / 03 ai-queue-rule: the usual waiting ask is a NEW chat's ask on an artboard another run holds. It has
+        // not started, so it does not "stop where it is" — R10 still says "2 chats" (it is stopped unstarted).
+        let queued = parse_runs(br#"{"live":3,"mine":[
+            {"runId":"r_aaaaaa1","chatId":"c1","state":"running"},
+            {"runId":"r_aaaaaa2","chatId":"c2","state":"running"},
+            {"runId":"r_aaaaaa3","chatId":"c3","state":"waiting","behind":"r_aaaaaa1"}]}"#)
+        .unwrap();
+        assert_eq!(queued.live_chats(), 2, "a waiting ask in its own chat is not a chat stopping");
+        assert!(queued.any_live());
         assert_eq!(snap.needs_count(), 1);
         assert_eq!(snap.level(), Some(crate::tabs::Dot::NeedsYou));
         // Q3 by construction: nothing the shell keeps can hold the question or the doing.
