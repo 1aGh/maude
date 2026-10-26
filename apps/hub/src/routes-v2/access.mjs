@@ -130,6 +130,11 @@ const capsAt = (access, canvas) =>
   Object.fromEntries(CAPABILITIES.map((c) => [c, access.can(c, canvas)]));
 
 const nameOf = (email) => String(email ?? '').split('@')[0];
+/** The control plane's `from.name` on a forwarded Ask to edit: a short, non-empty string, or null. */
+const forwardedName = (from) => {
+  const n = typeof from?.name === 'string' ? from.name.trim() : '';
+  return n && n.length <= 80 ? n : null;
+};
 
 const refusal = (status, reason, error) => ({ status, body: { error, reason } });
 
@@ -319,7 +324,9 @@ async function forward(ctx, svc, { rest, actor }) {
   if (method === 'POST' && rest === 'requests' && res.status === 201 && payload?.id) {
     svc.notices.accessRequested({
       id: String(payload.id),
-      from: { name: nameOf(actor) },
+      // the control plane's own name for the asker (what the owner's request list shows), else the
+      // verified e-mail's local part — an older control plane answers `{ id }` only
+      from: { name: forwardedName(payload.from) ?? nameOf(actor) },
       canvas: typeof body?.canvas === 'string' ? body.canvas : null,
       at: svc.now(),
     });

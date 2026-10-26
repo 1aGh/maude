@@ -479,7 +479,9 @@ export async function handleAccessForward(request, env, { ctx = null, now = Date
     }
     if (!wrote?.meta?.changes) return refuse(429, 'rate-limited', ASKED_TOO_OFTEN);
     await record('access.request', { id, canvas });
-    return json({ id }, 201);
+    // The cell tells the owners on it at once (hub routes-v2/access.mjs `forward`): it names the person as the
+    // owner's request list does (`a.name || a.email`), never a guess from the e-mail. The asker's own name only.
+    return json({ id, from: { name: actor.name || actor.email } }, 201);
   }
 
   // Everything below changes who has access: the owner's call, project-level.
