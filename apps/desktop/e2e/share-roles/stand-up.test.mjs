@@ -18,7 +18,7 @@ let rig;
 let ownerStudio;
 before(
   async () => {
-    rig = await standUp();
+    rig = await standUp(process.env.MAUDE_E2E_OUT ? { out: process.env.MAUDE_E2E_OUT } : {});
     // The native app runs its own sidecar on the owner's project; a studio on the same folder, same
     // credentials, stands in for it so the canvases reach the hub.
     ownerStudio = (await rig.startOwnerStudio()).url;
@@ -226,29 +226,114 @@ describe('Petra: Can view on one canvas, Ask to edit, Let Petra edit', () => {
   });
 });
 
-describe('a link turned off', () => {
-  it('/viewer/redeem opens the owner’s link as a third person; turning it off ends their access', async () => {
+describe('a link turned off: the viewer is a plain browser on the cell door', () => {
+  let chromium = null;
+  let page = null;
+  let link = null;
+  let session = null;
+  const seen = [];
+  after(async () => {
+    await chromium?.close().catch(() => {});
+  });
+  /** One same-origin request from the viewer's page — through its own (watched) window.fetch. */
+  const inPage = (path) =>
+    page.evaluate(async (p) => {
+      const r = await fetch(p, { cache: 'no-store' });
+      return { status: r.status, body: await r.json().catch(() => null) };
+    }, path);
+  /** Evidence for a red step: a screenshot, the frame's address and every refused answer the page got. */
+  const evidence = async (label) => {
+    await page.screenshot({ path: join(rig.run.out, `${label}.png`) }).catch(() => {});
+    const src = await page
+      .locator('[data-testid="canvas-frame"]')
+      .getAttribute('src', { timeout: 1000 })
+      .catch(() => null);
+    writeFileSync(join(rig.run.out, `${label}.log`), `frame src ${src}\n${seen.join('\n')}\n`);
+  };
+  const row = () =>
+    `canvas-row-${rig.run.canvas
+      .replace(/\.tsx$/, '')
+      .replace(/[^a-z0-9]+/gi, '-')
+      .toLowerCase()}`;
+
+  it('/viewer/redeem walks the control plane to the cell’s door; a headless browser signs in there', async () => {
     const made = await hub('/api/access/links', {
       token: rig.owner.token,
       method: 'POST',
       body: { canvas: rig.run.canvas, role: 'observer', who: 'anyone' },
     });
-    const link = await json(made);
+    link = await json(made);
     assert.equal(made.status, 201, JSON.stringify(link));
 
     // A link that is not the rig's own is refused, not followed.
     const foreign = await control('/viewer/redeem', { url: 'https://example.com/l/abc.def' });
     assert.notEqual(foreign.status, 200);
 
+    // The control plane's own redirects end at the CELL's sign-in door, with a one-time code.
     const res = await control('/viewer/redeem', { url: link.url });
     const body = await json(res);
     assert.equal(res.status, 200, JSON.stringify(body));
-    assert.equal((await fetch(`${body.url}/_health`)).status, 200);
+    const door = new URL(body.url);
+    assert.equal(door.origin, rig.cell.public);
+    assert.equal(door.pathname, '/auth/browser');
+    assert.ok(door.searchParams.get('code'));
+    assert.equal(rig.studios.viewer, undefined, 'the viewer has no studio of their own');
     const verdict = await rig.loadClaimFor('viewer');
     assert.deepEqual(verdict.grants, [{ c: rig.run.canvas, r: 'observer' }]);
-    const token = hubsOf('viewer').token;
-    assert.equal((await hub('/api/access/me', { token })).status, 200);
 
+    // A plain browser opens it: the cell exchanges the code and mints the session cookie itself.
+    const { chromium: pw } = await import('@playwright/test');
+    chromium = await pw.launch({
+      headless: true,
+      ...(process.env.MAUDE_E2E_CHROMIUM ? { executablePath: process.env.MAUDE_E2E_CHROMIUM } : {}),
+    });
+    page = await chromium.newPage({ viewport: { width: 1440, height: 900 } });
+    page.on('console', (m) => {
+      if (m.type() === 'error') seen.push(`console error: ${m.text()}`);
+    });
+    page.on('response', (r) => {
+      if (r.status() === 401) seen.push(`${r.status()} ${r.request().method()} ${r.url()}`);
+    });
+    await page.goto(body.url);
+    session = await until('the cell’s session cookie', async () =>
+      (await page.context().cookies(rig.cell.public)).find((c) => c.name === 'maude_studio')
+    );
+    // The studio behind the door holds exactly the link's claim: Can view on that one canvas.
+    const cfg = await inPage('/_config');
+    assert.equal(cfg.status, 200, JSON.stringify(cfg.body));
+    assert.deepEqual(cfg.body.access, {
+      role: null,
+      grants: [{ c: rig.run.canvas, r: 'observer' }],
+    });
+    // Its tree offers that canvas; opening it frames it from the cell's canvas origin.
+    await page.locator(`[data-testid="${row()}"]`).click({ timeout: 30_000 });
+    const src = await page
+      .locator('[data-testid="canvas-frame"]')
+      .getAttribute('src', { timeout: 30_000 });
+    assert.equal(new URL(src).origin, rig.cell.canvasOrigin);
+    await page.screenshot({ path: join(rig.run.out, 'viewer-on-cell.png') });
+  });
+
+  // FINDING (p8-e2e-link-viewer): a canvas-only session gets no canvas capability at the cell's shell door
+  // (studio-proxy.mjs `canvasTokenFor`: `if (canvasOnly) return null`, decision S3.7c), so its frame carries
+  // no `t=` and the canvas door answers 401 "this canvas link has expired". A Can view link opened in a
+  // browser shows the shell and no canvas. Left red as a todo until the lead decides the capability shape.
+  it('the viewer sees the canvas through the cell’s canvas door', {
+    todo: 'a canvas-only session gets no canvas capability on a cell (finding)',
+  }, async () => {
+    try {
+      await page
+        .frameLocator('[data-testid="canvas-frame"]')
+        .locator('h1')
+        .first()
+        .waitFor({ timeout: 20_000 });
+    } catch (e) {
+      await evidence('viewer-canvas-red');
+      throw e;
+    }
+  });
+
+  it('the owner turns the link off: the next request is refused link-off and the shell shows the link card', async () => {
     const off = await hub(`/api/access/links/${link.id}`, {
       token: rig.owner.token,
       method: 'PATCH',
@@ -256,10 +341,51 @@ describe('a link turned off', () => {
     });
     assert.equal(off.status, 200, JSON.stringify(await json(off.clone())));
     assert.equal((await rig.loadClaimFor('viewer')).ok, false);
-    // The cell was told (control plane → hub), and after its grace the session is gone.
-    await until('the viewer’s session to end', async () => {
-      return (await hub('/api/access/me', { token })).status === 401;
+
+    // The cell was told; after its grace the browser's next request is refused, and says why.
+    let refused;
+    try {
+      refused = await until(
+        'the cell to refuse the viewer’s next request',
+        async () => {
+          const r = await inPage('/_health');
+          return r.status === 401 ? r : null;
+        },
+        30_000
+      );
+    } catch (e) {
+      await evidence('viewer-link-off-red');
+      throw e;
+    }
+    assert.deepEqual(refused.body, { error: 'sign in to open this project', reason: 'link-off' });
+    // The shell read that refusal (watchRefusals): the link card, in words.
+    const card = page.locator('[data-testid="access-link-off"]');
+    try {
+      await card.waitFor({ timeout: 30_000 });
+    } catch (e) {
+      await evidence('viewer-link-card-red');
+      throw e;
+    }
+    const words = ((await card.textContent()) ?? '').replace(/\s+/g, ' ');
+    assert.ok(words.includes('This link was turned off.'), words);
+    await page.screenshot({ path: join(rig.run.out, 'viewer-link-off.png') });
+
+    // The ended session sees nothing of the project any more: not its config, not the canvas source,
+    // not the canvas's own address.
+    const asViewer = (path) =>
+      fetch(`${rig.cell.http}${path}`, {
+        headers: { cookie: `maude_studio=${session.value}`, accept: 'application/json' },
+      });
+    for (const path of ['/_config', '/api/access/me', `/.design/${rig.run.canvas}`]) {
+      const r = await asViewer(path);
+      assert.equal(r.status, 401, `${path} → ${r.status}`);
+    }
+    // …and its cookie is not somebody else's oracle: a forged one hears no reason.
+    const forged = await fetch(`${rig.cell.http}/_health`, {
+      headers: { cookie: `maude_studio=${session.value}x`, accept: 'application/json' },
     });
+    assert.equal(forged.status, 401);
+    assert.equal((await forged.json()).reason, undefined);
   });
 });
 
