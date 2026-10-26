@@ -347,10 +347,13 @@ async function main() {
         await sleep(1000);
       }
       if (!clicked) {
-        throw new ProbeExit(
-          `_perf-probe-safari.mjs: no ${rowSel} in the studio file tree — check the slug`,
-          1
-        );
+        // The v2 Canvases panel (P8 c4-navpanels) folds a folder's rows away, so a row two levels down is not
+        // in the DOM until its folder is open. The shell opens a canvas from its address too (`?open=<path>`,
+        // the same entry the desktop shell uses): the slug `ui-c12` is `ui/c12.tsx` in the generated fixture.
+        const guess = opts.studio.replace('-', '/') + '.tsx';
+        const u = new URL(opts.url);
+        u.searchParams.set('open', guess);
+        await wd(opts.driverPort, 'POST', `${base}/url`, { url: u.toString() });
       }
       // Wait for the frame, then switch WebDriver's context into it. The canvas
       // runs on its own origin (DDR-054), so script cannot reach it from the
@@ -432,7 +435,19 @@ async function main() {
     if (opts.studio) {
       let frameIdle = null;
       for (let attempt = 1; attempt <= 2; attempt++) {
-        await clickEmptyWorld(opts.driverPort, base, exec);
+        if (attempt === 1) {
+          await clickEmptyWorld(opts.driverPort, base, exec);
+        } else {
+          // v2's canvas frame is full-bleed under floating islands: the first point can sit under one, so the
+          // click lands on the shell, not the frame. Press the frame element itself from the shell, a little right
+          // of centre (clear of the islands' edges), then step back into the frame.
+          await wd(opts.driverPort, 'POST', `${base}/frame`, { id: null });
+          const id = Object.values(frameEl)[0];
+          const rect = await wd(opts.driverPort, 'GET', `${base}/element/${id}/rect`);
+          await wd(opts.driverPort, 'POST', `${base}/actions`, clickActions(frameEl, Math.round(rect.width * 0.12), Math.round(rect.height * -0.05)));
+          await wd(opts.driverPort, 'DELETE', `${base}/actions`).catch(() => {});
+          await wd(opts.driverPort, 'POST', `${base}/frame`, { id: frameEl });
+        }
         await sleep(500);
         frameIdle = await readIdle(execAsync);
         if (frameIdle && !frameThrottled({ frameP50: frameIdle.p50, parentP50: parentIdle.p50 }))
