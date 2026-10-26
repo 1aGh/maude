@@ -84,6 +84,36 @@ beforeEach(() => {
   document.body.innerHTML = '';
 });
 
+// V2-8.7 — the a11y audit of the native strip page (axe on the page with a stubbed Tauri channel): three blockers.
+describe('the tab strip page is a valid ARIA tab bar (V2-8.7)', () => {
+  test('aria-required-parent: Home and the project tabs sit in ONE tablist', async () => {
+    mount(state([tab(1), tab(2)]));
+    await tick();
+    const homeList = $('tab-home')!.closest('[role="tablist"]');
+    const tabList = $(`tab-${tab(1).label}`)!.closest('[role="tablist"]');
+    expect(homeList).not.toBeNull();
+    expect(homeList).toBe(tabList);
+  });
+
+  test('nested-interactive: a tab holds no focusable control — the × is a pointer affordance, closing by key is the tab menu / ⌘W', async () => {
+    const tabs = [tab(1), tab(2)];
+    mount(state(tabs));
+    await tick();
+    const t = $(`tab-${tabs[0].label}`)!;
+    expect(t.querySelector('button, a, input, select, [tabindex]')).toBeNull();
+    // the × still closes (the e2e and a pointer click it)
+    ($(`tab-close-${tabs[0].label}`) as HTMLElement).click();
+    await tick();
+    expect(invoked('tab_close')).toEqual([{ label: tabs[0].label }]);
+  });
+
+  test('scrollable-region-focusable: the All tabs list is focusable (it scrolls)', async () => {
+    mount(state([tab(1)]));
+    await tick();
+    expect(document.getElementById('list')?.getAttribute('tabindex')).toBe('0');
+  });
+});
+
 describe('the tab strip page (S1.22b)', () => {
   test('a tab draws its square, its name as text, its account badge and one state mark', async () => {
     const tabs = [
@@ -257,7 +287,10 @@ describe('Home is the pinned first tab (S1.22c)', () => {
     const home = $('tab-home')!;
     const strip = $('tab-strip')!;
     // The first slot after the traffic lights.
-    const slots = Array.from(strip.children).filter((e) => !e.classList.contains('lights'));
+    // (the tablist wrapper draws no box — `display: contents` — so its children are the strip's slots)
+    const slots = Array.from(strip.children)
+      .flatMap((e) => (e.classList.contains('tabrow') ? Array.from(e.children) : [e]))
+      .filter((e) => !e.classList.contains('lights'));
     expect(slots[0]).toBe(home);
     for (const t of $$('.tab')) expect(before(home, t)).toBe(true);
     expect(before(home, $('tab-more')!)).toBe(true);

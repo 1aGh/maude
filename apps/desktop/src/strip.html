@@ -165,6 +165,10 @@
       .lights {
         flex: 0 0 78px;
       }
+      /* V2-8.7: the tablist wrapper around Home + the tabs is semantics only — its children stay the strip's flex items. */
+      .tabrow {
+        display: contents;
+      }
       .tabs {
         flex: 1 1 auto;
         display: flex;
@@ -303,6 +307,11 @@
       }
       .close:hover {
         background: var(--close-hover);
+      }
+      /* a tab that is already closing (V2-8.7: the × is a span now, so no [disabled]) */
+      .tab .close[data-closing] {
+        pointer-events: none;
+        opacity: 0.4;
       }
       /* S1.22c: the first slot, right after the traffic lights. */
       .home {
@@ -502,6 +511,7 @@
       .list {
         overflow-y: auto;
         padding: 6px;
+        outline: none;
       }
       .row {
         display: flex;
@@ -569,6 +579,8 @@
   <body>
     <nav class="strip" data-tauri-drag-region data-testid="tab-strip" aria-label="Tabs">
       <div class="lights" data-tauri-drag-region></div>
+      <!-- V2-8.7: Home and the project tabs are ONE tablist (a tab needs a tablist parent); the wrapper draws no box. -->
+      <div class="tabrow" role="tablist" aria-label="Open projects">
       <!-- S1.22c (CONTRACT §1/§6, amended 2026-10-14): Home is the pinned, icon-only FIRST tab. -->
       <button
         type="button"
@@ -590,7 +602,8 @@
           />
         </svg>
       </button>
-      <div class="tabs" id="tabs" role="tablist" aria-label="Open projects" data-tauri-drag-region></div>
+      <div class="tabs" id="tabs" data-tauri-drag-region></div>
+      </div>
       <button
         type="button"
         class="more"
@@ -618,7 +631,8 @@
             autocomplete="off"
           />
         </div>
-        <div class="list" id="list" role="listbox" aria-label="Open tabs"></div>
+        <!-- tabindex 0: the list scrolls, so the keyboard must be able to reach it (axe scrollable-region-focusable) -->
+        <div class="list" id="list" role="listbox" aria-label="Open tabs" tabindex="0"></div>
       </div>
     </div>
     <script src="strip.js"></script>
