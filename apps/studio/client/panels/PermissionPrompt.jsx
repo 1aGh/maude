@@ -117,14 +117,17 @@ export function describeOutOfProject(scope) {
             : // S8.10 — a Handoff to production run writes its target file only; this is another file.
               scope.reason === 'outside-run-scope'
               ? 'This handoff may write its one file only. Nothing else changes unless you allow it now.'
-              : // V2-8.9 H1 — inside the project; what matters is who will see what AI copied in.
-                scope.reason === 'audience'
-                ? audienceLead(scope.audience)
-                : scope.reason === 'audience-unknown'
-                  ? 'Maude couldn’t check who can see this canvas, and AI read other files in this chat.'
-                  : paths.length > 1
-                    ? 'Claude wants to write files outside this project.'
-                    : 'Claude wants to write a file outside this project.';
+              : // V2-8.9 B1 — Maude's own state (consent, chats, comments), not the design.
+                scope.reason === 'runtime-state'
+                ? 'This is Maude’s own app data, not your design. Nothing there changes unless you allow it now.'
+                : // V2-8.9 H1 — inside the project; what matters is who will see what AI copied in.
+                  scope.reason === 'audience'
+                  ? audienceLead(scope.audience)
+                  : scope.reason === 'audience-unknown'
+                    ? 'Maude couldn’t check who can see this canvas, and AI read other files in this chat.'
+                    : paths.length > 1
+                      ? 'Claude wants to write files outside this project.'
+                      : 'Claude wants to write a file outside this project.';
   return {
     lead,
     paths,
@@ -137,6 +140,8 @@ export function describeOutOfProject(scope) {
      *  must not claim "outside". */
     inProjectDenied: scope.reason === 'in-project-denied',
     readOnlyGrant: scope.reason === 'read-only-grant',
+    /** V2-8.9 B1 — inside the project, in Maude's own state; the copy must not claim "outside". */
+    runtimeState: scope.reason === 'runtime-state',
     /** V2-8.9 H1 — a write others can see; the copy must not claim "outside". */
     audience: scope.reason === 'audience' || scope.reason === 'audience-unknown',
   };
@@ -199,9 +204,11 @@ export default function PermissionPrompt({ request, onRespond, queueLength = 1 }
         ? 'Write to a folder AI may only read'
         : request.scope?.reason === 'outside-run-scope'
           ? 'Write outside this handoff'
-          : request.scope?.reason === 'audience' || request.scope?.reason === 'audience-unknown'
-            ? 'Write to a canvas others can see'
-            : 'Write outside this project';
+          : request.scope?.reason === 'runtime-state'
+            ? 'Write to Maude’s app data'
+            : request.scope?.reason === 'audience' || request.scope?.reason === 'audience-unknown'
+              ? 'Write to a canvas others can see'
+              : 'Write outside this project';
   const headerTarget = outOfProject
     ? outOfProject.paths.length === 1
       ? String(outOfProject.paths[0]).split('/').pop()
@@ -238,9 +245,11 @@ export default function PermissionPrompt({ request, onRespond, queueLength = 1 }
             ? 'Permission request — file that runs code'
             : outOfProject.readOnlyGrant
               ? 'Permission request — folder AI may only read'
-              : outOfProject.audience
-                ? 'Permission request — canvas others can see'
-                : 'Permission request — file outside this project'
+              : outOfProject.runtimeState
+                ? 'Permission request — Maude’s app data'
+                : outOfProject.audience
+                  ? 'Permission request — canvas others can see'
+                  : 'Permission request — file outside this project'
           : 'Permission request'
       }
       tabIndex={-1}
@@ -292,6 +301,8 @@ export default function PermissionPrompt({ request, onRespond, queueLength = 1 }
                 </>
               ) : outOfProject.readOnlyGrant ? (
                 <>You attached this folder for AI to read. Folders AI may read are in Advanced.</>
+              ) : outOfProject.runtimeState ? (
+                <>What AI may read and your chats live here, so Maude asks before AI changes it.</>
               ) : outOfProject.audience ? (
                 <>Edits that use only what they can see never ask.</>
               ) : (

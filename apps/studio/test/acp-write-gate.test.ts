@@ -135,6 +135,37 @@ describe('write gate — a granted read-only folder is never a write path (S5.10
   });
 });
 
+// V2-8.9 B1 — the agent could forge its own read consent by writing `_state/ai-grants.json`. The
+// design root's runtime state asks; the agent's own working folders (`_runs`, `_draw`…) stay auto.
+describe('write gate — Maude’s runtime state under the design root asks (B1)', () => {
+  for (const rel of [
+    '_state/ai-grants.json',
+    '_STATE/ai-grants.json',
+    '_chat/c1.json',
+    '_x.json',
+  ]) {
+    test(`Write to .design/${rel} → the card, allow_always stripped`, async () => {
+      useWriteAgent({ path: join(projectA, '.design', rel) });
+      const r = await runTurn(projectA, () => 'reject');
+      expect(r.prompts).toHaveLength(1);
+      expect(r.prompts[0]?.scope?.reason).toBe('runtime-state');
+      expect(r.prompts[0]?.req.options?.some((o) => o.kind === 'allow_always')).toBe(false);
+    }, 20000);
+  }
+  for (const rel of [
+    '_runs/s1/handoff/a.in.json',
+    '_draw/logo.build.ts',
+    '_history/_system/x.md',
+  ]) {
+    test(`Write to .design/${rel} (the agent's own output) is auto-approved`, async () => {
+      useWriteAgent({ path: join(projectA, '.design', rel) });
+      const r = await runTurn(projectA);
+      expect(r.prompts).toHaveLength(0);
+      expect(r.outcome).toContain('"optionId":"allow"');
+    }, 20000);
+  }
+});
+
 describe('write gate — in-project writes never prompt (DDR-184 regression guard)', () => {
   test('Write to an existing in-project file is auto-approved with NO client frame', async () => {
     useWriteAgent({ path: join(projectA, '.design', 'ui', 'home.tsx') });

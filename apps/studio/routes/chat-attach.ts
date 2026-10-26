@@ -121,7 +121,13 @@ function concat(chunks: Uint8Array[]): Uint8Array {
 }
 
 export function createChatAttachRoutes(deps: ChatAttachDeps): RouteSpec[] {
-  const grants = () => deps.grants ?? createGrantStore(deps.designRoot);
+  const grants = () =>
+    deps.grants ??
+    createGrantStore({
+      projectRoot: deps.projectRoot,
+      designRoot: deps.designRoot,
+      home: deps.home,
+    });
   const canvasOnly = () => (deps.access ?? currentAccess)().canvasOnly;
   const env = () => ({
     projectRoot: deps.projectRoot,

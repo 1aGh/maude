@@ -17,10 +17,18 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { notInScopeResponse, runWithAccess } from '../access/request.ts';
 import { resolveAccess } from '../access/scope.ts';
-import { countFiles, createGrantStore, listFolder, resolveFolder } from '../ai/attach-grants.ts';
+import { isInsideRoot } from '../acp/write-scope.ts';
+import {
+  countFiles,
+  createGrantStore,
+  grantsFileFor,
+  LEGACY_GRANTS_REL,
+  listFolder,
+  resolveFolder,
+} from '../ai/attach-grants.ts';
 import type { SaveAssetResult } from '../api.ts';
 import { createChatAttachRoutes, displayName, pdfPageCount } from '../routes/chat-attach.ts';
 import type { RouteSpec } from '../routes/table.ts';
@@ -57,6 +65,9 @@ beforeAll(() => {
 });
 
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
+
+/** A throwaway project at `dir` (its design root `dir/.design`), judged against the fixture home. */
+const placeOf = (dir: string) => ({ projectRoot: dir, designRoot: join(dir, '.design'), home });
 
 describe('resolveFolder — judged on the real path', () => {
   test('an ordinary folder outside the project resolves, and says it is outside', () => {
@@ -141,7 +152,7 @@ describe('the grant store — consent once per real path, per chat to use, revoc
   test('grant → attached to that chat only; a second chat attaches without asking again', () => {
     const dr = join(tmp, 'gs1');
     mkdirSync(dr);
-    const store = createGrantStore(dr, () => 1000);
+    const store = createGrantStore(placeOf(dr), () => 1000);
     const r = resolveFolder(photos, env);
     if (!r.ok) throw new Error('fixture');
     expect(store.grant(r, 'chat-a')).toEqual({ ok: true });
@@ -149,8 +160,8 @@ describe('the grant store — consent once per real path, per chat to use, revoc
     expect(store.chatRoots('chat-b')).toEqual([]);
     expect(store.attach(photos, 'chat-b')).toEqual({ ok: true });
     expect(store.chatRoots('chat-b')).toEqual([photos]);
-    // The file is per-Mac runtime state, owner-only.
-    const file = join(dr, '_state', 'ai-grants.json');
+    // The file is per-Mac state, owner-only, outside the project (V2-8.9 B1).
+    const file = grantsFileFor(dr);
     expect(JSON.parse(readFileSync(file, 'utf8')).folders[0]).toMatchObject({
       root: photos,
       outsideProject: true,
@@ -161,7 +172,7 @@ describe('the grant store — consent once per real path, per chat to use, revoc
   test('detach keeps the consent; revoke removes it from every chat', () => {
     const dr = join(tmp, 'gs2');
     mkdirSync(dr);
-    const store = createGrantStore(dr);
+    const store = createGrantStore(placeOf(dr));
     const r = resolveFolder(photos, env);
     if (!r.ok) throw new Error('fixture');
     store.grant(r, 'chat-a');
@@ -180,7 +191,7 @@ describe('the grant store — consent once per real path, per chat to use, revoc
     const victim = join(home, 'Pictures', 'swap-me');
     mkdirSync(dr);
     mkdirSync(victim);
-    const store = createGrantStore(dr);
+    const store = createGrantStore(placeOf(dr));
     const r = resolveFolder(victim, env);
     if (!r.ok) throw new Error('fixture');
     store.grant(r, 'chat-a');
@@ -195,11 +206,82 @@ describe('the grant store — consent once per real path, per chat to use, revoc
 
   test('a torn grants file grants nothing', () => {
     const dr = join(tmp, 'gs4');
-    mkdirSync(join(dr, '_state'), { recursive: true });
-    writeFileSync(join(dr, '_state', 'ai-grants.json'), '{"v":1,"folders":[{"root":');
-    const store = createGrantStore(dr);
+    mkdirSync(join(grantsFileFor(dr), '..'), { recursive: true });
+    writeFileSync(grantsFileFor(dr), '{"v":1,"folders":[{"root":');
+    const store = createGrantStore(placeOf(dr));
     expect(store.list()).toEqual([]);
     expect(store.chatRoots('chat-a')).toEqual([]);
+  });
+});
+
+// V2-8.9 B1 — the agent writes the design root freely, so the consent record must not live there.
+describe('B1 — the grants live outside the design root; a planted file grants nothing', () => {
+  const legacyOf = (dir: string) => join(dir, '.design', LEGACY_GRANTS_REL);
+  const plant = (file: string, roots: string[], chatId = 'c1') => {
+    mkdirSync(join(file, '..'), { recursive: true });
+    writeFileSync(
+      file,
+      JSON.stringify({
+        v: 1,
+        folders: roots.map((root) => ({ root, name: 'x', grantedAt: 1, outsideProject: true })),
+        chats: { [chatId]: roots },
+      })
+    );
+  };
+
+  test('a grant is written outside the project and its design root', () => {
+    const dr = join(tmp, 'b1a');
+    mkdirSync(join(dr, '.design'), { recursive: true });
+    const r = resolveFolder(photos, env);
+    if (!r.ok) throw new Error('fixture');
+    expect(createGrantStore(placeOf(dr)).grant(r, 'c1')).toEqual({ ok: true });
+    const file = grantsFileFor(dr);
+    expect(existsSync(file)).toBe(true);
+    expect(isInsideRoot(file, dr)).toBe(false);
+    expect(existsSync(legacyOf(dr))).toBe(false);
+  });
+
+  test('a `_state/ai-grants.json` written after the store exists is deleted unread', () => {
+    const dr = join(tmp, 'b1b');
+    mkdirSync(join(dr, '.design'), { recursive: true });
+    expect(createGrantStore(placeOf(dr)).chatRoots('c1')).toEqual([]); // the store now exists
+    plant(legacyOf(dr), [photos]);
+    expect(createGrantStore(placeOf(dr)).chatRoots('c1')).toEqual([]);
+    expect(existsSync(legacyOf(dr))).toBe(false);
+  });
+
+  test('a legacy file is migrated once — refused folders dropped — then deleted', () => {
+    const dr = join(tmp, 'b1c');
+    mkdirSync(join(dr, '.design'), { recursive: true });
+    plant(legacyOf(dr), [photos, sep, join(home, '.ssh')]);
+    const store = createGrantStore(placeOf(dr));
+    expect(store.chatRoots('c1')).toEqual([photos]);
+    expect(store.readOnlyRoots()).toEqual([photos]);
+    expect(existsSync(legacyOf(dr))).toBe(false);
+    // …and once only: a second planted file is not merged.
+    const other = join(home, 'Pictures', 'b1c-other');
+    mkdirSync(other, { recursive: true });
+    plant(legacyOf(dr), [other]);
+    expect(createGrantStore(placeOf(dr)).chatRoots('c1')).toEqual([photos]);
+  });
+
+  test('a forged store entry the picker would refuse is never read', () => {
+    const dr = join(tmp, 'b1d');
+    mkdirSync(join(dr, '.design'), { recursive: true });
+    plant(grantsFileFor(dr), [sep, home, join(home, '.ssh'), join(dr, '.design')]);
+    expect(createGrantStore(placeOf(dr)).chatRoots('c1')).toEqual([]);
+  });
+
+  test('a store pointed inside the project is never trusted or written', () => {
+    const dr = join(tmp, 'b1e');
+    mkdirSync(join(dr, '.design', '_state'), { recursive: true });
+    const file = join(dr, '.design', '_state', 'in-tree.json');
+    plant(file, [photos]);
+    const store = createGrantStore({ ...placeOf(dr), file });
+    expect(store.chatRoots('c1')).toEqual([]);
+    const r = resolveFolder(photos, env);
+    if (!r.ok) throw new Error('fixture');
+    expect(() => store.grant(r, 'c1')).toThrow();
   });
 });
 
@@ -208,7 +290,8 @@ describe('the grant store — consent once per real path, per chat to use, revoc
 function routes(designRoot: string, saved: Uint8Array[] = []): RouteSpec[] {
   return createChatAttachRoutes({
     designRoot,
-    projectRoot: project,
+    // A fresh design root is its own project, so its grants are its own (they key by project).
+    projectRoot: designRoot === design ? project : designRoot,
     home,
     saveAsset: async (stream): Promise<SaveAssetResult> => {
       const chunks: Uint8Array[] = [];
@@ -296,7 +379,8 @@ describe('routes/chat-attach — main origin only, server-chosen paths', () => {
       needsConsent: true,
       outsideProject: true,
     });
-    expect(existsSync(join(dr, '_state', 'ai-grants.json'))).toBe(false);
+    // The store exists from the first open (it marks the one-time migration done), holding nothing.
+    expect(JSON.parse(readFileSync(grantsFileFor(dr), 'utf8')).folders).toEqual([]);
 
     const ok = await post(specs, '/_api/ai/attach/folder', {
       path: photos,

@@ -2090,8 +2090,15 @@ export class AcpBridge {
       only = [];
     }
     const verdict = named
-      ? writeTargetsInsideProject(params.toolCall, this.scopeRoot, toolName, readOnly, only)
-      : resolveWriteTargets(params.toolCall, this.scopeRoot, readOnly, only);
+      ? writeTargetsInsideProject(
+          params.toolCall,
+          this.scopeRoot,
+          toolName,
+          readOnly,
+          only,
+          this.designRoots
+        )
+      : resolveWriteTargets(params.toolCall, this.scopeRoot, readOnly, only, this.designRoots);
     if (!verdict.inside) {
       return {
         stripAlways: true,

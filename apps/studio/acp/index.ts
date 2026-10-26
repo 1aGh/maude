@@ -129,7 +129,7 @@ export interface AcpOptions {
   permissionTimeoutMs?: number;
   /**
    * S5.10 — the folders granted read-only (`ai/attach-grants.ts`), read per write request by every
-   * bridge's write gate. Default: this project's `_state/ai-grants.json`.
+   * bridge's write gate. Default: this project's app-owned grants (`grantsFileFor`, V2-8.9 B1).
    */
   readOnlyRoots?: () => readonly string[];
   /**
@@ -661,10 +661,17 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
       // V2-1.15 §5.4 — the adapter carries MAUDE_CHAT_ID=<this chat> (the hook's run binding).
       chatId,
       // S5.10 — a folder AI may read is never a write path (acp/write-scope `read-only-grant`).
-      readOnlyRoots: options.readOnlyRoots ?? (() => readOnlyRootsFor(ctx.paths.designRoot)),
+      readOnlyRoots:
+        options.readOnlyRoots ??
+        (() =>
+          readOnlyRootsFor({ projectRoot: ctx.paths.repoRoot, designRoot: ctx.paths.designRoot })),
       // M2 (decision maude/v2-michal-m2-read-boundary) — the folders THIS chat may read: allowed and
       // attached (Remove takes one back on the next read). Read live per request by the read gate.
-      readRoots: () => chatReadRootsFor(ctx.paths.designRoot, chatId),
+      readRoots: () =>
+        chatReadRootsFor(
+          { projectRoot: ctx.paths.repoRoot, designRoot: ctx.paths.designRoot },
+          chatId
+        ),
       // S8.10 — a Handoff to production chat writes its target file only (handoff/write-scopes.ts).
       writeOnlyRoots: () => runWriteScope(chatId),
       // V2-8.9 H1 — a write that carries a file this chat read to someone who cannot see it asks.

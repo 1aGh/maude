@@ -278,11 +278,12 @@ describe('through the bridge', () => {
   });
 
   test('a consented folder: approved; after Remove, the card again', async () => {
-    const store = createGrantStore(design);
+    const store = createGrantStore({ projectRoot: repo, designRoot: design, home: tmp });
     const folder = resolveFolder(consented, { projectRoot: repo, designRoot: design, home: tmp });
     if (!folder.ok) throw new Error(`folder refused: ${folder.code}`);
     expect(store.grant(folder, 'c1')).toEqual({ ok: true });
-    const roots = () => createGrantStore(design).chatRoots('c1');
+    const roots = () =>
+      createGrantStore({ projectRoot: repo, designRoot: design, home: tmp }).chatRoots('c1');
 
     const allowed = await ask({ file_path: join(consented, 'a.jpg') }, roots);
     expect(allowed.prompts).toHaveLength(0);
