@@ -608,7 +608,7 @@ async function tileOnce(lane, msg) {
   try {
     assertOrigin(page, job);
     // the viewport only changes when the tile size does (a resize per tile cost ~30 ms)
-    if (hold.vp !== px) {
+    if (msg.video === true && hold.vp !== px) {
       await page.setViewportSize({ width: px, height: px });
       hold.vp = px;
     }
@@ -652,6 +652,26 @@ async function tileOnce(lane, msg) {
           const s = Math.min(1, size / Math.max(w, h));
           const cw = Math.max(1, Math.round(w * s));
           const ch = Math.max(1, Math.round(h * s));
+          if (!video) {
+            // a picture is scaled and encoded in the page: no screenshot, no layout, no paint wait
+            // (the screenshot path cost ~130 ms a tile). White under transparency, as the host had.
+            const cv = document.createElement('canvas');
+            cv.width = cw;
+            cv.height = ch;
+            const g = cv.getContext('2d');
+            if (!g) return null;
+            g.fillStyle = '#fff';
+            g.fillRect(0, 0, cw, ch);
+            g.imageSmoothingQuality = 'high';
+            g.drawImage(el, 0, 0, cw, ch);
+            const blob = await new Promise((res) => cv.toBlob(res, 'image/jpeg', 0.8));
+            if (!blob) return null;
+            const bytes = new Uint8Array(await blob.arrayBuffer());
+            let bin = '';
+            for (let i = 0; i < bytes.length; i += 0x8000)
+              bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+            return { w: cw, h: ch, jpeg: btoa(bin) };
+          }
           el.style.cssText = `display:block;width:${cw}px;height:${ch}px`;
           host.appendChild(el);
           await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -665,6 +685,14 @@ async function tileOnce(lane, msg) {
     if (!box || box === '__timeout__')
       return { ok: true, shots: [{ target: 0, missing: true }], ms: Date.now() - t0 };
     assertOrigin(page, job);
+    if (typeof box.jpeg === 'string')
+      return {
+        ok: true,
+        shots: [{ target: 0, jpeg: box.jpeg, partial: false }],
+        blocked: job.blocked,
+        ms: Date.now() - t0,
+        phases,
+      };
     const w = Math.max(1, Math.min(px, Math.floor(box.w)));
     const h = Math.max(1, Math.min(px, Math.floor(box.h)));
     const jpeg = await page.screenshot({
