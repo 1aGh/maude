@@ -7,7 +7,7 @@ import { waitForCanvasRects, waitForEditChrome } from '../helpers/canvas-frame';
 import { syncStatusText } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { invokeTauri } from '../helpers/native';
-import { pointerClick } from '../helpers/pointer';
+import { pointerDown, pointerUp } from '../helpers/pointer';
 import {
   activeTab,
   closeTab,
@@ -120,6 +120,25 @@ const centreOf = (sel: string) =>
       frame.contentDocument?.querySelector(s) as HTMLElement | null
     )?.getBoundingClientRect();
     return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+  }, sel) as Promise<Pt | null>;
+
+/** A frame-local point on the element matching `sel` that the element itself answers (no handle or overlay drawn
+ *  over it): its middle line, walked from the centre outwards. At the fitted zoom a selected headline is a few px
+ *  tall, so its padding grips (14 px, at the edge midpoints) sit over its centre. Null when nothing is clear. */
+const clearPointOn = (sel: string) =>
+  browser.execute((s) => {
+    const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+    const doc = frame.contentDocument;
+    const el = doc?.querySelector(s) as HTMLElement | null;
+    if (!doc || !el) return null;
+    const r = el.getBoundingClientRect();
+    const y = r.top + r.height / 2;
+    for (let d = 0; d < r.width / 2; d += 4)
+      for (const x of [r.left + r.width / 2 - d, r.left + r.width / 2 + d]) {
+        const hit = doc.elementFromPoint(x, y);
+        if (hit && (hit === el || el.contains(hit))) return { x, y };
+      }
+    return null;
   }, sel) as Promise<Pt | null>;
 
 /** A run of mouse events at a frame-local point — what a click is to the layers that listen in the canvas. */
@@ -360,7 +379,10 @@ describe('first canvas (S6.16) — a sentence on Home to a saved, shared canvas'
     const p = await centreOf(sel);
     expect(p).not.toBeNull();
     await mouseAt(p as Pt, ['pointerdown', 'pointerup', 'click', 'dblclick'], { detail: 2 }); // selects
-    const hit = await mouseAt(p as Pt, ['pointerdown', 'pointerup', 'click', 'dblclick'], {
+    // the selection now draws its grips: the second double-click goes where the headline itself is under the pointer
+    await browser.pause(150);
+    const q = (await clearPointOn(sel)) ?? (p as Pt);
+    const hit = await mouseAt(q, ['pointerdown', 'pointerup', 'click', 'dblclick'], {
       detail: 2,
     }); // the caret
     await browser.waitUntil(
@@ -420,7 +442,12 @@ describe('first canvas (S6.16) — a sentence on Home to a saved, shared canvas'
       ).getBoundingClientRect();
       return { x: r.left, y: r.top };
     })) as Pt;
-    await pointerClick(off.x + (m as Pt).x + 40, off.y + (m as Pt).y + 160);
+    // …and a press and a release are two moments, not one task: the board's draw starts on pointerdown (React state
+    // the release then reads, set on the next render), so a down+up fired back to back released a stroke not yet begun
+    const at = { x: off.x + (m as Pt).x + 40, y: off.y + (m as Pt).y + 160 };
+    await pointerDown(at.x, at.y);
+    await browser.pause(80);
+    await pointerUp(at.x, at.y);
     await browser.waitUntil(
       () =>
         walk(designDir(), (rel) => /\.annotations\.json$/.test(rel)).some((f) =>

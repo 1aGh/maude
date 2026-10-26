@@ -88,9 +88,9 @@ const inFrame = async <T>(
  * data URL of each file, in the order they were dropped, so the spec can compare bytes on disk. `phase` = 'over' only
  * dispatches dragover/dragleave and returns the hint text; 'drop' dispatches dragover then drop.
  */
-const dragPhotos = (n: number, phase: 'over' | 'drop', bare = false) =>
+const dragPhotos = (n: number, phase: 'over' | 'drop', bare = false, low = false) =>
   inFrame(
-    async (doc, win, count: number, ph: string, off: boolean) => {
+    async (doc, win, count: number, ph: string, off: boolean, under: boolean) => {
       const files: File[] = [];
       const urls: string[] = [];
       for (let i = 0; i < count; i++) {
@@ -109,7 +109,10 @@ const dragPhotos = (n: number, phase: 'over' | 'drop', bare = false) =>
       const body = doc.querySelector('.dc-artboard-body') as HTMLElement;
       const r = body.getBoundingClientRect();
       const x = off ? 3 : r.left + r.width / 2;
-      const y = off ? 3 : r.top + 6;
+      // `under`: the artboard's own empty part just below its first child, so no container (`data-cd-id` div) is
+      // under the pointer (one photo over a container fills it, as an Assets drag does: S7 image-drop)
+      const below = (body.firstElementChild?.getBoundingClientRect().bottom ?? r.top) + 16;
+      const y = off ? 3 : under ? Math.min(below, r.bottom - 4) : r.top + 6;
       const dt = new (win as unknown as { DataTransfer: typeof DataTransfer }).DataTransfer();
       for (const f of files) dt.items.add(f);
       const at = { bubbles: true, cancelable: true, clientX: x, clientY: y, dataTransfer: dt };
@@ -123,7 +126,8 @@ const dragPhotos = (n: number, phase: 'over' | 'drop', bare = false) =>
     },
     n,
     phase,
-    bare
+    bare,
+    low
   );
 
 /** ⌘Z until the file is `target` again. The press right after a write can race the op log's barrier. */
@@ -219,13 +223,13 @@ describe('drop from Finder onto an artboard (S8.14)', () => {
     expect(source()).toContain('"repeat(2, 1fr)"');
     await capture(report, 'grid');
     await undoTo(before);
-    // the file is back; the canvas draws it a beat later — hover the artboard as it is drawn again, not the grid
-    // still on screen (a photo frame there says "Drop to fill the frame")
+    // the file is back; the canvas draws it a beat later — hover the artboard as it is drawn again
     await browser.waitUntil(
       async () => inFrame((doc) => doc.querySelectorAll('.dc-artboard-body img').length === 0),
       { timeout: 15000, timeoutMsg: 'the canvas never drew the undone state' }
     );
-    const one = await dragPhotos(1, 'over');
+    // one photo over the artboard itself (not over the `grid` div, a container it would fill: "Drop to fill the frame")
+    const one = await dragPhotos(1, 'over', false, true);
     expect(one.hint).toBe(`Drop to place the photo in ${BOARD}`);
   });
 

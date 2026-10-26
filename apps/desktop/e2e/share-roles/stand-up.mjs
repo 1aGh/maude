@@ -365,7 +365,18 @@ export async function standUp(opts = {}) {
       const u = new URL(req ? req.url : String(input));
       if (u.hostname === cellHost) {
         const to = `${hubUrl}${u.pathname}${u.search}`;
-        return realFetch(req ? new Request(to, req) : to, init);
+        const sent = realFetch(req ? new Request(to, req) : to, init);
+        // trace (p8-e2e-fix-r5): the control plane → cell notices (`/internal/access-changed`) and their answers,
+        // beside the claim watcher's rewrites — so a missing "raised" is placed on one side or the other
+        if (u.pathname.startsWith('/internal/')) {
+          const body = typeof init?.body === 'string' ? init.body : '';
+          sent.then(
+            (r) =>
+              log(`trace ${Date.now()} cp→cell ${u.pathname} ${body.slice(0, 160)} → ${r.status}`),
+            (e) => log(`trace ${Date.now()} cp→cell ${u.pathname} failed: ${e?.message ?? e}`)
+          );
+        }
+        return sent;
       }
       if (!isLoopbackHost(u.hostname)) {
         return Promise.reject(
@@ -569,6 +580,10 @@ export async function standUp(opts = {}) {
           writeJsonAtomic(s.hubs, { hubs: { [hubUrl]: cred.record } });
           s.claim = now;
           log(`${who}'s credential re-exchanged: ${now}`);
+          const { statSync } = await import('node:fs');
+          log(
+            `trace ${Date.now()} watcher rewrote ${who}'s hubs.json mtimeMs=${statSync(s.hubs).mtimeMs}`
+          );
         } catch {
           /* the next tick */
         }

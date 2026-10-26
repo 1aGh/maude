@@ -255,10 +255,28 @@ part('2')('ds-review (part 2) — a master change, a folder left out with one ti
  */
 const ROOT4 = process.env.MAUDE_E2E_DS_MAKE_ROOT ?? '';
 const SENTENCE = 'A small Brno studio that makes calm software. Friendly, precise, never loud.';
+// A section is `done` only when every registry role of its groups passes ds-check, in both themes (contract S10
+// Q7, ds/make.ts deriveSectionStates) — so A carries the WHOLE colour set: that is what "Colour lands" means, and
+// the ready card (make-model.js readiness) needs one filling section done. Six tokens left every section waiting.
+const COLOUR_ROLES = [
+  ...['--bg-1', '--bg-2', '--bg-3', '--bg-4', '--fg-1', '--fg-2', '--fg-3'],
+  ...['--border-subtle', '--border-default', '--border-strong'],
+  ...['--accent-hover', '--accent-active', '--accent-soft', '--accent-on-soft', '--accent-text'],
+  ...['success', 'warn', 'error', 'info'].flatMap((s) =>
+    ['', '-fg', '-soft', '-text'].map((x) => `--status-${s}${x}`)
+  ),
+  ...['--focus-ring', '--selection', '--scrim'],
+];
+const restOfColour = Object.fromEntries([
+  ...COLOUR_ROLES.map((n) => [n, { light: '#4b5563', dark: '#cbd5e1' }]),
+  ['--focus-ring-width', '2px'],
+  ['--focus-ring-offset', '2px'],
+]);
 const DIRECTIONS = {
   a: {
     label: 'Calm daylight',
     tokens: {
+      ...restOfColour,
       '--bg-0': { light: '#ffffff', dark: '#10141a' },
       '--fg-0': { light: '#111827', dark: '#eef2f7' },
       '--accent': { light: '#2563eb', dark: '#60a5fa', valueNames: { light: 'Azure' } },

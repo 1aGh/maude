@@ -175,6 +175,12 @@ describe('video-ai-cut-stop — reel-place × 7, Stop, one action, one ⌘Z', ()
     await $('[data-testid="timeline-ai-edge"]').waitForExist({ timeout: 10_000 });
     expect(await text('timeline-ai-status')).toContain('AI is cutting');
     await $('[data-testid="timeline-ai-landing"]').waitForExist({ timeout: 10_000 });
+    // the landing line follows the run's last placement — a beat after the file (r5: it still read shot 1)
+    await browser
+      .waitUntil(async () => (await text('timeline-ai-landing')).includes('Placing shot 7'), {
+        timeout: 15_000,
+      })
+      .catch(() => {});
     expect(await text('timeline-ai-landing')).toContain('Placing shot 7 · Tackle 2');
     await capture('video-ai-cut-landing');
   });

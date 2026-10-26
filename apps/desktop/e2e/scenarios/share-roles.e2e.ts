@@ -11,7 +11,7 @@
 // Every person but the owner is a studio of their own on the same hub, driven through a headless Chromium page
 // (the multiplayer/ harness's way). The canvas is a separate origin: Chromium reaches it with frameLocator; the
 // owner never needs to look inside it. Every step has its own deadline and leaves a screenshot.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type Browser, chromium, type FrameLocator, type Page } from '@playwright/test';
 import { $, browser, expect } from '@wdio/globals';
@@ -101,7 +101,18 @@ async function ownerOpensShare(scope: 'canvas' | 'project') {
     await $(tid('share-dialog')).waitForDisplayed({ timeout: STEP_MS });
   }
   const seg = $(tid(`share-scope-${scope}`));
-  if (await seg.isExisting()) await seg.click();
+  if (!(await seg.isExisting())) return;
+  // the segment is pressed once the sheet shows that scope: a click that landed while the sheet was still
+  // re-rendering (the request block answered just before) left it on This canvas, where Lukáš's row is his grant
+  await browser.waitUntil(
+    async () => {
+      if ((await seg.getAttribute('aria-pressed')) === 'true') return true;
+      await seg.click();
+      await browser.pause(150);
+      return (await seg.getAttribute('aria-pressed')) === 'true';
+    },
+    { timeout: STEP_MS, timeoutMsg: `Share never showed the ${scope} scope` }
+  );
 }
 async function ownerClosesShare() {
   if (await $(tid('share-close')).isExisting()) await $(tid('share-close')).click();
@@ -110,7 +121,10 @@ async function ownerClosesShare() {
 // ── everyone else: a studio each, in Chromium ───────────────────────────────────────────────────────
 let chromiumBrowser: Browser | null = null;
 const pages: Page[] = [];
-async function person(url: string): Promise<Page> {
+/** Evidence trace (p8-e2e-fix-r5): one line per access event, with the time, beside the runner's own trace. */
+const trace = (line: string) =>
+  appendFileSync(join(run.out, 'access-trace.log'), `${Date.now()} ${line}\n`);
+async function person(url: string, who = 'person'): Promise<Page> {
   if (!chromiumBrowser)
     chromiumBrowser = await chromium.launch({
       headless: true,
@@ -118,6 +132,15 @@ async function person(url: string): Promise<Page> {
     });
   const page = await chromiumBrowser.newPage({ viewport: { width: 1440, height: 900 } });
   pages.push(page);
+  // the studio's inspector socket: every access frame it hands this window (`access`, `access-changed`, …)
+  page.on('websocket', (ws) => {
+    trace(`${who} ws open ${ws.url()}`);
+    ws.on('framereceived', (f) => {
+      const text = typeof f.payload === 'string' ? f.payload : '';
+      if (/"type":"access/.test(text)) trace(`${who} ws frame ${text.slice(0, 200)}`);
+    });
+    ws.on('close', () => trace(`${who} ws close ${ws.url()}`));
+  });
   await page.goto(url);
   return page;
 }
@@ -134,6 +157,27 @@ async function noticeOn(page: Page, words: string) {
 }
 async function shot(page: Page, label: string) {
   await page.screenshot({ path: join(run.out, `${label}.png`) });
+}
+/** The Share cluster's access word, once it settles on `want` — the word follows `/_config.access`, read after the
+ *  shell boots. On a timeout: the word it shows, what `/_config.access` says, and a screenshot. */
+async function accessWord(page: Page, label: string, want: string) {
+  const word = page.locator(tid('share-cluster-status'));
+  const now = async () => (await word.textContent())?.trim() ?? '';
+  try {
+    await until(`${label}'s access word`, async () => (await now()) === want);
+  } catch {
+    await shot(page, `${label}-access-word`);
+    const access = await page
+      .evaluate(() =>
+        fetch('/_config', { cache: 'no-store' })
+          .then((r) => r.json())
+          .then((c) => JSON.stringify(c.access ?? null))
+      )
+      .catch((e) => String(e));
+    throw new Error(
+      `${label}'s access word is "${await now()}", not "${want}" · /_config.access ${access}`
+    );
+  }
 }
 /** The mode switch's segment for `mode`, pressed. */
 async function selectMode(page: Page, mode: 'viewing' | 'edit') {
@@ -181,15 +225,13 @@ describe('Share roles: Can view asks, Can edit is removed, a link is turned off 
 
     // Petra accepts (her own account, through the runner) and her window opens: the one canvas.
     const { url } = await lifecycle('/petra/accept');
-    const petra = await person(url);
+    const petra = await person(url, 'petra');
     await petra.locator(tid(rowId(run.canvas))).waitFor({ timeout: 60_000 });
     expect(await petra.locator('.sh-sidebar [data-testid^="canvas-row-"]').count()).toBe(1);
     await openCanvas(petra, run.canvas);
 
     // Her access in words, Ask to edit in place of Share; Viewing and no toolbar.
-    expect((await petra.locator(tid('share-cluster-status')).textContent())?.trim()).toBe(
-      'Can view'
-    );
+    await accessWord(petra, 'petra', 'Can view');
     await petra.locator(tid('share-cluster-ask')).waitFor({ timeout: STEP_MS });
     expect(await petra.locator(tid('share-cluster-share')).count()).toBe(0);
     await selectMode(petra, 'viewing');
@@ -220,6 +262,7 @@ describe('Share roles: Can view asks, Can edit is removed, a link is turned off 
     await $(tid('share-requests')).waitForDisplayed({ timeout: STEP_MS });
     const approve = await $('[data-testid^="share-request-approve-"]');
     expect(await approve.getText()).toBe(`Let ${first(run.petra.name)} edit`);
+    trace('owner clicks Let Petra edit');
     await approve.click();
     await capture(report, 'owner-let-petra-edit');
     await ownerClosesShare();
@@ -251,6 +294,10 @@ describe('Share roles: Can view asks, Can edit is removed, a link is turned off 
     const editedAt = Date.now();
 
     // The owner removes him from the project, right away.
+    await ownerOpensShare('project');
+    // the sheet can draw itself afresh once its lists load (back on This canvas, its first scope): look again —
+    // on This canvas Lukáš's row is a canvas grant he does not have, and Remove there reached no control-plane change (r5 trace)
+    await browser.pause(1_000);
     await ownerOpensShare('project');
     const roleButton = await until('Lukáš’s row in Share', () =>
       browser.execute((name) => {
@@ -324,16 +371,15 @@ describe('Share roles: Can view asks, Can edit is removed, a link is turned off 
 
     // A third person opens it (signed in, through the runner) and looks at the canvas.
     const { url } = await lifecycle('/viewer/redeem', { url: link });
-    const viewer = await person(url);
+    const viewer = await person(url, 'viewer');
     await openCanvas(viewer, run.canvas);
-    expect((await viewer.locator(tid('share-cluster-status')).textContent())?.trim()).toBe(
-      'Can view'
-    );
+    await accessWord(viewer, 'viewer', 'Can view');
 
     // The owner turns it off, under Advanced.
     if (!(await $(tid('share-link-off')).isDisplayed()))
       await $(tid('share-other-ways-toggle')).click();
     await $(tid('share-link-off')).waitForDisplayed({ timeout: STEP_MS });
+    trace('owner turns the link off');
     await $(tid('share-link-off')).click();
     await capture(report, 'owner-link-off');
     await ownerClosesShare();

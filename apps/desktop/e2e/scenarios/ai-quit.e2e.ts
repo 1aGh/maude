@@ -274,18 +274,23 @@ describe('ai-quit (native-desktop)', () => {
 
   it('4 · relaunch: the chat ends "Stopped when the app quit · …" with Keep going', async () => {
     await startApp();
+    // a new WebDriver session starts on Home (the pinned first webview, which also answers on loopback): relaunch
+    // restores project A's tab — wait for it and look at it before asking for its chat
+    await waitWindow(labelA, true, 60_000);
+    await focusTab(labelA);
     await waitForSidecar();
     await openAssistant();
     const divider = await $(tid('ai-stopped-divider'));
     // The panel reopens on the LAST chat — the ask that waited in line (step 2), which never started, so it has no
     // divider. A chat that was working when the app quit is in the chat list: open each until one ends with it.
     if (!(await divider.waitForDisplayed({ timeout: 10_000 }).catch(() => false))) {
-      for (let i = 0; i < 4 && !(await divider.isDisplayed().catch(() => false)); i++) {
+      // twice round the list: a relaunched chat reads its history back from disk, which can take longer than one look
+      for (let i = 0; i < 8 && !(await divider.isDisplayed().catch(() => false)); i++) {
         await (await $('.chat-switch-trigger')).click();
         const rows = await $$('[data-testid^="ai-chat-row-"]');
-        if (i >= rows.length) break;
-        await rows[i].click();
-        await divider.waitForDisplayed({ timeout: 5_000 }).catch(() => {});
+        if (!rows.length) break;
+        await rows[i % rows.length].click();
+        await divider.waitForDisplayed({ timeout: 10_000 }).catch(() => {});
       }
     }
     await divider.waitForDisplayed({ timeout: 30_000 });
@@ -314,5 +319,8 @@ describe('ai-quit (native-desktop)', () => {
     const took = await waitGone(appBefore, 10_000);
     expect(took).toBeLessThanOrEqual(6_000);
     expect(records(A).every((r) => r.state === 'ended')).toBe(true);
+    // the app is gone, and wdio's session end would DELETE against a dead driver (ECONNREFUSED — the whole file
+    // then reads "failed" though every step passed, r5): start it again; the conf's onComplete stops it
+    await startApp();
   });
 });

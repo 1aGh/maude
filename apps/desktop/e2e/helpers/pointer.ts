@@ -1,5 +1,7 @@
 import { browser } from '@wdio/globals';
 
+import { installNameShim } from './sidecar';
+
 /**
  * Pointer input at a WINDOW coordinate, for the canvas and for shell drags.
  *
@@ -15,73 +17,89 @@ import { browser } from '@wdio/globals';
 
 type Phase = 'click' | 'down' | 'move' | 'up';
 
-function send(phase: Phase, x: number, y: number): boolean {
-  const w = window as unknown as {
-    __maudePointer?: { el: Element; win: Window; ox: number; oy: number };
-  };
-  let win: Window = window;
-  let ox = 0;
-  let oy = 0;
-  let el: Element | null = document.elementFromPoint(x, y);
-  while (el instanceof HTMLIFrameElement && el.contentDocument) {
-    const r = el.getBoundingClientRect();
-    ox += r.left;
-    oy += r.top;
-    win = el.contentWindow as Window;
-    el = el.contentDocument.elementFromPoint(x - ox, y - oy);
+function send(phase: Phase, x: number, y: number): boolean | string {
+  try {
+    return sendNow();
+  } catch (e) {
+    return `pointer ${phase} at ${x},${y} threw ${e instanceof Error ? `${e.name}: ${e.message}` : String(e)}`;
   }
-  if (phase === 'move' || phase === 'up') {
-    const held = w.__maudePointer;
-    if (held) {
-      el = held.el;
-      win = held.win;
-      ox = held.ox;
-      oy = held.oy;
+  function sendNow(): boolean {
+    const w = window as unknown as {
+      __maudePointer?: { el: Element; win: Window; ox: number; oy: number };
+    };
+    let win: Window = window;
+    let ox = 0;
+    let oy = 0;
+    let el: Element | null = document.elementFromPoint(x, y);
+    while (el instanceof HTMLIFrameElement && el.contentDocument) {
+      const r = el.getBoundingClientRect();
+      ox += r.left;
+      oy += r.top;
+      win = el.contentWindow as Window;
+      el = el.contentDocument.elementFromPoint(x - ox, y - oy);
     }
+    if (phase === 'move' || phase === 'up') {
+      const held = w.__maudePointer;
+      if (held) {
+        el = held.el;
+        win = held.win;
+        ox = held.ox;
+        oy = held.oy;
+      }
+    }
+    if (!el) return false;
+    const W = win as Window & typeof globalThis;
+    const at = (type: string, buttons: number) => ({
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      view: win,
+      button: 0,
+      buttons,
+      clientX: x - ox,
+      clientY: y - oy,
+      screenX: x,
+      screenY: y,
+      pointerId: 1,
+      pointerType: 'mouse',
+      isPrimary: true,
+      detail: type === 'click' ? 1 : 0,
+    });
+    const fire = (kind: 'pointer' | 'mouse', type: string, buttons: number) => {
+      const init = at(type, buttons);
+      const ev = kind === 'pointer' ? new W.PointerEvent(type, init) : new W.MouseEvent(type, init);
+      (el as Element).dispatchEvent(ev);
+    };
+    if (phase === 'down' || phase === 'click') {
+      w.__maudePointer = { el, win, ox, oy };
+      fire('pointer', 'pointerdown', 1);
+      fire('mouse', 'mousedown', 1);
+    }
+    if (phase === 'move') {
+      fire('pointer', 'pointermove', 1);
+      fire('mouse', 'mousemove', 1);
+    }
+    if (phase === 'up' || phase === 'click') {
+      fire('pointer', 'pointerup', 0);
+      fire('mouse', 'mouseup', 0);
+      fire('mouse', 'click', 0);
+      w.__maudePointer = undefined;
+    }
+    return true;
   }
-  if (!el) return false;
-  const W = win as Window & typeof globalThis;
-  const at = (type: string, buttons: number) => ({
-    bubbles: true,
-    cancelable: true,
-    composed: true,
-    view: win,
-    button: 0,
-    buttons,
-    clientX: x - ox,
-    clientY: y - oy,
-    screenX: x,
-    screenY: y,
-    pointerId: 1,
-    pointerType: 'mouse',
-    isPrimary: true,
-    detail: type === 'click' ? 1 : 0,
-  });
-  const fire = (kind: 'pointer' | 'mouse', type: string, buttons: number) => {
-    const init = at(type, buttons);
-    const ev = kind === 'pointer' ? new W.PointerEvent(type, init) : new W.MouseEvent(type, init);
-    (el as Element).dispatchEvent(ev);
-  };
-  if (phase === 'down' || phase === 'click') {
-    w.__maudePointer = { el, win, ox, oy };
-    fire('pointer', 'pointerdown', 1);
-    fire('mouse', 'mousedown', 1);
-  }
-  if (phase === 'move') {
-    fire('pointer', 'pointermove', 1);
-    fire('mouse', 'mousemove', 1);
-  }
-  if (phase === 'up' || phase === 'click') {
-    fire('pointer', 'pointerup', 0);
-    fire('mouse', 'mouseup', 0);
-    fire('mouse', 'click', 0);
-    w.__maudePointer = undefined;
-  }
-  return true;
 }
 
-const run = (phase: Phase, x: number, y: number) =>
-  browser.execute(send, phase, Math.round(x), Math.round(y)) as Promise<boolean>;
+const run = async (phase: Phase, x: number, y: number): Promise<boolean> => {
+  // the transpiler wraps `send`'s inner arrows in `__name(…)`: a page this helper is the first to script (a tab
+  // opened from Home, never past waitForSidecar) has no `__name`, and every call threw a ReferenceError
+  await installNameShim();
+  const out = (await browser.execute(send, phase, Math.round(x), Math.round(y))) as
+    | boolean
+    | string;
+  // WebKit's WebDriver reports a throw only as "A JavaScript exception occurred": `send` hands it back as words
+  if (typeof out === 'string') throw new Error(out);
+  return out;
+};
 
 /** A click at a window coordinate, through whichever document is under it. */
 export const pointerClick = (x: number, y: number) => run('click', x, y);
