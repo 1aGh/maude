@@ -1,6 +1,7 @@
 // P8 perf fix (V2-8.14): a canvas whose module the frame gate refuses — the Alligators `kind="web"`
-// canvases import a `_frames.tsx` that renders DesignCanvas, so the closure (c4j) refuses them for
-// every opener — used to wait the full 20 s for `#canvas-root` and was retried to the failure cap:
+// canvases imported a `_frames.tsx` that renders DesignCanvas, so the closure (c4j) refused them for
+// every opener (since V2-8.9 round 2 a `_` file is a module, so they mount; the fixture keeps a refused
+// `frames.tsx` to stand for any canvas the gate refuses) — used to wait the full 20 s for `#canvas-root` and was retried to the failure cap:
 // ~170 s of a 206 s cold cover sweep for 8 canvases. The shell already writes the refusal into
 // `#canvas-mount-error`; the renderer now reads it and fails at once, and the service does not
 // retry a canvas that cannot mount (its key changes when the source does, and that is the retry).
@@ -25,7 +26,7 @@ export function Frames({ children }: { children: React.ReactNode }) {
 `;
 const WEB = `import React from 'react';
 import { DCSection, DCArtboard } from '@maude/canvas-lib';
-import { Frames } from './_frames';
+import { Frames } from './frames';
 export default function Web() {
   return (<Frames><DCSection id="s" title="S">
     <DCArtboard id="one" label="One" width={960} height={600} kind="web"><div>web</div></DCArtboard>
@@ -41,7 +42,7 @@ afterAll(() => {
 describe('a canvas that cannot mount (P8 perf fix, V2-8.14 covers)', () => {
   test('a refused mount is not retried: one render, then unavailable until the source changes', async () => {
     const { root, designRoot } = makeSandbox();
-    writeFiles(designRoot, { 'ui/web.tsx': WEB, 'ui/_frames.tsx': FRAMES });
+    writeFiles(designRoot, { 'ui/web.tsx': WEB, 'ui/frames.tsx': FRAMES });
     const shim = fakeShim(() => ({
       ok: false,
       error: 'canvas-failed',
@@ -66,7 +67,7 @@ describe('a canvas that cannot mount (P8 perf fix, V2-8.14 covers)', () => {
   });
 
   test('the real renderer reports the refusal in seconds, not after the 20 s mount wait', async () => {
-    const r = await rig(() => ({ 'ui/web.tsx': WEB, 'ui/_frames.tsx': FRAMES }));
+    const r = await rig(() => ({ 'ui/web.tsx': WEB, 'ui/frames.tsx': FRAMES }));
     stoppers.push(() => {
       r.svc.stop();
       r.proc.kill();
