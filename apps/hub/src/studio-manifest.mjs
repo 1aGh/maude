@@ -367,8 +367,9 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/project/migrate': REFUSED,
   '/_api/outbox': REFUSED,
   // S9.19 — the desktop's door to ITS linked hub's /api/access/* (routes/share.ts), with the Mac's
-  // stored credential. A cell IS the hub: its browser door asks /api/access/* there, never through
-  // the studio child (which is linked to nothing). The `:id` verbs match nothing: default-closed.
+  // stored credential. A cell IS the hub: the HUB answers a browser tab's /_api/share/* itself
+  // (routes-v2/share.mjs, P8 — the same fixed map, as the session) before this lane is reached; the
+  // studio child (linked to nothing) is never asked. The `:id` verbs match nothing: default-closed.
   '/_api/share/posture': REFUSED,
   '/_api/share/me': REFUSED,
   '/_api/share/people': REFUSED,

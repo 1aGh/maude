@@ -41,6 +41,7 @@ import { COMMENT_ROWS } from './comments.mjs';
 import { LEGACY_ROWS } from './legacy.mjs';
 import { PRESENT_ROWS } from './present.mjs';
 import { RENDER_JOBS_ROWS } from './render-jobs.mjs';
+import { SHARE_ROWS } from './share.mjs';
 import { TRASH_ROWS } from './trash.mjs';
 import { VOTES_ROWS } from './votes.mjs';
 
@@ -61,6 +62,7 @@ export const HUB_ROUTE_ROWS = Object.freeze([
   ...RENDER_JOBS_ROWS, // S8.5b-2
   ...DS_LIBRARY_ROWS, // S10.18a
   ...DS_GRANT_ROWS, // S10.18a-2
+  ...SHARE_ROWS, // P8 — a cloud tab's Share sheet / Ask to edit (the desktop's fixed map)
 ]);
 
 /** The studio's lane (and any path no row names): the pre-v2 write gate. */

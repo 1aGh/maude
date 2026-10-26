@@ -72,6 +72,9 @@ COPY apps/studio/canvas-slug.ts /build/apps/studio/canvas-slug.ts
 # scope.ts (its closure.ts import is type-only, erased by the bundler).
 COPY apps/studio/access/roles.ts /build/apps/studio/access/roles.ts
 COPY apps/studio/access/scope.ts /build/apps/studio/access/scope.ts
+# The Share sheet's fixed map (P8): a cell's hub answers a browser tab's /_api/share/*
+# by the SAME map the desktop's routes/share.ts uses (routes-v2/share.mjs). Import-free.
+COPY apps/studio/access/share-map.ts /build/apps/studio/access/share-map.ts
 # The canvas closure (V2-1.7 G2–G4, S9.4): access-files.mjs computes what a
 # canvas-only session may read with the studio's OWN scanner, so the build and
 # the ACL agree on what a canvas imports. Its import graph: the artifact
