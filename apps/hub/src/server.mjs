@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { rememberReturnTo } from './return-to.mjs';
+import { unloadByIdentity } from './unload-by-identity.mjs';
 
 // Maude Hub — self-hostable Yjs sync backend.
 //
@@ -2328,6 +2329,10 @@ export function createHub(config = {}) {
       }
     },
   });
+
+  // Hocuspocus unloads by NAME: a direct connection's second unload could delete the
+  // document a peer had just loaded. See unload-by-identity.mjs.
+  unloadByIdentity(server.hocuspocus);
 
   // Sync v2 Increment 2 — the poke. Built here because it needs the running
   // instance's document map; subscribed to the journal in
