@@ -5073,7 +5073,11 @@ export function createSyncRuntime(
       fileTotals.synced = result.skipped + result.pulled.length;
       fileTotals.pulled += result.pulled.length;
       fileTotals.conflicts += result.conflicts.length;
-      statusStore?.updateFiles?.({ ...fileTotals });
+      // A journal-less hub's pass is the whole comparison there: say so, once the lane is decided.
+      statusStore?.updateFiles?.({
+        ...fileTotals,
+        ...(legacyLane === true ? { lane: 'v1' as const } : {}),
+      });
     };
     /**
      * The v2 pass's counts, PLUS the doručenka.
