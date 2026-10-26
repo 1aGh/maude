@@ -15,12 +15,13 @@ import { after, before, describe, it } from 'node:test';
 import { standUp } from './stand-up.mjs';
 
 let rig;
+let ownerStudio;
 before(
   async () => {
     rig = await standUp();
     // The native app runs its own sidecar on the owner's project; a studio on the same folder, same
     // credentials, stands in for it so the canvases reach the hub.
-    await rig.startOwnerStudio();
+    ownerStudio = (await rig.startOwnerStudio()).url;
   },
   { timeout: 180_000 }
 );
@@ -162,6 +163,21 @@ describe('Petra: Can view on one canvas, Ask to edit, Let Petra edit', () => {
   });
 
   it('Ask to edit reaches the owner, and Let Petra edit puts the edit credential in her hubs.json', async () => {
+    // The owner's window is a desktop shell on its studio's inspector socket: what it hears there is the
+    // request toast's only source (ws.ts `access-request` ← sync `access:notice` ← the hub's stateless frame).
+    const heard = [];
+    const shell = new WebSocket(`${ownerStudio.replace(/^http/, 'ws')}/_ws`);
+    shell.addEventListener('message', (e) => {
+      try {
+        heard.push(JSON.parse(String(e.data)));
+      } catch {
+        /* not a frame */
+      }
+    });
+    await new Promise((ok, no) => {
+      shell.addEventListener('open', ok, { once: true });
+      shell.addEventListener('error', no, { once: true });
+    });
     const asked = await hub('/api/access/requests', {
       token: petraToken,
       method: 'POST',
@@ -172,6 +188,14 @@ describe('Petra: Can view on one canvas, Ask to edit, Let Petra edit', () => {
     assert.equal(requests.length, 1);
     assert.equal(requests[0].from.name.split(' ')[0], 'Petra');
     assert.equal(requests[0].canvas, rig.run.canvas);
+    // …and the owner's shell hears it: "Petra … asks to edit <canvas>" with a Review (share-roles.e2e.ts toast)
+    const toast = await until('the owner’s shell to hear the request', () =>
+      heard.find((f) => f?.type === 'access-request')
+    );
+    shell.close();
+    assert.equal(toast.id, requests[0].id);
+    assert.equal(toast.from?.name?.split(' ')[0], 'Petra');
+    assert.equal(toast.canvas, rig.run.canvas);
 
     const ok = await hub(`/api/access/requests/${requests[0].id}/approve`, {
       token: rig.owner.token,
