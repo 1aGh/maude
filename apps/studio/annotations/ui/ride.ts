@@ -375,6 +375,29 @@ export function straightCrosses<T extends Rect>(
 /** The words of the refused-straight tag (CONTRACT §3 voice). */
 export const crossTag = (label: string): string => `the straight line would cross ${label}`;
 
+/** p8-r11-15 (15 an-follow): the bubble over a detoured route while the artboard is still in hand. */
+export const ROUTE_BUBBLE = 'Let go — the shortest clean path';
+
+/**
+ * Where the bubble sits: the middle of the routed line's longest segment (the stretch that goes around the
+ * obstacle). A route with no detour (two points) has none.
+ */
+export function routeBubbleAt(points: readonly Point[]): Point | null {
+  if (points.length < 3) return null;
+  let best = 0;
+  let at: Point | null = null;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1] as Point;
+    const b = points[i] as Point;
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    if (len > best) {
+      best = len;
+      at = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    }
+  }
+  return at;
+}
+
 export interface LiveArrow {
   id: string;
   /** The arrow as it should be drawn this frame (WORLD points, routed when elbow). */
@@ -385,6 +408,8 @@ export interface LiveArrow {
   width: number;
   /** The refused-straight tag, when the straight line would cross an artboard. */
   tag: { text: string; at: Point } | null;
+  /** "Let go — the shortest clean path": while dragging, on a route that goes around an artboard; never at rest. */
+  route: { text: string; at: Point } | null;
 }
 
 /** The imperative surface the controller draws through (the layer's DOM; a fake in tests). */
@@ -555,6 +580,7 @@ export function createRideController(deps: RideDeps): RideController {
           };
       }
       const prims = g.elbow ? polylinePrims(points, g.el) : primsFor(g.el, g.a, g.b);
+      const bubbleAt = tag && mode === 'drag' ? routeBubbleAt(points) : null;
       deps.sink.arrow(
         {
           id,
@@ -563,6 +589,7 @@ export function createRideController(deps: RideDeps): RideController {
           color: typeof g.el.color === 'string' ? g.el.color : '#1a1a1a',
           width: typeof g.el.width === 'number' ? g.el.width : 2,
           tag,
+          route: bubbleAt ? { text: ROUTE_BUBBLE, at: bubbleAt } : null,
         },
         mode
       );
@@ -745,11 +772,15 @@ export const RIDE_Z = 6;
 
 export function createDomRideSink(
   world: () => HTMLElement | null,
-  reducedMotion: () => boolean
+  reducedMotion: () => boolean,
+  /** The canvas zoom: the two chips are world-space nodes and keep their screen size by counter-scaling. */
+  zoom: () => number = () => 1
 ): RideSink {
+  const unscale = () => 1 / Math.max(zoom(), 0.01);
   const touched = new Set<HTMLElement>();
   const groups = new Map<string, SVGGElement>();
   const tags = new Map<string, HTMLElement>();
+  const bubbles = new Map<string, HTMLElement>();
   let root: HTMLElement | null = null;
   let svg: SVGSVGElement | null = null;
   const nodeOf = (id: string): HTMLElement | null =>
@@ -841,6 +872,26 @@ export function createDomRideSink(
         s.appendChild(g);
       }
       groups.set(live.id, g);
+      // the let-go bubble rides with the live route and goes with the first frame that has none
+      let bubble = bubbles.get(live.id);
+      if (!live.route) {
+        bubble?.remove();
+        bubbles.delete(live.id);
+      } else if (root) {
+        if (!bubble) {
+          bubble = doc.createElement('span');
+          bubble.className = 'dc-annot-route';
+          bubble.setAttribute('data-testid', 'annot-route-tag');
+          root.appendChild(bubble);
+          bubbles.set(live.id, bubble);
+        }
+        bubble.textContent = live.route.text;
+        bubble.style.left = `${live.route.at.x}px`;
+        bubble.style.top = `${live.route.at.y}px`;
+        // bottom-centre on the point, 8 screen px above it, at the size of the page's own chips
+        bubble.style.transformOrigin = '50% 100%';
+        bubble.style.transform = `translate(-50%, calc(-100% - ${8 * unscale()}px)) scale(${unscale()})`;
+      }
       let tag = tags.get(live.id);
       if (!live.tag) {
         tag?.remove();
@@ -858,6 +909,7 @@ export function createDomRideSink(
         tag.textContent = live.tag.text;
         tag.style.left = `${live.tag.at.x}px`;
         tag.style.top = `${live.tag.at.y}px`;
+        tag.style.transform = `translate(-50%, -50%) scale(${unscale()})`;
       }
     },
     clear() {
@@ -869,6 +921,7 @@ export function createDomRideSink(
       touched.clear();
       groups.clear();
       tags.clear();
+      bubbles.clear();
       root?.remove();
       root = null;
       svg = null;

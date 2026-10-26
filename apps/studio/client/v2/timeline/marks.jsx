@@ -72,7 +72,7 @@ const openThread = (file, id) =>
     .catch(() => false);
 
 /** This canvas's annotation board, re-read when it changes (the Layers list's source). */
-function useBoard(file, source = boardSource) {
+export function useBoard(file, source = boardSource) {
   const [board, setBoard] = useState([]);
   useEffect(() => {
     if (!file) {

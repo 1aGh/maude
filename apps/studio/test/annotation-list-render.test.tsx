@@ -169,6 +169,48 @@ describe('S4.17 · AnnotationListHost', () => {
     expect(all(host, 'annotation-locked-toolbar')).toHaveLength(0);
   });
 
+  test('p8-r11-15: a selection made on the CANVAS (a locked sticky included) lights its row', async () => {
+    installBoard({
+      '.design/ui/A.tsx': BOARD,
+      '.design/ui/B.tsx': [sticky('x', 'Elsewhere', 'Jonas')],
+    });
+    const { AnnotationListHost } = await import('../client/v2/annotations/annotation-list.jsx');
+    const { noteAnnotationSelection } = await import('../client/v2/annotations/annotation-asks.js');
+    const host = await mount(
+      <AnnotationListHost file=".design/ui/A.tsx" post={() => {}} me={ME} />
+    );
+    const current = () =>
+      all(host, 'annotation-list-row')
+        .filter((r) => r.getAttribute('aria-current') === 'true')
+        .map((r) => r.querySelector('.al-name')?.textContent);
+    expect(current()).toEqual([]);
+    // the canvas relays its selection through the same channel the AI chat's scope chip reads
+    await act(async () =>
+      noteAnnotationSelection('.design/ui/A.tsx', {
+        ids: ['t2'],
+        kinds: { sticky: 1 },
+        artboards: [],
+      })
+    );
+    expect(current()).toEqual(['Datum tučně']);
+    expect(all(host, 'annotation-locked-toolbar')).toHaveLength(1);
+    // another canvas's selection is not this list's
+    await act(async () =>
+      noteAnnotationSelection('.design/ui/B.tsx', {
+        ids: ['x'],
+        kinds: { sticky: 1 },
+        artboards: [],
+      })
+    );
+    expect(current()).toEqual(['Datum tučně']);
+    // the canvas deselects: the row lets go
+    await act(async () =>
+      noteAnnotationSelection('.design/ui/A.tsx', { ids: [], kinds: {}, artboards: [] })
+    );
+    expect(current()).toEqual([]);
+    noteAnnotationSelection('.design/ui/B.tsx', { ids: [], kinds: {}, artboards: [] });
+  });
+
   test('the twisty folds a section without touching the board', async () => {
     installBoard({ '.design/ui/A.tsx': BOARD });
     const { AnnotationListHost } = await import('../client/v2/annotations/annotation-list.jsx');
