@@ -27,6 +27,51 @@ export function currentCanvasToken(cfg) {
   return cfg?.canvasToken ? (liveCanvasToken ?? cfg.canvasToken) : null;
 }
 
+// p8-e2e-link-viewer (lead decision v2-p8-canvas-only-browser-opens-via-follow-capability) — a CANVAS-ONLY
+// session in a cloud tab (a Can view link: no project role, only grants) is handed no project-wide canvas
+// capability (S3.7c: a role-null one would read the whole project). It asks the cell for a read-only one
+// per canvas it holds — the follow ask, `/_config?follow=1&canvas=<rel>` (hub follow-capability.mjs mints
+// it only when the session can read that canvas) — and each frame carries its own canvas's. Recorded here
+// like `liveCanvasToken`, so a re-mint reaches the next URL without re-rendering every frame.
+let canvasCaps = {};
+/** Replace the per-canvas capabilities (designRoot-relative canvas → token). */
+export function setCanvasCaps(caps) {
+  const next = {};
+  for (const [rel, t] of Object.entries(caps ?? {})) if (typeof t === 'string' && t) next[rel] = t;
+  canvasCaps = next;
+}
+/** A designRoot-relative canvas path the shell may ask a capability for (the hub re-checks it). */
+const askableRel = (c) =>
+  typeof c === 'string' &&
+  c.length > 0 &&
+  c.length <= 1024 &&
+  c.endsWith('.tsx') &&
+  !/[\\:%?#]/.test(c) &&
+  c.split('/').every((s) => s !== '' && s !== '.' && s !== '..' && !s.startsWith('_'));
+/** The canvases this window asks a capability for: those a canvas-only cloud session holds, else none. */
+export function canvasCapAsks(cfg) {
+  if (!cfg?.cloud || cfg.canvasToken) return [];
+  const access = cfg.access;
+  if (!access || access.role != null || !Array.isArray(access.grants)) return [];
+  const out = [];
+  for (const g of access.grants) if (askableRel(g?.c) && !out.includes(g.c)) out.push(g.c);
+  return out;
+}
+/** The follow ask for one canvas — the only request a per-canvas capability comes from. */
+export function canvasCapUrl(rel) {
+  const q = new URLSearchParams();
+  q.set('follow', '1');
+  q.set('canvas', rel);
+  return `/_config?${q.toString()}`;
+}
+/** The capability a frame of `rel` carries when the session holds no project-wide one, or null. */
+function canvasCapOf(cfg, rel) {
+  if (cfg?.canvasToken || !Object.hasOwn(canvasCaps, rel)) return null;
+  return cfg?.[CAP_IDENTITY] ? 'cap' : canvasCaps[rel];
+}
+/** `canvasFrameCfg`'s mark: a frame's identity carries THAT it has a capability, not which. */
+const CAP_IDENTITY = Symbol('canvas-cap-identity');
+
 /**
  * When to re-mint a capability: at 60% of what is left of it, read off the
  * token's own expiry claim (`e`, ms — render-token.mjs), so the cadence
@@ -187,7 +232,15 @@ export function canvasFrameCfg(cfg) {
   const heads = {};
   for (const [k, v] of Object.entries(cfg?.systemHeads ?? {}))
     heads[k] = typeof v === 'string' && v ? HEAD_PLACEHOLDER : v;
-  return { ...cfg, canvasToken: undefined, systemHeads: heads, dsRevGaps: undefined };
+  // A per-canvas capability is identity only by its presence (the first one arriving is a new frame),
+  // never by its value — a re-mint is not a new frame either.
+  return {
+    ...cfg,
+    canvasToken: undefined,
+    systemHeads: heads,
+    dsRevGaps: undefined,
+    [CAP_IDENTITY]: true,
+  };
 }
 const HEAD_PLACEHOLDER = 'f'.repeat(64);
 
@@ -279,7 +332,7 @@ export function canvasUrl(p, cfg, opts) {
   // origin: a cookie scoped widely enough to cover it would be readable by the
   // untrusted canvas content itself, which is the one thing the DDR-054 split
   // exists to prevent — so the capability lives in the URL instead.
-  const token = currentCanvasToken(cfg);
+  const token = currentCanvasToken(cfg) ?? canvasCapOf(cfg, rel);
   if (token) params.set('t', token);
   // gate-b-c4 — the per-frame capability (client/frame-cap.js, access/frame.ts): the canvas origin
   // answers this frame's requests as the opener narrowed to THIS canvas. Absent without a key

@@ -314,23 +314,40 @@ describe('a link turned off: the viewer is a plain browser on the cell door', ()
     await page.screenshot({ path: join(rig.run.out, 'viewer-on-cell.png') });
   });
 
-  // FINDING (p8-e2e-link-viewer): a canvas-only session gets no canvas capability at the cell's shell door
-  // (studio-proxy.mjs `canvasTokenFor`: `if (canvasOnly) return null`, decision S3.7c), so its frame carries
-  // no `t=` and the canvas door answers 401 "this canvas link has expired". A Can view link opened in a
-  // browser shows the shell and no canvas. Left red as a todo until the lead decides the capability shape.
-  it('the viewer sees the canvas through the cell’s canvas door', {
-    todo: 'a canvas-only session gets no canvas capability on a cell (finding)',
-  }, async () => {
+  // A canvas-only session holds no project-wide canvas capability (S3.7c); its shell asks the follow
+  // capability for each canvas it holds (decision v2-p8-canvas-only-browser-opens-via-follow-capability).
+  it('the viewer sees the canvas it holds through the cell’s canvas door, and nothing of Private', async () => {
+    const frame = page.frameLocator('[data-testid="canvas-frame"]');
     try {
-      await page
-        .frameLocator('[data-testid="canvas-frame"]')
-        .locator('h1')
-        .first()
-        .waitFor({ timeout: 20_000 });
+      await frame.locator('[data-testid="smoke-h1"]').waitFor({ timeout: 30_000 });
     } catch (e) {
       await evidence('viewer-canvas-red');
       throw e;
     }
+    assert.equal((await frame.locator('h1').first().textContent())?.trim(), 'Maude desktop E2E');
+    const src = await page.locator('[data-testid="canvas-frame"]').getAttribute('src');
+    const t = new URL(src).searchParams.get('t');
+    assert.ok(t, 'the frame carries a capability');
+    // …for Smoke only: read-only, that one canvas, no project role.
+    const claims = JSON.parse(Buffer.from(t.slice(0, t.lastIndexOf('.')), 'base64url').toString());
+    assert.equal(claims.f, rig.run.canvas);
+    assert.equal(claims.ro, 1);
+    assert.equal(claims.r, undefined);
+    // Private is not in the tree, and its follow ask answers no capability.
+    assert.equal(await page.locator('[data-testid="canvas-row-ui-private"]').count(), 0);
+    const ask = await inPage(`/_config?follow=1&canvas=${encodeURIComponent('ui/Private.tsx')}`);
+    assert.equal(ask.body?.canvasToken, undefined);
+    // Smoke's capability does not render Private at the canvas origin: the same frame URL, retargeted.
+    const other = new URL(src);
+    other.searchParams.set('canvas', 'ui/Private.tsx');
+    const probe = await page.context().newPage();
+    await probe.goto(other.href).catch(() => {});
+    await new Promise((r) => setTimeout(r, 5000));
+    const shown = await probe.evaluate(() => document.body?.innerText ?? '').catch(() => '');
+    await probe.screenshot({ path: join(rig.run.out, 'viewer-private-refused.png') });
+    await probe.close();
+    assert.ok(!shown.includes('Not for Petra'), shown.slice(0, 300));
+    await page.screenshot({ path: join(rig.run.out, 'viewer-canvas.png') });
   });
 
   it('the owner turns the link off: the next request is refused link-off and the shell shows the link card', async () => {

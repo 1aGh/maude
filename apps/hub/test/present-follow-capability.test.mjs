@@ -188,6 +188,31 @@ describe('the follow capability', () => {
     assert.equal(b.response.statusCode, nope.response.statusCode);
   });
 
+  // p8-e2e-link-viewer (decision v2-p8-canvas-only-browser-opens-via-follow-capability) — the browser
+  // shell of a canvas-only session opens each canvas it holds through this ask.
+  test('a canvas-only session: A’s capability is A only; a plain or malformed ask gets nothing', async () => {
+    const { proxy, forwarded } = makeProxy();
+    const a = verifyToken((await config(proxy, forwarded, A_ONLY, followUrl(A))).headers[`${H}canvas-token`]);
+    assert.equal(a.ok, true);
+    assert.equal(a.follow, A);
+    assert.equal(a.readOnly, true);
+    assert.deepEqual(a.grants, []);
+    for (const url of [
+      '/_config',
+      '/_config?embed=1',
+      '/_config?follow=1',
+      `/_config?follow=1&canvas=${encodeURIComponent('../ui/a.tsx')}`,
+      `/_config?follow=1&canvas=${encodeURIComponent('/ui/a.tsx')}`,
+      `/_config?follow=1&canvas=${encodeURIComponent('_draw/x.tsx')}`,
+      `/_config?follow=1&canvas=${encodeURIComponent(A)}&canvas=${encodeURIComponent(B)}`,
+      `/_config?follow=1&canvas=${encodeURIComponent(B)}`,
+    ]) {
+      const { headers } = await config(proxy, forwarded, A_ONLY, url);
+      assert.equal(headers[`${H}canvas-token`], undefined, url);
+      assert.equal(headers[`${H}render-token`], undefined, url);
+    }
+  });
+
   test('a follow ask never falls back to a wider capability', async () => {
     const { proxy, forwarded } = makeProxy();
     for (const url of [
