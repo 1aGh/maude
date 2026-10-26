@@ -16,12 +16,26 @@
 // person's e-mail and changes no role. `guardTableRoute` gives every one the Origin + DNS-rebinding
 // double gate (CSRF like every privileged write).
 //
+// The map itself — which share path becomes which `/api/access/*` call, what body rides along, which
+// session may send it — is `access/share-map.ts`, shared with a cloud cell's hub, which answers the
+// same paths for a browser tab as the session it carries (routes-v2/share.mjs).
+//
 // An invite that cannot reach the hub (this Mac is offline, the hub is down) is not lost: it goes
 // into the outbox (V2-1.14, kind `share.invite`) and `shareInviteSender` sends it once the hub
 // answers — "Invites send when this Mac is online."
 
 import { currentAccess } from '../access/request.ts';
 import type { Access } from '../access/scope.ts';
+import {
+  parseShareBody,
+  requestRows,
+  type ShareRefusal,
+  type ShareRoute,
+  shareGateRefusal,
+  shareId,
+  shareRoute,
+  type WireRole,
+} from '../access/share-map.ts';
 import type { Sender } from '../outbox/drain.ts';
 import { maskEmail, type Outbox } from '../outbox/index.ts';
 import type { IntentPayload, Role as IntentRole, ShareScope } from '../outbox/types.ts';
@@ -49,37 +63,24 @@ export interface ShareRouteDeps {
 
 /** The hub's answer is read only this far (a cell is not trusted to respect its own limits). */
 export const MAX_SHARE_RESPONSE = 1024 * 1024;
-const MAX_BODY = 64 * 1024;
 
 export const OFFLINE_INVITE_WORDS = 'Invites send when this Mac is online.';
 /** S9.21 — Ask to edit, queued while the hub cannot hear it (V2-1.14 policy's own queued words). */
 export const OFFLINE_ASK_WORDS = 'Queued — sends when this Mac is online.';
-/** A requester's name as the owner reads it: one short line, no control characters. */
-export const MAX_REQUEST_NAME = 80;
+export {
+  askBody,
+  MAX_REQUEST_NAME,
+  MISSING_ROUTE_WORDS,
+  requestName,
+  requestRows,
+  validCanvas,
+} from '../access/share-map.ts';
+
 const NOT_LINKED = 'Share this project to the cloud first.';
 const UNREACHABLE = 'Sharing is not available right now. Try again in a minute.';
 
 const json = (status: number, body: unknown) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
-
-/** The local gate's refusal (http.ts `readOnlyRefusalResponse` shape), in the access words. */
-function notOwner(): Response {
-  return json(403, {
-    error: 'read-only',
-    reason: 'not-allowed',
-    message: 'Ask the owner to change this.',
-  });
-}
-
-/** Only these ids ever reach a hub path segment (invite / person / request ids are opaque). */
-const ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
-
-/** A designRoot-relative canvas path as the hub keys a grant — the same check the hub makes. */
-export function validCanvas(c: unknown): c is string {
-  if (typeof c !== 'string' || c.length === 0 || c.length > 512) return false;
-  if (c.startsWith('/') || c.includes('\\') || c.includes('\0')) return false;
-  return c.split('/').every((seg) => seg !== '' && seg !== '.' && seg !== '..');
-}
 
 type HubAnswer = { ok: true; status: number; body: unknown } | { ok: false; network: true };
 
@@ -154,20 +155,6 @@ const relay = (a: HubAnswer): Response =>
       ? new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } })
       : json(a.status, a.body);
 
-async function readBody(req: Request): Promise<Record<string, unknown> | null> {
-  const text = await req.text().catch(() => null);
-  if (text === null || text.length > MAX_BODY) return null;
-  if (!text) return {};
-  try {
-    const v = JSON.parse(text) as unknown;
-    return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
-}
-
-const WIRE_ROLES = ['observer', 'viewer', 'member', 'owner'] as const;
-type WireRole = (typeof WIRE_ROLES)[number];
 const TO_INTENT: Record<string, IntentRole> = {
   observer: 'view',
   viewer: 'comment',
@@ -183,15 +170,6 @@ const FROM_INTENT: Record<IntentRole, WireRole> = {
   comment: 'viewer',
   edit: 'member',
 };
-
-/** The invite body the hub reads: `{ email, role, canvas? }` — every other key dropped. */
-function inviteBody(b: Record<string, unknown>): Record<string, unknown> | null {
-  if (typeof b.email !== 'string' || b.email.length > 320) return null;
-  const role = b.role ?? 'member';
-  if (typeof role !== 'string' || !WIRE_ROLES.includes(role as WireRole)) return null;
-  if (b.canvas !== undefined && b.canvas !== null && !validCanvas(b.canvas)) return null;
-  return { email: b.email, role, ...(typeof b.canvas === 'string' ? { canvas: b.canvas } : {}) };
-}
 
 /**
  * The outbox's door for `share.invite` (V2-1.14 §5.4): the queued invite, sent to the hub this
@@ -224,57 +202,6 @@ export function shareInviteSender(deps: ShareRouteDeps): Sender {
 }
 
 /**
- * S9.21 — the ONLY body an Ask to edit carries: `{ canvas? }`. A note, a message, any other key the
- * caller sent is dropped here, so no free text a requester typed ever reaches an owner (whose canvas
- * iframe is untrusted, DDR-054) — the owner reads who asked, for what, and when; nothing else.
- */
-export function askBody(b: Record<string, unknown>): Record<string, unknown> | null {
-  if (b.canvas !== undefined && b.canvas !== null && !validCanvas(b.canvas)) return null;
-  return typeof b.canvas === 'string' ? { canvas: b.canvas } : {};
-}
-
-// \p{Cc} = C0 + C1 controls; the rest are line/paragraph separators and bidi overrides/isolates.
-const CONTROL = /[\p{Cc}\u2028\u2029\u202a-\u202e\u2066-\u2069]/gu;
-
-/** A name for one line of the owner's toast: control and bidi characters gone, cut short. */
-export function requestName(v: unknown): string {
-  const s = typeof v === 'string' ? v.replace(CONTROL, '').trim() : '';
-  return s.length > MAX_REQUEST_NAME ? `${s.slice(0, MAX_REQUEST_NAME - 1)}…` : s;
-}
-
-/**
- * The open requests as the owner's Share sheet reads them, rebuilt key by key from the hub's answer:
- * `{ id, from: { name, email? }, canvas?, at }`. Whatever else a cell sent (a note, markup) is gone.
- */
-export function requestRows(body: unknown): Array<Record<string, unknown>> {
-  const list = (body as { requests?: unknown } | null)?.requests;
-  if (!Array.isArray(list)) return [];
-  const rows: Array<Record<string, unknown>> = [];
-  for (const r of list.slice(0, 200)) {
-    if (!r || typeof r !== 'object') continue;
-    const o = r as Record<string, unknown>;
-    if (typeof o.id !== 'string' || !ID_RE.test(o.id)) continue;
-    const from = (o.from && typeof o.from === 'object' ? o.from : {}) as Record<string, unknown>;
-    const email =
-      typeof from.email === 'string' &&
-      from.email.length <= 320 &&
-      /^[^\s@]+@[^\s@]+$/.test(from.email)
-        ? from.email
-        : null;
-    rows.push({
-      id: o.id,
-      from: {
-        name: requestName(from.name) || (email ? email.split('@')[0] : ''),
-        ...(email ? { email } : {}),
-      },
-      ...(validCanvas(o.canvas) ? { canvas: o.canvas } : {}),
-      at: typeof o.at === 'number' && Number.isFinite(o.at) ? o.at : null,
-    });
-  }
-  return rows;
-}
-
-/**
  * The outbox's door for `share.ask-to-edit` (V2-1.14 §5.4): the queued request, sent to the hub this
  * project is linked to NOW, as `{ canvas? }` only (the record's `note` is never sent — see `askBody`).
  * "You already asked" and "you can already edit" are the request having landed (G16), not a failure.
@@ -304,19 +231,83 @@ export function shareAskToEditSender(deps: ShareRouteDeps): Sender {
   };
 }
 
+/** A refusal from the map, as this door answers it. */
+const refusal = (r: ShareRefusal): Response =>
+  r.text !== undefined ? new Response(r.text, { status: r.status }) : json(r.status, r.json ?? {});
+
+async function readBody(req: Request): Promise<Record<string, unknown> | null> {
+  const text = await req.text().catch(() => null);
+  return parseShareBody(text);
+}
+
 export function createShareRoutes(deps: ShareRouteDeps): RouteSpec[] {
   const access = () => (deps.access ?? currentAccess)();
-  /** Every owner action: a session without `invite` is refused HERE, before the hub hears it. */
-  const asOwner =
-    (handle: (req: Request, params: Record<string, string>, hub: LinkedHub) => Promise<Response>) =>
-    async (req: Request, params: Record<string, string>): Promise<Response> => {
-      if (!access().can('invite', null)) return notOwner();
+
+  /**
+   * One route of the fixed map: the session's gate (a refusal said HERE, before the hub hears it),
+   * the linked hub, the map's call, the hub's answer. The paths stay literal in the table below —
+   * the writer-registry / CSRF / manifest scrapers read them from this file.
+   */
+  const mapped = (method: ShareRoute['method'], path: string) => {
+    const route = shareRoute(method, path);
+    return async (req: Request, params: Record<string, string>): Promise<Response> => {
+      const gate = shareGateRefusal(route.gate, access());
+      if (gate) return refusal(gate);
       const hub = deps.hub();
       if (!hub) return json(409, { error: NOT_LINKED, reason: 'not-linked' });
-      return handle(req, params, hub);
+      const call = route.build({
+        id: shareId(params.id),
+        query: new URL(req.url).searchParams,
+        body: route.body ? await readBody(req) : null,
+      });
+      if (!('method' in call)) return refusal(call);
+      const a = await callHub(deps, hub, call.method, call.path, call.body);
+      if (route.reshape === 'requests') {
+        if (!a.ok) return relay(a);
+        if (a.status !== 200) return json(a.status, a.body);
+        return json(200, { requests: requestRows(a.body) });
+      }
+      if (a.ok || !deps.outbox || !route.queue) return relay(a);
+      return queue(deps.outbox, route.queue, call.body ?? {}, hub, a);
     };
-  const idOf = (params: Record<string, string>) =>
-    ID_RE.test(params.id ?? '') ? encodeURIComponent(params.id as string) : null;
+  };
+
+  /** The hub cannot be reached: the invite / Ask to edit waits in the outbox (V2-1.14). */
+  function queue(
+    outbox: Pick<Outbox, 'enqueue'>,
+    kind: 'invite' | 'ask',
+    body: Record<string, unknown>,
+    hub: LinkedHub,
+    a: HubAnswer
+  ): Response {
+    const scope: ShareScope = typeof body.canvas === 'string' ? { canvas: body.canvas } : 'project';
+    if (kind === 'invite') {
+      const role = TO_INTENT[body.role as string];
+      if (!role) return relay(a); // `owner` is never queued — the hub refuses it anyway
+      const r = outbox.enqueue({
+        kind: 'share.invite',
+        actor: deps.actor?.() ?? 'you',
+        device: deps.device?.() ?? 'studio',
+        project: { id: null, hub: hub.url },
+        label: `Invite ${maskEmail(String(body.email))} · ${ROLE_WORD[role]}`,
+        payload: { kind: 'share.invite', email: String(body.email), role, scope },
+        gates: ['hub'],
+      });
+      if (!r.ok) return json(503, { error: UNREACHABLE, reason: r.code });
+      return json(202, { queued: true, id: r.record.id, words: OFFLINE_INVITE_WORDS });
+    }
+    const r = outbox.enqueue({
+      kind: 'share.ask-to-edit',
+      actor: deps.actor?.() ?? 'you',
+      device: deps.device?.() ?? 'studio',
+      project: { id: null, hub: hub.url },
+      label: 'Ask to edit',
+      payload: { kind: 'share.ask-to-edit', scope },
+      gates: ['hub'],
+    });
+    if (!r.ok) return json(503, { error: UNREACHABLE, reason: r.code });
+    return json(202, { queued: true, id: r.record.id, words: OFFLINE_ASK_WORDS });
+  }
 
   return [
     // What this project's server can hold (§5.6 `/health.access`). Public on the hub; asked here so
@@ -364,11 +355,7 @@ export function createShareRoutes(deps: ShareRouteDeps): RouteSpec[] {
       path: '/_api/share/me',
       origin: 'main',
       readOnly: 'allowed',
-      handle: async () => {
-        const hub = deps.hub();
-        if (!hub) return json(409, { error: NOT_LINKED, reason: 'not-linked' });
-        return relay(await callHub(deps, hub, 'GET', '/api/access/me'));
-      },
+      handle: mapped('GET', '/_api/share/me'),
     },
     // People with access to the canvas (or the project). The hub filters by the caller's role:
     // e-mails, invitations and requests go only to `invite` holders (V2-1.16 L17).
@@ -377,55 +364,22 @@ export function createShareRoutes(deps: ShareRouteDeps): RouteSpec[] {
       path: '/_api/share/people',
       origin: 'main',
       readOnly: 'allowed',
-      handle: async (req) => {
-        const hub = deps.hub();
-        if (!hub) return json(409, { error: NOT_LINKED, reason: 'not-linked' });
-        const canvas = new URL(req.url).searchParams.get('canvas');
-        if (canvas !== null && !validCanvas(canvas))
-          return json(403, { error: 'not-in-scope', reason: 'not-in-scope' });
-        const q = canvas === null ? '' : `?canvas=${encodeURIComponent(canvas)}`;
-        return relay(await callHub(deps, hub, 'GET', `/api/access/people${q}`));
-      },
+      handle: mapped('GET', '/_api/share/people'),
     },
+    // An invite the hub cannot hear yet waits in the outbox and sends itself.
     {
       method: 'POST',
       path: '/_api/share/invites',
       origin: 'main',
       readOnly: 'refused',
-      handle: asOwner(async (req, _p, hub) => {
-        const raw = await readBody(req);
-        const body = raw && inviteBody(raw);
-        if (!body) return json(400, { error: 'That is not an invitation.', reason: 'body' });
-        const a = await callHub(deps, hub, 'POST', '/api/access/invites', body);
-        if (a.ok || !deps.outbox) return relay(a);
-        // The hub cannot be reached: the invite waits in the outbox (V2-1.14) and sends itself.
-        const role = TO_INTENT[body.role as string];
-        if (!role) return relay(a); // `owner` is never queued — the hub refuses it anyway
-        const scope: ShareScope =
-          typeof body.canvas === 'string' ? { canvas: body.canvas } : 'project';
-        const r = deps.outbox.enqueue({
-          kind: 'share.invite',
-          actor: deps.actor?.() ?? 'you',
-          device: deps.device?.() ?? 'studio',
-          project: { id: null, hub: hub.url },
-          label: `Invite ${maskEmail(String(body.email))} · ${ROLE_WORD[role]}`,
-          payload: { kind: 'share.invite', email: String(body.email), role, scope },
-          gates: ['hub'],
-        });
-        if (!r.ok) return json(503, { error: UNREACHABLE, reason: r.code });
-        return json(202, { queued: true, id: r.record.id, words: OFFLINE_INVITE_WORDS });
-      }),
+      handle: mapped('POST', '/_api/share/invites'),
     },
     {
       method: 'POST',
       path: '/_api/share/invites/:id/resend',
       origin: 'main',
       readOnly: 'refused',
-      handle: asOwner(async (_req, params, hub) => {
-        const id = idOf(params);
-        if (!id) return json(404, { error: 'That invitation is no longer open.', reason: 'gone' });
-        return relay(await callHub(deps, hub, 'POST', `/api/access/invites/${id}/resend`, {}));
-      }),
+      handle: mapped('POST', '/_api/share/invites/:id/resend'),
     },
     // Taking back a pending invitation (the role menu's Remove on an invited row).
     {
@@ -433,32 +387,14 @@ export function createShareRoutes(deps: ShareRouteDeps): RouteSpec[] {
       path: '/_api/share/invites/:id/revoke',
       origin: 'main',
       readOnly: 'refused',
-      handle: asOwner(async (_req, params, hub) => {
-        const id = idOf(params);
-        if (!id) return json(404, { error: 'That invitation is no longer open.', reason: 'gone' });
-        return relay(await callHub(deps, hub, 'DELETE', `/api/access/invites/${id}`));
-      }),
+      handle: mapped('POST', '/_api/share/invites/:id/revoke'),
     },
     {
       method: 'PATCH',
       path: '/_api/share/people/:id',
       origin: 'main',
       readOnly: 'refused',
-      handle: asOwner(async (req, params, hub) => {
-        const id = idOf(params);
-        if (!id) return json(404, { error: 'That person is not on this project.', reason: 'gone' });
-        const b = await readBody(req);
-        if (!b || typeof b.role !== 'string' || !WIRE_ROLES.includes(b.role as WireRole))
-          return json(400, { error: 'That is not a role.', reason: 'body' });
-        if (b.canvas !== undefined && b.canvas !== null && !validCanvas(b.canvas))
-          return json(400, { error: 'Not a canvas.', reason: 'canvas' });
-        return relay(
-          await callHub(deps, hub, 'PATCH', `/api/access/people/${id}`, {
-            role: b.role,
-            ...(typeof b.canvas === 'string' ? { canvas: b.canvas } : {}),
-          })
-        );
-      }),
+      handle: mapped('PATCH', '/_api/share/people/:id'),
     },
     // Remove a person from the canvas (`canvas`) or the project (none) — the hub revokes.
     {
@@ -466,93 +402,32 @@ export function createShareRoutes(deps: ShareRouteDeps): RouteSpec[] {
       path: '/_api/share/people/:id/remove',
       origin: 'main',
       readOnly: 'refused',
-      handle: asOwner(async (req, params, hub) => {
-        const id = idOf(params);
-        if (!id) return json(404, { error: 'That person is not on this project.', reason: 'gone' });
-        const b = (await readBody(req)) ?? {};
-        if (b.canvas !== undefined && b.canvas !== null && !validCanvas(b.canvas))
-          return json(400, { error: 'Not a canvas.', reason: 'canvas' });
-        const q = typeof b.canvas === 'string' ? `?canvas=${encodeURIComponent(b.canvas)}` : '';
-        return relay(await callHub(deps, hub, 'DELETE', `/api/access/people/${id}${q}`));
-      }),
+      handle: mapped('POST', '/_api/share/people/:id/remove'),
     },
-    // S9.20 (10 co-share-advanced) — the project's link and its rules. The owner's: who can open
-    // it (`team` = a location that grants nothing, `anyone` = a signed-in account holding the
-    // link), the role it gives (Can view / Can comment, never more) and when it ends. A canvas-only
+    // S9.20 (10 co-share-advanced) — the project's link and its rules. The owner's; a canvas-only
     // session hears what a route that is not here says (V2-1.16 U1): links are project business.
     {
       method: 'POST',
       path: '/_api/share/links',
       origin: 'main',
       readOnly: 'refused',
-      handle: linkRoute(async (req, _p, hub) => {
-        const raw = await readBody(req);
-        if (!raw) return json(400, { error: 'That is not a link.', reason: 'body' });
-        const bad = linkRuleError(raw, { create: true });
-        if (bad) return bad;
-        return relay(
-          await callHub(deps, hub, 'POST', '/api/access/links', {
-            ...(typeof raw.canvas === 'string' ? { canvas: raw.canvas } : {}),
-            role: raw.role,
-            who: raw.who,
-            ...(raw.expiresAt !== undefined ? { expiresAt: raw.expiresAt } : {}),
-          })
-        );
-      }),
+      handle: mapped('POST', '/_api/share/links'),
     },
     {
       method: 'PATCH',
       path: '/_api/share/links/:id',
       origin: 'main',
       readOnly: 'refused',
-      handle: linkRoute(async (req, params, hub) => {
-        const id = idOf(params);
-        if (!id) return json(404, { error: 'That link is no longer on.', reason: 'gone' });
-        const raw = await readBody(req);
-        if (!raw) return json(400, { error: 'That is not a link.', reason: 'body' });
-        const bad = linkRuleError(raw, { create: false });
-        if (bad) return bad;
-        const body: Record<string, unknown> =
-          raw.off === true
-            ? { off: true }
-            : {
-                ...(raw.role !== undefined ? { role: raw.role } : {}),
-                ...(raw.who !== undefined ? { who: raw.who } : {}),
-                ...(raw.expiresAt !== undefined ? { expiresAt: raw.expiresAt } : {}),
-              };
-        return relay(await callHub(deps, hub, 'PATCH', `/api/access/links/${id}`, body));
-      }),
+      handle: mapped('PATCH', '/_api/share/links/:id'),
     },
     // S9.21 — Ask to edit (10 co-ask-edit). ANY session may ask (a read-only one most of all — this
-    // is the read-only person's one write); the hub decides whether it may (`request` on the scope,
-    // 409 `already-can-edit`, 409 `pending`, 429 when asked too often). Only `{ canvas? }` is sent.
+    // is the read-only person's one write); the hub decides whether it may. Only `{ canvas? }` is sent.
     {
       method: 'POST',
       path: '/_api/share/requests',
       origin: 'main',
       readOnly: 'allowed',
-      handle: async (req) => {
-        const hub = deps.hub();
-        if (!hub) return json(409, { error: NOT_LINKED, reason: 'not-linked' });
-        const raw = await readBody(req);
-        const body = raw && askBody(raw);
-        if (!body) return json(403, { error: 'not-in-scope', reason: 'not-in-scope' });
-        const a = await callHub(deps, hub, 'POST', '/api/access/requests', body);
-        if (a.ok || !deps.outbox) return relay(a);
-        const scope: ShareScope =
-          typeof body.canvas === 'string' ? { canvas: body.canvas } : 'project';
-        const r = deps.outbox.enqueue({
-          kind: 'share.ask-to-edit',
-          actor: deps.actor?.() ?? 'you',
-          device: deps.device?.() ?? 'studio',
-          project: { id: null, hub: hub.url },
-          label: 'Ask to edit',
-          payload: { kind: 'share.ask-to-edit', scope },
-          gates: ['hub'],
-        });
-        if (!r.ok) return json(503, { error: UNREACHABLE, reason: r.code });
-        return json(202, { queued: true, id: r.record.id, words: OFFLINE_ASK_WORDS });
-      },
+      handle: mapped('POST', '/_api/share/requests'),
     },
     // The open requests — the owner's (the request block at the top of Share). Rebuilt row by row.
     {
@@ -560,12 +435,7 @@ export function createShareRoutes(deps: ShareRouteDeps): RouteSpec[] {
       path: '/_api/share/requests',
       origin: 'main',
       readOnly: 'allowed',
-      handle: asOwner(async (_req, _p, hub) => {
-        const a = await callHub(deps, hub, 'GET', '/api/access/requests');
-        if (!a.ok) return relay(a);
-        if (a.status !== 200) return json(a.status, a.body);
-        return json(200, { requests: requestRows(a.body) });
-      }),
+      handle: mapped('GET', '/_api/share/requests'),
     },
     // Let Petra edit / Not now — the owner's; the hub re-checks `invite` and writes the grant.
     ...(['approve', 'decline'] as const).map(
@@ -574,53 +444,8 @@ export function createShareRoutes(deps: ShareRouteDeps): RouteSpec[] {
         path: `/_api/share/requests/:id/${verb}`,
         origin: 'main',
         readOnly: 'refused',
-        handle: asOwner(async (_req, params, hub) => {
-          const id = idOf(params);
-          if (!id) return json(404, { error: 'That request is no longer open.', reason: 'gone' });
-          return relay(await callHub(deps, hub, 'POST', `/api/access/requests/${id}/${verb}`, {}));
-        }),
+        handle: mapped('POST', `/_api/share/requests/:id/${verb}`),
       })
     ),
   ];
-
-  /** The link routes: a canvas-only session sees no route; any other non-owner is refused. */
-  function linkRoute(
-    handle: (req: Request, params: Record<string, string>, hub: LinkedHub) => Promise<Response>
-  ) {
-    const owner = asOwner(handle);
-    return async (req: Request, params: Record<string, string>): Promise<Response> =>
-      access().canvasOnly ? missingRoute() : owner(req, params);
-  }
-}
-
-/** What the studio answers for a path it does not serve (http.ts's static fall-through). */
-export const MISSING_ROUTE_WORDS = 'Not found';
-const missingRoute = () => new Response(MISSING_ROUTE_WORDS, { status: 404 });
-
-/** The words a link's rules are refused with — checked before the hub is asked. */
-function linkRuleError(b: Record<string, unknown>, { create }: { create: boolean }) {
-  if (create || b.role !== undefined) {
-    if (b.role !== 'observer' && b.role !== 'viewer')
-      return json(422, {
-        error: 'A link can give Can view or Can comment, never more.',
-        reason: 'link-role',
-      });
-  }
-  if ((create || b.who !== undefined) && b.who !== 'team' && b.who !== 'anyone')
-    return json(400, { error: 'Who is this link for?', reason: 'who' });
-  if (b.canvas !== undefined && b.canvas !== null && !validCanvas(b.canvas))
-    return json(400, { error: 'Not a canvas.', reason: 'canvas' });
-  if (
-    b.expiresAt !== undefined &&
-    b.expiresAt !== null &&
-    !(
-      typeof b.expiresAt === 'string' &&
-      b.expiresAt.length <= 40 &&
-      !Number.isNaN(Date.parse(b.expiresAt))
-    )
-  )
-    return json(400, { error: 'Pick a date in the future.', reason: 'expires' });
-  if (b.off !== undefined && b.off !== true)
-    return json(400, { error: 'That is not a link.', reason: 'body' });
-  return null;
 }
