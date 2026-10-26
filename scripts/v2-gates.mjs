@@ -42,7 +42,8 @@ const quality = JSON.parse(readFileSync(join(ROOT, '.ai/workflows.config.json'),
 // Every desktop e2e lane the package declares (old ones rewritten + the v2 ones as they land).
 const E2E_LANES = Object.keys(
   JSON.parse(readFileSync(join(ROOT, 'apps/desktop/e2e/package.json'), 'utf8')).scripts
-).filter((k) => /^e2e(:|$)/.test(k) && k !== 'e2e:build');
+).filter((k) => /^e2e(:|$)/.test(k) && k !== 'e2e:build' && !/:(all|wdio|test)$/.test(k));
+// (`…:all` runs lanes already listed; `share-roles:wdio` is the bare wdio half its runner calls; `…:test` is a node test)
 // Single-quoted for bash, so `$l`-style variables expand in the INNER shell, not the outer one.
 const lane = (cmd) =>
   `scripts/v2-test-lane.sh --wait 3600 -- bash -c '${cmd.replace(/'/g, `'\\''`)}'`;
