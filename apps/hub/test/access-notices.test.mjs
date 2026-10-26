@@ -242,12 +242,40 @@ describe('the cloud forwarder', () => {
       assert.equal(seen.at(-1).actor, 'vera@x.test');
       await until(() => owner.heard.length === 1, 3000, 'the owner hears it');
       assert.equal(owner.heard[0].msg.id, 'req_cp1');
+      // an older control plane names nobody: the verified e-mail's local part, as before
+      assert.equal(owner.heard[0].msg.from.name, 'vera');
       reply = () => [409, { error: 'You already asked.', reason: 'pending' }];
       const again = await http(hub.http, t.viewer).post('/api/access/requests', { canvas: A });
       assert.equal(again.status, 409);
       assert.equal(again.body.reason, 'pending');
       await sleep(150);
       assert.equal(owner.heard.length, 1, 'a refused request notifies nobody');
+    } finally {
+      owner.close();
+    }
+  });
+
+  test('POST requests: the owners hear the name the control plane knows, as the request list shows it', async () => {
+    const owner = await listen(hub.ws, t.owner, docOf(A));
+    try {
+      reply = () => [201, { id: 'req_cp2', from: { name: '  Vera Viewerová  ' } }];
+      const r = await http(hub.http, t.viewer).post('/api/access/requests', {});
+      assert.equal(r.status, 201);
+      await until(() => owner.heard.length === 1, 3000, 'the owner hears it');
+      assert.equal(owner.heard[0].msg.id, 'req_cp2');
+      assert.equal(owner.heard[0].msg.from.name, 'Vera Viewerová');
+      // a name that is not one (empty, not a string, too long) falls back to the verified e-mail's local part
+      for (const [i, from] of [
+        { name: '' },
+        { name: 7 },
+        { name: 'x'.repeat(200) },
+        'Vera',
+      ].entries()) {
+        reply = () => [201, { id: `req_bad${i}`, from }];
+        await http(hub.http, t.viewer).post('/api/access/requests', {});
+        await until(() => owner.heard.length === i + 2, 3000, `the owner hears request ${i}`);
+        assert.equal(owner.heard.at(-1).msg.from.name, 'vera', JSON.stringify(from));
+      }
     } finally {
       owner.close();
     }
