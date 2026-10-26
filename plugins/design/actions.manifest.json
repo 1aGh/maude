@@ -5269,7 +5269,7 @@
       "agent": {
         "path": "human",
         "because": "hub-link",
-        "note": "signs the person in to a self-hosted team server (the password goes to the Home server once); an agent links a folder with `maude design link`"
+        "note": "signs the person in to a self-hosted team server (the password goes to the Home server once); linking a folder (`maude design link`) is done by the person in a terminal (an AI session is refused)"
       }
     },
     {

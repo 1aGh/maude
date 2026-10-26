@@ -429,7 +429,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Connect | `sync.connect-link` | hub-link — confirms on this Mac that the folder’s hub may receive this Mac’s credential |
 | Connect AI… | `ai.connect` | accounts — the person’s own Claude sign-in in their browser; an agent is already running on one |
 | Connect this folder to a cloud project… | `connections.cloud-project-connect` | hub-link — links this folder to a cloud project under the person’s account |
-| Connect to your own hub… | `hub.connect` | hub-link — signs the person in to a self-hosted team server (the password goes to the Home server once); an agent links a folder with `maude design link` |
+| Connect to your own hub… | `hub.connect` | hub-link — signs the person in to a self-hosted team server (the password goes to the Home server once); linking a folder (`maude design link`) is done by the person in a terminal (an AI session is refused) |
 | Continue on your draft | `history.continue-draft` | git — an agent runs git itself in the project folder: git switch <draft> |
 | Copy | `annotation.copy` | view-pref — the clipboard is the user’s; read the annotations file instead |
 | Copy | `edit.copy` | view-pref — the clipboard is the user’s; read the source instead |

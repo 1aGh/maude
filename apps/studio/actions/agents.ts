@@ -1610,7 +1610,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'external',
     agent: human(
       'hub-link',
-      'signs the person in to a self-hosted team server (the password goes to the Home server once); an agent links a folder with `maude design link`'
+      'signs the person in to a self-hosted team server (the password goes to the Home server once); linking a folder (`maude design link`) is done by the person in a terminal (an AI session is refused)'
     ),
   },
   'project.open-github': {
