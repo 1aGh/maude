@@ -240,7 +240,12 @@ function videoLengthWords(article: Element, id: string): string {
   const label = article.querySelector(':scope > .dc-artboard-label')?.textContent ?? '';
   return videoLabelTail(
     label,
-    { fps: c.fps, durationInFrames: c.durationInFrames, width: c.width ?? 0, height: c.height ?? 0 },
+    {
+      fps: c.fps,
+      durationInFrames: c.durationInFrames,
+      width: c.width ?? 0,
+      height: c.height ?? 0,
+    },
     true
   );
 }

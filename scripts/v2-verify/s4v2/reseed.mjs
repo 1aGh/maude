@@ -10,7 +10,18 @@ const f = `${SC}/proj/.design/ui-site.annotations.json`;
 const b = JSON.parse(fs.readFileSync(f, 'utf8'));
 const ids = (b.elements || []).map((e) => e.id);
 if (ids.length) {
-  fs.writeFileSync(`${SC}/wipe.json`, JSON.stringify({ ops: ids.map((id) => ({ op: 'delete', id })) }));
-  console.log(run(`node cli/bin/maude.mjs design annotate ui/Site.tsx --ops ${SC}/wipe.json --root ${SC}/proj`).slice(0, 200));
+  fs.writeFileSync(
+    `${SC}/wipe.json`,
+    JSON.stringify({ ops: ids.map((id) => ({ op: 'delete', id })) })
+  );
+  console.log(
+    run(
+      `node cli/bin/maude.mjs design annotate ui/Site.tsx --ops ${SC}/wipe.json --root ${SC}/proj`
+    ).slice(0, 200)
+  );
 }
-console.log(run(`node cli/bin/maude.mjs design annotate ui/Site.tsx --ops ${seed} --rects ${SC}/rects.json --root ${SC}/proj`).slice(0, 300));
+console.log(
+  run(
+    `node cli/bin/maude.mjs design annotate ui/Site.tsx --ops ${seed} --rects ${SC}/rects.json --root ${SC}/proj`
+  ).slice(0, 300)
+);

@@ -11,7 +11,14 @@ const FILES = ['client/app.jsx'];
 describe('app.jsx names every variable it uses', () => {
   test('biome noUndeclaredVariables finds nothing', () => {
     const r = Bun.spawnSync(
-      ['bunx', 'biome', 'lint', '--only=correctness/noUndeclaredVariables', '--max-diagnostics=50', ...FILES],
+      [
+        'bunx',
+        'biome',
+        'lint',
+        '--only=correctness/noUndeclaredVariables',
+        '--max-diagnostics=50',
+        ...FILES,
+      ],
       { cwd: ROOT, stdout: 'pipe', stderr: 'pipe' }
     );
     const out = `${r.stdout.toString()}\n${r.stderr.toString()}`;

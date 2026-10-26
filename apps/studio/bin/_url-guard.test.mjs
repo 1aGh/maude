@@ -123,7 +123,9 @@ describe('H-a — a Maude chat opens only its own server ports', () => {
   });
   test('a chat with no (or a garbled) port list fails closed', () => {
     expect(urlRefusal('http://localhost:4399/', chat())).not.toBeNull();
-    expect(urlRefusal('http://localhost:4399/', chat({ MAUDE_OWN_PORTS: 'x,4399' }))).not.toBeNull();
+    expect(
+      urlRefusal('http://localhost:4399/', chat({ MAUDE_OWN_PORTS: 'x,4399' }))
+    ).not.toBeNull();
     expect(
       urlRefusal('http://localhost:4399/', { MAUDE_CHAT_ID: 'c1', MAUDE_OWN_PORTS: '' })
     ).not.toBeNull();

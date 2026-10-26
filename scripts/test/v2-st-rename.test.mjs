@@ -14,7 +14,10 @@ test('a family moves whole, dynamic suffixes included', () => {
 
 test('only a whole family token is renamed — never a substring, a custom property or a data attribute', () => {
   const src = 'first-share --st-share data-st-share st-shares st-export st-ex';
-  assert.equal(renameText(src, plan), 'first-share --st-share data-st-share st-shares st-export sh-ex');
+  assert.equal(
+    renameText(src, plan),
+    'first-share --st-share data-st-share st-shares st-export sh-ex'
+  );
 });
 
 test('_keep names (frozen testids) stay', () => {

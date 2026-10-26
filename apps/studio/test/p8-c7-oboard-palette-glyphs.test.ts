@@ -4,7 +4,8 @@ import { describe, expect, test } from 'bun:test';
 import { glyphFor } from '../client/v2/search/palette-icons.js';
 
 describe('⌘K glyphs for the Advanced switches', () => {
-  const g = (name: string, where = 'Menu › View › Advanced') => glyphFor({ name, where }, 'actions', 'chevron');
+  const g = (name: string, where = 'Menu › View › Advanced') =>
+    glyphFor({ name, where }, 'actions', 'chevron');
   test('each says what it does', () => {
     expect(g('Allow longer videos', 'Timeline › Advanced')).toBe('clock');
     expect(g('Hidden files')).toBe('eye');

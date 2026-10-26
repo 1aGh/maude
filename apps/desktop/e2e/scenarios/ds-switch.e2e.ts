@@ -104,7 +104,9 @@ describe('ds-switch — preview, then one review', () => {
     await browser.waitUntil(
       async () => {
         try {
-          return (await (await $('[data-testid="ds-switch-go"]')).getText()) === 'Switch 2 canvases';
+          return (
+            (await (await $('[data-testid="ds-switch-go"]')).getText()) === 'Switch 2 canvases'
+          );
         } catch {
           return false;
         }

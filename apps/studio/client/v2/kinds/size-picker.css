@@ -288,7 +288,9 @@
     width: 340px;
     border-radius: var(--radius-lg);
     background: var(--island-bg-strong, var(--bg-2));
-    box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge, transparent);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge, transparent);
   }
   .sz-island .sz-custom {
     padding: var(--space-4);

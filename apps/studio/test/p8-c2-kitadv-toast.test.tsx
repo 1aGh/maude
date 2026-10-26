@@ -62,7 +62,7 @@ describe('the toast pill', () => {
     await settle();
     const c = card('t-pill');
     expect(c).not.toBeNull();
-    const kids = [...(c as HTMLElement).children].map((n) => n.className.split(" ")[0]);
+    const kids = [...(c as HTMLElement).children].map((n) => n.className.split(' ')[0]);
     expect(kids).toEqual([
       'maude-notice-ic',
       'maude-notice-txt',

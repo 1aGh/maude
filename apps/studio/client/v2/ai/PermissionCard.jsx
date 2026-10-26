@@ -22,7 +22,13 @@ function optionClass(kind) {
   return 'btn btn--sm';
 }
 
-export default function PermissionCard({ request, onRespond, queueLength = 1, willChange = [], work = null }) {
+export default function PermissionCard({
+  request,
+  onRespond,
+  queueLength = 1,
+  willChange = [],
+  work = null,
+}) {
   const ref = useRef(null);
   const model = useMemo(() => permissionModel(request, work), [request, work]);
   const [always, setAlways] = useState(false);

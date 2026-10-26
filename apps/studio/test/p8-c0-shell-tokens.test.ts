@@ -200,7 +200,11 @@ describe('P8 C0 · the cascade lets v2 rules win', () => {
     const all = rules(shellCss(), /([a-z-]+)\s*:\s*([^;]*?)\s*(?:;|$)/g);
     document.body.innerHTML =
       '<div class="maude" data-theme="light"><div class="cv-empty"><div class="es-e es-e--fold"><p class="es-sit">x</p><p class="es-next">y</p></div></div></div>';
-    expect(resolve(all, document.querySelector('.es-sit')!).get('font-size')).toBe('var(--type-sm)');
-    expect(resolve(all, document.querySelector('.es-next')!).get('font-size')).toBe('var(--type-xs)');
+    expect(resolve(all, document.querySelector('.es-sit')!).get('font-size')).toBe(
+      'var(--type-sm)'
+    );
+    expect(resolve(all, document.querySelector('.es-next')!).get('font-size')).toBe(
+      'var(--type-xs)'
+    );
   });
 });

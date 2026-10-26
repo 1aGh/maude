@@ -595,7 +595,8 @@
      that brings them back. The access word stays too (a viewer's "Can view" is not a status). This rule lives in
      @layer components: the Share button is a `.maude .btn` whose display is set in that layer, which outranks any
      @layer shell rule whatever its specificity (the C8 rule sat in shell and the Share button stayed). */
-  .sh-share[data-zen="true"] > :not([data-testid="share-cluster-panels"]):not([data-status="access"]) {
+  .sh-share[data-zen="true"]
+  > :not([data-testid="share-cluster-panels"]):not([data-status="access"]) {
     display: none;
   }
 }

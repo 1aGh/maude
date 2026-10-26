@@ -233,7 +233,10 @@ describe('S2.20 ⌘Z projection — the U-keys S2 owns', () => {
     });
     home.skips.set('p', 2);
     await store.undo(REPO);
-    expect(toasts).toEqual(['Undone — Card padding', undoWords.skipped('Card padding', 2, 'Tereza')]);
+    expect(toasts).toEqual([
+      'Undone — Card padding',
+      undoWords.skipped('Card padding', 2, 'Tereza'),
+    ]);
   });
 
   test('redo is cleared by your AI run landing (a new entry)', async () => {

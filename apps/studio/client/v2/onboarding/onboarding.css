@@ -366,7 +366,9 @@
   }
   .ob-seg-b[aria-pressed="true"] {
     background: var(--bg-1);
-    box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--accent); /* DS .seg [aria-pressed]: the accent ring */
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 1px var(--accent); /* DS .seg [aria-pressed]: the accent ring */
     color: var(--fg-0);
   }
   .ob-seg-b[aria-disabled="true"] {

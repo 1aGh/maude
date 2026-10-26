@@ -18,7 +18,14 @@ const MODEL = [
 let modeNow = 'default';
 let modelNow = 'sonnet';
 const cfg = () => [
-  { id: 'model', name: 'Model', category: 'model', type: 'select', currentValue: modelNow, options: MODEL },
+  {
+    id: 'model',
+    name: 'Model',
+    category: 'model',
+    type: 'select',
+    currentValue: modelNow,
+    options: MODEL,
+  },
   {
     id: 'mode',
     name: 'Mode',
@@ -71,19 +78,32 @@ acp
       return m ? Number(m[1]) * 1000 : d;
     };
     if (modeNow === 'plan') {
-      await say(ctx, 'Suggestion for the Pricing artboard: a calmer headline and tighter spacing. Nothing changed.');
+      await say(
+        ctx,
+        'Suggestion for the Pricing artboard: a calmer headline and tighter spacing. Nothing changed.'
+      );
       return { stopReason: 'end_turn' };
     }
     if (/EDIT/.test(text)) {
       const fs = await import('node:fs');
       const P = `${process.env.S5V_PROJ}/.design/ui/Site.tsx`;
       // EDITID:<artboard-id> targets one artboard by its id; EDITCOPY targets the newest "-copy-" artboard (Run on a copy)
-      const byId = (text.match(/EDITID:([\w-]+)/) || [])[1] || (/EDITCOPY/.test(text) ? [...fs.readFileSync(P, 'utf8').matchAll(/id="([\w-]+-copy-[\w]+)"/g)].pop()?.[1] : undefined);
+      const byId =
+        (text.match(/EDITID:([\w-]+)/) || [])[1] ||
+        (/EDITCOPY/.test(text)
+          ? [...fs.readFileSync(P, 'utf8').matchAll(/id="([\w-]+-copy-[\w]+)"/g)].pop()?.[1]
+          : undefined);
       const art = byId || (text.match(/EDIT:(\w+)/) || [])[1] || 'Pricing';
       const { spawnSync } = await import('node:child_process');
       const hook = (ev, extra) =>
         spawnSync('node', [`${process.env.S5V_WT}/cli/bin/maude.mjs`, 'design', 'hook', ev], {
-          input: JSON.stringify({ session_id: ctx.params.sessionId, cwd: process.env.S5V_PROJ, tool_name: 'Edit', tool_use_id: `toolu_${Date.now()}`, ...extra }),
+          input: JSON.stringify({
+            session_id: ctx.params.sessionId,
+            cwd: process.env.S5V_PROJ,
+            tool_name: 'Edit',
+            tool_use_id: `toolu_${Date.now()}`,
+            ...extra,
+          }),
           env: { ...process.env, MAUDE_AGENT_ACTOR: 'maude-chat' },
           encoding: 'utf8',
         });
@@ -95,20 +115,53 @@ acp
         const at = src.indexOf(`id="${byId}"`);
         const m = at >= 0 ? src.slice(at).match(/^[\s\S]*?<h1>([^<]*?)( ✦)?<\/h1>/) : null;
         // old_string runs from the artboard's id to its h1, so it is unique to that artboard (a copy repeats the h1)
-        if (m) { oldS = m[0]; newS = m[0].replace(/<h1>[^<]*<\/h1>$/, `<h1>${m[1]} ✦</h1>`); }
+        if (m) {
+          oldS = m[0];
+          newS = m[0].replace(/<h1>[^<]*<\/h1>$/, `<h1>${m[1]} ✦</h1>`);
+        }
       }
-      const input = { tool_use_id: tuid, tool_input: { file_path: P, old_string: oldS, new_string: newS } };
+      const input = {
+        tool_use_id: tuid,
+        tool_input: { file_path: P, old_string: oldS, new_string: newS },
+      };
       // NOTE: pre-edit is denied for every scoped chat (G1: scope.canvas is repo-relative); record only the snapshot half
-      const pre = process.env.VERIFY_PRE === '1' ? hook('pre-edit', { hook_event_name: 'PreToolUse', ...input }) : { stdout: '' };
-      await note(ctx, { sessionUpdate: 'tool_call', toolCallId: 'e1', title: `Edit ${art}`, kind: 'edit', status: 'in_progress', locations: [{ path: P }], rawInput: { file_path: P } });
+      const pre =
+        process.env.VERIFY_PRE === '1'
+          ? hook('pre-edit', { hook_event_name: 'PreToolUse', ...input })
+          : { stdout: '' };
+      await note(ctx, {
+        sessionUpdate: 'tool_call',
+        toolCallId: 'e1',
+        title: `Edit ${art}`,
+        kind: 'edit',
+        status: 'in_progress',
+        locations: [{ path: P }],
+        rawInput: { file_path: P },
+      });
       await sleep(sec(/SLOW(\d+)/, 4000));
-      if (pre.stdout && /deny/.test(pre.stdout)) { await say(ctx, `Blocked: ${pre.stdout.slice(0, 300)}`); return { stopReason: 'end_turn' }; }
+      if (pre.stdout && /deny/.test(pre.stdout)) {
+        await say(ctx, `Blocked: ${pre.stdout.slice(0, 300)}`);
+        return { stopReason: 'end_turn' };
+      }
       src = fs.readFileSync(P, 'utf8');
       src = src.replace(oldS, newS);
       fs.writeFileSync(P, src);
-      hook('post-edit', { hook_event_name: 'PostToolUse', ...input, tool_response: { success: true } });
-      await note(ctx, { sessionUpdate: 'tool_call_update', toolCallId: 'e1', status: 'completed', locations: [{ path: P }], rawInput: { file_path: P } });
-      await say(ctx, `Done — ${art} is calmer: the headline carries a spark and the spacing is tighter.`);
+      hook('post-edit', {
+        hook_event_name: 'PostToolUse',
+        ...input,
+        tool_response: { success: true },
+      });
+      await note(ctx, {
+        sessionUpdate: 'tool_call_update',
+        toolCallId: 'e1',
+        status: 'completed',
+        locations: [{ path: P }],
+        rawInput: { file_path: P },
+      });
+      await say(
+        ctx,
+        `Done — ${art} is calmer: the headline carries a spark and the spacing is tighter.`
+      );
       return { stopReason: 'end_turn' };
     }
     if (/HOLD/.test(text)) {
@@ -169,7 +222,10 @@ acp
     }
     if (/LONG/.test(text)) {
       for (let i = 1; i <= 40; i++) {
-        await say(ctx, `Paragraph ${i}. This is a long reply line to fill the chat feed so it scrolls.\n\n`);
+        await say(
+          ctx,
+          `Paragraph ${i}. This is a long reply line to fill the chat feed so it scrolls.\n\n`
+        );
         await sleep(/SLOW/.test(text) ? 600 : 30); // LONG SLOW streams slowly enough to scroll up mid-reply (Jump to latest)
       }
       return { stopReason: 'end_turn' };

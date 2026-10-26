@@ -7,7 +7,7 @@ export const STATIC_COMMANDS = [
   {
     name: 'design:assets',
     description:
-      'List the project\'s assets, see where each is used, find the ones nothing uses, and search pictures by what they show.',
+      "List the project's assets, see where each is used, find the ones nothing uses, and search pictures by what they show.",
     argHint: '[<asset>] [--details] | --not-used | describe …',
   },
   {
@@ -144,7 +144,7 @@ export const STATIC_COMMANDS = [
   {
     name: 'design:system',
     description:
-      'Work with the project\'s design systems: where each stands, the default for new canvases, switching canvases, outside changes, moving a system folder onto its Design system canvas, importing tokens.',
+      "Work with the project's design systems: where each stands, the default for new canvases, switching canvases, outside changes, moving a system folder onto its Design system canvas, importing tokens.",
   },
   {
     name: 'design:to-lottie',

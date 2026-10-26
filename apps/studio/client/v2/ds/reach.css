@@ -257,7 +257,7 @@
     font-size: var(--type-sm);
     color: var(--fg-1);
   }
-  .dsx-contrast[data-tone='warn'] {
+  .dsx-contrast[data-tone="warn"] {
     color: var(--status-warn-text, var(--fg-1));
   }
   .dsx-note b {

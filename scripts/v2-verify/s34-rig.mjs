@@ -58,7 +58,11 @@ function write(scratch) {
   writeFileSync(join(ui, 'Pricing.tsx'), readFileSync(join(HERE, 's34-pricing.tpl'), 'utf8'));
   writeFileSync(
     join(ui, 'Pricing.meta.json'),
-    JSON.stringify({ ...META, title: 'Pricing', sections: [{ id: 'pricing', title: 'Pricing' }] }, null, 2)
+    JSON.stringify(
+      { ...META, title: 'Pricing', sections: [{ id: 'pricing', title: 'Pricing' }] },
+      null,
+      2
+    )
   );
   // the pan/zoom camera is runtime state; a stale one makes the next probe start zoomed in
   rmSync(join(scratch, 'proj/.design/_canvas-state'), { recursive: true, force: true });

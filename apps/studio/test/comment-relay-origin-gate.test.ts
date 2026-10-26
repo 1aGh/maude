@@ -116,7 +116,8 @@ describe('canvas → shell comment relays are scoped to the active canvas', () =
           CODE.slice(use, use + 40).startsWith('e.source === activeWin()') ||
           CODE.slice(use, use + 40).startsWith('e.source !== activeWin()')
         ) {
-          if (/const activeWin = \(\) => \{\s*\n\s*const p = deps\.activePath\(\);/.test(CODE)) continue;
+          if (/const activeWin = \(\) => \{\s*\n\s*const p = deps\.activePath\(\);/.test(CODE))
+            continue;
         }
         // Nearest branch boundary at or before this usage.
         const open = starts.filter((s) => s < use).pop() ?? 0;

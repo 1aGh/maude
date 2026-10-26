@@ -27,7 +27,10 @@ describe('portal scope', () => {
       if (/createPortal\([\s\S]*?,\s*document\.body\s*\)/.test(src)) {
         // every body portal's root re-establishes the scope itself (a className starting with "maude" on the
         // element it portals — checked in the first lines after each createPortal call)
-        const calls = src.split('createPortal(').slice(1).filter((c) => /,\s*document\.body\s*\)/.test(c));
+        const calls = src
+          .split('createPortal(')
+          .slice(1)
+          .filter((c) => /,\s*document\.body\s*\)/.test(c));
         const scoped = calls.every((c) => /className="maude[ "]/.test(c.slice(0, 700)));
         if (!scoped && !DEBT.has(rel)) bare.push(rel);
       }

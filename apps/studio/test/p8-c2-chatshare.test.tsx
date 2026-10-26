@@ -29,7 +29,7 @@ describe('the toast is the kit one-line pill (03 ai-needs-hidden, 10 co-sync-bac
     expect(html).toContain('maude-notice-close');
   });
 
-  test('a notice without its own glyph takes its kind\'s, and is the same pill', () => {
+  test("a notice without its own glyph takes its kind's, and is the same pill", () => {
     const html = renderToStaticMarkup(<NoticeCard entry={entry({ kind: 'success' })} />);
     expect(html).toContain('maude-notice-ic--done');
     expect(html).toContain('maude-notice-close');

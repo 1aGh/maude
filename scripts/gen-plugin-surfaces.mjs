@@ -107,7 +107,11 @@ function clip(text, max) {
   return out ? `${out} …` : ''; // a first group that alone overflows shows no hint at all
 }
 
-const jsStr = (s) => `'${s.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`;
+// Biome's quote style: single quotes, double when the text has an apostrophe and no double quote.
+const jsStr = (s) => {
+  const t = s.replaceAll('\\', '\\\\');
+  return t.includes("'") && !t.includes('"') ? `"${t}"` : `'${t.replaceAll("'", "\\'")}'`;
+};
 
 // One object property, wrapped the way biome wraps a string that overruns the 100-column line.
 function prop(key, value) {

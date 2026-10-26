@@ -73,7 +73,8 @@ function portIsFree(port: number): boolean {
 /** The hub a fixture's `.design/config.json` names, as the app's own binding (see bootServer). */
 function appBoundHub(root: string): Record<string, string> {
   try {
-    const url = JSON.parse(readFileSync(join(root, '.design', 'config.json'), 'utf8'))?.linkedHub?.url;
+    const url = JSON.parse(readFileSync(join(root, '.design', 'config.json'), 'utf8'))?.linkedHub
+      ?.url;
     return typeof url === 'string' && url ? { MAUDE_APP_BOUND_HUB: url } : {};
   } catch {
     return {};

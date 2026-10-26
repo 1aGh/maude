@@ -444,7 +444,12 @@ async function main() {
           await wd(opts.driverPort, 'POST', `${base}/frame`, { id: null });
           const id = Object.values(frameEl)[0];
           const rect = await wd(opts.driverPort, 'GET', `${base}/element/${id}/rect`);
-          await wd(opts.driverPort, 'POST', `${base}/actions`, clickActions(frameEl, Math.round(rect.width * 0.12), Math.round(rect.height * -0.05)));
+          await wd(
+            opts.driverPort,
+            'POST',
+            `${base}/actions`,
+            clickActions(frameEl, Math.round(rect.width * 0.12), Math.round(rect.height * -0.05))
+          );
           await wd(opts.driverPort, 'DELETE', `${base}/actions`).catch(() => {});
           await wd(opts.driverPort, 'POST', `${base}/frame`, { id: frameEl });
         }

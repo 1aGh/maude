@@ -22,8 +22,10 @@ import * as acp from '/Users/iagh/git/personal/maude/apps/studio/node_modules/@a
 
 const stream = acp.ndJsonStream(Writable.toWeb(process.stdout), Readable.toWeb(process.stdin));
 let n = 0;
-const note = (ctx, u) => ctx.client.notify('session/update', { sessionId: ctx.params.sessionId, update: u });
-const say = (ctx, text) => note(ctx, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } });
+const note = (ctx, u) =>
+  ctx.client.notify('session/update', { sessionId: ctx.params.sessionId, update: u });
+const say = (ctx, text) =>
+  note(ctx, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } });
 
 acp
   .agent({ name: 'verifier-mock-s415' })
@@ -43,22 +45,51 @@ acp
     const { spawnSync } = await import('node:child_process');
     const canvas = process.env.S415_CANVAS || 'ui/Site.tsx';
     const maude = (...args) =>
-      spawnSync('node', [`${process.env.S5V_WT}/cli/bin/maude.mjs`, 'design', ...args, '--root', process.env.S5V_PROJ], {
-        env: process.env,
-        encoding: 'utf8',
-      });
+      spawnSync(
+        'node',
+        [
+          `${process.env.S5V_WT}/cli/bin/maude.mjs`,
+          'design',
+          ...args,
+          '--root',
+          process.env.S5V_PROJ,
+        ],
+        {
+          env: process.env,
+          encoding: 'utf8',
+        }
+      );
     const accepted = text.match(/\[maude-offer-accepted answers=([A-Za-z0-9_.:,-]*)\]/);
     if (accepted) {
       const ids = accepted[1];
       const P = `${process.env.S5V_PROJ}/.design/${canvas}`;
-      await note(ctx, { sessionUpdate: 'tool_call', toolCallId: 'e1', title: 'Edit Site.tsx', kind: 'edit', status: 'in_progress', locations: [{ path: P }], rawInput: { file_path: P } });
+      await note(ctx, {
+        sessionUpdate: 'tool_call',
+        toolCallId: 'e1',
+        title: 'Edit Site.tsx',
+        kind: 'edit',
+        status: 'in_progress',
+        locations: [{ path: P }],
+        rawInput: { file_path: P },
+      });
       fs.writeFileSync(P, fs.readFileSync(P, 'utf8').replace(/width=\{616\}/, 'width={720}'));
-      await note(ctx, { sessionUpdate: 'tool_call_update', toolCallId: 'e1', status: 'completed', locations: [{ path: P }], rawInput: { file_path: P } });
+      await note(ctx, {
+        sessionUpdate: 'tool_call_update',
+        toolCallId: 'e1',
+        status: 'completed',
+        locations: [{ path: P }],
+        rawInput: { file_path: P },
+      });
       const r = maude('annotate', canvas, '--resolve', ids);
-      await say(ctx, `Done — the hero picture fills the right half. The ${ids.split(',').length} stickies that asked for it are resolved and stay where they were.${r.status ? ` (annotate exit ${r.status})` : ''}`);
+      await say(
+        ctx,
+        `Done — the hero picture fills the right half. The ${ids.split(',').length} stickies that asked for it are resolved and stay where they were.${r.status ? ` (annotate exit ${r.status})` : ''}`
+      );
       return { stopReason: 'end_turn' };
     }
-    const scope = text.match(/\[maude-scope annotations: (\d+) on (\S+) — [^\]]*--selection ([A-Za-z0-9_.:,-]+)\]/);
+    const scope = text.match(
+      /\[maude-scope annotations: (\d+) on (\S+) — [^\]]*--selection ([A-Za-z0-9_.:,-]+)\]/
+    );
     if (scope) {
       const ids = scope[3].split(',');
       maude('read-annotations', scope[2], '--selection', scope[3]);
@@ -69,7 +100,10 @@ acp
         leaves: ids.slice(2),
         targets: [{ ref: 'el:desktop/hero-picture', name: 'The hero picture' }],
       };
-      await say(ctx, `They ask for a bigger hero picture.\n\n\`\`\`maude-offer\n${JSON.stringify(offer)}\n\`\`\``);
+      await say(
+        ctx,
+        `They ask for a bigger hero picture.\n\n\`\`\`maude-offer\n${JSON.stringify(offer)}\n\`\`\``
+      );
       return { stopReason: 'end_turn' };
     }
     await say(ctx, 'Nothing to do.');

@@ -45,8 +45,5 @@ export async function createBlankCanvas(deps = {}) {
 /** The tree's brief-board composer — `canvas.new-brief` ("New brief board"), what `canvas.new` did in v1. */
 export function openBriefBoardComposer(d) {
   d.openPanelExclusive('tree');
-  setTimeout(
-    () => globalThis.document?.querySelector('[aria-label="New canvas"]')?.click(),
-    60
-  );
+  setTimeout(() => globalThis.document?.querySelector('[aria-label="New canvas"]')?.click(), 60);
 }
