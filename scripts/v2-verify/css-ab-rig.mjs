@@ -3,7 +3,7 @@
 //
 //   node scripts/v2-verify/css-ab-rig.mjs (--a <styles.css> | --a-rev <rev>) (--b <styles.css> | --b-rev <rev>)
 //        [--out <dir>]
-//        [--states home,shell,...] [--themes dark,light] [--keep]
+//        [--states home,shell,...] [--themes dark,light] [--keep] [--a-rename]
 //
 // Boots this tree's studio (its built dist/, release) on a scratch copy of the desktop e2e fixture project, and a
 // Home server, in a throwaway HOME/XDG with the stub `claude` (no keychain, no real CLI, no real cloud). Every
@@ -32,6 +32,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stubClaudeEnv } from '../lib/stub-claude.mjs';
+import { PLAN_PATH, renameText } from './st-rename.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, '../..');
@@ -68,7 +69,11 @@ function cssAtRev(rev) {
 }
 const cssFor = (n) =>
   opt(`--${n}-rev`) ? cssAtRev(opt(`--${n}-rev`)) : readFileSync(resolve(opt(`--${n}`)), 'utf8');
-const cssA = cssFor('a');
+// --a-rename: the DOM under test is this tree's (renamed) bundle, so A's stylesheet gets the same st-* family
+// rename first (scripts/v2-verify/st-rename-plan.json) — A then differs from B only by where the rules live.
+const cssA = args.includes('--a-rename')
+  ? renameText(cssFor('a'), JSON.parse(readFileSync(PLAN_PATH, 'utf8')))
+  : cssFor('a');
 const cssB = cssFor('b');
 const out = resolve(opt('--out', join(tmpdir(), `css-ab-${Date.now()}`)));
 const onlyStates = opt('--states')?.split(',');
