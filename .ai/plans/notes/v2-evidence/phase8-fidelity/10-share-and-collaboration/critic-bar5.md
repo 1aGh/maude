@@ -57,3 +57,17 @@ Judged fresh on the D7 full-size pairs (both themes opened for every reachable i
 - co-presence/face-menu · Follow / Go to / peer's AI / Bring everyone here · unreachable (peers).
 - co-share-sheet/team-row · "Everyone in <project>" row and "+ N in <project>" · reachable once the faked API sends project people.
 - co-share-advanced/self-hosted-hub · "Roles on this hub" sheet · unreachable (needs a self-hosted hub).
+
+## Round 11 (p8-r11-10 re-shot, judged fresh on the committed JPG pairs + full-size PNG pairs, both themes)
+
+**3 verified · 0 differs.** Total for the canvas now 14 verified · 0 differs · 6 unreachable.
+
+- co-comment-video · verified (light, dark) · none. Preview now draws the read-only comment strip at the foot of the canvas (island material, "0:06 / 0:15 · Hype trailer · 16:9 · 2 comments on this video", a face per timed thread on the line, accent ring at the playhead); pin + thread card + Comments panel (4 filters) as before. Per `v2-p8-r11-10-*` the strip is comments-row only and read-only in Preview.
+- co-sync-offline · verified (light, dark) · none. "not sent" words on the five canvases with a waiting change, cluster "Offline — kept on this Mac", foot "14 changes since yesterday 18:20 — kept on this Mac", thread card carries "Queued — sends when this Mac is online." (warn clock line). Dark: tokens hold, row order differs (fixture ordering).
+- co-sync-back · verified (light, dark) · none. "sending" on the four waiting rows, toast "Back online. Your changes are going up.", cluster "Syncing…", foot "Sending 14 changes · 9 sent"; queued line gone once online.
+
+### New polish rows
+
+- co-comment-video · strip sits at the foot of the free canvas, not under the picture; board's strip also draws clips + waveform + time ruler (Edit timeline, Preview shows the comments row only by lead decision); "M" pin face vs board's numbered ring (fixture).
+- co-sync-offline / co-sync-back · Edit chrome + Inspector open + annotate toolbar absent (board: Preview + annotate toolbar; 04's owning decision, unchanged); list order differs between themes (fixture ordering of unsent rows); panel-toggle focus ring visible in the back-online frame (harness focus); thread card stays open in sync-back (harness, Esc does not reach the canvas iframe).
+- co-sync-back (side) · "one sticky needs a look · Show" in the toast, "Tereza changed this" tag, "2 versions" mark stay unreachable (second person), as already listed.
