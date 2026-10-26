@@ -419,6 +419,18 @@ export function isDsSurfaceRel(rel: string): boolean {
 }
 
 /**
+ * Lead decision maude/v2-p8-lead-underscore-file-is-a-module — a `.tsx` whose basename starts with `_`
+ * (`ui/club-web/_frames.tsx`) is a module by its NAME, whatever its text renders, mirroring the DS
+ * rule above (`preview/_ds.tsx`). Only its own meta / board / a stored grant makes it a canvas — the
+ * callers check those (access/closure.ts `walkEnv`). Safe: `_` files are never listed, opened or
+ * granted as canvases (`isCanvasFile`), so inlining one exposes no one's canvas. Pure.
+ */
+export function isUnderscoreModuleRel(rel: string): boolean {
+  const base = rel.replace(/\\/g, '/').split('/').pop() ?? '';
+  return base.startsWith('_') && /\.tsx$/i.test(base);
+}
+
+/**
  * An openable canvas file by PATH: a `.tsx` or `.html`, no `_`-prefixed or SKIP_DIRS segment, not a
  * DS preview specimen (`system/<ds>/preview/**`). THE index-side shape predicate — activity.ts
  * re-exports it (the AI-activity overlay), and (gate-b-c4m) the access closure asks it for `.html`

@@ -31,6 +31,7 @@ import {
   isCanvasFile,
   isCanvasSource,
   isDsSurfaceRel,
+  isUnderscoreModuleRel,
   LIB_CARRIED,
   type ModuleLinks,
   moduleLinks,
@@ -686,7 +687,9 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
       return files.has(rel) && (known.has(rel) || isCanvasFile(rel) || isDsSurfaceRel(rel));
     if (!/\.tsx$/i.test(rel)) return false;
     if (known.has(rel)) return true;
-    if (files.has(rel)) {
+    // p8 lead (maude/v2-p8-lead-underscore-file-is-a-module) — a `_` file is a module whatever it
+    // renders; only its own meta / board (below) or a stored grant (above) makes it a canvas.
+    if (files.has(rel) && !isUnderscoreModuleRel(rel)) {
       if (isDsSurfaceRel(rel) || isCanvasSource(textOf(rel))) return true;
       const links = linksOf(rel);
       if (links?.imports.some((i) => importReaches(i, carriedBySpec(rel, i.spec)))) return true;
