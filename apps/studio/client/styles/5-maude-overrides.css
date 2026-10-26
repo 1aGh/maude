@@ -297,77 +297,7 @@
     padding-top: 14px;
   }
 
-  /* tour nudge (first-run) */
-  .maude .mdcc-tour-nudge {
-    background: var(--bg-2);
-    border: 1px solid var(--border-default);
-    border-left: 3px solid var(--accent);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
-    font-family: var(--font-body);
-    color: var(--fg-1);
-    /* raised above the in-canvas zoom pill (bottom-left), same as .st-toast */
-    bottom: 84px;
-  }
-  .maude .mdcc-tour-nudge__cta {
-    background: var(--accent);
-    color: var(--accent-fg);
-    border: 0;
-    border-radius: var(--radius-sm);
-    font-family: var(--font-body);
-    font-weight: 500;
-  }
-  .maude .mdcc-tour-nudge__cta:hover {
-    background: var(--accent-hover);
-  }
-  .maude .mdcc-tour-nudge__skip {
-    color: var(--fg-2);
-  }
-  .maude .mdcc-tour-nudge__skip:hover {
-    color: var(--fg-0);
-  }
-
   /* ─── What's-new (toast / panel) ───────────────────────────────────────────── */
-  .maude .mdcc-wn-toast,
-  .mdcc-wn-toast {
-    background: var(--bg-2);
-    border: 1px solid var(--border-default);
-    border-left: 3px solid var(--accent);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
-    font-family: var(--font-body);
-    color: var(--fg-1);
-  }
-  .mdcc-wn-toast__mark {
-    color: var(--accent);
-  }
-  .mdcc-wn-toast__title {
-    font-family: var(--font-display);
-    font-weight: 600;
-    color: var(--fg-0);
-  }
-  .mdcc-wn-toast__summary {
-    color: var(--fg-1);
-  }
-  .mdcc-wn-toast__cta {
-    background: var(--accent);
-    color: var(--accent-fg);
-    border: 0;
-    border-radius: var(--radius-sm);
-    font-family: var(--font-body);
-    font-weight: 500;
-  }
-  .mdcc-wn-toast__cta:hover {
-    background: var(--accent-hover);
-  }
-  .mdcc-wn-toast__close {
-    color: var(--fg-2);
-    border-radius: var(--radius-sm);
-  }
-  .mdcc-wn-toast__close:hover {
-    background: var(--bg-3);
-    color: var(--fg-0);
-  }
   .maude .mdcc-wn-panel,
   .mdcc-wn-panel {
     background: var(--bg-2);
@@ -397,7 +327,10 @@
     letter-spacing: var(--tracking-wide);
     text-transform: uppercase;
     font-size: 10px;
-    color: var(--accent-text, var(--accent)); /* gate-b a11y: --accent on its own tint was 4.36:1 dark */
+    color: var(
+      --accent-text,
+      var(--accent)
+    ); /* gate-b a11y: --accent on its own tint was 4.36:1 dark */
     background: var(--accent-tint);
     border-radius: var(--radius-pill);
     padding: 1px 7px;
