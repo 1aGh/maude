@@ -143,8 +143,12 @@ describe('native-first-run (native-desktop)', () => {
     await add.waitForDisplayed({ timeout: 15_000 });
     expect(await add.getText()).toBe('Add the guide canvases to this project');
     await add.click();
+    // "Adding the guides…" is the in-flight line (add-guides.js GUIDES_WORDS.adding); wait for what it DID
     await browser.waitUntil(
-      async () => (await (await $(tid('help-add-guides-status'))).getText()) !== '',
+      async () => {
+        const said = await (await $(tid('help-add-guides-status'))).getText();
+        return said !== '' && said !== 'Adding the guides…';
+      },
       { timeout: 15_000, timeoutMsg: 'the Help dialog never said what it did' }
     );
     expect(await (await $(tid('help-add-guides-status'))).getText()).toBe(

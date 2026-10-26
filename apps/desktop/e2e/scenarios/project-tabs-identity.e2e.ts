@@ -67,14 +67,23 @@ async function waitForProfile(id: string, what: string): Promise<void> {
 
 /** `open_local_project` from the calling tab, with the refusal handed back instead of thrown. */
 async function openLocalProject(path: string): Promise<{ ok: boolean; error: string }> {
-  return browser.executeAsync((p: string, done: (r: { ok: boolean; error: string }) => void) => {
-    // biome-ignore lint/suspicious/noExplicitAny: __TAURI__ is an injected global
-    const tauri = (window as any).__TAURI__;
-    tauri.core.invoke('open_local_project', { path: p }).then(
-      () => done({ ok: true, error: '' }),
-      (e: unknown) => done({ ok: false, error: String(e) })
-    );
-  }, path) as Promise<{ ok: boolean; error: string }>;
+  try {
+    return (await browser.executeAsync(
+      (p: string, done: (r: { ok: boolean; error: string }) => void) => {
+        // biome-ignore lint/suspicious/noExplicitAny: __TAURI__ is an injected global
+        const tauri = (window as any).__TAURI__;
+        tauri.core.invoke('open_local_project', { path: p }).then(
+          () => done({ ok: true, error: '' }),
+          (e: unknown) => done({ ok: false, error: String(e) })
+        );
+      },
+      path
+    )) as { ok: boolean; error: string };
+  } catch (e) {
+    // The embedded WebDriver reports a command's rejection as the execute's own error (the page's `.then`
+    // handler never runs): the refusal reaches us as a WebDriverError carrying the shell's words.
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
 }
 
 function serverGone(root: string): boolean {
@@ -152,9 +161,16 @@ describe('project-tabs-identity (native-desktop)', () => {
       timeout: 5_000,
       timeoutMsg: `no done dot on ${tabB}: ${JSON.stringify((await strip()).dots)}`,
     });
-    await invokeTauri('e2e_ai_transition', { root: SECONDARY, state: 'awaiting-input' });
+    // S5.14: needs-you is a LEVEL — the activity poller (every 6 s) re-reads it from B's runs and, B having no run
+    // that waits, takes it off again at its next tick (`tabs::mark_for`). The helper's mark is real until then:
+    // that it was set is the command's answer; that the strip drew it is read at once, before a tick can clear it.
+    expect(
+      await invokeTauri<boolean>('e2e_ai_transition', { root: SECONDARY, state: 'awaiting-input' })
+    ).toBe(true);
     await browser.waitUntil(async () => (await strip()).dots[tabB] === 'needs-you', {
       timeout: 5_000,
+      interval: 50,
+      timeoutMsg: `no needs-you dot on ${tabB}`,
     });
     expect((await strip()).dots[tabA]).toBeUndefined();
     await capture('2b-dot-on-background-b');
