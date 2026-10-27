@@ -59,8 +59,15 @@ const pressFrame = async () => {
  * lost (r11 B/f1: no picker in 15 s). Press again only while the picker is absent and the slot does not read
  * pressed, 2.5 s apart, so a slow-opening picker is never toggled shut.
  */
+//
+// p8-e2e-fix-r12: F opens the picker only with NO artboard selected (size-ghost.tsx `sizesPanelRequest`); with one
+// selected it arms drawing a frame inside it. A tile selects the artboard it lands, and under load that selection
+// arrived before the next press: Frame read pressed, no picker, and the loop above never pressed again (r11 C1/C2 —
+// the failure shot shows "FB event cover" selected in the size panel). Pressed with no picker 2.5 s on is that
+// state: Esc twice (the tool, then the selection — `esc: steps-back`) and press again.
 const openSizes = async () => {
   let presses = 0;
+  let escapes = 0;
   let last = 0;
   await browser.waitUntil(
     async () => {
@@ -69,15 +76,27 @@ const openSizes = async () => {
       const pressed = await inFrame<string | null>(
         `return doc.querySelector('[data-testid="toolbar-slot-frame"]')?.getAttribute('aria-pressed') ?? null;`
       );
-      if (pressed !== 'true' && (await pressFrame())) {
+      if (pressed === 'true') {
+        await focusCanvasFrame();
+        await browser.keys(['Escape']);
+        await browser.pause(150);
+        await browser.keys(['Escape']);
+        escapes++;
+        last = Date.now() - 2000; // press again on the next round, not 2.5 s later
+        return false;
+      }
+      if (await pressFrame()) {
         presses++;
         last = Date.now();
       }
       return false;
     },
-    { timeout: 15_000, interval: 250, timeoutMsg: 'the size picker never opened' }
+    { timeout: 20_000, interval: 250, timeoutMsg: 'the size picker never opened' }
   );
-  if (presses > 1) console.warn(`[kinds-picker] Frame had to be pressed ${presses} times`);
+  if (presses > 1 || escapes > 0)
+    console.warn(
+      `[kinds-picker] Frame pressed ${presses} times, armed-without-picker cleared ${escapes} times`
+    );
 };
 const tile = (id: string) => $(`[data-testid="size-picker-tile-${id}"]`);
 
