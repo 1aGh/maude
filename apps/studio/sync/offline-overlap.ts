@@ -26,6 +26,22 @@
 // none of ours. Overlap is then the rule a live save already uses
 // (`mergeSource`, source-merge.ts): edits that touch. Non-touching edits are
 // left to the CRDT merge, exactly as before.
+//
+// WHEN THE ORDER SAYS NOTHING (V2-8.9 final review, M1). "Their change before
+// our ack" means "the hub took theirs first" only while ONE connection carried
+// both. If our edit went out and the socket dropped before its ack, the hub may
+// already hold it, and a teammate may have built on it; the reconnect then
+// replays their work onto a shadow that lacks ours, and that shadow's body is
+// one nobody wrote. So the check stands down — back to the CRDT merge, which
+// keeps what both sides wrote — whenever it cannot state the remote side truly:
+//   - a drop while any edit of the episode may have reached the hub ends it
+//     (the next edit opens a new one, on a base that holds the edit in flight,
+//     so the shadow lacks nothing a teammate could have built on);
+//   - a remote update the shadow cannot fully apply (Yjs left structs or
+//     deletes pending) depends on something the shadow lacks — our edit — so
+//     it was not taken before ours, whatever the socket said.
+// An edit made while the socket was down has reached no hub, so the failed
+// reconnect attempts that follow leave its episode open: that is #121's case.
 
 import * as decoding from 'lib0/decoding';
 import * as Y from 'yjs';
@@ -83,6 +99,11 @@ export interface OverlapWatch {
   /** The hub acknowledged every change this connection sent. */
   confirmed(): void;
   /**
+   * The provider's socket went up (`true`) or down (`false`). A drop while an
+   * edit of the episode may have reached the hub ends the episode.
+   */
+  connection(up: boolean): void;
+  /**
    * After a remote change reached the document: did it touch our unconfirmed
    * edit? Returns the three bodies (and ends the episode) when it did.
    */
@@ -100,10 +121,14 @@ interface Episode {
   shadow: Y.Doc | null;
   bytes: number;
   updates: number;
+  /** Was the socket up at any moment of the episode (its edits may have reached the hub)? */
+  exposed: boolean;
 }
 
 export function createOverlapWatch(): OverlapWatch {
   let ep: Episode | null = null;
+  /** Unknown until the provider says — assume up, so a drop ends what it can. */
+  let online = true;
 
   function end(): void {
     ep?.shadow?.destroy();
@@ -124,6 +149,7 @@ export function createOverlapWatch(): OverlapWatch {
         shadow: null,
         bytes: 0,
         updates: 0,
+        exposed: online,
       };
     },
     afterLocal(mine) {
@@ -143,6 +169,9 @@ export function createOverlapWatch(): OverlapWatch {
           Y.applyUpdate(ep.shadow, ep.baseState);
         }
         Y.applyUpdate(ep.shadow, update);
+        // Taken before ours, it could not depend on ours: pending state means
+        // it does, so the hub's order is not what this episode assumed.
+        if (ep.shadow.store.pendingStructs || ep.shadow.store.pendingDs) end();
       } catch {
         // An update this replica cannot read says nothing reliable about the
         // remote side's body; leave the merge to the CRDT, as before.
@@ -151,6 +180,12 @@ export function createOverlapWatch(): OverlapWatch {
     },
     confirmed() {
       end();
+    },
+    connection(up) {
+      online = up;
+      if (!ep) return;
+      if (up) ep.exposed = true;
+      else if (ep.exposed) end();
     },
     check() {
       if (!ep?.shadow) return null;
