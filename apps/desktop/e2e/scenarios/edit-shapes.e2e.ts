@@ -155,7 +155,25 @@ describe('edit-shapes — draw a rectangle, round a corner, Export area writes n
 
   it('More › Export area opens the sheet with the rectangle and the file does not change', async () => {
     const before = readFileSync(SMOKE, 'utf8');
-    await inFrame(`doc.querySelector('[data-testid="toolbar-slot-more"]').click(); return true;`);
+    // p8-e2e-fix-r11: the corner radius reached the file a moment ago, and the canvas re-renders on its own source
+    // change — once (r10 f2) the More menu a click had opened was gone by the next call, so `toolbar-more-slice`
+    // was null. Open More until it OFFERS Export area (a re-click only while it reads collapsed), then pick it.
+    let opens = 0;
+    await browser.waitUntil(
+      async () => {
+        const r = await inFrame<'ready' | 'clicked' | 'waiting' | null>(
+          `if (doc.querySelector('[data-testid="toolbar-more-slice"]')) return 'ready';
+           const more = doc.querySelector('[data-testid="toolbar-slot-more"]');
+           if (!more || more.getAttribute('aria-expanded') === 'true') return 'waiting';
+           more.click();
+           return 'clicked';`
+        );
+        if (r === 'clicked') opens++;
+        return r === 'ready';
+      },
+      { timeout: 10_000, interval: 150, timeoutMsg: 'More never offered Export area' }
+    );
+    if (opens > 1) console.warn(`[edit-shapes] More had to be opened ${opens} times after the corner edit`);
     await inFrame(`doc.querySelector('[data-testid="toolbar-more-slice"]').click(); return true;`);
     const b = await body();
     const x0 = b.x + 40 * b.zoom;

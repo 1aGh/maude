@@ -257,6 +257,9 @@ process.env.MAUDE_E2E_NO_REVEAL ??= '1';
 // throttled, and the coordinating chat takes the front back mid-lane, so `bringAppToFront` before each test was not
 // enough — a camera that eases mid-test never settled and specs pressed where an element WAS. `0` turns it off.
 process.env.MAUDE_E2E_ON_TOP ??= '1';
+// The lane's start, stamped once in the launcher (the workers inherit it): the reap stops a browser agent-browser
+// started that launchd adopted only when it started after this (helpers/app-lifecycle.ts, p8-e2e-fix-r11).
+process.env.MAUDE_E2E_LANE_STARTED ??= String(Date.now());
 
 // ── App binary path (per platform; override with MAUDE_E2E_APP) ────────────
 /**

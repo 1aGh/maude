@@ -287,6 +287,14 @@ describe('ai-quit (native-desktop)', () => {
       // twice round the list: a relaunched chat reads its history back from disk, which can take longer than one look
       for (let i = 0; i < 8 && !(await divider.isDisplayed().catch(() => false)); i++) {
         await (await $('.chat-switch-trigger')).click();
+        // p8-e2e-fix-r11: the list renders a beat after the click — read 24 ms later it was empty (r11 f2), which
+        // ended the walk before it opened a single chat
+        await browser
+          .waitUntil(async () => (await $$('[data-testid^="ai-chat-row-"]').length) > 0, {
+            timeout: 5000,
+            interval: 150,
+          })
+          .catch(() => {});
         const rows = await $$('[data-testid^="ai-chat-row-"]');
         if (!rows.length) break;
         await rows[i % rows.length].click();

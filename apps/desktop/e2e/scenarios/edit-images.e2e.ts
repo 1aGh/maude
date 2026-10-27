@@ -268,9 +268,24 @@ describe('images, crop and the Figma paste bar (S2.15)', () => {
   });
 
   it('the inspector’s Fit: Fit is object-fit: contain, Fill takes it back', async () => {
-    await click('photo');
+    // p8-e2e-fix-r11: the ⌘Z just before re-mounts the canvas content (a module hot-swap) and a press in that window
+    // selected nothing (r11 B/f1: no Fit control in 5 s). Press again only while the inspector shows no Fit, 2 s apart.
     const fit = await $('[data-testid="insp-ctl-image-fit"]');
-    await fit.waitForExist({ timeout: 5000 });
+    let presses = 0;
+    let last = 0;
+    await browser.waitUntil(
+      async () => {
+        if (await fit.isExisting()) return true;
+        if (Date.now() - last >= 2000) {
+          await click('photo');
+          presses++;
+          last = Date.now();
+        }
+        return false;
+      },
+      { timeout: 20_000, interval: 250, timeoutMsg: 'the inspector never showed the picture’s Fit' }
+    );
+    if (presses > 1) console.warn(`[edit-images] the picture had to be pressed ${presses} times`);
     await (await fit.$('button=Fit')).click();
     await browser.waitUntil(async () => source().includes('contain'), { timeout: 8000 });
     await (await fit.$('button=Fill')).click();

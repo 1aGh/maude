@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 /**
@@ -83,45 +84,110 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  *
  * Only processes whose executable IS `<the e2e app's MacOS dir>/agent-browser` (the debug bundle this lane runs)
  * and their descendants. A person's own agent-browser (another path) is never touched. Returns the pids signalled.
+ *
+ * p8-e2e-fix-r11 (decision maude/v2-p8-e2e-fix-r11-reap-helpers-and-orphan-browsers): the reap ran while the print
+ * preflight's `canvas-rects.sh` (a child of the sidecar, which outlives it) was still polling — it killed that run's
+ * daemon, the helper's next call started another, and a Chrome whose daemon had died was adopted by launchd, out of
+ * the walk's reach. So it also:
+ *   - SIGKILLs the e2e app's own helper scripts (a command line naming `<the bundle>/Contents/Resources/apps/studio/
+ *     bin/`) and walks their children. Not TERM: bash would run the helper's exit trap, which opens a browser to park
+ *     its page — the respawn this stops.
+ *   - stops a browser agent-browser starts — under `browserRoots` (~/.agent-browser/browsers/) or a
+ *     `chrome-headless-shell` — that launchd adopted (ppid 1) and that started after this lane began (`since`, the
+ *     lane start wdio.conf.ts stamps in MAUDE_E2E_LANE_STARTED). Without a lane start, none. The person's own Chrome
+ *     or Arc lives under /Applications and is never matched.
+ * On the live table it repeats until a pass finds nothing, so a process started between the snapshot and the signal
+ * is caught too.
  */
 export async function reapE2eAgentBrowsers(
   appBinary: string,
-  { timeoutMs = 5000, table = processTable() } = {}
+  {
+    timeoutMs = 5000,
+    table,
+    since = laneStarted(),
+    browserRoots = [`${join(homedir(), '.agent-browser', 'browsers')}/`],
+  }: {
+    timeoutMs?: number;
+    table?: ProcessRow[];
+    since?: number | null;
+    browserRoots?: string[];
+  } = {}
 ): Promise<number[]> {
   const ab = join(dirname(appBinary), 'agent-browser');
-  const roots = table
-    .filter((p) => p.command === ab || p.command.startsWith(`${ab} `))
-    .map((p) => p.pid);
-  const all = new Set<number>();
-  const walk = (pid: number) => {
-    if (all.has(pid)) return;
-    all.add(pid);
-    for (const c of table) if (c.ppid === pid) walk(c.pid);
-  };
-  for (const r of roots) walk(r);
-  const pids = [...all];
-  for (const pid of pids) signal(pid, 'SIGTERM');
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline && pids.some(alive)) await sleep(200);
-  for (const pid of pids.filter(alive)) signal(pid, 'SIGKILL');
-  if (pids.length)
+  const helperBin = `${join(dirname(dirname(appBinary)), 'Resources', 'apps', 'studio', 'bin')}/`;
+  const isAgentBrowser = (p: ProcessRow) => p.command === ab || p.command.startsWith(`${ab} `);
+  const isHelper = (p: ProcessRow) => p.command.includes(helperBin);
+  const isOrphanBrowser = (p: ProcessRow) =>
+    since != null &&
+    p.ppid === 1 &&
+    p.started >= Math.floor(since / 1000) * 1000 &&
+    (browserRoots.some((r) => p.command.startsWith(r)) || /^\S*\/chrome-headless-shell(?:\s|$)/.test(p.command));
+  const reaped: number[] = [];
+  let daemons = 0;
+  for (let pass = 0; pass < (table ? 1 : 3); pass++) {
+    const rows = table ?? processTable();
+    const helpers = rows.filter(isHelper).map((p) => p.pid);
+    const roots = rows.filter((p) => isAgentBrowser(p) || isOrphanBrowser(p)).map((p) => p.pid);
+    daemons += rows.filter(isAgentBrowser).length;
+    const all = new Set<number>();
+    const walk = (pid: number) => {
+      if (all.has(pid)) return;
+      all.add(pid);
+      for (const c of rows) if (c.ppid === pid) walk(c.pid);
+    };
+    for (const r of [...helpers, ...roots]) walk(r);
+    if (all.size === 0) break;
+    for (const pid of helpers) signal(pid, 'SIGKILL');
+    const pids = [...all];
+    for (const pid of pids) signal(pid, 'SIGTERM');
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline && pids.some(alive)) await sleep(200);
+    for (const pid of pids.filter(alive)) signal(pid, 'SIGKILL');
+    reaped.push(...pids);
+  }
+  if (reaped.length)
     console.warn(
-      `[app-lifecycle] reaped ${roots.length} agent-browser daemon(s) of the e2e app, ${pids.length} process(es)`
+      `[app-lifecycle] reaped ${daemons} agent-browser daemon(s) of the e2e app, ${reaped.length} process(es)`
     );
-  return pids;
+  return reaped;
 }
 
-/** `ps` as { pid, ppid, command } rows (the full command line). */
-export function processTable(): { pid: number; ppid: number; command: string }[] {
+/** The lane's start (ms), stamped once by wdio.conf.ts; null when no lane stamped one. */
+function laneStarted(): number | null {
+  const n = Number(process.env.MAUDE_E2E_LANE_STARTED);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+export type ProcessRow = { pid: number; ppid: number; started: number; command: string };
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** `ps` as { pid, ppid, started (ms, local time, 1 s resolution), command } rows (the full command line). */
+export function processTable(): ProcessRow[] {
   try {
-    return execFileSync('ps', ['-axo', 'pid=,ppid=,command='], {
+    return execFileSync('ps', ['-axo', 'pid=,ppid=,lstart=,command='], {
       encoding: 'utf8',
       maxBuffer: 16 * 1024 * 1024,
+      env: { ...process.env, LC_ALL: 'C', LANG: 'C' }, // lstart's month names are locale-dependent
     })
       .split('\n')
-      .map((l) => /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(l))
+      .map((l) =>
+        /^\s*(\d+)\s+(\d+)\s+\w{3}\s+(\w{3})\s+(\d{1,2})\s+(\d\d):(\d\d):(\d\d)\s+(\d{4})\s+(.*)$/.exec(l)
+      )
       .filter((m): m is RegExpExecArray => m !== null)
-      .map((m) => ({ pid: Number(m[1]), ppid: Number(m[2]), command: m[3] }));
+      .map((m) => ({
+        pid: Number(m[1]),
+        ppid: Number(m[2]),
+        started: new Date(
+          Number(m[8]),
+          MONTHS.indexOf(m[3]),
+          Number(m[4]),
+          Number(m[5]),
+          Number(m[6]),
+          Number(m[7])
+        ).getTime(),
+        command: m[9],
+      }));
   } catch {
     return [];
   }
