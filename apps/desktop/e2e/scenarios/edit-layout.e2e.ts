@@ -113,11 +113,28 @@ async function click(x: number, y: number, deep = false): Promise<void> {
 
 /** Press on `from`, move through `via` (so the ruler / slot draw), release at `to`. */
 async function drag(from: Pt, via: Pt, to: Pt, opts: { alt?: boolean } = {}): Promise<void> {
-  await browser.execute(
+  // the canvas frame can be mid-reload (a module hot-swap) when the drag starts — the 2026-10-27 record threw
+  // inside this script: wait for a frame with a window and a document, and dispatch only then (nothing is
+  // dispatched before that check, so waiting never doubles a drag)
+  let sent = false;
+  await browser.waitUntil(
+    async () => {
+      sent = await dragOnce(from, via, to, !!opts.alt);
+      return sent;
+    },
+    { timeout: 8000, interval: 200, timeoutMsg: 'the canvas frame never had a document to drag in' }
+  );
+}
+
+async function dragOnce(from: Pt, via: Pt, to: Pt, alt: boolean): Promise<boolean> {
+  return browser.execute(
     (a, v, b, alt) => {
-      const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
-      const win = frame.contentWindow as Window;
-      const doc = frame.contentDocument as Document;
+      const frame = document.querySelector(
+        '[data-testid="canvas-frame"]'
+      ) as HTMLIFrameElement | null;
+      const win = frame?.contentWindow as Window | null | undefined;
+      const doc = frame?.contentDocument as Document | null | undefined;
+      if (!win || !doc || !doc.body) return false;
       const init = (p: { x: number; y: number }): PointerEventInit => ({
         bubbles: true,
         cancelable: true,
@@ -133,11 +150,12 @@ async function drag(from: Pt, via: Pt, to: Pt, opts: { alt?: boolean } = {}): Pr
       win.dispatchEvent(new PointerEvent('pointermove', init(v)));
       win.dispatchEvent(new PointerEvent('pointermove', init(b)));
       win.dispatchEvent(new PointerEvent('pointerup', init(b)));
+      return true;
     },
     from,
     via,
     to,
-    !!opts.alt
+    alt
   );
 }
 
