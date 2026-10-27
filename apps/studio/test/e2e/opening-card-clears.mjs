@@ -13,7 +13,15 @@
 // Usage: node apps/studio/test/e2e/opening-card-clears.mjs [--keep] [--webkit]
 // Requires a built `apps/studio/dist` (MAUDE_SKIP_RUNTIME_BUILD=1 bun run build.ts --release).
 import { spawn } from 'node:child_process';
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -37,13 +45,32 @@ const cfg = JSON.parse(readFileSync(cfgPath, 'utf8'));
 delete cfg.linkedHub;
 writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
 const machineFile = join(scratch, 'machine.json');
+const home = join(scratch, 'home');
+const stubBin = join(scratch, 'stub-bin');
+mkdirSync(join(home, '.config', 'maude'), { recursive: true });
+mkdirSync(stubBin, { recursive: true });
+writeFileSync(join(stubBin, 'claude'), '#!/bin/sh\necho \'{"loggedIn":false}\'\n', { mode: 0o755 });
 const port = 4600 + Math.floor(Math.random() * 300);
 
 const server = spawn(
   'bun',
   ['run', join(studio, 'server.ts'), '--root', project, '--port', String(port)],
   {
-    env: { ...process.env, NO_OPEN: '1', MAUDE_NO_AUTOBUILD: '1', MAUDE_MACHINE_FILE: machineFile },
+    // a throwaway HOME/XDG and a signed-out stub claude: the studio must never read or write the
+    // person's real ~/.config/maude (this probe once rewrote the real prefs.json)
+    env: {
+      ...process.env,
+      NO_OPEN: '1',
+      MAUDE_NO_AUTOBUILD: '1',
+      MAUDE_MACHINE_FILE: machineFile,
+      HOME: home,
+      XDG_CONFIG_HOME: join(home, '.config'),
+      MAUDE_UI_PREFS_PATH: join(home, '.config', 'maude', 'prefs.json'),
+      MAUDE_CLOUD_CONFIG: join(home, '.config', 'maude', 'cloud.json'),
+      HUBS_CONFIG_PATH: join(home, '.config', 'maude', 'hubs.json'),
+      MAUDE_CLAUDE_BIN: '',
+      PATH: `${stubBin}:${process.env.PATH}`,
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
   }
 );
