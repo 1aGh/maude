@@ -130,6 +130,11 @@ describe('keyboard only (S2.21)', () => {
     await press('Tab');
     await press('Tab');
     await settle();
+    // the badges draw a beat after the live region speaks (the 2026-10-27 record read `said` right and no
+    // badges yet): wait for the third one to be on, then read; a missing badge is still red below
+    await browser
+      .waitUntil(async () => (await readFrame()).on === '3', { timeout: 5000, interval: 100 })
+      .catch(() => undefined);
     const s = await readFrame();
     // 14 Editing · "26 · Keyboard only": the focused frame shows its own level 1…5 AND the numbers of what
     // is inside it (4.1…4.3 there, 3.1…3.3 here) at once — the level is the badges without a dot.
@@ -201,14 +206,21 @@ describe('keyboard only (S2.21)', () => {
       frame.focus();
       frame.contentWindow?.focus();
     });
-    await press('F6');
-    await browser.waitUntil(
-      async () =>
-        browser.execute(
-          () => document.activeElement?.getAttribute('data-testid') !== 'canvas-frame'
-        ),
-      { timeout: 6000, timeoutMsg: 'F6 never left the canvas' }
-    );
+    // press again when the press is swallowed (a canvas module hot-swap drops a key in flight, as in r11);
+    // three presses that all stay in the canvas are still red
+    const leftCanvas = () =>
+      browser.execute(() => document.activeElement?.getAttribute('data-testid') !== 'canvas-frame');
+    let left = false;
+    for (let attempt = 0; attempt < 3 && !left; attempt++) {
+      await press('F6');
+      left = await browser
+        .waitUntil(leftCanvas, { timeout: 2000, interval: 100 })
+        .then(
+          () => true,
+          () => false
+        );
+    }
+    if (!left) throw new Error('F6 never left the canvas (3 presses)');
     // the shell's own handler, whichever panel element holds focus now: the ring is panels → canvas → panels, so
     // the canvas frame comes back within one lap (the panels on show differ with what is selected)
     let back = false;
