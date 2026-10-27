@@ -25,7 +25,7 @@ import { delimiter, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { browser } from '@wdio/globals';
-import { bringAppToFront, E2E_APP_ARGS, keepAppInFront } from './helpers/app-front';
+import { bringAppToFront, E2E_APP_ARGS, holdDisplayAwake, keepAppInFront } from './helpers/app-front';
 import { reapE2eAgentBrowsers, stopE2eApp } from './helpers/app-lifecycle';
 import { e2ePointers, isE2eConfigHome } from './helpers/config-home';
 import {
@@ -406,6 +406,7 @@ export const config: WebdriverIO.Config = {
   maxInstances: 1, // one native window at a time
 
   onPrepare: async (cfg: WebdriverIO.Config) => {
+    holdDisplayAwake(); // a lane nobody touches outlives the display-sleep timer (helpers/app-front.ts)
     // p8-e2e-fix-r10: no capture an earlier lane left open (an agent-browser daemon of this e2e app) may reach the
     // first spec's sidecar as a collab peer
     await reapE2eAgentBrowsers(resolveAppPath());

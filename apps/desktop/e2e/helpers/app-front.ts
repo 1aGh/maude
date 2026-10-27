@@ -1,4 +1,4 @@
-import { execFile, execFileSync } from 'node:child_process';
+import { execFile, execFileSync, spawn } from 'node:child_process';
 
 /** wdio.conf.ts `E2E_BUNDLE_ID` (not imported: a worker re-evaluating the config has side effects). */
 const E2E_BUNDLE_ID = 'com.maude.app.e2e';
@@ -32,6 +32,28 @@ export function bringAppToFront(): void {
     });
   } catch {
     /* best effort */
+  }
+}
+
+let awake: ReturnType<typeof spawn> | null = null;
+
+/**
+ * Keep the display on for as long as this lane's launcher lives: `caffeinate -d -w <launcher pid>`, a power
+ * assertion of this process tree only (no setting changes, it ends with the launcher). With the Mac's display sleep
+ * after 5 idle minutes, a lane nobody touches went dark and WebKit hid every webview (`document.hidden` everywhere):
+ * 2026-10-27 diag pass, 8 of 9 reds inside the 19:05–19:29 dark window ("no visible tab after 30 s"). macOS only;
+ * best effort, called from wdio.conf.ts `onPrepare` (the launcher, not a worker).
+ */
+export function holdDisplayAwake(): void {
+  if (process.platform !== 'darwin' || awake) return;
+  try {
+    awake = spawn('caffeinate', ['-d', '-i', '-w', String(process.pid)], { stdio: 'ignore', detached: false });
+    awake.on('error', () => {
+      awake = null;
+    });
+    awake.unref();
+  } catch {
+    awake = null;
   }
 }
 

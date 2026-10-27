@@ -81,6 +81,14 @@ async function dblclick(p: Pt): Promise<void> {
   );
 }
 
+const editing = () =>
+  browser.execute(
+    () =>
+      !!(
+        document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement
+      ).contentDocument?.querySelector('[contenteditable].dc-text-editing')
+  );
+
 /** Type into the element being edited: set the text, tell the page (what a keystroke does), then blur. */
 async function typeAndCommit(text: string): Promise<void> {
   await browser.execute((t) => {
@@ -115,7 +123,16 @@ describe('text in place, styles and the Czech ties (S2.12)', () => {
     const p = (await rectOf('Jdu do lesa'))!;
     await dblclick(p); // the first one selects the headline
     await dblclick(p); // the second one is the caret
-    await browser.waitUntil(async () => (await arcs()) >= 0, { timeout: 5000 });
+    // the editor mounts a beat later under load (2026-10-27 diag: typeAndCommit found no .dc-text-editing); a
+    // missed double-click is clicked again, never typed into
+    await browser.waitUntil(
+      async () => {
+        if (await editing()) return true;
+        await dblclick((await rectOf('Jdu do lesa')) ?? p);
+        return editing();
+      },
+      { timeout: 15000, interval: 1000, timeoutMsg: 'double-click never opened the headline for editing' }
+    );
     await typeAndCommit('Jdu v lese a s "Petrem"');
     await browser.waitUntil(async () => (await arcs()) === 3, { timeout: 5000 });
     await capture(report, 'ties-while-typing');
