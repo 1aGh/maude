@@ -108,6 +108,19 @@ describe('keyboard only (S2.21)', () => {
         }),
       { timeout: 15000 }
     );
+    // The page written above is an outside change: the canvas wears the live "AI’s new SMOKE/01 · KEYS" rim until
+    // the file goes idle (artboard-activity-overlay.tsx), and a walk started under it lost its level (r7fix/a5: the
+    // failure shot has the rim, Services selected, no badges). Start once the rim has gone.
+    await browser.waitUntil(
+      async () =>
+        browser.execute(() => {
+          const f = document.querySelector(
+            '[data-testid="canvas-frame"]'
+          ) as HTMLIFrameElement | null;
+          return !f?.contentDocument?.querySelector('.dc-activity-badge');
+        }),
+      { timeout: 20000, interval: 200, timeoutMsg: 'the outside-change rim never went' }
+    );
   });
   after(() => fixtures.restore());
 

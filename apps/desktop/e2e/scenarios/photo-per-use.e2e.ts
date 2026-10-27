@@ -253,7 +253,21 @@ describe('photo edits change one use (S8.15)', () => {
       timeout: 10000,
       timeoutMsg: 'Apply never took the use’s own edit off',
     });
-    expect(JSON.parse(readFileSync(everyUse, 'utf8'))).toMatchObject({
+    // read the every-use file once its write has settled: the read raced a doc that had only its `version` yet
+    // (r7fix/a5) — the assertion below is the same, on the settled bytes
+    const everyDoc = () => {
+      try {
+        return JSON.parse(readFileSync(everyUse, 'utf8')) as {
+          adjustments?: { grayscale?: number };
+        };
+      } catch {
+        return {};
+      }
+    };
+    await browser
+      .waitUntil(async () => everyDoc().adjustments?.grayscale === 1, { timeout: 8000 })
+      .catch(() => undefined);
+    expect(everyDoc()).toMatchObject({
       adjustments: { grayscale: 1 },
     });
   });

@@ -130,8 +130,15 @@ describe('video-edit-basics — trim, split, the clip menu, drop', () => {
     // S splits AT THE PLAYHEAD, and the server refuses a point at or before the clip's start ("scrub inside the clip
     // first"): selecting beat-two does not move the playhead, so put it inside beat-two (frames 60–150 at 30 fps)
     // with ⇧→ × 3 = a second each, frame 90.
-    for (let i = 0; i < 3; i++)
+    // Each step is checked on the readout, not counted blind: a press that landed before the readout took the focus
+    // left the playhead at 0:02 — on beat-two's first frame, where S has nothing to split (r7fix/a5).
+    const readout = async () =>
+      (await (await $('[data-testid="timeline-readout"]')).getText()).split('/')[0].trim();
+    for (let i = 0; i < 6 && (await readout()) !== '0:03'; i++) {
       await key({ key: 'ArrowRight', code: 'ArrowRight', shiftKey: true });
+      await browser.pause(120);
+    }
+    expect(await readout()).toBe('0:03');
     await withNetProbe(async () => {
       await key({ key: 's', code: 'KeyS' });
       try {
