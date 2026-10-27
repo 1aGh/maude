@@ -150,11 +150,17 @@ describe('keyboard only (S2.21)', () => {
     // target (focus-model.tsx `isBareCanvasTarget` — body or html), and a key dispatched on the document itself went
     // through the shell's keymap round trip instead, which lost the walk in a loaded lane (r7, r7fix/a3, a4).
     await press('Enter', {}, true);
+    // The live region speaks in the same render as the step, the badges are measured and drawn on the next frame
+    // (tab-order.tsx `OrderBadges`): r8/f1 read `said` = Brand systems with `badges: []` 3 ms after ↵ and the
+    // three 3.x badges 128 ms later. Wait for the level the step lands on, not only for the sentence.
     await browser
-      .waitUntil(async () => (await readFrame()).said.includes('Brand systems'), {
-        timeout: 5000,
-        interval: 100,
-      })
+      .waitUntil(
+        async () => {
+          const f = await readFrame();
+          return f.said.includes('Brand systems') && f.on === '3.1';
+        },
+        { timeout: 5000, interval: 100 }
+      )
       .catch(() => undefined);
     const s = await readFrame();
     expect(s.badges.filter((b) => b.includes('.'))).toEqual(['3.1', '3.2', '3.3']);
