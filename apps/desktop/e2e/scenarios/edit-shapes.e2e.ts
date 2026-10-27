@@ -70,6 +70,25 @@ const body = () =>
 
 const OVERLAY = '[data-testid="edit-draw-input"]';
 
+/** The artboard body once the camera has stopped moving (fit/zoom animate): two reads 250 ms apart agree. A box
+ * measured mid-move puts the drag off from where the tag is computed. */
+async function stableBody() {
+  let prev = '';
+  await browser
+    .waitUntil(
+      async () => {
+        const b = await body();
+        const cur = `${Math.round(b.x)}:${Math.round(b.y)}:${Math.round(b.w)}:${Math.round(b.h)}`;
+        const same = cur === prev && b.w > 0;
+        prev = cur;
+        return same;
+      },
+      { timeout: 8_000, interval: 250 }
+    )
+    .catch(() => undefined);
+  return body();
+}
+
 describe('edit-shapes — draw a rectangle, round a corner, Export area writes nothing', () => {
   before(() => {
     rmSync(join(HERE, '../fixtures/project/.design/_canvas-state'), {
@@ -98,14 +117,23 @@ describe('edit-shapes — draw a rectangle, round a corner, Export area writes n
         timeoutMsg: 'the draw overlay never appeared',
       }
     );
-    const b = await body();
+    const b = await stableBody();
     const x0 = b.x + 24 * b.zoom;
     const y0 = b.y + 24 * b.zoom;
     await fire('pointerdown', x0, y0, OVERLAY);
     await fire('pointermove', x0 + 216 * b.zoom, y0 + 216 * b.zoom, OVERLAY);
-    const tag = await inFrame<string | null>(
-      `return doc.querySelector('[data-testid="edit-draw-tag"]')?.textContent ?? null;`
-    );
+    // the move renders on the next frame: wait for the tag to say the size; a wrong size is still red
+    const readTag = () =>
+      inFrame<string | null>(
+        `return doc.querySelector('[data-testid="edit-draw-tag"]')?.textContent ?? null;`
+      );
+    await browser
+      .waitUntil(async () => (await readTag()) === 'Rectangle · 216 × 216', {
+        timeout: 4_000,
+        interval: 100,
+      })
+      .catch(() => undefined);
+    const tag = await readTag();
     expect(tag).toBe('Rectangle · 216 × 216');
     await capture('shape-drag-live-tag');
     await fire('pointerup', x0 + 216 * b.zoom, y0 + 216 * b.zoom, OVERLAY);
@@ -141,9 +169,17 @@ describe('edit-shapes — draw a rectangle, round a corner, Export area writes n
     );
     await fire('pointerdown', dot.x, dot.y, '[data-testid="edit-corner-dot-tl"]');
     await fire('pointermove', dot.x + 16 * dot.zoom, dot.y + 16 * dot.zoom, 'window');
-    const chip = await inFrame<string | null>(
-      `return doc.querySelector('[data-testid="edit-corner-chip"]')?.textContent ?? null;`
-    );
+    const readChip = () =>
+      inFrame<string | null>(
+        `return doc.querySelector('[data-testid="edit-corner-chip"]')?.textContent ?? null;`
+      );
+    await browser
+      .waitUntil(async () => /^\d+$/.test((await readChip()) ?? ''), {
+        timeout: 4_000,
+        interval: 100,
+      })
+      .catch(() => undefined);
+    const chip = await readChip();
     expect(chip).toMatch(/^\d+$/);
     await capture('corner-dot-drag-chip');
     await fire('pointerup', dot.x + 16 * dot.zoom, dot.y + 16 * dot.zoom, 'window');
@@ -173,18 +209,32 @@ describe('edit-shapes — draw a rectangle, round a corner, Export area writes n
       },
       { timeout: 10_000, interval: 150, timeoutMsg: 'More never offered Export area' }
     );
-    if (opens > 1) console.warn(`[edit-shapes] More had to be opened ${opens} times after the corner edit`);
+    if (opens > 1)
+      console.warn(`[edit-shapes] More had to be opened ${opens} times after the corner edit`);
     await inFrame(`doc.querySelector('[data-testid="toolbar-more-slice"]').click(); return true;`);
-    const b = await body();
+    // the tool arms on the next render: the overlay has to be there before the drag
+    await browser
+      .waitUntil(async () => await inFrame<boolean>(`return !!doc.querySelector('${OVERLAY}');`), {
+        timeout: 5_000,
+        interval: 100,
+      })
+      .catch(() => undefined);
+    const b = await stableBody();
     const x0 = b.x + 40 * b.zoom;
     const y0 = b.y + 40 * b.zoom;
     await fire('pointerdown', x0, y0, OVERLAY);
     await fire('pointermove', x0 + 160 * b.zoom, y0 + 90 * b.zoom, OVERLAY);
-    expect(
-      await inFrame<string | null>(
+    const readTag = () =>
+      inFrame<string | null>(
         `return doc.querySelector('[data-testid="edit-draw-tag"]')?.textContent ?? null;`
-      )
-    ).toMatch(/^Export area · \d+ × \d+$/);
+      );
+    await browser
+      .waitUntil(async () => /^Export area · \d+ × \d+$/.test((await readTag()) ?? ''), {
+        timeout: 4_000,
+        interval: 100,
+      })
+      .catch(() => undefined);
+    expect(await readTag()).toMatch(/^Export area · \d+ × \d+$/);
     await fire('pointerup', x0 + 160 * b.zoom, y0 + 90 * b.zoom, OVERLAY);
     await capture('export-area-opens-the-sheet');
     expect(readFileSync(SMOKE, 'utf8')).toBe(before);
