@@ -105,6 +105,25 @@ async function measure(): Promise<Record<string, Measured>> {
   });
 }
 
+/**
+ * The hug boards lay out after the fixed one: measuring the moment `fixed` mounted caught `hug-tall` at its 300
+ * floor on roughly one run in three (mini, alone and in the suite). Wait for its content to size it.
+ */
+async function hugSettled(): Promise<void> {
+  for (let i = 0; i < 100; i++) {
+    const h = await page.evaluate(
+      () =>
+        (
+          document.querySelector(
+            '[data-dc-screen="hug-tall"] .dc-artboard-body'
+          ) as HTMLElement | null
+        )?.offsetHeight ?? 0
+    );
+    if (h >= 480) return;
+    await Bun.sleep(100);
+  }
+}
+
 beforeAll(async () => {
   const box = makeSandbox();
   writeFileSync(join(box.designRoot, 'ui', 'sizes.tsx'), CANVAS_TSX);
@@ -123,6 +142,7 @@ beforeAll(async () => {
   page = await ctx.newPage();
   await page.goto(shellUrl(), { waitUntil: 'load' });
   await page.waitForSelector('[data-dc-screen="fixed"] .dc-artboard-body', { timeout: 60_000 });
+  await hugSettled();
   if (process.env.L1_DIAG) {
     const diag = await page.evaluate(() =>
       Array.from(document.querySelectorAll('[data-dc-screen]')).map((ab) => {
@@ -206,6 +226,7 @@ describe('a fixed artboard is its declared size', () => {
   test('the geometry manifest (canvas-rects, annotation toolkit) reports the design surface', async () => {
     await page.goto(shellUrl(), { waitUntil: 'load' });
     await page.waitForSelector('[data-dc-screen="fixed"] .dc-artboard-body', { timeout: 60_000 });
+    await hugSettled();
     const rects = await page.evaluate(() =>
       (
         window as unknown as { __maudeCanvasRects: () => { artboards: Box[] & { id: string }[] } }
