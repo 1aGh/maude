@@ -418,6 +418,9 @@ pub fn audience_nav_check<R: Runtime>(
     }
 }
 
+/// How long a hidden audience window lives before it is destroyed (see `close_audience`).
+const AUDIENCE_TEARDOWN_GRACE: Duration = Duration::from_millis(1500);
+
 /// Close (and forget) an audience window. Idempotent.
 pub fn close_audience<R: Runtime>(app: &AppHandle<R>, label: &str, why: &str) {
     if !is_audience_label(label) {
@@ -425,9 +428,20 @@ pub fn close_audience<R: Runtime>(app: &AppHandle<R>, label: &str, why: &str) {
     }
     let had = with_book(|b| b.closing(label)).is_some();
     if let Some(w) = app.get_webview_window(label) {
-        if let Err(e) = w.destroy() {
-            crate::sidecar::log_line(&format!("[maude] could not close {label}: {e}"));
-        }
+        // The audience page has its own data store, so its own WKProcessPool: destroying the window while that
+        // pool's DisplayLink still has the page as a client crashed the whole app (WebKit's DisplayLink teardown —
+        // a CheckedRef assert, or the CVDisplayLink thread on a freed link; End right after Presenter view opened,
+        // 2 of 8 modes-present runs on a two-display Mac). Hide it first — a page that is not visible stops asking
+        // for frames — and destroy it after a grace, off this thread. Until its `Destroyed` the book keeps the
+        // window "dying", so an open in between is refused as still closing.
+        let _ = w.hide();
+        let (w, label) = (w.clone(), label.to_string());
+        std::thread::spawn(move || {
+            std::thread::sleep(AUDIENCE_TEARDOWN_GRACE);
+            if let Err(e) = w.destroy() {
+                crate::sidecar::log_line(&format!("[maude] could not close {label}: {e}"));
+            }
+        });
     }
     if had {
         crate::sidecar::log_line(&format!("[maude] {label}: audience window closed ({why})"));
