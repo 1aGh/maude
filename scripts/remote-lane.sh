@@ -113,13 +113,20 @@ git clean -qfd -e node_modules -e .scr -e .runner-deps </dev/null >/dev/null 2>&
 # empty, so nothing reaches the owner's real, signed-in CLI (~/.local/bin/claude). Caches point at
 # shared locations on /Volumes/D so a slot never re-downloads its deps; Playwright reads the owner's
 # browser cache (binaries only).
+# The config root is $H/cfg, NOT $H/.config, and cloud.json / hubs.json are left to derive from it:
+# the studio suite's isolation pins treat everything under homedir()/.config as "the real one"
+# (test-config-isolation), and read-only-role resolves hubs.json from a test-set XDG_CONFIG_HOME,
+# which an explicit HUBS_CONFIG_PATH overrides. The suite preload still pins its own throwaway root.
+# TMPDIR is likewise outside HOME ($R/tmp/slot<n>): the PSD/HEIC converter's sandbox-exec profile
+# denies every read under HOME (and its parent lookups), so a work dir under $H/tmp made every
+# conversion fail (import-convert).
 H="$D/.runner-home"
-rm -rf "$H" && mkdir -p "$H/bin" "$H/tmp" "$H/.config/maude" "$R/cache/bun" "$R/cache/npm" "$R/cache/node-gyp"
+T="$R/tmp/slot$got"
+rm -rf "$H" "$T" && mkdir -p "$H/bin" "$T" "$H/cfg/maude" "$R/cache/bun" "$R/cache/npm" "$R/cache/node-gyp"
 grep -qx '/.runner-home/' .git/info/exclude 2>/dev/null || echo '/.runner-home/' >>.git/info/exclude
 SANDBOX=(env -i
   "PATH=$H/bin:$R/tools/bin:$R/tools/node24/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-  "HOME=$H" "XDG_CONFIG_HOME=$H/.config" "TMPDIR=$H/tmp" "LANG=${LANG:-C.UTF-8}"
-  "MAUDE_CLOUD_CONFIG=$H/.config/maude/cloud.json" "HUBS_CONFIG_PATH=$H/.config/maude/hubs.json"
+  "HOME=$H" "XDG_CONFIG_HOME=$H/cfg" "TMPDIR=$T" "LANG=${LANG:-C.UTF-8}"
   "MAUDE_CLAUDE_BIN=" NO_OPEN=1 MAUDE_NO_AUTOBUILD=1 "GIT_CONFIG_GLOBAL=$R/tools/gitconfig"
   "BUN_INSTALL_CACHE_DIR=$R/cache/bun" "npm_config_store_dir=/Volumes/D/.pnpm-store"
   "npm_config_cache=$R/cache/npm" "npm_config_devdir=$R/cache/node-gyp"

@@ -170,13 +170,21 @@ describe('the cover sweep (P8 perf fix, V2-8.14 covers)', () => {
     expect(starts().length).toBe(20);
   });
 
-  test('the real renderer does not sleep out the artboard-count settle when the count is known', async () => {
+  // The settle phase is real browser work (a rAF pair, the mount wait), so an absolute millisecond bar
+  // moves with the host's load (209 ms on a busy mini against a bar of 200). What the fix removes is a
+  // fixed sleep: without a known count the count-settle always waits `waitForTimeout(250)` once.
+  // So the known-count render is measured against the same canvas rendered with the count withheld, on
+  // the same host moments apart: the sleep must show as a gap of at least one sleep.
+  async function settleMs(withCount: boolean): Promise<number> {
     const replies: Array<Record<string, unknown>> = [];
     const r = await rig(() => ({ 'ui/two.tsx': TWO(2) }), {
       service: {
         spawnShim: () => {
           const h = spawnRendererShim();
           h.onMessage((m) => replies.push(m));
+          if (withCount) return h;
+          const send = h.send.bind(h);
+          h.send = (msg) => send({ ...msg, knownArtboards: undefined });
           return h;
         },
       },
@@ -194,8 +202,19 @@ describe('the cover sweep (P8 perf fix, V2-8.14 covers)', () => {
     expect(res.status).toBe('ready');
     const phases = replies.find((m) => m.phases)?.phases as Record<string, number> | undefined;
     expect(phases).toBeDefined();
-    expect(phases?.settle ?? 9999).toBeLessThan(200);
-  }, 60_000);
+    return phases?.settle ?? 9999;
+  }
+
+  test('the real renderer does not sleep out the artboard-count settle when the count is known', async () => {
+    // the fastest of three each: a load spike only ever adds time, the sleep is a floor
+    const fastest = async (withCount: boolean) =>
+      Math.min(await settleMs(withCount), await settleMs(withCount), await settleMs(withCount));
+    const known = await fastest(true);
+    const unknown = await fastest(false);
+    // the control really sleeps (one lap of 250 ms after the count is read), else the comparison proves nothing
+    expect(unknown).toBeGreaterThanOrEqual(250);
+    expect(known).toBeLessThan(unknown - 150);
+  }, 180_000);
 });
 
 describe('version pictures (P8 perf fix, V2-8.14 version pictures)', () => {
