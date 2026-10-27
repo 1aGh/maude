@@ -1,7 +1,7 @@
 {
   "version": "v1.9.1",
   "nodeRange": ">=20",
-  "publishedDate": "2026-10-11",
+  "publishedDate": "2026-10-26",
   "contributors": 1,
   "plugins": {
     "design": {
@@ -89,10 +89,11 @@
     "config.mdx": "2026-05-20",
     "design/bootstrap.mdx": "2026-07-03",
     "design/categories.mdx": "2026-10-22",
-    "design/index.mdx": "2026-10-22",
+    "design/index.mdx": "2026-10-26",
     "design/multi-ds.mdx": "2026-07-03",
     "design/print.mdx": "2026-10-22",
     "design/video.mdx": "2026-10-22",
+    "design-system-schema.mdx": "2026-10-26",
     "desktop/index.mdx": "2026-10-22",
     "desktop/window.mdx": "2026-10-22",
     "flow.mdx": "2026-08-16",

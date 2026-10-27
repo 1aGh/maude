@@ -1512,7 +1512,7 @@
           "placement": "left"
         },
         {
-          "target": ".st-cp-row",
+          "target": ".insp-cp-row",
           "inspector": true,
           "tab": "css",
           "requireSelection": true,
@@ -1521,7 +1521,7 @@
           "placement": "left"
         },
         {
-          "target": ".st-cp-tokbtn",
+          "target": ".insp-cp-tokbtn",
           "inspector": true,
           "tab": "css",
           "requireSelection": true,
@@ -1530,7 +1530,7 @@
           "placement": "left"
         },
         {
-          "target": ".st-cp-sechd-row",
+          "target": ".insp-cp-sechd-row",
           "inspector": true,
           "tab": "css",
           "requireSelection": true,
@@ -1560,7 +1560,7 @@
           "placement": "left"
         },
         {
-          "target": ".st-layer-eye",
+          "target": ".sh-layer-eye",
           "inspector": true,
           "tab": "layers",
           "requireSelection": true,
