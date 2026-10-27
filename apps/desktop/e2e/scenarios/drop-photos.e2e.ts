@@ -130,6 +130,25 @@ const dragPhotos = (n: number, phase: 'over' | 'drop', bare = false, low = false
     low
   );
 
+/**
+ * Hover `n` photos and read the hint. The chip renders a beat after the dragover, so under load one 150 ms read saw
+ * nothing (or the previous text): re-hover (dragover + dragleave write nothing) until the hint is `want`, and hand
+ * back the last read — a hint that never matches still fails the caller's `expect` with the text it saw.
+ */
+const hoverHint = async (n: number, want: string, bare = false, low = false) => {
+  let last: { hint: string | null; urls: string[] } = { hint: null, urls: [] };
+  await browser
+    .waitUntil(
+      async () => {
+        last = await dragPhotos(n, 'over', bare, low);
+        return last.hint === want;
+      },
+      { timeout: 5000, interval: 100 }
+    )
+    .catch(() => undefined);
+  return last;
+};
+
 /** ⌘Z until the file is `target` again. The press right after a write can race the op log's barrier. */
 const undoTo = (target: string) =>
   browser.waitUntil(
@@ -187,7 +206,7 @@ describe('drop from Finder onto an artboard (S8.14)', () => {
     const report = startReport('drop-photos-fill');
     await useCanvas(SIX_EMPTY, 'cell-6');
     const before = source();
-    const over = await dragPhotos(6, 'over');
+    const over = await hoverHint(6, 'Drop to fill 6 empty frames in order');
     expect(over.hint).toBe('Drop to fill 6 empty frames in order');
     expect(source()).toBe(before); // a hover writes nothing
     const { urls } = await withNetProbe(async () => {
@@ -212,7 +231,7 @@ describe('drop from Finder onto an artboard (S8.14)', () => {
     const report = startReport('drop-photos-grid');
     await useCanvas(NONE_EMPTY, 'note');
     const before = source();
-    const over = await dragPhotos(4, 'over');
+    const over = await hoverHint(4, `Drop to place 4 photos in ${BOARD}`);
     // 12 · ia-drop-photos: the chip names WHERE the photos go — the artboard under the pointer, by its name
     expect(over.hint).toBe(`Drop to place 4 photos in ${BOARD}`);
     await dragPhotos(4, 'drop');
@@ -229,7 +248,7 @@ describe('drop from Finder onto an artboard (S8.14)', () => {
       { timeout: 15000, timeoutMsg: 'the canvas never drew the undone state' }
     );
     // one photo over the artboard itself (not over the `grid` div, a container it would fill: "Drop to fill the frame")
-    const one = await dragPhotos(1, 'over', false, true);
+    const one = await hoverHint(1, `Drop to place the photo in ${BOARD}`, false, true);
     expect(one.hint).toBe(`Drop to place the photo in ${BOARD}`);
   });
 
