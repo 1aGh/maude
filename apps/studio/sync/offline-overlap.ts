@@ -39,7 +39,9 @@
 //     so the shadow lacks nothing a teammate could have built on);
 //   - a remote update the shadow cannot fully apply (Yjs left structs or
 //     deletes pending) depends on something the shadow lacks — our edit — so
-//     it was not taken before ours, whatever the socket said.
+//     it was not taken before ours, whatever the socket said;
+//   - a diff past its budget cannot tell whether the edits touch, and saying
+//     "you both changed the same part" without knowing is untrue (L1).
 // An edit made while the socket was down has reached no hub, so the failed
 // reconnect attempts that follow leave its episode open: that is #121's case.
 
@@ -192,8 +194,11 @@ export function createOverlapWatch(): OverlapWatch {
       const theirs = htmlFromDoc(ep.shadow);
       const { baseText: base, mine } = ep;
       if (theirs === base || theirs === mine || mine === base) return null;
-      if (mergeSource(base, mine, theirs).ok) return null;
+      const merged = mergeSource(base, mine, theirs);
+      if (merged.ok) return null;
       end();
+      // Too large to diff: whether the edits touch is unknown — the CRDT merge stands.
+      if (merged.reason === 'budget') return null;
       return { base, mine, theirs };
     },
   };

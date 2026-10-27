@@ -253,6 +253,24 @@ describe('a drop before the ack (V2-8.9 M1)', () => {
   });
 });
 
+// V2-8.9 final review, L1 — a merge too large to diff says nothing about
+// whether the two edits touch, so it must not claim "the same part".
+describe('a merge past its budget (V2-8.9 L1)', () => {
+  test('a large teammate edit elsewhere is left to the CRDT merge, with no overlap notice', async () => {
+    // The teammate adds a long note above the component and another below it,
+    // one step each: every step is a plain insert, but base -> theirs spans
+    // our title with more change than the diff budget allows.
+    const note = (c: string) => `/* ${c.repeat(3000)} */\n`;
+    const p = pair();
+    expect(p.save(src('designer'))).toBe(true);
+    p.deliver(p.teammate(note('b') + src('base')));
+    p.deliver(p.teammate(note('b') + src('base') + note('c')));
+    await p.settle();
+    expect(p.conflicts).toEqual([]);
+    expect(htmlFromDoc(p.ours)).toBe(note('b') + src('designer') + note('c'));
+  });
+});
+
 describe('syncUpdateFromMessage', () => {
   const frame = (type: number, sync: number | null, payload: Uint8Array) => {
     const e = encoding.createEncoder();
