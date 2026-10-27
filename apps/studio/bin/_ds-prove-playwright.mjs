@@ -80,6 +80,28 @@ async function open(page, url, gotoShell) {
     );
     await Promise.all([...document.images].map((i) => i.decode?.().catch(() => {})));
   });
+  // A hug artboard is sized by its content, a layout pass after it mounts: measured at once, the two studios
+  // caught the same unchanged canvas 20 px apart ("size" refusals on Plain / Spec, `systemFailed`). Wait until
+  // every artboard's box holds still for three reads in a row (capped: a canvas that never settles is taken as is).
+  {
+    let last = '';
+    let still = 0;
+    for (let i = 0; i < 40 && still < 3; i++) {
+      const now = await page
+        .evaluate(() =>
+          [...document.querySelectorAll('[data-dc-screen]')]
+            .map((el) => {
+              const r = el.getBoundingClientRect();
+              return `${Math.round(r.width)}x${Math.round(r.height)}`;
+            })
+            .join(',')
+        )
+        .catch(() => '');
+      still = now === last ? still + 1 : 0;
+      last = now;
+      await page.waitForTimeout(100);
+    }
+  }
   return page.evaluate(() => {
     const err = document.getElementById('canvas-mount-error')?.textContent?.trim() || null;
     const world = document.querySelector('.dc-world');
