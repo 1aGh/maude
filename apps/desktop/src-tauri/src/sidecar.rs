@@ -313,6 +313,33 @@ fn resolve_login_path() -> Option<String> {
     None
 }
 
+/// p8-e2e-isolation-r13 — true when any `MAUDE_E2E_*` variable is set non-empty: this app was launched by a desktop
+/// e2e lane (wdio.conf.ts), never by a person. Mirrors `isE2eEnv` in apps/studio/acp/probe.ts.
+pub(crate) fn is_e2e_env<I>(vars: I) -> bool
+where
+    I: IntoIterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
+{
+    vars.into_iter().any(|(k, v)| {
+        k.to_str().is_some_and(|k| k.starts_with("MAUDE_E2E_")) && !v.is_empty()
+    })
+}
+
+/// The PATH a project sidecar starts with. A person's `.app` gets the login-shell PATH (DDR-128, `resolve_login_path`);
+/// an e2e lane keeps the PATH it was launched with (p8-e2e-isolation-r13). The lane puts its stub `claude` first on
+/// that PATH, and the login shell sources the person's own rc files — in the 2026-10-27 V2-8.3 record it put the real
+/// `~/.local/bin/claude` back in front, and the ACP adapter spawned it with the person's HOME (the real keychain).
+/// `login` is never called for an e2e lane.
+fn sidecar_base_path(
+    e2e: bool,
+    inherited: Option<String>,
+    login: impl FnOnce() -> Option<String>,
+) -> String {
+    if e2e {
+        return inherited.unwrap_or_default();
+    }
+    login().unwrap_or_else(|| inherited.unwrap_or_default())
+}
+
 /// DDR-166 T0b — stage the bundled `maude` binary as the ONLY entry in a
 /// narrow, single-purpose directory, and return that entry's own path (the
 /// symlink, not the real target — this is exactly what a PATH lookup for
@@ -416,8 +443,11 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
     // claude) then sees the real PATH. Best-effort: on failure we leave PATH
     // untouched (no regression). The /_api/preflight readiness probe reports what's
     // still genuinely missing on top of this.
-    let base_path =
-        resolve_login_path().unwrap_or_else(|| std::env::var("PATH").unwrap_or_default());
+    let base_path = sidecar_base_path(
+        is_e2e_env(std::env::vars_os()),
+        std::env::var("PATH").ok(),
+        resolve_login_path,
+    );
     eprintln!(
         "[maude] sidecar PATH ← login shell ({} entries)",
         base_path.split(':').count()
@@ -1545,6 +1575,42 @@ pub fn kill_server(app: &AppHandle) {
 
 #[cfg(test)]
 mod tests {
+    // p8-e2e-isolation-r13 — the V2-8.3 record: the lane's stub-first PATH was replaced by the person's login-shell
+    // PATH, and the sidecar's ACP adapter found the real ~/.local/bin/claude on it.
+    #[test]
+    fn e2e_lane_keeps_its_stub_first_path_and_never_runs_the_login_shell() {
+        let lane = "/tmp/lane-stub/bin:/usr/bin".to_string();
+        let mut shelled = false;
+        let got = super::sidecar_base_path(true, Some(lane.clone()), || {
+            shelled = true;
+            Some("/Users/u/.local/bin:/usr/bin".to_string())
+        });
+        assert_eq!(got, lane);
+        assert!(!shelled, "an e2e lane must not source the person's shell rc files");
+    }
+
+    #[test]
+    fn a_person_still_gets_the_login_shell_path() {
+        let got = super::sidecar_base_path(false, Some("/usr/bin:/bin".into()), || {
+            Some("/Users/u/.local/bin:/usr/bin".into())
+        });
+        assert_eq!(got, "/Users/u/.local/bin:/usr/bin");
+        assert_eq!(
+            super::sidecar_base_path(false, Some("/usr/bin".into()), || None),
+            "/usr/bin"
+        );
+    }
+
+    #[test]
+    fn e2e_markers_are_any_non_empty_maude_e2e_variable() {
+        use std::ffi::OsString;
+        let v = |k: &str, x: &str| (OsString::from(k), OsString::from(x));
+        assert!(super::is_e2e_env(vec![v("MAUDE_E2E_NO_KEYCHAIN", "1")]));
+        assert!(super::is_e2e_env(vec![v("PATH", "/usr/bin"), v("MAUDE_E2E_RUN_DIR", "/r")]));
+        assert!(!super::is_e2e_env(vec![v("MAUDE_E2E_ON_TOP", "")]));
+        assert!(!super::is_e2e_env(vec![v("MAUDE_CLAUDE_BIN", ""), v("PATH", "/usr/bin")]));
+    }
+
     use super::*;
 
     #[test]

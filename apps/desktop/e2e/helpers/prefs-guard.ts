@@ -16,11 +16,14 @@ import { basename, dirname, join, resolve, sep } from 'node:path';
  * used to be visible only afterwards, as a moved mtime, with the lane already green (r11 pass C2).
  *
  * Every `intervalMs` (0.5 s) the guard reads the process table and, for each studio-like process, the environment it
- * started with (`ps eww`). A process the LANE owns — a descendant of the launcher, or born after the lane started —
- * that is not isolated is an offender: the default action kills the e2e app and the offender and fails the launcher
- * (exit 98). A process that was already running and is not the lane's (the person's own Maude) is reported once and
- * left alone: the harness never kills what it did not start, and such a server can still move prefs.json through a
- * browser tab — so the pass's before/after mtime check stays the authority on that.
+ * started with (`ps eww`). A process the LANE owns — a descendant of the launcher, or one that carries THIS lane's
+ * `MAUDE_E2E_LANE_STARTED` stamp (p8-e2e-isolation-r13: never "born after the lane started"; another session's server
+ * from the same debug bundle is born mid-lane too) — that is not isolated is an offender, and so is any `claude` in
+ * the lane's tree that is not the lane's stub (the V2-8.3 record: the person's real `~/.local/bin/claude`, real
+ * keychain). The default action kills the lane-owned tree — the e2e app, its sidecars and their ACP/claude children —
+ * and fails the launcher (exit 98). A process that is not the lane's is reported once ("foreign process writes the
+ * real prefs") and left alone: the harness never kills what it did not start, and such a server can still move
+ * prefs.json through a browser tab — so the pass's before/after mtime check stays the authority on that.
  */
 
 /** maude-server (app sidecar, Home), `bun … server.ts`, any bun, and a `maude --root` studio (npm channel). */
@@ -39,6 +42,8 @@ export type StartEnv = {
   MAUDE_CLOUD_CONFIG?: string;
   HUBS_CONFIG_PATH?: string;
   HOME?: string;
+  /** the lane stamp wdio.conf.ts sets in the launcher; every child of the lane inherits it */
+  MAUDE_E2E_LANE_STARTED?: string;
 };
 
 /** The variables that decide where a studio's prefs go, from a `ps eww` line (argv, then `KEY=value …`). */
@@ -51,6 +56,7 @@ export function envOf(line: string): StartEnv {
     'MAUDE_CLOUD_CONFIG',
     'HUBS_CONFIG_PATH',
     'HOME',
+    'MAUDE_E2E_LANE_STARTED',
   ] as const) {
     const v = get(k);
     if (v !== undefined) env[k] = v;
@@ -190,15 +196,51 @@ export function isolationProblem(env: StartEnv, opts: { realHome?: string } = {}
   return null;
 }
 
-/** The pids the lane owns: descendants of `roots` (inclusive), and anything born at or after `laneStarted`. */
+/**
+ * The pids the lane owns, by ANCESTRY: descendants of `roots` (inclusive), and of any process whose start environment
+ * carries this lane's stamp (`MAUDE_E2E_LANE_STARTED` = `laneStarted`, so a sidecar launchd adopted when its app died
+ * stays the lane's). A start time proves nothing (p8-e2e-isolation-r13): another session's `maude-server` from the same
+ * debug bundle, born mid-lane under its own zsh, is not the lane's.
+ */
 export function laneOwned(
   rows: ProcessRow[],
-  { roots, laneStarted }: { roots: number[]; laneStarted: number }
+  { roots, laneStarted }: { roots: number[]; laneStarted: number },
+  envs: Map<number, StartEnv> = new Map()
 ): Set<number> {
-  const owned = descendants(rows, roots);
-  // `ps` start times have 1 s resolution
-  for (const r of rows) if (r.started >= laneStarted - 1000) owned.add(r.pid);
-  return owned;
+  const stamp = String(laneStarted);
+  const stamped = [...envs]
+    .filter(([, e]) => e.MAUDE_E2E_LANE_STARTED === stamp)
+    .map(([pid]) => pid);
+  const live = new Set(rows.map((r) => r.pid));
+  return descendants(rows, [...roots, ...stamped.filter((pid) => live.has(pid))]);
+}
+
+/**
+ * p8-e2e-isolation-r13 — the `claude` a command line runs, or null: argv0 named `claude`, a script runner (sh, bash,
+ * zsh, node, bun) whose script is named `claude`, or Claude Code's JS entry. The lane's own stubs are recognised by the
+ * caller's path list, not here; a stub named otherwise (`claude-stub.sh`) is simply not a claude.
+ */
+export function claudeInvocation(command: string): string | null {
+  const argv = command.trim().split(/\s+/);
+  const name = (p: string | undefined) => basename(p ?? '');
+  if (/^claude(\.exe)?$/.test(name(argv[0]))) return argv[0];
+  if (/^(sh|bash|zsh|dash|node|bun)$/.test(name(argv[0]))) {
+    const script = argv.slice(1).find((a) => !a.startsWith('-'));
+    if (
+      script &&
+      (name(script) === 'claude' ||
+        /\/@anthropic-ai\/claude-(code|agent-sdk)\/cli\.m?js$/.test(script))
+    )
+      return script;
+  }
+  return null;
+}
+
+/** A lane claude: exactly a named path, or anything under a named directory. Empty/undefined entries are ignored. */
+export function isLaneClaude(path: string, allowed: (string | undefined)[]): boolean {
+  if (!path.startsWith(sep)) return false; // resolved through PATH — cannot be proven to be the stub
+  const abs = resolve(path);
+  return allowed.some((a) => !!a && (abs === resolve(a) || abs.startsWith(resolve(a) + sep)));
 }
 
 /** `roots` and everything under them. */
@@ -216,7 +258,7 @@ export function descendants(rows: ProcessRow[], roots: number[]): Set<number> {
   return owned;
 }
 
-/** `descendant`: under the lane's roots — the only offenders the guard may kill. */
+/** `descendant`: under the lane's roots. Every offender is lane-owned (ancestry or the lane stamp). */
 export type Offender = {
   pid: number;
   ppid: number;
@@ -226,7 +268,7 @@ export type Offender = {
 };
 
 /** `ps eww` lines for these pids (pid → line). A pid that exited in between is simply absent. */
-function startLines(pids: number[]): Map<number, string> {
+export function startLines(pids: number[]): Map<number, string> {
   const out = new Map<number, string>();
   if (pids.length === 0) return out;
   let text = '';
@@ -246,34 +288,183 @@ function startLines(pids: number[]): Map<number, string> {
   return out;
 }
 
+/**
+ * The judgement of one sample, pure: lane-owned studios that are not isolated and lane-owned `claude`s that are not
+ * the lane's stub are offenders; an unisolated studio the lane does not own is foreign (reported, never killed). A
+ * foreign `claude` is not the lane's business.
+ */
+export function classify(opts: {
+  rows: ProcessRow[];
+  envs: Map<number, StartEnv>;
+  roots: number[];
+  laneStarted: number;
+  self?: number;
+  laneClaudes?: (string | undefined)[];
+  realHome?: string;
+}): { offenders: Offender[]; foreign: Offender[] } {
+  const self = opts.self ?? process.pid;
+  const owned = laneOwned(opts.rows, opts, opts.envs);
+  const under = descendants(opts.rows, opts.roots);
+  const offenders: Offender[] = [];
+  const foreign: Offender[] = [];
+  const of = (r: ProcessRow, why: string): Offender => ({
+    pid: r.pid,
+    ppid: r.ppid,
+    command: r.command.slice(0, 300),
+    why,
+    descendant: under.has(r.pid),
+  });
+  for (const r of opts.rows) {
+    if (r.pid === self) continue;
+    const claude = claudeInvocation(r.command);
+    if (claude !== null) {
+      if (owned.has(r.pid) && !isLaneClaude(claude, opts.laneClaudes ?? []))
+        offenders.push(
+          of(
+            r,
+            `a claude outside the lane's stub: ${claude} (the lane names its own in MAUDE_CLAUDE_BIN)`
+          )
+        );
+      continue;
+    }
+    if (!isStudioLike(r.command)) continue;
+    const env = opts.envs.get(r.pid);
+    if (env === undefined) continue; // gone
+    const why = isolationProblem(env, { realHome: opts.realHome });
+    if (why === null) continue;
+    (owned.has(r.pid) ? offenders : foreign).push(of(r, why));
+  }
+  return { offenders, foreign };
+}
+
+/** Start environments for the processes a sample judges (studios and claudes), from `ps eww`. */
+function startEnvs(rows: ProcessRow[]): Map<number, StartEnv> {
+  const pids = rows
+    .filter((r) => isStudioLike(r.command) || claudeInvocation(r.command) !== null)
+    .map((r) => r.pid);
+  const envs = new Map<number, StartEnv>();
+  for (const [pid, line] of startLines(pids)) envs.set(pid, envOf(line));
+  return envs;
+}
+
 /** One sample: lane-owned offenders and foreign unisolated studios. */
-export function sample(opts: { roots: number[]; laneStarted: number; self?: number }): {
+export function sample(opts: {
+  roots: number[];
+  laneStarted: number;
+  self?: number;
+  laneClaudes?: (string | undefined)[];
+}): {
   offenders: Offender[];
   foreign: Offender[];
 } {
   const rows = processTable();
-  const self = opts.self ?? process.pid;
-  const studios = rows.filter((r) => r.pid !== self && isStudioLike(r.command));
-  const owned = laneOwned(rows, opts);
-  const under = descendants(rows, opts.roots);
-  const lines = startLines(studios.map((r) => r.pid));
-  const offenders: Offender[] = [];
-  const foreign: Offender[] = [];
-  for (const r of studios) {
-    const line = lines.get(r.pid);
-    if (line === undefined) continue; // gone
-    const why = isolationProblem(envOf(line));
-    if (why === null) continue;
-    const o = {
-      pid: r.pid,
-      ppid: r.ppid,
-      command: r.command.slice(0, 300),
-      why,
-      descendant: under.has(r.pid),
-    };
-    (owned.has(r.pid) ? offenders : foreign).push(o);
+  return classify({ ...opts, rows, envs: startEnvs(rows) });
+}
+
+const isApp = (command: string, appPath: string) =>
+  command === appPath || command.startsWith(`${appPath} `);
+
+/**
+ * p8-e2e-isolation-r13 — what the guard kills when it fails the lane: the lane-owned e2e app(s), the offender, and any
+ * lane-owned process launchd adopted from the app bundle (a sidecar whose app already died) — each with its whole
+ * subtree, so the sidecars (`maude-server --home`/`--root`) and their ACP agent and `claude` children go too. Nothing
+ * the lane does not own, even from the same debug bundle.
+ */
+export function laneKillSet(opts: {
+  rows: ProcessRow[];
+  envs: Map<number, StartEnv>;
+  roots: number[];
+  laneStarted: number;
+  appPath?: string;
+  offender?: { pid: number };
+}): Set<number> {
+  const owned = laneOwned(opts.rows, opts, opts.envs);
+  const bundle = opts.appPath ? `${dirname(dirname(opts.appPath))}${sep}` : null;
+  const tops: number[] = [];
+  for (const r of opts.rows) {
+    if (!owned.has(r.pid) || opts.roots.includes(r.pid)) continue;
+    if (opts.appPath && isApp(r.command, opts.appPath)) tops.push(r.pid);
+    else if (bundle && r.ppid === 1 && r.command.includes(bundle)) tops.push(r.pid);
   }
-  return { offenders, foreign };
+  if (opts.offender && owned.has(opts.offender.pid)) tops.push(opts.offender.pid);
+  return descendants(opts.rows, tops);
+}
+
+/**
+ * The end-of-lane net: e2e processes of THIS debug bundle that launchd adopted because their app died — a sidecar
+ * (`maude-server --home`/`--root`), an ACP agent under `Contents/Resources`, a `claude` — and everything under them.
+ * An e2e process is one whose start environment carries a lane stamp (`MAUDE_E2E_LANE_STARTED`, any lane: an earlier
+ * lane's orphan is dead weight too). A live app's sidecars are its children, not launchd's; another session's server
+ * and the person's own Maude carry no stamp — none of them is touched.
+ */
+export function orphanLaneProcesses(
+  rows: ProcessRow[],
+  envs: Map<number, StartEnv>,
+  appBinary: string
+): Set<number> {
+  const bundle = `${dirname(dirname(appBinary))}${sep}`;
+  const tops = rows
+    .filter(
+      (r) =>
+        r.ppid === 1 &&
+        !!envs.get(r.pid)?.MAUDE_E2E_LANE_STARTED &&
+        !isApp(r.command, appBinary) &&
+        (r.command.includes(bundle) || claudeInvocation(r.command) !== null)
+    )
+    .map((r) => r.pid);
+  return descendants(rows, tops);
+}
+
+/** All start environments (for the orphan reap: an ACP agent is neither a studio nor a claude). */
+function allStartEnvs(rows: ProcessRow[]): Map<number, StartEnv> {
+  const envs = new Map<number, StartEnv>();
+  for (const [pid, line] of startLines(rows.map((r) => r.pid))) envs.set(pid, envOf(line));
+  return envs;
+}
+
+/** SIGTERM `orphanLaneProcesses`, then SIGKILL what is left; repeats while a pass finds any. Returns the pids. */
+export async function reapOrphanE2eSidecars(
+  appBinary: string,
+  timeoutMs = 5000
+): Promise<number[]> {
+  const reaped: number[] = [];
+  for (let pass = 0; pass < 3; pass++) {
+    const rows = processTable();
+    const bundle = `${dirname(dirname(appBinary))}${sep}`;
+    // only the candidates' environments: launchd's children that name the bundle or a claude, and their subtrees
+    const cand = descendants(
+      rows,
+      rows
+        .filter(
+          (r) =>
+            r.ppid === 1 && (r.command.includes(bundle) || claudeInvocation(r.command) !== null)
+        )
+        .map((r) => r.pid)
+    );
+    const pids = [
+      ...orphanLaneProcesses(rows, allStartEnvs(rows.filter((r) => cand.has(r.pid))), appBinary),
+    ];
+    if (pids.length === 0) break;
+    for (const pid of pids) signal(pid, 'SIGTERM');
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline && pids.some(alive)) await new Promise((r) => setTimeout(r, 200));
+    for (const pid of pids.filter(alive)) signal(pid, 'SIGKILL');
+    reaped.push(...pids);
+  }
+  if (reaped.length)
+    console.warn(
+      `[prefs-guard] reaped ${reaped.length} orphaned e2e process(es) of the debug app (sidecars, agents)`
+    );
+  return reaped;
+}
+
+function alive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function signal(pid: number, sig: NodeJS.Signals): void {
@@ -285,22 +476,27 @@ function signal(pid: number, sig: NodeJS.Signals): void {
 }
 
 /**
- * Default action: kill the e2e app (every process whose argv0 is `appPath`) and — when it is under the lane — the
- * offender, then fail the launcher. A process born during the lane but outside its tree (a relaunch through
- * LaunchServices, another session) fails the lane too, but is not the harness's to kill.
+ * Default action: kill the lane-owned tree (`laneKillSet`: the e2e app, its sidecars and their ACP/claude children, the
+ * offender) and fail the launcher. Repeats on the live table so a child spawned between the snapshot and the signal
+ * goes too. Never a process the lane does not own.
  */
-function failLane(o: Offender, appPath: string | undefined): void {
+function failLane(
+  o: Offender,
+  opts: { appPath?: string; roots: number[]; laneStarted: number }
+): void {
+  const claude = o.why.startsWith('a claude outside');
   console.error(
-    `\n[prefs-guard] FAIL: pid ${o.pid} (parent ${o.ppid}) runs on the person's real config — ${o.why}\n` +
+    `\n[prefs-guard] FAIL: pid ${o.pid} (parent ${o.ppid}) ${claude ? 'is' : "runs on the person's real config —"} ${o.why}\n` +
       `[prefs-guard]   ${o.command}\n` +
-      `[prefs-guard] killing the e2e app and failing the lane (exit 98); check ~/.config/maude/prefs.json's mtime\n`
+      `[prefs-guard] killing the lane's app tree and failing the lane (exit 98); check ~/.config/maude/prefs.json's mtime\n`
   );
-  if (appPath) {
-    for (const r of processTable()) {
-      if (r.command === appPath || r.command.startsWith(`${appPath} `)) signal(r.pid, 'SIGKILL');
-    }
+  for (let pass = 0; pass < 3; pass++) {
+    const rows = processTable();
+    const pids = laneKillSet({ ...opts, rows, envs: allStartEnvs(rows), offender: o });
+    pids.delete(process.pid);
+    if (pids.size === 0) break;
+    for (const pid of pids) signal(pid, 'SIGKILL');
   }
-  if (o.descendant) signal(o.pid, 'SIGKILL');
   process.exitCode = 98;
   process.on('exit', () => {
     process.exitCode = 98;
@@ -326,6 +522,8 @@ export function startPrefsGuard(opts: {
   laneStarted: number;
   intervalMs?: number;
   appPath?: string;
+  /** the lane's own `claude` paths or directories, read at every sample (a lane conf may name its stub later) */
+  laneClaudes?: () => (string | undefined)[];
   onOffender?: (o: Offender) => void;
   onForeign?: (o: Offender) => void;
   /** tests: the sample instead of the live process table */
@@ -336,18 +534,21 @@ export function startPrefsGuard(opts: {
   // agent), and the guard killed two green lanes. Unreadable counts only once it stays so for UNREADABLE_SAMPLES.
   const unreadable = new Map<number, number>();
   let failed = false;
-  const onOffender = opts.onOffender ?? ((o: Offender) => failLane(o, opts.appPath));
+  const onOffender = opts.onOffender ?? ((o: Offender) => failLane(o, opts));
   const onForeign =
     opts.onForeign ??
     ((o: Offender) =>
       console.warn(
-        `[prefs-guard] note: pid ${o.pid} was running before this lane and is not its own — ${o.why}. ` +
-          `It is left alone, but a page open on it can still write ~/.config/maude/prefs.json during the pass.\n` +
+        `[prefs-guard] WARNING: foreign process writes the real prefs — pid ${o.pid} (parent ${o.ppid}) is not this ` +
+          `lane's (not under its launcher, no MAUDE_E2E_LANE_STARTED=${opts.laneStarted}): ${o.why}. It is left ` +
+          `running and does not fail the lane, but ~/.config/maude/prefs.json's mtime can move during the pass.\n` +
           `[prefs-guard]   ${o.command}`
       ));
   const tick = () => {
     if (failed && !opts.onOffender) return;
-    const got = opts.sampleImpl ? opts.sampleImpl() : sample(opts);
+    const got = opts.sampleImpl
+      ? opts.sampleImpl()
+      : sample({ ...opts, laneClaudes: opts.laneClaudes?.() ?? [] });
     const blind = (o: Offender) => o.why.startsWith('environment unreadable');
     const stillBlind = new Set(got.offenders.filter(blind).map((o) => o.pid));
     for (const pid of [...unreadable.keys()]) if (!stillBlind.has(pid)) unreadable.delete(pid);

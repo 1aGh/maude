@@ -103,19 +103,44 @@ test('the guard’s maude-e2e-* rule is config-home.ts’s (it carries a copy: n
   }
 });
 
-test('the lane owns a descendant of its roots or a process born after it started; anything older is foreign', () => {
+test('the lane owns its roots’ descendants and what carries ITS lane stamp — never a stranger born mid-lane (r13)', () => {
+  // the 2026-10-27 V2-8.3 record: another Claude session started the debug bundle's maude-server from its own zsh
+  // (91598 → claude 41821) while the default lane ran; "born after the lane started" made it the lane's, and the
+  // guard failed the lane (exit 98) on a process the lane never started
   const rows = [
     { pid: 10, ppid: 1, started: 1_000, command: 'node wdio' },
     { pid: 11, ppid: 10, started: 2_000, command: 'maude-desktop' },
     { pid: 12, ppid: 11, started: 3_000, command: 'maude-server --root /p' },
     { pid: 20, ppid: 1, started: 500, command: 'maude --root /mine' },
     { pid: 21, ppid: 1, started: 9_000, command: 'maude-server --root /relaunched' },
+    { pid: 41821, ppid: 1, started: 100, command: 'claude' },
+    { pid: 91598, ppid: 41821, started: 8_000, command: '/bin/zsh -c x' },
+    {
+      pid: 91602,
+      ppid: 91598,
+      started: 8_500,
+      command: '/b/maude-server --root /AI-StudyMate --port 4398',
+    },
+    { pid: 30, ppid: 1, started: 9_500, command: '/b/maude-server --home' },
+    { pid: 31, ppid: 30, started: 9_600, command: 'node adapter.js' },
+    { pid: 40, ppid: 1, started: 9_700, command: '/b/maude-server --home' },
   ];
-  const owned = guard.laneOwned(rows, { roots: [10], laneStarted: 5_000 });
+  const envs = new Map([
+    [30, { readable: true, MAUDE_E2E_LANE_STARTED: '5000' }],
+    [40, { readable: true, MAUDE_E2E_LANE_STARTED: '4000' }], // another lane's
+  ]);
+  const owned = guard.laneOwned(rows, { roots: [10], laneStarted: 5_000 }, envs);
   assert.deepEqual(
     [...owned].sort((a, b) => a - b),
-    [10, 11, 12, 21]
+    [10, 11, 12, 30, 31]
   );
+});
+
+test('the lane stamp is read from a `ps eww` line', () => {
+  const env = guard.envOf(
+    '/x/maude-server --home MAUDE_E2E_LANE_STARTED=1761571798000 HOME=/Users/u'
+  );
+  assert.equal(env.MAUDE_E2E_LANE_STARTED, '1761571798000');
 });
 
 test('an environment unreadable for a moment (a process mid-exec) is not an offender; one that stays so is', async () => {
@@ -378,4 +403,310 @@ test('wiring: wdio.conf.ts starts the guard in the launcher, for the whole lane,
   assert.match(conf, /if \(!process\.env\.WDIO_WORKER_ID\)[\s\S]{0,400}startPrefsGuard\(/);
   const complete = conf.slice(conf.indexOf('export async function completeLane'));
   assert.match(complete.slice(0, 600), /stopPrefsGuard\(\)/);
+});
+
+// ── p8-e2e-isolation-r13 ──────────────────────────────────────────────────────────────────────────────────────────
+// The 2026-10-27 V2-8.3 record, finding 1: a default-lane sidecar's ACP adapter spawned the person's REAL
+// ~/.local/bin/claude (HOME = theirs, so the real keychain). The lane names its own stub in MAUDE_CLAUDE_BIN; any
+// other `claude` in a lane-owned tree fails the lane and is killed.
+
+test('a claude invocation is recognised by argv0, a script runner’s argv1, or the CLI entry — a stub named otherwise is not', () => {
+  assert.equal(
+    guard.claudeInvocation('/Users/u/.local/bin/claude --output-format stream-json --verbose'),
+    '/Users/u/.local/bin/claude'
+  );
+  assert.equal(guard.claudeInvocation('claude auth status'), 'claude');
+  assert.equal(
+    guard.claudeInvocation('/bin/sh /tmp/maude-e2e-claude-x/claude auth status'),
+    '/tmp/maude-e2e-claude-x/claude'
+  );
+  assert.equal(
+    guard.claudeInvocation(
+      '/usr/local/bin/node /usr/local/lib/node_modules/@anthropic-ai/claude-code/cli.js -p'
+    ),
+    '/usr/local/lib/node_modules/@anthropic-ai/claude-code/cli.js'
+  );
+  assert.equal(
+    guard.claudeInvocation('/bin/sh /r/e2e/fixtures/fake-acp/claude-stub.sh auth status'),
+    null
+  );
+  assert.equal(
+    guard.claudeInvocation(
+      'node /b/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js'
+    ),
+    null
+  );
+  assert.equal(guard.claudeInvocation('/x/Maude.app/Contents/MacOS/maude-server --root /p'), null);
+});
+
+test('the lane’s claudes: the named stub path, or anything under a named directory', () => {
+  const allowed = ['/tmp/maude-e2e-claude-x/claude', undefined, '', '/r/apps/desktop/e2e/fixtures'];
+  assert.equal(guard.isLaneClaude('/tmp/maude-e2e-claude-x/claude', allowed), true);
+  assert.equal(guard.isLaneClaude('/r/apps/desktop/e2e/fixtures/fake-acp/claude', allowed), true);
+  assert.equal(guard.isLaneClaude('/Users/u/.local/bin/claude', allowed), false);
+  assert.equal(guard.isLaneClaude('claude', allowed), false);
+  assert.equal(guard.isLaneClaude('/r/apps/desktop/e2e/fixtures-evil/claude', allowed), false);
+});
+
+const STAMP = '5000';
+const iso = {
+  readable: true,
+  XDG_CONFIG_HOME: '/var/folders/t/maude-e2e-xdg-ab',
+  MAUDE_E2E_LANE_STARTED: STAMP,
+};
+const RECORD_ROWS = [
+  { pid: 10, ppid: 1, started: 1_000, command: 'node wdio' },
+  { pid: 11, ppid: 10, started: 2_000, command: '/b/Maude.app/Contents/MacOS/maude-desktop' },
+  {
+    pid: 12,
+    ppid: 11,
+    started: 3_000,
+    command: '/b/Maude.app/Contents/MacOS/maude-server --root /p',
+  },
+  {
+    pid: 13,
+    ppid: 12,
+    started: 3_100,
+    command:
+      'node /b/Maude.app/Contents/Resources/apps/studio/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js',
+  },
+  {
+    pid: 14,
+    ppid: 13,
+    started: 3_200,
+    command:
+      '/Users/u/.local/bin/claude --output-format stream-json --verbose --input-format stream-json',
+  },
+  { pid: 15, ppid: 11, started: 3_000, command: '/b/Maude.app/Contents/MacOS/maude-server --home' },
+  {
+    pid: 16,
+    ppid: 12,
+    started: 3_300,
+    command: '/bin/sh /tmp/maude-e2e-claude-x/claude auth status',
+  },
+  // another session's server, same debug bundle, born mid-lane, on the real config
+  { pid: 91598, ppid: 1, started: 8_000, command: '/bin/zsh -c x' },
+  {
+    pid: 91602,
+    ppid: 91598,
+    started: 8_500,
+    command: '/b/Maude.app/Contents/MacOS/maude-server --root /AI-StudyMate --port 4398',
+  },
+  {
+    pid: 91700,
+    ppid: 91602,
+    started: 8_600,
+    command: '/Users/u/.local/bin/claude --output-format stream-json',
+  },
+];
+const RECORD_ENVS = new Map([
+  [11, iso],
+  [12, iso],
+  [13, iso],
+  [14, { readable: true, HOME: '/Users/u', MAUDE_E2E_LANE_STARTED: STAMP }],
+  [15, iso],
+  [16, iso],
+  [91602, { readable: true, HOME: '/Users/u' }],
+  [91700, { readable: true, HOME: '/Users/u' }],
+]);
+const classifyRecord = () =>
+  guard.classify({
+    rows: RECORD_ROWS,
+    envs: RECORD_ENVS,
+    roots: [10],
+    laneStarted: Number(STAMP),
+    self: 10,
+    laneClaudes: ['/tmp/maude-e2e-claude-x/claude'],
+    realHome: '/Users/u',
+  });
+
+test('V2-8.3 record: a real claude under the lane’s app is an offender; the lane’s stub is not', () => {
+  const { offenders } = classifyRecord();
+  const claude = offenders.find((o) => o.pid === 14);
+  assert.ok(claude, 'the real claude under the app tree fails the lane');
+  assert.match(claude.why, /claude outside the lane's stub/);
+  assert.equal(claude.descendant, true);
+  assert.ok(!offenders.some((o) => o.pid === 16), 'the stub is the lane’s own');
+});
+
+test('V2-8.3 record: another session’s server on the real config is foreign — reported, not an offender', () => {
+  const { offenders, foreign } = classifyRecord();
+  assert.ok(
+    !offenders.some((o) => o.pid === 91602 || o.pid === 91700),
+    'never the lane’s to fail on'
+  );
+  assert.ok(
+    foreign.some((o) => o.pid === 91602),
+    'still reported'
+  );
+  assert.ok(!foreign.some((o) => o.pid === 91700), 'a foreign claude is not the lane’s business');
+});
+
+test('the kill takes the lane-owned tree — app, sidecars, ACP agent, claude — and nothing foreign', () => {
+  const pids = guard.laneKillSet({
+    rows: RECORD_ROWS,
+    envs: RECORD_ENVS,
+    roots: [10],
+    laneStarted: Number(STAMP),
+    appPath: '/b/Maude.app/Contents/MacOS/maude-desktop',
+    offender: { pid: 14, descendant: true },
+  });
+  assert.deepEqual(
+    [...pids].sort((a, b) => a - b),
+    [11, 12, 13, 14, 15, 16]
+  );
+});
+
+test('end-of-lane: orphaned e2e sidecars of the debug bundle (and their agents) are reaped; a live app’s, a person’s and a stranger’s are not', () => {
+  const app = '/b/Maude.app/Contents/MacOS/maude-desktop';
+  const rows = [
+    // earlier lanes: their app died, launchd adopted the sidecars (12:45, 14:58, 15:13)
+    { pid: 50, ppid: 1, started: 1, command: '/b/Maude.app/Contents/MacOS/maude-server --home' },
+    {
+      pid: 51,
+      ppid: 1,
+      started: 1,
+      command: '/b/Maude.app/Contents/MacOS/maude-server --root /fx',
+    },
+    {
+      pid: 52,
+      ppid: 51,
+      started: 1,
+      command:
+        'node /b/Maude.app/Contents/Resources/apps/studio/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js',
+    },
+    {
+      pid: 53,
+      ppid: 52,
+      started: 1,
+      command: '/Users/u/.local/bin/claude --output-format stream-json',
+    },
+    {
+      pid: 54,
+      ppid: 1,
+      started: 1,
+      command:
+        'node /b/Maude.app/Contents/Resources/apps/studio/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js',
+    },
+    // a live e2e app's sidecar
+    {
+      pid: 60,
+      ppid: 61,
+      started: 1,
+      command: '/b/Maude.app/Contents/MacOS/maude-server --root /fx',
+    },
+    { pid: 61, ppid: 1, started: 1, command: app },
+    // another session's, orphaned too but never an e2e process
+    {
+      pid: 70,
+      ppid: 1,
+      started: 1,
+      command: '/b/Maude.app/Contents/MacOS/maude-server --root /AI-StudyMate --port 4398',
+    },
+    // a person's installed Maude
+    {
+      pid: 80,
+      ppid: 1,
+      started: 1,
+      command: '/Applications/Maude.app/Contents/MacOS/maude-server --home',
+    },
+  ];
+  const lane = { readable: true, MAUDE_E2E_LANE_STARTED: '1' };
+  const envs = new Map([
+    [50, lane],
+    [51, lane],
+    [52, lane],
+    [53, lane],
+    [54, lane],
+    [60, lane],
+    [61, lane],
+    [70, { readable: true, HOME: '/Users/u' }],
+    [80, { readable: true, HOME: '/Users/u' }],
+  ]);
+  assert.deepEqual(
+    [...guard.orphanLaneProcesses(rows, envs, app)].sort((a, b) => a - b),
+    [50, 51, 52, 53, 54]
+  );
+});
+
+test('wiring: wdio.conf.ts names a lane stub in MAUDE_CLAUDE_BIN, hands the guard the lane’s claudes, and completeLane reaps orphaned sidecars', () => {
+  const conf = read('wdio.conf.ts');
+  assert.match(
+    conf,
+    /if \(!process\.env\.MAUDE_CLAUDE_BIN\)[\s\S]{0,300}process\.env\.MAUDE_CLAUDE_BIN = stub/
+  );
+  assert.match(conf, /startPrefsGuard\(\{[\s\S]{0,400}laneClaudes:/);
+  const complete = conf.slice(conf.indexOf('export async function completeLane'));
+  assert.match(complete.slice(0, 600), /reapOrphanE2eSidecars\(/);
+  assert.match(read('wdio.acp-cold-start.conf.ts'), /process\.env\.MAUDE_CLAUDE_BIN = ''/);
+});
+
+test('live: a real claude in the lane’s tree fails the lane and the WHOLE tree goes — app, sidecar, claude — never a stranger', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'maude-prefs-guard-'));
+  const e2eHome = join(dir, 'maude-e2e-xdg-live');
+  mkdirSync(e2eHome);
+  const macos = join(dir, 'Maude.app', 'Contents', 'MacOS');
+  mkdirSync(macos, { recursive: true });
+  // node under each name: `ps eww` shows its env, and it can spawn children (the app spawns its sidecar + a claude)
+  const app = fakeBun(macos, 'maude-desktop');
+  const sidecar = fakeBun(macos, 'maude-server');
+  const realBin = join(dir, 'home', '.local', 'bin');
+  mkdirSync(realBin, { recursive: true });
+  const realClaude = fakeBun(realBin, 'claude');
+  const stubDir = join(dir, 'maude-e2e-claude-live');
+  mkdirSync(stubDir);
+  const stub = join(stubDir, 'claude');
+  writeFileSync(stub, '#!/bin/sh\necho x\n', { mode: 0o755 });
+  const lane = {
+    PATH: process.env.PATH,
+    HOME: process.env.HOME,
+    XDG_CONFIG_HOME: e2eHome,
+    MAUDE_CLAUDE_BIN: stub,
+  };
+  // a stranger: the same bundle's maude-server, started outside the lane, on an isolated config so only ancestry decides
+  const stranger = spawn(sidecar, idle, { env: lane, stdio: 'ignore', detached: true });
+  const pidsFile = join(dir, 'pids.json');
+  const launcher = join(dir, 'launcher.mjs');
+  writeFileSync(
+    launcher,
+    `import { spawn } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
+const g = await import(${JSON.stringify(new URL('helpers/prefs-guard.ts', E2E).href)});
+const started = Date.now();
+process.env.MAUDE_E2E_LANE_STARTED = String(started);
+const appCode = \`
+const { spawn } = require('node:child_process');
+const s = spawn(${JSON.stringify(sidecar)}, ['-e', 'setTimeout(() => {}, 60000)'], { stdio: 'ignore' });
+setTimeout(() => {
+  const c = spawn(${JSON.stringify(realClaude)}, ['-e', 'setTimeout(() => {}, 60000)'], { stdio: 'ignore' });
+  require('node:fs').writeFileSync(${JSON.stringify(pidsFile)}, JSON.stringify({ app: process.pid, sidecar: s.pid, claude: c.pid }));
+}, 400);
+setTimeout(() => {}, 60000);
+\`;
+spawn(${JSON.stringify(app)}, ['-e', appCode], { stdio: 'ignore' });
+g.startPrefsGuard({ roots: [process.pid], laneStarted: started, intervalMs: 200, appPath: ${JSON.stringify(app)},
+  laneClaudes: () => [process.env.MAUDE_CLAUDE_BIN] });
+setTimeout(() => process.exit(0), 15_000);
+`
+  );
+  const child = spawn(process.execPath, [launcher], {
+    env: lane,
+    stdio: ['ignore', 'ignore', 'pipe'],
+  });
+  let err = '';
+  child.stderr.on('data', (c) => (err += c));
+  try {
+    await exited(child);
+    assert.equal(child.exitCode, 98, `launcher exit code (stderr: ${err.slice(-400)})`);
+    assert.match(err, /claude outside the lane's stub/);
+    const pids = JSON.parse(readFileSync(pidsFile, 'utf8'));
+    await new Promise((r) => setTimeout(r, 300));
+    for (const k of ['app', 'sidecar', 'claude'])
+      assert.ok(!alive(pids[k]), `${k} (${pids[k]}) was killed`);
+    assert.ok(alive(stranger.pid), 'the stranger from the same bundle was left alone');
+  } finally {
+    stranger.kill('SIGKILL');
+    await exited(stranger);
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
