@@ -90,6 +90,8 @@ URL="http://localhost:${PORT}/_canvas-shell.html?canvas=${REL_ENC}"
 AB="${MAUDE_AGENT_BROWSER:-agent-browser}"
 # V2-8.9 M1: AI may › Search the web off (MAUDE_NO_EGRESS=1) → this browser reaches loopback only.
 . "$(dirname "$0")/_no-egress.sh"
+# p8-e2e-fix-r10: on exit, a page this run opened is parked on about:blank and its session closed.
+. "$(dirname "$0")/_ab-park.sh"
 if [ "$ENGINE" = "auto" ]; then
   if command -v "$AB" >/dev/null 2>&1; then
     ENGINE="agent-browser"
@@ -106,6 +108,7 @@ if [ "$ENGINE" = "agent-browser" ]; then
     emit_static
     exit 0
   fi
+  ab_park_arm
   "$AB" open "$URL" >&2
 
   # Poll for the hook itself (more precise than screenshot.sh's generic
