@@ -231,15 +231,21 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
    * The source write every path shares: announce the base, the bytes, the /design:rollback snapshot.
    * S11.17 — a full disk HOLDS the bytes (sync/write-hold.ts) instead of failing the edit; `announce`
    * then runs when they land, not now. Resolves true when the bytes are on disk.
+   * S2.20b — `rowLine` (with `announce`): the bytes are said BEFORE they land too (`source-writing`, the
+   * local home's note), so a ⌘Z or the watcher arriving before `announce` (the snapshot is written in
+   * between) finds the person's edit, never an `outside` change (p8-e2e-fix-r9).
    */
   const writeSource = async (
     rel: string,
     before: string,
     after: string,
     label: string,
-    announce?: () => void
+    announce?: () => void,
+    rowLine?: string
   ): Promise<boolean> => {
     deps.emit('activity:suppress', rel);
+    if (announce)
+      deps.emit('source-writing', { rel, content: after, ...(rowLine ? { label: rowLine } : {}) });
     let landed: boolean;
     try {
       landed = !(await hold.put(abs(rel), after, announce ? { onLanded: announce } : {})).held;
@@ -442,7 +448,7 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
               content: after,
               ...(rowLine ? { label: rowLine } : {}),
             });
-          if (await writeSource(rel, before, after, label, written)) written();
+          if (await writeSource(rel, before, after, label, written, rowLine)) written();
         },
         writeLayout,
         land,

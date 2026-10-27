@@ -1,8 +1,13 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
-import { focusCanvasFrame, focusShell, waitForCanvasRects } from '../helpers/canvas-frame';
+import {
+  focusCanvasFrame,
+  focusShell,
+  waitForCanvasRects,
+  waitForCanvasSettled,
+} from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { Key } from '../helpers/parity';
@@ -115,7 +120,46 @@ async function countUndoKeys(): Promise<void> {
 const undoKeys = () =>
   browser.execute(() => (window as unknown as { __e2eUndoKeys?: number }).__e2eUndoKeys ?? 0);
 
+/** Every `render-ok` the canvas posts (a render of the source it just loaded), timed at the shell's window. */
+async function timeRenders(): Promise<void> {
+  await browser.execute(() => {
+    const w = window as unknown as { __e2eRenderedAt?: number };
+    // installed once the canvas has rendered (waitForCanvasRects): it is current as of now
+    w.__e2eRenderedAt = Date.now();
+    window.addEventListener('message', (e) => {
+      if ((e.data as { dgn?: string } | null)?.dgn === 'render-ok') w.__e2eRenderedAt = Date.now();
+    });
+  });
+}
+
+/**
+ * Wait until the canvas shows what the disk holds: it has rendered since the source last changed, and the
+ * heading's lock in the frame is the one on disk. Every write (an edit, its ⌘Z) reloads the frame's document;
+ * a click the instant after a ⌘Z landed on a document still loading, picked the ARTBOARD instead of the
+ * heading, and ⇧⌘L sent nothing (r9: 3 of 10 alone, `select-set` on `[data-dc-screen]`, no edit-op).
+ * A person clicks what they see; this waits for what they see. Never before a ⌘Z (that press races on purpose).
+ */
+async function canvasShowsDisk(): Promise<void> {
+  const since = statSync(CANVAS).mtimeMs;
+  await browser.waitUntil(
+    async () => {
+      const f = await browser.execute(() => {
+        const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+        const h = frame.contentDocument?.querySelector('[data-testid="smoke-h1"]');
+        return {
+          at: (window as unknown as { __e2eRenderedAt?: number }).__e2eRenderedAt ?? 0,
+          locked: h ? h.hasAttribute('data-cd-locked') : null,
+        };
+      });
+      return f.at > since && f.locked === locked();
+    },
+    { timeout: 10_000, interval: 50, timeoutMsg: 'the canvas never rendered what the disk holds' }
+  );
+  await waitForCanvasSettled();
+}
+
 async function lockHeading(): Promise<void> {
+  await canvasShowsDisk();
   const h1 = await rectOf('Maude desktop E2E');
   expect(h1).not.toBeNull();
   await click(h1!.x, h1!.y);
@@ -128,6 +172,7 @@ describe('⌘Z from the op log (S2.20 / S2.20b)', () => {
     await (await canvasRow('canvas-row-ui-smoke')).click();
     await waitForCanvasRects();
     await countUndoKeys();
+    await timeRenders();
     // The person is IN the canvas: the shell honours a canvas ⌘Z only then (sec-a). Synthetic clicks
     // and chords move no focus, so this one focus lasts the whole describe (until the palette).
     await focusCanvasFrame();
@@ -148,8 +193,10 @@ describe('⌘Z from the op log (S2.20 / S2.20b)', () => {
   });
 
   it('⇧⌘Z in the canvas redoes it', async () => {
+    await canvasShowsDisk(); // the chord goes to the frame's document: the one the undo reloaded
     await chord('Z', { metaKey: true, shiftKey: true });
     await browser.waitUntil(async () => locked(), { timeout: 8000 });
+    await canvasShowsDisk();
     await chord('z', { metaKey: true });
     await browser.waitUntil(async () => !locked(), { timeout: 8000 });
   });
@@ -157,7 +204,8 @@ describe('⌘Z from the op log (S2.20 / S2.20b)', () => {
   it('a ⌘Z the instant after an edit undoes that edit, never the one before it', async () => {
     const before = source();
     await lockHeading();
-    // no wait for the watcher: the press races the edit's fs event (the local home's noted write)
+    // no wait for the watcher or the frame: the press races the edit's fs event and the frame's reload —
+    // the edit-op notes its bytes before they land, so the ⌘Z still undoes THIS edit (S2.20b, r9)
     await browser.waitUntil(async () => locked(), { timeout: 8000, interval: 1 });
     await chord('z', { metaKey: true });
     await browser.waitUntil(async () => !locked(), { timeout: 8000 });

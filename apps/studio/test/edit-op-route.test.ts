@@ -113,8 +113,12 @@ describe('/_api/edit-op handler', () => {
     expect(readFileSync(join(designRoot, 'ui', 'Home.tsx'), 'utf8')).toContain("color: 'red'");
     // S2.23 (G4): the write is announced with its bytes, so the local home records it as the person's
     // `edit` (one ⌘Z step) and not as an `outside` row the undo stack leaves out.
+    const written = readFileSync(join(designRoot, 'ui', 'Home.tsx'), 'utf8');
     expect(events).toEqual([
       ['activity:suppress', 'ui/Home.tsx'],
+      // S2.20b (p8-e2e-fix-r9): said before the bytes land too — the local home's note, so a ⌘Z or the
+      // watcher arriving before `source-written` (the snapshot is written in between) finds the edit
+      ['source-writing', { rel: 'ui/Home.tsx', content: written, label: 'Paint' }],
       [
         'source-written',
         {

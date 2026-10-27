@@ -214,9 +214,11 @@ describe('photo edits change one use (S8.15)', () => {
     const edit8 = attrOn('photo');
     await (await $('[data-testid="photo-reset"]')).click();
     await browser.waitUntil(async () => attrOn('photo') === null, { timeout: 8000 });
-    // The file lands before the write's answer reaches the panel, and the undo step is recorded with that answer
-    // (photo-section.jsx `reset`: setCurrent(null) and onRecordEdit in one callback) — a ⌘Z sent in between undid
-    // the Mono step instead (r7fix/a2). `data-edit` leaving the section is that answer.
+    // The Photo tab has heard the Reset (`data-edit` leaves the section): what the person sees before pressing ⌘Z.
+    // The ⌘Z that once undid the Mono step instead (r7fix/a2, V2-8.3 record run 1) was the product's: the edit-op
+    // said its write only after the rollback snapshot, so the frame's reload (`loaded` → undo-stack read) could
+    // record the Reset as an outside change first. It now notes the bytes before they land (S2.20b, r9;
+    // apps/studio/test/p8-edit-op-note-before-bytes.test.ts).
     await browser.waitUntil(
       async () =>
         (await (await $('[data-testid="photo-section"]')).getAttribute('data-edit')) === null,
