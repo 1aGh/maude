@@ -61,6 +61,7 @@ import { flushAllIndexes } from './index/service.ts';
 import { createInspectRegistry } from './inspect.ts';
 import { listenLoopback, V4_LOOPBACK } from './loopback-listen.ts';
 import { startHeapWatch } from './mem.ts';
+import { PORT_LADDER, resolvePort } from './port.ts';
 import { canvasOriginRoutes } from './routes/canvas-origin.ts';
 import { runStageHooks } from './routes/index.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
@@ -417,18 +418,10 @@ if (!isWorkspaceMode()) {
 }
 const fsWatch = createFsWatch(ctx);
 
-// Port: --port arg > $PORT > $MDCC_DEV_PORT > 4399.
+// Port: --port arg > $PORT > $MDCC_DEV_PORT > 4399 (an e2e studio: 47399) — port.ts.
 // When the port wasn't explicitly chosen and the default is busy (another
-// project's dev-server is running on the same machine), walk up to 4408 before
+// project's dev-server is running on the same machine), walk PORT_LADDER ports before
 // giving up. Explicit ports stay fatal so users notice their own collisions.
-function resolvePort(): { port: number; explicit: boolean } {
-  const i = process.argv.indexOf('--port');
-  if (i !== -1 && process.argv[i + 1]) return { port: Number(process.argv[i + 1]), explicit: true };
-  const env = process.env.PORT ?? process.env.MDCC_DEV_PORT;
-  if (env) return { port: Number(env), explicit: true };
-  return { port: 4399, explicit: false };
-}
-
 const { port: BASE_PORT, explicit: PORT_EXPLICIT } = resolvePort();
 
 type BunServer = ReturnType<typeof Bun.serve<WsData, never>>;
@@ -954,7 +947,7 @@ function isAddrInUse(e: unknown): boolean {
 
 let server: BunServer;
 {
-  const MAX_TRIES = PORT_EXPLICIT ? 1 : 10;
+  const MAX_TRIES = PORT_EXPLICIT ? 1 : PORT_LADDER;
   let lastErr: unknown;
   let bound: BunServer | null = null;
   for (let i = 0; i < MAX_TRIES; i++) {

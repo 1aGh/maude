@@ -16,7 +16,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { getClaudeAuthStatus } from './acp/login-state.ts';
 import { isNativePluginContext } from './acp/plugin-bootstrap.ts';
-import { resolveAdapterEntry, resolveClaudePath } from './acp/probe.ts';
+import { isE2eEnv, resolveAdapterEntry, resolveClaudePath } from './acp/probe.ts';
 import { resolveBrowser } from './bin/_ensure-browser.mjs';
 import { DESIGN_PLUGIN_DIR } from './paths.ts';
 
@@ -104,6 +104,21 @@ export async function resolveOnPath(bin: string): Promise<string | null> {
   }
 }
 
+/**
+ * The readiness view of `claude`: the resolver, then the login-shell fallback.
+ * p8-e2e-isolation-r13 — under an e2e lane (any `MAUDE_E2E_*` marker) the resolver is the only answer: the
+ * login shell sources the person's own rc files and finds their real `~/.local/bin/claude`.
+ */
+export async function resolveClaudeOnPathForReadiness(
+  env: Record<string, string | undefined> = process.env,
+  onPath: (bin: string) => Promise<string | null> = resolveOnPath,
+  which?: (bin: string) => string | null
+): Promise<string | null> {
+  const resolved = resolveClaudePath(env, which);
+  if (resolved || isE2eEnv(env)) return resolved;
+  return onPath('claude');
+}
+
 /** Claude Code's config dir — relocatable via `CLAUDE_CONFIG_DIR` (its own contract). */
 function claudeConfigDir(): string {
   return process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude');
@@ -179,7 +194,7 @@ export function scanPlugins(): PluginScan {
  */
 export async function probeReadiness(): Promise<ReadinessReport> {
   let [claude, maude, agentBrowser] = await Promise.all([
-    (async () => resolveClaudePath() ?? (await resolveOnPath('claude')))(),
+    resolveClaudeOnPathForReadiness(),
     resolveOnPath('maude'),
     resolveOnPath('agent-browser'),
   ]);

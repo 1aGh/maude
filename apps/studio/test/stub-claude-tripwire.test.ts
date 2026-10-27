@@ -28,8 +28,6 @@ const SKIP_DIR = new Set(['node_modules', 'target', 'dist', '.git']);
 const EXEMPT: Record<string, string> = {
   'apps/studio/test/export-e2e-lanes.test.ts':
     'its HOME env belongs to the apps/render server (no ACP probe); studios boot via bootServer, which inherits the preload stub',
-  'apps/desktop/e2e/wdio.conf.ts':
-    'the default desktop lane keeps the real HOME and the real claude on purpose (acp-ask-user-question needs a signed-in one and skips without it); it isolates only XDG_CONFIG_HOME, and the `server.ts` the heuristic matches is a comment about the studios the app spawns',
   'apps/hub/test/studio-child.test.mjs':
     'unit test of childEnv()/launch() with an injected fake spawn: no process, no claude is ever started',
 };

@@ -131,7 +131,10 @@ function contentStillTrusted(path: string): boolean {
  * Absolute path to the user's installed `claude` CLI, or null. Honors a
  * `MAUDE_CLAUDE_BIN` override; otherwise looks it up on PATH.
  */
-export function resolveClaudePath(): string | null {
+export function resolveClaudePath(
+  env: Record<string, string | undefined> = process.env,
+  which: (bin: string) => string | null = (bin) => Bun.which(bin)
+): string | null {
   // An explicit, content-pinned `MAUDE_CLAUDE_BIN` override is checked FIRST
   // and always wins — including over the E2E force-missing stub below. This
   // matters for the desktop-e2e `acp-cold-start` scenario (T0f): it starts
@@ -141,7 +144,7 @@ export function resolveClaudePath(): string | null {
   // (login-state.ts's setTrustedClaudeBin). A coarse "simulate absent" test
   // stub must not out-rank a just-verified, explicitly-provisioned install —
   // that would make the guided install flow untestable end-to-end.
-  const override = process.env.MAUDE_CLAUDE_BIN;
+  const override = env.MAUDE_CLAUDE_BIN;
   if (override) {
     if (!existsSync(override)) return null;
     if (!contentStillTrusted(override)) return null;
@@ -150,8 +153,19 @@ export function resolveClaudePath(): string | null {
   // DDR-166 — deterministic E2E stub (mirrors MAUDE_E2E_FAKE_GITHUB_LOGIN in
   // oauth.rs), simulating a machine where `claude` is absent from PATH.
   // Never set in a normal launch.
-  if (process.env.MAUDE_E2E_FORCE_CLAUDE_STATUS === 'missing') return null;
-  return Bun.which('claude');
+  if (env.MAUDE_E2E_FORCE_CLAUDE_STATUS === 'missing') return null;
+  // p8-e2e-isolation-r13 — an e2e lane gets ONLY the stub it names in MAUDE_CLAUDE_BIN (above). A PATH lookup is
+  // what found the person's real `~/.local/bin/claude` in the 2026-10-27 V2-8.3 record: the sidecar's PATH is the
+  // person's login-shell PATH (sidecar.rs), and that claude reads the real keychain. Normal launches never set a
+  // MAUDE_E2E_* variable, so their resolution is unchanged.
+  if (isE2eEnv(env)) return null;
+  return which('claude');
+}
+
+/** p8-e2e-isolation-r13 — true when any `MAUDE_E2E_*` variable is set non-empty (a desktop e2e lane / harness). */
+export function isE2eEnv(env: Record<string, string | undefined> = process.env): boolean {
+  for (const [k, v] of Object.entries(env)) if (k.startsWith('MAUDE_E2E_') && v) return true;
+  return false;
 }
 
 /**
