@@ -189,14 +189,20 @@ describe('keyboard only (S2.21)', () => {
   });
 
   it('the focus ring shows after a key and goes after a pointer press', async () => {
-    expect((await readFrame()).ring).toBe(true);
+    // the ring follows the last key a beat later: wait for it; a ring that never shows is still red
+    const ringIs = async (want: boolean) => {
+      await browser
+        .waitUntil(async () => (await readFrame()).ring === want, { timeout: 4000, interval: 100 })
+        .catch(() => undefined);
+      expect((await readFrame()).ring).toBe(want);
+    };
+    await ringIs(true);
     await browser.execute(() => {
       const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
       const doc = frame.contentDocument as Document;
       doc.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, clientX: 5, clientY: 5 }));
     });
-    await settle();
-    expect((await readFrame()).ring).toBe(false);
+    await ringIs(false);
   });
 
   it('F6 leaves the canvas for a panel, and F6 again comes back to the canvas frame', async () => {
@@ -213,12 +219,10 @@ describe('keyboard only (S2.21)', () => {
     let left = false;
     for (let attempt = 0; attempt < 3 && !left; attempt++) {
       await press('F6');
-      left = await browser
-        .waitUntil(leftCanvas, { timeout: 2000, interval: 100 })
-        .then(
-          () => true,
-          () => false
-        );
+      left = await browser.waitUntil(leftCanvas, { timeout: 2000, interval: 100 }).then(
+        () => true,
+        () => false
+      );
     }
     if (!left) throw new Error('F6 never left the canvas (3 presses)');
     // the shell's own handler, whichever panel element holds focus now: the ring is panels → canvas → panels, so
