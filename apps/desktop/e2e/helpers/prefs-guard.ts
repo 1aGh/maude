@@ -239,6 +239,9 @@ function failLane(o: Offender, appPath: string | undefined): void {
 
 export type PrefsGuard = { stop(): void };
 
+/** consecutive samples a lane-owned process may show no environment before it is an offender (≥ 1 s at 0.5 s) */
+const UNREADABLE_SAMPLES = 3;
+
 let running: (PrefsGuard & { timer: ReturnType<typeof setInterval> }) | null = null;
 
 export function startPrefsGuard(opts: {
@@ -248,8 +251,13 @@ export function startPrefsGuard(opts: {
   appPath?: string;
   onOffender?: (o: Offender) => void;
   onForeign?: (o: Offender) => void;
+  /** tests: the sample instead of the live process table */
+  sampleImpl?: () => { offenders: Offender[]; foreign: Offender[] };
 }): PrefsGuard {
   const reported = new Set<number>();
+  // r12 pass f1: right after a spawn `ps eww` can show a process with no environment yet (a sidecar, the fake ACP
+  // agent), and the guard killed two green lanes. Unreadable counts only once it stays so for UNREADABLE_SAMPLES.
+  const unreadable = new Map<number, number>();
   let failed = false;
   const onOffender = opts.onOffender ?? ((o: Offender) => failLane(o, opts.appPath));
   const onForeign =
@@ -262,7 +270,15 @@ export function startPrefsGuard(opts: {
       ));
   const tick = () => {
     if (failed && !opts.onOffender) return;
-    const { offenders, foreign } = sample(opts);
+    const got = opts.sampleImpl ? opts.sampleImpl() : sample(opts);
+    const blind = (o: Offender) => o.why.startsWith('environment unreadable');
+    const stillBlind = new Set(got.offenders.filter(blind).map((o) => o.pid));
+    for (const pid of [...unreadable.keys()]) if (!stillBlind.has(pid)) unreadable.delete(pid);
+    for (const pid of stillBlind) unreadable.set(pid, (unreadable.get(pid) ?? 0) + 1);
+    const offenders = got.offenders.filter(
+      (o) => !blind(o) || (unreadable.get(o.pid) ?? 0) >= UNREADABLE_SAMPLES
+    );
+    const foreign = got.foreign.filter((o) => !blind(o));
     for (const o of foreign) {
       if (reported.has(o.pid)) continue;
       reported.add(o.pid);

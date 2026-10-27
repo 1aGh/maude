@@ -118,6 +118,37 @@ test('the lane owns a descendant of its roots or a process born after it started
   );
 });
 
+test('an environment unreadable for a moment (a process mid-exec) is not an offender; one that stays so is', async () => {
+  // r12 pass f1: a sidecar and the fake ACP agent read as unreadable in the sample right after their spawn, and the
+  // guard killed two green lanes
+  const off = (pid) => ({
+    pid,
+    ppid: 1,
+    command: 'maude-server --root /p',
+    why: 'environment unreadable (cannot prove isolation)',
+    descendant: true,
+  });
+  const script = [
+    { offenders: [off(1), off(2)], foreign: [] },
+    { offenders: [off(2)], foreign: [] }, // 1 became readable (isolated): gone from the sample
+    { offenders: [off(2)], foreign: [] },
+    { offenders: [off(2)], foreign: [] },
+  ];
+  let i = 0;
+  const seen = [];
+  const g = guard.startPrefsGuard({
+    roots: [process.pid],
+    laneStarted: Date.now(),
+    intervalMs: 20,
+    sampleImpl: () => script[Math.min(i++, script.length - 1)],
+    onOffender: (o) => seen.push(o.pid),
+    onForeign: () => {},
+  });
+  await new Promise((r) => setTimeout(r, 200));
+  g.stop();
+  assert.deepEqual(seen, [2]);
+});
+
 // ── live: a real process table ─────────────────────────────────────────────────────────────────────────────────────
 
 function fakeBun(dir, name = 'bun') {
