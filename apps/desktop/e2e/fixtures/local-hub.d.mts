@@ -1,5 +1,11 @@
 export function findNode24(env?: Record<string, string | undefined>): string;
 
+/** A hub child's env: the allowlisted basics of `base` (PATH, HOME, TMPDIR, locale…) plus `extra`. */
+export function hubEnv(
+  extra?: Record<string, string>,
+  base?: Record<string, string | undefined>
+): Record<string, string>;
+
 export interface LocalHub {
   /** `http://127.0.0.1:<port>` */
   http: string;
@@ -17,6 +23,8 @@ export function startLocalHub(opts: {
   /** Run in cloud-identity mode with this project-token key (the way a cell runs). */
   cloudKey?: string;
   node?: string;
+  /** Test seam: the spawn the hub is started with (defaults to node:child_process spawn). */
+  spawn?: typeof import('node:child_process').spawn;
 }): Promise<LocalHub>;
 
 export function mintProjectToken(

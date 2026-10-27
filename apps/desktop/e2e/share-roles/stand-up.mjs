@@ -54,7 +54,7 @@ import { tmpdir } from 'node:os';
 import { basename, delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { findNode24 } from '../fixtures/local-hub.mjs';
+import { findNode24, hubEnv } from '../fixtures/local-hub.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '../../../..');
@@ -324,8 +324,7 @@ export async function standUp(opts = {}) {
     const node = findNode24();
     const hubSecret = await deriveCellSecret(master, PROJECT_ID);
     const projectKey = await deriveCellSecret(master, PROJECT_ID, 'project-token');
-    const hubEnv = {
-      ...process.env,
+    const hubChildEnv = hubEnv({
       PATH: `${dirname(node)}${delimiter}${process.env.PATH ?? ''}`,
       MAUDE_CLOUD_IDENTITY: '1',
       MAUDE_TENANT_ID: PROJECT_ID,
@@ -333,10 +332,10 @@ export async function standUp(opts = {}) {
       HUB_SECRET: hubSecret,
       MAUDE_PROJECT_TOKEN_KEY: projectKey,
       NO_OPEN: '1',
-    };
+    });
     const hub = await new Promise((ok, fail) => {
       const proc = spawn(node, [join(E2E, 'fixtures/share-roles-hub.mjs'), hubData], {
-        env: hubEnv,
+        env: hubChildEnv,
         stdio: ['ignore', 'pipe', 'pipe'],
       });
       children.push(proc);

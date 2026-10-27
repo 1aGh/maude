@@ -196,6 +196,17 @@
     transform-origin: 0 0;
     pointer-events: none;
   }
+  /* p8-secfix-f F1 — a canvas-only session gets no frames in the grid, only this line */
+  .dsx-off {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 0 var(--space-4);
+    text-align: center;
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+  }
   .dsx-rings {
     position: absolute;
     inset: 0;

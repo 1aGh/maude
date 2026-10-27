@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { acceptFromCanvas } from '../../../bridge/dgn-protocol.ts';
 import { canvasUrl } from '../../canvas-url.js';
+import { framesIsolated } from '../access/access-client.js';
 import { StIcon } from '../../shell/icons.jsx';
 import { useModalFocus } from '../shell/modal-focus.js';
 import { REACH_WORDS } from './reach-data.js';
@@ -244,7 +245,10 @@ export function DsReachView({
 
   // the system's own Patterns strip has nothing to ring (no element ids), so the list does not wait for it
   const answered = frames.every((f) => f.board || answers[f.key]);
-  const reviewOpen = !!review && (answered || timedOut);
+  // p8-secfix-f F1 — frames side by side on the one canvas origin can read each other: a canvas-only session
+  // (different grants per canvas) gets the captions and the list, no frames, so nothing waits for an answer
+  const framed = !framesIsolated(cfg);
+  const reviewOpen = !!review && (answered || timedOut || !framed);
 
   return (
     <div
@@ -382,21 +386,27 @@ export function DsReachView({
                   className="dsx-shot"
                   style={{ width: dims.w * dims.scale, height: dims.h * dims.scale }}
                 >
-                  <iframe
-                    title={f.label}
-                    className="dsx-iframe"
-                    scrolling="no"
-                    tabIndex={-1}
-                    data-testid="ds-reach-iframe"
-                    src={canvasUrl(f.rel, cfg, { embed: true, dsPreview: previewOf(ds) })}
-                    style={{ width: dims.w, height: dims.h, transform: `scale(${dims.scale})` }}
-                    {...(cfg?.canvasOrigin ? { sandbox: 'allow-scripts allow-same-origin' } : {})}
-                    ref={(el) => {
-                      if (el?.contentWindow) wins.current.set(f.key, el.contentWindow);
-                      else wins.current.delete(f.key);
-                    }}
-                    onLoad={() => seed(f.key)}
-                  />
+                  {framed ? (
+                    <iframe
+                      title={f.label}
+                      className="dsx-iframe"
+                      scrolling="no"
+                      tabIndex={-1}
+                      data-testid="ds-reach-iframe"
+                      src={canvasUrl(f.rel, cfg, { embed: true, dsPreview: previewOf(ds) })}
+                      style={{ width: dims.w, height: dims.h, transform: `scale(${dims.scale})` }}
+                      {...(cfg?.canvasOrigin ? { sandbox: 'allow-scripts allow-same-origin' } : {})}
+                      ref={(el) => {
+                        if (el?.contentWindow) wins.current.set(f.key, el.contentWindow);
+                        else wins.current.delete(f.key);
+                      }}
+                      onLoad={() => seed(f.key)}
+                    />
+                  ) : (
+                    <span className="dsx-off" data-testid="ds-reach-frame-off">
+                      {REACH_WORDS.oneAtATime}
+                    </span>
+                  )}
                   <span
                     className="dsx-rings"
                     aria-hidden="true"

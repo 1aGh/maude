@@ -16,7 +16,9 @@
 #      pnpm-lock.yaml or apps/studio/bun.lock changed since the slot's last install.
 #   3. Runs the command from the slot root under `nice -n 10` (the mini also serves the hub), with
 #      bun 1.4.2 + Node 24.13 on PATH (/Volumes/D/maude-runner/tools) and NO_OPEN=1,
-#      MAUDE_NO_AUTOBUILD=1. Output streams back; a copy lands in /Volumes/D/maude-runner/runs/<id>.log.
+#      MAUDE_NO_AUTOBUILD=1, under `env -i` with an allowlisted env: a fresh slot-local HOME, XDG and
+#      Maude config (<slot>/.runner-home) and a signed-out stub `claude` first on PATH — never the
+#      mini owner's login env (tokens), HOME, ~/.config/maude or real CLI. Output streams back; a copy lands in /Volumes/D/maude-runner/runs/<id>.log.
 #      The run is cut at --max seconds (default 3600) with its process group.
 #   4. Copies each --fetch path (relative to the repo root, file or directory) out of the slot into
 #      runs/<id>.out/ before releasing it, then rsyncs it into the SAME relative path of the current
@@ -103,22 +105,45 @@ echo "remote-lane: slot$got · ${SHA:0:9} · log $R/runs/$ID.log" >&2
 cd "$D" || exit 2
 git fetch -q origin "refs/runner/$SHA" </dev/null && git checkout -q --force --detach "$SHA" </dev/null || { echo "remote-lane: checkout failed" >&2; exit 2; }
 git clean -qfd -e node_modules -e .scr -e .runner-deps </dev/null >/dev/null 2>&1 || true
+
+# The run's environment is an ALLOWLIST, not the mini owner's login env (p8-secfix-f F3): `env -i`
+# with a fresh per-slot HOME, XDG and Maude config, so no test or spawned studio sees the owner's
+# HOME, ~/.config/maude, keychain-backed CLIs or any token in the login env. A stub `claude` that
+# answers "signed out" (scripts/lib/stub-claude.mjs) comes first on PATH and MAUDE_CLAUDE_BIN is
+# empty, so nothing reaches the owner's real, signed-in CLI (~/.local/bin/claude). Caches point at
+# shared locations on /Volumes/D so a slot never re-downloads its deps; Playwright reads the owner's
+# browser cache (binaries only).
+H="$D/.runner-home"
+rm -rf "$H" && mkdir -p "$H/bin" "$H/tmp" "$H/.config/maude" "$R/cache/bun" "$R/cache/npm" "$R/cache/node-gyp"
+grep -qx '/.runner-home/' .git/info/exclude 2>/dev/null || echo '/.runner-home/' >>.git/info/exclude
+SANDBOX=(env -i
+  "PATH=$H/bin:$R/tools/bin:$R/tools/node24/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+  "HOME=$H" "XDG_CONFIG_HOME=$H/.config" "TMPDIR=$H/tmp" "LANG=${LANG:-C.UTF-8}"
+  "MAUDE_CLOUD_CONFIG=$H/.config/maude/cloud.json" "HUBS_CONFIG_PATH=$H/.config/maude/hubs.json"
+  "MAUDE_CLAUDE_BIN=" NO_OPEN=1 MAUDE_NO_AUTOBUILD=1 "GIT_CONFIG_GLOBAL=$R/tools/gitconfig"
+  "BUN_INSTALL_CACHE_DIR=$R/cache/bun" "npm_config_store_dir=/Volumes/D/.pnpm-store"
+  "npm_config_cache=$R/cache/npm" "npm_config_devdir=$R/cache/node-gyp"
+  "PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright")
+"${SANDBOX[@]}" node --input-type=module -e 'const m = await import(process.argv[1]); m.writeStubClaude(process.argv[2]);' \
+  "$D/scripts/lib/stub-claude.mjs" "$H/bin" </dev/null 2>/dev/null \
+  || { printf '#!/bin/sh\necho '"'"'{"loggedIn":false}'"'"'\n' >"$H/bin/claude"; chmod 755 "$H/bin/claude"; }
+sb() { "${SANDBOX[@]}" "$@"; }
 # pnpm 11 is a standalone binary that builds native addons for the mini's brew node (26, ABI 141),
 # but the suite and the hub run on Node 24.13 (ABI 137): rebuild each better-sqlite3 copy with it.
 native_for_node24() {
   local d
   for d in node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3 apps/*/node_modules/better-sqlite3; do
     [[ -f "$d/package.json" ]] || continue
-    (cd "$d" && rm -rf build && npm run install </dev/null >/dev/null 2>&1) || return 1
-    node -e "require('./$d')" </dev/null >/dev/null 2>&1 || { echo "remote-lane: better-sqlite3 still fails under $(node -v) in $d" >&2; return 1; }
+    (cd "$d" && rm -rf build && sb npm run install </dev/null >/dev/null 2>&1) || return 1
+    sb node -e "require('./$d')" </dev/null >/dev/null 2>&1 || { echo "remote-lane: better-sqlite3 still fails under $(sb node -v) in $d" >&2; return 1; }
   done
 }
 # "deps-v2": bump to force every slot to reinstall after a change to the steps below.
 h="$( (echo deps-v2; cat pnpm-lock.yaml apps/studio/bun.lock apps/hub/bun.lock 2>/dev/null) | shasum | cut -d' ' -f1)"
 if [[ "$(cat .runner-deps 2>/dev/null)" != "$h" ]]; then
   echo "remote-lane: lockfiles changed — reinstalling deps in slot$got" >&2
-  pnpm install --frozen-lockfile </dev/null >/dev/null 2>&1 && (cd apps/studio && bun install --frozen-lockfile </dev/null >/dev/null 2>&1) \
-    && (cd apps/hub && bun install --frozen-lockfile </dev/null >/dev/null 2>&1) \
+  sb pnpm install --frozen-lockfile </dev/null >/dev/null 2>&1 && (cd apps/studio && sb bun install --frozen-lockfile </dev/null >/dev/null 2>&1) \
+    && (cd apps/hub && sb bun install --frozen-lockfile </dev/null >/dev/null 2>&1) \
     && native_for_node24 && echo "$h" >.runner-deps
 fi
 
@@ -128,7 +153,7 @@ fi
 tail -n +1 -f "$R/runs/$ID.log" >&2 &
 tailer=$!
 set -m
-nice -n 10 bash -c "$CMD" </dev/null >"$R/runs/$ID.log" 2>&1 &
+nice -n 10 "${SANDBOX[@]}" bash -c "$CMD" </dev/null >"$R/runs/$ID.log" 2>&1 &
 pid=$!
 set +m
 ( sleep "$MAX"; kill -TERM -- -"$pid"; sleep 10; kill -KILL -- -"$pid" ) </dev/null >/dev/null 2>&1 &
