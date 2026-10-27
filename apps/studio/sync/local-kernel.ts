@@ -77,6 +77,18 @@ export const LOCK_FILE = 'project-store.lock';
 export const AI_STAGE_FILE = 'ai-stage-local.json';
 /** S5.5b — how long a studio write's content note waits for the watcher to read it. */
 export const WRITE_NOTE_MS = 30_000;
+/** p8-e2e-fix-r12 — at most this many superseded studio writes of one canvas wait for the watcher. */
+const MAX_SUPERSEDED = 16;
+
+/** The studio said it wrote a lane (`noteWritten` / `noteLane`); `baseHash` = the bytes the write replaced. */
+type Note = {
+  hash: string;
+  at: number;
+  label?: string;
+  early?: true;
+  content?: string;
+  baseHash?: string;
+};
 /** The label a person's studio edit carries (the hub link's `LANE_LABEL.html`). */
 export const STUDIO_EDIT_LABEL = 'Edit canvas';
 /** S2.20b (U20) — the hub link's `LANE_LABEL` per local lane: a layout move, an annotation stroke. */
@@ -616,7 +628,12 @@ export interface LocalHome {
    * the watcher reads exactly that content it is the person's `edit`, never `outside` and never
    * an AI run's.
    */
-  noteWritten(rel: string, content: string, label?: string, o?: { early?: boolean }): void;
+  noteWritten(
+    rel: string,
+    content: string,
+    label?: string,
+    o?: { early?: boolean; base?: string }
+  ): void;
   /** S5.5b — the runs this home stages (open and held), no bytes. */
   aiRuns(): RunStageSummary[];
   /** A canvas moved on disk (the studio's own move). */
@@ -702,7 +719,15 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
    * `${canvas}|${lane}` → the studio's own write of that lane (api.ts `source-written` for the
    * source, server.ts `proposeLane` for layout and board — S2.20b), until the watcher reads it.
    */
-  const notes = new Map<string, { hash: string; at: number; label?: string; early?: true }>();
+  const notes = new Map<string, Note>();
+  /**
+   * p8-e2e-fix-r12 — `${canvas}|html` → the studio's earlier writes of the source whose note a LATER write
+   * replaced before the watcher read the canvas (oldest first). One note slot per lane meant a look and its
+   * Reset (or two looks) said within one read reached the store as the final bytes only: nothing at all when
+   * they cancel, one step under the second's label otherwise. `syncCanvas` records each as its own `edit` —
+   * only while they chain: each write's bytes are what the next one replaced (`baseHash`).
+   */
+  const superseded = new Map<string, Array<Note & { content: string }>>();
   /**
    * S2.20b — an EARLY note (`source-writing`, said before the bytes land) the watcher already consumed:
    * the same write's after-the-write `source-written` is then not a new note (it would sit for
@@ -752,7 +777,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     rel: string,
     content: string,
     label?: string,
-    o?: { early?: boolean }
+    o?: { early?: boolean; base?: string }
   ): void {
     const canvas = canvasOfRel(rel);
     if (!canvas || canvas !== rel.replace(/\\/g, '/').replace(/^\/+/, '')) return;
@@ -765,17 +790,98 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       if (label && !live.label) live.label = label;
       return;
     }
+    // the after-the-write saying of a write a later one already superseded: not a new write
+    const older = (superseded.get(k) ?? []).filter((e) => now() - e.at <= WRITE_NOTE_MS);
+    if (!o?.early && older.some((e) => e.hash === hash)) return;
     const taken = takenEarly.get(k);
     if (taken) {
       takenEarly.delete(k);
       if (!o?.early && taken.hash === hash && now() - taken.at <= WRITE_NOTE_MS) return;
     }
+    // p8-e2e-fix-r12 — a studio write the watcher has not read yet is kept, not overwritten
+    if (live && live.content !== undefined && now() - live.at <= WRITE_NOTE_MS) {
+      older.push({ ...live, content: live.content });
+      superseded.set(k, older.slice(-MAX_SUPERSEDED));
+    }
     notes.set(k, {
       hash,
       at: now(),
+      content,
+      ...(typeof o?.base === 'string' ? { baseHash: hashBytes(o.base) } : {}),
       ...(label ? { label } : {}),
       ...(o?.early ? { early: true as const } : {}),
     });
+  }
+
+  /**
+   * p8-e2e-fix-r12 — before the watcher's read of `rel` is recorded: the studio's superseded source writes, each
+   * as its own `edit`, in order, up to the write the disk holds now (`disk`). Only a CHAIN counts — walking back
+   * from the write on disk, each earlier write's bytes are exactly what the next one replaced, and the first one
+   * replaced what the store holds. A note the watcher simply never consumed (an outside write landed on it first)
+   * breaks the chain and is dropped: replaying it would put bytes back that the disk no longer descends from.
+   */
+  async function recordSuperseded(rel: string, doc: string, disk: string, as: string) {
+    const k = `${rel}|html`;
+    const fresh = (n: Note) => now() - n.at <= WRITE_NOTE_MS;
+    const queue = (superseded.get(k) ?? []).filter(fresh);
+    superseded.delete(k);
+    if (!queue.length) return;
+    const cur = notes.get(k);
+    const line: Note[] = cur && fresh(cur) ? [...queue, cur] : [...queue];
+    const diskHash = hashBytes(disk);
+    let j = -1;
+    for (let i = line.length - 1; i >= 0; i--)
+      if (line[i].hash === diskHash) {
+        j = i;
+        break;
+      }
+    if (j < 0) return;
+    // the writes after the one on disk have not landed yet: they wait for a later read
+    if (j < queue.length - 1) superseded.set(k, queue.slice(j + 1));
+    let first = j;
+    while (
+      first > 0 &&
+      line[first].baseHash !== undefined &&
+      line[first - 1].hash === line[first].baseHash
+    )
+      first--;
+    const toRecord = queue.slice(first, Math.min(j + 1, queue.length));
+    if (!toRecord.length) return;
+    const store = (opened as NonNullable<typeof opened>).store;
+    const headOf = async () => {
+      const head = (await store.heads([doc]))[doc] as {
+        lanes: Record<string, { hash: string | null }>;
+      };
+      const headHash = hashOr(head?.lanes?.html?.hash);
+      const prev =
+        seen.get(k) ??
+        (headHash === EMPTY_HASH ? '' : (((await store.blob(headHash)) as string) ?? ''));
+      return { headHash, prev };
+    };
+    // the chain must start on what the store holds
+    if (
+      toRecord[0].baseHash === undefined ||
+      toRecord[0].baseHash !== hashBytes((await headOf()).prev)
+    )
+      return;
+    for (const e of toRecord) {
+      const { headHash, prev } = await headOf();
+      if (prev === e.content) continue;
+      const r = await submit(
+        [
+          laneHash(prev) === headHash
+            ? { op: 'lane.replace', doc, lane: 'html', content: e.content, base: headHash }
+            : { op: 'lane.replace', doc, lane: 'html', content: e.content, baseContent: prev },
+        ],
+        { kind: 'edit', label: e.label ?? STUDIO_LANE_LABEL.html },
+        as,
+        { madeAt: e.at },
+        true
+      );
+      if (r.status !== 'accepted') return;
+      seen.set(k, e.content);
+      if (e.early) takenEarly.set(k, { hash: e.hash, at: now() });
+    }
   }
 
   /** S2.20b — the studio wrote lane `lane` of the canvas named `slug` (server.ts `proposeLane`). */
@@ -1059,6 +1165,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         as
       );
     }
+    if (action.kind === OUTSIDE_KIND) await recordSuperseded(rel, live, values.html, as);
     const head = (await store.heads([live]))[live] as {
       lanes: Record<string, { hash: string | null }>;
     };
@@ -2313,11 +2420,17 @@ export function attachLocalHome<S extends SupervisorLike>(
   // S5.5b — the studio's own write (api.ts, after it landed): the person's edit, by content.
   ctx.bus.on(
     'source-written',
-    (p: { rel?: unknown; content?: unknown; label?: unknown } | null) => {
+    (p: { rel?: unknown; content?: unknown; label?: unknown; base?: unknown } | null) => {
       if (!isLocal() || typeof p?.rel !== 'string' || typeof p.content !== 'string') return;
       // S2.24 G3: a studio write may say what it was; one line, bounded, so a planted label cannot flood a row
       const said = typeof p.label === 'string' ? p.label.trim().slice(0, 120) : '';
-      get()?.noteWritten(p.rel, p.content, said || undefined);
+      // p8-e2e-fix-r12: the bytes the write replaced, when the writer knows them (routes/edit.ts)
+      get()?.noteWritten(
+        p.rel,
+        p.content,
+        said || undefined,
+        typeof p.base === 'string' ? { base: p.base } : undefined
+      );
     }
   );
   // S2.20b — the edit-op route says its bytes BEFORE they land (routes/edit.ts `writeSource`): the watcher
@@ -2326,10 +2439,13 @@ export function attachLocalHome<S extends SupervisorLike>(
   // Local home only: the hub path keeps `source-written`, which promises the bytes are on disk.
   ctx.bus.on(
     'source-writing',
-    (p: { rel?: unknown; content?: unknown; label?: unknown } | null) => {
+    (p: { rel?: unknown; content?: unknown; label?: unknown; base?: unknown } | null) => {
       if (!isLocal() || typeof p?.rel !== 'string' || typeof p.content !== 'string') return;
       const said = typeof p.label === 'string' ? p.label.trim().slice(0, 120) : '';
-      get()?.noteWritten(p.rel, p.content, said || undefined, { early: true });
+      get()?.noteWritten(p.rel, p.content, said || undefined, {
+        early: true,
+        ...(typeof p.base === 'string' ? { base: p.base } : {}),
+      });
     }
   );
   // S2.20b (U20) — a collab room projecting its board (collab/index.ts): the person's strokes.

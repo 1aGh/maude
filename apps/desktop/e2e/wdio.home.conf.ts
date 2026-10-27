@@ -33,9 +33,9 @@ if (!process.env.MAUDE_E2E_HOME_FIXTURES) {
   for (const f of ['app-state.json', 'last-project.txt']) {
     rmSync(join(e2eConfigDir, f), { force: true });
   }
-  process.env.MAUDE_INDEX_DIR = mkdtempSync(join(tmpdir(), 'maude-home-e2e-index-'));
+  process.env.MAUDE_INDEX_DIR = mkdtempSync(join(tmpdir(), 'maude-e2e-home-index-'));
   // V2-3.9: New Project… on Home creates `<this>/<name>` (home/create-local.ts), never ~/Maude.
-  process.env.MAUDE_HOME_PROJECTS_DIR = mkdtempSync(join(tmpdir(), 'maude-home-e2e-projects-'));
+  process.env.MAUDE_HOME_PROJECTS_DIR = mkdtempSync(join(tmpdir(), 'maude-e2e-home-projects-'));
   process.env.MAUDE_E2E_HOME_FIXTURES = execFileSync(
     'bun',
     [resolve(HERE, 'fixtures', 'seed-home-index.ts')],
@@ -48,7 +48,7 @@ if (!process.env.MAUDE_E2E_HOME_FIXTURES) {
   // control plane is a loopback stub, as in wdio.invite-landing.conf.ts, so nothing reaches
   // cloud.maude.sh. Every peek is the one 404 (a dead invite); anything else is "not stubbed". Each
   // request is one JSON line (method + path) in MAUDE_E2E_HOME_CLOUD_LOG for the spec to read.
-  const cloudLog = join(mkdtempSync(join(tmpdir(), 'maude-home-e2e-cloud-')), 'stub.ndjson');
+  const cloudLog = join(mkdtempSync(join(tmpdir(), 'maude-e2e-home-cloud-')), 'stub.ndjson');
   writeFileSync(cloudLog, '');
   const stub = createServer((req, res) => {
     const path = (req.url || '').split('?')[0];

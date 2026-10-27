@@ -118,12 +118,14 @@ describe('/_api/edit-op handler', () => {
       ['activity:suppress', 'ui/Home.tsx'],
       // S2.20b (p8-e2e-fix-r9): said before the bytes land too — the local home's note, so a ⌘Z or the
       // watcher arriving before `source-written` (the snapshot is written in between) finds the edit
-      ['source-writing', { rel: 'ui/Home.tsx', content: written, label: 'Paint' }],
+      // p8-e2e-fix-r12: with the bytes it replaced, so two writes said before one watcher read chain
+      ['source-writing', { rel: 'ui/Home.tsx', content: written, base: SRC, label: 'Paint' }],
       [
         'source-written',
         {
           rel: 'ui/Home.tsx',
           content: readFileSync(join(designRoot, 'ui', 'Home.tsx'), 'utf8'),
+          base: SRC,
           // S2.24 G3: and says what it was, so the history row reads it
           label: 'Paint',
         },

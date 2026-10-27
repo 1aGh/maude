@@ -26,13 +26,14 @@ import { fileURLToPath } from 'node:url';
 import { browser } from '@wdio/globals';
 import { bringAppToFront, E2E_APP_ARGS, keepAppInFront } from './helpers/app-front';
 import { reapE2eAgentBrowsers, stopE2eApp } from './helpers/app-lifecycle';
-import { isE2eConfigHome } from './helpers/config-home';
+import { e2ePointers, isE2eConfigHome } from './helpers/config-home';
 import {
   baselineFixtureTree,
   releaseFixtureTree,
   resetFixtureRuntime,
   restoreFixtureTree,
 } from './helpers/fixture-tree';
+import { startPrefsGuard, stopPrefsGuard } from './helpers/prefs-guard';
 import { pinCurrentWindow } from './helpers/windows';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -209,6 +210,9 @@ export const E2E_BUNDLE_ID = 'com.maude.app.e2e';
     }
   }
 }
+// p8-e2e-fix-r12: and whatever home this lane runs on, no prefs/cloud pointer may stay outside a maude-e2e-* dir — a
+// lane config that names its own home before importing this file kept the wrapper's (helpers/config-home.ts)
+Object.assign(process.env, e2ePointers(process.env));
 export function resetE2eAppState(): void {
   const prefs = join(process.env.XDG_CONFIG_HOME as string, 'maude', 'prefs.json');
   if (prefs.includes('maude-e2e-')) rmSync(prefs, { force: true });
@@ -260,6 +264,23 @@ process.env.MAUDE_E2E_ON_TOP ??= '1';
 // The lane's start, stamped once in the launcher (the workers inherit it): the reap stops a browser agent-browser
 // started that launchd adopted only when it started after this (helpers/app-lifecycle.ts, p8-e2e-fix-r11).
 process.env.MAUDE_E2E_LANE_STARTED ??= String(Date.now());
+// p8-e2e-fix-r12 §0 — the real-config tripwire, for the whole lane (launcher only): every 0.5 s, any maude-server /
+// server.ts / bun / `maude --root` process this lane started that lacks a maude-e2e-* XDG_CONFIG_HOME (or names a
+// MAUDE_UI_PREFS_PATH outside one) kills the e2e app and fails the lane with exit 98 (helpers/prefs-guard.ts). r11's
+// pass C2 moved ~/.config/maude/prefs.json and stayed green; the mtime check saw it only after the lane.
+if (!process.env.WDIO_WORKER_ID) {
+  let appPath: string | undefined;
+  try {
+    appPath = resolveAppPath();
+  } catch {
+    appPath = undefined; // no built app: the service fails on its own
+  }
+  startPrefsGuard({
+    roots: [process.pid],
+    laneStarted: Number(process.env.MAUDE_E2E_LANE_STARTED),
+    appPath,
+  });
+}
 
 // ── App binary path (per platform; override with MAUDE_E2E_APP) ────────────
 /**
@@ -268,6 +289,7 @@ process.env.MAUDE_E2E_LANE_STARTED ??= String(Date.now());
  * override used to skip it, which left the baseline sidecar for the next lane to "repair" from.
  */
 export async function completeLane(): Promise<void> {
+  stopPrefsGuard();
   await reapE2eAgentBrowsers(resolveAppPath());
   releaseFixtureTree();
 }

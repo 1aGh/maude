@@ -245,7 +245,13 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
   ): Promise<boolean> => {
     deps.emit('activity:suppress', rel);
     if (announce)
-      deps.emit('source-writing', { rel, content: after, ...(rowLine ? { label: rowLine } : {}) });
+      // p8-e2e-fix-r12: with the bytes it replaces, so the local home can chain two writes said before one read
+      deps.emit('source-writing', {
+        rel,
+        content: after,
+        base: before,
+        ...(rowLine ? { label: rowLine } : {}),
+      });
     let landed: boolean;
     try {
       landed = !(await hold.put(abs(rel), after, announce ? { onLanded: announce } : {})).held;
@@ -446,6 +452,7 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
             deps.emit('source-written', {
               rel,
               content: after,
+              base: before,
               ...(rowLine ? { label: rowLine } : {}),
             });
           if (await writeSource(rel, before, after, label, written, rowLine)) written();

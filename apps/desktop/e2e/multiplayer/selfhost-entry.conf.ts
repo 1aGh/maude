@@ -18,7 +18,7 @@ if (!['localhost', '127.0.0.1'].includes(url.hostname) && url.protocol !== 'http
   throw new Error('A non-loopback team server must be HTTPS.');
 
 if (!process.env.MAUDE_SELFHOST_ENTRY_RUN) {
-  const scratch = mkdtempSync(join(tmpdir(), 'maude-selfhost-entry-'));
+  const scratch = mkdtempSync(join(tmpdir(), 'maude-e2e-selfhost-entry-'));
   const out = resolve(
     here,
     '../../../../.ai/device/scenario-runs/reliable-project-multiplayer',
