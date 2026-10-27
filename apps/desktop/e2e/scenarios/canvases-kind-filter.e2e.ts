@@ -49,6 +49,12 @@ describe('canvases-kind-filter — the kind chips over the Canvases list', () =>
       'Print',
       'Video',
     ]);
+    await browser
+      .waitUntil(async () => (await chip('all').getAttribute('aria-pressed')) === 'true', {
+        timeout: 5_000,
+        interval: 100,
+      })
+      .catch(() => undefined);
     expect(await chip('all').getAttribute('aria-pressed')).toBe('true');
     expect(await settledCount('video')).toBeGreaterThan(0);
     await capture('kind-chips-all');
@@ -63,6 +69,15 @@ describe('canvases-kind-filter — the kind chips over the Canvases list', () =>
     await browser.waitUntil(
       async () => (await chip('video').getAttribute('aria-pressed')) === 'true'
     );
+    // the list narrows and the foot rewrites on the render after the chip turns: wait for both
+    await browser
+      .waitUntil(
+        async () =>
+          (await (await $$('.cv-meta--count')).length) === videos &&
+          (await foot().getText()).includes(`${videos} of ${all} canvases have video`),
+        { timeout: 5_000, interval: 100 }
+      )
+      .catch(() => undefined);
     const rows = await $$('.cv-meta--count');
     expect(rows.length).toBe(videos);
     expect(await foot().getText()).toContain(`${videos} of ${all} canvases have video`);

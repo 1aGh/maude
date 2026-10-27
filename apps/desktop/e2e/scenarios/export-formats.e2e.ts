@@ -337,11 +337,21 @@ describe('export-formats (native-desktop)', () => {
     );
     await capture('export-print-sheet');
     // untick Bleed: the paper changes with it
+    const bleedIs = (want: string) =>
+      browser
+        .waitUntil(
+          async () =>
+            (await (await $('[data-testid="export-paper"]')).getAttribute('data-bleed')) === want,
+          { timeout: 4_000, interval: 100 }
+        )
+        .catch(() => undefined);
     await (await $('[data-testid="export-print-bleed"]')).click();
+    await bleedIs('false');
     expect(await (await $('[data-testid="export-paper"]')).getAttribute('data-bleed')).toBe(
       'false'
     );
     await (await $('[data-testid="export-print-bleed"]')).click();
+    await bleedIs('true');
     const before = await existingJobIds();
     await (await $('[data-testid="export-submit"]')).click();
     const job = await waitForJob('pdf', before);
