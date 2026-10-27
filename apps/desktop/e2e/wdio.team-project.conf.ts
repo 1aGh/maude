@@ -31,7 +31,7 @@ import { fileURLToPath } from 'node:url';
 
 import { type LocalHub, startLocalHub } from './fixtures/local-hub.mjs';
 import { useStubClaude } from './helpers/fake-ai';
-import { config as base } from './wdio.conf';
+import { config as base, completeLane } from './wdio.conf';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '../../..');
@@ -206,7 +206,8 @@ export const config: WebdriverIO.Config = {
   ...base,
   specs: [resolve(HERE, 'scenarios', 'team-project.e2e.ts')],
   mochaOpts: { ...base.mochaOpts, timeout: 300_000 },
-  onComplete() {
+  async onComplete() {
+    await completeLane();
     for (const c of children) c.kill('SIGTERM');
     for (const h of hubs) h.stop();
     if (scratch) rmSync(scratch, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });

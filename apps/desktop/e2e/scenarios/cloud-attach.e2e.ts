@@ -53,7 +53,12 @@ import { canvasRow } from '../helpers/tree';
  */
 const tid = (s: string) => `[data-testid="${s}"]`;
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE_CONFIG = join(HERE, '..', 'fixtures', 'project', '.design', 'config.json');
+// The lane runs on a throwaway copy of the fixture (wdio.cloud.conf.ts, p8-e2e-fix-r10): the project the app opened.
+const FIXTURE_CONFIG = join(
+  process.env.MAUDE_E2E_CLOUD_ROOT ?? join(HERE, '..', 'fixtures', 'project'),
+  '.design',
+  'config.json'
+);
 const STUB_CODE = `mhc_${'a'.repeat(64)}`;
 
 const fixtures = createFixtureGuard('cloud-attach', [FIXTURE_CONFIG]);

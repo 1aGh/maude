@@ -18,7 +18,7 @@
  * OS-level scheme registration itself is a bundled-.app smoke item (DDR-177).
  */
 
-import { mkdirSync, mkdtempSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -196,13 +196,31 @@ process.env.MAUDE_E2E_RUN_DIR = resolve(
   new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '')
 );
 
+// p8-e2e-fix-r10: this lane LINKS its project to a hub and syncs it — the sync writes a managed `.claudeignore`
+// block at the project root, `_untrusted/`, `_sync.json` and the rest — so it runs on a throwaway COPY of
+// fixtures/project, never the repo fixture (a stale, gitignored `.claudeignore` one linked run left there made
+// photo-per-use red in the main checkout). The copy's folder is named `project` on purpose: step 4's handoff
+// names that folder exactly. Copied ONCE, in the launcher (this file is evaluated again in the worker, which
+// inherits the env); `_*` runtime state is not copied.
+if (!process.env.MAUDE_E2E_CLOUD_ROOT) {
+  const root = join(mkdtempSync(join(tmpdir(), 'maude-e2e-cloud-project-')), 'project');
+  cpSync(join(HERE, 'fixtures', 'project'), root, {
+    recursive: true,
+    filter: (src) => !/[/\\]_[^/\\]*$/.test(src),
+  });
+  process.env.MAUDE_E2E_CLOUD_ROOT = root;
+}
+
 // Base config AFTER env is primed (it resolves the fixture + app path).
-const { config: base } = await import('./wdio.conf');
+const { config: base, completeLane } = await import('./wdio.conf');
+// …and the base config points the app at the repo fixture: the copy wins.
+process.env.MAUDE_PROJECT_ROOT = process.env.MAUDE_E2E_CLOUD_ROOT;
 
 export const config: WebdriverIO.Config = {
   ...base,
   specs: [join(HERE, 'scenarios', 'cloud-attach.e2e.ts')],
-  onComplete: () => {
+  onComplete: async () => {
+    await completeLane();
     stub.close();
     hub?.stop();
   },

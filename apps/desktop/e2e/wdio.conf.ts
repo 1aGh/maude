@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url';
 
 import { browser } from '@wdio/globals';
 import { bringAppToFront, E2E_APP_ARGS, keepAppInFront } from './helpers/app-front';
-import { stopE2eApp } from './helpers/app-lifecycle';
+import { reapE2eAgentBrowsers, stopE2eApp } from './helpers/app-lifecycle';
 import { isE2eConfigHome } from './helpers/config-home';
 import {
   baselineFixtureTree,
@@ -259,6 +259,16 @@ process.env.MAUDE_E2E_NO_REVEAL ??= '1';
 process.env.MAUDE_E2E_ON_TOP ??= '1';
 
 // ── App binary path (per platform; override with MAUDE_E2E_APP) ────────────
+/**
+ * The end of every lane on the base fixture: no e2e agent-browser daemon left (p8-e2e-fix-r10), the tree back on its
+ * baseline and the sidecar dropped. A lane config that sets its own `onComplete` calls this too — the cloud lane's
+ * override used to skip it, which left the baseline sidecar for the next lane to "repair" from.
+ */
+export async function completeLane(): Promise<void> {
+  await reapE2eAgentBrowsers(resolveAppPath());
+  releaseFixtureTree();
+}
+
 function resolveAppPath(): string {
   // Tauri's sidecar resolver rejects a StartingBinary containing symlinks on
   // macOS (including /tmp → /private/tmp). Launch the canonical executable.
@@ -348,8 +358,11 @@ export const config: WebdriverIO.Config = {
   specs: DEFAULT_SPECS,
   maxInstances: 1, // one native window at a time
 
-  onPrepare: (cfg: WebdriverIO.Config) => {
-    baselineFixtureTree();
+  onPrepare: async (cfg: WebdriverIO.Config) => {
+    // p8-e2e-fix-r10: no capture an earlier lane left open (an agent-browser daemon of this e2e app) may reach the
+    // first spec's sidecar as a collab peer
+    await reapE2eAgentBrowsers(resolveAppPath());
+    baselineFixtureTree({ clean: !process.env.MAUDE_E2E_KEEP_STATE });
     // before the service's onPrepare spawns the first app (config hooks run first): no runtime state from a
     // previous lane
     if (!process.env.MAUDE_E2E_KEEP_STATE) resetFixtureRuntime();
@@ -369,9 +382,7 @@ export const config: WebdriverIO.Config = {
   },
 
   // The lane ends on the baseline `onPrepare` took, whatever failed in the middle.
-  onComplete: () => {
-    releaseFixtureTree();
-  },
+  onComplete: () => completeLane(),
 
   // Every spec file gets its own app (helpers/app-lifecycle.ts): the embedded provider launches ONE app per lane and
   // runs every spec's session against it, so the next spec inherited this one's live page. Stop it here — the
@@ -381,8 +392,12 @@ export const config: WebdriverIO.Config = {
   // canvas, open tabs) — `_*` is outside the tree restore.
   onWorkerEnd: async () => {
     await stopE2eApp(Number(process.env.TAURI_WEBDRIVER_PORT));
+    // p8-e2e-fix-r10: a capture this spec's sidecar started (Report-a-Bug, an AI screenshot) is an agent-browser
+    // DAEMON with the canvas still open — the next spec's sidecar on the same port would get it as a collab peer
+    await reapE2eAgentBrowsers(resolveAppPath());
     if (!process.env.MAUDE_E2E_KEEP_STATE) resetE2eAppState();
-    restoreFixtureTree();
+    // …and the fixture is what git tracks: an untracked or ignored file a run left there is gone too (`clean`)
+    restoreFixtureTree({ clean: !process.env.MAUDE_E2E_KEEP_STATE });
     if (!process.env.MAUDE_E2E_KEEP_STATE) resetFixtureRuntime();
   },
 

@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -112,21 +113,60 @@ export function resetFixtureRuntime(designRoot: string = join(TREE_ROOT, '.desig
   return removed;
 }
 
-/** Launcher, once per lane: repair a killed run's damage, then baseline the tree. */
-export function baselineFixtureTree(): void {
+/**
+ * p8-e2e-fix-r10 — `git clean -fdx`, scoped to the fixture project: every untracked AND ignored file under it goes.
+ *
+ * The tree baseline is whatever is on disk when a lane starts, so a file nobody tracks became part of it and was
+ * "restored" into every later spec — and an ignored one never even shows in `git status`. A stale, gitignored
+ * `.claudeignore` (a `# maude:sync-untrusted` block a linked-mode run wrote into the repo fixture) made
+ * photo-per-use red in the main checkout and never in a fresh worktree. Only what git tracks is the fixture; the
+ * rest is a previous run. Call it only while no app runs (it also takes `_*` runtime state). Without git (an
+ * unpacked tarball) it does nothing. Returns the repo-relative paths git removed. `treeRoot` is a parameter so a
+ * test can point it at a throwaway repo.
+ */
+export function cleanFixtureUntracked(treeRoot: string = TREE_ROOT): string[] {
+  if (!existsSync(treeRoot)) return [];
+  // `-- .` from inside the fixture: git never looks above it, whatever the caller's cwd
+  const r = spawnSync('git', ['clean', '-fdx', '--', '.'], { cwd: treeRoot, encoding: 'utf8' });
+  if (r.status !== 0) {
+    if (r.error || /not a git repository/i.test(r.stderr ?? '')) return [];
+    throw new Error(`[fixture-tree] git clean failed in ${treeRoot}: ${(r.stderr ?? '').trim()}`);
+  }
+  return (r.stdout ?? '')
+    .split('\n')
+    .map((l) => l.replace(/^Removing /, '').trim())
+    .filter(Boolean);
+}
+
+function cleanAndSay(when: string): void {
+  const gone = cleanFixtureUntracked();
+  if (gone.length)
+    console.warn(`[fixture-tree] ${when}: removed untracked/ignored ${gone.join(', ')}`);
+}
+
+/**
+ * Launcher, once per lane: repair a killed run's damage, drop what git does not track (`clean`, off under
+ * MAUDE_E2E_KEEP_STATE — it takes `_*` runtime state too), then baseline the tree.
+ */
+export function baselineFixtureTree({ clean = true }: { clean?: boolean } = {}): void {
   const stale = load();
   if (stale) {
     const n = apply(stale);
     if (n > 0) console.warn(`[fixture-tree] previous lane did not restore; repaired ${n} entries.`);
   }
+  if (clean) cleanAndSay('lane start');
   mkdirSync(dirname(SIDECAR), { recursive: true });
   writeFileSync(SIDECAR, JSON.stringify(read()));
 }
 
-/** Put the tree back on the baseline. Idempotent; a no-op when no lane baselined it. */
-export function restoreFixtureTree(): void {
+/**
+ * Put the tree back on the baseline. Idempotent; a no-op when no lane baselined it. `clean` (only while no app
+ * runs — between specs) also drops every untracked/ignored file, `_*` runtime state included.
+ */
+export function restoreFixtureTree({ clean = false }: { clean?: boolean } = {}): void {
   const baseline = load();
   if (baseline) apply(baseline);
+  if (clean) cleanAndSay('between specs');
 }
 
 /** Launcher, end of the lane: restore, then drop the sidecar. */

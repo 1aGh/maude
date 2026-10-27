@@ -27,7 +27,9 @@
  */
 
 import { spawn } from 'node:child_process';
+import { cpSync, mkdtempSync } from 'node:fs';
 import { createServer, request as httpRequest } from 'node:http';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -50,7 +52,11 @@ if (!WANT_CLOUD) {
 async function startStandIn(): Promise<{ url: string; close: () => void }> {
   const studioEntry = resolve(HERE, '../../studio/server.ts');
   const studioPort = 4894;
-  const child = spawn('bun', [studioEntry, '--root', FIXTURE, '--port', String(studioPort)], {
+  // p8-e2e-fix-r10: a workspace-mode studio writes its runtime state into the tree it serves — a throwaway copy
+  // of the fixture, never the repo's own (`_*` runtime state is not copied)
+  const root = mkdtempSync(join(tmpdir(), 'maude-e2e-parity-cloud-'));
+  cpSync(FIXTURE, root, { recursive: true, filter: (src) => !/[/\\]_[^/\\]*$/.test(src) });
+  const child = spawn('bun', [studioEntry, '--root', root, '--port', String(studioPort)], {
     env: {
       ...process.env,
       MAUDE_WORKSPACE_MODE: '1',
