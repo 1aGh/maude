@@ -105,8 +105,8 @@ async function setUp(): Promise<string> {
     rmSync(join(appDir, f), { force: true });
   }
   // Home's index and projects dir: fresh and empty, so nothing on this Mac hides the first-run card.
-  process.env.MAUDE_INDEX_DIR = mkdtempSync(join(tmpdir(), 'maude-team-index-'));
-  process.env.MAUDE_HOME_PROJECTS_DIR = mkdtempSync(join(tmpdir(), 'maude-team-projects-'));
+  process.env.MAUDE_INDEX_DIR = mkdtempSync(join(tmpdir(), 'maude-e2e-team-index-'));
+  process.env.MAUDE_HOME_PROJECTS_DIR = mkdtempSync(join(tmpdir(), 'maude-e2e-team-projects-'));
   useStubClaude();
 
   const scratch = mkdtempSync(join(tmpdir(), 'maude-e2e-team-'));

@@ -265,6 +265,26 @@ test('A: a cloud or hubs pointer, when set, is held to the same rule', () => {
   }
 });
 
+test('a lane config that sets a cloud or hubs pointer makes every temp dir of it under maude-e2e-*', async () => {
+  // r12 pass f1: wdio.home.conf.ts kept the app's cloud.json in maude-home-e2e-cloud-* — throwaway, but not a name
+  // the guard can tell from a stranger's dir (option A holds cloud/hubs pointers to the prefs rule)
+  const { readdirSync } = await import('node:fs');
+  const confs = [
+    ...readdirSync(new URL('.', E2E)).filter((f) => /^wdio\..*conf\.ts$/.test(f)),
+    ...readdirSync(new URL('multiplayer/', E2E))
+      .filter((f) => f.endsWith('.conf.ts'))
+      .map((f) => `multiplayer/${f}`),
+  ];
+  const bad = [];
+  for (const f of confs) {
+    const src = read(f);
+    if (!/process\.env\.(MAUDE_CLOUD_CONFIG|HUBS_CONFIG_PATH)\s*=/.test(src)) continue;
+    for (const m of src.matchAll(/mkdtempSync\(join\(tmpdir\(\), '([^']+)'\)\)/g))
+      if (!m[1].startsWith('maude-e2e-')) bad.push(`${f}: ${m[1]}`);
+  }
+  assert.deepEqual(bad, []);
+});
+
 // ── live: a real process table ─────────────────────────────────────────────────────────────────────────────────────
 
 function fakeBun(dir, name = 'bun') {
