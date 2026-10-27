@@ -616,7 +616,7 @@ export interface LocalHome {
    * the watcher reads exactly that content it is the person's `edit`, never `outside` and never
    * an AI run's.
    */
-  noteWritten(rel: string, content: string, label?: string): void;
+  noteWritten(rel: string, content: string, label?: string, o?: { early?: boolean }): void;
   /** S5.5b — the runs this home stages (open and held), no bytes. */
   aiRuns(): RunStageSummary[];
   /** A canvas moved on disk (the studio's own move). */
@@ -702,7 +702,13 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
    * `${canvas}|${lane}` → the studio's own write of that lane (api.ts `source-written` for the
    * source, server.ts `proposeLane` for layout and board — S2.20b), until the watcher reads it.
    */
-  const notes = new Map<string, { hash: string; at: number; label?: string }>();
+  const notes = new Map<string, { hash: string; at: number; label?: string; early?: true }>();
+  /**
+   * S2.20b — an EARLY note (`source-writing`, said before the bytes land) the watcher already consumed:
+   * the same write's after-the-write `source-written` is then not a new note (it would sit for
+   * WRITE_NOTE_MS and claim a later outside write of the same bytes).
+   */
+  const takenEarly = new Map<string, { hash: string; at: number }>();
   /** canvas slug → its design-root-relative path (the board file is named by the slug). */
   const slugs = new Map<string, string>();
   /** >0 while a proposal made FROM the disk is accepted: the disk already holds it. */
@@ -742,13 +748,33 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     },
   });
 
-  function noteWritten(rel: string, content: string, label?: string): void {
+  function noteWritten(
+    rel: string,
+    content: string,
+    label?: string,
+    o?: { early?: boolean }
+  ): void {
     const canvas = canvasOfRel(rel);
     if (!canvas || canvas !== rel.replace(/\\/g, '/').replace(/^\/+/, '')) return;
-    notes.set(`${canvas}|html`, {
-      hash: hashBytes(content),
+    const k = `${canvas}|html`;
+    const hash = hashBytes(content);
+    // S2.20b — the same write said twice (before its bytes landed, then after): one note, kept from
+    // the first saying (its time is when the person made the edit)
+    const live = notes.get(k);
+    if (live && live.hash === hash && now() - live.at <= WRITE_NOTE_MS) {
+      if (label && !live.label) live.label = label;
+      return;
+    }
+    const taken = takenEarly.get(k);
+    if (taken) {
+      takenEarly.delete(k);
+      if (!o?.early && taken.hash === hash && now() - taken.at <= WRITE_NOTE_MS) return;
+    }
+    notes.set(k, {
+      hash,
       at: now(),
       ...(label ? { label } : {}),
+      ...(o?.early ? { early: true as const } : {}),
     });
   }
 
@@ -776,6 +802,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     }
     if (value === undefined || hashBytes(value) !== n.hash) return null;
     notes.delete(k);
+    if (n.early) takenEarly.set(k, { hash: n.hash, at: now() });
     return { at: n.at, ...(n.label ? { label: n.label } : {}) };
   }
 
@@ -2291,6 +2318,18 @@ export function attachLocalHome<S extends SupervisorLike>(
       // S2.24 G3: a studio write may say what it was; one line, bounded, so a planted label cannot flood a row
       const said = typeof p.label === 'string' ? p.label.trim().slice(0, 120) : '';
       get()?.noteWritten(p.rel, p.content, said || undefined);
+    }
+  );
+  // S2.20b — the edit-op route says its bytes BEFORE they land (routes/edit.ts `writeSource`): the watcher
+  // and a ⌘Z's undo-stack read can both arrive between the bytes and `source-written` (the rollback
+  // snapshot is written in between), and the edit must already be the person's then, never `outside`.
+  // Local home only: the hub path keeps `source-written`, which promises the bytes are on disk.
+  ctx.bus.on(
+    'source-writing',
+    (p: { rel?: unknown; content?: unknown; label?: unknown } | null) => {
+      if (!isLocal() || typeof p?.rel !== 'string' || typeof p.content !== 'string') return;
+      const said = typeof p.label === 'string' ? p.label.trim().slice(0, 120) : '';
+      get()?.noteWritten(p.rel, p.content, said || undefined, { early: true });
     }
   );
   // S2.20b (U20) — a collab room projecting its board (collab/index.ts): the person's strokes.
