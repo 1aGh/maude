@@ -87,6 +87,29 @@ describe('relaunch (native-desktop)', () => {
     const pids = await relaunchApp();
     console.log(`[relaunch] app ${pids.before} → ${pids.after}`);
     expect(pids.after).not.toBe(pids.before);
+    // p8-e2e-fix-r12: the restore pill is an info notice, 5 s on screen (notifications.tsx `noticeDuration`, no dwell
+    // rule in the contract), and tab B shows it ~0.7 s after the relaunch. So watch for it FROM the relaunch: after a
+    // full lane the waits below took longer than 5 s and the old check, after them, found it gone (r12 d1 timeline:
+    // shown +676 ms, gone +5842 ms; `take_tabs_restored` afterwards null — the page had taken it).
+    const reopened = '2 tabs reopened. Each one starts when you open it.';
+    let sawReopened = false;
+    for (const end = Date.now() + 30_000; !sawReopened && Date.now() < end; ) {
+      try {
+        await browser.switchToWindow(tabB);
+        sawReopened = await browser.execute(
+          (want: string) =>
+            Array.from(document.querySelectorAll('[data-testid^="notice-"]')).some((el) =>
+              (el.textContent ?? '').includes(want)
+            ),
+          reopened
+        );
+      } catch {
+        // still on its splash / between documents
+      }
+      if (!sawReopened) await browser.pause(100);
+    }
+    if (!sawReopened)
+      throw new Error(`no on-screen toast said "${reopened}" in the restored front tab`);
     // Home is activated first at boot, the restored active tab last.
     await browser.waitUntil(async () => (await activeTab()) === tabB, {
       timeout: 30_000,
@@ -110,23 +133,8 @@ describe('relaunch (native-desktop)', () => {
     // `tabsRestoredWords` (client/shell-events.js; pinned at model level by shell-events.test.ts).
     // The shell sends `shell://tabs-restored {count}` to the active tab only, once, for two or more
     // tabs; the toast is a notification card in the TOP document.
-    const reopened = '2 tabs reopened. Each one starts when you open it.';
+    // (the restore pill was seen right after the relaunch, above)
     await browser.switchToWindow(tabB);
-    await browser.waitUntil(
-      async () =>
-        browser.execute(
-          (want: string) =>
-            Array.from(document.querySelectorAll('[data-testid^="notice-"]')).some((el) =>
-              (el.textContent ?? '').includes(want)
-            ),
-          reopened
-        ),
-      {
-        timeout: 30_000,
-        interval: 200,
-        timeoutMsg: `no on-screen toast said "${reopened}" in the restored front tab`,
-      }
-    );
     expect(await onSplash(tabA)).toBe(true);
     expect(await browser.execute(() => document.hidden)).toBe(true);
     await capture('relaunch-2-restored');
