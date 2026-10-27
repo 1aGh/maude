@@ -74,6 +74,17 @@ describe('ds-advanced — the system panel, Check the system, the files behind i
     expect(await code.getAttribute('data-file')).toBe('colors_and_type.css');
     expect(await code.getText()).toContain('--accent');
     await (await $('[data-testid="ds-advanced-seg-json"]')).click();
+    // the code switches on the next render, not inside the click
+    await browser
+      .waitUntil(
+        async () =>
+          (await (await $('[data-testid="ds-advanced-code"]')).getAttribute('data-file')) ===
+            'tokens.json' &&
+          (await (await $('[data-testid="ds-handoff-tokens"]')).isExisting()) &&
+          (await (await $('[data-testid="ds-reveal-files"]')).isExisting()),
+        { timeout: 5_000, interval: 100 }
+      )
+      .catch(() => undefined);
     expect(await (await $('[data-testid="ds-advanced-code"]')).getAttribute('data-file')).toBe(
       'tokens.json'
     );

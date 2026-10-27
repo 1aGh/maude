@@ -35,6 +35,14 @@ const onDisk = () => readFileSync(FIXTURE, 'utf8');
 type Box = { x: number; y: number; w: number; h: number };
 const tid = (id: string) => `[data-testid="${id}"]`;
 const text = async (id: string) => (await (await $(tid(id))).getText()).trim();
+/** A toggle's `aria-pressed` follows its click on the next render: wait for it; the caller's `expect` stays. */
+const pressedSettles = (id: string, want: string) =>
+  browser
+    .waitUntil(async () => (await (await $(tid(id))).getAttribute('aria-pressed')) === want, {
+      timeout: 4000,
+      interval: 100,
+    })
+    .catch(() => undefined);
 
 async function artboardBox(id: string): Promise<Box | null> {
   return browser.execute((artboard) => {
@@ -136,6 +144,7 @@ describe('video-present — a video presents its formats only; the export sheet 
       expect(await $(tid(id)).isExisting()).toBe(true);
     const loop = await $(tid('video-present-loop'));
     if ((await loop.getAttribute('aria-pressed')) !== 'true') await loop.click();
+    await pressedSettles('video-present-loop', 'true');
     expect(await (await $(tid('video-present-loop'))).getAttribute('aria-pressed')).toBe('true');
     await (await $(tid('video-present-format-reel-16x9'))).click();
     await browser.waitUntil(
@@ -146,9 +155,11 @@ describe('video-present — a video presents its formats only; the export sheet 
     );
     // still Present, still looping
     expect(await $(tid('video-present')).isExisting()).toBe(true);
+    await pressedSettles('video-present-loop', 'true');
     expect(await (await $(tid('video-present-loop'))).getAttribute('aria-pressed')).toBe('true');
     await capture('video-present-wide');
     await (await $(tid('video-present-captions'))).click();
+    await pressedSettles('video-present-captions', 'false');
     expect(await (await $(tid('video-present-captions'))).getAttribute('aria-pressed')).toBe(
       'false'
     );
