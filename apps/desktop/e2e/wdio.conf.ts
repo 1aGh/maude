@@ -26,7 +26,7 @@ import { fileURLToPath } from 'node:url';
 import { browser } from '@wdio/globals';
 import { bringAppToFront, E2E_APP_ARGS, keepAppInFront } from './helpers/app-front';
 import { reapE2eAgentBrowsers, stopE2eApp } from './helpers/app-lifecycle';
-import { isE2eConfigHome } from './helpers/config-home';
+import { e2ePointers, isE2eConfigHome } from './helpers/config-home';
 import {
   baselineFixtureTree,
   releaseFixtureTree,
@@ -210,6 +210,9 @@ export const E2E_BUNDLE_ID = 'com.maude.app.e2e';
     }
   }
 }
+// p8-e2e-fix-r12: and whatever home this lane runs on, no prefs/cloud pointer may stay outside a maude-e2e-* dir — a
+// lane config that names its own home before importing this file kept the wrapper's (helpers/config-home.ts)
+Object.assign(process.env, e2ePointers(process.env));
 export function resetE2eAppState(): void {
   const prefs = join(process.env.XDG_CONFIG_HOME as string, 'maude', 'prefs.json');
   if (prefs.includes('maude-e2e-')) rmSync(prefs, { force: true });

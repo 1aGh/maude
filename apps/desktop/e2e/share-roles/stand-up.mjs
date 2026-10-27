@@ -169,7 +169,7 @@ export async function standUp(opts = {}) {
     );
   }
   const log = opts.log ?? (() => {});
-  const work = opts.workDir ?? mkdtempSync(join(tmpdir(), 'maude-share-roles-'));
+  const work = opts.workDir ?? mkdtempSync(join(tmpdir(), 'maude-e2e-share-roles-'));
   mkdirSync(work, { recursive: true });
   const out = opts.out ?? join(work, 'evidence');
   mkdirSync(out, { recursive: true });

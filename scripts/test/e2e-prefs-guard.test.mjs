@@ -149,6 +149,35 @@ test('an environment unreadable for a moment (a process mid-exec) is not an offe
   assert.deepEqual(seen, [2]);
 });
 
+test('a lane that names its own e2e home first still gets prefs/cloud pointers inside an e2e dir (invite-landing)', async () => {
+  // r12 pass f1: wdio.invite-landing.conf.ts sets its own maude-e2e-xdg-* home BEFORE it imports wdio.conf, so the
+  // base kept the test-lane wrapper's MAUDE_UI_PREFS_PATH (v2-lane-config.*, one dir per JOB) and Home wrote there
+  const { e2ePointers } = await import(new URL('helpers/config-home.ts', E2E).href);
+  const home = join(tmpdir(), 'maude-e2e-xdg-own');
+  const lane = join(tmpdir(), 'v2-lane-config.Ab12');
+  const env = {
+    XDG_CONFIG_HOME: home,
+    MAUDE_UI_PREFS_PATH: join(lane, 'maude', 'prefs.json'),
+    MAUDE_CLOUD_CONFIG: join(tmpdir(), 'maude-e2e-invite-x', 'cloud.json'),
+  };
+  assert.deepEqual(e2ePointers(env), { MAUDE_UI_PREFS_PATH: join(home, 'maude', 'prefs.json') });
+  assert.deepEqual(e2ePointers({ XDG_CONFIG_HOME: home }), {});
+  assert.deepEqual(
+    e2ePointers({
+      XDG_CONFIG_HOME: home,
+      MAUDE_CLOUD_CONFIG: join(homedir(), '.config', 'maude', 'cloud.json'),
+    }),
+    { MAUDE_CLOUD_CONFIG: join(home, 'maude', 'cloud.json') }
+  );
+  assert.match(read('wdio.conf.ts'), /Object\.assign\(process\.env, e2ePointers\(process\.env\)\)/);
+});
+
+test('the share-roles world keeps each person’s config in a maude-e2e-* dir', () => {
+  const src = readFileSync(new URL('share-roles/stand-up.mjs', E2E), 'utf8');
+  assert.doesNotMatch(src, /'maude-share-roles-'/);
+  assert.match(src, /mkdtempSync\(join\(tmpdir\(\), 'maude-e2e-share-roles-'\)\)/);
+});
+
 // ── live: a real process table ─────────────────────────────────────────────────────────────────────────────────────
 
 function fakeBun(dir, name = 'bun') {
