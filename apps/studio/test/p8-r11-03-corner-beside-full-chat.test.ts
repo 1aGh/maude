@@ -6,7 +6,11 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const css = readFileSync(join(import.meta.dir, '../client/v2/shell/floating-panels.css'), 'utf8');
+// biome wraps a long `:has(…)` selector over several lines: read the stylesheet as one line
+const css = readFileSync(join(import.meta.dir, '../client/v2/shell/floating-panels.css'), 'utf8')
+  .replace(/\s+/g, ' ')
+  .replace(/\( /g, '(')
+  .replace(/ \)/g, ')');
 
 describe('P8 r11 — corner icons stand beside a full-height chat', () => {
   test('the right corner icon moves left of a full-height chat in the right slot', () => {

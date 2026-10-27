@@ -107,9 +107,24 @@ export function applyCutToBeat(
       kept.push({ at: cut, reason: 'no-handle' });
       continue;
     }
-    // Right: in-point moves by d (trimIn ripples −d after it; undo that ripple: nothing else moves).
-    let next = applyTrimIn(file, out, artboard, right.stableId, undefined, d).source;
-    next = applyRippleAfterClip(file, next, artboard, right.stableId, d).source;
+    // Right: in-point moves by d. trimIn ripples −d, but only what starts at or after the clip's OLD end
+    // (a piece starting inside its span stays); the roll undoes exactly that ripple, so nothing else moves.
+    // The undo needs the same threshold. Going later (d > 0) the shifted pieces sit at ≥ oldEnd − d after the
+    // ripple, a window an unshifted piece can also be in — so the undo runs FIRST, on the original positions.
+    // Going earlier (d < 0) they sit at ≥ oldEnd + |d|, beyond anything unshifted — so it runs after.
+    const oldEnd = right.from + right.durationInFrames;
+    let next = out;
+    if (d > 0) {
+      next = applyRippleAfterClip(file, next, artboard, right.stableId, d, {
+        fromFrame: oldEnd,
+      }).source;
+    }
+    next = applyTrimIn(file, next, artboard, right.stableId, undefined, d).source;
+    if (d < 0) {
+      next = applyRippleAfterClip(file, next, artboard, right.stableId, d, {
+        fromFrame: oldEnd - d,
+      }).source;
+    }
     // Left: out-point moves by d (a duration retime, no ripple).
     next = applyRetimeSequenceByClip(file, next, artboard, left.stableId, undefined, {
       durationInFrames: left.durationInFrames + d,
