@@ -154,16 +154,21 @@ const GATES = [
     // ~1h40 (r5: one run ≈ 31 min), past the lane's 45-min default, hence --max.
     cmd: laneLong(
       [
-        'set -e',
+        'set -e -o pipefail',
+        // the evidence keeps only the tail of the output, so every lane's FULL output is teed into a per-run,
+        // per-lane file (p8-e2e-fix-r8: a run-1 red near the end of the default lane lost its spec name)
+        'D="${TMPDIR:-/tmp}"; D="${D%/}/maude-v2-8.3/$(date +%Y%m%dT%H%M%S)"; mkdir -p "$D"',
+        'echo "== lane logs: $D"; trap \'echo "== lane logs: $D"\' EXIT',
         // a stub `claude` first on PATH: no real claude, no keychain dialog from a throwaway HOME
         'STUB="$(mktemp -d)/bin"; mkdir -p "$STUB"',
         `printf '#!/bin/sh\\necho {\\\\"loggedIn\\\\":false}\\n' > "$STUB/claude"; chmod +x "$STUB/claude"`,
-        'export PATH="$STUB:$HOME/.cargo/bin:$PATH" MAUDE_CLAUDE_BIN= MAUDE_E2E_ON_TOP=1',
-        '(cd apps/studio && MAUDE_SKIP_RUNTIME_BUILD=1 bun run build.ts --release)',
+        'export PATH="$STUB:$HOME/.cargo/bin:$PATH" MAUDE_CLAUDE_BIN= MAUDE_E2E_ON_TOP=1 MAUDE_E2E_KEEP_FRONT=1',
+        '(cd apps/studio && MAUDE_SKIP_RUNTIME_BUILD=1 bun run build.ts --release) > "$D/build-studio.log" 2>&1 || { tail -40 "$D/build-studio.log"; exit 1; }',
         // the release build compiles the sidecar into dist/; the app build's sync-sidecar needs it
-        '(cd apps/desktop && MAUDE_SKIP_RUNTIME_BUILD=1 npx --no-install tauri build --debug --config src-tauri/tauri.e2e.conf.json)',
+        '(cd apps/desktop && MAUDE_SKIP_RUNTIME_BUILD=1 npx --no-install tauri build --debug --config src-tauri/tauri.e2e.conf.json) > "$D/build-app.log" 2>&1 || { tail -40 "$D/build-app.log"; exit 1; }',
         'cd apps/desktop/e2e',
-        `for i in 1 2 3; do for l in ${E2E_LANES.join(' ')}; do echo "== run $i lane $l"; npm run --silent "$l" || exit 1; done; done`,
+        // one hold, 3 runs, stop at the first red lane — its full log is named on the way out
+        `for i in 1 2 3; do for l in ${E2E_LANES.join(' ')}; do f="$D/run$i-\${l//:/-}.log"; echo "== run $i lane $l"; npm run --silent "$l" 2>&1 | tee "$f" || { echo "== RED run $i lane $l — full log $f"; exit 1; }; done; done`,
       ].join('\n')
     ),
   },

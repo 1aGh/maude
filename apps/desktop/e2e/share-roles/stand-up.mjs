@@ -636,7 +636,9 @@ export async function standUp(opts = {}) {
       const canvasOrigin = `http://canvas.share-roles-cell.localhost:${port}`;
       const stub = stubClaudeEnv(home, `${dirname(node)}${delimiter}${process.env.PATH ?? ''}`);
       const cellEnv = {
-        ...hubEnv,
+        // the hub's own allowlisted env (HUB_SECRET, the control plane, the tenant) — not the `hubEnv` builder
+        // F4 imported under the old variable's name (spreading a function adds nothing: the cell exited 2)
+        ...hubChildEnv,
         // The studio child inherits HOME and PATH only (studio-child.mjs `childEnv`): a throwaway HOME,
         // the stub `claude` first on PATH.
         HOME: home,
