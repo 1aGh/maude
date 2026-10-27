@@ -182,6 +182,89 @@ test('the share-roles world keeps each person’s config in a maude-e2e-* dir', 
   assert.match(boot, /MAUDE_UI_PREFS_PATH: join\(root, 'config', 'maude', 'prefs\.json'\)/);
 });
 
+// ── A (lead, r12): where prefs actually land — ui-prefs.ts's order, realpath'd, inside a maude-e2e-* dir ──────────
+// A stand-in for the person's home (the lane's os.homedir()), so no test touches the real ~/.config.
+function world() {
+  const base = mkdtempSync(join(tmpdir(), 'r12-guard-a-')); // NOT a maude-e2e-* name
+  const realHome = join(base, 'person');
+  mkdirSync(join(realHome, '.config', 'maude'), { recursive: true });
+  const e2e = join(base, 'maude-e2e-world');
+  mkdirSync(e2e, { recursive: true });
+  return { base, realHome, e2e, done: () => rmSync(base, { recursive: true, force: true }) };
+}
+const problem = (w, env) =>
+  guard.isolationProblem({ readable: true, ...env }, { realHome: w.realHome });
+
+test('A: the real HOME with no XDG fails', () => {
+  const w = world();
+  try {
+    assert.match(problem(w, { HOME: w.realHome }), /XDG_CONFIG_HOME unset/);
+  } finally {
+    w.done();
+  }
+});
+
+test('A: the real HOME with a maude-e2e XDG passes', () => {
+  const w = world();
+  try {
+    assert.equal(problem(w, { HOME: w.realHome, XDG_CONFIG_HOME: join(w.e2e, 'xdg') }), null);
+  } finally {
+    w.done();
+  }
+});
+
+test('A: a maude-e2e HOME with no XDG passes (the share-roles cell studio)', () => {
+  const w = world();
+  try {
+    mkdirSync(join(w.e2e, 'cell', 'home'), { recursive: true });
+    assert.equal(problem(w, { HOME: join(w.e2e, 'cell', 'home') }), null);
+  } finally {
+    w.done();
+  }
+});
+
+test('A: a maude-e2e HOME whose .config is a link to the real ~/.config fails', () => {
+  const w = world();
+  try {
+    const home = join(w.e2e, 'linked-home');
+    mkdirSync(home, { recursive: true });
+    symlinkSync(join(w.realHome, '.config'), join(home, '.config'));
+    assert.match(problem(w, { HOME: home }), /real ~\/\.config/);
+  } finally {
+    w.done();
+  }
+});
+
+test('A: MAUDE_UI_PREFS_PATH outside maude-e2e fails even with a maude-e2e XDG', () => {
+  const w = world();
+  try {
+    assert.match(
+      problem(w, {
+        HOME: join(w.e2e, 'h'),
+        XDG_CONFIG_HOME: join(w.e2e, 'xdg'),
+        MAUDE_UI_PREFS_PATH: join(w.base, 'v2-lane-config.Ab', 'maude', 'prefs.json'),
+      }),
+      /MAUDE_UI_PREFS_PATH=/
+    );
+  } finally {
+    w.done();
+  }
+});
+
+test('A: a cloud or hubs pointer, when set, is held to the same rule', () => {
+  const w = world();
+  try {
+    const ok = { HOME: w.realHome, XDG_CONFIG_HOME: join(w.e2e, 'xdg') };
+    assert.equal(problem(w, { ...ok, MAUDE_CLOUD_CONFIG: join(w.e2e, 'cloud.json') }), null);
+    assert.match(
+      problem(w, { ...ok, HUBS_CONFIG_PATH: join(w.realHome, '.config', 'maude', 'hubs.json') }),
+      /HUBS_CONFIG_PATH=/
+    );
+  } finally {
+    w.done();
+  }
+});
+
 // ── live: a real process table ─────────────────────────────────────────────────────────────────────────────────────
 
 function fakeBun(dir, name = 'bun') {

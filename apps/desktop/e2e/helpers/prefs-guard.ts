@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
+import { lstatSync, readlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, join, resolve, sep } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 
 // No relative imports: scripts/test/e2e-prefs-guard.test.mjs loads this file under plain node (type stripping needs
 // explicit extensions, which the e2e tsconfig does not allow).
@@ -35,6 +36,8 @@ export type StartEnv = {
   readable: boolean;
   XDG_CONFIG_HOME?: string;
   MAUDE_UI_PREFS_PATH?: string;
+  MAUDE_CLOUD_CONFIG?: string;
+  HUBS_CONFIG_PATH?: string;
   HOME?: string;
 };
 
@@ -42,7 +45,13 @@ export type StartEnv = {
 export function envOf(line: string): StartEnv {
   const get = (k: string) => new RegExp(`(?:^|\\s)${k}=(\\S*)`).exec(line)?.[1];
   const env: StartEnv = { readable: get('PATH') !== undefined || get('HOME') !== undefined };
-  for (const k of ['XDG_CONFIG_HOME', 'MAUDE_UI_PREFS_PATH', 'HOME'] as const) {
+  for (const k of [
+    'XDG_CONFIG_HOME',
+    'MAUDE_UI_PREFS_PATH',
+    'MAUDE_CLOUD_CONFIG',
+    'HUBS_CONFIG_PATH',
+    'HOME',
+  ] as const) {
     const v = get(k);
     if (v !== undefined) env[k] = v;
   }
@@ -99,16 +108,84 @@ function inE2eDir(path: string): boolean {
   return abs.split(sep).some((p) => p.startsWith('maude-e2e-'));
 }
 
-/** Why this environment would reach the person's real config, or null when it is the lane's own. */
-export function isolationProblem(env: StartEnv): string | null {
-  if (!env.readable) return 'environment unreadable (cannot prove isolation)';
-  if (!env.XDG_CONFIG_HOME)
-    return `XDG_CONFIG_HOME unset (prefs → ${env.HOME ?? '$HOME'}/.config/maude)`;
-  if (!isE2eConfigHome(env.XDG_CONFIG_HOME)) {
-    return `XDG_CONFIG_HOME=${env.XDG_CONFIG_HOME} is not a maude-e2e-* home`;
+/**
+ * Where `path` really is, resolved top-down with lstat/readlink (symlinks followed, at most 40), and whether it reached
+ * one of `stops` — the person's real `~/.config` — on the way. Resolution STOPS at the first resolved prefix inside a
+ * stop, so nothing under the real `~/.config/maude` is ever even stat'ed. A missing component ends the walk: the rest
+ * of the path is taken as written (the deepest existing ancestor is what decides).
+ */
+export function whereItLands(path: string, stops: string[]): { real: string; underReal: boolean } {
+  const inStop = (p: string) => stops.some((s) => p === s || p.startsWith(s + sep));
+  let todo = resolve(path).split(sep).filter(Boolean);
+  let cur: string = sep;
+  let links = 0;
+  while (todo.length) {
+    const next = join(cur, todo[0]);
+    if (inStop(next)) return { real: join(next, ...todo.slice(1)), underReal: true };
+    let st: ReturnType<typeof lstatSync>;
+    try {
+      st = lstatSync(next);
+    } catch {
+      return { real: join(next, ...todo.slice(1)), underReal: false };
+    }
+    if (st.isSymbolicLink() && links++ < 40) {
+      const target = resolve(dirname(next), readlinkSync(next));
+      todo = [...target.split(sep).filter(Boolean), ...todo.slice(1)];
+      cur = sep;
+      continue;
+    }
+    cur = next;
+    todo = todo.slice(1);
   }
-  if (env.MAUDE_UI_PREFS_PATH !== undefined && !inE2eDir(env.MAUDE_UI_PREFS_PATH)) {
-    return `MAUDE_UI_PREFS_PATH=${env.MAUDE_UI_PREFS_PATH} is outside a maude-e2e-* dir`;
+  return { real: cur, underReal: inStop(cur) };
+}
+
+/** The person's real `~/.config` (the lane's os.homedir()), as written and as it resolves. */
+function realConfigs(realHome: string): string[] {
+  const config = join(resolve(realHome), '.config');
+  const out = [config];
+  const r = whereItLands(config, []).real;
+  if (r !== config) out.push(r);
+  return out;
+}
+
+/**
+ * p8-e2e-fix-r12 (lead's option A) — where this process's prefs actually land, as `ui-prefs.ts` resolves them:
+ * MAUDE_UI_PREFS_PATH, else `$XDG_CONFIG_HOME/maude/prefs.json`, else `$HOME/.config/maude/prefs.json`. It passes only
+ * when that path, symlinks resolved, is inside a `maude-e2e-*` dir and not under the real `~/.config`. A cloud or hubs
+ * pointer, when set, is held to the same rule (unset, the prefs resolution above decides). Null = the lane's own.
+ */
+export function isolationProblem(env: StartEnv, opts: { realHome?: string } = {}): string | null {
+  if (!env.readable) return 'environment unreadable (cannot prove isolation)';
+  const stops = realConfigs(opts.realHome ?? homedir());
+  const judge = (what: string, path: string): string | null => {
+    const { real, underReal } = whereItLands(path, stops);
+    if (underReal) return `${what} → ${real} is under the real ~/.config`;
+    if (!real.split(sep).some((p) => p.startsWith('maude-e2e-')))
+      return `${what} → ${real} is outside a maude-e2e-* dir`;
+    return null;
+  };
+  let prefs: string | null;
+  if (env.MAUDE_UI_PREFS_PATH)
+    prefs = judge(`MAUDE_UI_PREFS_PATH=${env.MAUDE_UI_PREFS_PATH}`, env.MAUDE_UI_PREFS_PATH);
+  else if (env.XDG_CONFIG_HOME)
+    prefs = judge(
+      `XDG_CONFIG_HOME=${env.XDG_CONFIG_HOME}`,
+      join(env.XDG_CONFIG_HOME, 'maude', 'prefs.json')
+    );
+  else if (env.HOME)
+    prefs = judge(
+      `XDG_CONFIG_HOME unset, HOME=${env.HOME}`,
+      join(env.HOME, '.config', 'maude', 'prefs.json')
+    );
+  else prefs = 'XDG_CONFIG_HOME unset and no HOME (cannot tell where prefs land)';
+  if (prefs) return prefs;
+  for (const k of ['MAUDE_CLOUD_CONFIG', 'HUBS_CONFIG_PATH'] as const) {
+    const v = env[k];
+    if (v) {
+      const p = judge(`${k}=${v}`, v);
+      if (p) return p;
+    }
   }
   return null;
 }
