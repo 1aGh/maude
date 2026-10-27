@@ -494,6 +494,9 @@ export default function C() {
     // the menu lists the projects on this Mac and "a new project" (here: not signed in)
     await chip.click();
     await (await $(tid('home-target-menu'))).waitForDisplayed({ timeout: 5_000 });
+    await $(tid(`home-target-item-local:${ALPHA.pid}`))
+      .waitForExist({ timeout: 5_000 })
+      .catch(() => undefined);
     expect(await $(tid(`home-target-item-local:${ALPHA.pid}`)).isExisting()).toBe(true);
     expect(await $(tid('home-target-item-new')).getText()).toContain('a project on this Mac');
     await (await $(tid(`home-target-item-local:${BETA.pid}`))).click();
@@ -507,8 +510,12 @@ export default function C() {
         '[data-testid^="home-starter-"]:not([data-testid="home-starter-ds"]):not([data-testid="home-starter-brand"])'
       )
     ).click();
+    // the starter fills the prompt on the next render, not inside the click
+    await browser
+      .waitUntil(async () => (await input.getValue()).length > 8, { timeout: 5_000, interval: 100 })
+      .catch(() => undefined);
     expect((await input.getValue()).length).toBeGreaterThan(8);
-    await browser.pause(750);
+    await browser.pause(750); // negative: the starter sends nothing
     expect(await labels()).toEqual(tabs);
     expect(canvases()).toBe(before);
     await capture('11-home-question');

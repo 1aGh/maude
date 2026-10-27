@@ -57,6 +57,18 @@ const metaOf = (rel: string): Record<string, unknown> => {
   const file = join(ROOT, '.design', rel.replace(/\.tsx$/, '.meta.json'));
   return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
 };
+/** Wait for a control's text to satisfy `ok` — it re-renders a beat after the click; the caller's `expect` stays. */
+const textSettles = (testId: string, ok: (t: string) => boolean, selector?: string) =>
+  browser
+    .waitUntil(
+      async () => {
+        const el = await $(selector ?? `[data-testid="${testId}"]`);
+        return (await el.isExisting()) && ok(await el.getText());
+      },
+      { timeout: 5000, interval: 100 }
+    )
+    .catch(() => undefined);
+
 const tick = (path: string) => $(`[data-testid="ds-review-tick"][data-path="${path}"]`);
 /** wdio.ds-review-master.conf.ts boots part 2's project (a master change, fourteen canvases); the default is part 1. */
 const PART_N = process.env.MAUDE_E2E_DS_REVIEW_PART ?? '1';
@@ -107,6 +119,13 @@ part('1')('ds-review (part 1) — edit, review, untick, Update, dot, ⌘Z', () =
 
   it('untick Landing: the button counts down and the row says what it keeps', async () => {
     await (await tick('ui/Landing.tsx')).click();
+    await textSettles('ds-review-update', (t) => t === 'Update 2 canvases');
+    await textSettles('ds-review-head', (t) => /^2 of 3 canvases( in .+)?$/.test(t));
+    await textSettles(
+      '',
+      (t) => t.includes('keeps the old Accent'),
+      '[data-testid="ds-review-row"][data-path="ui/Landing.tsx"] [data-testid="ds-review-note"]'
+    );
     expect(await (await $('[data-testid="ds-review-update"]')).getText()).toBe('Update 2 canvases');
     // the head count names where it counts ("2 of 3 canvases in <the project>", review-model headWords)
     expect(await (await $('[data-testid="ds-review-head"]')).getText()).toMatch(
@@ -222,6 +241,12 @@ part('2')('ds-review (part 2) — a master change, a folder left out with one ti
 
   it('untick ui/2026/combine: eight canvases update, the folder says it is left out', async () => {
     await (await folderTick(FOLDER)).click();
+    await textSettles('ds-review-update', (t) => t === 'Update 8 canvases');
+    await textSettles(
+      '',
+      (t) => t.includes('6 canvases · left out'),
+      `[data-testid="ds-review-folder"][data-folder="${FOLDER}"]`
+    );
     expect(await (await $('[data-testid="ds-review-update"]')).getText()).toBe('Update 8 canvases');
     const folder = await $(`[data-testid="ds-review-folder"][data-folder="${FOLDER}"]`);
     expect(await folder.getText()).toContain('6 canvases · left out');
@@ -422,6 +447,13 @@ part('4')(
       );
       expect(await (await $('[data-testid="ds-make-go"]')).isEnabled()).toBe(false);
       await (await $('[data-testid="ds-make-sentence"]')).setValue(SENTENCE);
+      // the button enables on the input's next render, not inside setValue
+      await browser
+        .waitUntil(async () => (await $('[data-testid="ds-make-go"]')).isEnabled(), {
+          timeout: 5000,
+          interval: 100,
+        })
+        .catch(() => undefined);
       expect(await (await $('[data-testid="ds-make-go"]')).isEnabled()).toBe(true);
       await capture('ds-make-inputs');
     });
@@ -510,12 +542,16 @@ part('4')(
       await clickInFrame('[data-ds-direction="a"]');
       const use = await $('[data-testid="ds-dir-use"]');
       await use.waitForExist({ timeout: 15_000 });
+      await textSettles('ds-dir-name', (t) => t === 'Direction A · Calm daylight');
+      await textSettles('ds-dir-use', (t) => t === 'Use A');
       expect(await (await $('[data-testid="ds-dir-name"]')).getText()).toBe(
         'Direction A · Calm daylight'
       );
       expect(await use.getText()).toBe('Use A');
       await (await $('[data-testid="ds-dir-mix"]')).click();
       await (await $('[data-testid="ds-dir-mix-type-b"]')).click();
+      await textSettles('ds-dir-summary', (t) => t === 'A + B’s type');
+      await textSettles('ds-dir-use', (t) => t === 'Use this mix');
       expect(await (await $('[data-testid="ds-dir-summary"]')).getText()).toBe('A + B’s type');
       expect(await use.getText()).toBe('Use this mix');
       await capture('ds-make-mix');

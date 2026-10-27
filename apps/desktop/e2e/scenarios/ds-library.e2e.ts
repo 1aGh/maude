@@ -74,6 +74,10 @@ describe('ds-library — a linked team library: the card, the review, Update, Un
     expect(await (await $('[data-testid="ds-library-fine"]')).getText()).toContain('By Tereza');
     await capture('ds-library-dialog');
     await (await $('[data-testid="ds-library-cancel"]')).click();
+    // the dialog closes on the next render, not inside the click
+    await (await $('[data-testid="ds-library-dialog"]'))
+      .waitForExist({ reverse: true, timeout: 5000 })
+      .catch(() => undefined);
     expect(await (await $('[data-testid="ds-library-dialog"]')).isExisting()).toBe(false);
     expect(readHead().head).toBe(linkedHead);
   });

@@ -143,6 +143,10 @@ describe('Asset details and the Generated group (S8.21)', () => {
     await (await $('[data-testid="assets-details"]')).waitForExist({ timeout: 5000 });
     expect(await (await $('[data-testid="assets-details-adv-stored"]')).isExisting()).toBe(false);
     await (await $('[data-testid="fold-assets.details-toggle"]')).click();
+    // the fold opens on the next render, not inside the click
+    await (await $('[data-testid="assets-details-adv-stored"]'))
+      .waitForExist({ timeout: 5000 })
+      .catch(() => undefined);
     expect(await (await $('[data-testid="assets-details-adv-stored"]')).getText()).toContain(
       `assets/${TAKES[0]}.png`
     );

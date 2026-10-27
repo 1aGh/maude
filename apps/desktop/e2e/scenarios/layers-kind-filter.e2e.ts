@@ -56,6 +56,13 @@ describe('layers-kind-filter — the kind chips in the Layers header', () => {
       'Print',
       'Video',
     ]);
+    await browser
+      .waitUntil(
+        async () =>
+          (await chip('all').getAttribute('aria-pressed')) === 'true' && !(await dimmed()),
+        { timeout: 5_000, interval: 100 }
+      )
+      .catch(() => undefined);
     expect(await chip('all').getAttribute('aria-pressed')).toBe('true');
     expect(await dimmed()).toBe(false);
     await capture('layers-kind-chips-all');
