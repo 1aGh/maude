@@ -19,6 +19,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { GRIP_TIP, PanelGrip } from '../client/shell/dock.jsx';
 
 const read = (rel: string) => readFileSync(join(import.meta.dir, '..', rel), 'utf8');
+// biome wraps a long selector across lines: a selector pin compares the stylesheet on one line
+const flat = (rel: string) => read(rel).replace(/\s+/g, ' ');
 const rule = (css: string, selector: string) => {
   const at = css.indexOf(`${selector} {`);
   return at < 0 ? '' : css.slice(at, css.indexOf('}', at));
@@ -80,14 +82,14 @@ describe('06 ad-pinned: the handle says what it does', () => {
 
 describe('06 ad-pinned: the bottom-left island sits in the canvas column', () => {
   test('pinned with a Canvases column open, the island starts after it', () => {
-    const css = read('client/v2/preview/preview.css');
+    const css = flat('client/v2/preview/preview.css');
     expect(css).toContain(
       '.sh-body:not(.sh-body--float):has(> .sh-dockslot--left:not(.is-collapsed):not(.is-hidden)) .sh-zoomundo.island'
     );
     expect(css).toContain('left: calc(var(--sb-w, 0px) + var(--float-gap, 16px))');
   });
   test('a folded panel icon stands beside a pinned column, not over its header (a11y V4)', () => {
-    const css = read('client/v2/shell/floating-panels.css');
+    const css = flat('client/v2/shell/floating-panels.css');
     const sel =
       '.sh-body:not(.sh-body--float):has(> .sh-dockslot--right:not(.is-collapsed):not(.is-hidden)) .sh-corner--right';
     expect(css).toContain(sel);

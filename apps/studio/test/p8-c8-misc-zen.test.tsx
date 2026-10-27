@@ -96,7 +96,10 @@ describe('the shell side of the fold', () => {
     expect(bridge).toContain('zen: panelLayout.get().userHidden');
     const cluster = readFileSync(join(client, 'v2/shell/share-cluster.jsx'), 'utf8');
     expect(cluster).toContain("data-zen={panelsHidden ? 'true' : undefined}");
-    const css = readFileSync(join(client, 'v2/shell/share-cluster.css'), 'utf8');
+    const css = readFileSync(join(client, 'v2/shell/share-cluster.css'), 'utf8').replace(
+      /\s+/g,
+      ' '
+    );
     expect(css).toContain(
       '.sh-share[data-zen="true"] > :not([data-testid="share-cluster-panels"])'
     );
