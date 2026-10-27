@@ -108,6 +108,11 @@ const PRIVATE_META = `${JSON.stringify(
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const imp = (rel) => import(new URL(rel, `file://${REPO}/`).href);
+// p8-e2e-fix-r12: every studio started from this tree serves its committed-or-built client bundle; a stale one
+// shows the old UI (share-roles read "Can comment" for a Can view grant) — refuse loud instead
+const { assertFreshClientDist } = await import(
+  new URL('../helpers/dist-fresh.ts', import.meta.url).href
+);
 
 /** The first free loopback TCP port. */
 function freePort() {
@@ -531,6 +536,7 @@ export async function standUp(opts = {}) {
     const studios = {};
     /** Boot a studio on `project` with `hubs` as its credential store; resolves to its address. */
     async function bootStudio(root, project, hubs) {
+      assertFreshClientDist(join(REPO, 'apps/studio'));
       const home = join(root, 'home');
       mkdirSync(home, { recursive: true });
       const port = await freePort();
@@ -637,6 +643,7 @@ export async function standUp(opts = {}) {
       const publicUrl = `http://studio.share-roles-cell.localhost:${port}`;
       const canvasOrigin = `http://canvas.share-roles-cell.localhost:${port}`;
       const stub = stubClaudeEnv(home, `${dirname(node)}${delimiter}${process.env.PATH ?? ''}`);
+      assertFreshClientDist(join(REPO, 'apps/studio')); // the cell's studio child runs this tree
       const cellEnv = {
         // the hub's own allowlisted env (HUB_SECRET, the control plane, the tenant) — not the `hubEnv` builder
         // F4 imported under the old variable's name (spreading a function adds nothing: the cell exited 2)

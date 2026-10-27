@@ -30,6 +30,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { type LocalHub, startLocalHub } from './fixtures/local-hub.mjs';
+import { assertFreshClientDist } from './helpers/dist-fresh';
 import { useStubClaude } from './helpers/fake-ai';
 import { config as base, completeLane } from './wdio.conf';
 
@@ -144,6 +145,8 @@ async function setUp(): Promise<string> {
     }),
     { mode: 0o600 }
   );
+  // p8-e2e-fix-r12: the teammate serves this tree's client bundle — never a stale one
+  assertFreshClientDist(join(ROOT, 'apps/studio'));
   const teammatePort = await freePort();
   const studio = spawn(
     'bun',
