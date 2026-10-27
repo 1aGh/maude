@@ -77,6 +77,8 @@ export const LOCK_FILE = 'project-store.lock';
 export const AI_STAGE_FILE = 'ai-stage-local.json';
 /** S5.5b — how long a studio write's content note waits for the watcher to read it. */
 export const WRITE_NOTE_MS = 30_000;
+/** p8-e2e-fix-r12 — at most this many superseded studio writes of one canvas wait for the watcher. */
+const MAX_SUPERSEDED = 16;
 /** The label a person's studio edit carries (the hub link's `LANE_LABEL.html`). */
 export const STUDIO_EDIT_LABEL = 'Edit canvas';
 /** S2.20b (U20) — the hub link's `LANE_LABEL` per local lane: a layout move, an annotation stroke. */
@@ -702,7 +704,20 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
    * `${canvas}|${lane}` → the studio's own write of that lane (api.ts `source-written` for the
    * source, server.ts `proposeLane` for layout and board — S2.20b), until the watcher reads it.
    */
-  const notes = new Map<string, { hash: string; at: number; label?: string; early?: true }>();
+  const notes = new Map<
+    string,
+    { hash: string; at: number; label?: string; early?: true; content?: string }
+  >();
+  /**
+   * p8-e2e-fix-r12 — `${canvas}|html` → the studio's earlier writes of the source whose note a LATER write
+   * replaced before the watcher read the canvas (oldest first). One note slot per lane meant a look and its
+   * Reset (or two looks) said within one read reached the store as the final bytes only: nothing at all when
+   * they cancel, one step under the second's label otherwise. `syncCanvas` records each as its own `edit`.
+   */
+  const superseded = new Map<
+    string,
+    Array<{ hash: string; at: number; label?: string; early?: true; content: string }>
+  >();
   /**
    * S2.20b — an EARLY note (`source-writing`, said before the bytes land) the watcher already consumed:
    * the same write's after-the-write `source-written` is then not a new note (it would sit for
@@ -765,17 +780,79 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       if (label && !live.label) live.label = label;
       return;
     }
+    // the after-the-write saying of a write a later one already superseded: not a new write
+    const older = (superseded.get(k) ?? []).filter((e) => now() - e.at <= WRITE_NOTE_MS);
+    if (!o?.early && older.some((e) => e.hash === hash)) return;
     const taken = takenEarly.get(k);
     if (taken) {
       takenEarly.delete(k);
       if (!o?.early && taken.hash === hash && now() - taken.at <= WRITE_NOTE_MS) return;
     }
+    // p8-e2e-fix-r12 — a studio write the watcher has not read yet is kept, not overwritten
+    if (live && live.content !== undefined && now() - live.at <= WRITE_NOTE_MS) {
+      older.push({ ...live, content: live.content });
+      superseded.set(k, older.slice(-MAX_SUPERSEDED));
+    }
     notes.set(k, {
       hash,
       at: now(),
+      content,
       ...(label ? { label } : {}),
       ...(o?.early ? { early: true as const } : {}),
     });
+  }
+
+  /**
+   * p8-e2e-fix-r12 — before the watcher's read of `rel` is recorded: the studio's superseded source writes, each
+   * as its own `edit`, in order, up to the write the disk holds now (`disk`). When neither one of them nor the
+   * current note is what the disk holds, nothing is recorded from them (an outside change came in between; the
+   * entries expire with their note).
+   */
+  async function recordSuperseded(rel: string, doc: string, disk: string, as: string) {
+    const k = `${rel}|html`;
+    const queue = (superseded.get(k) ?? []).filter((e) => now() - e.at <= WRITE_NOTE_MS);
+    if (!queue.length) {
+      superseded.delete(k);
+      return;
+    }
+    const diskHash = hashBytes(disk);
+    const cur = notes.get(k);
+    let upTo = -1;
+    if (cur && cur.hash === diskHash && now() - cur.at <= WRITE_NOTE_MS) upTo = queue.length - 1;
+    else
+      for (let i = queue.length - 1; i >= 0; i--)
+        if (queue[i].hash === diskHash) {
+          upTo = i;
+          break;
+        }
+    if (upTo < 0) return;
+    superseded.set(k, queue.slice(upTo + 1));
+    if (!superseded.get(k)?.length) superseded.delete(k);
+    const store = (opened as NonNullable<typeof opened>).store;
+    for (const e of queue.slice(0, upTo + 1)) {
+      const head = (await store.heads([doc]))[doc] as {
+        lanes: Record<string, { hash: string | null }>;
+      };
+      const headHash = hashOr(head?.lanes?.html?.hash);
+      const prev =
+        seen.get(k) ??
+        (headHash === EMPTY_HASH ? '' : (((await store.blob(headHash)) as string) ?? ''));
+      if (prev === e.content) continue;
+      const r = await submit(
+        [
+          laneHash(prev) === headHash
+            ? { op: 'lane.replace', doc, lane: 'html', content: e.content, base: headHash }
+            : { op: 'lane.replace', doc, lane: 'html', content: e.content, baseContent: prev },
+        ],
+        { kind: 'edit', label: e.label ?? STUDIO_LANE_LABEL.html },
+        as,
+        { madeAt: e.at },
+        true
+      );
+      if (r.status !== 'accepted') return;
+      seen.set(k, e.content);
+      if (e.early) takenEarly.set(k, { hash: e.hash, at: now() });
+    }
   }
 
   /** S2.20b — the studio wrote lane `lane` of the canvas named `slug` (server.ts `proposeLane`). */
@@ -1059,6 +1136,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         as
       );
     }
+    if (action.kind === OUTSIDE_KIND) await recordSuperseded(rel, live, values.html, as);
     const head = (await store.heads([live]))[live] as {
       lanes: Record<string, { hash: string | null }>;
     };
