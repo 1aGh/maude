@@ -337,6 +337,12 @@ export interface DocProjection {
   /** V2-8.17 — the hub acknowledged every change this connection sent. */
   noteConfirmed(): void;
   /**
+   * V2-8.9 M1 — the provider's socket went up or down. A drop while an
+   * unconfirmed body edit may already have reached the hub ends the
+   * offline-overlap check: the reconnect's order says nothing about it.
+   */
+  noteConnection(connected: boolean): void;
+  /**
    * Accepted mode: a privileged API route is about to rewrite the canvas
    * source (it announces this with `activity:suppress`). Captures the exact
    * bytes that edit is based on, and holds the doc→file writer until the
@@ -1460,6 +1466,9 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     },
     noteConfirmed() {
       overlap?.confirmed();
+    },
+    noteConnection(connected: boolean) {
+      overlap?.connection(connected);
     },
     retryDeferred() {
       if (stopped || heldWhileReadOnly.size === 0) return;

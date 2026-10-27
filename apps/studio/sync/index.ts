@@ -4157,6 +4157,10 @@ export function createSyncRuntime(
         format: declared(),
       });
       providers.set(canvas.slug, provider);
+      // V2-8.9 M1 — a new provider is a new connection (a DDR-102 re-probe
+      // swaps it under a live projection): nothing an earlier one sent will be
+      // acknowledged on it, so the offline-overlap check treats it as a drop.
+      projections.get(canvas.slug)?.noteConnection(false);
       // ANY change to a synced document is activity — a local edit unparks a
       // parked desktop, and a peer's edit arriving keeps a live collaboration
       // connected rather than parking under it.
@@ -4212,6 +4216,9 @@ export function createSyncRuntime(
           canvas.slug,
           provider.onStatus((s) => {
             mon.noteProviderStatus(canvas.slug, s);
+            // V2-8.9 M1 — a drop with an edit in flight ends the legacy
+            // offline-overlap check (sync/offline-overlap.ts).
+            projections.get(canvas.slug)?.noteConnection(s === 'connected');
             // COMING BACK IS THE MOMENT MOST LIKELY TO HAVE MISSED SOMETHING.
             //
             // A peer that was away for an hour has an hour of other people's

@@ -173,6 +173,104 @@ describe('legacy shared document: overlapping edits made while apart (#121)', ()
   });
 });
 
+// V2-8.9 final review, M1 — the order "their change before our ack" only says
+// the hub took theirs first while ONE connection carried both. Our edit can
+// reach the hub and lose its ack to a drop; a teammate then builds on it, and
+// the reconnect replays their work onto a shadow WITHOUT our edit. The
+// invariant: a reconnect never writes a body neither side wrote, and the notice
+// never states something untrue — so those cases fall back to the CRDT merge.
+describe('a drop before the ack (V2-8.9 M1)', () => {
+  // Our edit inserts " bbb". The teammate, who saw it, deletes the base "a"
+  // next to it: that touches ours yet needs nothing of ours, so the shadow
+  // applies it cleanly and reads "aa" — a body nobody wrote.
+  const mine = src('aaa bbb');
+  const touched = src('aa bbb');
+  // …and here they also append " ccc" after OUR "bbb", which the shadow
+  // cannot place without our edit (Yjs leaves it pending).
+  const built = src('aa bbb ccc');
+
+  function hubTookOurs(p: ReturnType<typeof pair>) {
+    for (const u of p.sent.splice(0)) Y.applyUpdate(p.theirs, u, REMOTE);
+  }
+
+  test('our edit reached the hub, the ack was lost, a teammate built on it: the reconnect keeps what they wrote', async () => {
+    const p = pair(src('aaa'));
+    expect(p.save(mine)).toBe(true);
+    hubTookOurs(p);
+    p.projection.noteConnection(false); // the socket drops before SyncStatus
+    const theirEdit = p.teammate(touched);
+    p.projection.noteConnection(true);
+    p.deliver(theirEdit); // the reconnect's sync step 2
+    await p.settle();
+    expect(p.conflicts).toEqual([]);
+    expect(htmlFromDoc(p.ours)).toBe(touched);
+    expect(p.disk()).toBe(touched);
+  });
+
+  test('a remote change that depends on our unconfirmed edit ends the check, even with no drop seen', async () => {
+    // A hub that relays work built on ours but withholds our ack: the shadow
+    // cannot apply it, which proves the "taken before ours" premise broke.
+    const p = pair(src('aaa'));
+    expect(p.save(mine)).toBe(true);
+    hubTookOurs(p);
+    p.deliver(p.teammate(built));
+    await p.settle();
+    expect(p.conflicts).toEqual([]);
+    expect(htmlFromDoc(p.ours)).toBe(built);
+    expect(p.disk()).toBe(built);
+  });
+
+  test('an edit made offline is still checked across failed reconnect attempts', async () => {
+    const p = pair();
+    p.projection.noteConnection(false);
+    expect(p.save(src('designer frozen'))).toBe(true);
+    // Each failed attempt reports a drop; nothing of ours has gone anywhere.
+    p.projection.noteConnection(false);
+    p.projection.noteConnection(false);
+    const theirEdit = p.teammate(src('teammate frozen'));
+    p.projection.noteConnection(true);
+    p.deliver(theirEdit);
+    await p.settle();
+    expect(p.conflicts.map((c) => c.reason)).toEqual(['offline-overlap']);
+    expect(p.disk()).toBe(src('designer frozen'));
+    expect(htmlFromDoc(p.ours)).toBe(src('teammate frozen'));
+  });
+
+  test('after a drop, the next edit is checked on a base that holds the edit in flight', async () => {
+    const p = pair();
+    expect(p.save(src('designer', 'black'))).toBe(true);
+    p.projection.noteConnection(false); // did the hub take "designer"? unknown
+    expect(p.save(src('designer', 'blue'))).toBe(true);
+    const theirEdit = p.teammate(src('base', 'red'));
+    p.projection.noteConnection(true);
+    p.deliver(theirEdit);
+    await p.settle();
+    expect(p.conflicts.map((c) => c.reason)).toEqual(['offline-overlap']);
+    expect(p.disk()).toBe(src('designer', 'blue'));
+    // Their colour over the state our offline edit replaced — never the bare
+    // base, which would pull the in-flight title out of the project.
+    expect(htmlFromDoc(p.ours)).toBe(src('designer', 'red'));
+  });
+});
+
+// V2-8.9 final review, L1 — a merge too large to diff says nothing about
+// whether the two edits touch, so it must not claim "the same part".
+describe('a merge past its budget (V2-8.9 L1)', () => {
+  test('a large teammate edit elsewhere is left to the CRDT merge, with no overlap notice', async () => {
+    // The teammate adds a long note above the component and another below it,
+    // one step each: every step is a plain insert, but base -> theirs spans
+    // our title with more change than the diff budget allows.
+    const note = (c: string) => `/* ${c.repeat(3000)} */\n`;
+    const p = pair();
+    expect(p.save(src('designer'))).toBe(true);
+    p.deliver(p.teammate(note('b') + src('base')));
+    p.deliver(p.teammate(note('b') + src('base') + note('c')));
+    await p.settle();
+    expect(p.conflicts).toEqual([]);
+    expect(htmlFromDoc(p.ours)).toBe(note('b') + src('designer') + note('c'));
+  });
+});
+
 describe('syncUpdateFromMessage', () => {
   const frame = (type: number, sync: number | null, payload: Uint8Array) => {
     const e = encoding.createEncoder();
