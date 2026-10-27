@@ -52,6 +52,8 @@ while IFS= read -r f; do
   done < <(grep -aE "^[[:space:]]*(import|export|\})" "$f" 2>/dev/null |
     grep -a -oE "from '(\.\.?/)+[A-Za-z0-9_./-]+\.(ts|tsx|mjs|jsx)'" |
     sed "s|^from '||;s|'$||")
-done < <(git ls-files '*.ts' '*.tsx' '*.mjs' '*.jsx' | grep -v node_modules | grep -v '/test/')
+# `.ai/` is evidence, not product: the fidelity harness copies under .ai/plans/notes/v2-evidence keep the relative
+# imports of the place they ran from, and nothing ships or imports them (V2-8.1, 2026-10-27).
+done < <(git ls-files '*.ts' '*.tsx' '*.mjs' '*.jsx' | grep -v node_modules | grep -v '/test/' | grep -v '^\.ai/')
 [ "$missing" = 0 ] && echo "import coherence: OK"
 exit $missing
