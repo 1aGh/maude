@@ -224,6 +224,8 @@ fi
 . "$(dirname "$0")/_no-egress.sh"
 # p8-e2e-fix-r10: on exit, a page this capture opened is parked on about:blank and its session closed.
 . "$(dirname "$0")/_ab-park.sh"
+# p8-e2e-fix-r11: a headless browser, and a daemon that shuts itself down when a killed capture leaves it idle.
+. "$(dirname "$0")/_ab-headless.sh"
 if [ "$ENGINE" = "auto" ]; then
   if command -v "$AB" >/dev/null 2>&1; then
     ENGINE="agent-browser"
@@ -232,25 +234,9 @@ if [ "$ENGINE" = "auto" ]; then
   fi
 fi
 
-# ---------- browser resolution for agent-browser (DDR — bundled screenshots) ----------
-# agent-browser needs a Chrome-family engine. On a fresh desktop machine there's
-# no system Chrome, so resolve (or, on the desktop path only, one-time download)
-# `chrome-headless-shell` and point agent-browser at it via
-# AGENT_BROWSER_EXECUTABLE_PATH. Honor a caller-set value; leave the web/CLI path
-# untouched (--no-download → resolve an EXISTING browser only, never a surprise
-# ~94 MB fetch; agent-browser keeps its own system-Chrome default if nothing's
-# found). The desktop bundle sets MAUDE_DEV_SERVER_ROOT (sidecar.rs) — the signal
-# that a one-time provisioning download is wanted for the zero-install experience.
-if [ "$ENGINE" = "agent-browser" ] && [ -z "$AGENT_BROWSER_EXECUTABLE_PATH" ]; then
-  ES_DIR="$(cd "$(dirname "$0")" && pwd)"
-  ES_FLAGS="--quiet"
-  [ -z "$MAUDE_DEV_SERVER_ROOT" ] && ES_FLAGS="--quiet --no-download"
-  BROWSER_PATH="$(bash "$ES_DIR/ensure-browser.sh" $ES_FLAGS 2>/dev/null)"
-  if [ -n "$BROWSER_PATH" ] && [ -x "$BROWSER_PATH" ]; then
-    export AGENT_BROWSER_EXECUTABLE_PATH="$BROWSER_PATH"
-    echo "→ agent-browser browser: $BROWSER_PATH" >&2
-  fi
-fi
+# ---------- browser resolution for agent-browser (DDR-144 — bundled screenshots) ----------
+# chrome-headless-shell, resolved (desktop: provisioned once) by _ab-headless.sh — canvas-rects.sh uses the same.
+ab_headless_browser
 echo "→ screenshot engine: $ENGINE | url: $URL" >&2
 
 # ---------- engine: agent-browser ----------
