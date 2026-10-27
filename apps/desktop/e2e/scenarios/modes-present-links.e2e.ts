@@ -133,10 +133,25 @@ describe('follow a link and back (S3.10a)', () => {
     expect(await $('[data-testid="preview-bar-back"]').isExisting()).toBe(false);
     // the chip is Edit chrome: gone in Preview
     expect(await inFrame('edit-link-chip')).toBeNull();
-    const h1 = await rectOf(HEADING);
-    await click(h1!.x, h1!.y);
-    await $('[data-testid="preview-bar-back"]').waitForExist({
-      timeout: 10000,
+    // a click that lands before the frame has taken Preview selects instead of following (2026-10-27 V2-8.3
+    // record): measure again and click again until the other canvas opens, never once it has
+    const back = $('[data-testid="preview-bar-back"]');
+    await browser
+      .waitUntil(
+        async () => {
+          if (await back.isExisting()) return true;
+          const h1 = await rectOf(HEADING);
+          if (h1) await click(h1.x, h1.y);
+          return back.waitForExist({ timeout: 2500 }).then(
+            () => true,
+            () => false
+          );
+        },
+        { timeout: 15000, interval: 250 }
+      )
+      .catch(() => undefined);
+    await back.waitForExist({
+      timeout: 1000,
       timeoutMsg: 'following the link never opened the other canvas',
     });
     expect(await barText('preview-bar-title')).toContain('Cut');
