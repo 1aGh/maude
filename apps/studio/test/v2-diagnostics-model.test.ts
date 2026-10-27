@@ -10,6 +10,7 @@ import {
   menuStatuses,
   modeStamp,
   parseLine,
+  readMenuInfo,
   serverWord,
   syncWord,
   tilde,
@@ -108,6 +109,35 @@ describe('rows left out', () => {
     });
     expect(serverWord({ cloud: { role: 'owner' }, unreachable: true }).word).toBe('Not responding');
     expect(serverWord({ cloud: null }).word).toBe('Running');
+  });
+  // p8-e2e-fix-r7 (parity-cloud): a cell never serves /_api/diagnostics (workspace-mode forbidden list), so the
+  // menu's read of it 404s in every cloud tab — and that 404 used to turn the Server row into "Not responding".
+  test('a cloud tab never asks /_api/diagnostics, so the Server row stays "Runs in the cloud"', async () => {
+    const cloud = { role: 'viewer' };
+    let asked = 0;
+    const notServed = async () => {
+      asked++;
+      return new Response('Not found', { status: 404 });
+    };
+    const read = await readMenuInfo({ cloud, host: 'studio.example', fetchFn: notServed });
+    expect(asked).toBe(0);
+    expect(read.unreachable).toBe(false);
+    expect(read.info).toMatchObject({ address: 'studio.example', folder: '', pid: null });
+    expect(menuStatuses({ ...read, cloud, wsConnected: true })['diag.server'].word).toBe(
+      'Runs in the cloud'
+    );
+  });
+  test('a desktop copy reads /_api/diagnostics; a failed read is "Not responding"', async () => {
+    const ok = async () =>
+      Response.json({ projectFolder: '/Users/me/p', sources: { server: { status: { pid: 42 } } } });
+    const read = await readMenuInfo({ cloud: null, host: '127.0.0.1:4399', fetchFn: ok });
+    expect(read).toMatchObject({ unreachable: false, info: { pid: 42, folder: '/Users/me/p' } });
+    const down = async (): Promise<Response> => {
+      throw new Error('ECONNREFUSED');
+    };
+    const gone = await readMenuInfo({ cloud: null, host: 'h', fetchFn: down });
+    expect(gone.unreachable).toBe(true);
+    expect(menuStatuses({ ...gone, wsConnected: true })['diag.server'].word).toBe('Not responding');
   });
   test('a desktop copy with a file plane has both; without one, no Download all; unlinked, neither', () => {
     expect(hiddenMenuIds({ syncStatus: linked({ files: {} }) })).toEqual([]);

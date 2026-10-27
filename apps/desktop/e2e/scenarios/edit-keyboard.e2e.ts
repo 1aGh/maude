@@ -49,18 +49,24 @@ export default function Smoke() {
 }
 `;
 
-/** A keydown on the frame's document (the way a key reaches the canvas once focus is in the frame). */
-async function press(key: string, init: Record<string, unknown> = {}): Promise<void> {
+/** A keydown on the frame's document (the way a key reaches the canvas once focus is in the frame). `onBody`: on
+ *  its body instead — where a real key lands with nothing focused (a real keydown never targets the document). */
+async function press(
+  key: string,
+  init: Record<string, unknown> = {},
+  onBody = false
+): Promise<void> {
   await browser.execute(
-    (k, i) => {
+    (k, i, b) => {
       const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
       const doc = frame.contentDocument as Document;
-      doc.dispatchEvent(
+      (b ? doc.body : doc).dispatchEvent(
         new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...i })
       );
     },
     key,
-    init
+    init,
+    onBody
   );
 }
 
@@ -102,6 +108,19 @@ describe('keyboard only (S2.21)', () => {
         }),
       { timeout: 15000 }
     );
+    // The page written above is an outside change: the canvas wears the live "AI’s new SMOKE/01 · KEYS" rim until
+    // the file goes idle (artboard-activity-overlay.tsx), and a walk started under it lost its level (r7fix/a5: the
+    // failure shot has the rim, Services selected, no badges). Start once the rim has gone.
+    await browser.waitUntil(
+      async () =>
+        browser.execute(() => {
+          const f = document.querySelector(
+            '[data-testid="canvas-frame"]'
+          ) as HTMLIFrameElement | null;
+          return !f?.contentDocument?.querySelector('.dc-activity-badge');
+        }),
+      { timeout: 20000, interval: 200, timeoutMsg: 'the outside-change rim never went' }
+    );
   });
   after(() => fixtures.restore());
 
@@ -127,8 +146,16 @@ describe('keyboard only (S2.21)', () => {
 
   it('↵ goes inside; tab then numbers 3.1…3.3 in the order the cards are drawn', async () => {
     const report = startReport('edit-keyboard-inside');
-    await press('Enter');
-    await settle();
+    // On the BODY, as a real ↵ with nothing focused lands: the canvas's own ↵ listener takes only a bare-canvas
+    // target (focus-model.tsx `isBareCanvasTarget` — body or html), and a key dispatched on the document itself went
+    // through the shell's keymap round trip instead, which lost the walk in a loaded lane (r7, r7fix/a3, a4).
+    await press('Enter', {}, true);
+    await browser
+      .waitUntil(async () => (await readFrame()).said.includes('Brand systems'), {
+        timeout: 5000,
+        interval: 100,
+      })
+      .catch(() => undefined);
     const s = await readFrame();
     expect(s.badges.filter((b) => b.includes('.'))).toEqual(['3.1', '3.2', '3.3']);
     // inside, the first stop is the first card DRAWN (Brand systems), not the one that reads first by name
@@ -140,7 +167,13 @@ describe('keyboard only (S2.21)', () => {
     expect(second.said).toContain('Websites');
     await capture(report, 'inside');
     await press('Escape');
-    await settle();
+    // esc steps out through the same shell round trip (`object.step-out` comes back as a run-action)
+    await browser
+      .waitUntil(async () => (await readFrame()).on === '3', {
+        timeout: 5000,
+        interval: 100,
+      })
+      .catch(() => undefined);
     expect((await readFrame()).on).toBe('3');
   });
 

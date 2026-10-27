@@ -1,6 +1,7 @@
 import { $, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
 import {
+  closeSettings,
   exists,
   identifyShell,
   Key,
@@ -216,7 +217,7 @@ describe(`shell parity (${target()})`, () => {
     await browser.keys([Key.Escape]);
     await browser.keys([Key.Command, ',']);
     await (await $(tid('settings-sheet'))).waitForExist({ timeout: 10_000 });
-    await (await $(tid('settings-close'))).click();
+    await closeSettings();
   });
 
   it('says where the AI chat lives: a plain row on the desktop, a greyed note in a cloud tab, nothing elsewhere', async () => {

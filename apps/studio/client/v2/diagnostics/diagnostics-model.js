@@ -118,6 +118,21 @@ export function diagnosticsInfo(payload, { host = '', folder = '' } = {}) {
   };
 }
 
+/**
+ * What the menu learns when it opens: `{ info, unreachable }` for `menuStatuses`. A cloud tab does not ask
+ * `GET /_api/diagnostics` — a cell never serves it (workspace-mode.ts forbids it: it reads the process logs),
+ * so its 404 is not news about the server, and the Server row stays "Runs in the cloud".
+ */
+export async function readMenuInfo({ cloud = null, host = '', fetchFn } = {}) {
+  if (cloud) return { info: diagnosticsInfo({ projectFolder: '' }, { host }), unreachable: false };
+  try {
+    const r = await (fetchFn ?? globalThis.fetch)('/_api/diagnostics');
+    return { info: diagnosticsInfo(await r.json(), { host }), unreachable: false };
+  } catch {
+    return { info: null, unreachable: true };
+  }
+}
+
 // ── Logs ──────────────────────────────────────────────────────────────────────────────────────
 
 export const LOG_SOURCES = Object.freeze(['sync', 'server', 'ai', 'export']);

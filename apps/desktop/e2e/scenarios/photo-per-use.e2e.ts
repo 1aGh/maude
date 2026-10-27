@@ -214,6 +214,14 @@ describe('photo edits change one use (S8.15)', () => {
     const edit8 = attrOn('photo');
     await (await $('[data-testid="photo-reset"]')).click();
     await browser.waitUntil(async () => attrOn('photo') === null, { timeout: 8000 });
+    // The file lands before the write's answer reaches the panel, and the undo step is recorded with that answer
+    // (photo-section.jsx `reset`: setCurrent(null) and onRecordEdit in one callback) — a ⌘Z sent in between undid
+    // the Mono step instead (r7fix/a2). `data-edit` leaving the section is that answer.
+    await browser.waitUntil(
+      async () =>
+        (await (await $('[data-testid="photo-section"]')).getAttribute('data-edit')) === null,
+      { timeout: 8000, timeoutMsg: 'the Photo tab never heard the Reset answer' }
+    );
     await browser.keys(['Meta', 'z']);
     await browser.waitUntil(async () => attrOn('photo') === edit8, {
       timeout: 10000,
@@ -245,7 +253,21 @@ describe('photo edits change one use (S8.15)', () => {
       timeout: 10000,
       timeoutMsg: 'Apply never took the use’s own edit off',
     });
-    expect(JSON.parse(readFileSync(everyUse, 'utf8'))).toMatchObject({
+    // read the every-use file once its write has settled: the read raced a doc that had only its `version` yet
+    // (r7fix/a5) — the assertion below is the same, on the settled bytes
+    const everyDoc = () => {
+      try {
+        return JSON.parse(readFileSync(everyUse, 'utf8')) as {
+          adjustments?: { grayscale?: number };
+        };
+      } catch {
+        return {};
+      }
+    };
+    await browser
+      .waitUntil(async () => everyDoc().adjustments?.grayscale === 1, { timeout: 8000 })
+      .catch(() => undefined);
+    expect(everyDoc()).toMatchObject({
       adjustments: { grayscale: 1 },
     });
   });

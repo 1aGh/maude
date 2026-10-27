@@ -2,8 +2,8 @@ import { execFileSync, spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-
 import { browser } from '@wdio/globals';
+import { E2E_APP_ARGS } from './app-front';
 
 /**
  * The tab session the shell saved in the e2e app-state (V2-3.9 relaunch scenario):
@@ -57,7 +57,7 @@ export function appPid(): number {
   const esc = bin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   let pids: number[] = [];
   try {
-    pids = execFileSync('pgrep', ['-f', `^${esc}$`], { encoding: 'utf8' })
+    pids = execFileSync('pgrep', ['-f', `^${esc}( |$)`], { encoding: 'utf8' })
       .split('\n')
       .map(Number)
       .filter((n) => n > 0);
@@ -129,7 +129,7 @@ export async function waitGone(pid: number, ms: number): Promise<number> {
 export async function startApp(): Promise<number> {
   const bin = appBinary();
   const port = process.env.TAURI_WEBDRIVER_PORT ?? '4455';
-  const child = spawn(bin, [], {
+  const child = spawn(bin, [...E2E_APP_ARGS], {
     env: { ...process.env, TAURI_WEBDRIVER_PORT: port, WDIO_EMBEDDED_SERVER: 'true' },
     stdio: 'ignore',
     detached: true,
