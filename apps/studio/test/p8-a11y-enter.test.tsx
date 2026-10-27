@@ -11,14 +11,20 @@ beforeAll(() => {
   GlobalRegistrator.register();
   (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 });
-afterAll(() => GlobalRegistrator.unregister());
+afterAll(async () => {
+  // The last test's toast host unmounts a React root, which queues a scheduler tick; if it fires after the
+  // DOM is gone it throws "window is not defined" between files (bun counts it as an error). Let it run first.
+  await new Promise((r) => setTimeout(r, 50));
+  GlobalRegistrator.unregister();
+});
 const roots: Root[] = [];
 afterEach(async () => {
   for (const r of roots.splice(0)) await act(async () => r.unmount());
   // "filled in from code" raises a canvas toast, which mounts a standalone NotificationHost (its own React root and
   // Sonner subscription). Clearing the body leaves that root alive and rendering into the NEXT file's document
   // (p8-c8-ann-hidden-toast then saw two toasts): tear the host down with the DOM.
-  (await import('../canvas-notifications.tsx')).disposeCanvasToastHost();
+  const { disposeCanvasToastHost } = await import('../canvas-notifications.tsx');
+  await act(async () => disposeCanvasToastHost());
   document.body.innerHTML = '';
 });
 
