@@ -26,10 +26,8 @@ test('the allowlist is exactly the basics, a slot-local home and the caches', ()
     'BUN_INSTALL_CACHE_DIR',
     'GIT_CONFIG_GLOBAL',
     'HOME',
-    'HUBS_CONFIG_PATH',
     'LANG',
     'MAUDE_CLAUDE_BIN',
-    'MAUDE_CLOUD_CONFIG',
     'MAUDE_NO_AUTOBUILD',
     'NO_OPEN',
     'PATH',
@@ -40,9 +38,14 @@ test('the allowlist is exactly the basics, a slot-local home and the caches', ()
     'npm_config_devdir',
     'npm_config_store_dir',
   ]);
-  for (const v of ['HOME', 'XDG_CONFIG_HOME', 'TMPDIR', 'MAUDE_CLOUD_CONFIG', 'HUBS_CONFIG_PATH'])
+  // cloud.json / hubs.json derive from XDG_CONFIG_HOME ($H/cfg), never named (remote-lane.sh comment)
+  for (const v of ['HOME', 'XDG_CONFIG_HOME'])
     assert.match(sandbox, new RegExp(`"${v}=\\$H[/"]`), `${v} lives under the slot home`);
-  assert.match(remote, /H="\$D\/\.runner-home"/);
+  // the PSD/HEIC sandbox profile denies reads under HOME, so the temp dir is a sibling of it
+  assert.match(sandbox, /"TMPDIR=\$T"/);
+  // both outside the checkout: a HOME inside the project root makes "~ is outside the project" untrue
+  assert.match(remote, /H="\$R\/home\/slot\$got"/);
+  assert.match(remote, /T="\$R\/tmp\/slot\$got"/);
   assert.match(sandbox, /"PATH=\$H\/bin:/, 'the stub claude dir is first on PATH');
   assert.match(remote, /writeStubClaude/);
 });

@@ -120,10 +120,11 @@ git clean -qfd -e node_modules -e .scr -e .runner-deps </dev/null >/dev/null 2>&
 # TMPDIR is likewise outside HOME ($R/tmp/slot<n>): the PSD/HEIC converter's sandbox-exec profile
 # denies every read under HOME (and its parent lookups), so a work dir under $H/tmp made every
 # conversion fail (import-convert).
-H="$D/.runner-home"
+# HOME is outside the checkout too ($R/home/slot<n>): under the slot a HOME inside the project root made
+# "~ is outside the project" untrue, so confine-out's refusal tests failed only here (V2-8.1, 2026-10-27).
+H="$R/home/slot$got"
 T="$R/tmp/slot$got"
-rm -rf "$H" "$T" && mkdir -p "$H/bin" "$T" "$H/cfg/maude" "$R/cache/bun" "$R/cache/npm" "$R/cache/node-gyp"
-grep -qx '/.runner-home/' .git/info/exclude 2>/dev/null || echo '/.runner-home/' >>.git/info/exclude
+rm -rf "$H" "$T" "$D/.runner-home" && mkdir -p "$H/bin" "$T" "$H/cfg/maude" "$R/cache/bun" "$R/cache/npm" "$R/cache/node-gyp"
 SANDBOX=(env -i
   "PATH=$H/bin:$R/tools/bin:$R/tools/node24/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
   "HOME=$H" "XDG_CONFIG_HOME=$H/cfg" "TMPDIR=$T" "LANG=${LANG:-C.UTF-8}"
