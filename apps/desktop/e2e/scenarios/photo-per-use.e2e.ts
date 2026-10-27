@@ -225,10 +225,23 @@ describe('photo edits change one use (S8.15)', () => {
       { timeout: 8000, timeoutMsg: 'the Photo tab never heard the Reset answer' }
     );
     await browser.keys(['Meta', 'z']);
-    await browser.waitUntil(async () => attrOn('photo') === edit8, {
-      timeout: 10000,
-      timeoutMsg: '⌘Z never put the use’s edit back',
-    });
+    await browser
+      .waitUntil(async () => attrOn('photo') === edit8, { timeout: 10000 })
+      .catch(async () => {
+        // p8-e2e-fix-r11: green 8/8 alone, red once under a full lane — say which path the ⌘Z took next time:
+        // the op-log stack the shell undid from, and whether the window held the focus the key needs
+        const why = await browser
+          .execute(async () => {
+            const r = await fetch('/_api/project/undo-stack?canvas=.design/ui/Smoke.tsx');
+            return JSON.stringify({
+              focus: document.hasFocus(),
+              active: document.activeElement?.getAttribute('data-testid') ?? document.activeElement?.tagName,
+              stack: await r.text(),
+            }).slice(0, 1500);
+          })
+          .catch((e: Error) => `(no stack: ${e.message})`);
+        throw new Error(`⌘Z never put the use’s edit back (${edit8}; file has ${attrOn('photo')}) — ${why}`);
+      });
     // the panel follows the file: with the use's own edit back, Mono is the look it shows again
     await browser.waitUntil(
       async () =>
