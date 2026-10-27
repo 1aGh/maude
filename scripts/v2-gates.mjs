@@ -160,8 +160,8 @@ const GATES = [
         `printf '#!/bin/sh\\necho {\\\\"loggedIn\\\\":false}\\n' > "$STUB/claude"; chmod +x "$STUB/claude"`,
         'export PATH="$STUB:$HOME/.cargo/bin:$PATH" MAUDE_CLAUDE_BIN= MAUDE_E2E_ON_TOP=1',
         '(cd apps/studio && MAUDE_SKIP_RUNTIME_BUILD=1 bun run build.ts --release)',
-        'rm -f apps/studio/dist/maude-darwin-arm64',
-        '(cd apps/desktop && npx --no-install tauri build --debug --config src-tauri/tauri.e2e.conf.json)',
+        // the release build compiles the sidecar into dist/; the app build's sync-sidecar needs it
+        '(cd apps/desktop && MAUDE_SKIP_RUNTIME_BUILD=1 npx --no-install tauri build --debug --config src-tauri/tauri.e2e.conf.json)',
         'cd apps/desktop/e2e',
         `for i in 1 2 3; do for l in ${E2E_LANES.join(' ')}; do echo "== run $i lane $l"; npm run --silent "$l" || exit 1; done; done`,
       ].join('\n')
