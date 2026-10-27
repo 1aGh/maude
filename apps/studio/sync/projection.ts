@@ -50,6 +50,7 @@ import {
 import { type EchoGuard, hashBytes } from './echo-guard.ts';
 import type { SyncJournal } from './journal.ts';
 import { MAX_CSS_BYTES, MAX_HTML_BYTES, MAX_META_BYTES, withinByteCap } from './limits.ts';
+import { createOverlapWatch } from './offline-overlap.ts';
 import { ORIGINS } from './origins.ts';
 import { collapseRepeatedModule, collapseRepeatedText } from './repeated-module.ts';
 import type { RevisionBarrier } from './revision-barrier.ts';
@@ -97,7 +98,12 @@ export interface ProjectionPaths {
 export interface BodyRejection {
   slug: string;
   kind: 'body-rejected';
-  reason: 'invalid-source' | 'local-edit' | 'history-failed' | 'merge-budget';
+  /**
+   * `offline-overlap` (V2-8.17, #121) — legacy shared document: this side and
+   * a teammate changed the same part of the body while apart, and the hub
+   * took theirs first. The project keeps theirs; this disk keeps ours.
+   */
+  reason: 'invalid-source' | 'local-edit' | 'history-failed' | 'merge-budget' | 'offline-overlap';
   snapshotFailed: boolean;
 }
 
@@ -171,6 +177,13 @@ export interface DocProjectionOptions {
    */
   canWriteDoc?: () => boolean;
   onWriteBlocked?: () => void;
+  /**
+   * V2-8.17 (#121) — did this transaction origin come off the wire from the
+   * hub? Turns on the legacy offline-overlap check (sync/offline-overlap.ts),
+   * fed by `noteRemoteUpdate` + `noteConfirmed`. Unset: no check (the CRDT
+   * merge stands, as before).
+   */
+  isRemoteOrigin?: (origin: unknown) => boolean;
 }
 
 export type ProposalLane = 'html' | 'css' | 'meta' | 'annotations' | 'comments';
@@ -316,6 +329,14 @@ export interface DocProjection {
   /** Re-deliver file changes held while the document was not writable. */
   retryDeferred(): void;
   /**
+   * V2-8.17 (#121) — a raw document update as the hub sent it, BEFORE the
+   * provider applies it. Legacy mode replays it onto the offline-overlap
+   * shadow while a local body edit is unconfirmed.
+   */
+  noteRemoteUpdate(update: Uint8Array): void;
+  /** V2-8.17 — the hub acknowledged every change this connection sent. */
+  noteConfirmed(): void;
+  /**
    * Accepted mode: a privileged API route is about to rewrite the canvas
    * source (it announces this with `activity:suppress`). Captures the exact
    * bytes that edit is based on, and holds the doc→file writer until the
@@ -358,6 +379,10 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
   let ready = !opts.waitForReconcile;
   let observedBody = readLocal(paths.html);
   let rejectedKey: string | null = null;
+  /** V2-8.17 — the legacy offline-overlap episode (null: check off). */
+  const overlap = opts.isRemoteOrigin ? createOverlapWatch() : null;
+  /** V2-8.17 — an offline overlap is held on disk until a save or a pick resolves it. */
+  let overlapHeld = false;
   let validationCache: { body: string; error: string | null } | null = null;
 
   function recovered(): void {
@@ -379,6 +404,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     }
     if (rejectedKey !== null) opts.onRecovered?.();
     rejectedKey = null;
+    overlapHeld = false;
   }
 
   function validation(body: string): string | null {
@@ -462,8 +488,48 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     }
     // The accepted replica is the hub's to change — a local repair would be a
     // write the fenced connection drops, leaving this replica diverged.
-    if (!acceptedOn()) repairSeedDuplication(doc, ORIGINS.DISK_PROJECTION);
+    if (!acceptedOn()) {
+      if (overlap?.open && opts.isRemoteOrigin?.(origin)) {
+        const hit = overlap.check();
+        if (hit) surfaceOverlap(hit.base, hit.theirs);
+      }
+      repairSeedDuplication(doc, ORIGINS.DISK_PROJECTION);
+    }
     scheduleFlush();
+  }
+
+  /**
+   * V2-8.17 (#121) — the hub took a teammate's overlapping edit before ours
+   * (offline-overlap.ts). Do what accepted revisions do for the rejected
+   * side: the project keeps THEIR version — this side writes it back over
+   * the character-level merge, so no peer is left holding the interleaving —
+   * and this disk keeps OURS, held with a conflict until a save or a pick
+   * resolves it; their version is saved beside it (sync-recovery/incoming).
+   */
+  function surfaceOverlap(base: string, theirs: string): void {
+    const disk = readLocal(paths.html);
+    try {
+      doc.transact(() => {
+        if (applyHtmlToDoc(doc, theirs, importOrigin)) stampBodyEdit(doc, importOrigin);
+      }, importOrigin);
+    } catch {
+      /* the conflict below still stops this disk from taking the merge */
+    }
+    // A save from here is authored on top of the project's version (the one
+    // the conflict shows) — the next one resolves it, as in accepted mode.
+    lastHtml = theirs;
+    observedBody = null;
+    overlapHeld = true;
+    // A restart re-derives the same conflict: the last body both sides agreed
+    // on is the merge base cold start trusts (migrate-seed), so the two edits
+    // still touch there and the canvas stays held instead of either side
+    // silently winning.
+    rememberBase(base);
+    opts.journal?.record(slug, { bodyHash: hashBytes(base) });
+    console.warn(
+      `[projection/${slug}] a teammate changed the same part of this canvas while apart; the project kept theirs, this disk keeps yours.`
+    );
+    reject('offline-overlap', disk, theirs, paths.html, base);
   }
 
   function scheduleFlush(): void {
@@ -586,7 +652,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       return false;
     }
     if (local !== observedBody && local !== next) {
-      reject('local-edit', local, next);
+      reject(overlapHeld ? 'offline-overlap' : 'local-edit', local, next);
       return false;
     }
     try {
@@ -1160,6 +1226,9 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
         reject('history-failed', str, htmlFromDoc(doc));
         return false;
       }
+      // V2-8.17 — until the hub acknowledges this edit, a remote change to the
+      // same part of the body is a teammate's offline edit (offline-overlap.ts).
+      if (next !== current) overlap?.beforeLocal(doc);
       // Body import + syncMeta stamp in ONE transaction (same FILE_IMPORT
       // origin) — peers get a single update carrying the newest-wins stamp.
       let changed = false;
@@ -1174,6 +1243,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       }
       observedBody = str;
       lastHtml = str;
+      if (changed) overlap?.afterLocal(htmlFromDoc(doc));
       recovered();
       if (htmlFromDoc(doc) !== str) {
         // A synchronous peer update can land during the import transaction.
@@ -1384,6 +1454,12 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     cancelLocalWrite() {
       localWrite = null;
       scheduleFlush();
+    },
+    noteRemoteUpdate(update: Uint8Array) {
+      if (!stopped && !acceptedOn()) overlap?.remote(update);
+    },
+    noteConfirmed() {
+      overlap?.confirmed();
     },
     retryDeferred() {
       if (stopped || heldWhileReadOnly.size === 0) return;
