@@ -121,10 +121,31 @@ function abEval(expr) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * p8-e2e-fix-r10 (decision maude/v2-p8-e2e-fix-r10-captures-close-their-page): the session is a daemon, and a
+ * canvas page left open in it stays a live collab peer of whatever server answers on that port next. On every
+ * exit — measured, refused or crashed — park the page on about:blank and close the session (bin/_ab-park.sh is
+ * the shell helpers' copy of this).
+ */
+let opened = false;
+function parkSession() {
+  if (!opened) return;
+  opened = false;
+  for (const step of [['open', 'about:blank'], ['close']]) {
+    try {
+      ab(step);
+    } catch {
+      /* already gone */
+    }
+  }
+}
+process.on('exit', parkSession);
+
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
 
   try {
+    opened = true;
     ab(['open', opts.url]);
   } catch (err) {
     console.error(`_perf-probe.mjs: agent-browser could not open ${opts.url}\n${err.message}`);

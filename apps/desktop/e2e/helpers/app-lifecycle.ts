@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { dirname, join } from 'node:path';
 
 /**
  * One app per spec file — the launcher half (wdio.conf.ts `onWorkerEnd`).
@@ -69,3 +70,59 @@ function signal(pid: number, sig: NodeJS.Signals): void {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * p8-e2e-fix-r10 — the agent-browser daemons the e2e app's sidecar started, and every browser under them.
+ *
+ * `maude design screenshot` (the Report-a-Bug shot, an AI capture) runs the bundled agent-browser, whose session is
+ * a DAEMON: it outlives the helper, the sidecar and the app. One a 03:36 default-lane spec left behind still had
+ * `localhost:4400/_canvas-shell.html?canvas=.design/ui/Print.tsx` open at 05:43, and every later spec's sidecar on
+ * :4400 got that page back as a collab peer, which merged one more copy of Print's source into the room per run
+ * until the sync refused it (the cloud lane's "1 source change was not applied" red). The helpers now close their
+ * page on exit (apps/studio/bin/_ab-park.sh); this is the harness's own net, run while no app runs.
+ *
+ * Only processes whose executable IS `<the e2e app's MacOS dir>/agent-browser` (the debug bundle this lane runs)
+ * and their descendants. A person's own agent-browser (another path) is never touched. Returns the pids signalled.
+ */
+export async function reapE2eAgentBrowsers(
+  appBinary: string,
+  { timeoutMs = 5000, table = processTable() } = {}
+): Promise<number[]> {
+  const ab = join(dirname(appBinary), 'agent-browser');
+  const roots = table
+    .filter((p) => p.command === ab || p.command.startsWith(`${ab} `))
+    .map((p) => p.pid);
+  const all = new Set<number>();
+  const walk = (pid: number) => {
+    if (all.has(pid)) return;
+    all.add(pid);
+    for (const c of table) if (c.ppid === pid) walk(c.pid);
+  };
+  for (const r of roots) walk(r);
+  const pids = [...all];
+  for (const pid of pids) signal(pid, 'SIGTERM');
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline && pids.some(alive)) await sleep(200);
+  for (const pid of pids.filter(alive)) signal(pid, 'SIGKILL');
+  if (pids.length)
+    console.warn(
+      `[app-lifecycle] reaped ${roots.length} agent-browser daemon(s) of the e2e app, ${pids.length} process(es)`
+    );
+  return pids;
+}
+
+/** `ps` as { pid, ppid, command } rows (the full command line). */
+export function processTable(): { pid: number; ppid: number; command: string }[] {
+  try {
+    return execFileSync('ps', ['-axo', 'pid=,ppid=,command='], {
+      encoding: 'utf8',
+      maxBuffer: 16 * 1024 * 1024,
+    })
+      .split('\n')
+      .map((l) => /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(l))
+      .filter((m): m is RegExpExecArray => m !== null)
+      .map((m) => ({ pid: Number(m[1]), ppid: Number(m[2]), command: m[3] }));
+  } catch {
+    return [];
+  }
+}

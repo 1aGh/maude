@@ -110,6 +110,8 @@ OUT_DIR="$(cd "$OUT_DIR" && pwd)"
 # renders on loopback only (dead loopback proxy, WebRTC pinned, a session of its own). The
 # playwright lane goes through screenshot.sh, which sources the same file.
 . "$(dirname "$0")/_no-egress.sh"
+# p8-e2e-fix-r10: on exit, the page the sweep opened is parked on about:blank and its session closed.
+. "$(dirname "$0")/_ab-park.sh"
 
 # ---------- engine resolution ----------
 if [ "$ENGINE" = "auto" ]; then
@@ -479,6 +481,8 @@ lint_artboard_isolation
 
 FAILED=0
 N=0
+# A sweep never leaves a canvas open as a collab peer (_ab-park.sh); the loop below opens one per canvas.
+[ "$ENGINE" = "agent-browser" ] && ab_park_arm
 while IFS= read -r CANVAS; do
   [ -z "$CANVAS" ] && continue
   N=$((N + 1))

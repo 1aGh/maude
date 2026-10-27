@@ -222,6 +222,8 @@ if [ "$MODE" = "shell" ] && [ -z "$AGENT_BROWSER_SESSION" ]; then
 fi
 # V2-8.9 M1: AI may › Search the web off (MAUDE_NO_EGRESS=1) → this browser reaches loopback only.
 . "$(dirname "$0")/_no-egress.sh"
+# p8-e2e-fix-r10: on exit, a page this capture opened is parked on about:blank and its session closed.
+. "$(dirname "$0")/_ab-park.sh"
 if [ "$ENGINE" = "auto" ]; then
   if command -v "$AB" >/dev/null 2>&1; then
     ENGINE="agent-browser"
@@ -499,6 +501,9 @@ record_shot() {
   local repo="${REPO:-${ROOT:-${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}}"
   bash "$(cd "$(dirname "$0")" && pwd)/_record-shot.sh" --root "$repo" --canvas "$ACTIVE" "$@" >/dev/null 2>&1 || true
 }
+
+# A capture never outlives itself as a collab peer (_ab-park.sh): every path below opens the page.
+[ "$ENGINE" = "agent-browser" ] && ab_park_arm
 
 # ---------- --all-screens loop ----------
 if [ $ALL_SCREENS -eq 1 ]; then
