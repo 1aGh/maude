@@ -78,6 +78,9 @@ export NO_OPEN=1 MAUDE_NO_AUTOBUILD=1
 # A clean git identity/config for the run: the mini owner's global config must not leak into
 # tests (e.g. the url.insteadOf security probe).
 export GIT_CONFIG_GLOBAL="$R/tools/gitconfig"
+# The mini's login env carries the owner's Claude credentials; a test or a spawned studio must
+# never inherit them (the suite stubs claude, and a real token would let a stray child sign in).
+unset CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN CLAUDE_CONFIG_DIR
 mkdir -p "$R/locks" "$R/runs"
 # ssh to this host (Tailscale) reports 0 whatever the remote exit is, so the real code goes to a file.
 got=""
