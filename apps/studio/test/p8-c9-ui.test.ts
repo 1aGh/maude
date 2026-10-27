@@ -49,7 +49,10 @@ describe('cf-open-big: zen share cluster', () => {
   test('the zen hide rule sits in @layer components (the layer .maude .btn sets display in)', () => {
     const css = read('v2/shell/share-cluster.css');
     const zen = '.sh-share[data-zen="true"] > :not([data-testid="share-cluster-panels"])';
-    expect(layerBlocks(css, 'components').some((b) => b.includes(zen))).toBe(true);
+    // biome wraps the selector over two lines: compare each block on one line
+    expect(layerBlocks(css, 'components').some((b) => b.replace(/\s+/g, ' ').includes(zen))).toBe(
+      true
+    );
     expect(layerBlocks(css, 'shell').some((b) => b.includes(zen))).toBe(false);
   });
 });

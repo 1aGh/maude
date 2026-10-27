@@ -66,6 +66,29 @@ describe('video.cut-to-beat', () => {
     ]);
   });
 
+  test('a title that starts inside the rolled clip stays, whichever way the cut rolls (trim-in no longer ripples it)', () => {
+    // trim-in ripples only what starts at or after the clip's OLD end (a239cd57f); the roll must undo
+    // exactly that ripple — nothing more, nothing less.
+    const fromOf = (src: string) => /name="title" from=\{(\d+)\}/.exec(src)?.[1];
+    // later: cut 210 → 224 (d = +14); three spans 210..270, the title at 262 sits inside it and
+    // inside the 14-frame window just before the old end that a naive threshold would shift
+    const later = run(comp().replace('from={240}', 'from={262}'), {
+      beats: [0, 32, 64, 96, 128, 160, 192, 224, 256],
+      sources: { 'a.mp4': 4, 'b.mp4': 10 },
+    });
+    expect(later?.detail).toEqual({ moved: 2, kept: [] });
+    expect(fromOf(later?.source as string)).toBe('262');
+    // earlier: cut 90 → 80 (d = −10); two spans 90..210. A title inside it (150) stays, one after it (215) stays too
+    for (const at of ['150', '215']) {
+      const earlier = run(comp().replace('from={240}', `from={${at}}`), {
+        beats: [0, 40, 80, 120, 160, 200, 240],
+        sources: { 'a.mp4': 4, 'b.mp4': 10 },
+      });
+      expect(fromOf(earlier?.source as string), `title at ${at}`).toBe(at);
+      expect(earlier?.source).toContain('const TOTAL = 270;');
+    }
+  });
+
   test('a cut without the source handle is reported and stays', () => {
     const beats = [0, 40, 80, 120, 160, 200, 240]; // ½ beat = 20
     // cut 90 → 80: two has 30 frames before its in-point — moves. cut 210 → 200: three starts at
