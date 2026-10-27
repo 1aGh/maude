@@ -151,12 +151,21 @@ describe('modes-present (S3.13)', () => {
     await chord('Enter', 'Enter', { altKey: true, metaKey: true }); // Present from Preview
     await browser.waitUntil(async () => (await pressed()).join() === 'present', { timeout: 6000 });
     expect(await pressed()).toEqual(['present']);
+    // each step lands a beat after its key (the 2026-10-27 record read `preview` right after the second esc):
+    // wait for it; a step that lands on the wrong mode is still red
+    const landsOn = async (mode: string) => {
+      await browser
+        .waitUntil(async () => (await pressed()).join() === mode, { timeout: 4000, interval: 100 })
+        .catch(() => undefined);
+      expect(await pressed()).toEqual([mode]);
+    };
     await chord('Escape', 'Escape');
     // returnTo: Present entered from Preview goes back to Preview, not to Edit
-    expect(await pressed()).toEqual(['preview']);
+    await landsOn('preview');
     await chord('Escape', 'Escape');
-    expect(await pressed()).toEqual(['edit']);
+    await landsOn('edit');
     await chord('Escape', 'Escape'); // Edit with nothing selected: nothing happens
+    await browser.pause(400);
     expect(await pressed()).toEqual(['edit']);
     await capture('esc ladder done');
   });
