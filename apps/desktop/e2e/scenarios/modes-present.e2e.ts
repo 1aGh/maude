@@ -50,6 +50,14 @@ const pressed = () =>
       .map((e) => (e.getAttribute('data-testid') ?? '').replace('palette-mode-', ''))
   );
 
+/** The switch lands a beat after its key: wait for it, then assert — a step that lands on the wrong mode is still red. */
+async function landsOn(mode: string) {
+  await browser
+    .waitUntil(async () => (await pressed()).join() === mode, { timeout: 4000, interval: 100 })
+    .catch(() => undefined);
+  expect(await pressed()).toEqual([mode]);
+}
+
 describe('modes-present (S3.13)', () => {
   before(async () => {
     fixtures.snapshot();
@@ -73,26 +81,29 @@ describe('modes-present (S3.13)', () => {
     expect(await exists('mode-present-order-notes')).toBe(true);
     await capture('present menu');
     await chord('Escape', 'Escape'); // a menu closes first, whatever the mode
+    await browser
+      .waitUntil(async () => !(await exists('mode-present-list')), { timeout: 4000, interval: 100 })
+      .catch(() => undefined);
     expect(await exists('mode-present-list')).toBe(false);
-    expect(await pressed()).toEqual(['edit']);
+    await landsOn('edit');
   });
 
   it('Preview ⇄ Edit: ⌥⌘P and esc', async () => {
     await chord('p', 'KeyP', { altKey: true, metaKey: true });
     await $(tid('preview-bar')).waitForExist({ timeout: 6000 });
-    expect(await pressed()).toEqual(['preview']);
+    await landsOn('preview');
     // 04 md-preview: the faces and the status word step aside (CONTRACT §5.4)
     expect(await $(tid('share-cluster')).getAttribute('data-cluster')).toBe('compact');
     expect(await $(tid('share-cluster-faces')).isDisplayed()).toBe(false);
     await capture('preview');
     await chord('Escape', 'Escape');
-    expect(await pressed()).toEqual(['edit']);
+    await landsOn('edit');
   });
 
   it('Present from selection: the counter, the label, then esc back to Edit', async () => {
     await chord('Enter', 'Enter', { altKey: true, metaKey: true });
     await $(tid('present-controls')).waitForExist({ timeout: 8000 });
-    expect(await pressed()).toEqual(['present']);
+    await landsOn('present');
     expect(await text('present-counter')).toMatch(/^\d+ \/ \d+$/);
     expect(await text('present-label')).not.toBe('');
     // 04 md-present-full: only the work — no shell chrome
@@ -112,7 +123,7 @@ describe('modes-present (S3.13)', () => {
     expect(await text('present-pill')).toContain('Presenting the canvas');
     await capture('present the canvas');
     await chord('Escape', 'Escape');
-    expect(await pressed()).toEqual(['edit']);
+    await landsOn('edit');
   });
 
   // Pending a fixture: the S3.3 helper steps `›` to a SECOND video artboard and checks the first clip stopped
@@ -153,12 +164,6 @@ describe('modes-present (S3.13)', () => {
     expect(await pressed()).toEqual(['present']);
     // each step lands a beat after its key (the 2026-10-27 record read `preview` right after the second esc):
     // wait for it; a step that lands on the wrong mode is still red
-    const landsOn = async (mode: string) => {
-      await browser
-        .waitUntil(async () => (await pressed()).join() === mode, { timeout: 4000, interval: 100 })
-        .catch(() => undefined);
-      expect(await pressed()).toEqual([mode]);
-    };
     await chord('Escape', 'Escape');
     // returnTo: Present entered from Preview goes back to Preview, not to Edit
     await landsOn('preview');
