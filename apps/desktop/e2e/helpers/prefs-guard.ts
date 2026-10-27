@@ -102,7 +102,8 @@ function inE2eDir(path: string): boolean {
 /** Why this environment would reach the person's real config, or null when it is the lane's own. */
 export function isolationProblem(env: StartEnv): string | null {
   if (!env.readable) return 'environment unreadable (cannot prove isolation)';
-  if (!env.XDG_CONFIG_HOME) return `XDG_CONFIG_HOME unset (prefs → ${env.HOME ?? '$HOME'}/.config/maude)`;
+  if (!env.XDG_CONFIG_HOME)
+    return `XDG_CONFIG_HOME unset (prefs → ${env.HOME ?? '$HOME'}/.config/maude)`;
   if (!isE2eConfigHome(env.XDG_CONFIG_HOME)) {
     return `XDG_CONFIG_HOME=${env.XDG_CONFIG_HOME} is not a maude-e2e-* home`;
   }
@@ -139,7 +140,13 @@ export function descendants(rows: ProcessRow[], roots: number[]): Set<number> {
 }
 
 /** `descendant`: under the lane's roots — the only offenders the guard may kill. */
-export type Offender = { pid: number; ppid: number; command: string; why: string; descendant: boolean };
+export type Offender = {
+  pid: number;
+  ppid: number;
+  command: string;
+  why: string;
+  descendant: boolean;
+};
 
 /** `ps eww` lines for these pids (pid → line). A pid that exited in between is simply absent. */
 function startLines(pids: number[]): Map<number, string> {
@@ -180,7 +187,13 @@ export function sample(opts: { roots: number[]; laneStarted: number; self?: numb
     if (line === undefined) continue; // gone
     const why = isolationProblem(envOf(line));
     if (why === null) continue;
-    const o = { pid: r.pid, ppid: r.ppid, command: r.command.slice(0, 300), why, descendant: under.has(r.pid) };
+    const o = {
+      pid: r.pid,
+      ppid: r.ppid,
+      command: r.command.slice(0, 300),
+      why,
+      descendant: under.has(r.pid),
+    };
     (owned.has(r.pid) ? offenders : foreign).push(o);
   }
   return { offenders, foreign };

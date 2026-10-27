@@ -72,7 +72,10 @@ test('isolated = a maude-e2e-* XDG home, and a prefs path (when named) inside on
     /XDG_CONFIG_HOME=/
   );
   assert.match(
-    guard.isolationProblem({ readable: true, XDG_CONFIG_HOME: join(tmpdir(), 'v2-lane-config.Ab12') }),
+    guard.isolationProblem({
+      readable: true,
+      XDG_CONFIG_HOME: join(tmpdir(), 'v2-lane-config.Ab12'),
+    }),
     /XDG_CONFIG_HOME=/
   );
   assert.match(
@@ -109,7 +112,10 @@ test('the lane owns a descendant of its roots or a process born after it started
     { pid: 21, ppid: 1, started: 9_000, command: 'maude-server --root /relaunched' },
   ];
   const owned = guard.laneOwned(rows, { roots: [10], laneStarted: 5_000 });
-  assert.deepEqual([...owned].sort((a, b) => a - b), [10, 11, 12, 21]);
+  assert.deepEqual(
+    [...owned].sort((a, b) => a - b),
+    [10, 11, 12, 21]
+  );
 });
 
 // ── live: a real process table ─────────────────────────────────────────────────────────────────────────────────────
