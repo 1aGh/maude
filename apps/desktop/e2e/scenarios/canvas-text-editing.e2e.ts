@@ -287,6 +287,19 @@ async function waitEditor(open: boolean, timeout = 5_000) {
   return annotEditorProbe();
 }
 
+/** Wait for the artboard h1 to leave edit mode (and drop its custom caret) after Escape. */
+async function waitH1Closed(timeout = 5_000) {
+  await browser
+    .waitUntil(
+      async () => {
+        const p = await probe(H1);
+        return p.ce === null && p.customCaret === false;
+      },
+      { timeout, interval: 100 }
+    )
+    .catch(() => undefined);
+}
+
 /** Wait for the Text tool's input-capture overlay (armed by its key) — `synthPointerOn` returns false without it. */
 async function waitInput(timeout = 5_000) {
   await browser
@@ -521,7 +534,7 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     await capture('artboard-edit-mode-caret-at-click');
     // Escape exits WITHOUT committing — fixture stays byte-identical on disk.
     await synthKey('Escape');
-    await browser.pause(200);
+    await waitH1Closed();
     const after = await probe(H1);
     expect(after.ce).toBeNull();
     expect(after.text).toBe('Maude desktop E2E');
@@ -637,7 +650,7 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     await capture('artboard-custom-caret');
     // Teardown disposes the caret and restores the element.
     await synthKey('Escape');
-    await browser.pause(200);
+    await waitH1Closed();
     const after = await probe(H1);
     expect(after.ce).toBeNull();
     expect(after.customCaret).toBe(false);
