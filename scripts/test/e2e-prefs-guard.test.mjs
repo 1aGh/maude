@@ -176,6 +176,10 @@ test('the share-roles world keeps each person’s config in a maude-e2e-* dir', 
   const src = readFileSync(new URL('share-roles/stand-up.mjs', E2E), 'utf8');
   assert.doesNotMatch(src, /'maude-share-roles-'/);
   assert.match(src, /mkdtempSync\(join\(tmpdir\(\), 'maude-e2e-share-roles-'\)\)/);
+  // each studio spreads process.env: the wrapper's MAUDE_UI_PREFS_PATH would win over its throwaway XDG home
+  const at = src.indexOf('async function bootStudio');
+  const boot = src.slice(at, src.indexOf('const proc = spawn(', at));
+  assert.match(boot, /MAUDE_UI_PREFS_PATH: join\(root, 'config', 'maude', 'prefs\.json'\)/);
 });
 
 // ── live: a real process table ─────────────────────────────────────────────────────────────────────────────────────
