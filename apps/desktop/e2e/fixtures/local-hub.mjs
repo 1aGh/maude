@@ -51,6 +51,36 @@ export function findNode24(env = process.env) {
   );
 }
 
+// What a local hub child inherits from the shell that runs the lane: an allowlist, never `{...process.env}`.
+// The hub reads its store, backup, tenant and cloud settings from env (MAUDE_PROJECT_STORE_URL/_TOKEN,
+// MAUDE_S3_*, MAUDE_BACKUP_*, HUB_*, MAUDE_TENANT_ID — apps/hub/src/server.mjs), so a developer shell that
+// carries any of them (or AWS_*/CLOUDFLARE_*/GH_TOKEN) would point a test hub at a real store. Whatever
+// the rig needs it sets itself through `extra` (p8-secfix-f F4).
+const HUB_ENV_KEEP = new Set([
+  'PATH',
+  'HOME',
+  'TMPDIR',
+  'TMP',
+  'TEMP',
+  'LANG',
+  'TZ',
+  'USER',
+  'LOGNAME',
+  'SHELL',
+  'TERM',
+  'NO_OPEN',
+  'MAUDE_HUB_DEBUG',
+]);
+
+/** The env a local hub child runs with: the allowlisted basics of `base`, plus what the caller sets. */
+export function hubEnv(extra = {}, base = process.env) {
+  const env = {};
+  for (const [k, v] of Object.entries(base)) {
+    if (v !== undefined && (HUB_ENV_KEEP.has(k) || k.startsWith('LC_'))) env[k] = v;
+  }
+  return { ...env, ...extra };
+}
+
 /**
  * Start a local hub. Resolves once it listens (and its accepted-revisions store is ready).
  * @param {{ dir: string, transactions?: boolean, users?: boolean, cloudKey?: string, node?: string }} opts
@@ -61,13 +91,14 @@ export function startLocalHub(opts) {
   const args = [join(REPO, 'apps/hub/test/fixtures/serve-hub.mjs'), opts.dir, '0'];
   if (opts.transactions !== false) args.push('--transactions');
   if (opts.users !== false) args.push('--users');
-  const env = { ...process.env, PATH: `${dirname(node)}${delimiter}${process.env.PATH ?? ''}` };
+  const env = hubEnv({ PATH: `${dirname(node)}${delimiter}${process.env.PATH ?? ''}` });
   if (opts.cloudKey) {
     env.MAUDE_CLOUD_IDENTITY = '1';
     env.MAUDE_PROJECT_TOKEN_KEY = opts.cloudKey;
   }
+  const spawnHub = opts.spawn ?? spawn;
   return new Promise((ok, fail) => {
-    const proc = spawn(node, args, { env, stdio: ['ignore', 'pipe', 'pipe'] });
+    const proc = spawnHub(node, args, { env, stdio: ['ignore', 'pipe', 'pipe'] });
     let buf = '';
     const timer = setTimeout(() => {
       proc.kill('SIGTERM');
