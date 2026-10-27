@@ -102,6 +102,7 @@ export function AccessLayer({
   linkOff,
   tip,
   tipAt,
+  appOnly,
   project,
   canvas,
   trashedItem,
@@ -125,6 +126,7 @@ export function AccessLayer({
       {tip && !trashedItem ? (
         <ViewOnlyTip
           canvas={canvas}
+          appOnly={appOnly}
           className={tipAt ? 'v2ac-tip--shell v2ac-tip--at' : 'v2ac-tip--shell'}
           style={tipAt ? tipStyle(tipAt) : undefined}
         />
@@ -144,6 +146,7 @@ export function AccessHost({
   project,
   canEdit,
   role,
+  appOnly,
   toast,
   run,
   onOpenTab,
@@ -264,6 +267,7 @@ export function AccessHost({
       linkOff={state.linkOff}
       tip={tip}
       tipAt={tipAt}
+      appOnly={appOnly}
       project={project}
       canvas={rel}
       trashedItem={trashedItem}
