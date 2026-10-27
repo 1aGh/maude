@@ -8,6 +8,7 @@ import { capture, startReport } from '../helpers/evidence';
 import { pointerClick } from '../helpers/pointer';
 import { readServerInfo, waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
+import { selectUntilIsland } from '../helpers/select-artboard';
 
 /**
  * 07 Video Editing — the AI cut, shot by shot, and Stop (S7.14: ve-ai-scrub, ve-ai-proposal; V2-1.10 §7 "AI cut").
@@ -142,7 +143,7 @@ describe('video-ai-cut-stop — reel-place × 7, Stop, one action, one ⌘Z', ()
     await waitForArtboard('recap'); // a blank comp has no element boxes, so not the rects hook
     const box = (await artboardBox('recap')) as Box;
     expect(box).not.toBeNull();
-    await clickAt(box.x + 12, box.y - 10);
+    await selectUntilIsland(() => artboardBox('recap'), clickAt);
     await $('[data-testid="timeline-island"]').waitForExist({ timeout: 15_000 });
 
     const begun = await post('/_api/agent/run/begin', {

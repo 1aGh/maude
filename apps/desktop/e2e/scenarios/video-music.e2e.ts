@@ -10,6 +10,7 @@ import { lineDiff, withNetProbe } from '../helpers/net-probe';
 import { pointerClick } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
+import { selectUntilIsland } from '../helpers/select-artboard';
 
 /**
  * 07 Video Editing — a music bed that knows its beat (S7.12: ve-music).
@@ -89,7 +90,7 @@ describe('video-music — a music bed with its beat: ticks, Music inspector, Low
     await waitForArtboard('reel'); // a comp with no element boxes never fills the rects hook
     const box = (await artboardBox('reel')) as Box;
     expect(box).not.toBeNull();
-    await clickAt(box.x + 12, box.y - 10);
+    await selectUntilIsland(() => artboardBox('reel'), clickAt);
     await $('[data-testid="timeline-island"]').waitForExist({ timeout: 15_000 });
     await dismissNotices(); // first-run notices stack over the island's bottom edge
     await $('[data-testid="timeline-beat-ticks"]').waitForExist({

@@ -4,6 +4,7 @@ import { capture, startReport } from '../helpers/evidence';
 import { pointerClick } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
+import { selectUntilIsland } from '../helpers/select-artboard';
 
 /**
  * 07 Video Editing — play in place, loop a range, step frames (S7.8, ve-play):
@@ -72,7 +73,7 @@ describe('video-play — play in place, loop a range, step frames', () => {
     await waitForCanvasRects();
     const box = (await artboardBox('reel')) as Box;
     expect(box).not.toBeNull();
-    await clickAt(box.x + 12, box.y - 10);
+    await selectUntilIsland(() => artboardBox('reel'), clickAt);
     await island().waitForExist({ timeout: 15_000 });
     // the cut's beats (and with them the ruler the loop range draws on) arrive after the island
     await (await $('[data-testid="timeline-seq-0"]')).waitForExist({ timeout: 20_000 });

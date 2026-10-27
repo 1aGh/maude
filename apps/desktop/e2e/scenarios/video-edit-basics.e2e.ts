@@ -10,6 +10,7 @@ import { withNetProbe } from '../helpers/net-probe';
 import { pointerClick, pointerDown, pointerMove, pointerUp } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
+import { selectUntilIsland } from '../helpers/select-artboard';
 
 /**
  * 07 Video Editing — trim, split, the clip menu, drop (S7.9: ve-drop, ve-trim-split, ve-move-transition).
@@ -90,7 +91,7 @@ describe('video-edit-basics — trim, split, the clip menu, drop', () => {
     await waitForCanvasRects();
     const box = (await artboardBox('reel')) as Box;
     expect(box).not.toBeNull();
-    await clickAt(box.x + 12, box.y - 10);
+    await selectUntilIsland(() => artboardBox('reel'), clickAt);
     await $('[data-testid="timeline-island"]').waitForExist({ timeout: 15_000 });
     await browser.waitUntil(async () => (await beatCount()) === 3, {
       timeout: 20_000,

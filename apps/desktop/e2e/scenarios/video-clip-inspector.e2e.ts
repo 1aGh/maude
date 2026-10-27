@@ -11,6 +11,7 @@ import { pointerClick } from '../helpers/pointer';
 import { setSelect } from '../helpers/select';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
+import { selectUntilIsland } from '../helpers/select-artboard';
 
 /**
  * 07 Video Editing — the clip inspector, the join picker and a title's motion (S7.10: ve-transition, ve-text).
@@ -81,7 +82,7 @@ describe('video-clip-inspector — the clip inspector, the join picker, a title�
     await waitForCanvasRects();
     const box = (await artboardBox('reel')) as Box;
     expect(box).not.toBeNull();
-    await clickAt(box.x + 12, box.y - 10);
+    await selectUntilIsland(() => artboardBox('reel'), clickAt);
     await $('[data-testid="timeline-island"]').waitForExist({ timeout: 15_000 });
     await dismissNotices(); // first-run notices stack over the island's bottom edge
     await $('[data-testid="timeline-seq-0"]').waitForExist({ timeout: 20_000 });

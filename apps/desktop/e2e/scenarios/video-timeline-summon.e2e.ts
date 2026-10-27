@@ -4,6 +4,7 @@ import { capture, startReport } from '../helpers/evidence';
 import { bareCanvasPoint, pointerClick } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
+import { selectUntilIsland } from '../helpers/select-artboard';
 
 /**
  * 07 Video Editing — the timeline that comes with a video artboard (S7.7, ve-none / ve-select / ve-deselect):
@@ -84,7 +85,7 @@ describe('video-timeline-summon — the timeline comes with a video artboard', (
     const box = await artboardBox('clip');
     expect(box).not.toBeNull();
     // the artboard's label strip sits just above its body: a click there selects the whole artboard
-    await clickAt((box as Box).x + 12, (box as Box).y - 10);
+    await selectUntilIsland(() => artboardBox('clip'), clickAt);
     await island().waitForExist({
       timeout: 15_000,
       timeoutMsg: 'the timeline island never came out',
@@ -147,7 +148,7 @@ describe('video-timeline-summon — the timeline comes with a video artboard', (
     const away = await bare();
     await clickAt(away.x, away.y);
     const box = (await artboardBox('clip')) as Box;
-    await clickAt(box.x + 12, box.y - 10);
+    await selectUntilIsland(() => artboardBox('clip'), clickAt);
     await island().waitForExist({ timeout: 15_000 });
     // empty canvas, away from the artboard: the selection clears
     const away2 = await bare();

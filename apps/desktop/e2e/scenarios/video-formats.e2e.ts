@@ -10,6 +10,7 @@ import { lineDiff, withNetProbe } from '../helpers/net-probe';
 import { pointerClick, pointerDown, pointerMove, pointerUp } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
+import { selectUntilIsland } from '../helpers/select-artboard';
 
 /**
  * 07 Video Editing — one video, many formats, and framing each its own way (S7.13: ve-formats, ve-reframe).
@@ -136,7 +137,7 @@ describe('video-formats — Add a format, Make an unlinked copy, Re-frame a clip
     // the artboard's name strip selects the WHOLE artboard; its body would pick the video player inside it
     await dismissNotices(); // a first-run notice over the artboard's label would take the click
     await withNetProbe(async () => {
-      await clickAt(box.x + 12, box.y - 10);
+      await selectUntilIsland(() => artboardBox('reel'), clickAt);
       await $('[data-testid="timeline-island"]').waitForExist({ timeout: 15_000 });
       await dismissNotices(); // first-run notices stack over the island's bottom edge
       await $('[data-testid="inspector-kind"]').waitForExist({ timeout: 15_000 });

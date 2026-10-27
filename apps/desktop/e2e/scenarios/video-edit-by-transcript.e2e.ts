@@ -10,6 +10,7 @@ import { withNetProbe } from '../helpers/net-probe';
 import { pointerClick } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
+import { selectUntilIsland } from '../helpers/select-artboard';
 
 /**
  * 07 Video Editing — captions from speech and edit by transcript (S7.11: ve-text, ve-captions; V2-1.10 §7).
@@ -77,7 +78,7 @@ describe('video-edit-by-transcript — captions from speech, cut by striking a w
     await waitForCanvasRects();
     const box = (await artboardBox('reel')) as Box;
     expect(box).not.toBeNull();
-    await pointerClick(box.x + 12, box.y - 10);
+    await selectUntilIsland(() => artboardBox('reel'), pointerClick);
     await $('[data-testid="timeline-island"]').waitForExist({ timeout: 15_000 });
     await dismissNotices(); // first-run notices stack over the island's bottom edge
   });
