@@ -281,6 +281,36 @@ describe('the cloud forwarder', () => {
     }
   });
 
+  test('POST requests: a forwarded name carries no bidi or control characters, and is NFC', async () => {
+    const owner = await listen(hub.ws, t.owner, docOf(A));
+    try {
+      const cases = [
+        ['\u202Eevil', 'evil'],
+        ['Vera\u200B\u0007 V\u2066.', 'Vera V.'],
+        ['Vera\u0301', 'Ver\u00E1'],
+      ];
+      for (const [i, [name, want]] of cases.entries()) {
+        reply = () => [201, { id: `req_bidi${i}`, from: { name } }];
+        await http(hub.http, t.viewer).post('/api/access/requests', {});
+        await until(() => owner.heard.length === i + 1, 3000, `the owner hears request ${i}`);
+        const got = owner.heard.at(-1).msg.from.name;
+        assert.equal(got, want, JSON.stringify(name));
+        assert.doesNotMatch(got, /[\p{Cc}\p{Cf}]/u);
+      }
+      // nothing but control characters: no name, so the e-mail's local part
+      reply = () => [201, { id: 'req_bidi_empty', from: { name: '\u202E\u200F' } }];
+      await http(hub.http, t.viewer).post('/api/access/requests', {});
+      await until(
+        () => owner.heard.length === cases.length + 1,
+        3000,
+        'the owner hears the last one'
+      );
+      assert.equal(owner.heard.at(-1).msg.from.name, 'vera');
+    } finally {
+      owner.close();
+    }
+  });
+
   test('the gate still runs first: a member cannot reach the invite forwarder', async () => {
     const before = seen.length;
     const r = await http(hub.http, t.member).post('/api/access/invites', {

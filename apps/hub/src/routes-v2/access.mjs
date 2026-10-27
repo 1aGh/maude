@@ -130,9 +130,19 @@ const capsAt = (access, canvas) =>
   Object.fromEntries(CAPABILITIES.map((c) => [c, access.can(c, canvas)]));
 
 const nameOf = (email) => String(email ?? '').split('@')[0];
-/** The control plane's `from.name` on a forwarded Ask to edit: a short, non-empty string, or null. */
+/**
+ * The control plane's `from.name` on a forwarded Ask to edit: a short, non-empty string, or null.
+ * Control and format characters (bidi overrides, zero-width marks) are dropped and the rest is
+ * NFC, so a name cannot reorder or hide what the owner reads next to it.
+ */
 const forwardedName = (from) => {
-  const n = typeof from?.name === 'string' ? from.name.trim() : '';
+  const n =
+    typeof from?.name === 'string'
+      ? from.name
+          .normalize('NFC')
+          .replace(/[\p{Cc}\p{Cf}]/gu, '')
+          .trim()
+      : '';
   return n && n.length <= 80 ? n : null;
 };
 
