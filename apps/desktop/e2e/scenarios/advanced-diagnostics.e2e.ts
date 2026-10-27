@@ -59,7 +59,26 @@ describe('advanced-diagnostics', () => {
   it('2 · a source filter narrows the tail; the foot names the retention', async () => {
     const sync = await $(tid('diag-logs-filter-sync'));
     await sync.click();
+    // the pressed state and the narrowed list draw on the next render, not inside the click: wait for both
+    // (a filter that never narrows still fails on the data-source expect below)
+    await browser
+      .waitUntil(async () => (await sync.getAttribute('aria-pressed')) === 'true', {
+        timeout: 4_000,
+        interval: 100,
+      })
+      .catch(() => undefined);
     expect(await sync.getAttribute('aria-pressed')).toBe('true');
+    await browser
+      .waitUntil(
+        async () => {
+          for (const li of await $$(`${tid('diag-logs-lines')} li`)) {
+            if ((await li.getAttribute('data-source')) !== 'sync') return false;
+          }
+          return true;
+        },
+        { timeout: 4_000, interval: 100 }
+      )
+      .catch(() => undefined);
     const lines = await $$(`${tid('diag-logs-lines')} li`);
     for (const li of lines) expect(await li.getAttribute('data-source')).toBe('sync');
     await (await $(tid('diag-logs-filter-all'))).click();
@@ -160,6 +179,8 @@ describe('advanced-diagnostics', () => {
     await toggle.waitForDisplayed({ timeout: 10_000 });
     // folds are remembered per Mac: open it only when it is closed
     if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+    // the fold opens on the next render, not inside the click
+    await (await $(tid('vh-advanced'))).waitForDisplayed({ timeout: 5_000 }).catch(() => undefined);
     expect(await (await $(tid('vh-advanced'))).isDisplayed()).toBe(true);
     expect(await fitsItsPanel('fold-history-body')).toBe(true);
     await capture('07-history-advanced');
