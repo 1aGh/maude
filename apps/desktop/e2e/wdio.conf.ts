@@ -24,7 +24,7 @@ import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { browser } from '@wdio/globals';
-import { bringAppToFront, keepAppInFront } from './helpers/app-front';
+import { bringAppToFront, E2E_APP_ARGS, keepAppInFront } from './helpers/app-front';
 import { stopE2eApp } from './helpers/app-lifecycle';
 import { isE2eConfigHome } from './helpers/config-home';
 import {
@@ -399,7 +399,14 @@ export const config: WebdriverIO.Config = {
   // (which also carries the wdio plugin under debug_assertions and would answer on
   // 4445 — that contention made an early run drive the wrong project). The service
   // forwards this as TAURI_WEBDRIVER_PORT to the spawned e2e app.
-  services: [['@wdio/tauri-service', { embeddedPort: Number(process.env.TAURI_WEBDRIVER_PORT) }]],
+  // E2E_APP_ARGS (helpers/app-front.ts): `-ApplePersistenceIgnoreState YES` — after a crash, macOS would hold the
+  // next launch behind its modal "reopen windows?" dialog, in front of the person's screen and every later spec.
+  services: [
+    [
+      '@wdio/tauri-service',
+      { embeddedPort: Number(process.env.TAURI_WEBDRIVER_PORT), appArgs: [...E2E_APP_ARGS] },
+    ],
+  ],
 
   logLevel: 'info',
   framework: 'mocha',

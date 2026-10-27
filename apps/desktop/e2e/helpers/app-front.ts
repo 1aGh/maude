@@ -4,6 +4,13 @@ import { execFile, execFileSync } from 'node:child_process';
 const E2E_BUNDLE_ID = 'com.maude.app.e2e';
 
 /**
+ * The arguments every e2e app launch carries. `-ApplePersistenceIgnoreState YES` is an NSArgumentDomain default
+ * (this process only, nothing written): without it, one crashed app leaves macOS's modal "quit unexpectedly while
+ * reopening windows" dialog in front of the next launch — on the person's screen, and in the way of every later spec.
+ */
+export const E2E_APP_ARGS = Object.freeze(['-ApplePersistenceIgnoreState', 'YES']);
+
+/**
  * Make the e2e app the active app, so its window is on top and is the key window.
  *
  * A covered WKWebView is throttled (timers, rAF, layout — memory maude-webkit-locked-screen-invalid) and a window
