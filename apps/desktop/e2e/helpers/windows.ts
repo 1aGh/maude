@@ -156,7 +156,16 @@ export async function waitWindow(label: string, present = true, timeout = 10_000
  *  wait until its document is visible (rAF running again). */
 export async function focusTab(label: string): Promise<void> {
   await browser.switchToWindow(label);
-  await invokeTauri('e2e_focus_window', { label });
+  // A tab opened a moment ago can still be between documents (splash → its server): the invoke then throws a
+  // JavaScript exception, so ask again until the page can (2026-10-27 V2-8.3 record, tabs-identity run 1).
+  await browser.waitUntil(
+    () =>
+      invokeTauri('e2e_focus_window', { label }).then(
+        () => true,
+        () => false
+      ),
+    { timeout: 15_000, interval: 250, timeoutMsg: `tab ${label} never took e2e_focus_window` }
+  );
   await browser.waitUntil(async () => browser.execute(() => !document.hidden), {
     timeout: 5_000,
     interval: 50,
