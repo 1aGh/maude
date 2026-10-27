@@ -17,10 +17,11 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  writeFileSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
 import { homedir, tmpdir } from 'node:os';
-import { dirname, join, resolve, sep } from 'node:path';
+import { delimiter, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { browser } from '@wdio/globals';
@@ -33,7 +34,7 @@ import {
   resetFixtureRuntime,
   restoreFixtureTree,
 } from './helpers/fixture-tree';
-import { startPrefsGuard, stopPrefsGuard } from './helpers/prefs-guard';
+import { reapOrphanE2eSidecars, startPrefsGuard, stopPrefsGuard } from './helpers/prefs-guard';
 import { pinCurrentWindow } from './helpers/windows';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -264,6 +265,19 @@ process.env.MAUDE_E2E_ON_TOP ??= '1';
 // The lane's start, stamped once in the launcher (the workers inherit it): the reap stops a browser agent-browser
 // started that launchd adopted only when it started after this (helpers/app-lifecycle.ts, p8-e2e-fix-r11).
 process.env.MAUDE_E2E_LANE_STARTED ??= String(Date.now());
+// p8-e2e-isolation-r13 — the lane's own `claude`: a stub that answers "signed out", named EXPLICITLY in
+// MAUDE_CLAUDE_BIN and first on PATH. Under any MAUDE_E2E_* marker the studio's resolver answers only
+// MAUDE_CLAUDE_BIN (acp/probe.ts) and the app keeps this PATH (sidecar.rs), so no spec can reach the person's real
+// `~/.local/bin/claude` and through it the real keychain (the 2026-10-27 V2-8.3 record). A lane that needs a claude
+// that is signed in names its own stub (helpers/fake-ai.ts); acp-cold-start empties it to simulate none. The guard
+// below fails the lane on any other `claude` in its tree.
+if (!process.env.MAUDE_CLAUDE_BIN) {
+  const dir = mkdtempSync(join(tmpdir(), 'maude-e2e-claude-'));
+  const stub = join(dir, 'claude');
+  writeFileSync(stub, `#!/bin/sh\necho '{"loggedIn":false}'\n`, { mode: 0o755 });
+  process.env.MAUDE_CLAUDE_BIN = stub;
+  process.env.PATH = `${dir}${delimiter}${process.env.PATH ?? ''}`;
+}
 // p8-e2e-fix-r12 §0 — the real-config tripwire, for the whole lane (launcher only): every 0.5 s, any maude-server /
 // server.ts / bun / `maude --root` process this lane started that lacks a maude-e2e-* XDG_CONFIG_HOME (or names a
 // MAUDE_UI_PREFS_PATH outside one) kills the e2e app and fails the lane with exit 98 (helpers/prefs-guard.ts). r11's
@@ -279,6 +293,12 @@ if (!process.env.WDIO_WORKER_ID) {
     roots: [process.pid],
     laneStarted: Number(process.env.MAUDE_E2E_LANE_STARTED),
     appPath,
+    // read at every sample: a lane conf names its own stub after this module ran (helpers/fake-ai.ts)
+    laneClaudes: () => [
+      process.env.MAUDE_CLAUDE_BIN,
+      process.env.MAUDE_E2E_CLAUDE_INSTALL_PATH,
+      join(HERE, 'fixtures'),
+    ],
   });
 }
 
@@ -291,6 +311,8 @@ if (!process.env.WDIO_WORKER_ID) {
 export async function completeLane(): Promise<void> {
   stopPrefsGuard();
   await reapE2eAgentBrowsers(resolveAppPath());
+  // p8-e2e-isolation-r13 — sidecars (and their ACP agent / claude children) launchd adopted when an e2e app died
+  await reapOrphanE2eSidecars(resolveAppPath());
   releaseFixtureTree();
 }
 
@@ -417,6 +439,7 @@ export const config: WebdriverIO.Config = {
   // canvas, open tabs) — `_*` is outside the tree restore.
   onWorkerEnd: async () => {
     await stopE2eApp(Number(process.env.TAURI_WEBDRIVER_PORT));
+    await reapOrphanE2eSidecars(resolveAppPath());
     // p8-e2e-fix-r10: a capture this spec's sidecar started (Report-a-Bug, an AI screenshot) is an agent-browser
     // DAEMON with the canvas still open — the next spec's sidecar on the same port would get it as a collab peer
     await reapE2eAgentBrowsers(resolveAppPath());
