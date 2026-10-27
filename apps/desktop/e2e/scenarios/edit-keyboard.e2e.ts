@@ -49,18 +49,24 @@ export default function Smoke() {
 }
 `;
 
-/** A keydown on the frame's document (the way a key reaches the canvas once focus is in the frame). */
-async function press(key: string, init: Record<string, unknown> = {}): Promise<void> {
+/** A keydown on the frame's document (the way a key reaches the canvas once focus is in the frame). `onBody`: on
+ *  its body instead — where a real key lands with nothing focused (a real keydown never targets the document). */
+async function press(
+  key: string,
+  init: Record<string, unknown> = {},
+  onBody = false
+): Promise<void> {
   await browser.execute(
-    (k, i) => {
+    (k, i, b) => {
       const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
       const doc = frame.contentDocument as Document;
-      doc.dispatchEvent(
+      (b ? doc.body : doc).dispatchEvent(
         new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...i })
       );
     },
     key,
-    init
+    init,
+    onBody
   );
 }
 
@@ -127,10 +133,10 @@ describe('keyboard only (S2.21)', () => {
 
   it('↵ goes inside; tab then numbers 3.1…3.3 in the order the cards are drawn', async () => {
     const report = startReport('edit-keyboard-inside');
-    await press('Enter');
-    // A keydown dispatched on the frame DOCUMENT is not a bare-canvas target for the canvas's own ↵ listener
-    // (focus-model.tsx `isBareCanvasTarget`), so ↵ goes inside through the shell's keymap round trip — longer than a
-    // fixed settle under a loaded lane (r7, r7fix/a3). Wait for the words instead.
+    // On the BODY, as a real ↵ with nothing focused lands: the canvas's own ↵ listener takes only a bare-canvas
+    // target (focus-model.tsx `isBareCanvasTarget` — body or html), and a key dispatched on the document itself went
+    // through the shell's keymap round trip instead, which lost the walk in a loaded lane (r7, r7fix/a3, a4).
+    await press('Enter', {}, true);
     await browser
       .waitUntil(async () => (await readFrame()).said.includes('Brand systems'), {
         timeout: 5000,

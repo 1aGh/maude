@@ -54,8 +54,15 @@ const key = (init: Record<string, unknown>) =>
   }, init);
 
 /** A real pointer click at window coordinates (the canvas iframe is not reachable by selectors). */
+/** One click, spaced past the double-click interval from the last: back-to-back synthetic clicks read as a second
+ *  click of a double click (WebDriver's pointer does not reset the count by distance), and the canvas's selection
+ *  ignored one — r7 never selected the video, r7fix/a4 never deselected it. */
+let lastClick = 0;
 async function clickAt(x: number, y: number): Promise<void> {
+  const wait = lastClick + 650 - Date.now();
+  if (wait > 0) await browser.pause(wait);
   await pointerClick(x, y);
+  lastClick = Date.now();
 }
 
 describe('video-timeline-summon — the timeline comes with a video artboard', () => {
