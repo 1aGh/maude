@@ -335,6 +335,39 @@ describe('canvas-only sessions at the studio door', () => {
     assert.equal(h[`${H}render-token`], undefined);
   });
 
+  // p8-secfix-f F2 — the studio opens a canvas-only session's frame read-only BECAUSE the only capability
+  // it can carry is a follow one (client access-client.js `framedByFollowCap`). Pin that: whatever the ask,
+  // a canvas-only session — even on a Can edit grant — is minted nothing, or a read-only capability with
+  // the `f` claim naming one canvas. Never a grants-only token without a role (that floors to Can view of
+  // the whole project, S3.7c).
+  test('every canvas capability a canvas-only session gets is a read-only follow one', async () => {
+    const { proxy, forwarded } = makeProxy();
+    const editor = { ...A_ONLY, access: { v: 1, role: null, grants: [{ c: A, r: 'member' }] } };
+    let minted = 0;
+    for (const session of [A_ONLY, editor]) {
+      for (const url of [
+        '/_config',
+        '/_config?embed=1',
+        followUrl(A),
+        followUrl(B),
+        '/?open=ui/a.tsx',
+        '/?open=ui/a.tsx&present=follow',
+        `/?embed=1&canvas=${encodeURIComponent(A)}`,
+        '/_index-data',
+      ]) {
+        const { headers } = await config(proxy, forwarded, session, url);
+        const t = headers?.[`${H}canvas-token`];
+        if (t === undefined) continue;
+        minted += 1;
+        const v = verifyToken(t);
+        assert.equal(v.ok, true, url);
+        assert.equal(v.follow, A, `${url}: the capability names its one canvas (the f claim)`);
+        assert.equal(v.readOnly, true, url);
+      }
+    }
+    assert.equal(minted, 2, 'only the follow ask for A mints, once per session');
+  });
+
   test('a canvas-only member grant still projects read-only (no project role)', async () => {
     const { proxy, forwarded } = makeProxy();
     const member = { ...A_ONLY, access: { v: 1, role: null, grants: [{ c: A, r: 'member' }] } };
