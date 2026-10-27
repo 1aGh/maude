@@ -78,10 +78,37 @@ export function viewerModeOn(cfg, activePath) {
   return !canEditOn(cfg, underDesignRoot(cfg, activePath));
 }
 
+/**
+ * p8-secfix-f F1 — does this session's access differ per canvas? A canvas-only session (a link viewer, a
+ * canvas grant: no project role, grants only) does. Every mounted canvas frame sits on the ONE canvas origin
+ * with `allow-same-origin`, so a sibling frame can read another's document and URL (its `t` + `fc`): for
+ * such a session the shell frames only the active canvas (shell/viewport.jsx) and no grid of several
+ * (v2/ds/reach-view.jsx). A distinct origin per canvas is the real fix, still open.
+ */
+export function framesIsolated(cfg) {
+  const access = cfg?.access;
+  return (
+    !!access &&
+    typeof access === 'object' &&
+    access.role == null &&
+    Array.isArray(access.grants) &&
+    access.grants.length > 0
+  );
+}
+
+/**
+ * p8-secfix-f F2 — does this session's canvas frame carry the cell's read-only FOLLOW capability? A canvas-only
+ * session in a cloud tab is handed no project-wide one (S3.7c); each frame asks for its own canvas's follow
+ * capability (canvas-url.js `canvasCapAsks`), and the hub refuses every write made with it. Its frames
+ * therefore open read-only whatever the grant. Still open: a single-canvas capability that carries the
+ * grant's role, narrowed at the canvas door.
+ */
+const framedByFollowCap = (cfg) => !!cfg?.cloud && !cfg.canvasToken && framesIsolated(cfg);
+
 /** The frame's flags for canvas `path`: `ro` = Viewing there; `cm` = still comments there (Can comment +). */
 export function frameAccessOn(cfg, path) {
   const rel = underDesignRoot(cfg, path);
-  const ro = !canEditOn(cfg, rel);
+  const ro = !canEditOn(cfg, rel) || framedByFollowCap(cfg);
   if (!ro) return { ro: false, cm: false };
   if (cfg.access && typeof cfg.access === 'object' && !cfg.formatGate) {
     const own = (Array.isArray(cfg.access.grants) ? cfg.access.grants : []).some(

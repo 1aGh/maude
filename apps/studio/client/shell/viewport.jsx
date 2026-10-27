@@ -24,6 +24,7 @@ import { useRenderSignal } from '../v2/create/use-render-error.js';
 import { freeCentre } from '../v2/empty/free-centre.js';
 import { ArrivingCanvas, NotLocalCanvas, useCanvasAvailability } from '../v2/empty/not-local.jsx';
 import { insetsNow } from '../v2/shell/insets-now.js';
+import { framesIsolated } from '../v2/access/access-client.js';
 
 export function Viewport({
   tabs,
@@ -147,6 +148,7 @@ export function Viewport({
         : loadingPath && loadingPath === activePath
           ? 'loading'
           : 'idle';
+  const soloFrame = framesIsolated(cfg);
   return (
     // V2-8.7 — the stage IS the page's main landmark (axe landmark-one-main: with no canvas open the shell had none)
     <main className="viewport sh-stage" data-tour="viewport" data-canvas-state={canvasState}>
@@ -220,6 +222,9 @@ export function Viewport({
               <ArrivingCanvas name={basename(t.path).replace(/\.(tsx|html)$/i, '')} />
             </div>
           );
+        // p8-secfix-f F1 — sibling frames on the one canvas origin can read each other; a canvas-only
+        // session's frames carry different grants, so only its active canvas is framed (no keep-alive).
+        if (soloFrame && t.path !== activePath) return null;
         return (
           <iframe
             // The nonce is part of the key ONLY so the #115 Retry can force a

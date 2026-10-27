@@ -25,6 +25,8 @@ export const REACH_WORDS = Object.freeze({
   forbidden: 'You can look here; ask to see where this is used.',
   nothing: (name) => `Nothing uses ${name} yet.`,
   noFrame: 'Not drawn — this canvas could not be shown here.',
+  // p8-secfix-f F1 — a canvas-only session frames one canvas at a time, never a grid
+  oneAtATime: 'Open this canvas to see it. Shared canvases open one at a time.',
 });
 
 const CSS_NAME = /^--[A-Za-z0-9_-]{1,128}$/;
