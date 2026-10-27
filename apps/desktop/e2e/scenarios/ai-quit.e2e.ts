@@ -290,7 +290,7 @@ describe('ai-quit (native-desktop)', () => {
         // p8-e2e-fix-r11: the list renders a beat after the click — read 24 ms later it was empty (r11 f2), which
         // ended the walk before it opened a single chat
         await browser
-          .waitUntil(async () => (await $$('[data-testid^="ai-chat-row-"]')).length > 0, {
+          .waitUntil(async () => (await $$('[data-testid^="ai-chat-row-"]').length) > 0, {
             timeout: 5000,
             interval: 150,
           })

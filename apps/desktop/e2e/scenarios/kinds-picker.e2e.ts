@@ -49,7 +49,35 @@ function inFrame<T>(fn: string, ...args: unknown[]): Promise<T> {
 // scripted click inside the frame moves none: hand the focus to the frame first, as a person's click would.
 const pressFrame = async () => {
   await focusCanvasFrame();
-  return inFrame(`doc.querySelector('[data-testid="toolbar-slot-frame"]').click(); return true;`);
+  return inFrame(
+    `const b = doc.querySelector('[data-testid="toolbar-slot-frame"]'); if (!b) return false; b.click(); return true;`
+  );
+};
+/**
+ * Frame, until the shell's size picker is up. p8-e2e-fix-r11: right after a tile landed an artboard the canvas
+ * hot-swaps its module (hmr-broadcast.ts `module`: the canvas content re-mounts), and a press in that window was
+ * lost (r11 B/f1: no picker in 15 s). Press again only while the picker is absent and the slot does not read
+ * pressed, 2.5 s apart, so a slow-opening picker is never toggled shut.
+ */
+const openSizes = async () => {
+  let presses = 0;
+  let last = 0;
+  await browser.waitUntil(
+    async () => {
+      if (await (await $('[data-testid="tool-panel-sizes"]')).isExisting()) return true;
+      if (Date.now() - last < 2500) return false;
+      const pressed = await inFrame<string | null>(
+        `return doc.querySelector('[data-testid="toolbar-slot-frame"]')?.getAttribute('aria-pressed') ?? null;`
+      );
+      if (pressed !== 'true' && (await pressFrame())) {
+        presses++;
+        last = Date.now();
+      }
+      return false;
+    },
+    { timeout: 15_000, interval: 250, timeoutMsg: 'the size picker never opened' }
+  );
+  if (presses > 1) console.warn(`[kinds-picker] Frame had to be pressed ${presses} times`);
 };
 const tile = (id: string) => $(`[data-testid="size-picker-tile-${id}"]`);
 
@@ -71,11 +99,7 @@ describe('kinds-picker — F opens the size picker; a tile lands an artboard wit
     await row.click();
     await waitForEditChrome();
     await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
-    await pressFrame();
-    await (await $('[data-testid="tool-panel-sizes"]')).waitForExist({
-      timeout: 15_000,
-      timeoutMsg: 'the size picker never opened',
-    });
+    await openSizes();
     for (const g of ['app', 'web', 'social', 'print', 'video'])
       await (await $(`[data-testid="size-picker-group-${g}"]`)).waitForExist();
     expect(await (await $('[data-testid="size-picker-search"]')).getAttribute('placeholder')).toBe(
@@ -131,8 +155,7 @@ describe('kinds-picker — F opens the size picker; a tile lands an artboard wit
   });
 
   it('Custom size… takes mm and writes sizeMm on the nearest larger paper', async () => {
-    await pressFrame();
-    await (await $('[data-testid="tool-panel-sizes"]')).waitForExist({ timeout: 15_000 });
+    await openSizes();
     await (await $('[data-testid="size-picker-all-print"]')).click();
     await (await tile('print-custom')).click();
     await withNetProbe(async () => {
