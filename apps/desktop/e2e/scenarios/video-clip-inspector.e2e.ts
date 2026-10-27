@@ -9,9 +9,9 @@ import { createFixtureGuard } from '../helpers/fixture-guard';
 import { withNetProbe } from '../helpers/net-probe';
 import { pointerClick } from '../helpers/pointer';
 import { setSelect } from '../helpers/select';
+import { selectUntilIsland } from '../helpers/select-artboard';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
-import { selectUntilIsland } from '../helpers/select-artboard';
 
 /**
  * 07 Video Editing — the clip inspector, the join picker and a title's motion (S7.10: ve-transition, ve-text).

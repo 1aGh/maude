@@ -2,9 +2,9 @@ import { $, browser, expect } from '@wdio/globals';
 import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { bareCanvasPoint, pointerClick } from '../helpers/pointer';
+import { selectUntilIsland } from '../helpers/select-artboard';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
-import { selectUntilIsland } from '../helpers/select-artboard';
 
 /**
  * 07 Video Editing — the timeline that comes with a video artboard (S7.7, ve-none / ve-select / ve-deselect):

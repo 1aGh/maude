@@ -2,9 +2,9 @@ import { $, browser, expect } from '@wdio/globals';
 import { focusCanvasFrame, waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { pointerClick } from '../helpers/pointer';
+import { selectUntilIsland } from '../helpers/select-artboard';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
-import { selectUntilIsland } from '../helpers/select-artboard';
 
 /**
  * 07 Video Editing — play in place, loop a range, step frames (S7.8, ve-play):

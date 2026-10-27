@@ -121,7 +121,8 @@ export async function reapE2eAgentBrowsers(
     since != null &&
     p.ppid === 1 &&
     p.started >= Math.floor(since / 1000) * 1000 &&
-    (browserRoots.some((r) => p.command.startsWith(r)) || /^\S*\/chrome-headless-shell(?:\s|$)/.test(p.command));
+    (browserRoots.some((r) => p.command.startsWith(r)) ||
+      /^\S*\/chrome-headless-shell(?:\s|$)/.test(p.command));
   const reaped: number[] = [];
   let daemons = 0;
   for (let pass = 0; pass < (table ? 1 : 3); pass++) {
@@ -172,7 +173,9 @@ export function processTable(): ProcessRow[] {
     })
       .split('\n')
       .map((l) =>
-        /^\s*(\d+)\s+(\d+)\s+\w{3}\s+(\w{3})\s+(\d{1,2})\s+(\d\d):(\d\d):(\d\d)\s+(\d{4})\s+(.*)$/.exec(l)
+        /^\s*(\d+)\s+(\d+)\s+\w{3}\s+(\w{3})\s+(\d{1,2})\s+(\d\d):(\d\d):(\d\d)\s+(\d{4})\s+(.*)$/.exec(
+          l
+        )
       )
       .filter((m): m is RegExpExecArray => m !== null)
       .map((m) => ({

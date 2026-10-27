@@ -25,7 +25,12 @@ import { delimiter, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { browser } from '@wdio/globals';
-import { bringAppToFront, E2E_APP_ARGS, holdDisplayAwake, keepAppInFront } from './helpers/app-front';
+import {
+  bringAppToFront,
+  E2E_APP_ARGS,
+  holdDisplayAwake,
+  keepAppInFront,
+} from './helpers/app-front';
 import { reapE2eAgentBrowsers, stopE2eApp } from './helpers/app-lifecycle';
 import { e2ePointers, isE2eConfigHome } from './helpers/config-home';
 import {

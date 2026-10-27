@@ -8,9 +8,9 @@ import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { lineDiff, withNetProbe } from '../helpers/net-probe';
 import { pointerClick } from '../helpers/pointer';
+import { selectUntilIsland } from '../helpers/select-artboard';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
-import { selectUntilIsland } from '../helpers/select-artboard';
 
 /**
  * 07 Video Editing — a music bed that knows its beat (S7.12: ve-music).

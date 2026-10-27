@@ -235,12 +235,16 @@ describe('photo edits change one use (S8.15)', () => {
             const r = await fetch('/_api/project/undo-stack?canvas=.design/ui/Smoke.tsx');
             return JSON.stringify({
               focus: document.hasFocus(),
-              active: document.activeElement?.getAttribute('data-testid') ?? document.activeElement?.tagName,
+              active:
+                document.activeElement?.getAttribute('data-testid') ??
+                document.activeElement?.tagName,
               stack: await r.text(),
             }).slice(0, 1500);
           })
           .catch((e: Error) => `(no stack: ${e.message})`);
-        throw new Error(`⌘Z never put the use’s edit back (${edit8}; file has ${attrOn('photo')}) — ${why}`);
+        throw new Error(
+          `⌘Z never put the use’s edit back (${edit8}; file has ${attrOn('photo')}) — ${why}`
+        );
       });
     // the panel follows the file: with the use's own edit back, Mono is the look it shows again
     await browser.waitUntil(

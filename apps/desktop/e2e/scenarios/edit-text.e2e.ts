@@ -131,7 +131,11 @@ describe('text in place, styles and the Czech ties (S2.12)', () => {
         await dblclick((await rectOf('Jdu do lesa')) ?? p);
         return editing();
       },
-      { timeout: 15000, interval: 1000, timeoutMsg: 'double-click never opened the headline for editing' }
+      {
+        timeout: 15000,
+        interval: 1000,
+        timeoutMsg: 'double-click never opened the headline for editing',
+      }
     );
     await typeAndCommit('Jdu v lese a s "Petrem"');
     await browser.waitUntil(async () => (await arcs()) === 3, { timeout: 5000 });

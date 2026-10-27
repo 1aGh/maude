@@ -91,8 +91,22 @@ test('the app’s helper scripts and the browsers orphaned during this lane go; 
   const cftApp = `${browsers}/chrome-152.0.7977.75/Google Chrome for Testing.app`;
   const cftExe = `${cftApp}/Contents/MacOS/Google Chrome for Testing`;
   const rows = new Map([
-    [helper.pid, { ppid: 1, started: since + 5000, command: `bash ${bin}/canvas-rects.sh ui/Print.tsx --root /x` }],
-    [cft.pid, { ppid: 1, started: since + 6000, command: `${cftExe} --remote-debugging-port=0 --headless=new` }],
+    [
+      helper.pid,
+      {
+        ppid: 1,
+        started: since + 5000,
+        command: `bash ${bin}/canvas-rects.sh ui/Print.tsx --root /x`,
+      },
+    ],
+    [
+      cft.pid,
+      {
+        ppid: 1,
+        started: since + 6000,
+        command: `${cftExe} --remote-debugging-port=0 --headless=new`,
+      },
+    ],
     [
       cftHelper.pid,
       {
@@ -110,16 +124,23 @@ test('the app’s helper scripts and the browsers orphaned during this lane go; 
       },
     ],
     [older.pid, { ppid: 1, started: since - 5000, command: `${cftExe} --remote-debugging-port=0` }],
-    [adopted.pid, { ppid: process.pid, started: since + 8000, command: `${cftExe} --remote-debugging-port=0` }],
+    [
+      adopted.pid,
+      { ppid: process.pid, started: since + 8000, command: `${cftExe} --remote-debugging-port=0` },
+    ],
     [
       chrome.pid,
       {
         ppid: 1,
         started: since + 9000,
-        command: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --restore-last-session',
+        command:
+          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --restore-last-session',
       },
     ],
-    [arc.pid, { ppid: 1, started: since + 9000, command: '/Applications/Arc.app/Contents/MacOS/Arc' }],
+    [
+      arc.pid,
+      { ppid: 1, started: since + 9000, command: '/Applications/Arc.app/Contents/MacOS/Arc' },
+    ],
   ]);
   try {
     await new Promise((r) => setTimeout(r, 200));

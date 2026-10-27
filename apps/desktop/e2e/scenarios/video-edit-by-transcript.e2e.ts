@@ -8,9 +8,9 @@ import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { withNetProbe } from '../helpers/net-probe';
 import { pointerClick } from '../helpers/pointer';
+import { selectUntilIsland } from '../helpers/select-artboard';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
-import { selectUntilIsland } from '../helpers/select-artboard';
 
 /**
  * 07 Video Editing — captions from speech and edit by transcript (S7.11: ve-text, ve-captions; V2-1.10 §7).

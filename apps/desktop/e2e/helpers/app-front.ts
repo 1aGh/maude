@@ -47,7 +47,10 @@ let awake: ReturnType<typeof spawn> | null = null;
 export function holdDisplayAwake(): void {
   if (process.platform !== 'darwin' || awake) return;
   try {
-    awake = spawn('caffeinate', ['-d', '-i', '-w', String(process.pid)], { stdio: 'ignore', detached: false });
+    awake = spawn('caffeinate', ['-d', '-i', '-w', String(process.pid)], {
+      stdio: 'ignore',
+      detached: false,
+    });
     awake.on('error', () => {
       awake = null;
     });

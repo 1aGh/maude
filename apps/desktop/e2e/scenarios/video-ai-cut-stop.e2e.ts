@@ -6,9 +6,9 @@ import { $, browser, expect } from '@wdio/globals';
 import { waitForArtboard } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { pointerClick } from '../helpers/pointer';
+import { selectUntilIsland } from '../helpers/select-artboard';
 import { readServerInfo, waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
-import { selectUntilIsland } from '../helpers/select-artboard';
 
 /**
  * 07 Video Editing — the AI cut, shot by shot, and Stop (S7.14: ve-ai-scrub, ve-ai-proposal; V2-1.10 §7 "AI cut").
