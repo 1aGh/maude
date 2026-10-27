@@ -86,6 +86,10 @@ describe('render-error-card (native-desktop)', () => {
 
     // Show details holds the error, as text
     await $('[data-testid="fold-canvas-error-toggle"]').click();
+    // the fold opens on the next render, not inside the click
+    await $('[data-testid="canvas-error-message"]')
+      .waitForExist({ timeout: 5000 })
+      .catch(() => undefined);
     expect(await $('[data-testid="canvas-error-message"]').getText()).toContain('price');
 
     // repair it the way a person would: the canvas draws, says render-ok, the card goes

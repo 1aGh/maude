@@ -148,6 +148,15 @@ describe('video-music — a music bed with its beat: ticks, Music inspector, Low
   it('Advanced names the tempo with Half and Double', async () => {
     const toggle = await $('[data-testid="fold-inspector-toggle"]');
     if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+    // the fold opens on the next render, not inside the click
+    await browser
+      .waitUntil(
+        async () =>
+          (await $('[data-testid="insp-adv-music-bpm"]').isExisting()) &&
+          (await text('insp-adv-music-bpm')).includes('120 (detected)'),
+        { timeout: 5000, interval: 100 }
+      )
+      .catch(() => undefined);
     expect(await text('insp-adv-music-bpm')).toContain('120 (detected)');
     await $('[data-testid="insp-music-half"]').waitForExist({ timeout: 5000 });
     await $('[data-testid="insp-music-double"]').waitForExist({ timeout: 5000 });
