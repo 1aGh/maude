@@ -29,7 +29,7 @@
 
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { type Subprocess, spawn } from 'bun';
 
 import type { AclCheck } from '../access/filters.ts';
@@ -760,9 +760,12 @@ function unsend(text: string, sent: string | undefined, as: string | undefined):
  * boots, acl-u7-parity) also masks 12–16-hex ids, which are per-boot by construction.
  */
 export const normalize = (t: string, cell: GateCell, across = false) => {
-  let out = t
-    .split(cell.root)
-    .join('<root>')
+  // Bun prints a bundled module's path relative to the server's cwd (STUDIO) when it sits only a few
+  // levels away, so the sandbox root also appears in that spelling (`../tmp/slot2/mdcc-test-X/…`).
+  const rel = relative(STUDIO, cell.root);
+  let out = t.split(cell.root).join('<root>');
+  if (rel && rel !== cell.root) out = out.split(rel).join('<root>');
+  out = out
     .split(`:${cell.base.split(':').pop()}`)
     .join(':<port>')
     .split(`:${cell.canvasBase.split(':').pop()}`)
