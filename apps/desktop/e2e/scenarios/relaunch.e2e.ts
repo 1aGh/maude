@@ -96,8 +96,11 @@ describe('relaunch (native-desktop)', () => {
     for (const end = Date.now() + 30_000; !sawReopened && Date.now() < end; ) {
       try {
         await browser.switchToWindow(tabB);
+        // the pill itself (5 s on screen), or the mark shell-events.js leaves when it shows it (stays): a
+        // relaunch after a full lane can spend the pill's 5 s on switching windows
         sawReopened = await browser.execute(
           (want: string) =>
+            document.documentElement.getAttribute('data-tabs-restored') === '2' ||
             Array.from(document.querySelectorAll('[data-testid^="notice-"]')).some((el) =>
               (el.textContent ?? '').includes(want)
             ),

@@ -149,6 +149,9 @@ export function startShellEvents({ invoke, listen, toast, onNavigate }) {
     if (!alive || restoredShown || !count) return;
     restoredShown = true;
     toast(tabsRestoredWords(count), true, undefined, TABS_PILL);
+    // the pill lives 5 s; this stays, so the relaunch e2e can tell "the front tab said it" without racing the pill
+    if (typeof document !== 'undefined')
+      document.documentElement.setAttribute('data-tabs-restored', String(count));
   };
   const navigate = (p) => {
     if (alive && p) onNavigate(p);
