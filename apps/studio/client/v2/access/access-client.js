@@ -56,6 +56,9 @@ const EDIT_RANK = RANK.member;
  * editor of A views B). A server too old to send `access` keeps the project-level `readOnly` answer.
  */
 export function canEditOn(cfg, rel) {
+  // p8-cloud-canvas-only-viewing — the frame of a cloud canvas-only session is read-only whatever the grant
+  // (below), so the shell says Viewing there too instead of promising tools the frame refuses.
+  if (framedByFollowCap(cfg)) return false;
   if (!cfg?.readOnly) return true;
   if (cfg.formatGate || cfg.readOnlyReason !== 'role') return false;
   const access = cfg.access;
@@ -105,10 +108,22 @@ export function framesIsolated(cfg) {
  */
 const framedByFollowCap = (cfg) => !!cfg?.cloud && !cfg.canvasToken && framesIsolated(cfg);
 
+/**
+ * p8-cloud-canvas-only-viewing — is canvas `rel` one this session may edit by role, yet can only VIEW here
+ * because its frame is read-only (`framedByFollowCap`)? Then the shell's Viewing note says the way to edit it
+ * (the desktop app), not "Ask to edit" (the person already can).
+ */
+export function editsInAppOnly(cfg, rel) {
+  if (!framedByFollowCap(cfg) || cfg.formatGate || !rel) return false;
+  return (Array.isArray(cfg.access?.grants) ? cfg.access.grants : []).some(
+    (g) => g?.c === rel && RANK[g?.r] >= EDIT_RANK
+  );
+}
+
 /** The frame's flags for canvas `path`: `ro` = Viewing there; `cm` = still comments there (Can comment +). */
 export function frameAccessOn(cfg, path) {
   const rel = underDesignRoot(cfg, path);
-  const ro = !canEditOn(cfg, rel) || framedByFollowCap(cfg);
+  const ro = !canEditOn(cfg, rel);
   if (!ro) return { ro: false, cm: false };
   if (cfg.access && typeof cfg.access === 'object' && !cfg.formatGate) {
     const own = (Array.isArray(cfg.access.grants) ? cfg.access.grants : []).some(
@@ -128,6 +143,9 @@ export const WORDS = Object.freeze({
   answered: 'That request is no longer open.',
   tipTitle: (canvas) => `You can look at ${canvas || 'this canvas'}, not change it.`,
   tipLine: 'Ask to edit, top right, sends a request to its owner.',
+  // p8-cloud-canvas-only-viewing — a canvas-only Can edit grant opened in a browser: viewing here, editing in the app
+  appOnlyTitle: (canvas) => `You can look at ${canvas || 'this canvas'} here, not change it.`,
+  appOnlyLine: 'You can edit it in the desktop app. Editing one canvas in a browser comes later.',
   asksToEdit: (name, canvas) => `${name || 'Someone'} asks to edit ${canvas || 'this project'}`,
   canViewNow: 'can view it now',
   letEdit: (name) => `Let ${firstName(name) || 'them'} edit`,

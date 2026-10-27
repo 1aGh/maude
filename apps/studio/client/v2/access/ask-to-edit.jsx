@@ -13,7 +13,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { commentTime } from '../comments/comments-model.js';
 import { answerAccessRequest, canvasName, fetchAccessRequests, WORDS } from './access-client.js';
 
-export function ViewOnlyTip({ canvas, style, className }) {
+export function ViewOnlyTip({ canvas, style, className, appOnly }) {
   return (
     <div
       className={className ? `v2ac-tip ${className}` : 'v2ac-tip'}
@@ -21,8 +21,10 @@ export function ViewOnlyTip({ canvas, style, className }) {
       data-testid="access-view-tip"
       style={style}
     >
-      <span className="v2ac-tip-t">{WORDS.tipTitle(canvasName(canvas))}</span>
-      <span className="v2ac-tip-s">{WORDS.tipLine}</span>
+      <span className="v2ac-tip-t">
+        {appOnly ? WORDS.appOnlyTitle(canvasName(canvas)) : WORDS.tipTitle(canvasName(canvas))}
+      </span>
+      <span className="v2ac-tip-s">{appOnly ? WORDS.appOnlyLine : WORDS.tipLine}</span>
     </div>
   );
 }

@@ -216,14 +216,16 @@ export function ShareCluster({
         <StIcon name="panel-right" size={16} />
       </button>
       {access ? (
-        <button
-          type="button"
-          className="btn btn--primary btn--sm sh-share-btn"
-          data-testid="share-cluster-ask"
-          onClick={() => onAskToEdit?.()}
-        >
-          {access.action}
-        </button>
+        access.action ? (
+          <button
+            type="button"
+            className="btn btn--primary btn--sm sh-share-btn"
+            data-testid="share-cluster-ask"
+            onClick={() => onAskToEdit?.()}
+          >
+            {access.action}
+          </button>
+        ) : null
       ) : offline ? (
         // 10 co-sync-offline: an invite made offline waits in line; the tooltip says so before the
         // press (the sheet repeats it once an invite is queued). Wrapped only while offline, so the

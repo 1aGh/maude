@@ -18,7 +18,12 @@ import { SYSTEM_TAB } from '../../shell/constants.js';
 import { shellToast } from '../../shell/util.js';
 import { notify } from '../../../notifications.tsx';
 import { AccessHost } from '../access/access-host.jsx';
-import { getTrashedOpen, sessionRole, subscribeTrashedOpen } from '../access/access-client.js';
+import {
+  editsInAppOnly,
+  getTrashedOpen,
+  sessionRole,
+  subscribeTrashedOpen,
+} from '../access/access-client.js';
 import { indexMeta } from '../canvases/tree-model.js';
 import { useCanvasIndex } from '../canvases/use-canvas-index.js';
 import { usePresenceHost } from '../presence/use-presence-host.js';
@@ -133,7 +138,11 @@ export function ShellShareCluster() {
   // p8-e2e-rolefix — the role on the OPEN canvas, as the server resolved it (`/_config.access`): a desktop has
   // no `cloud.role`, and without it every read-only session read "Can comment" (a Can view invitee included).
   const role = sessionRole(cfg, activePath ? normalizeOpenPath(activePath, cfg?.designRel) : null);
-  const access = accessStatus({ canEdit: !roleLimited, role });
+  // p8-cloud-canvas-only-viewing — Can edit by role, Viewing in this browser frame (the frame is read-only).
+  const appOnly =
+    roleLimited &&
+    editsInAppOnly(cfg, activePath ? normalizeOpenPath(activePath, cfg?.designRel) : null);
+  const access = accessStatus({ canEdit: !roleLimited, role, appOnly });
   // S11.17 — a full disk holds writes: Not saved + "This Mac is out of space — …" until they land.
   const disk = useDiskHold();
   const doors = useMemo(() => nativeDoors(), []);
@@ -354,6 +363,7 @@ export function ShellShareCluster() {
         project={projectName}
         canEdit={!viewerMode}
         role={role}
+        appOnly={appOnly}
         toast={notify}
         run={(id) => menuRunner.run(id)}
         onOpenTab={openTrashed}

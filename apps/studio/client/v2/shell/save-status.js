@@ -107,8 +107,10 @@ export function saveStatus(input) {
  * The access word for a person without edit rights (CONTRACT §6 "Access status"). Today's `viewer` role
  * means Can comment (V2-1.7); `observer`, the role below it, is Can view. null for editors.
  */
-export function accessStatus({ canEdit, role } = {}) {
+export function accessStatus({ canEdit, role, appOnly = false } = {}) {
   if (canEdit) return null;
+  // p8-cloud-canvas-only-viewing — Can edit by role, Viewing in this browser frame: nothing to ask for.
+  if (appOnly) return { word: 'Can edit', action: null };
   return {
     word: role === 'observer' ? ACCESS_WORDS.view : ACCESS_WORDS.comment,
     action: 'Ask to edit',
