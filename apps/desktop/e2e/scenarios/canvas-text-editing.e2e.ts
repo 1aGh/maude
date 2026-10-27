@@ -274,6 +274,26 @@ function annotEditorProbe() {
   }>;
 }
 
+/**
+ * Wait for the annotation editor to be open (`open`) or gone, then return a fresh probe. The editor mounts /
+ * unmounts a beat after the key or dblclick that drives it, and under load a one-shot read right after a fixed
+ * pause saw the old state (2026-10-27 record). The caller keeps its own `expect`, so a state that never arrives
+ * still fails with the same message.
+ */
+async function waitEditor(open: boolean, timeout = 5_000) {
+  await browser
+    .waitUntil(async () => (await annotEditorProbe()).exists === open, { timeout, interval: 100 })
+    .catch(() => undefined);
+  return annotEditorProbe();
+}
+
+/** Wait for the Text tool's input-capture overlay (armed by its key) — `synthPointerOn` returns false without it. */
+async function waitInput(timeout = 5_000) {
+  await browser
+    .waitUntil(async () => (await probe('.dc-annot-input')).exists, { timeout, interval: 100 })
+    .catch(() => undefined);
+}
+
 /** Dispatch a keydown on the frame DOCUMENT body (tool shortcuts etc.). */
 function synthKeyOnDoc(key: string) {
   return browser.execute((k) => {
@@ -639,8 +659,7 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
       const srect = await frameLocalBox(STICKY);
       if (!srect) throw new Error(`no sticky rect (${level})`);
       await synthDblclick(STICKY, srect.cx, srect.cy);
-      await browser.pause(300);
-      const sed = await annotEditorProbe();
+      const sed = await waitEditor(true);
       expect(sed.exists).toBe(true);
       expect(sed.inForeignObject).toBe(false);
       expect(sed.inWorld).toBe(true);
@@ -654,15 +673,13 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
       expect(sed.stickyReadBodies).toBe(0);
       await capture(`sticky-editor-html-${level}`);
       await synthKey('Escape');
-      await browser.pause(200);
-      expect((await annotEditorProbe()).exists).toBe(false);
+      expect((await waitEditor(false)).exists).toBe(false);
 
       // Standalone text: the whole read <text> hides while editing.
       const trect = await frameLocalBox(TEXT_STROKE);
       if (!trect) throw new Error(`no text-stroke rect (${level})`);
       await synthDblclick(TEXT_STROKE, trect.cx, trect.cy);
-      await browser.pause(300);
-      const ted = await annotEditorProbe();
+      const ted = await waitEditor(true);
       expect(ted.exists).toBe(true);
       expect(ted.inForeignObject).toBe(false);
       expect(ted.inWorld).toBe(true);
@@ -676,8 +693,7 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
       expect((await probe(`${TEXT_STROKE} div.dc-annot-text`)).exists).toBe(false);
       await capture(`text-editor-html-${level}`);
       await synthKey('Escape');
-      await browser.pause(200);
-      expect((await annotEditorProbe()).exists).toBe(false);
+      expect((await waitEditor(false)).exists).toBe(false);
       expect((await probe(`${TEXT_STROKE} div.dc-annot-text`)).exists).toBe(true);
     }
     // Restore the viewport for the phases below.
@@ -692,7 +708,7 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     const at = await charPoint(`${STICKY} div.dc-annot-text`, 5);
     if (!at) throw new Error('no sticky read text');
     await synthDblclick(STICKY, at.x, at.y);
-    await browser.pause(300);
+    await waitEditor(true);
     const p = await probe('.dc-annot-editor');
     expect(p.exists).toBe(true);
     // NOT select-all: a collapsed caret at the clicked character (±3 chars).
@@ -705,20 +721,20 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     expect(p.caretColor).not.toBe('transparent');
     await capture('sticky-caret-at-click');
     await synthKey('Escape');
-    await browser.pause(200);
+    await waitEditor(false);
 
     // Standalone text gets the same treatment (lighter assertion set).
     const tat = await charPoint(`${TEXT_STROKE} div.dc-annot-text`, 4);
     if (!tat) throw new Error('no text read block');
     await synthDblclick(TEXT_STROKE, tat.x, tat.y);
-    await browser.pause(300);
+    await waitEditor(true);
     const tp = await probe('.dc-annot-editor');
     expect(tp.exists).toBe(true);
     expect(tp.selCollapsed).toBe(true);
     expect(tp.selText).toBe('');
     await capture('text-caret-at-click');
     await synthKey('Escape');
-    await browser.pause(200);
+    await waitEditor(false);
   });
 
   // ── Phase 4 — text tool click-through onto existing text ──────────────────
@@ -733,35 +749,32 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     // the tool's input-capture overlay — the editor must open on the EXISTING
     // sticky (click-through), not drop a new standalone text over it.
     await synthKeyOnDoc('t');
-    await browser.pause(200);
+    await waitInput();
     const srect = await frameLocalBox(STICKY);
     if (!srect) throw new Error('no sticky rect');
     await synthPointerOn('.dc-annot-input', srect.cx, srect.cy);
-    await browser.pause(300);
-    const ed = await annotEditorProbe();
+    const ed = await waitEditor(true);
     expect(ed.exists).toBe(true);
     expect(ed.text ?? '').toContain('Sticky seed');
     expect(await countStrokes()).toBe(strokesBefore);
     await capture('text-tool-edits-existing-sticky');
     await synthKey('Escape');
-    await browser.pause(200);
+    await waitEditor(false);
 
     // Empty space still creates a NEW pending text editor (no stroke until a
     // commit — Escape leaves nothing behind).
     await synthKeyOnDoc('t');
-    await browser.pause(200);
+    await waitInput();
     const h1box = await frameLocalBox(H1);
     if (!h1box) throw new Error('no h1 box');
     await synthPointerOn('.dc-annot-input', h1box.left - 12, h1box.top - 8);
-    await browser.pause(300);
-    const ed2 = await annotEditorProbe();
+    const ed2 = await waitEditor(true);
     expect(ed2.exists).toBe(true);
     expect((ed2.text ?? '').replace(/​/g, '')).toBe('');
     expect(await countStrokes()).toBe(strokesBefore);
     await capture('text-tool-creates-new-on-empty');
     await synthKey('Escape');
-    await browser.pause(200);
-    expect((await annotEditorProbe()).exists).toBe(false);
+    expect((await waitEditor(false)).exists).toBe(false);
     expect(await countStrokes()).toBe(strokesBefore);
     await setMode('edit');
   });
@@ -772,8 +785,7 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     const srect = await frameLocalBox(STICKY);
     if (!srect) throw new Error('no sticky rect');
     await synthDblclick(STICKY, srect.cx, srect.cy);
-    await browser.pause(300);
-    expect((await annotEditorProbe()).exists).toBe(true);
+    expect((await waitEditor(true)).exists).toBe(true);
     await typeAtEnd(' plus');
     // Shift+Enter must NOT commit — the handler lets it fall through to the
     // engine's newline. Synthetic keys run no UA default action, so the
@@ -787,8 +799,7 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     expect(sed.text ?? '').toContain('second line');
     // Plain Enter commits: editor closes, stroke re-renders the new text.
     await synthKey('Enter');
-    await browser.pause(400);
-    expect((await annotEditorProbe()).exists).toBe(false);
+    expect((await waitEditor(false)).exists).toBe(false);
     await browser.waitUntil(
       async () => ((await probe(`${STICKY} div.dc-annot-text`)).text ?? '').includes('plus'),
       { timeout: 8_000, interval: 400, timeoutMsg: 'sticky text never committed' }
@@ -799,15 +810,13 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     const trect = await frameLocalBox(TEXT_STROKE);
     if (!trect) throw new Error('no text-stroke rect');
     await synthDblclick(TEXT_STROKE, trect.left + 10, trect.cy);
-    await browser.pause(300);
-    expect((await annotEditorProbe()).exists).toBe(true);
+    expect((await waitEditor(true)).exists).toBe(true);
     await typeAtEnd(' tail');
     await synthKey('Enter', { shift: true });
     await browser.pause(150);
     expect((await annotEditorProbe()).exists).toBe(true); // stays open
     await synthKey('Enter');
-    await browser.pause(400);
-    expect((await annotEditorProbe()).exists).toBe(false);
+    expect((await waitEditor(false)).exists).toBe(false);
     await browser.waitUntil(
       async () => ((await probe(`${TEXT_STROKE} div.dc-annot-text`)).text ?? '').includes('tail'),
       {
@@ -823,12 +832,10 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     const chip = await frameLocalBox(CHIP);
     if (!chip) throw new Error('no section chip');
     await synthDblclick(CHIP, chip.cx, chip.cy);
-    await browser.pause(300);
-    expect((await annotEditorProbe()).exists).toBe(true);
+    expect((await waitEditor(true)).exists).toBe(true);
     await typeAtEnd(' X');
     await synthKey('Enter', { shift: true });
-    await browser.pause(400);
-    expect((await annotEditorProbe()).exists).toBe(false); // committed
+    expect((await waitEditor(false)).exists).toBe(false); // committed
     const label = (await probe(CHIP)).text ?? '';
     expect(label).toContain('X');
     expect(label).not.toContain('\n');
@@ -849,7 +856,13 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     await browser.pause(150);
     expect((await probe(H1)).ce).toBe('plaintext-only'); // still editing
     await synthKey('Enter');
-    await browser.pause(400);
+    // the commit blurs the h1 (and may reload the canvas): wait until it is no longer editable
+    await browser
+      .waitUntil(async () => (await probe(H1).catch(() => ({ ce: 'x' }))).ce === null, {
+        timeout: 5_000,
+        interval: 100,
+      })
+      .catch(() => undefined);
     const after = await probe(H1);
     expect(after.ce).toBeNull(); // committed via blur
     expect(after.text ?? '').toContain('K');
