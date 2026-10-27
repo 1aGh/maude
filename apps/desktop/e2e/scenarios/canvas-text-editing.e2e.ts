@@ -631,8 +631,10 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
         // the transform is clearly different from the fitted baseline.
         await postToCanvas({ dgn: 'run-action', v: 1, id: 'view.zoom-in' });
         await postToCanvas({ dgn: 'run-action', v: 1, id: 'view.zoom-in' });
-        await waitForStableRect(STICKY);
       }
+      // Both levels: the fitted camera can still be settling at the base level under load, and a rect
+      // measured mid-move puts the editor hundreds of px from it (287 px in the 2026-10-27 record).
+      await waitForStableRect(STICKY);
       // Sticky: rect measured BEFORE the editor opens (the read body hides).
       const srect = await frameLocalBox(STICKY);
       if (!srect) throw new Error(`no sticky rect (${level})`);

@@ -93,7 +93,16 @@ describe('advanced-diagnostics', () => {
   // Each leg also asserts the G1/G2 class of defect: nothing inside an Advanced body reaches past the
   // body's right edge, so nothing is clipped out of its panel. (Edges, not scrollWidth: scrollWidth also
   // counts the body's own offset.)
+  // A fold animates open, so a row can sit past the edge for a few frames under load: poll for up to
+  // 3 s. A row that really overflows stays past the edge and the leg is still red.
   const fitsItsPanel = async (testid: string) =>
+    browser
+      .waitUntil(() => fitsNow(testid), { timeout: 3_000, interval: 100 })
+      .then(
+        () => true,
+        () => false
+      );
+  const fitsNow = async (testid: string) =>
     browser.execute((t) => {
       const body = document.querySelector(`[data-testid="${t}"]`) as HTMLElement | null;
       if (!body) return false;
