@@ -428,7 +428,8 @@ describe.skipIf(!HUB_READY)(
       const before = (await peer.runtime.acceptedVersion?.('design/ui/two.tsx', b.revision)) ?? '';
       const res = await fetch(`${hub.http}/api/projects/current/v1/proposals`, {
         method: 'POST',
-        headers: { ...auth, 'content-type': 'application/json' },
+        // a v2 writer (the v2 peers founded the project at format 2; a 1.x one is fenced 426)
+        headers: { ...auth, 'content-type': 'application/json', 'x-maude-format': '2' },
         body: JSON.stringify({
           protocol: 1,
           projectId: b.projectId,
