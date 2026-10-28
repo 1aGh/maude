@@ -1,0 +1,14 @@
+{
+  "gate": "V2-8.8",
+  "pass": true,
+  "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
+  "reportHashes": {
+    ".ai/plans/notes/v2-evidence/V2-8.8-perf.md": "eee34620511d659eb16c1f6cfadfcdfc4cc23dd0e466c22e934da6495f041c17"
+  },
+  "head": "2740ab2d81072e3d48fa5f1a76b43633d7f6c6f5",
+  "ts": "2026-10-28T09:44:41.591Z",
+  "reports": [
+    ".ai/plans/notes/v2-evidence/V2-8.8-perf.md"
+  ],
+  "note": "Chromium + WebKit A/B pass both orders (measured 85db1ff86); render path unchanged since (docs, e2e, stats only)"
+}

@@ -1,0 +1,14 @@
+{
+  "gate": "V2-8.4",
+  "pass": true,
+  "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
+  "reportHashes": {
+    ".ai/scenarios/maude-v2/V2-8.4-final/report.md": "ea2dc4abd34fc8cac9dee4f994d8a61861b0f759689bcb4e7127dc4bcbe934fb"
+  },
+  "head": "2740ab2d81072e3d48fa5f1a76b43633d7f6c6f5",
+  "ts": "2026-10-28T09:44:41.533Z",
+  "reports": [
+    ".ai/scenarios/maude-v2/V2-8.4-final/report.md"
+  ],
+  "note": "18/18 steps across browser, cloud owner, cloud viewer at 53d15dac3 (mini remote lane); stats regen since"
+}

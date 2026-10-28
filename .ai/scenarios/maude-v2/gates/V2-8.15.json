@@ -1,0 +1,14 @@
+{
+  "gate": "V2-8.15",
+  "pass": true,
+  "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
+  "reportHashes": {
+    ".ai/plans/notes/v2-evidence/V2-8.15-docs.md": "a099a8b0b33ecd12f3f6adc08cd8288501f5eb1c6aa8444676e322f76c8978d5"
+  },
+  "head": "2740ab2d81072e3d48fa5f1a76b43633d7f6c6f5",
+  "ts": "2026-10-28T09:44:41.734Z",
+  "reports": [
+    ".ai/plans/notes/v2-evidence/V2-8.15-docs.md"
+  ],
+  "note": "4 deliverables present; gens --check 0; drift tests green; 6 stale claims fixed in 53d15dac3"
+}

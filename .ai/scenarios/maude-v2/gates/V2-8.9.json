@@ -1,0 +1,20 @@
+{
+  "gate": "V2-8.9",
+  "pass": true,
+  "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
+  "reportHashes": {
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-defender.md": "c3179e85c5372a6feeb268b330b0934a077557d365c5b4e8e40e3d6404908da0",
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-attacker.md": "c735c5eb8f8eb2a0a1d8520912321241b52f3c1037048af04240a6eb69d0423d",
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-v2-8.17.md": "0705c4e51474195c8bb314c152e4bb4204e4915b9c144cc17e8580cf1678858e",
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-recheck.md": "0020775e679941e607d600380b064425fbe6f2ca0097eb4fc717ff759148f32a"
+  },
+  "head": "2740ab2d81072e3d48fa5f1a76b43633d7f6c6f5",
+  "ts": "2026-10-28T09:44:41.659Z",
+  "reports": [
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-defender.md",
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-attacker.md",
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-v2-8.17.md",
+    ".ai/plans/notes/v2-evidence/V2-8.9-final-recheck.md"
+  ],
+  "note": "final pair at d32e7b5cf + V2-8.17 review; recheck to d1437a15d closes M1/L1, 0 blockers; since then e2e specs + docs only"
+}
