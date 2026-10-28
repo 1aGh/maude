@@ -28,6 +28,7 @@ import {
   emptyCanvasModel,
   fillPrompt,
   hintPlacement,
+  hubAway,
   useClaudeState,
   useEmptyLane,
   useOnline,
@@ -37,11 +38,12 @@ const modeNow = () => shellMode.get().mode;
 
 export function EmptyHost() {
   const {
-    shellCore: { activePath, cfg, iframesRef, viewerMode },
+    shellCore: { activePath, cfg, iframesRef, syncStatus, viewerMode },
   } = useShellStore();
   const canvasOpen = !!activePath && activePath !== SYSTEM_TAB;
   const mode = useSyncExternalStore(shellMode.subscribe, modeNow, modeNow);
-  const online = useOnline();
+  // the Mac's network AND, for a hub-linked project, the hub gate the queued card follows (P8 G1b)
+  const online = useOnline() && !hubAway(syncStatus);
   const insets = useSyncExternalStore(insetsNow.subscribe, insetsNow.get, insetsNow.get);
   const centre = freeCentre(insets, window.innerWidth, window.innerHeight);
   const canEdit = !viewerMode;

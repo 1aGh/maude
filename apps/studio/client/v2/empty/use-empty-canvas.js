@@ -23,6 +23,20 @@ import { COPY } from './empty-copy.js';
 /** "AI is back when this Mac is online." — S5.13's line, the same bytes the chat's queued state uses. */
 export const OFFLINE_LINE = OFFLINE_BACK;
 
+/** The connection states past the reconnect grace window — outbox/hub-reachability.ts `UNREACHABLE`, the same set. */
+const HUB_AWAY = new Set(['offline', 'offline-long']);
+
+/**
+ * P8 G1b (01 cf-offline-create): is this project's hub away? For a hub-linked project the hub gate is the truth
+ * the queued card already follows (a prompt waits on `hub`), so the empty canvas's offline line reads it too —
+ * not only navigator.onLine. `connecting` is the grace window (Syncing…); a local project never closes it.
+ * @param {{ linked?: boolean, state?: string } | null | undefined} syncStatus
+ */
+export function hubAway(syncStatus) {
+  if (!syncStatus || syncStatus.linked === false) return false;
+  return HUB_AWAY.has(syncStatus.state);
+}
+
 /**
  * Which empty-canvas situation applies — or null (nothing to show).
  *
