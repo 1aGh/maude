@@ -563,6 +563,76 @@ describe('a renew that races the run’s end', () => {
     expect(b.waiting).toEqual([]);
     reg.close();
   });
+
+  // The same R1 stray, the other way in: a renew sent while the run's `begin` is still on the wire. The home does
+  // not know the run yet ("ended: unknown"), the registry ended its waiting ask lease-lost — and then `begin` landed
+  // and the home granted that ask the artboard, for a run this Mac had already given up.
+  test('a renew while `begin` is on the wire leaves the ask alone; it starts when begin lands', async () => {
+    const inner = createLocalLeaseHome({ actor: 'you' });
+    let open: () => void = () => {};
+    const gate = new Promise<void>((r) => {
+      open = r;
+    });
+    const home: LeaseHome = {
+      ...inner,
+      begin: async (b) => {
+        await gate;
+        return inner.begin(b);
+      },
+    };
+    const { reg } = registry({ home });
+    const asking = reg.ask({
+      chatId: 'c1',
+      origin: 'design-edit',
+      scope: { canvas: 'ui/C.tsx', artboards: ['P'] },
+    });
+    await tick();
+    await reg.renewNow();
+    open();
+    const a = await asking;
+    for (let i = 0; i < 5; i++) await tick();
+    expect(reg.get(a.runId)?.state).not.toBe('ended');
+    expect(reg.get(a.runId)?.leases.map((l) => l.artboard)).toEqual(['P']);
+    reg.close();
+  });
+
+  test('an ask stopped while `begin` is on the wire ends its home run too: nothing holds the artboard', async () => {
+    const inner = createLocalLeaseHome({ actor: 'you' });
+    let open: () => void = () => {};
+    const gate = new Promise<void>((r) => {
+      open = r;
+    });
+    let gated = false;
+    const home: LeaseHome = {
+      ...inner,
+      begin: async (b) => {
+        if (!gated) {
+          gated = true;
+          await gate;
+        }
+        return inner.begin(b);
+      },
+    };
+    const { reg } = registry({ home });
+    const asking = reg.ask({
+      chatId: 'c1',
+      origin: 'maude-chat',
+      scope: { canvas: 'ui/C.tsx', artboards: ['P'] },
+    });
+    await tick();
+    const id = reg.live()[0]?.runId as string;
+    await reg.stop(id, 'you');
+    open();
+    await asking;
+    for (let i = 0; i < 5; i++) await tick();
+    const b = await reg.ask({
+      chatId: 'c2',
+      origin: 'maude-chat',
+      scope: { canvas: 'ui/C.tsx', artboards: ['P'] },
+    });
+    expect(b.state).not.toBe('waiting');
+    reg.close();
+  });
 });
 
 describe('the hub unreachable mid-run (§5.6)', () => {
