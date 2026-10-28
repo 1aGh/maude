@@ -1,6 +1,6 @@
 ---
 name: source-command-trash
-description: "See what is in the Trash and restore a canvas or artboard from it."
+description: "See what is in the Trash, move a canvas to it, and restore a canvas or artboard from it."
 user-invocable: false
 ---
 

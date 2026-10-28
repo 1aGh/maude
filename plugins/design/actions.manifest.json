@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "c2a4cf12cdce",
+  "manifestVersion": "90780e7fd871",
   "actions": [
     {
       "id": "search.open",
@@ -181,10 +181,8 @@
       "exec": "shell",
       "effect": "project",
       "agent": {
-        "path": "file",
-        "format": "canvas-tsx",
-        "skill": "design:design",
-        "how": "Copy the .tsx and its .meta.json under a new name in the same folder"
+        "path": "cli",
+        "verb": "maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header \"Content-Type: application/json\" --data '{\"duplicateOf\":\"<canvas path>\"}'"
       }
     },
     {
@@ -194,10 +192,8 @@
       "exec": "shell",
       "effect": "project",
       "agent": {
-        "path": "file",
-        "format": "canvas-tsx",
-        "skill": "design:design",
-        "how": "Rename the .tsx and its .meta.json together"
+        "path": "cli",
+        "verb": "maude design curl-local http://127.0.0.1:<port>/_api/fs-move --method POST --header \"Content-Type: application/json\" --data '{\"file\":\"<canvas path>\",\"toName\":\"<new name>\"}'"
       }
     },
     {
@@ -207,10 +203,8 @@
       "exec": "shell",
       "effect": "project",
       "agent": {
-        "path": "file",
-        "format": "canvas-tsx",
-        "skill": "design:design",
-        "how": "Move the .tsx and its .meta.json to another folder under the design root"
+        "path": "cli",
+        "verb": "maude design curl-local http://127.0.0.1:<port>/_api/fs-move --method POST --header \"Content-Type: application/json\" --data '{\"file\":\"<canvas path>\",\"toDir\":\"<folder>\"}'"
       }
     },
     {
@@ -234,10 +228,8 @@
       "minRole": "edit",
       "undo": "version",
       "agent": {
-        "path": "file",
-        "format": "canvas-tsx",
-        "skill": "design:design",
-        "how": "Move the .tsx and its sidecars to <designRoot>/_trash/<stamp>__<slug>/ and write _trash-manifest.json {canvas, slug, trashed[]} beside them; Trash restores from it"
+        "path": "cli",
+        "verb": "maude design trash move <canvas>"
       }
     },
     {
@@ -293,10 +285,8 @@
       "exec": "shell",
       "effect": "project",
       "agent": {
-        "path": "file",
-        "format": "canvas-tsx",
-        "skill": "design:design",
-        "how": "Rename the .tsx and its .meta.json together"
+        "path": "cli",
+        "verb": "maude design curl-local http://127.0.0.1:<port>/_api/fs-move --method POST --header \"Content-Type: application/json\" --data '{\"file\":\"<canvas path>\",\"toName\":\"<new name>\"}'"
       }
     },
     {
@@ -2041,10 +2031,8 @@
         "method": "POST"
       },
       "agent": {
-        "path": "file",
-        "format": "canvas-tsx",
-        "skill": "design:design",
-        "how": "Move assets/<name> and the sidecars that share its stem (<name>.photo.json, <stem>.<edit8>.photo.json, <name>.gen.json, transcripts) into <designRoot>/_trash/<stamp>__asset-<name>/ and write _trash-manifest.json {kind: \"asset\", asset, slug, trashed[]} beside them — only a picture no canvas uses and no older version shows (`maude design assets --not-used` lists them; nothing is listed until older versions are checked). Over HTTP: POST /_api/assets/trash {assets: [\"assets/<name>\"]} answers per item: moved, or used | kept-by-versions | checking"
+        "path": "cli",
+        "verb": "maude design curl-local http://127.0.0.1:<port>/_api/assets/trash --method POST --header \"Content-Type: application/json\" --data '{\"assets\":[\"assets/<name>\"]}'"
       }
     },
     {
@@ -2060,10 +2048,8 @@
         "method": "POST"
       },
       "agent": {
-        "path": "file",
-        "format": "canvas-tsx",
-        "skill": "design:design",
-        "how": "Rename assets/<name>.<ext> to assets/<new name>.<ext> (same extension) together with the sidecars that share its stem (<name>.photo.json, <stem>.<edit8>.photo.json, <name>.gen.json, transcripts) — only a picture no canvas uses and no older version shows (`maude design assets --not-used` lists them). Over HTTP: POST /_api/assets/rename {asset: \"assets/<name>.<ext>\", name: \"<new name>\"} answers {ok, to} or 409 {reason: used | kept-by-versions | checking | exists | same | bad-name | invalid | missing}"
+        "path": "cli",
+        "verb": "maude design curl-local http://127.0.0.1:<port>/_api/assets/rename --method POST --header \"Content-Type: application/json\" --data '{\"asset\":\"assets/<name>.<ext>\",\"name\":\"<new name>\"}'"
       }
     },
     {
@@ -7382,6 +7368,12 @@
       "verb": "design history restore",
       "effect": "destructive",
       "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design trash move",
+      "effect": "project",
+      "tier": "auto"
     },
     {
       "scope": "design",

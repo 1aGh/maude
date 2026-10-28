@@ -4,6 +4,7 @@
 #
 # Usage:
 #   trash.sh list [--json]                          # what is in the Trash, newest first   (read-only)
+#   trash.sh move <canvas path>                     # one canvas to the Trash (row menu)  (project)
 #   trash.sh restore <id | canvas path>             # bring one item back                  (project)
 #   trash.sh clear [--item <id>]... [--yes]         # delete for good — OWNER only, asks first
 #
