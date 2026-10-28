@@ -351,6 +351,7 @@ describe('another account on this Mac (ob-edge-accounts)', () => {
     expect(cmds('open_project')[0].args.target).toEqual({
       canvas: 'ui/Combine-kampan.tsx',
       thread: 'th_01',
+      via: 'invite',
     });
     // the personal profile is never written, re-signed or used for the invite
     for (const c of calls)
@@ -454,6 +455,7 @@ describe('the deferred path — the first sign-in answers `landing`', () => {
     expect(cmds('open_project')[0].args.target).toEqual({
       canvas: 'ui/Combine-kampan.tsx',
       thread: 'th_01',
+      via: 'invite',
     });
     expect($('home-signin-toast')).toBeNull();
   });

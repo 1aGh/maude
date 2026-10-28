@@ -440,9 +440,9 @@ describe('Can comment — 04 md-comment-only · 05 es-viewer · 09 ex-edges', ()
   it('md-comment-only: C, a click on the artboard, Post — the comment is on the canvas for everyone', async () => {
     await step(petra, 'md-comment-post', async () => {
       await dismiss(petra);
-      // posted from Preview (its toolbar is cut the same way). FINDING: the same Comment-tool click in Viewing
-      // opened no composer within 30 s (run 3 · md-comment-post-red.png) — handed back, not asserted here
-      await selectMode(petra, 'preview');
+      // posted from Viewing, the mode the board draws. P8 G1a item 2: a click right after Comment was pressed
+      // used to open no composer (the comment layer heard the tool a task late) — fixed, so no wait here
+      await selectMode(petra, 'viewing');
       const frame = frameOf(petra);
       await frame.locator(tid('toolbar-slot-comment')).click();
       const box = await frame.locator(tid('smoke-h1')).boundingBox();
