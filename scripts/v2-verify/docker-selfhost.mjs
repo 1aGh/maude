@@ -956,7 +956,7 @@ async function upgradeLegs() {
   );
   await leg(
     'mixed.v2-on-v1-hub',
-    'a v2 peer against the 1.x hub (CONTRACT A17: v2 opens it; the hub has no format-v2)',
+    'a v2 owner against the 1.9.1 hub (CONTRACT A17: view only; the compat hub offers Update project)',
     async () => {
       assert(peers.v1, 'no v1 hub');
       // the OWNER on v2: the full gate (CONTRACT §4.1, Michal 2A) opens the format-1 project view only
@@ -975,18 +975,24 @@ async function upgradeLegs() {
         cfg.readOnly === true && cfg.readOnlyReason === 'format' && cfg.formatVersion === 1,
         `v2 on a format-1 project is not view only: ${JSON.stringify({ readOnly: cfg.readOnly, reason: cfg.readOnlyReason, fv: cfg.formatVersion })}`
       );
-      // …and no Update project: the hub is too old (no format-v2) — the team-server line instead
+      // …and Update project is OFFERED: 1.9.x is the compat release (V2-1.12 §5.11 "release order") —
+      // its hub already advertises `format-v2`, so the owner's dry run is clean. Only a pre-1.9.0 hub
+      // answers hub-too-old (unit-pinned: migrate-v2-refusals.test.ts "no format-v2"). The leg never
+      // applies here: upgrade.v2 / mixed.v1-on-v2-project need this project still at format 1.
       const dry = await peers.v2old.migrate(false);
       const codes = (dry.body?.refusals ?? []).map((r) => r.code);
+      const linked = dry.body?.project?.linked ?? {};
       assert(
-        dry.status === 409 && codes.includes('hub-too-old'),
-        `the dry run on a 1.x hub: ${dry.status} ${JSON.stringify(dry.body?.refusals ?? dry.body).slice(0, 300)}`
+        dry.status === 200 &&
+          dry.body?.dryRun === true &&
+          codes.length === 0 &&
+          (linked.capabilities ?? []).includes('format-v2') &&
+          linked.hubFormat === 1,
+        `the dry run on the 1.9.1 hub: ${dry.status} ${JSON.stringify(dry.body?.refusals ?? dry.body).slice(0, 300)}`
       );
-      const apply = await peers.v2old.migrate(true);
-      assert(apply.status === 409, `Update project ran against a 1.x hub: ${apply.status}`);
       assert(
         (await peers.v2old.config()).formatVersion === 1,
-        'the project moved to format 2 on a 1.x hub'
+        'a dry run moved the project to format 2'
       );
       // a v2 change on disk never reaches the 1.x peer (view only: nothing goes up)
       peers.v2old.write('ui/legacy-two.tsx', 'A v2 edit that must not leave');
@@ -999,8 +1005,12 @@ async function upgradeLegs() {
       return {
         formatVersion: cfg.formatVersion ?? null,
         readOnlyReason: cfg.readOnlyReason ?? null,
-        dryRun: { status: dry.status, codes, role: dry.body?.project?.linked?.role ?? null },
-        line: 'View only — the team server needs an update before this project can move to Maude 2.',
+        dryRun: {
+          status: dry.status,
+          codes,
+          role: linked.role ?? null,
+          hubFormat: linked.hubFormat ?? null,
+        },
       };
     }
   );
