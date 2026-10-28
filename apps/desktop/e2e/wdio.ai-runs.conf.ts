@@ -75,7 +75,7 @@ function project(dir: string, hub: string, who: string, withCanvas: boolean): vo
   mkdirSync(join(dir, '.design', 'ui'), { recursive: true });
   writeFileSync(
     join(dir, '.design', 'config.json'),
-    JSON.stringify({ name: 'Combine kampaň', designRoot: '.design', linkedHub: { url: hub, linkedAt: Date.now() } })
+    JSON.stringify({ name: 'Combine kampaň', designRoot: '.design', formatVersion: 2, linkedHub: { url: hub, linkedAt: Date.now() } })
   );
   if (withCanvas) writeFileSync(join(dir, '.design', REL), aiRunsCanvas());
   for (const args of [

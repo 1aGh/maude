@@ -199,6 +199,13 @@ export const FORMAT_COPY = {
     "People still on Maude 1 can look at it but can't change it until they update. Nothing in the project is lost.",
   dialogAction: 'Update project',
   toastUpdated: 'Updated for Maude 2. People on Maude 1 can look but not edit.',
+  /** The owner on a 1.x hub (Michal 2A): the callout's one action opens how to update the server. */
+  teamServerAction: 'How to update',
+  teamServerTitle: 'Update the team server',
+  teamServerBody:
+    'Whoever runs your team server updates it; the projects on it stay as they are. On the server, run the command below again — it keeps the settings and secrets and starts the new version on the same data. Maude Cloud team servers are already up to date. Once the server is updated, Update project appears here.',
+  teamServerCopy: 'Copy command',
+  teamServerClose: 'Close',
 } as const;
 
 /** The line a refusal carries, by direction. */

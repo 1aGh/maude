@@ -38,7 +38,7 @@ function makeProject(name: string): string {
   mkdirSync(join(dir, '.design', 'system'), { recursive: true });
   writeFileSync(
     join(dir, '.design', 'config.json'),
-    JSON.stringify({ name, designRoot: '.design', designSystems: [] }, null, 2)
+    JSON.stringify({ name, designRoot: '.design', formatVersion: 2, designSystems: [] }, null, 2)
   );
   return dir;
 }
