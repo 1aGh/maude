@@ -61,6 +61,7 @@ Never `rm`, `mv` or `cp` a canvas file, and never try one to see what the hook s
 - **Move a canvas to the trash:** `maude design trash move <canvas>` (e.g. `maude design trash move ui/Greeting.tsx`). Bring it back with `maude design trash restore <canvas>`.
 - **Rename or move a canvas, duplicate it:** the studio’s own routes, as the `studio-actions` skill lists them (`canvas.rename`, `canvas.move`, `canvas.duplicate`).
 - **Remove one artboard:** delete its `DCArtboard` block with Edit.
+- **Put a canvas back the way it was** ("undo that", "go back to before the …"): `maude design history list <canvas>` (newest first), then `maude design history restore <canvas> <ref>` with the row just BELOW the change — or `maude design history undo --action <id>` to take back one change (its id: `history show <ref>`). Never type the old text back with Edit, even for one line: that is a new change, not a restore, and the person's one-step undo of it is lost.
 
 ## A first draft from Home
 

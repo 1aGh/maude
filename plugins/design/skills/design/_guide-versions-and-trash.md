@@ -25,6 +25,11 @@ maude design history name ui/home.tsx r11 "Before the pricing change"   # a name
   artboard changed shape since; do what the line says.
 - A project that keeps its history in git answers `list` from the git log and says so for `restore`/`name`.
 - Do not copy an old file over the canvas: that bypasses the check and the new version.
+- **"Put it back to before the change"** — the change is a row in `list` (your own change in this conversation is
+  the newest `ai` row); the version from before it is the row just below. Restore that row, or take the change
+  back with `maude design history undo --action <id>` (the id: `history show <ref>`). A synced project's `diff`
+  is not available yet; you do not need it to pick the row. Never re-type the old text with Edit, even one line:
+  that is a new change, not a restore.
 
 ## The Trash
 
