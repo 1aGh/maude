@@ -663,6 +663,11 @@ async function sessionStart(ctx) {
     const rel = typeof active === 'string' ? active.replace(/^\.design\//, '') : null;
     if (rel && SAFE_CANVAS_RE.test(rel) && !rel.split('/').includes('..'))
       lines.push(`Maude is showing ${rel} (the active canvas).`);
+    // V2-8.16 S1 — a terminal session rarely loads the design skill for "put it back", and re-typed
+    // the old text by hand (a new change: no restore version, no one-step undo). Told once, here.
+    lines.push(
+      'Put a canvas back to an earlier version with `maude design history restore <canvas> <ref>` (refs: `history list`), never by re-typing it.'
+    );
   }
   if (!lines.length) return null;
   return {

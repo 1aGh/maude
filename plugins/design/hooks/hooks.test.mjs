@@ -720,6 +720,12 @@ describe('with a studio — the run bracket and one AI per artboard', () => {
         JSON.stringify({ active: '.design/ui/C.tsx' })
       );
       expect(contextOf(await sessionStart(project, same))).toMatch(/ui\/C\.tsx/);
+      // V2-8.16 S1 — a terminal session never loads the design skill for "put it back": the studio
+      // being up, it is told once how a version comes back (and the warning still fits first)
+      const both = contextOf(await sessionStart(project, older));
+      expect(both).toMatch(/older than Maude/);
+      expect(both).toMatch(/maude design history restore <canvas> <ref>/);
+      expect(both.length).toBeLessThanOrEqual(400);
     } finally {
       for (const d of [older, newer, same]) rmSync(d, { recursive: true, force: true });
       rmSync(join(project, '.design', '_active.json'), { force: true });
