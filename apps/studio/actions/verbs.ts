@@ -186,6 +186,9 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('history restore', 'destructive', {
     note: 'the whole canvas back to an old version, landed as a NEW version over Now (C5)',
   }),
+  d('trash move', 'project', {
+    note: 'one canvas to the shared Trash, as the row menu does; `trash restore` brings it back (V2-8.16)',
+  }),
   d('trash restore', 'project', {
     note: 'brings one canvas or artboard back for everyone; a taken name gets a new one',
   }),

@@ -158,8 +158,9 @@ export const STATIC_COMMANDS = [
   },
   {
     name: 'design:trash',
-    description: 'See what is in the Trash and restore a canvas or artboard from it.',
-    argHint: '[list | restore <id | canvas path>]',
+    description:
+      'See what is in the Trash, move a canvas to it, and restore a canvas or artboard from it.',
+    argHint: '[list | move <canvas> | restore <id | canvas>]',
   },
   {
     name: 'design:video-analyze',

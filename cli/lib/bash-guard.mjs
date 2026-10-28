@@ -316,6 +316,7 @@ function lex(src, start, stop, nested) {
       if (depth) fail();
       const name = src.slice(at + 2, j - 1);
       if (word.text === '' && word.exp === 1 && ENV_HEADS.has(name)) word.env = name;
+      if (word.exp === 1 && VAR_NAME.test(name)) word.ref = { name, at: word.text.length };
       return j;
     }
     if (n === "'") {
@@ -338,6 +339,7 @@ function lex(src, start, stop, nested) {
       return at + 1;
     }
     if (word.text === '' && word.exp === 1 && ENV_HEADS.has(m[0])) word.env = m[0];
+    if (word.exp === 1 && VAR_NAME.test(m[0])) word.ref = { name: m[0], at: word.text.length };
     return at + 1 + m[0].length;
   }
 }
@@ -366,13 +368,61 @@ const RESERVED_SKIP = new Set([
   'in',
 ]);
 
+const VAR_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const ASSIGN_RE = /^([A-Za-z_][A-Za-z0-9_]*)(\+?)=/;
+const DECLARE = new Set(['export', 'declare', 'typeset', 'local', 'readonly']);
+
+/**
+ * V2-8.16 — follow a variable an earlier command in the same script set to a literal
+ * (`f="ui/C.tsx" && sed -i … "$f"`): a word whose ONE expansion is `$f` / `${f}` becomes the
+ * literal it names. Only a bare assignment (`f=…`, `export f=…`) binds — a prefix one
+ * (`f=x cmd "$f"`) is not in effect while `cmd`'s words expand. A loop, `read`, `unset` or a value
+ * the reader can't see unbinds; an unquoted value that would split or glob is not substituted.
+ * Anything not followed stays unseen (fail open), as before.
+ */
+function bindVars(c, vars) {
+  const fill = (w) => {
+    if (!w || w.literal || w.exp !== 1 || !w.ref || !vars.has(w.ref.name)) return;
+    const v = vars.get(w.ref.name);
+    if (!w.quoted && /[\s*?[]/.test(v)) return;
+    w.text = w.text.slice(0, w.ref.at) + v + w.text.slice(w.ref.at);
+    w.literal = true;
+    w.exp = 0;
+    delete w.env;
+    delete w.ref;
+  };
+  const bind = (tk) => {
+    const m = ASSIGN_RE.exec(tk.text);
+    if (!m) return;
+    const [, name, append] = m;
+    const v = tk.text.slice(m[0].length);
+    if (!tk.literal || (append && !vars.has(name))) vars.delete(name);
+    else vars.set(name, append ? vars.get(name) + v : v);
+  };
+  for (const a of c.assigns) fill(a);
+  for (const w of c.words) fill(w);
+  for (const r of c.redirs) fill(r.target);
+  const head = c.words[0]?.literal ? c.words[0].text : null;
+  if (!c.words.length) for (const a of c.assigns) bind(a);
+  else if (DECLARE.has(head)) {
+    for (const w of c.words.slice(1)) if (!(w.literal && w.text.startsWith('-'))) bind(w);
+  } else if (head === 'unset' || head === 'read') {
+    for (const w of c.words.slice(1)) if (w.literal && VAR_NAME.test(w.text)) vars.delete(w.text);
+    if (head === 'read' && c.words.length === 1) vars.delete('REPLY');
+  } else if ((head === 'for' || head === 'select') && c.words[1]?.literal) {
+    vars.delete(c.words[1].text);
+  }
+}
+
 /** Tokens → simple commands: { assigns, words, redirs }. */
 function commandsOf(tokens) {
   const out = [];
+  const vars = new Map(); // V2-8.16 — literal values bound so far (bindVars)
   let cur = { assigns: [], words: [], redirs: [], pipeIn: false };
   const end = (piped = false) => {
     const c = cur;
     cur = { assigns: [], words: [], redirs: [], pipeIn: piped };
+    bindVars(c, vars);
     // reserved words at the front
     while (
       c.words.length &&
@@ -455,9 +505,9 @@ const MESSAGES = {
   // `.design/_server.json`. (These messages once named `maude design trash move` / `canvas move`:
   // neither verb exists, and the agent spent 15+ calls finding this route.)
   'use-trash': (rel) =>
-    `use-trash: ${rel} is a versioned design file — Bash never deletes it. Move a canvas to the trash with the studio's own route: \`maude design curl-local "http://127.0.0.1:<port>/_api/canvas?file=<url-encoded canvas path>" --method DELETE\` (port: .design/_server.json; or ask the person to delete it in Canvases); remove one artboard by deleting its DCArtboard block with Edit.`,
+    `use-trash: ${rel} is a versioned design file — Bash never deletes it. Move a canvas to the trash with \`maude design trash move <canvas path>\` (the studio's own Move canvas to trash; \`maude design trash restore <canvas path>\` brings it back — or ask the person to delete it in Canvases); remove one artboard by deleting its DCArtboard block with Edit.`,
   'use-verb': (rel) =>
-    `use-verb: ${rel} is a versioned design file — Bash never moves it. Rename or move it with the studio's own route: \`maude design curl-local http://127.0.0.1:<port>/_api/fs-move --method POST --header "Content-Type: application/json" --data '{"file":"<canvas path>","toName":"<new name>"}'\` (add "toDir" to move it to another folder; port: .design/_server.json; or ask the person to move it in Canvases).`,
+    `use-verb: ${rel} is a versioned design file — Bash never moves it. Rename or move it with the studio's own route: \`maude design curl-local http://127.0.0.1:<port>/_api/fs-move --method POST --header "Content-Type: application/json" --data '{"file":"<canvas path>","toName":"<new name>"}'\` (add "toDir" to move it to another folder; port: .design/_server.json; or ask the person to move it in Canvases). To the trash: \`maude design trash move <canvas path>\`.`,
   'out-of-project': (path) =>
     `out-of-project: this \`maude\` command's output would be written to ${path}, outside the project. Write inside the project or the temp dir (or drop the redirection and read the output).`,
   'other-project': (what) =>

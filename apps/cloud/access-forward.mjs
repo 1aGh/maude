@@ -742,7 +742,10 @@ export async function handleAccessForward(request, env, { ctx = null, now = Date
         now,
         ctx,
         by: actor?.name ?? '',
-        role: after.roleFor(canvas) ?? null,
+        // V2-8.9 round B L2 — the cell spares the tokens that grant exactly `role` and nothing more,
+        // so it is named only when it IS the person's whole claim after the change: a project role
+        // with no canvas grant. A canvas-scoped narrowing names none, and every token dies.
+        role: after.role !== null && after.grants.length === 0 ? after.role : null,
       });
     else if (up)
       await notifyAccessChanged(env, projectId, { email: target.email, change: 'raised' }, { ctx });

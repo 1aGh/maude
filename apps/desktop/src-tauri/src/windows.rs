@@ -2170,6 +2170,27 @@ pub struct OpenTarget {
     /// beside a thread (`validate_target`), and only from Home (`open_project` drops it for a project tab).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub via: Option<String>,
+    /// V2-8.9 round B A3 — the inviter's display name as the CLOUD's invite peek gave Home (never an
+    /// address). Same rules as `via`: only with `via: "invite"` beside a thread, only from Home. The
+    /// project tab names the inviter only when this equals the thread's stored author.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from: Option<String>,
+}
+
+/// A3 — an inviter name a toast may carry: trimmed, 1–80 chars, no control or bidi characters.
+pub fn clean_from(name: &str) -> Option<String> {
+    let t = name.trim();
+    let bad = |c: char| {
+        c.is_control()
+            || ('\u{200b}'..='\u{200f}').contains(&c)
+            || ('\u{202a}'..='\u{202e}').contains(&c)
+            || ('\u{2066}'..='\u{2069}').contains(&c)
+            || c == '\u{feff}'
+    };
+    if t.is_empty() || t.chars().count() > 80 || t.chars().any(bad) {
+        return None;
+    }
+    Some(t.to_string())
 }
 
 /// A comment thread id as the cloud stores it on an invite
@@ -2207,7 +2228,13 @@ pub fn validate_target(t: OpenTarget) -> Result<OpenTarget, String> {
         artboard,
         // S6.11 — `via: "invite"` only beside a thread: the landing says "<who> invited you here". Anything
         // else is dropped, never an error (an older page sends none).
-        via: t.via.filter(|v| v == "invite" && t.thread.is_some()),
+        via: t.via.clone().filter(|v| v == "invite" && t.thread.is_some()),
+        // A3 — the inviter's name rides only with that `via`.
+        from: if t.via.as_deref() == Some("invite") && t.thread.is_some() {
+            t.from.as_deref().and_then(clean_from)
+        } else {
+            None
+        },
         thread: t.thread,
     })
 }
@@ -2448,6 +2475,7 @@ pub fn intent_for(
 pub fn via_for(caller: &Caller, mut target: OpenTarget) -> OpenTarget {
     if matches!(caller, Caller::Project(_)) {
         target.via = None;
+        target.from = None;
     }
     target
 }
@@ -2819,6 +2847,7 @@ mod tests {
             artboard: None,
             thread: thread.map(str::to_string),
             via: Some(via.to_string()),
+            from: Some("Tereza".into()),
         };
         let ok = validate_target(t(Some("th_01"), "invite")).unwrap();
         assert_eq!(ok.via.as_deref(), Some("invite"));
@@ -2832,6 +2861,12 @@ mod tests {
         });
         let dropped = via_for(&project, ok.clone());
         assert_eq!(dropped.via, None, "a project tab cannot say someone invited you");
+        // A3 — the inviter's name rides with `via` only, and only from Home
+        assert_eq!(ok.from.as_deref(), Some("Tereza"));
+        assert_eq!(validate_target(t(Some("th_01"), "mention")).unwrap().from, None);
+        assert_eq!(dropped.from, None);
+        assert_eq!(clean_from("  \u{202e}evil "), None);
+        assert_eq!(clean_from(&"x".repeat(81)), None);
         assert_eq!(dropped.thread.as_deref(), Some("th_01"));
     }
 
@@ -2844,6 +2879,7 @@ mod tests {
             artboard: None,
             thread: Some(thread.to_string()),
             via: None,
+            from: None,
         };
         let ok = validate_target(t(Some("ui/Poster.tsx"), "th_01-ab")).unwrap();
         assert_eq!(ok.thread.as_deref(), Some("th_01-ab"));
@@ -2922,9 +2958,9 @@ mod tests {
         assert!(resolve_open_root(&Caller::Home, &st, Some("lwork"), Some("/x")).is_err());
         assert!(resolve_open_root(&Caller::Home, &st, None, None).is_err());
         // A target canvas goes through the deep-link path check.
-        assert!(validate_target(OpenTarget { canvas: Some("../etc/x.tsx".into()), artboard: None, thread: None, via: None }).is_err());
+        assert!(validate_target(OpenTarget { canvas: Some("../etc/x.tsx".into()), artboard: None, thread: None, via: None, from: None }).is_err());
         assert_eq!(
-            validate_target(OpenTarget { canvas: Some(".design/ui/a.tsx".into()), artboard: Some("hero".into()), thread: None, via: None })
+            validate_target(OpenTarget { canvas: Some(".design/ui/a.tsx".into()), artboard: Some("hero".into()), thread: None, via: None, from: None })
                 .unwrap()
                 .canvas
                 .as_deref(),
@@ -3929,6 +3965,7 @@ mod tests {
             artboard: Some("hero".into()),
             thread: None,
             via: None,
+            from: None,
         };
         park_navigate_for_new(&Opened::New("p-nav-new".into()), Some(&full));
         assert_eq!(PENDING_NAVIGATE.take("p-nav-other"), None);
@@ -3943,6 +3980,7 @@ mod tests {
             artboard: None,
             thread: None,
             via: None,
+            from: None,
         };
         park_navigate_for_new(&Opened::New("p-nav-canvas".into()), Some(&canvas_only));
         assert_eq!(PENDING_NAVIGATE.take("p-nav-canvas"), None);
@@ -4136,6 +4174,7 @@ mod tests {
             artboard: Some("hero".into()),
             thread: None,
             via: None,
+            from: None,
         };
         TABS_RESTORED.park("p-gone", TabsRestored { count: 2 });
         PENDING_NAVIGATE.park("p-gone", t.clone());

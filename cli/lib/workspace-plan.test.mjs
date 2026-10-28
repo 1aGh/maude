@@ -173,6 +173,20 @@ test('MinIO is behind a PROFILE, not a comment', () => {
   assert.ok(!renderCompose(ok(BASE)).includes('minio'), 'no MinIO without devMinio');
 });
 
+// V2-8.9 round B P1 — the dev MinIO carries fixed root credentials, so it must never listen on the LAN:
+// its ports are published on loopback only (the hub reaches it at minio:9000 on the compose network).
+test('the dev MinIO publishes on 127.0.0.1 only', () => {
+  const yaml = renderCompose(ok({ ...BASE, devMinio: true }));
+  const block = yaml.slice(
+    yaml.indexOf('  minio:'),
+    yaml.indexOf('healthcheck:', yaml.indexOf('  minio:'))
+  );
+  const ports = [...block.matchAll(/^\s*- "([^"]+)"\s*$/gm)].map((m) => m[1]);
+  assert.ok(ports.length > 0, block);
+  for (const p of ports)
+    assert.match(p, /^127\.0\.0\.1:\d+:\d+$/, `MinIO published beyond loopback: ${p}`);
+});
+
 test('the hub is exposed, never published — Caddy is the only way in', () => {
   const yaml = renderCompose(ok({ ...BASE, s3: S3 }));
   const hubBlock = yaml.slice(yaml.indexOf('  hub:'), yaml.indexOf('  caddy:'));

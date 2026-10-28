@@ -620,6 +620,8 @@ function startServer(port: number, hostname = V4_LOOPBACK): BunServer {
             kind: 'collab',
             slug: collabSlug,
             access,
+            // V2-8.9 round B A2 — the vouched person binds the socket's presence clientIDs
+            user: WORKSPACE ? (req.headers.get('x-maude-user') ?? '').slice(0, 120) : '',
             // Privileged shell origin — ungated (see collab/origins.ts) —
             // UNLESS the proxy marked this socket as canvas-realm (a cell's
             // canvas lane forwards here when the canvas listener is the same
@@ -874,6 +876,7 @@ function startCanvasServer(
               kind: 'collab',
               slug: collabSlug,
               access,
+              user: WORKSPACE ? (req.headers.get('x-maude-user') ?? '').slice(0, 120) : '',
               // UNTRUSTED canvas iframe origin (DDR-063 split). Every sync frame
               // from here goes through the origin gate and may never write a
               // body lane — DDR-122 follow-up, collab/origins.ts. ALWAYS

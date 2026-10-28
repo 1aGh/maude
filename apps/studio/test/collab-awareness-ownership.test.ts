@@ -32,7 +32,10 @@ function person(name: string) {
   return a;
 }
 
-describe.each(['main', 'canvas'] as const)('awareness ownership in the room (%s realm)', (realm) => {
+describe.each([
+  'main',
+  'canvas',
+] as const)('awareness ownership in the room (%s realm)', (realm) => {
   test('a peer that timed the others out cannot remove them for everybody', async () => {
     const room = createRoom(`own-${realm}`, callbacks());
     const [ct, cj, cm] = [conn('t', realm), conn('j', realm), conn('m', realm)];
@@ -91,6 +94,42 @@ describe.each(['main', 'canvas'] as const)('awareness ownership in the room (%s 
     room.disconnect(ct);
     expect(room.awareness.getStates().has(tereza.clientID)).toBe(false);
     const ct2 = conn('t2', realm);
+    await room.connect(ct2);
+    tereza.setLocalState({ name: 'Tereza', artboard: 'story' });
+    room.receive(ct2, frame(tereza, [tereza.clientID]));
+    expect(room.awareness.getStates().get(tereza.clientID)).toEqual({
+      name: 'Tereza',
+      artboard: 'story',
+    });
+    await room.destroy();
+  });
+});
+
+// V2-8.9 round B A2 — a freed clientID is bound to the PERSON who held it (the socket's verified identity):
+// another person in the room, who saw that id in the broadcasts, cannot squat it after a disconnect (taking
+// the victim's name and colour, and locking the victim out when they reconnect with the same id). The same
+// person reclaims it on their new socket.
+describe('A2 — a freed clientID stays with its person', () => {
+  const as = (id: string, who: string): RoomConn => ({ id, person: who, send() {} });
+
+  test('another person cannot claim it after the disconnect; the same person can', async () => {
+    const room = createRoom('squat', callbacks());
+    const [ct, cx] = [as('t', 'tereza'), as('x', 'mallory')];
+    await room.connect(ct);
+    await room.connect(cx);
+    const tereza = person('Tereza');
+    room.receive(ct, frame(tereza, [tereza.clientID]));
+    room.disconnect(ct);
+
+    const squat = new Awareness(new Y.Doc());
+    squat.clientID = tereza.clientID;
+    squat.setLocalState({ name: 'Tereza', color: '#f00' });
+    // a higher clock than the room's removal mark, so only the person binding refuses it
+    for (let x = 1; x <= 5; x++) squat.setLocalState({ name: 'Tereza', color: '#f00', x });
+    room.receive(cx, frame(squat, [tereza.clientID]));
+    expect(room.awareness.getStates().has(tereza.clientID)).toBe(false);
+
+    const ct2 = as('t2', 'tereza');
     await room.connect(ct2);
     tereza.setLocalState({ name: 'Tereza', artboard: 'story' });
     room.receive(ct2, frame(tereza, [tereza.clientID]));

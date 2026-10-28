@@ -8,7 +8,16 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -73,7 +82,9 @@ test('a live studio that answers /_health slower than 2 s is kept, not respawned
 test('a dead pid with nothing listening is still stale: respawn', async () => {
   const w = world();
   try {
-    const gone = spawnSync(process.execPath, ['-e', 'console.log(process.pid)'], { encoding: 'utf8' });
+    const gone = spawnSync(process.execPath, ['-e', 'console.log(process.pid)'], {
+      encoding: 'utf8',
+    });
     writeFileSync(
       join(w.repo, '.design', '_server.json'),
       JSON.stringify({ pid: Number(gone.stdout.trim()), port: 1 })
@@ -89,7 +100,10 @@ test('a live pid whose port answers as something else (pid or port reused) is st
   const w = world();
   const { child, port } = await fakeStudio(w.repo, { delayMs: 0, app: 'not-design' });
   try {
-    writeFileSync(join(w.repo, '.design', '_server.json'), JSON.stringify({ pid: child.pid, port }));
+    writeFileSync(
+      join(w.repo, '.design', '_server.json'),
+      JSON.stringify({ pid: child.pid, port })
+    );
     serverUp(w);
     assert.equal(existsSync(w.marker), true, 'an impostor on the port was taken for the studio');
   } finally {
@@ -151,4 +165,41 @@ test('the started server survives a signal to the process group that ran server-
     } catch {}
     w.done();
   }
+});
+
+// V2-8.9 round B A4 — a planted or stale `_server.json` must not speak through server-up's output or point its
+// probe at another host: a `port` that is not 1–5 digits (`1@attacker.example/x?`) or a `pid` that is not digits
+// makes the file stale (cleared, a server started), the file's strings never reach stdout/stderr, and the probe
+// goes to 127.0.0.1 only.
+test('a non-numeric port or pid is a stale file: never probed, never echoed', async () => {
+  for (const planted of [
+    { pid: 1, port: '1@attacker.example/x?' },
+    { pid: 'x; echo PWNED', port: 4399 },
+    { pid: 1, port: '99999999' },
+  ]) {
+    const w = world();
+    try {
+      writeFileSync(join(w.repo, '.design', '_server.json'), JSON.stringify(planted));
+      const r = serverUp(w);
+      const out = `${r.stdout}\n${r.stderr}`;
+      assert.doesNotMatch(
+        out,
+        /attacker|PWNED|99999999/,
+        `a value from the file was echoed:\n${out}`
+      );
+      assert.equal(
+        existsSync(w.marker),
+        true,
+        `a bad _server.json was not treated as stale:\n${out}`
+      );
+    } finally {
+      w.done();
+    }
+  }
+});
+
+test('the probe goes to 127.0.0.1, never a name the system resolves', () => {
+  const src = readFileSync(SERVER_UP, 'utf8');
+  assert.doesNotMatch(src, /curl[^\n]*http:\/\/localhost/, 'a probe still names localhost');
+  assert.match(src, /curl[^\n]*http:\/\/127\.0\.0\.1:\$PORT\/_health/);
 });

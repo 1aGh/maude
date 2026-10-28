@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "c2a4cf12cdce",
+  "manifestVersion": "0ec9a0ec0b9c",
   "actions": [
     {
       "id": "search.open",
@@ -107,7 +107,7 @@
         "path": "file",
         "format": "canvas-tsx",
         "skill": "design:design",
-        "how": "Write a new .tsx under the design root with a DCArtboard per screen"
+        "how": "Create it with `maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header \"Content-Type: application/json\" --data '{\"kind\":\"blank\",\"name\":\"<name>\"}'` (port: .design/_server.json; the answer's rel is the file), then Edit that .tsx: a DCArtboard per screen"
       }
     },
     {
@@ -120,7 +120,7 @@
         "path": "file",
         "format": "canvas-tsx",
         "skill": "design:design",
-        "how": "Write a brief .tsx from plugins/design/templates/brief-board.tsx.template under the design root"
+        "how": "Create it with `maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header \"Content-Type: application/json\" --data '{\"kind\":\"brief-board\",\"name\":\"<name>\"}'` (port: .design/_server.json; the answer's rel is the file), then Edit that brief .tsx"
       }
     },
     {
@@ -133,7 +133,7 @@
         "path": "file",
         "format": "canvas-tsx",
         "skill": "design:design",
-        "how": "Write a new canvas .tsx under newCanvasDir: add every artboard empty with kind and size first, then fill big before small, words last (SKILL.md § A first draft from Home)"
+        "how": "The canvas exists when Home asks (the server made it from the sentence); otherwise create it with `maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header \"Content-Type: application/json\" --data '{\"kind\":\"blank\"}'` (the answer's rel is the file). Then Edit it: add every artboard empty with kind and size first, then fill big before small, words last (SKILL.md § A first draft from Home)"
       }
     },
     {
@@ -159,7 +159,7 @@
         "path": "file",
         "format": "canvas-tsx",
         "skill": "design:video-comp",
-        "how": "Write a new video-comp .tsx canvas"
+        "how": "Create it with `maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header \"Content-Type: application/json\" --data '{\"kind\":\"video-comp\",\"name\":\"<name>\",\"clips\":[]}'` (port: .design/_server.json; the answer's rel is the file), then Edit that video-comp .tsx"
       }
     },
     {
@@ -181,10 +181,8 @@
       "exec": "shell",
       "effect": "project",
       "agent": {
-        "path": "file",
-        "format": "canvas-tsx",
-        "skill": "design:design",
-        "how": "Copy the .tsx and its .meta.json under a new name in the same folder"
+        "path": "cli",
+        "verb": "maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header \"Content-Type: application/json\" --data '{\"duplicateOf\":\"<canvas path>\"}'"
       }
     },
     {
@@ -194,10 +192,8 @@
       "exec": "shell",
       "effect": "project",
       "agent": {
-        "path": "file",
-        "format": "canvas-tsx",
-        "skill": "design:design",
-        "how": "Rename the .tsx and its .meta.json together"
+        "path": "cli",
+        "verb": "maude design curl-local http://127.0.0.1:<port>/_api/fs-move --method POST --header \"Content-Type: application/json\" --data '{\"file\":\"<canvas path>\",\"toName\":\"<new name>\"}'"
       }
     },
     {
@@ -207,10 +203,8 @@
       "exec": "shell",
       "effect": "project",
       "agent": {
-        "path": "file",
-        "format": "canvas-tsx",
-        "skill": "design:design",
-        "how": "Move the .tsx and its .meta.json to another folder under the design root"
+        "path": "cli",
+        "verb": "maude design curl-local http://127.0.0.1:<port>/_api/fs-move --method POST --header \"Content-Type: application/json\" --data '{\"file\":\"<canvas path>\",\"toDir\":\"<folder>\"}'"
       }
     },
     {
@@ -234,10 +228,8 @@
       "minRole": "edit",
       "undo": "version",
       "agent": {
-        "path": "file",
-        "format": "canvas-tsx",
-        "skill": "design:design",
-        "how": "Move the .tsx and its sidecars to <designRoot>/_trash/<stamp>__<slug>/ and write _trash-manifest.json {canvas, slug, trashed[]} beside them; Trash restores from it"
+        "path": "cli",
+        "verb": "maude design trash move <canvas>"
       }
     },
     {
@@ -293,10 +285,8 @@
       "exec": "shell",
       "effect": "project",
       "agent": {
-        "path": "file",
-        "format": "canvas-tsx",
-        "skill": "design:design",
-        "how": "Rename the .tsx and its .meta.json together"
+        "path": "cli",
+        "verb": "maude design curl-local http://127.0.0.1:<port>/_api/fs-move --method POST --header \"Content-Type: application/json\" --data '{\"file\":\"<canvas path>\",\"toName\":\"<new name>\"}'"
       }
     },
     {
@@ -1298,7 +1288,7 @@
         "path": "file",
         "format": "canvas-tsx",
         "skill": "design:design",
-        "how": "Add <img src=\"assets/<sha8>.<ext>\" alt=\"\" style={{ display: \"block\", width: \"100%\", height: \"100%\", objectFit: \"cover\" }} /> as the last child of the frame (import the file first with the asset import; src is always a flat assets/ name). On a frame or picture that already holds one picture, change only its src. On an artboard use position: \"absolute\", left: \"0\", top: \"0\" and put it first. Over HTTP: POST /_api/edit-op {op: \"image.place\", targets: [frame?], params: {asset | assets, mode: \"fill\" | \"loose\" | \"fill-in-order\" | \"grid\", artboard?, natural?: {w, h}, alt?}}"
+        "how": "Add <img src=\"assets/<sha8>.<ext>\" alt=\"\" style={{ display: \"block\", width: \"100%\", height: \"100%\", objectFit: \"cover\" }} /> as the last child of the frame (import the file first: `maude design import-asset <file>` prints its assets/<sha8>.<ext>; src is always a flat assets/ name). On a frame or picture that already holds one picture, change only its src. On an artboard use position: \"absolute\", left: \"0\", top: \"0\" and put it first. Over HTTP: POST /_api/edit-op {op: \"image.place\", targets: [frame?], params: {asset | assets, mode: \"fill\" | \"loose\" | \"fill-in-order\" | \"grid\", artboard?, natural?: {w, h}, alt?}}"
       }
     },
     {
@@ -1851,7 +1841,7 @@
         "path": "file",
         "format": "canvas-tsx",
         "skill": "design:design",
-        "how": "Replace every string literal that names the missing file with the copy’s assets/<sha8>.<ext> path (import it first with the asset import); keep each reference’s leading / or ./"
+        "how": "Replace every string literal that names the missing file with the copy’s assets/<sha8>.<ext> path (import it first: `maude design import-asset <file>`); keep each reference’s leading / or ./"
       }
     },
     {
@@ -2000,6 +1990,19 @@
       }
     },
     {
+      "id": "assets.add",
+      "label": "Add files…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design import-asset <file>"
+      }
+    },
+    {
       "id": "assets.generate",
       "label": "Generate an image…",
       "kind": "command",
@@ -2041,10 +2044,8 @@
         "method": "POST"
       },
       "agent": {
-        "path": "file",
-        "format": "canvas-tsx",
-        "skill": "design:design",
-        "how": "Move assets/<name> and the sidecars that share its stem (<name>.photo.json, <stem>.<edit8>.photo.json, <name>.gen.json, transcripts) into <designRoot>/_trash/<stamp>__asset-<name>/ and write _trash-manifest.json {kind: \"asset\", asset, slug, trashed[]} beside them — only a picture no canvas uses and no older version shows (`maude design assets --not-used` lists them; nothing is listed until older versions are checked). Over HTTP: POST /_api/assets/trash {assets: [\"assets/<name>\"]} answers per item: moved, or used | kept-by-versions | checking"
+        "path": "cli",
+        "verb": "maude design curl-local http://127.0.0.1:<port>/_api/assets/trash --method POST --header \"Content-Type: application/json\" --data '{\"assets\":[\"assets/<name>\"]}'"
       }
     },
     {
@@ -2060,10 +2061,8 @@
         "method": "POST"
       },
       "agent": {
-        "path": "file",
-        "format": "canvas-tsx",
-        "skill": "design:design",
-        "how": "Rename assets/<name>.<ext> to assets/<new name>.<ext> (same extension) together with the sidecars that share its stem (<name>.photo.json, <stem>.<edit8>.photo.json, <name>.gen.json, transcripts) — only a picture no canvas uses and no older version shows (`maude design assets --not-used` lists them). Over HTTP: POST /_api/assets/rename {asset: \"assets/<name>.<ext>\", name: \"<new name>\"} answers {ok, to} or 409 {reason: used | kept-by-versions | checking | exists | same | bad-name | invalid | missing}"
+        "path": "cli",
+        "verb": "maude design curl-local http://127.0.0.1:<port>/_api/assets/rename --method POST --header \"Content-Type: application/json\" --data '{\"asset\":\"assets/<name>.<ext>\",\"name\":\"<new name>\"}'"
       }
     },
     {
@@ -7382,6 +7381,12 @@
       "verb": "design history restore",
       "effect": "destructive",
       "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design trash move",
+      "effect": "project",
+      "tier": "auto"
     },
     {
       "scope": "design",

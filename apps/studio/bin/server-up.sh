@@ -124,20 +124,28 @@ fi
 DESIGN_ROOT="$REPO/.design"
 STATE="$DESIGN_ROOT/_server.json"
 
-read_port() {
+# V2-8.9 round B A4 — `_server.json` sits in the project, so a planted or stale copy is untrusted: a value is
+# used only when it is a plain number (port 1–5 digits, pid digits); anything else reads as empty, which makes
+# the file stale. Nothing read from the file is ever printed except a validated number.
+read_field() {
+  local v
   if command -v jq >/dev/null 2>&1; then
-    jq -r .port "$STATE" 2>/dev/null
+    v=$(jq -r ".$1 // empty" "$STATE" 2>/dev/null | head -n1)
   else
     # Best-effort grep — jq is in repo deps but be defensive.
-    sed -nE 's/.*"port"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$STATE" 2>/dev/null | head -n1
+    v=$(sed -nE "s/.*\"$1\"[[:space:]]*:[[:space:]]*([0-9]+).*/\\1/p" "$STATE" 2>/dev/null | head -n1)
   fi
+  printf '%s' "$v"
+}
+read_port() {
+  local v
+  v=$(read_field port)
+  if [[ "$v" =~ ^[0-9]{1,5}$ ]] && [ "$v" -ge 1 ] && [ "$v" -le 65535 ]; then printf '%s\n' "$v"; fi
 }
 read_pid() {
-  if command -v jq >/dev/null 2>&1; then
-    jq -r .pid "$STATE" 2>/dev/null
-  else
-    sed -nE 's/.*"pid"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$STATE" 2>/dev/null | head -n1
-  fi
+  local v
+  v=$(read_field pid)
+  if [[ "$v" =~ ^[0-9]{1,10}$ ]]; then printf '%s\n' "$v"; fi
 }
 
 # Step 1 — check existing.
@@ -150,7 +158,7 @@ if [ -f "$STATE" ]; then
   HEALTH=""
   PROBE_RC=0
   probe() {
-    HEALTH=$(curl -fs --max-time "$1" "http://localhost:$PORT/_health" 2>/dev/null)
+    HEALTH=$(curl -fs --max-time "$1" "http://127.0.0.1:$PORT/_health" 2>/dev/null)
     PROBE_RC=$?
   }
   if [ -n "$PORT" ]; then
@@ -266,7 +274,7 @@ while [ $i -lt "$TIMEOUT" ]; do
   i=$((i + 1))
   if [ -f "$STATE" ]; then
     PORT=$(read_port)
-    if [ -n "$PORT" ] && curl -fs "http://localhost:$PORT/_health" >/dev/null 2>&1; then
+    if [ -n "$PORT" ] && curl -fs "http://127.0.0.1:$PORT/_health" >/dev/null 2>&1; then
       echo "✓ server started port=$PORT after ${i}s" >&2
       echo "$PORT"
       exit 0

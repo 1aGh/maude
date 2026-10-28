@@ -77,11 +77,22 @@ export function createCommentDoor(o: CommentDoorOptions) {
           error?: string;
         } | null;
         if (res.status === 200) return { ok: true, comment: json?.comment ?? null };
+        const code =
+          typeof json?.code === 'string' && /^[a-z0-9-]{1,40}$/.test(json.code)
+            ? json.code
+            : 'retryable';
         return {
           ok: false,
           status: res.status >= 400 && res.status < 600 ? res.status : 502,
-          code: typeof json?.code === 'string' ? json.code : 'retryable',
-          error: typeof json?.error === 'string' ? json.error.slice(0, 300) : NOT_SAVED,
+          code,
+          // V2-8.9 round B Info — an AI caller hears only the hub's CODE, never its free text (that
+          // would be hub-chosen words in the agent's context); a person still reads the hub's sentence.
+          error:
+            actor.kind === 'ai'
+              ? `The comment was not saved (${code}).`
+              : typeof json?.error === 'string'
+                ? json.error.slice(0, 300)
+                : NOT_SAVED,
         };
       } catch {
         return { ok: false, status: 503, code: 'retryable', error: NOT_SAVED };

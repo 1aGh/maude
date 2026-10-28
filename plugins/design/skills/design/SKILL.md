@@ -53,6 +53,15 @@ here, not permission to skip that requirement. Do not read all references at onc
 | When adding a file to the project: a photo, an iPhone HEIC, a Photoshop file, a logo, or when an add is refused | [Importing files](./_guide-importing-files.md) |
 | For `/design:present`: order, skipped artboards, speaker notes | [Per-canvas metadata sidecar](./_guide-17-per-canvas-metadata-sidecar.md) |
 
+## Whole canvas files: trash, rename, move, duplicate
+
+Never `rm`, `mv` or `cp` a canvas file, and never try one to see what the hook says: the hook refuses it, and the attempt counts against you. Use these:
+
+- **Make a new canvas:** create it with the app's own create first — `maude design curl-local "http://127.0.0.1:<port>/_api/canvas" --method POST --header "Content-Type: application/json" --data '{"kind":"blank","name":"<name>"}'` (port: `.design/_server.json`; the answer's `rel` is the file) — then Edit the `.tsx` it made. Never Write a new canvas `.tsx` or its `.meta.json` by hand.
+- **Move a canvas to the trash:** `maude design trash move <canvas>` (e.g. `maude design trash move ui/Greeting.tsx`). Bring it back with `maude design trash restore <canvas>`.
+- **Rename or move a canvas, duplicate it:** the studio’s own routes, as the `studio-actions` skill lists them (`canvas.rename`, `canvas.move`, `canvas.duplicate`).
+- **Remove one artboard:** delete its `DCArtboard` block with Edit.
+
 ## A first draft from Home
 
 When the person's first message in a new chat is a sentence for a canvas that has no artboards yet (Home's "Ask AI for a new canvas…", or the empty project's prompt), the canvas file already exists: the server named it from the sentence and the person is looking at it. Draft it in this order, so the draft arrives piece by piece and never as a blank wait:

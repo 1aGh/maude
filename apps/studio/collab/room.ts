@@ -84,6 +84,13 @@ export interface RoomConn extends CollabConn {
    */
   role?: 'owner' | 'member' | 'viewer' | 'observer';
   /**
+   * V2-8.9 round B A2 — WHO opened this socket, as verified at the upgrade (a cell's proxy-vouched
+   * user; `''`/absent on a desktop, where every socket is the one person). A clientID a conn claimed
+   * stays bound to this person after the conn goes (`CLIENT_TOMBSTONE_MS`): only the same person
+   * reclaims it, so nobody else squats a freed id with its owner's name and locks them out.
+   */
+  person?: string;
+  /**
    * S3.7c — a presentation FOLLOWER (a socket opened on the hub's receive-only
    * `follow` capability; server.ts stamps it from the proxy's injected
    * `x-maude-collab-follow`, canvas listener + workspace only). It receives
@@ -173,6 +180,13 @@ export function toFollower(frame: Uint8Array): Uint8Array | null {
   return stripAwarenessFields(frame, MEMBER_ONLY_FIELDS);
 }
 
+/**
+ * V2-8.9 round B A2 — how long a freed clientID stays bound to its person. Past it the id is free again
+ * (a person away that long is not shown anyway); the map is also capped.
+ */
+export const CLIENT_TOMBSTONE_MS = 10 * 60_000;
+const MAX_CLIENT_BINDINGS = 4096;
+
 export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
   const doc = new Y.Doc();
   // Awareness needs a clientID; reuse the Y.Doc's so peers can attribute updates.
@@ -187,6 +201,9 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
   // let phantom peers pile up on rapid reconnects — the cross-origin repro that
   // surfaced this latent bug).
   const connByClient = new Map<number, string>();
+  // V2-8.9 round B A2 — clientID → the person who held it, kept for CLIENT_TOMBSTONE_MS after its
+  // conn went, so a reconnect by the same person reclaims it and nobody else can.
+  const personByClient = new Map<number, { person: string; freedAt: number | null }>();
   let dirty = false;
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
   let destroyed = false;
@@ -404,7 +421,13 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
         stampRole(awareness, added.concat(updated), except.role);
         for (const id of added) connByClient.set(id, except.id);
         for (const id of updated) connByClient.set(id, except.id);
-        for (const id of removed) connByClient.delete(id);
+        for (const id of added.concat(updated))
+          personByClient.set(id, { person: except.person ?? '', freedAt: null });
+        for (const id of removed) {
+          connByClient.delete(id);
+          const held = personByClient.get(id);
+          if (held) held.freedAt = Date.now();
+        }
       }
       broadcast(encodeAwarenessFrame(awareness, changed), except);
     }
@@ -440,6 +463,12 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
       if (connId === conn.id) stale.push(clientId);
     }
     for (const clientId of stale) connByClient.delete(clientId);
+    const now = Date.now();
+    for (const clientId of stale) {
+      const held = personByClient.get(clientId);
+      if (held) held.freedAt = now;
+    }
+    pruneTombstones(now);
     if (stale.length) removeAwarenessStates(awareness, stale, conn);
   }
 
@@ -493,7 +522,9 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
         const clock = decoding.readVarUint(dec);
         const json = decoding.readVarString(dec);
         const owner = connByClient.get(clientID);
-        const mine = owner === conn.id || (owner === undefined && !states.has(clientID));
+        const mine =
+          owner === conn.id ||
+          (owner === undefined && !states.has(clientID) && personMayClaim(conn, clientID));
         if (mine) entries.push({ clientID, clock, json });
         else dropped = true;
       }
@@ -513,6 +544,26 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
     encoding.writeVarUint(out, MESSAGE_AWARENESS);
     encoding.writeVarUint8Array(out, encoding.toUint8Array(inner));
     return encoding.toUint8Array(out);
+  }
+
+  /** A2 — may `conn` claim the unowned `clientID`? Not while it is bound to someone else. */
+  function personMayClaim(conn: RoomConn, clientID: number): boolean {
+    const held = personByClient.get(clientID);
+    if (!held) return true;
+    if (held.person === (conn.person ?? '')) return true;
+    return held.freedAt !== null && Date.now() - held.freedAt > CLIENT_TOMBSTONE_MS;
+  }
+
+  function pruneTombstones(now: number): void {
+    for (const [id, held] of personByClient)
+      if (held.freedAt !== null && now - held.freedAt > CLIENT_TOMBSTONE_MS)
+        personByClient.delete(id);
+    // bounded: the oldest freed ids go first
+    if (personByClient.size <= MAX_CLIENT_BINDINGS) return;
+    for (const [id, held] of personByClient) {
+      if (personByClient.size <= MAX_CLIENT_BINDINGS) break;
+      if (held.freedAt !== null) personByClient.delete(id);
+    }
   }
 
   function receive(conn: RoomConn, raw: Uint8Array): void {

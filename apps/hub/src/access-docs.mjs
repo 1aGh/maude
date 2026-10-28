@@ -18,7 +18,7 @@
 //    §5.2, A19). Can view (`observer`) holds a browser-door cookie that is a
 //    peer token, never a peer credential the door may honour: refused.
 
-import { sees, seesDoc } from '../../studio/access/scope.ts';
+import { resolveAccess, sees, seesDoc } from '../../studio/access/scope.ts';
 import { claimForMatch, NOT_IN_SCOPE_REFUSAL, peerAccess } from './access-gate.mjs';
 import { sanitizeComponent } from './doc-namespace.mjs';
 import { canvasSlug } from './workspace-files.mjs';
@@ -120,6 +120,50 @@ export function stripSummon({ states, context }) {
     }
   }
   return stripped;
+}
+
+/** The presence role words, low → high (studio access/roles.ts ProjectRole). */
+const ROLE_RANK = ['observer', 'viewer', 'member', 'owner'];
+/** The mark a role this hub vouched for carries (the studio drops an unmarked hub-relayed role). */
+export const HUB_ROLE_MARK = 'hub';
+
+/**
+ * V2-8.9 round B L1 — `beforeHandleAwareness`: the presence `role` word ("· Owner") is the hub's,
+ * from the connection's own access on this document — never the client's. A state that names no
+ * role, or a higher one than the connection holds, gets the connection's role; a LOWER one is kept
+ * (a studio relaying its room's people, each stamped by that room). Every state leaves marked
+ * `roleBy: 'hub'`; a connection with no access decision (the dev hub, a pre-v2 context) sends no
+ * role at all. Server-internal updates (no context) are untouched.
+ *
+ * @returns {number} how many states were changed
+ */
+export function stampHubRole({ states, context }) {
+  const user = context?.user;
+  if (!user || !states) return 0;
+  let own = null;
+  if (user.access && !user.ctl) {
+    try {
+      own = resolveAccess(user.access).roleFor(user.canvas ?? null);
+    } catch {
+      own = null;
+    }
+  }
+  const ownRank = own ? ROLE_RANK.indexOf(own) : -1;
+  let changed = 0;
+  for (const state of states.values()) {
+    if (!state || typeof state !== 'object') continue;
+    const before = `${state.role}|${state.roleBy}`;
+    const sent = typeof state.role === 'string' ? ROLE_RANK.indexOf(state.role) : -1;
+    if (ownRank < 0) {
+      delete state.role;
+      delete state.roleBy;
+    } else {
+      state.role = sent >= 0 && sent < ownRank ? state.role : own;
+      state.roleBy = HUB_ROLE_MARK;
+    }
+    if (`${state.role}|${state.roleBy}` !== before) changed += 1;
+  }
+  return changed;
 }
 
 // ---------------------------------------------------------------- L4 ------

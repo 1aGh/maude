@@ -540,6 +540,7 @@ pub fn mention_target(latest: &MentionLatest) -> Result<crate::windows::OpenTarg
         artboard: None,
         thread: Some(latest.thread.clone()),
         via: None,
+        from: None,
     })
 }
 

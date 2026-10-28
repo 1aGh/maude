@@ -295,6 +295,11 @@ const BEAT_MS = 4000;
 interface AgentActivityTracker {
   onUpdate(update: SessionUpdate): void;
   /**
+   * V2-8.9 round B A1 — a permission card opened for `toolCallId` (`decided` absent), or the person
+   * answered it. A shell verb's window is shut while its card waits and reopens only on a grant.
+   */
+  onPermission?(toolCallId: string | undefined, decided?: { granted: boolean }): void;
+  /**
    * Turn finished (normal, cancel, error) or socket closed — clear banners.
    * T16: `done` publishes what the turn wrote as ONE project action; anything
    * else (cancel, error, token limit, reap) keeps it unpublished for the
@@ -352,6 +357,12 @@ export function createAgentActivityTracker(
   const actionKey = `acp:${chatId}`;
   let turnLabel = 'Claude edit';
   let actionOpen = false;
+  /** A1 — an edit tool opened the stage this turn (the v1 fallback applies to the run). */
+  let editOpened = false;
+  /** A1 — shell write-verb calls whose window is open, waiting on a card, or finished. */
+  const shellOpen = new Set<string>();
+  const shellCard = new Set<string>();
+  const shellSeen = new Set<string>();
   /** S5.5b — the registry run of the current turn (null: a pre-S5.6 direct turn). */
   let turnRun: string | null = null;
 
@@ -402,13 +413,29 @@ export function createAgentActivityTracker(
     return `${ctx.paths.designRel}/${posix}`;
   }
 
-  /** Open the turn's project action (its run stage) once. */
-  function openAction(): void {
+  /** Open the turn's project action (its run stage); `shell` = one verb call's window (A1). */
+  function openAction(shell?: { call: string; open: boolean }): void {
     actionOpen = true;
+    if (!shell) editOpened = true;
     ctx.syncControl?.current?.()?.beginAiAction?.(actionKey, turnLabel, {
       ...(turnRun ? { runId: turnRun } : {}),
       ...(STAGE_ID.test(chatId) ? { chatId } : {}),
+      ...(shell ? { shell } : {}),
     });
+  }
+
+  function shellWindow(call: string, open: boolean): void {
+    if (open) shellOpen.add(call);
+    else shellOpen.delete(call);
+    openAction({ call, open });
+  }
+
+  function onPermission(toolCallId: string | undefined, decided?: { granted: boolean }): void {
+    if (!toolCallId || !shellSeen.has(toolCallId)) return;
+    if (!decided) {
+      shellCard.add(toolCallId);
+      if (shellOpen.has(toolCallId)) shellWindow(toolCallId, false);
+    } else if (shellCard.delete(toolCallId) && decided.granted) shellWindow(toolCallId, true);
   }
 
   function onUpdate(update: SessionUpdate): void {
@@ -429,8 +456,26 @@ export function createAgentActivityTracker(
       // p8-t-video-3 — an agent that edits THROUGH THE SHELL (`maude design reel-place …`) opens the turn's
       // stage at the verb's start, before its first write: the watcher then stages that write into the run
       // instead of recording it as "changed outside the app" (no AI action, no Made by AI, no one-step Undo).
+      // V2-8.9 round B A1 — but such a stage is claim-scoped (sync/action-stage.ts `claimOnly`): it takes an
+      // unclaimed write only while THIS call's window is open — from its tool_call until it completes or
+      // fails, shut while its permission card waits, never reopened by a denial. Everything else must be
+      // claimed by hash (the design hook's post-bash `edit/touched`), so a person's own edit made between
+      // or after the verb's calls is never folded into the AI run or its Undo.
+      const id = u.toolCallId;
+      if (!id) return;
       const command = (u.rawInput as { command?: unknown } | null | undefined)?.command;
-      if (!actionOpen && runsDesignWriteVerb(command)) openAction();
+      if (!shellSeen.has(id) && runsDesignWriteVerb(command)) {
+        shellSeen.add(id);
+        shellWindow(id, true);
+      }
+      if (
+        shellSeen.has(id) &&
+        u.sessionUpdate === 'tool_call_update' &&
+        (u.status === 'completed' || u.status === 'failed')
+      ) {
+        shellCard.delete(id);
+        if (shellOpen.has(id)) shellWindow(id, false);
+      }
       return;
     }
     if (!EDIT_KINDS.has(kind)) return;
@@ -451,7 +496,7 @@ export function createAgentActivityTracker(
     if (u.toolCallId && keys.size) keysByToolCall.set(u.toolCallId, keys);
     for (const key of keys) {
       // T16 — the turn's first canvas edit opens its project action.
-      if (!actionOpen) openAction();
+      if (!editOpened) openAction();
       if (u.sessionUpdate === 'tool_call_update' && u.status === 'completed') claimWrite(key);
       const last = lastBeat.get(key);
       if (last == null) {
@@ -469,8 +514,12 @@ export function createAgentActivityTracker(
     lastBeat.clear();
     kindByToolCall.clear();
     keysByToolCall.clear();
+    for (const call of [...shellOpen]) shellWindow(call, false);
+    shellCard.clear();
+    shellSeen.clear();
     if (actionOpen) {
       actionOpen = false;
+      editOpened = false;
       // A registry run's stage is the registry's to end (publish / partial / hold).
       if (!turnRun) {
         void ctx.syncControl
@@ -487,7 +536,7 @@ export function createAgentActivityTracker(
     turnRun = runId && STAGE_ID.test(runId) ? runId : null;
   }
 
-  return { onUpdate, endTurn, beginTurn };
+  return { onUpdate, onPermission, endTurn, beginTurn };
 }
 
 // ── Detached bridge lifetime (feature-acp-write-path-scope Addendum, Task 8) ──
@@ -749,7 +798,12 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
         // reload mid-stream neither duplicates nor drops output.
         broadcast(entry, { t: 'update', update, seq });
       },
-      onPermission: (req) => broadcast(entry, { t: 'permission', toolCall: req.toolCall }),
+      onPermission: (req) => {
+        tracker?.onPermission?.(req.toolCall?.toolCallId);
+        broadcast(entry, { t: 'permission', toolCall: req.toolCall });
+      },
+      onPermissionDecided: (req, granted) =>
+        tracker?.onPermission?.(req.toolCall?.toolCallId, { granted }),
       onPermissionRequest: (id, req, scope) => {
         noteNeedsYou(entry, req.toolCall?.title);
         // NOTE (Addendum hazard): if this chat is DETACHED, `broadcast` is a

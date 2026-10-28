@@ -248,3 +248,55 @@ describe('maude design trash — usage', () => {
     expect((await studio.run('trash', ['list'])).code).toBe(3);
   });
 });
+
+// V2-8.16 (live journey S1 turn 5) — `trash move <canvas>`: the agent's way to the row menu's "Move
+// canvas to trash". It sends the SAME request the client does (client/v2/canvases/trash-canvas.js:
+// DELETE /_api/canvas?file=<canvas>), so Version history records the same delete.
+describe('maude design trash move', () => {
+  const trashes = (s: Seen) =>
+    s.path === '/_api/canvas' && s.method === 'DELETE'
+      ? json({
+          ok: true,
+          rel: s.query.file,
+          slug: 'ui-home',
+          trashed: [s.query.file],
+          trashDir: '.design/_trash/x__ui-home',
+        })
+      : undefined;
+
+  test('sends DELETE /_api/canvas?file=<design-relative canvas> — one request, the row menu’s', async () => {
+    studio = fakeStudio(trashes);
+    const r = await studio.run('trash', ['move', '.design/ui/home.tsx']);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain('ui/home.tsx');
+    expect(r.stdout).toContain('trash restore');
+    expect(studio.seen.map((s) => `${s.method} ${s.path} ${s.query.file}`)).toEqual([
+      'DELETE /_api/canvas ui/home.tsx',
+    ]);
+  });
+
+  test('a refusal from the studio is exit 1 with its reason', async () => {
+    studio = fakeStudio((s) =>
+      s.path === '/_api/canvas' ? json({ ok: false, error: 'canvas not found' }, 404) : undefined
+    );
+    const r = await studio.run('trash', ['move', 'ui/gone.tsx']);
+    expect(r.code).toBe(1);
+    expect(r.stderr).toContain('canvas not found');
+  });
+
+  test('not a canvas path → usage (exit 2) before any request', async () => {
+    studio = fakeStudio(trashes);
+    for (const args of [
+      ['move'],
+      ['move', 'ui/a.tsx', 'ui/b.tsx'],
+      ['move', 'ui/notes.md'],
+      ['move', '../x.tsx'],
+      ['move', '/etc/x.tsx'],
+      ['move', 'ui/a.tsx', '--force'],
+    ]) {
+      const r = await studio.run('trash', args);
+      expect({ args, code: r.code }).toEqual({ args, code: 2 });
+    }
+    expect(studio.seen).toEqual([]);
+  });
+});
