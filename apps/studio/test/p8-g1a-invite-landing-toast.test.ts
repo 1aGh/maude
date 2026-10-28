@@ -57,7 +57,7 @@ describe('the invite-landing toast (S6.11, CONTRACT §3)', () => {
   test('a landing via invite says who invited you, by the stored author', () => {
     const log: unknown[][] = [];
     applyShellNavigate(
-      { canvas: 'ui/poster.tsx', thread: 'th_01', via: 'invite', name: 'Mallory' },
+      { canvas: 'ui/poster.tsx', thread: 'th_01', via: 'invite', from: 'tereza ', name: 'Mallory' },
       deps(log, 'Tereza')
     );
     expect(toasts(log)).toEqual(['Tereza invited you here — their comment is on poster.']);
@@ -65,15 +65,46 @@ describe('the invite-landing toast (S6.11, CONTRACT §3)', () => {
     expect(LANDING_SHOT_MS).toBeGreaterThan(0);
   });
 
+  // V2-8.9 round B A3 — the owner pointed the invite at SOMEONE ELSE's thread: the toast must not name the
+  // thread's author as the inviter (nor show the cloud's name as the author); it is the plain thread landing.
+  test('an invite pointed at another person’s thread keeps S1.18, never "<author> invited you"', () => {
+    for (const from of ['Olga Owner', undefined]) {
+      const log: unknown[][] = [];
+      applyShellNavigate(
+        { canvas: 'ui/poster.tsx', thread: 'th_01', via: 'invite', ...(from ? { from } : {}) },
+        deps(log, 'Tereza')
+      );
+      expect(toasts(log)).toEqual(["Opened from Tereza's link — poster."]);
+      expect(JSON.stringify(log)).not.toContain('Olga');
+    }
+  });
+
+  test('Home sends the cloud’s inviter name beside the thread only', () => {
+    expect(
+      landingTarget({ project: 'p', canvas: 'ui/poster.tsx', thread: 'th_01' }, 'Tereza')
+    ).toEqual({ canvas: 'ui/poster.tsx', thread: 'th_01', via: 'invite', from: 'Tereza' });
+    expect(landingTarget({ project: 'p', canvas: 'ui/poster.tsx' }, 'Tereza')).toEqual({
+      canvas: 'ui/poster.tsx',
+    });
+  });
+
   test('a mention landing, an unknown via or no stored author keeps S1.18', () => {
     for (const [payload, author, want] of [
-      [{ canvas: 'ui/poster.tsx', thread: 'th_01' }, 'Tereza', "Opened from Tereza's link — poster."],
+      [
+        { canvas: 'ui/poster.tsx', thread: 'th_01' },
+        'Tereza',
+        "Opened from Tereza's link — poster.",
+      ],
       [
         { canvas: 'ui/poster.tsx', thread: 'th_01', via: 'mention' },
         'Tereza',
         "Opened from Tereza's link — poster.",
       ],
-      [{ canvas: 'ui/poster.tsx', thread: 'th_01', via: 'invite' }, null, 'Opened from a link — poster.'],
+      [
+        { canvas: 'ui/poster.tsx', thread: 'th_01', via: 'invite' },
+        null,
+        'Opened from a link — poster.',
+      ],
     ] as const) {
       const log: unknown[][] = [];
       applyShellNavigate(payload, deps(log, author));
@@ -91,7 +122,9 @@ describe('the invite-landing toast (S6.11, CONTRACT §3)', () => {
       'utf8'
     );
     expect(rs).toContain('pub via: Option<String>');
-    expect(rs).toContain('via: t.via.filter(|v| v == "invite" && t.thread.is_some())');
+    expect(rs).toContain('via: t.via.clone().filter(|v| v == "invite" && t.thread.is_some())');
+    expect(rs).toContain('t.from.as_deref().and_then(clean_from)');
+    expect(rs).toContain('target.from = None;');
     expect(rs).toMatch(/validate_target\)\.transpose\(\)\?\.map\(\|t\| via_for\(&caller, t\)\)/);
   });
 });
