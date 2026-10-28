@@ -67,7 +67,7 @@ describe('15 an-rebind - AI rewrites the button the arrow points at', () => {
   let lane;
   let ui;
   const BOARD = [
-    sticky('tereza', 'a0', 120, 360, 'Make See the work bigger'),
+    sticky('tereza', 'a0', 120, 690, 'Make See the work bigger'),
     {
       id: 'arw',
       type: 'arrow',
@@ -87,7 +87,7 @@ describe('15 an-rebind - AI rewrites the button the arrow points at', () => {
     await lane?.stop();
   });
 
-  test('the run rewrites the words; the arrow stays bound and says "rewritten by AI"; nothing is dangling', { todo: 'next run: select the arrow by its stroke (the layer draws it as svg geometry); the AI side is green' }, async () => {
+  test('the run rewrites the words; the arrow stays bound and says "rewritten by AI"; nothing is dangling', async () => {
     lane.script([
       { op: 'tool', id: 'r1', title: 'Rewrite the button', path: CANVAS_FILE },
       { op: 'subst', path: CANVAS_FILE, from: '>See the work<', to: '>See our work<' },
@@ -98,14 +98,14 @@ describe('15 an-rebind - AI rewrites the button the arrow points at', () => {
     await until(() => ui.tid('ai-result').count(), 'the run to finish', 30_000);
     await until(() => /See our work/.test(lane.read(CANVAS_FILE)), 'the rewrite on disk');
     await sleep(2500); // the canvas reloads on the file change
-    const arrow = scene(ui, '[data-id="arw"] path, [data-id="arw"] line, [data-id="arw"] polyline').first();
-    await until(async () => (await arrow.count()) > 0, 'the arrow\'s stroke on the layer');
-    const box = await arrow.boundingBox();
-    assert.ok(box, 'the arrow has a box');
+    // the layer answers clicks in Preview (Edit keeps it quiet: a click passes through to the design)
+    await ui.tid('palette-mode-preview').first().click();
+    await sleep(500);
+    const sel = '.dc-annot-scene [data-id="arw"] path, .dc-annot-scene [data-id="arw"] line, .dc-annot-scene [data-id="arw"] polyline';
+    const pt = await until(() => ui.strokePoint(sel), "the arrow's stroke on the layer");
     const markup = await scene(ui, '[data-id="arw"]').first().evaluate((e) => e.outerHTML.slice(0, 300));
-    lane.markup = markup;
-    // a real press on the arrow's middle (the line runs from the note to the button)
-    await ui.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    // a real press ON the stroke (its midpoint by length)
+    await ui.page.mouse.move(pt.x, pt.y);
     await sleep(80);
     await ui.page.mouse.down();
     await ui.page.mouse.up();
@@ -138,7 +138,7 @@ describe('15 an-ai-write - AI writes a review as notes with arrows', () => {
     await lane?.stop();
   });
 
-  test('four notes with a spark edge, each with a spark arrow to what it means; the design did not change', { todo: 'next run: the annotate verb needs the canvas rects manifest; written, unverified' }, async () => {
+  test('four notes with a spark edge, each with a spark arrow to what it means; the design did not change', async () => {
     const design = lane.read(CANVAS_FILE);
     // the verb finds an artboard from a canvas-rects manifest (a live studio is not asked to render for it)
     lane.write(
@@ -155,14 +155,16 @@ describe('15 an-ai-write - AI writes a review as notes with arrows', () => {
       { op: 'tool', id: 'w1', title: 'Writing notes on the layer', kind: 'other' },
       annotate(
         lane,
-        notes.map((text, i) => ({ op: 'create', type: 'sticky', text, x: 140 + i * 190, y: 640, to: 'ab:desktop' })),
+        notes.map((text, i) => ({ op: 'create', type: 'sticky', text, x: 140 + i * 190, y: 700, to: 'ab:desktop' })),
         ['--rects', join(lane.project, '.design/_state/rects.json')]
       ),
       { op: 'done', id: 'w1' },
       { op: 'say', text: "Done - 4 notes on Board, each pointing at what it means. The design didn't change." },
     ]);
     await ui.ask('Review Board like someone seeing it for the first time');
-    await until(() => ui.tid('ai-canvas-unchanged').count(), 'the answer that touched nothing', 40_000);
+    // the AI's own closing line (a Bash tool can write, so the panel makes no claim of its own - answer-note.js)
+    await until(() => ui.page.getByText("The design didn't change.").count(), 'the answer', 40_000);
+    assert.equal(await ui.tid('ai-result').count(), 0, 'no result card: the run changed no artboard');
     // the layer: four AI stickies (spark edge + glyph) and their arrows
     await until(async () => (await scene(ui, '[data-type="sticky"][data-author="ai"]').count()) === 4, 'four AI notes', 20_000);
     assert.equal(await scene(ui, '[data-type="sticky"][data-author="ai"] .dc-annot-spark').count(), 4, 'each note carries the spark glyph');
@@ -181,10 +183,10 @@ describe('15 an-ai-read / an-ai-apply / an-ai-stickers - three stickies, one but
   let lane;
   let ui;
   const BOARD = [
-    sticky('s1', 'a0', 130, 330, 'Photo bigger?', { author: { kind: 'user' } }),
-    sticky('s2', 'a1', 300, 330, 'See the work feels small', { author: { kind: 'user' } }),
-    sticky('s3', 'a2', 470, 330, 'Let it fill the right half', { author: { kind: 'user' } }),
-    sticky('s4', 'a3', 640, 330, 'Warmer sun?', { author: { kind: 'user' } }),
+    sticky('s1', 'a0', 130, 1190, 'Photo bigger?', { author: { kind: 'user' } }),
+    sticky('s2', 'a1', 300, 1190, 'See the work feels small', { author: { kind: 'user' } }),
+    sticky('s3', 'a2', 470, 1190, 'Let it fill the right half', { author: { kind: 'user' } }),
+    sticky('s4', 'a3', 640, 1190, 'Warmer sun?', { author: { kind: 'user' } }),
   ];
   before(async () => {
     lane = await startAiLane({ files: files(BOARD) });
@@ -196,24 +198,12 @@ describe('15 an-ai-read / an-ai-apply / an-ai-stickers - three stickies, one but
     await lane?.stop();
   });
 
-  test('an-ai-read: the three stickies are the scope; AI answers in a line and offers ONE button; nothing changed yet', { todo: 'next run: a click selects no sticky in Preview (chip stays Whole canvas); find the selecting gesture' }, async () => {
+  test('an-ai-read: the three stickies are the scope; AI answers in a line and offers ONE button; nothing changed yet', async () => {
     const design = lane.read(CANVAS_FILE);
-    // select the three stickies: the note tool is not needed, a marquee over them with the select tool does it
-    // N opens Preview (the layer's mode) with Sticky in hand; esc puts it down, and a click selects
-    const key = (k) =>
-      ui.inFrame(
-        (key) =>
-          document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })),
-        k
-      );
-    await key('n');
-    await until(
-      () => ui.frame().locator('[data-testid="toolbar-preview"]').count(),
-      'Preview with its toolbar'
-    );
-    await key('Escape');
-    await key('v'); // the select tool
-    await sleep(300);
+    // select the three stickies: Preview is the layer's mode (Edit keeps it quiet, a click passes through to the
+    // design); the palette's Preview button is how a person gets there, then a click and two shift-clicks
+    await ui.tid('palette-mode-preview').first().click();
+    await sleep(500);
     for (const id of ['s1', 's2', 's3']) {
       const b = await scene(ui, `[data-id="${id}"]`).first().boundingBox();
       assert.ok(b, `${id} on screen`);
@@ -256,7 +246,7 @@ describe('15 an-ai-read / an-ai-apply / an-ai-stickers - three stickies, one but
     await ui.shot('15-an-ai-read');
   });
 
-  test('an-ai-apply + an-ai-stickers: Make these changes - the canvas changes, the stickies stay resolved, Done!/Flagged wear a spark; one undo takes both back', { todo: 'next run: depends on the verb write above; written, unverified' }, async () => {
+  test('an-ai-apply + an-ai-stickers: Make these changes - the canvas changes, the stickies stay resolved, Done!/Flagged wear a spark; one undo takes both back', async () => {
     const design = lane.read(CANVAS_FILE);
     lane.script([
       { op: 'tool', id: 'm1', title: 'Make the button bigger', path: CANVAS_FILE },
@@ -268,8 +258,8 @@ describe('15 an-ai-read / an-ai-apply / an-ai-stickers - three stickies, one but
       },
       annotate(lane, [
         { op: 'resolve', ids: ['s1', 's2', 's3'] },
-        { op: 'sticker', sticker: 'project-status/group-51', x: 220, y: 280, w: 88, h: 88 },
-        { op: 'sticker', sticker: 'project-status/group-47', x: 700, y: 300, w: 88, h: 88 },
+        { op: 'sticker', sticker: 'project-status/group-51', x: 220, y: 1100, w: 88, h: 88 },
+        { op: 'sticker', sticker: 'project-status/group-47', x: 700, y: 1120, w: 88, h: 88 },
       ]),
       { op: 'done', id: 'm1', path: CANVAS_FILE },
       { op: 'say', text: 'Done - the button is bigger. The 3 stickies it answered are resolved and stay where they were. "Warmer sun?" is flagged - that one is your call.' },

@@ -275,6 +275,27 @@ async function openStudio(lane, rel, { w = 1600, h = 1000, theme = 'dark', ls = 
       await page.mouse.dblclick(b.x + 12, b.y + b.height - 12);
       await sleep(700);
     },
+    /**
+     * A page point ON the stroke of the longest svg path/line under `selector` (its midpoint by length, mapped through
+     * the element's screen matrix and the canvas frame's box) - the bounding-box centre of a curve is often off it.
+     */
+    async strokePoint(selector) {
+      const local = await ui.inFrame((sel) => {
+        let best = null;
+        for (const p of document.querySelectorAll(sel)) {
+          if (typeof p.getTotalLength !== 'function') continue;
+          const len = p.getTotalLength();
+          if (!best || len > best.len) best = { p, len };
+        }
+        if (!best) return null;
+        const pt = best.p.getPointAtLength(best.len / 2);
+        const m = best.p.getScreenCTM();
+        return { x: m.a * pt.x + m.c * pt.y + m.e, y: m.b * pt.x + m.d * pt.y + m.f, len: best.len };
+      }, selector);
+      if (!local) return null;
+      const fb = await tid('canvas-frame').boundingBox();
+      return { x: fb.x + local.x, y: fb.y + local.y, len: local.len };
+    },
     artboards: async () =>
       (await ui.inFrame(() =>
         [...document.querySelectorAll('[data-dc-screen]')].map((e) => e.getAttribute('data-dc-screen'))

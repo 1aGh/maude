@@ -469,7 +469,7 @@ export default function Home() {
           <div data-cd-id="home-card-1" style={{ position: "absolute", left: 96, top: 300, width: 380, height: 220, background: "#eef" }}>Product design</div>
           <div data-cd-id="home-card-2" style={{ position: "absolute", left: 530, top: 300, width: 380, height: 220, background: "#efe" }}>Brand systems</div>
           <div data-cd-id="home-card-3" style={{ position: "absolute", left: 964, top: 300, width: 380, height: 220, background: "#fee" }}>Small apps</div>
-          <footer data-cd-id="home-footer" style={{ position: "absolute", left: 96, top: 700, width: 1248, height: 120, background: "#f4f1ea" }}>Studio site - Brno</footer>
+          <footer data-cd-id="home-footer" data-dc-element="Footer" style={{ position: "absolute", left: 96, top: 700, width: 1248, height: 120, background: "#f4f1ea" }}>Studio site - Brno</footer>
         </div>
       </DCArtboard>
     </DesignCanvas>
@@ -516,16 +516,18 @@ describe('14 ed-edge-ai + ed-edge-ask - AI works in place on a selection', () =>
       )
     );
 
-  test('ed-edge-ask: three cards, ⌘/, the one outline sits on the selection; the whole change is one step', { todo: 'the scope outline + ring fix are green; the one-step undo needs the shell undo key, not a canvas keydown' }, async () => {
+  test('ed-edge-ask: three cards, ⌘/, the one outline sits on the selection; the whole change is one step', async () => {
     const original = lane.read(HOME_FILE);
     await click('home-card-1');
     await click('home-card-2', { shift: true });
     await click('home-card-3', { shift: true });
     lane.script([
       { op: 'gate', name: 'cards' },
+      tool('k1', 'Add Read more links', HOME_FILE),
       { op: 'subst', path: HOME_FILE, from: 'Product design', to: 'Product design - Read more' },
       { op: 'subst', path: HOME_FILE, from: 'Brand systems', to: 'Brand systems - Read more' },
       { op: 'subst', path: HOME_FILE, from: 'Small apps', to: 'Small apps - Read more' },
+      { op: 'done', id: 'k1', path: HOME_FILE },
       { op: 'say', text: 'Done - each card has a Read more link, in the same place.' },
     ]);
     await cmdSlash();
@@ -559,15 +561,20 @@ describe('14 ed-edge-ai + ed-edge-ask - AI works in place on a selection', () =>
     await until(() => /Small apps - Read more/.test(lane.read(HOME_FILE)), 'the three cards to change', 30_000);
     await until(() => ui.tid('ai-result').count(), 'the result card', 30_000);
     // one step: ⌘Z on the canvas puts every card back (the AI panel is folded: the bubble's hint is the promise)
-    await ui.inFrame(() =>
-      document.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'z', code: 'KeyZ', metaKey: true, bubbles: true, cancelable: true })
-      )
-    );
-    await until(() => lane.read(HOME_FILE) === original, 'one ⌘Z to take back all three cards', 20_000);
+    // a real ⌘Z through the browser: whichever document holds focus (the canvas frame after the clicks above), the
+    // shell owns undo and the canvas forwards the key to it
+    const stack = () => fetch(`http://localhost:${lane.port}/_api/project/undo-stack`).then((r) => r.text()).catch((e) => String(e));
+    const before = await stack();
+    await ui.page.keyboard.press('Meta+KeyZ');
+    try {
+      await until(() => lane.read(HOME_FILE) === original, 'one ⌘Z to take back all three cards', 12_000);
+    } catch (err) {
+      throw new Error(`${err.message}\nundo stack before: ${before.slice(0, 700)}\nafter: ${(await stack()).slice(0, 700)}`);
+    }
+    await ui.shot('14-ed-edge-ask.undone');
   });
 
-  test('ed-edge-ai: AI holds only the footer; the headline stays yours; a click on the footer says whose it is', { todo: 'the hold ring is green (neutral tag); the click tip did not show' }, async () => {
+  test('ed-edge-ai: AI holds only the footer; the headline stays yours; a click on the footer says whose it is', async () => {
     // asked in the chat, on the page: the AI then holds what its edits touch - the footer and nothing else
     lane.script([
       tool('f1', 'Links done - newsletter field next', HOME_FILE),
@@ -583,21 +590,29 @@ describe('14 ed-edge-ai + ed-edge-ask - AI works in place on a selection', () =>
       () =>
         ui.inFrame(() => {
           const els = [...document.querySelectorAll('[data-testid="edit-ai-hold"]')];
-          return els.length ? { n: els.length, text: els.map((e) => e.textContent).join('|') } : null;
+          return els.length
+            ? { n: els.length, text: els.map((e) => e.textContent).join('|'), held: els.map((e) => e.getAttribute('data-element')) }
+            : null;
         }),
       'the hold ring on the footer'
     );
     assert.equal(hold.n, 1, 'only the footer is held');
+    assert.deepEqual(hold.held, ['home-footer'], 'the hold is on the footer, not on the page');
     assert.match(hold.text, /AI is (drawing|changing|working)/i);
     await ui.shot('14-ed-edge-ai.footer-held');
     assert.ok(await ui.tid('ai-stop').count(), 'Stop is in the AI chat');
+    // the canvas hot-reloads once the first edit lands and a remount drops whatever the page was showing: let it
+    // settle, then the ring must be back before the click (a tip put up mid-reload would vanish with it)
+    await until(() => ui.inFrame(() => /Brno - Links/.test(document.body.innerText)), 'the first footer edit on the canvas');
+    await sleep(3000);
+    await until(() => ui.inFrame(() => document.querySelectorAll('[data-testid="edit-ai-hold"]').length === 1), 'the hold again after the reload');
     // a click on the held footer says it is AI's until it is done
     await click('home-footer');
     const tip = await until(
       () => ui.inFrame(() => document.querySelector('[data-testid="edit-ai-hold-tip"]')?.textContent ?? null),
       'the tip by the pointer'
     );
-    assert.match(tip, /AI's until it's done/);
+    assert.match(tip, /^Footer is AI's until it's done/);
     assert.match(tip, /Stop in the AI chat/);
     await ui.shot('14-ed-edge-ai.tip');
     // you edit the headline while AI is on the footer (a plain file write: the same bytes the canvas editor writes)
