@@ -48,19 +48,18 @@ Not built, either because no CONTRACT line names them or because the weekly budg
 - Hold tag "AI is drawing the footer" (S2.18 prose) vs. the fixed "AI is working" (decision v2-S5.11-neutral-ring-tags):
   kept neutral. If wanted, `holdsFor` in `client/v2/ai/runs-model.js` can build verb + element name (never the prompt).
 - an-ai-write chips "Make these changes / Put them in a section" (board) vs. the generic follow-ups: no CONTRACT line.
-- Tests not driven (follow-up): 13 ds-make-filling (desktop lane, ds-review part 4); 03 ai-other-tab (second tab +
-  live fake run, project-tabs-identity); 12 ia-more-ways, ia-edges; 07 ve-footage (local hub presence stub);
+- Tests not driven (follow-up): 13 ds-make-filling (desktop lane, ds-review part 4); 12 ia-more-ways, ia-edges;
+  07 ve-footage (local hub presence stub);
   10 an-vote and co-mention-notify (in-app half) on a cell with minted sessions; the multiplayer `surface` catalogue
   through the Docker container.
 - 05 es-all-trashed: a single teammate cannot empty a canvas ("A canvas keeps at least one artboard"); the state needs
   two people racing (hub stopped, A trashes a–c, B trashes d, B lands first). Drive it as a race lane or soak it.
 - 12 ia-missing: "Waiting for alice's device" — the hub names the holder by e-mail local part and reports no Mac/PC kind
   yet ("Mac" in the board). Plan: run it inside team-cell's rate-limited window (alice's one write spent on a note).
-- ai-runs (`apps/desktop/e2e/multiplayer/ai-runs.e2e.ts`, lane `e2e:ai-runs`, NOT in the V2-8.3 record): R1 is red once the
-  canvas is open — both Post-scoped runs start `waiting` before anyone holds Post. Likely the spec's Post selection in
-  Mac 1's `_active.json` becomes a person's edit-hold (S2.18), which an AI run waits for by design; confirm with
-  `/_api/ai/runs` `waiting[0].heldBy`, then select nothing on Mac 1 for R1. "Undo this chat" needs a fake-ACP chat run.
-  cf-busy / ai-tereza / ed-edge-undo (two studios on one hub, Tereza's own token) not driven.
+- (p8-t-ai-runs, merged e54a7d545) ai-runs R1, ai-tereza, cf-busy, ed-edge-undo and ai-other-tab are driven and green ×2.
+  The board draws these, but no CONTRACT line names them, so they were not built: ai-other-tab's toast "… 1 chat still
+  running there" with Show, and the tab tooltip "AI is translating …"; cf-busy's "you stay in Edit" mode word. The
+  would-undo canvas tag and the rings are inside the canvas iframe, so they are checked in shots only.
 - A remote peer's presence relayed through a hub is not role-stamped by the room (it arrives as the hub sent it).
 - cloud-attach 2b shot: after "Moved to the cloud — your canvases are going up now." the sheet also shows a red
   "Sharing is not available right now. Try again in a minute." line the board does not draw — most likely the cloud
