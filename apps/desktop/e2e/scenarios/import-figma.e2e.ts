@@ -55,6 +55,9 @@ async function typeLink(value: string) {
 }
 
 async function closeSheet() {
+  // the summary step closes with Done; every earlier step with Cancel
+  const done = await $(tid('figma-done'));
+  if (await done.isDisplayed().catch(() => false)) await done.click();
   const cancel = await $(tid('figma-cancel'));
   if (await cancel.isDisplayed().catch(() => false)) await cancel.click();
   await browser.waitUntil(
@@ -162,6 +165,8 @@ describe('import-figma', () => {
     expect(pins[0]?.thread).toHaveLength(1);
     expect(pins.every((p) => p.artboard)).toBe(true);
     expect(existsSync(join(DESIGN, 'ui-uniformy-2027.annotations.json'))).toBe(false);
+    // Done closes the summary (the next leg opens a fresh sheet on another canvas)
+    await closeSheet();
   });
 
   // P8 test round (12 · ia-figjam, 15 · an-figjam): the board ARRIVING, not only the door. The FigJam file is the

@@ -2,9 +2,9 @@ import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, $$, browser, expect } from '@wdio/globals';
+import { openAssistant, requireAi } from '../helpers/assistant';
 import { waitForArtboard } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
-import { openAssistant, requireAi } from '../helpers/assistant';
 import { selectUntilIsland } from '../helpers/select-artboard';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
@@ -83,23 +83,22 @@ const seqCount = () => (onDisk().match(/<TransitionSeries\.Sequence\b/g) ?? []).
 
 /** Twelve real clips on the composer, as a Finder drop hands them over. */
 async function dropClipsOnComposer(files: string[]): Promise<void> {
-  await browser.execute(
-    (datas: string[]) => {
-      const dt = new DataTransfer();
-      datas.forEach((d, i) => {
-        const bin = atob(d);
-        const bytes = new Uint8Array(bin.length);
-        for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
-        dt.items.add(new File([bytes], `akce-${String(i + 1).padStart(2, '0')}.mp4`, { type: 'video/mp4' }));
-      });
-      const host = document.querySelector('[data-testid="chat-composer"]') as HTMLElement;
-      const at = { bubbles: true, cancelable: true, dataTransfer: dt };
-      host.dispatchEvent(new DragEvent('dragenter', at));
-      host.dispatchEvent(new DragEvent('dragover', at));
-      host.dispatchEvent(new DragEvent('drop', at));
-    },
-    files.map(b64)
-  );
+  await browser.execute((datas: string[]) => {
+    const dt = new DataTransfer();
+    datas.forEach((d, i) => {
+      const bin = atob(d);
+      const bytes = new Uint8Array(bin.length);
+      for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+      dt.items.add(
+        new File([bytes], `akce-${String(i + 1).padStart(2, '0')}.mp4`, { type: 'video/mp4' })
+      );
+    });
+    const host = document.querySelector('[data-testid="chat-composer"]') as HTMLElement;
+    const at = { bubbles: true, cancelable: true, dataTransfer: dt };
+    host.dispatchEvent(new DragEvent('dragenter', at));
+    host.dispatchEvent(new DragEvent('dragover', at));
+    host.dispatchEvent(new DragEvent('drop', at));
+  }, files.map(b64));
 }
 
 describe('video-ai-chat — twelve clips in, a cut on the beat out, a take swapped by hand', () => {
@@ -160,7 +159,10 @@ describe('video-ai-chat — twelve clips in, a cut on the beat out, a take swapp
     await card.waitForExist({ timeout: 60_000, timeoutMsg: 'no watch card' });
     await browser.waitUntil(
       async () => /Watching 12 clips… [1-9]\d* done/.test(await text('ai-watch-title')),
-      { timeout: 30_000, timeoutMsg: `the watch card never counted: ${await text('ai-watch-title')}` }
+      {
+        timeout: 30_000,
+        timeoutMsg: `the watch card never counted: ${await text('ai-watch-title')}`,
+      }
     );
     await $(tid('ai-watch-found')).waitForExist({ timeout: 15_000 });
     expect(await text('ai-watch-found')).toMatch(/\d:\d\d.*Touchdown run — akce-\d\d/s);
@@ -191,9 +193,27 @@ describe('video-ai-chat — twelve clips in, a cut on the beat out, a take swapp
       timeoutMsg: `the cut never reached 14 shots (${seqCount()})`,
     });
     await $(tid('ai-result')).waitForExist({ timeout: 60_000, timeoutMsg: 'no result line' });
-    expect(await text('ai-result')).toContain(
-      'Done — Recap · Reels is a 0:30 cut: 14 shots from 9 of your 12 clips, on the beat of Hype instrumental.'
+    // The AI's own message says what it did; the card under it is Undo first, then Keep going (Result.jsx, 03 ai-done)
+    const done =
+      'Done — Recap · Reels is a 0:30 cut: 14 shots from 9 of your 12 clips, on the beat of Hype instrumental.';
+    await browser.waitUntil(
+      async () =>
+        await browser.execute(
+          (want) =>
+            [...document.querySelectorAll('.chat-msg--assistant')].some((m) =>
+              (m.textContent ?? '').includes(want)
+            ),
+          done
+        ),
+      { timeout: 20_000, timeoutMsg: `the AI never said: ${done}` }
     );
+    expect(
+      await browser.execute(() =>
+        [...document.querySelectorAll('[data-testid="ai-result"] button')]
+          .map((b) => (b.textContent ?? '').trim())
+          .filter((t) => t === 'Undo' || t === 'Keep going')
+      )
+    ).toEqual(['Undo', 'Keep going']);
     const left = await $(tid('ai-left-out'));
     await left.waitForExist({ timeout: 20_000 });
     const said = await left.getText();
@@ -208,9 +228,9 @@ describe('video-ai-chat — twelve clips in, a cut on the beat out, a take swapp
     expect(await $(tid('timeline-ai-keep-going')).isExisting()).toBe(false);
 
     // every shot starts on a beat: 120 BPM at 30 fps = 15 frames a beat; the starts are read from the file
-    const lens = [...onDisk().matchAll(/<TransitionSeries\.Sequence\b[^>]*durationInFrames=\{(\d+)\}/g)].map((m) =>
-      Number(m[1])
-    );
+    const lens = [
+      ...onDisk().matchAll(/<TransitionSeries\.Sequence\b[^>]*durationInFrames=\{(\d+)\}/g),
+    ].map((m) => Number(m[1]));
     expect(lens.length).toBe(14);
     let at = 0;
     for (const d of lens) {
@@ -223,23 +243,31 @@ describe('video-ai-chat — twelve clips in, a cut on the beat out, a take swapp
   it('a hand edit: Other takes… offers the clip’s other takes, AI’s pick marked; the swap keeps the length', async () => {
     await (await $(tid('timeline-seq-2'))).click();
     const link = await $(tid('insp-clip-takes'));
-    await link.waitForExist({ timeout: 15_000, timeoutMsg: 'the clip inspector has no Other takes…' });
+    await link.waitForExist({
+      timeout: 15_000,
+      timeoutMsg: 'the clip inspector has no Other takes…',
+    });
     await link.click();
     const pop = await $(tid('other-takes'));
     await pop.waitForExist({ timeout: 15_000 });
     expect(await text('other-takes-title')).toMatch(/^Other takes · /);
-    expect(await text('other-takes-foot')).toBe('Click a take to swap it in. Same length, same beat.');
+    expect(await text('other-takes-foot')).toBe(
+      'Click a take to swap it in. Same length, same beat.'
+    );
     const takes = await $$(tid('other-takes-take'));
     expect(takes.length).toBeGreaterThanOrEqual(2);
-    const picks = await browser.execute(
-      () =>
-        [...document.querySelectorAll('[data-testid="other-takes-take"]')].map((t) => ({
-          pick: t.getAttribute('data-pick') === 'true',
-          on: t.getAttribute('data-on') === 'true',
-          text: (t.textContent ?? '').trim(),
-        }))
+    const picks = await browser.execute(() =>
+      [...document.querySelectorAll('[data-testid="other-takes-take"]')].map((t) => ({
+        pick: t.getAttribute('data-pick') === 'true',
+        on: t.getAttribute('data-on') === 'true',
+        text: (t.textContent ?? '').trim(),
+      }))
     );
     expect(picks.filter((p) => p.pick).length).toBe(1);
+    expect(picks.filter((p) => p.on).length).toBe(1);
+    // every take is a different window (no take offered twice — p8-t-video-2)
+    const windows = picks.map((p) => p.text.match(/^\d+:\d\d(?:\.\d)?–\d+:\d\d(?:\.\d)?/)?.[0]);
+    expect(new Set(windows).size).toBe(windows.length);
     expect(picks.find((p) => p.pick)?.text).toContain('AI’s pick');
     await capture('video-ai-other-takes');
 
@@ -247,7 +275,7 @@ describe('video-ai-chat — twelve clips in, a cut on the beat out, a take swapp
     const lensBefore = [...before.matchAll(/durationInFrames=\{(\d+)\}/g)].map((m) => m[1]);
     const swap = await browser.execute(() => {
       const t = [...document.querySelectorAll('[data-testid="other-takes-take"]')].find(
-        (x) => !(x as HTMLButtonElement).disabled
+        (x) => !(x as HTMLButtonElement).disabled && x.getAttribute('data-on') !== 'true'
       ) as HTMLButtonElement | undefined;
       t?.click();
       return !!t;
@@ -257,7 +285,9 @@ describe('video-ai-chat — twelve clips in, a cut on the beat out, a take swapp
       timeout: 15_000,
       timeoutMsg: 'swapping a take did not change the file',
     });
-    expect([...onDisk().matchAll(/durationInFrames=\{(\d+)\}/g)].map((m) => m[1])).toEqual(lensBefore);
+    expect([...onDisk().matchAll(/durationInFrames=\{(\d+)\}/g)].map((m) => m[1])).toEqual(
+      lensBefore
+    );
     expect(seqCount()).toBe(14);
     // ⌘Z steps back through YOUR edit first: the cut is still 14 shots
     await keyDown({ key: 'z', metaKey: true });
