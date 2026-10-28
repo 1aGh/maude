@@ -97,6 +97,28 @@ test('an uncommitted client edit newer than the bundle is stale', () => {
   }
 });
 
+// 2026-10-28 V2-8.3 record: 1b798abf4 re-wrote client/styles/1-tokens-shell.css (formatting) after the release
+// build, and share-roles refused to boot on a bundle a rebuild reproduced byte for byte. CSS is the separate
+// styles.css bundle (build.ts, client/styles/_index.css); no .css file is an input of client.bundle.js.
+test('a CSS commit after the bundle does not make the JS bundle stale', () => {
+  const r = repo();
+  try {
+    mkdirSync(join(r.studio, 'client', 'styles'), { recursive: true });
+    r.commit('client/v2/share.jsx', 'word', '2026-10-27T03:39:58+01:00');
+    r.commit('dist/client.bundle.js', 'new', '2026-10-27T21:01:43+01:00');
+    r.commit('client/styles/1-tokens-shell.css', ':root{}', '2026-10-27T21:29:44+01:00');
+    assert.equal(staleClientDist(r.studio), null);
+    writeFileSync(join(r.studio, 'client', 'styles', '1-tokens-shell.css'), ':root{--x:1}');
+    assert.equal(
+      staleClientDist(r.studio),
+      null,
+      'an uncommitted CSS edit is not a bundle input either'
+    );
+  } finally {
+    r.done();
+  }
+});
+
 test('every studio the lane starts from source checks the bundle first', () => {
   const stand = read('share-roles/stand-up.mjs');
   const boot = stand.slice(stand.indexOf('async function bootStudio'));

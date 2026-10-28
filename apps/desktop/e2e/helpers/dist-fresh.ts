@@ -35,8 +35,8 @@ export function staleClientDist(studioDir: string): string | null {
       .map((l) => l.slice(3).trim())
   );
   const rel = (abs: string) => relative(top, abs).split('\\').join('/');
-  const committedAt = (abs: string) => {
-    const t = Number(git('log', '-1', '--format=%ct', '--', abs).trim());
+  const committedAt = (abs: string, ...exclude: string[]) => {
+    const t = Number(git('log', '-1', '--format=%ct', '--', abs, ...exclude).trim());
     return Number.isFinite(t) && t > 0 ? t * 1000 : 0;
   };
   const bundle = join(studioDir, 'dist', 'client.bundle.js');
@@ -46,14 +46,16 @@ export function staleClientDist(studioDir: string): string | null {
   } catch {
     return 'there is no dist/client.bundle.js';
   }
-  let newest = committedAt(join(studioDir, 'client'));
+  // CSS is not an input of client.bundle.js: it is the separate styles.css bundle (build.ts, client/styles/_index.css).
+  // A CSS-only commit after the build (1b798abf4's token re-format, 2026-10-28) must not refuse a byte-identical bundle.
+  let newest = committedAt(join(studioDir, 'client'), ':(exclude,glob)**/*.css');
   let newestWhat = `the last client commit (${new Date(newest).toISOString()})`;
   const walk = (dir: string) => {
     for (const e of readdirSync(dir, { withFileTypes: true })) {
       const p = join(dir, e.name);
       if (e.isDirectory()) {
         if (e.name !== 'node_modules') walk(p);
-      } else if (dirty.has(rel(p))) {
+      } else if (dirty.has(rel(p)) && !e.name.endsWith('.css')) {
         const m = statSync(p).mtimeMs;
         if (m > newest) {
           newest = m;
