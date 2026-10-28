@@ -1,6 +1,6 @@
 #!/bin/bash
 # V2-8.3 record from the main checkout, with an on-screen probe log and real-config mtime checks (recreated 2026-10-28 after the reboot).
-S=/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad
+S=/Users/iagh/git/personal/maude/.ai/plans/notes/v2-evidence/V2-final-records  # in the repo: a reboot wipes TMPDIR and the scratchpad
 OUT=$S/rec; P=$OUT/probe
 # hold until the lead says go (product freeze starts at 8.3): touch $S/rec/go
 end=$(( $(date +%s) + 10800 )); until [ -f "$S/rec/go" ]; do [ $(date +%s) -gt $end ] && { echo "no go within 3 h" > "$S/rec/summary.txt"; exit 4; }; sleep 20; done
