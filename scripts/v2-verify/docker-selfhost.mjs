@@ -138,7 +138,18 @@ function freePort() {
     });
   });
 }
-async function http(url, { method = 'GET', headers = {}, body, raw = false } = {}) {
+async function http(url, opts = {}) {
+  // one retry on a transport error: right after a container restart the proxy may hand back a dead
+  // keep-alive socket; a second refusal is real and throws
+  try {
+    return await http1(url, opts);
+  } catch (err) {
+    if (!/fetch failed|ECONNRESET|socket/i.test(String(err?.message ?? err))) throw err;
+    await sleep(2000);
+    return http1(url, opts);
+  }
+}
+async function http1(url, { method = 'GET', headers = {}, body, raw = false } = {}) {
   const r = await fetch(url, {
     method,
     headers: { ...headers, ...(body !== undefined ? { 'content-type': 'application/json' } : {}) },
@@ -159,8 +170,19 @@ async function http(url, { method = 'GET', headers = {}, body, raw = false } = {
 const healthy = (url) => async () => (await http(`${url}/health`)).status === 200;
 
 // The hub rate-limits sign-in per client — a real control, kept: wait a 429 out.
+let lastSignInAt = 0;
+/**
+ * The hub allows 5 sign-ins a minute per client address, and every caller here (the gate, the desktop app)
+ * is the same loopback client behind Caddy. Before a desktop leg signs in through the UI, let the window
+ * the gate's own sign-ins used run out — or the app meets "Too many attempts" (a real control, kept).
+ */
+async function signInWindowClear() {
+  const wait = 65_000 - (Date.now() - lastSignInAt);
+  if (wait > 0) await sleep(wait);
+}
 async function signIn(url, email, password) {
   for (let i = 0; i < 12; i++) {
+    lastSignInAt = Date.now();
     const r = await http(`${url}/auth/login`, { method: 'POST', body: { email, password } });
     if (r.status === 200) return { token: r.body.token, role: r.body.user?.role ?? null };
     if (r.status !== 429)
@@ -617,7 +639,8 @@ async function main() {
         async () => hubHas(WS.url, WS.owner.token, WS.secret, 'ui/docker-a.tsx'),
         90_000
       );
-      WS.peers.b = await startPeer('b', { hubUrl: WS.url, token: WS.designer.token });
+      // the owner, not the designer: team-project's step 8 disables the designer, which ends their sessions
+      WS.peers.b = await startPeer('b', { hubUrl: WS.url, token: WS.owner.token });
       await until(
         'peer A’s canvas on peer B’s disk',
         async () => WS.peers.b.read('ui/docker-a.tsx')?.includes('From peer A'),
@@ -679,6 +702,7 @@ async function main() {
           JSON.stringify({ hubUrl: WS.url, email: WS.entry.email, password: WS.entry.password }),
           { mode: 0o600 }
         );
+        await signInWindowClear();
         const r = wdio(
           'multiplayer/selfhost-entry.conf.ts',
           { MAUDE_SELFHOST_ENTRY_TARGET: target },
@@ -702,10 +726,13 @@ async function main() {
             adminSecret: WS.secret,
             ownerToken: WS.owner.token,
             teammateToken: WS.teammate.token,
+            // a second member (the ai-runs lane's bob, p8-t-multi-2) — a person team-project never disables
+            bobToken: WS.entry.token,
             away: 'kill',
           }),
           { mode: 0o600 }
         );
+        await signInWindowClear();
         const r = wdio(
           'wdio.team-project.conf.ts',
           { MAUDE_E2E_HUB_TARGET: target },
@@ -734,13 +761,17 @@ async function main() {
       `docker ${mode === 'kill' ? 'kill + start' : 'restart'}: accounts, sessions, project and an in-flight edit survive`,
       async () => {
         assert(WS.peers.a && WS.peers.b, 'no peers');
+        // the desktop legs end with the hub just restarted, and team-project's step 8 disables + re-enables
+        // the designer (which ends their sessions): settle, then take a session minted NOW
+        await until('hub healthy before', healthy(WS.url), 180_000);
+        const live = await signIn(WS.url, WS.designer.email, WS.designer.password);
         const before = await bootstrapDocs(WS.url, WS.owner.token);
         const title = `In flight before ${mode}`;
         WS.peers.a.write('ui/docker-a.tsx', title); // the edit is in flight while the hub goes away
         act();
         await until('hub healthy again', healthy(WS.url), 180_000);
         const session = await http(`${WS.url}/auth/session`, {
-          headers: { authorization: `Bearer ${WS.designer.token}` },
+          headers: { authorization: `Bearer ${live.token}` },
         });
         assert(
           session.status === 200,

@@ -88,18 +88,23 @@ const TEAM = process.env.MAUDE_E2E_TEAM
     })
   : null;
 
-/** The server goes away: SIGSTOP the in-process hub, or kill / pause its container (same volume). */
-function hubAway(t: NonNullable<typeof TEAM>) {
+/**
+ * The server goes away: SIGSTOP the in-process hub, or kill / pause its container (same volume).
+ * The offline-race steps (9a, 9) pass 'pause': they depend on WHICH save reaches the hub first, which a held
+ * connection keeps (as SIGSTOP does) and a restart does not — after a kill each peer reconnects on its own
+ * backoff. The crash on the same volume is steps 7 and 7b.
+ */
+function hubAway(t: NonNullable<typeof TEAM>, mode = t.hubAway) {
   if (!t.hubContainer) return void process.kill(t.hubPid, 'SIGSTOP');
   execFileSync(
     'docker',
-    t.hubAway === 'pause' ? ['pause', t.hubContainer] : ['kill', '--signal', 'KILL', t.hubContainer]
+    mode === 'pause' ? ['pause', t.hubContainer] : ['kill', '--signal', 'KILL', t.hubContainer]
   );
 }
 /** …and comes back. */
-function hubBack(t: NonNullable<typeof TEAM>) {
+function hubBack(t: NonNullable<typeof TEAM>, mode = t.hubAway) {
   if (!t.hubContainer) return void process.kill(t.hubPid, 'SIGCONT');
-  execFileSync('docker', [t.hubAway === 'pause' ? 'unpause' : 'start', t.hubContainer]);
+  execFileSync('docker', [mode === 'pause' ? 'unpause' : 'start', t.hubContainer]);
 }
 
 const canvas = (
@@ -377,6 +382,13 @@ describe('team-project (native-desktop)', () => {
       () => (read(theirs) ?? '').includes('written while the server was away'),
       120_000
     );
+    // CONTRACT §Save status: once the server is back and the edit delivered, the Share cluster's one word is
+    // "Saved" again (V2-8.18 — on the container lane the server was killed and restarted on its volume)
+    await eventually(
+      'the Share cluster to say Saved again',
+      async () => /^saved\b/i.test(((await syncStatusText()) ?? '').trim()),
+      90_000
+    );
     await capture('09-server-back-edit-delivered');
   });
 
@@ -486,7 +498,7 @@ describe('team-project (native-desktop)', () => {
     await closeDiagnostics();
     await settleMotion();
 
-    hubAway(t);
+    hubAway(t, 'pause');
     try {
       writeFileSync(mine, canvas('Home, mine while offline'));
       await eventually(
@@ -498,7 +510,7 @@ describe('team-project (native-desktop)', () => {
         60_000
       );
     } finally {
-      hubBack(t);
+      hubBack(t, 'pause');
     }
     writeFileSync(theirs, canvas('Home, theirs right after'));
 
@@ -541,7 +553,7 @@ describe('team-project (native-desktop)', () => {
     await closeDiagnostics();
     await settleMotion();
 
-    hubAway(t);
+    hubAway(t, 'pause');
     try {
       writeFileSync(theirs, canvas('Welcome, theirs while offline'));
       // the teammate's studio has no status line: its `_sync.json` says when the save is queued for the server
@@ -551,7 +563,7 @@ describe('team-project (native-desktop)', () => {
         60_000
       );
     } finally {
-      hubBack(t);
+      hubBack(t, 'pause');
     }
     // this Mac saves right after the server is back
     writeFileSync(mine, canvas('Welcome, mine right after'));
