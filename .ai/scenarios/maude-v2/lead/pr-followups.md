@@ -89,3 +89,26 @@ Not built, either because no CONTRACT line names them or because the weekly budg
 
 - No real-hub leg covers a pre-1.9.0 hub's `hub-too-old` refusal (the 1.9.1 image is the compat hub and offers Update project). The refusal is unit-pinned in `migrate-v2-refusals.test.ts`. Adding a v1.8.1 hub image + one Docker-gate leg would close it.
 - `apps/desktop/e2e/scenarios/offline-conflict.e2e.ts:86/94` still signals `hubPid` directly; route it through `hubProcess()` like team-project before that spec ever gets a container hub target (pid 0 → `kill(0)` stops the caller's process group).
+
+## From p8-journey-fixes-2 (V2-8.16 S1/S7, merged)
+
+- **V2-8.16 S7: interpreter writes are attributed by call window; A1 stays open but narrower.** Every AI Bash call that is
+  not provably a read (`bashMayWrite`, `cli/lib/bash-guard.mjs`) now gets the same claim-only per-call window a
+  `maude design` write verb has. That applies to the ACP stage (`shellOpensWindow`) and to the design hook's post-bash
+  binding, so a `python3 - <<EOF … open(p,'w')` cut lands as an AI version with one-step Undo. The builder chose this
+  approach (Michal left it to the builder): kg `maude/v2-p8-journey-s7-interpreter-write-attribution`. Still open:
+  1. **V2-8.9 A1.** A person saves an existing canvas from an outside editor while such a call runs (or within 1 s
+     after it). That save joins the AI run and its Undo. Closing this needs hash-claimed writes only: either the
+     agent reports what it wrote, or each process's writes are traced.
+  2. **Interpreter-made canvases.** A NEW canvas created by an interpreter call is not staged (S12.16 rule) and lands
+     as "outside".
+  3. **Reader list.** A reader that is not on the `READERS` list opens a harmless window. Grow the list only with
+     commands that cannot write.
+  4. **Terminal-lane runs** still take every unclaimed write for the whole turn (the v1 fallback). That is wider than
+     ACP.
+  5. **Synced projects.** `maude design history diff` is not available there, and history rows are labelled
+     "Claude Code" (the prompt stays on this Mac on purpose). The agent picks "the version before the change" by
+     position only.
+- S1: the design hook's SessionStart now names `maude design history restore <canvas> <ref>` when the studio is up
+  (kg `maude/v2-p8-journey-s1-session-start-restore-line`).
+
