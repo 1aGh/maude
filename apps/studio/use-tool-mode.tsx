@@ -174,6 +174,8 @@ export function filterToolsForReadOnly(
 
 interface ToolContextValue {
   tool: Tool;
+  /** The tool as of the last arm, read synchronously (an input router reads this, never the render value). */
+  getTool?: () => Tool;
   setTool: (t: Tool) => void;
   tools: readonly ToolDescriptor[];
   /** DDR-223 — the binary canvas mode. Kept coherent with `tool` (arming
@@ -239,7 +241,17 @@ export function ToolProvider({
   const bootTool: Tool = initial ?? (readOnly ? 'browse' : 'move');
   const bootMode: CanvasMode =
     initialMode ?? modeForTool(bootTool) ?? (readOnly ? 'preview' : 'edit');
-  const [tool, setToolState] = useState<Tool>(bootTool);
+  const [tool, setToolStateRaw] = useState<Tool>(bootTool);
+  // P8 G1a — the tool as of the LAST arm, synchronously. A sibling provider's `maude:tool-sync` lands outside a
+  // React event, so its re-render (and every `tool`-derived ref) comes a task later; a pointerdown in between
+  // read the old tool and the comment layer dropped the click (Comment pressed, no composer). Routers read
+  // `getTool()` instead of the rendered value.
+  const liveTool = useRef<Tool>(bootTool);
+  const setToolState = useCallback((t: Tool) => {
+    liveTool.current = t;
+    setToolStateRaw(t);
+  }, []);
+  const getTool = useCallback(() => liveTool.current, []);
   const [mode, setModeState] = useState<CanvasMode>(bootMode);
   const [sticky, setSticky] = useState<{ tool: Tool | null; locked: boolean }>(() => ({
     tool: null,
@@ -512,6 +524,7 @@ export function ToolProvider({
   const value = useMemo<ToolContextValue>(
     () => ({
       tool,
+      getTool,
       setTool,
       tools,
       mode,
@@ -523,7 +536,19 @@ export function ToolProvider({
       shapeKind,
       setShapeKind,
     }),
-    [tool, setTool, tools, mode, setMode, resetTool, sticky, toggleSticky, clearSticky, shapeKind]
+    [
+      tool,
+      getTool,
+      setTool,
+      tools,
+      mode,
+      setMode,
+      resetTool,
+      sticky,
+      toggleSticky,
+      clearSticky,
+      shapeKind,
+    ]
   );
 
   return <ToolContext.Provider value={value}>{children}</ToolContext.Provider>;
