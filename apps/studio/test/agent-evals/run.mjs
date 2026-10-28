@@ -11,7 +11,7 @@
 //   bun apps/studio/test/agent-evals/run.mjs suite  --tasks pilot|all|e1,b2 [--topology A] [--trials 3] [--out DIR] [--no-lane] [--skip-done]
 //   bun apps/studio/test/agent-evals/run.mjs dry    [--tasks e1,e8,x2,x3] [--out DIR]       scripted agent, REAL hooks/studio/registry; no model
 //   bun apps/studio/test/agent-evals/run.mjs grade  --dir <trial dir>                        re-grade a finished trial
-//   bun apps/studio/test/agent-evals/run.mjs regrade --out DIR [--only b2.A.1,n3.A.1] [--rejudge]   every finished trial, current graders;
+//   bun apps/studio/test/agent-evals/run.mjs regrade --out DIR [--only b2.A.1,n3.A.1] [--rejudge] [--no-report]   every finished trial, current graders;
 //                                                                  the old grade.json is kept once as grade.pre-fix.json
 //   bun apps/studio/test/agent-evals/run.mjs report [--out DIR]
 //   bun apps/studio/test/agent-evals/run.mjs smoke                                            no model: fixtures + graders
@@ -198,9 +198,9 @@ async function gradeTrial(
 ) {
   const project = join(trialDir, 'project');
   const tr = readTranscript(join(trialDir, 'transcript.jsonl'));
-  const fx = JSON.parse(
-    readFileSync(join(OUT, 'fixtures', task.fixture, `${task.fixture}.manifest.json`), 'utf8')
-  );
+  // (built on demand when this run root has no copy of the fixture — a re-grade of a run whose fixtures were cleaned)
+  const fx = fixtureProject(task.fixture)?.manifest;
+  if (!fx) throw new Error(`fixture ${task.fixture} is not available on this Mac`);
   // `live` = the trial's own studio (lib/trial.mjs): its registry answer, taken before it stops, is the
   // evidence the hold was still in force; a re-grade of a finished trial has none.
   const registry = live ? { view: live.view() } : null;
@@ -612,7 +612,7 @@ const commands = {
           .join('')}`
       );
     }
-    report();
+    if (!flag('no-report')) report(); // writes summary.{json,md} at the run root
   },
   report: async () => report(),
   smoke,
