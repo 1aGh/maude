@@ -60,6 +60,16 @@ Not built, either because no CONTRACT line names them or because the weekly budg
   The board draws these, but no CONTRACT line names them, so they were not built: ai-other-tab's toast "… 1 chat still
   running there" with Show, and the tab tooltip "AI is translating …"; cf-busy's "you stay in Edit" mode word. The
   would-undo canvas tag and the rings are inside the canvas iframe, so they are checked in shots only.
+- (p8-t-missing-a) 12 ia-edges: A/F/G/H have no surface. The import-lines.js lines "Preparing" and "Saved a copy
+  from the link" exist, but nothing calls them. The Figma "can't open" and Google-key sheets have no CONTRACT line,
+  and the product's Figma words differ from the board's. E ("Added by Tereza" on another Mac) can't show, because
+  S8-asset-sidecars §5.4 keeps `asset-origins.json` on one Mac. Syncing it is a contract change. ia-missing says
+  "Waiting for Alice's device", not "Jonas's Mac", because the hub reports no device kind (`kind: null`).
+  13 ds-make-filling: the "AI is setting the type" tag, the progress line and Stop need a live AI run that holds the
+  Type section, so they are not driven.
+- 05 es-all-trashed (board 19): two offline trashes of one canvas are held as a conflict (the second save is
+  rejected), and the UI refuses to remove the last artboard. So the empty-canvas card is reachable only through an
+  external edit (an AI or a hand edit of the file). The e2e drives it that way.
 - A remote peer's presence relayed through a hub is not role-stamped by the room (it arrives as the hub sent it).
 - cloud-attach 2b shot: after "Moved to the cloud — your canvases are going up now." the sheet also shows a red
   "Sharing is not available right now. Try again in a minute." line the board does not draw — most likely the cloud
