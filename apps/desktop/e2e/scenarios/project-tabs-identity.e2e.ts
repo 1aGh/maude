@@ -106,7 +106,9 @@ async function waitForRun(origin: string, ok: (mine: MineRun[]) => boolean, what
   await browser.waitUntil(
     async () => {
       try {
-        const v = (await fetch(`${origin}/_api/ai/runs`).then((r) => r.json())) as { mine?: MineRun[] };
+        const v = (await fetch(`${origin}/_api/ai/runs`).then((r) => r.json())) as {
+          mine?: MineRun[];
+        };
         return ok(v.mine ?? []);
       } catch {
         return false;
@@ -208,7 +210,11 @@ describe('project-tabs-identity (native-desktop)', () => {
     await requireAi(this);
     await openAssistant();
     await sendPrompt('Take 25 seconds');
-    await waitForRun(SECONDARY_ORIGIN(), (m) => m.some((r) => LIVE.has(r.state)), 'a live run in B');
+    await waitForRun(
+      SECONDARY_ORIGIN(),
+      (m) => m.some((r) => LIVE.has(r.state)),
+      'a live run in B'
+    );
 
     await focusTab(tabA);
     await browser.waitUntil(async () => (await strip()).dots[tabB] === 'working', {
@@ -237,7 +243,11 @@ describe('project-tabs-identity (native-desktop)', () => {
     // Needs you is a LEVEL: B's next turn asks the person before a shell call (Manual mode) — the "?".
     await focusTab(tabB);
     await sendPrompt('Run the Bash tool: `date`');
-    await waitForRun(SECONDARY_ORIGIN(), (m) => m.some((r) => r.state === 'needs-you'), 'B’s run waits for you');
+    await waitForRun(
+      SECONDARY_ORIGIN(),
+      (m) => m.some((r) => r.state === 'needs-you'),
+      'B’s run waits for you'
+    );
     await focusTab(tabA);
     await browser.waitUntil(async () => (await strip()).dots[tabB] === 'needs-you', {
       timeout: 20_000,
