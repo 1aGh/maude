@@ -143,16 +143,19 @@ export function pickSpecimenSelectEl(clientX: number, clientY: number): HTMLElem
 }
 
 function CommentHost({ children, file }: { children: ReactNode; file: string | undefined }) {
-  const { tool, setTool } = useToolMode();
+  const { tool, setTool, getTool } = useToolMode();
   const selSet = useSelectionSet();
   const hostRef = useRef<HTMLDivElement | null>(null);
   // Hover-preview halo target (bare specimens only — see isBareSpecimen).
   const [hoverEl, setHoverEl] = useState<HTMLElement | null>(null);
 
-  // Latest tool for the router (read at event time, not captured).
+  // Latest tool for the router (read at event time, not captured). P8 G1a — the provider's synchronous
+  // `getTool`: the Comment slot arms canvas-lib's provider, which tells this one over `maude:tool-sync`
+  // outside a React event, so this layer's re-render lands a task later — a click on the artboard in between
+  // read Browse / Inspect and opened no composer.
   const toolRef = useRef(tool);
   toolRef.current = tool;
-  const getActiveTool = useMemo(() => () => toolRef.current, []);
+  const getActiveTool = useMemo(() => () => getTool?.() ?? toolRef.current, [getTool]);
 
   // Drop the preview halo whenever we leave comment mode.
   useEffect(() => {

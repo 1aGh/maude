@@ -314,6 +314,17 @@ export function doorRefusal(status, body) {
  */
 export const REFUSAL_PROBE = Object.freeze({ path: '/_health', ms: 30_000 });
 
+/**
+ * P8 G1a (decision maude/v2-p8-g1a-commenter-door-and-viewer-removal-poll) — a Can view window holds no hub
+ * socket (the hub's document door refuses Can view), so the hub's `ended` notice never reaches it. It asks
+ * instead: on this tick and on focus, one GET of `/_api/share/me` (the studio relays the hub's `/api/access/me`
+ * with this Mac's credential). A 401 whose reason `doorRefusal` reads is the access card / the link card.
+ */
+export const VIEWER_ACCESS_POLL = Object.freeze({ path: '/_api/share/me', ms: 60_000 });
+
+/** Does this window poll its access? Can view only (Can comment and up hold a hub socket), until a card shows. */
+export const viewerPolls = (role, state) => role === 'observer' && !state?.ended && !state?.linkOff;
+
 const WATCHED = Symbol.for('maude.access.refusal-watch');
 
 const sameOrigin = (input, origin) => {

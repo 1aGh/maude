@@ -270,7 +270,8 @@ describe('a profile that holds the invite address', () => {
     expect(cmds('open_project').map((c) => c.args)).toEqual([
       {
         root: '/Users/x/Maude/alligators',
-        target: { canvas: 'ui/Combine-kampan.tsx', thread: 'th_01' },
+        // S6.11 — the invite's landing says so (the project tab's toast names who invited you)
+        target: { canvas: 'ui/Combine-kampan.tsx', thread: 'th_01', via: 'invite' },
       },
     ]);
     expect(cmds('home_cloud_sign_in_prepare')).toEqual([]);
@@ -350,6 +351,7 @@ describe('another account on this Mac (ob-edge-accounts)', () => {
     expect(cmds('open_project')[0].args.target).toEqual({
       canvas: 'ui/Combine-kampan.tsx',
       thread: 'th_01',
+      via: 'invite',
     });
     // the personal profile is never written, re-signed or used for the invite
     for (const c of calls)
@@ -453,6 +455,7 @@ describe('the deferred path — the first sign-in answers `landing`', () => {
     expect(cmds('open_project')[0].args.target).toEqual({
       canvas: 'ui/Combine-kampan.tsx',
       thread: 'th_01',
+      via: 'invite',
     });
     expect($('home-signin-toast')).toBeNull();
   });

@@ -1,6 +1,9 @@
 // S6.11b — a thread landing in the project window (an invite or a mention, `shell://navigate {canvas, thread}`):
-//   1. lead decision option B: the toast is S1.18's words "Opened from <name>'s link — <canvas>." — the name is
-//      the thread's stored author, never anything the payload carried; no Rust OpenTarget field;
+//   1. lead decision option B: a MENTION landing's toast is S1.18's words "Opened from <name>'s link — <canvas>."
+//      — the name is the thread's stored author, never anything the payload carried. An INVITE landing
+//      (OpenTarget `via: "invite"`, kept by Rust only beside a thread and only from Home — decision
+//      maude/v2-p8-t-share-3-opentarget-via-invite) says CONTRACT §3's "<who> invited you here — their comment is
+//      on <canvas>." by the same stored author (test/p8-g1a-invite-landing-toast.test.ts);
 //   2. the thread opens with the REPLY field focused (bridge `comment-focus {id, reply: true}`), and one delayed
 //      shot — not a retry ladder — runs `tool.comment` (Preview with the Comment tool, CONTRACT §71–72).
 

@@ -114,7 +114,8 @@ export function landingTarget(landing) {
   if (!canvas) return null;
   const thread =
     typeof landing.thread === 'string' && THREAD_RE.test(landing.thread) ? landing.thread : null;
-  return thread ? { canvas, thread } : { canvas };
+  // S6.11 — `via: 'invite'`: the project tab's toast says who invited you (Rust keeps it only from Home)
+  return thread ? { canvas, thread, via: 'invite' } : { canvas };
 }
 
 /**
