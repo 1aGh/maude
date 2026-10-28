@@ -15,7 +15,7 @@
 //   MAUDE_ACP_ADAPTER_ENTRY=<this file>  MAUDE_ACP_RUNTIME=bun  FAKE_ACP_SDK=<abs sdk path>  MAUDE_E2E_FAKE_AI=1
 // Knobs (read from env so the spec decides): VIDEO_CUT_PAUSE_MS (between steps, default 450).
 import { spawnSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { appendFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { Readable, Writable } from 'node:stream';
@@ -141,21 +141,18 @@ async function cut(ctx) {
   await say(ctx, 'Placing the shots on the beat. ');
   for (let k = 0; k < beats.length; k++) {
     if (stopped) return { stopReason: 'cancelled' };
-    await bash(ctx, 'maude design reel-place recap --next --canvas ui/VideoAiCut.tsx#recap', () =>
+    const placed = await bash(ctx, 'maude design reel-place recap --next --canvas ui/VideoAiCut.tsx#recap', () =>
+      // the same command the AI runs: the `maude` the app puts on the session's PATH (its own bundled runtime)
       spawnSync(
-        'bun',
-        [
-          'run',
-          REEL_PLACE,
-          'recap',
-          '--next',
-          '--canvas',
-          'ui/VideoAiCut.tsx#recap',
-          '--root',
-          process.cwd(),
-        ],
+        'maude',
+        ['design', 'reel-place', 'recap', '--next', '--canvas', 'ui/VideoAiCut.tsx#recap', '--root', process.cwd()],
         { encoding: 'utf8', env: { ...process.env, NO_OPEN: '1' } }
       )
+    );
+    // a refusal of the verb is the first thing to read when no shot lands: keep what it said
+    appendFileSync(
+      join(REPO, '.ai/device/video-cut-agent.log'),
+      `shot ${k + 1}: exit ${placed.status} ${String(placed.stdout).trim()} ${String(placed.stderr).trim()}\n`
     );
     await sleep(PAUSE);
   }

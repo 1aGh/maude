@@ -135,6 +135,17 @@ describe('video-ai-chat — twelve clips in, a cut on the beat out, a take swapp
       timeout: 60_000,
       timeoutMsg: 'the twelve clips never became chips on the composer',
     });
+    // only READY chips ride with the ask (the rest are held back): wait for all twelve to be on the server
+    await browser.waitUntil(
+      async () =>
+        (await browser.execute(
+          () =>
+            [...document.querySelectorAll('[data-testid^="ai-attach-chip-"][data-state]')].filter(
+              (c) => c.getAttribute('data-state') === 'ready'
+            ).length
+        )) === 12,
+      { timeout: 60_000, timeoutMsg: 'the twelve chips never all became ready' }
+    );
     await capture('video-ai-clips-attached');
     const input = await (await $(tid('chat-composer'))).$('.chat-input');
     await input.click();
