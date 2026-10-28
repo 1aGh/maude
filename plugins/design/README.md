@@ -15,10 +15,10 @@ Claude works on a project's files, and runs a `maude` command for the few things
 | Tier | What happens |
 | ---- | ------------ |
 | `auto` | Runs without a prompt in the Maude chat. Read-only, or a write inside the project. |
-| `prompt` | The person sees a permission card (for example `maude migrate v2 --apply`, or `ds-check --emit`). |
-| `human` | Terminal only; never taught to the AI (account, hub and install commands). |
+| `prompt` | The person sees a permission card (for example `maude migrate v2 --apply`). |
+| `human` | Terminal only; never taught to the AI (linking a project to a team server, `trash clear`, and the top-level `hub`, `init` and `cache` commands). |
 
-A flag never raises a verb's tier. A riskier variant is a separate verb.
+A flag never raises a verb's tier. A riskier variant is a separate verb. One check sits on top of the tiers in a project shared through a team server: a write that could carry a file into a canvas that someone with access to that canvas only is not allowed to see becomes a permission card, even for an `auto` verb (`ds-check --fix` / `--emit` included).
 
 **Find the right path for a capability.** The [`studio-actions`](./skills/studio-actions/SKILL.md) skill lists every studio action with the file to edit or the verb to run, its tier and the skill that teaches the format. It is generated from the action registry, so it is current by construction: `node scripts/gen-actions.mjs --check` fails when it is not.
 

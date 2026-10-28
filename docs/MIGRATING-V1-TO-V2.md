@@ -56,7 +56,7 @@ maude migrate v2 --json               # the report as JSON (also what the app's 
 maude migrate v2 --root <repo>        # another project than the current directory
 ```
 
-The default is a dry run. In Claude Code the dry run is read-only and runs without a prompt; `--apply` and `--reverse` show a permission card (the verb's tier is *destructive*).
+The default is a dry run, and it writes nothing. In Claude Code every form of `maude migrate`, the dry run included, shows a permission card (the verb's tier is *destructive*). Two applies refuse to run without a terminal (exit 2): one on a project linked to a team server, which changes the format for every teammate, and any `--strip`. Run those in your own terminal, or use **Update project** in the app.
 
 What the update does, in order:
 
@@ -156,7 +156,7 @@ Each project tab is bound to one profile. Signing in to a different account from
 | Save version, Publish, Get latest, branch switcher | Maude saves for you. The Canvases panel foot keeps the draft switcher; Version history › Advanced shows authors and short SHAs. |
 | Light / dark toggle | Settings › General › Look › Theme (Light · Dark · Auto) |
 | Cloud account, Sign in with GitHub, AI provider keys, Figma token, team hub address | Settings › Connections |
-| Update banner, app version, engines, panel positions | Settings › Advanced and Settings › Layout |
+| Update banner, app version, engines, panel positions | Settings › Advanced, and Settings › General › Layout |
 
 ## 5. The design-system schema
 

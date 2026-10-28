@@ -198,7 +198,7 @@ maude design ds-check --cheatsheet <name>       # the role cheat-sheet the AI ge
 maude design ds-upgrade <name> --analyse        # start Bring-up (never writes the system)
 ```
 
-`ds-check` without a write flag is read-only and runs without a prompt in Claude Code. `--emit` and `--fix` ask first. Autofix is limited to three byte-minimal changes on canvases: an alias becomes its schema name, a system's own CSS import is removed, and a hand-written wrapper becomes `ds`. System files change only through Bring-up.
+`ds-check` runs without a prompt in Claude Code: without a write flag it is read-only, and `--emit` and `--fix` only write inside the project. In a project shared through a team server, `--emit` and `--fix` ask first when the chat has read a file that someone who can see the target canvas is not allowed to see. Autofix is limited to three byte-minimal changes on canvases: an alias becomes its schema name, a system's own CSS import is removed, and a hand-written wrapper becomes `ds`. System files change only through Bring-up.
 
 <Callout type="tip" title="Bring it up to the schema">
 For a system below Conformant, **Bring it up to the schema** (in the app, or `maude design ds-upgrade`) analyses the system, plans mechanical edits, asks AI only for the judgement calls, stages the result, renders a visual proof against the current look, and applies as **one undo step** after review. It never runs implicitly, and it never edits another project's system.

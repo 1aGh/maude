@@ -4,8 +4,8 @@
 // Exit codes: 0 done / clean dry-run · 10 already at target · 11 refused,
 // nothing written · 1 error · 2 usage.
 //
-// Permission tier (A13): the dry-run is read-only and auto-approved; `--apply`
-// shows the permission card in the AI chat (V2-2.4b's verb tier table).
+// Permission tier (A13): `migrate` is one `destructive` verb (actions/verbs.ts), so every form,
+// the read-only dry-run included, shows the permission card in the AI chat.
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
