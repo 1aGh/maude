@@ -364,11 +364,15 @@ export interface WriterVerbCall {
  * mentions none.
  */
 export function writerVerbCall(command: string): WriterVerbCall | 'compound' | null {
-  if (!WRITER_MENTION_RE.test(command)) return null;
+  // V2-8.9 round B A1 — a writer reached through `bash -c`, `$(which maude)`, an absolute path or
+  // `maude-safe` is a mention too: never the bridge's own approval, always the card.
+  const runs = WRITER_MENTION_RE.test(command)
+    ? true
+    : designCalls(command).some((w) => WRITER_FIRST.has(w[0] ?? ''));
+  if (!runs) return null;
   const t = command.trim();
   if (SHELL_META.test(t) || !/^maude\s+design\s/.test(t)) return 'compound';
-  const words: string[] = [];
-  for (const m of t.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)) words.push(m[1] ?? m[2] ?? m[3] ?? '');
+  const words = shellWords(t);
   const first = words[2] ?? '';
   if (!WRITER_FIRST.has(first)) return 'compound';
   let args = words.slice(3);
@@ -387,6 +391,118 @@ export function writerVerbCall(command: string): WriterVerbCall | 'compound' | n
     first === 'ds-check' ||
     (first === 'reel-place' && !args.some((a) => /^--canvas(?:=|$)/.test(a)));
   return { rule, writes, implicitTarget, args };
+}
+
+// ---------------------------------------------------------------------------------------------------
+// V2-8.9 round B A1 (decision maude/v2-8.9-roundB-a1-shell-stage-window) — the one tokenizer that says
+// which `maude design` verbs a Bash command RUNS. Both the bridge's writer check above and the run-stage
+// opener (acp/design-write-verb.ts) read a command through it: a verb named as text (`echo maude design
+// export`, `grep "maude design annotate" docs`) runs nothing, while `bash -c "maude design …"`,
+// `$(which maude) design …`, `/usr/local/bin/maude design …` and `maude-safe design …` do.
+
+/** Shell words of one simple command: quotes and backslash escapes removed (`"a"b` is one word). */
+export function shellWords(command: string): string[] {
+  return splitCommands(command).flat();
+}
+
+const SEPARATORS = new Set([';', '&', '|', '(', ')', '`', '\n', '\r']);
+/** Reserved words that may lead a simple command (`{ maude …; }`, `if maude …`, `! maude …`). */
+const LEADERS = new Set(['{', '}', '!', 'if', 'then', 'else', 'elif', 'do', 'while', 'until']);
+
+/** Split `src` into simple commands (word lists); `$(`/backticks/subshells start a new command. */
+function splitCommands(src: string): string[][] {
+  const out: string[][] = [];
+  let cur: string[] = [];
+  let word = '';
+  let inWord = false;
+  const endWord = () => {
+    if (inWord) cur.push(word);
+    word = '';
+    inWord = false;
+  };
+  const endCmd = () => {
+    endWord();
+    if (cur.length) out.push(cur);
+    cur = [];
+  };
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i] as string;
+    if (c === "'") {
+      const j = src.indexOf("'", i + 1);
+      word += j === -1 ? src.slice(i + 1) : src.slice(i + 1, j);
+      inWord = true;
+      i = j === -1 ? src.length : j;
+    } else if (c === '"') {
+      let j = i + 1;
+      for (; j < src.length && src[j] !== '"'; j++) {
+        if (src[j] === '\\' && j + 1 < src.length) j++;
+        word += src[j];
+      }
+      inWord = true;
+      i = j;
+    } else if (c === '\\') {
+      if (i + 1 < src.length) word += src[++i];
+      inWord = true;
+    } else if (c === '$' && src[i + 1] === '(') {
+      endCmd();
+      i++;
+    } else if (SEPARATORS.has(c)) {
+      endCmd();
+    } else if (c === ' ' || c === '\t') {
+      endWord();
+    } else {
+      word += c;
+      inWord = true;
+    }
+  }
+  endCmd();
+  return out;
+}
+
+const MAUDE_BIN = new Set(['maude', 'mdcc', 'maude-safe', 'mdcc-safe', 'maude.mjs']);
+const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash', 'ksh']);
+const WRAPPERS = new Set(['env', 'command', 'exec', 'nohup', 'time', 'sudo', 'nice', 'timeout']);
+/** `$(which maude)` / `` `command -v maude` ``: the program found by a lookup is that program. */
+const LOOKUP_RE =
+  /\$\(\s*(?:which|command\s+-v|type\s+-p)\s+([\w./-]+)\s*\)|`\s*(?:which|command\s+-v|type\s+-p)\s+([\w./-]+)\s*`/g;
+
+const base = (w: string) => (w.split('/').pop() ?? w).toLowerCase();
+
+/** The words after `design` of every `maude design …` call `command` runs (depth-limited). */
+export function designCalls(command: unknown, depth = 0): string[][] {
+  if (typeof command !== 'string' || depth > 3 || !/maude|mdcc/i.test(command)) return [];
+  const calls: string[][] = [];
+  const src = command.replace(LOOKUP_RE, (_m, a, b) => ` ${a ?? b} `);
+  for (const words of splitCommands(src)) {
+    let k = 0;
+    while (k < words.length) {
+      const w = words[k] as string;
+      if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(w) || LEADERS.has(w)) k++;
+      else if (WRAPPERS.has(base(w))) {
+        k++;
+        while (k < words.length && /^-|^[A-Za-z_]\w*=|^\d+[smhd]?$/.test(words[k] as string)) k++;
+      } else break;
+    }
+    const prog = words[k];
+    if (prog === undefined) continue;
+    const name = base(prog);
+    const args = words.slice(k + 1);
+    if (SHELLS.has(name)) {
+      const c = args.findIndex((a) => /^-[a-z]*c[a-z]*$/.test(a));
+      if (c !== -1 && args[c + 1] !== undefined) calls.push(...designCalls(args[c + 1], depth + 1));
+      continue;
+    }
+    let rest: string[] | null = null;
+    if (MAUDE_BIN.has(name)) rest = args;
+    else if ((name === 'node' || name === 'bun') && /maude\.mjs$/.test(args[0] ?? ''))
+      rest = args.slice(1);
+    else if (name === 'npx' || name === 'bunx') {
+      const i = args.findIndex((a) => /^(?:@1agh\/)?maude(?:@.*)?$/.test(a));
+      if (i !== -1) rest = args.slice(i + 1);
+    }
+    if (rest && rest[0] === 'design' && rest.length > 1) calls.push(rest.slice(1));
+  }
+  return calls;
 }
 
 // ---------------------------------------------------------------------------------------------------

@@ -1275,6 +1275,7 @@ pub fn search_result_target(
         artboard,
         thread: None,
         via: None,
+        from: None,
     })?;
     Ok((PathBuf::from(&entry.root), target))
 }

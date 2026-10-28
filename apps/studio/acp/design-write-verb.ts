@@ -7,10 +7,13 @@
 // list of which verb writes: any effect other than `none` counts, the same rule the design plugin's own hook
 // uses to bind a Bash write to its run (cli/lib/design-hook.mjs `writeVerbs`).
 
-import { MAUDE_VERBS } from '../actions/verbs.ts';
+//
+// V2-8.9 round B A1 — the command is read with the SAME tokenizer as the bridge's writer check
+// (acp/audience.ts `designCalls`): a verb only named in text (`echo maude design export`) opens nothing,
+// one run through `bash -c`, `$(which maude)`, an absolute path or `maude-safe` does.
 
-const DESIGN_VERB_RE =
-  /(?:^|[\s;&|(`])maude\s+design\s+([a-z][a-z0-9-]*)(?:\s+([a-z][a-z0-9-]*))?/g;
+import { MAUDE_VERBS } from '../actions/verbs.ts';
+import { designCalls } from './audience.ts';
 
 const DESIGN_EFFECT = new Map<string, string>(
   MAUDE_VERBS.filter((v) => v.scope === 'design').map((v) => [v.verb, v.effect])
@@ -18,10 +21,9 @@ const DESIGN_EFFECT = new Map<string, string>(
 
 /** True when `command` runs at least one `maude design` verb whose effect is not `none`. */
 export function runsDesignWriteVerb(command: unknown): boolean {
-  if (typeof command !== 'string' || !command.includes('maude')) return false;
-  for (const m of command.matchAll(DESIGN_VERB_RE)) {
-    const word = m[1] as string;
-    const sub = m[2];
+  for (const words of designCalls(command)) {
+    const word = words[0] as string;
+    const sub = words[1];
     // a two-word entry (`exports again`) is matched before its verb's own entry
     const effect = (sub && DESIGN_EFFECT.get(`${word} ${sub}`)) || DESIGN_EFFECT.get(word);
     if (effect !== undefined && effect !== 'none') return true;

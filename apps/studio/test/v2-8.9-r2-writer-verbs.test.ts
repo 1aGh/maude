@@ -243,5 +243,11 @@ describe('writerVerbCall', () => {
     expect(writerVerbCall('echo hi')).toBeNull();
     expect(writerVerbCall('maude design annotate x; rm -rf /')).toBe('compound');
     expect(writerVerbCall('FOO=1 maude design annotate x')).toBe('compound');
+    // V2-8.9 round B A1 — every way of RUNNING a writer is the card, never the bridge's approval
+    expect(writerVerbCall('bash -c "maude design annotate x"')).toBe('compound');
+    expect(writerVerbCall('$(which maude) design annotate x')).toBe('compound');
+    expect(writerVerbCall('/opt/bin/maude design reel-place a --next')).toBe('compound');
+    expect(writerVerbCall('maude-safe design annotate x')).toBe('compound');
+    expect(writerVerbCall('echo maude design export')).toBeNull();
   });
 });

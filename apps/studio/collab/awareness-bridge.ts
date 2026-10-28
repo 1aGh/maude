@@ -101,6 +101,25 @@ function outbound(a: Awareness, clients: readonly number[]): Map<number, unknown
   return out;
 }
 
+/**
+ * V2-8.9 round B L1 (belt and braces) — `b`'s states for `clients` as they may enter the room: a `role`
+ * word the hub did not vouch for (no `roleBy: 'hub'`, apps/hub access-docs.mjs `stampHubRole`) is dropped,
+ * so a peer on an older hub cannot show itself as "· Owner".
+ */
+function inbound(b: Awareness, clients: readonly number[]): Map<number, unknown> {
+  const states = b.getStates();
+  const out = new Map<number, unknown>();
+  for (const id of clients) {
+    if (!states.has(id)) continue;
+    const s = states.get(id);
+    if (s && typeof s === 'object' && 'role' in s && (s as { roleBy?: unknown }).roleBy !== 'hub') {
+      const { role: _role, ...rest } = s as Record<string, unknown>;
+      out.set(id, rest);
+    } else out.set(id, s);
+  }
+  return out;
+}
+
 interface AwarenessChange {
   added: number[];
   updated: number[];
@@ -143,7 +162,12 @@ export function bridgeAwareness(a: Awareness, b: Awareness): () => void {
     const departed = added.concat(updated).filter((id) => isDeparted(states.get(id)));
     const live = added.concat(updated).filter((id) => !isDeparted(states.get(id)));
     const changed = live.concat(removed);
-    if (changed.length > 0) applyAwarenessUpdate(a, encodeAwarenessUpdate(b, changed), BRIDGE);
+    if (changed.length > 0)
+      applyAwarenessUpdate(
+        a,
+        encodeAwarenessUpdate(b, changed, inbound(b, changed) as Map<number, never>),
+        BRIDGE
+      );
     const leaving = departed.filter((id) => a.getStates().has(id));
     if (leaving.length > 0) removeAwarenessStates(a, leaving, BRIDGE);
   };
@@ -160,7 +184,12 @@ export function bridgeAwareness(a: Awareness, b: Awareness): () => void {
   const bClients = Array.from(b.getStates().entries())
     .filter(([, state]) => !isDeparted(state))
     .map(([id]) => id);
-  if (bClients.length > 0) applyAwarenessUpdate(a, encodeAwarenessUpdate(b, bClients), BRIDGE);
+  if (bClients.length > 0)
+    applyAwarenessUpdate(
+      a,
+      encodeAwarenessUpdate(b, bClients, inbound(b, bClients) as Map<number, never>),
+      BRIDGE
+    );
 
   a.on('update', aToB);
   b.on('update', bToA);

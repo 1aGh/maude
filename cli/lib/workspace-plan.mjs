@@ -676,9 +676,11 @@ ${
       MINIO_ROOT_PASSWORD: \${MAUDE_S3_SECRET_ACCESS_KEY}
     volumes:
       - minio-data:/data
+    # V2-8.9 round B P1 — fixed dev root credentials: loopback only, never the LAN. The hub reaches
+    # it at minio:9000 on the compose network; these are for the operator's own browser / mc.
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 3s

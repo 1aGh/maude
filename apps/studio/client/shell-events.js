@@ -62,6 +62,16 @@ export function invitedHereWords(author, file) {
   return `${who} invited you here — their comment is on ${canvas}.`;
 }
 
+/**
+ * V2-8.9 round B A3 — "<who> invited you here — their comment is on …" claims the comment's author IS the
+ * inviter. Said only when the cloud's inviter name equals the thread's stored author (trimmed, case-folded);
+ * otherwise the plain thread-landing line (S1.18). The name shown is always the stored author's.
+ */
+export function invitedByAuthor(from, author) {
+  const norm = (v) => (typeof v === 'string' ? v.trim().toLocaleLowerCase() : '');
+  return !!norm(from) && norm(from) === norm(author);
+}
+
 export const openedExistingWords = (name) => `${name} is open in this window.`;
 export const linkOpenedWords = (name) => `Opened ${name} from a link.`;
 export const tabsRestoredWords = (count) =>
@@ -92,9 +102,14 @@ export function navigatePlan(payload, { paths, designRel, activePath }) {
   const thread = okThread(payload.thread) ? payload.thread : null;
   if (!thread) return { rel, file, artboard };
   // S6.11 — Home's invite flow marks its landing (Rust keeps `via` only from Home, beside a thread)
-  return payload.via === 'invite'
-    ? { rel, file, artboard, thread, via: 'invite' }
-    : { rel, file, artboard, thread };
+  if (payload.via !== 'invite') return { rel, file, artboard, thread };
+  // V2-8.9 round B A3 — the inviter's name the cloud vouched for (Home's peek, Rust `clean_from`): only a
+  // comparand for the thread's stored author, never shown as the author itself.
+  const from =
+    typeof payload.from === 'string' && payload.from.trim() && payload.from.length <= 80
+      ? payload.from.trim()
+      : null;
+  return { rel, file, artboard, thread, via: 'invite', ...(from ? { from } : {}) };
 }
 
 // The thread rule Rust's `valid_thread_id` applies (contract S6-S9 §5.3).
@@ -143,7 +158,10 @@ export function applyShellNavigate(payload, deps) {
       run('tool.comment');
       const author = deps.threadAuthor?.(file, thread);
       deps.toast?.(
-        (plan.via === 'invite' && invitedHereWords(author, file)) || threadLandedWords(author, file)
+        (plan.via === 'invite' &&
+          invitedByAuthor(plan.from, author) &&
+          invitedHereWords(author, file)) ||
+          threadLandedWords(author, file)
       );
     }, LANDING_SHOT_MS);
   }

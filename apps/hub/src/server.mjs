@@ -66,6 +66,7 @@ import {
   docContextFields,
   docDoor,
   peerAccess,
+  stampHubRole,
   stripSummon,
 } from './access-docs.mjs';
 import { createPokeVisibility, registerKnownCanvases } from './access-files.mjs';
@@ -2283,6 +2284,8 @@ export function createHub(config = {}) {
       // V2-1.7 §5.5 / L11 (S9.5): Bring everyone here needs `summon` on this
       // document — the field is stripped from any connection lacking it.
       stripSummon({ states, context });
+      // V2-8.9 round B L1 — the presence role word is the hub's, from this connection's access.
+      stampHubRole({ states, context });
       // Gate 0 A18 (S9.13): picks never ride presence, whoever sends them.
       stripVoteAwareness({ states });
       // S3.7b (S3-present-session §2, D11): `present` + the presenter's `pointer`

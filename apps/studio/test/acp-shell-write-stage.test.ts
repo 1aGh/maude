@@ -72,15 +72,68 @@ const shell = (t: ReturnType<typeof createAgentActivityTracker>, command: string
     rawInput: { command },
   } as unknown as SessionUpdate);
 
+const done = (t: ReturnType<typeof createAgentActivityTracker>, id: string) =>
+  t.onUpdate({
+    sessionUpdate: 'tool_call_update',
+    toolCallId: id,
+    status: 'completed',
+  } as unknown as SessionUpdate);
+
 describe('acp / a shell write verb opens the run stage', () => {
-  test('`maude design reel-place …` begins the stage under the run id, once; the registry ends it', () => {
+  test('`maude design reel-place …` begins the stage under the run id, one window per call; the registry ends it', () => {
     const calls: Call[] = [];
     const t = createAgentActivityTracker(mkCtx(calls), ai, 'c3');
     t.beginTurn?.('make a recap', 'r_cut');
     shell(t, 'maude design reel-place recap --next --canvas ui/V.tsx#recap', 'b1');
+    done(t, 'b1');
     shell(t, 'cd /tmp && maude design reel-place recap --next --canvas ui/V.tsx#recap', 'b2');
+    done(t, 'b2');
     t.endTurn('done');
-    expect(calls).toEqual([['begin', 'acp:c3', 'make a recap', { runId: 'r_cut', chatId: 'c3' }]]);
+    const meta = (call: string, open: boolean) => ({
+      runId: 'r_cut',
+      chatId: 'c3',
+      shell: { call, open },
+    });
+    expect(calls).toEqual([
+      ['begin', 'acp:c3', 'make a recap', meta('b1', true)],
+      ['begin', 'acp:c3', 'make a recap', meta('b1', false)],
+      ['begin', 'acp:c3', 'make a recap', meta('b2', true)],
+      ['begin', 'acp:c3', 'make a recap', meta('b2', false)],
+    ]); // no `end`: the registry ends a registry run
+  });
+
+  test('A1 — a call that waits on a card is shut until a grant; a denied one stays shut', () => {
+    const calls: Call[] = [];
+    const t = createAgentActivityTracker(mkCtx(calls), ai, 'c5');
+    t.beginTurn?.('export it', 'r_card');
+    shell(t, 'maude design export ui/V.tsx --png', 'b1');
+    t.onPermission?.('b1');
+    t.onPermission?.('b1', { granted: true });
+    done(t, 'b1');
+    shell(t, 'maude design export ui/W.tsx --png', 'b2');
+    t.onPermission?.('b2');
+    t.onPermission?.('b2', { granted: false });
+    done(t, 'b2');
+    t.endTurn('done');
+    const windows = calls.map((c) => (c[3] as { shell: { call: string; open: boolean } }).shell);
+    expect(windows).toEqual([
+      { call: 'b1', open: true },
+      { call: 'b1', open: false }, // the card waits
+      { call: 'b1', open: true }, // granted
+      { call: 'b1', open: false }, // completed
+      { call: 'b2', open: true },
+      { call: 'b2', open: false }, // the card waits; denied: never reopened
+    ]);
+  });
+
+  test('A1 — the window opens for every way of running the verb, never for text that names it', () => {
+    const calls: Call[] = [];
+    const t = createAgentActivityTracker(mkCtx(calls), ai, 'c6');
+    t.beginTurn?.('x', 'r_x');
+    shell(t, 'echo maude design export', 'e1');
+    shell(t, 'grep "maude design annotate" docs', 'e2');
+    shell(t, 'bash -c "maude design reel-place recap --next"', 's1');
+    expect(calls.length).toBe(1);
   });
 
   test('a read verb, a plain shell command and a look-alike open nothing', () => {
@@ -101,6 +154,22 @@ describe('acp / runsDesignWriteVerb', () => {
     expect(runsDesignWriteVerb('maude design reel-place recap --next')).toBe(true);
     expect(runsDesignWriteVerb('cd x && maude design annotate --in a')).toBe(true);
     expect(runsDesignWriteVerb('(maude design reel-place a); echo')).toBe(true);
+  });
+  test('A1 — the same tokenizer as the bridge: every way of RUNNING the verb', () => {
+    expect(runsDesignWriteVerb('bash -c "maude design reel-place recap --next"')).toBe(true);
+    expect(runsDesignWriteVerb("sh -lc 'cd x && maude design annotate --in a'")).toBe(true);
+    expect(runsDesignWriteVerb('$(which maude) design reel-place recap --next')).toBe(true);
+    expect(runsDesignWriteVerb('`command -v maude` design annotate --in a')).toBe(true);
+    expect(runsDesignWriteVerb('/usr/local/bin/maude design reel-place a')).toBe(true);
+    expect(runsDesignWriteVerb('maude-safe design annotate --in a')).toBe(true);
+    expect(runsDesignWriteVerb('env FOO=1 maude design annotate --in a')).toBe(true);
+    expect(runsDesignWriteVerb('x=$(maude design reel-place a --next)')).toBe(true);
+  });
+  test('A1 — text that only names a verb runs nothing', () => {
+    expect(runsDesignWriteVerb('echo maude design export')).toBe(false);
+    expect(runsDesignWriteVerb('grep "maude design annotate" docs')).toBe(false);
+    expect(runsDesignWriteVerb("printf '%s' 'maude design reel-place a'")).toBe(false);
+    expect(runsDesignWriteVerb('cat notes.md # maude design annotate')).toBe(false);
   });
   test('reads and non-verbs', () => {
     expect(runsDesignWriteVerb('maude design canvas-rects')).toBe(false);

@@ -426,3 +426,41 @@ describe('per-run stages', () => {
     expect(out).toEqual(['edit dropped', 'inverse dropped']);
   });
 });
+
+// V2-8.9 round B A1 — a stage a SHELL verb opened is claim-scoped: the lone-open-run fallback applies only
+// while that verb call runs (plus a short settle), so a person's outside edit made before, between or after
+// the verb's calls — or while its permission card waits — is never swept into the AI run.
+describe('a shell-opened run (A1)', () => {
+  test('takes unclaimed writes only while its verb call is open, then only claimed ones', () => {
+    const { stage } = rig();
+    clock = 50_000;
+    stage.begin('acp:c9', 'cut', { runId: 'r_sh', shell: { call: 'b1', open: true } });
+    expect(stage.captures('ui-a', true, 'verb bytes')).toBe(true); // the verb's own write
+    stage.begin('acp:c9', 'cut', { runId: 'r_sh', shell: { call: 'b1', open: false } });
+    expect(stage.captures('ui-a', true, 'late verb bytes')).toBe(true); // within the settle
+    clock += 5_000;
+    expect(stage.captures('ui-a', true, 'person bytes')).toBe(false); // the person's VS Code save
+    expect(stage.captures('ui-new', true, 'x')).toBe(false);
+    stage.claim('r_sh', 'ui-a', hashBytes('claimed bytes'));
+    expect(stage.captures('ui-a', true, 'claimed bytes')).toBe(true); // the verb claimed it
+  });
+
+  test('a call that waits on a permission card is suspended; a denied one never opens', () => {
+    const { stage } = rig();
+    clock = 90_000;
+    stage.begin('acp:c8', 'export', { runId: 'r_card', shell: { call: 'b2', open: true } });
+    stage.begin('acp:c8', 'export', { runId: 'r_card', shell: { call: 'b2', open: false } });
+    clock += 5_000;
+    expect(stage.captures('ui-b', true, 'person while the card waits')).toBe(false);
+  });
+
+  test('an edit tool in the same run brings the v1 fallback back', () => {
+    const { stage } = rig();
+    clock = 120_000;
+    stage.begin('acp:c7', 'mixed', { runId: 'r_mix', shell: { call: 'b3', open: true } });
+    stage.begin('acp:c7', 'mixed', { runId: 'r_mix', shell: { call: 'b3', open: false } });
+    clock += 5_000;
+    stage.begin('acp:c7', 'mixed', { runId: 'r_mix' });
+    expect(stage.captures('ui-c', true, 'edit tool bytes')).toBe(true);
+  });
+});

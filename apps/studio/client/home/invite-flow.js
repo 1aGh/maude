@@ -108,14 +108,20 @@ export function planInvite(peek, clouds) {
   return { kind: 'ask', mode: 'signed-out', invite };
 }
 
-/** Where in the project a landing points: `{canvas, thread?}`, or null for the project alone. Pure. */
-export function landingTarget(landing) {
+/**
+ * Where in the project a landing points: `{canvas, thread?}`, or null for the project alone. Pure.
+ * V2-8.9 round B A3 — `from` is the inviter's name as the CLOUD's invite peek gave it (`fromName`); it rides
+ * only beside the thread with `via: 'invite'`, and the project tab names the inviter only when it equals the
+ * thread's stored author.
+ */
+export function landingTarget(landing, from = null) {
   const canvas = str(landing?.canvas, 1024);
   if (!canvas) return null;
   const thread =
     typeof landing.thread === 'string' && THREAD_RE.test(landing.thread) ? landing.thread : null;
   // S6.11 — `via: 'invite'`: the project tab's toast says who invited you (Rust keeps it only from Home)
-  return thread ? { canvas, thread, via: 'invite' } : { canvas };
+  const who = str(from, 80);
+  return thread ? { canvas, thread, via: 'invite', ...(who ? { from: who } : {}) } : { canvas };
 }
 
 /**
@@ -212,7 +218,12 @@ export async function acceptAndOpen({ id, profile, invite }, deps) {
   const plan = planAccept(r, { profile, invite });
   if (plan.kind !== 'open') return plan;
   const prep = await deps.prepareLink(profile, { project: plan.landing.project, code: plan.code });
-  await deps.openPrepared(prep, invite.projectName, profile, landingTarget(plan.landing));
+  await deps.openPrepared(
+    prep,
+    invite.projectName,
+    profile,
+    landingTarget(plan.landing, invite.fromName)
+  );
   return plan;
 }
 

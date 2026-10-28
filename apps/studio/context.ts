@@ -382,7 +382,13 @@ export interface Context {
       beginAiAction?(
         key: string,
         label: string,
-        meta?: { runId?: string; chatId?: string; actor?: string }
+        meta?: {
+          runId?: string;
+          chatId?: string;
+          actor?: string;
+          /** V2-8.9 round B A1 — a shell verb call's window (sync/action-stage.ts `claimOnly`). */
+          shell?: { call: string; open: boolean };
+        }
       ): void;
       endAiAction?(
         key: string,
