@@ -68,3 +68,6 @@ Not built, either because no CONTRACT line names them or because the weekly budg
 - Real GitHub lifecycle (V2-8.16, iagh66/maude-git-smoke): green ×2 signed out. The signed-in PR path (Add to main →
   a real pull request, DDR-162) was not run — it needs a GitHub sign-in in the app and creates PRs, beyond the
   lifecycle-push consent. Ask Michal before running it.
+- AI-driven canvas trash (`maude design trash move`, V2-8.16): the delete row is recorded like the UI's, as
+  `canvas.delete` by the person, not under the AI run. Attribution needs a `runForCreate`-style claim from
+  `X-Maude-Chat` on `DELETE /_api/canvas` plus a claim API for deletes.
