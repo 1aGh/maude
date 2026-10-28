@@ -379,7 +379,7 @@ pub fn e2e_github_sign_in_as(
             return Err("e2e sign-in needs MAUDE_E2E_FAKE_KEYCHAIN".into());
         }
         let caller = crate::windows::caller_project(&webview, false)?;
-        let token = format!("e2e-token-{login}");
+        let token = e2e_sign_in_token(&login, std::env::var("MAUDE_E2E_GITHUB_TOKEN").ok());
         let out = complete_github_sign_in(&app, &caller.label, &caller.root, &login, &token)?;
         Ok(out.profile)
     }
@@ -387,6 +387,18 @@ pub fn e2e_github_sign_in_as(
     {
         let _ = (app, webview, login);
         Err("debug builds only".into())
+    }
+}
+
+/// The token `e2e_github_sign_in_as` stores (debug builds only, and only into the
+/// in-memory keychain). Normally a fake `e2e-token-<login>`. A live check against a
+/// real GitHub repo (V2-8.16) hands a real token in through `MAUDE_E2E_GITHUB_TOKEN`
+/// — env only, so it never lands in a file, a log or the person's keychain.
+#[cfg(any(test, debug_assertions))]
+fn e2e_sign_in_token(login: &str, env_token: Option<String>) -> String {
+    match env_token.as_deref().map(str::trim) {
+        Some(t) if !t.is_empty() => t.to_string(),
+        _ => format!("e2e-token-{login}"),
     }
 }
 
@@ -596,7 +608,15 @@ pub async fn open_cloud_url(webview: tauri::Webview, url: String) -> Result<(), 
 
 #[cfg(test)]
 mod tests {
-    use super::{cloud_base, cloud_url_allowed, DEFAULT_CLOUD_URL};
+    use super::{cloud_base, cloud_url_allowed, e2e_sign_in_token, DEFAULT_CLOUD_URL};
+
+    #[test]
+    fn e2e_sign_in_token_takes_a_real_token_from_env_only_when_set() {
+        assert_eq!(e2e_sign_in_token("x", None), "e2e-token-x");
+        assert_eq!(e2e_sign_in_token("x", Some(String::new())), "e2e-token-x");
+        assert_eq!(e2e_sign_in_token("x", Some("  ".into())), "e2e-token-x");
+        assert_eq!(e2e_sign_in_token("x", Some(" live-1 \n".into())), "live-1");
+    }
 
     // Sign-in progress reaching the calling window only is bus.rs's
     // `a_message_reaches_its_own_page_and_no_other` (finding 1d).
