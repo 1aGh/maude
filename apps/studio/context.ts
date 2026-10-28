@@ -302,6 +302,8 @@ export interface Context {
       } | null;
       assetUploading?(): ReadonlyMap<string, { progress?: number }> | null;
       retireForMove?(fromSlug: string, toRel: string): Promise<boolean>;
+      /** P8 G1a — a non-editor's comment op to the hub's comment door (SyncRuntime.commentDoor). */
+      commentDoor?: import('./sync/comment-door.ts').CommentDoor;
       /** Accepted-revisions mode (DDR-241) — see SyncRuntime.proposeLane. */
       proposeLane?(
         slug: string,

@@ -33,6 +33,7 @@ import { hostname } from 'node:os';
 import path from 'node:path';
 import type { Awareness } from 'y-protocols/awareness';
 import * as Y from 'yjs';
+import { resolveAccess } from '../access/scope.ts';
 import { migrateAnnotationsV2 } from '../annotations/migrate-boot.ts';
 import { REPLICA_TYPE, replicaBoardText } from '../annotations/replica.ts';
 import { attributeArtboards } from '../attribute-artboards.ts';
@@ -67,6 +68,7 @@ import {
   stampCanvasPath,
   stampMovedTo,
 } from './codec.ts';
+import { type CommentDoor, createCommentDoor } from './comment-door.ts';
 import { commentLedgerFor } from './comment-ledger.ts';
 import {
   type ConnectionMonitor,
@@ -94,7 +96,7 @@ import {
 import { createFsReader, type FsReader } from './fs-mirror.ts';
 import { canvasLanes, namedField, type RowNamed } from './history-fields.ts';
 import { type HubDocRow, hubHolds, indexHubDocs } from './hub-listing.ts';
-import { getHubRecord } from './hubs-config.ts';
+import { accessFor, getHubRecord } from './hubs-config.ts';
 import { loadJournal, type SyncJournal } from './journal.ts';
 import { hasAnnotationsV2, hasLedger, hubHealth } from './journal-client.ts';
 import type { RestoreOptions } from './local-kernel.ts';
@@ -608,6 +610,12 @@ export interface SyncRuntime {
    * `null` when the project is not in that mode or this runtime does not carry
    * the canvas — the caller then writes the shared document as before.
    */
+  /**
+   * P8 G1a — a comment op from a session that may not edit the canvas, sent to the hub's
+   * comment door (`sync/comment-door.ts`). `null` for an editor, or a canvas this runtime
+   * does not carry — the caller then writes the comment as before.
+   */
+  commentDoor?: CommentDoor;
   proposeLane?(
     slug: string,
     lane: 'comments' | 'annotations' | 'meta',
@@ -5998,6 +6006,20 @@ export function createSyncRuntime(
       return true;
     },
     retireForMove: (fromSlug, toRel) => serializeMembership(() => retireForMove(fromSlug, toRel)),
+    commentDoor: cellPairing
+      ? () => null
+      : createCommentDoor({
+          hubUrl: linkedHub.url,
+          token: () => token,
+          docNameFor: (slug) => docNameFor(slug),
+          // the stored claim (re-read: a role change rewrites hubs.json) and the project's own
+          // word at its last bootstrap — either one saying "no edit" sends the comment to the door
+          canEdit: (canvas) =>
+            acceptedLink?.manifest?.you?.readOnly !== true &&
+            resolveAccess(accessFor(linkedHub.url)).can('edit', canvas),
+          carries: (slug) => providers.has(slug),
+          fetchImpl: hubFetch,
+        }),
     proposeLane: (slug, lane, text, o) => {
       if (!acceptedOn()) return null;
       const projection = projections.get(slug);
