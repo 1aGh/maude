@@ -526,8 +526,12 @@ export function createRunRegistry(opts: RegistryOptions) {
       const rec = records.get(runId);
       if (!rec) continue;
       persist(setLeases(rec, list));
-      if (rec.state === 'waiting') await transition(runId, { type: 'granted' });
-      else changed();
+      if (rec.state === 'waiting') {
+        const started = await transition(runId, { type: 'granted' });
+        // P8 G2 — as startIfReady: a hook-driven run's turn is already running in the terminal, so a
+        // grant to a waiting one makes it `running` (left `starting`, its turn-end was refused for good)
+        if (started && rec.origin !== 'maude-chat') await transition(runId, { type: 'accepted' });
+      } else changed();
     }
   }
 
