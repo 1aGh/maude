@@ -62,3 +62,6 @@ Not built, either because no CONTRACT line names them or because the weekly budg
   `/_api/ai/runs` `waiting[0].heldBy`, then select nothing on Mac 1 for R1. "Undo this chat" needs a fake-ACP chat run.
   cf-busy / ai-tereza / ed-edge-undo (two studios on one hub, Tereza's own token) not driven.
 - A remote peer's presence relayed through a hub is not role-stamped by the room (it arrives as the hub sent it).
+- cloud-attach 2b shot: after "Moved to the cloud — your canvases are going up now." the sheet also shows a red
+  "Sharing is not available right now. Try again in a minute." line the board does not draw — most likely the cloud
+  stub has no access API. Check against a real cell on the rc soak.
