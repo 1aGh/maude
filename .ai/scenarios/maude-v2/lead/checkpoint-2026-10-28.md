@@ -37,9 +37,10 @@ feat/maude-v2 HEAD at writing: `6de69e90d` (pushed). The run ends when `bash scr
 | What | Branch / task | State |
 | --- | --- | --- |
 | 2A format gate, verify + the cell raises its format at once | `p8-format-gate-2` (on `p8-format-gate`) | studio suite in halves, hub suite, desktop lanes, format-update e2e, Docker legs |
-| Round-B security lows A1 A2 A4 L1 L2 P1 + Info, A3 option (a) | `p8-sec-lows` | fixes committed; lane run (green, then revert-to-red) pending; A3 in progress |
-| Live agent journeys S6–S11, one lane slot each | out `$TMPDIR/maude-agent-journeys/2026-10-28-all/` (`rest.log`) | S2–S5 green both lanes; S1 red both (trash, fixed and merged; re-run S1 both lanes at the end) |
+| Round-B security lows | `p8-sec-lows` | MERGED 8f238f19a |
+| Live agent journeys | `$TMPDIR/maude-agent-journeys/2026-10-28-all/` | S2–S6, S9–S11 green both lanes; S1, S7 acp, S8 terminal red → p8-journey-fixes |
 | Eval V2-8.16 | paused at 36/90 | resume after the fix tests (step 2) |
+| Journey fixes S7 acp (AI cut not attributed), S8 terminal (no import-asset), S1 re-check | `p8-journey-fixes` | diagnose + fix fail-first, re-run S1/S7/S8 both lanes |
 
 Merged today into feat: share/role ×4, sync ×3, multiplayer ×3, AI ×2, video ×3, shell, docker gate V2-8.18, the
 real push and the real PR, AI parity trash, the server-up fixes (own session, retried probe), and the eval/journey
@@ -72,3 +73,5 @@ port base. Round-B follow-ups that won't be fixed are in `lead/pr-followups.md`.
 - The keeper: Michal's studyfi-design sync runs on :4399 (`maude design server-up` from the global npm 1.9.1).
   Our harnesses start at 48399 (`MAUDE_PORT_BASE`).
 - The Mac mini (`hub`) is unreachable over ssh; nothing in the final plan needs it.
+
+Update 2026-10-28 ~17:00: HEAD 8f238f19a (sec-lows merged). Weekly 57 %, 5h 50 %. Still open before the eval: p8-format-gate-2, p8-journey-fixes.
