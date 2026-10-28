@@ -11,6 +11,7 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { SYSTEM_TAB } from '../../shell/constants.js';
+import { actorName } from '../ai/runs-model.js';
 import { initialsOf, Kbd, StIcon } from '../../shell/icons.jsx';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { useUndoModeLane } from './use-undo-mode-lane.js';
@@ -65,7 +66,14 @@ export function agoText(madeAt, now) {
 
 /** "Tereza's changes are theirs to undo." (no line when nobody else has changed this canvas). */
 export function footText(others) {
-  const names = [...new Set((others ?? []).filter((n) => typeof n === 'string' && n))];
+  // a hub member's actor is her e-mail: name her by its local part (runs-model `actorName`), never print it
+  const names = [
+    ...new Set(
+      (others ?? [])
+        .filter((n) => typeof n === 'string' && n)
+        .map((n) => (n.includes('@') ? actorName(n) : n))
+    ),
+  ];
   if (!names.length) return null;
   const who =
     names.length === 1

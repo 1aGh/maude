@@ -227,6 +227,9 @@ describe('S2.20 Undo history popover', () => {
     expect(previewTag({})).toBe('Would undo');
     expect(footText([])).toBeNull();
     expect(footText(['Tereza', 'Jan'])).toBe("Tereza and Jan's changes are theirs to undo.");
+    // 14 `ed-edge-undo` on a real hub: a member's history actor is her hub identity (an e-mail) — named, never printed
+    expect(footText(['tereza@x.test'])).toBe("Tereza's changes are theirs to undo.");
+    expect(footText(['tereza@x.test', 'Tereza'])).toBe("Tereza's changes are theirs to undo.");
   });
 });
 

@@ -24,7 +24,7 @@
 import { useSyncExternalStore } from 'react';
 import { notifyUndo } from '../../../notifications.tsx';
 import { getRunsStore } from '../ai/runs-store.js';
-import { ownRunWorkingOn } from '../ai/runs-model.js';
+import { actorName, ownRunWorkingOn } from '../ai/runs-model.js';
 import { historyRows, nextRedo, nextUndo } from './projection.js';
 
 export const UNDO_STACK_ROUTE = '/_api/project/undo-stack';
@@ -204,7 +204,9 @@ export function createUndoProjection(o = {}) {
     const after = rows
       .filter((x) => isObj(x) && !x.mine && (x.revision ?? 0) > (entry.revision ?? 0))
       .sort((a, b) => (b.revision ?? 0) - (a.revision ?? 0));
-    return str(after[0]?.actorName) ?? str(after[0]?.actor) ?? undoWords.someone;
+    const who = str(after[0]?.actorName) ?? str(after[0]?.actor);
+    // a hub member's actor is her e-mail: named by its local part, never printed (runs-model `actorName`)
+    return who ? (who.includes('@') ? actorName(who) : who) : undoWords.someone;
   }
 
   async function onRejected(d, entry, r) {

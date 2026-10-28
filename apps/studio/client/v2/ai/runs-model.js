@@ -133,8 +133,13 @@ export function whereLabel(run, { designRel, labels } = {}) {
 }
 
 const displayActor = (actor) => {
-  const s = typeof actor === 'string' ? actor.trim() : '';
+  let s = typeof actor === 'string' ? actor.trim() : '';
   if (!s || s === 'you') return 'You';
+  // A hub member's actor is her hub identity — the token owner's / account's e-mail. Name her by its local part;
+  // the e-mail itself is never printed (03 `ai-tereza` "Tereza's AI"; the hook's holder rule says the same).
+  const at = s.indexOf('@');
+  if (at > 0) s = s.slice(0, at);
+  else if (at === 0) return 'Someone';
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
 export const actorName = displayActor;

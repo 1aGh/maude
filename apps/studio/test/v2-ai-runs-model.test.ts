@@ -143,6 +143,18 @@ describe('the run list rows', () => {
     expect(rows[0].state).toBe('working');
   });
 
+  // 03 `ai-tereza` on a real hub: a member's actor is her hub identity (the token owner's e-mail). The row names
+  // her, never prints the e-mail (the hook's rule too, agent-runs-hooks.test.ts).
+  test('a hub member is named by her e-mail local part, never the e-mail itself', () => {
+    const rows = canvasRows(view([mine({})], [other({ actor: 'tereza@x.test' })]), {
+      activeCanvas: FILE,
+      designRel: '.design',
+      labels,
+    });
+    expect(rows[0].where).toBe("Story 9:16 · Tereza's AI");
+    expect(rows[0].where).not.toContain('@');
+  });
+
   test('a person waiting in line on this canvas is listed too', () => {
     const w = other({
       state: 'waiting',
@@ -166,7 +178,11 @@ describe('the rings the canvas draws (dgn ai-runs)', () => {
   test('P8 t-ai (14 ed-edge-ask): a run on a selection wears no artboard ring - its outline is the one on the elements; a question still rings', () => {
     const el = (e: string) => ({ canvas: KEY, artboard: 'post', element: e });
     const inPlace = mine({
-      scope: { canvas: 'ui/combine.tsx', artboards: ['post'], elements: [el('card-1'), el('card-2')] },
+      scope: {
+        canvas: 'ui/combine.tsx',
+        artboards: ['post'],
+        elements: [el('card-1'), el('card-2')],
+      },
       leases: [lease('post')],
     });
     expect(ringsFor(view([inPlace]), { activeCanvas: FILE })).toEqual({});
