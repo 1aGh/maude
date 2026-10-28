@@ -57,6 +57,7 @@ here, not permission to skip that requirement. Do not read all references at onc
 
 Never `rm`, `mv` or `cp` a canvas file, and never try one to see what the hook says: the hook refuses it, and the attempt counts against you. Use these:
 
+- **Make a new canvas:** create it with the app's own create first — `maude design curl-local "http://127.0.0.1:<port>/_api/canvas" --method POST --header "Content-Type: application/json" --data '{"kind":"blank","name":"<name>"}'` (port: `.design/_server.json`; the answer's `rel` is the file) — then Edit the `.tsx` it made. Never Write a new canvas `.tsx` or its `.meta.json` by hand.
 - **Move a canvas to the trash:** `maude design trash move <canvas>` (e.g. `maude design trash move ui/Greeting.tsx`). Bring it back with `maude design trash restore <canvas>`.
 - **Rename or move a canvas, duplicate it:** the studio’s own routes, as the `studio-actions` skill lists them (`canvas.rename`, `canvas.move`, `canvas.duplicate`).
 - **Remove one artboard:** delete its `DCArtboard` block with Edit.
