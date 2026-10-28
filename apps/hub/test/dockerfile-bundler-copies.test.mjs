@@ -44,7 +44,12 @@ function bundlerCopies() {
 
 /** Relative value imports of a module (type-only imports and re-exports erased). */
 function relativeImports(source) {
-  const noComments = source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:\\])\/\/.*$/gm, '$1');
+  // One left-to-right pass: a string literal is kept whole, and a comment is dropped from wherever it
+  // STARTS — so a `/*` inside a `//` comment (or a `//` inside a string) never opens anything.
+  const noComments = source.replace(
+    /('(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"|`(?:\\.|[^`\\])*`)|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g,
+    (m, str) => (str ? m : ' ')
+  );
   const out = [];
   const re =
     /\b(import|export)\s+(type\s+)?([^'";]*?)\s*\bfrom\s*['"](\.[^'"]+)['"]|\bimport\s*['"](\.[^'"]+)['"]|\bimport\s*\(\s*['"](\.[^'"]+)['"]\s*\)/g;
@@ -98,6 +103,25 @@ test('resolveSpec finds a .tsx module; an unresolvable import is reported', () =
   }
 });
 
+// V2-8.18: a `//` comment that mentions a glob (`access/*`) opened a "block comment" in the old stripper,
+// which then ate every import up to the next `*/` — door-fingerprint.ts's imports were invisible to the walk
+// and the real `docker build` of the hub image failed on two un-COPY'd modules.
+test('a line comment that mentions a glob does not hide the imports after it', () => {
+  const src = [
+    '// reaches `node:*` plus the light `access/*` modules',
+    "import { a } from '../access/request.ts';",
+    "import { b } from '../sync/file-membership.ts';",
+    '/** a doc comment closes here */',
+    "const url = 'http://x/*y';",
+    "import { c } from './after.ts';",
+  ].join('\n');
+  assert.deepEqual(relativeImports(src), [
+    '../access/request.ts',
+    '../sync/file-membership.ts',
+    './after.ts',
+  ]);
+});
+
 /** The hub's transitive relative import graph from `sources`: what it saw, and what it could not resolve. */
 function walkHub(sources) {
   const seen = new Set();
@@ -131,5 +155,56 @@ test('every module the hub bundle reaches outside apps/hub is COPY’d into the 
     missing.sort(),
     [],
     `not COPY'd into the hub bundler stage: ${missing.join(', ')}`
+  );
+});
+
+/** A stage's COPY sources from the build context (repo-relative), up to the next FROM. */
+function stageCopies(stage) {
+  const text = readFileSync(join(HUB, 'Dockerfile'), 'utf8').replace(/\\\n/g, ' ');
+  const lines = text.split('\n');
+  const start = lines.findIndex((l) =>
+    new RegExp(`^FROM\\s+\\S+\\s+AS\\s+${stage}\\b`, 'i').test(l)
+  );
+  assert.ok(start >= 0, `no ${stage} stage`);
+  const out = [];
+  for (const line of lines.slice(start + 1)) {
+    if (/^FROM\s/i.test(line)) break;
+    const m = /^COPY\s+(.*)$/i.exec(line.trim());
+    if (!m || /--from=/.test(m[1])) continue;
+    const args = m[1].split(/\s+/).filter((a) => a && !a.startsWith('--'));
+    for (const src of args.slice(0, -1)) out.push(src.replace(/\/+$/, ''));
+  }
+  return out;
+}
+
+function studioSources(dir = join(REPO, 'apps/studio')) {
+  const out = [];
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    if (['node_modules', 'dist', 'test', 'e2e', '.design'].includes(e.name)) continue;
+    const abs = join(dir, e.name);
+    if (e.isDirectory()) out.push(...studioSources(abs));
+    else if (/\.(mjs|js|ts|tsx)$/.test(e.name) && !/\.test\.(mjs|js|ts|tsx)$/.test(e.name))
+      out.push(abs);
+  }
+  return out;
+}
+
+// V2-8.18: the studio-build stage compiles the cloud `maude-server` from `COPY apps/studio ./` plus whatever
+// the studio reaches outside apps/studio. The studio came to import hub modules (project-transactions/*,
+// votes) and cli/lib guards; nothing staged them, and the real `docker build` of the hub image failed.
+test('every module the cloud studio build reaches outside apps/studio is COPY’d into the studio-build stage', () => {
+  const copies = stageCopies('studio-build');
+  const copied = (rel) =>
+    rel.startsWith('apps/studio/') || copies.some((c) => rel === c || rel.startsWith(`${c}/`));
+  const { seen } = walkHub(studioSources());
+  const missing = [];
+  for (const abs of seen) {
+    const rel = relative(REPO, abs).split('\\').join('/');
+    if (!copied(rel)) missing.push(rel);
+  }
+  assert.deepEqual(
+    missing.sort(),
+    [],
+    `not COPY'd into the studio-build stage: ${missing.join(', ')}`
   );
 });

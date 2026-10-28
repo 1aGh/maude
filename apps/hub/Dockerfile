@@ -80,6 +80,14 @@ COPY apps/studio/access/share-map.ts /build/apps/studio/access/share-map.ts
 # the ACL agree on what a canvas imports. Its import graph: the artifact
 # inventory, the DS resolver (+ system / css-scan) and paths.ts.
 COPY apps/studio/access/closure.ts /build/apps/studio/access/closure.ts
+# door-fingerprint.ts (the render door, routes-v2/render-jobs.mjs) reaches these; the bundler-copies test was
+# blind to them (a `//` comment naming `access/*` hid the imports) and the image did not build (V2-8.18).
+COPY apps/studio/access/request.ts /build/apps/studio/access/request.ts
+COPY apps/studio/access/filters.ts /build/apps/studio/access/filters.ts
+COPY apps/studio/access/known-canvases.ts /build/apps/studio/access/known-canvases.ts
+COPY apps/studio/sync/hubs-config.ts /build/apps/studio/sync/hubs-config.ts
+COPY apps/studio/workspace-mode.ts /build/apps/studio/workspace-mode.ts
+COPY apps/studio/sync/file-membership.ts /build/apps/studio/sync/file-membership.ts
 COPY apps/studio/canvas-artifacts.ts /build/apps/studio/canvas-artifacts.ts
 COPY apps/studio/ds/ds-resolver.ts /build/apps/studio/ds/ds-resolver.ts
 COPY apps/studio/ds/system.ts /build/apps/studio/ds/system.ts
@@ -214,6 +222,20 @@ COPY plugins/design/templates /build/plugins/design/templates
 # single file is the whole closure; a new `../../cli/` import from studio needs
 # its own line (there is exactly one today — grep guards it in CI would be nice).
 COPY cli/lib/design-ownership.mjs /build/cli/lib/design-ownership.mjs
+# V2-8.18 — the v2 studio reaches more than that: the hub's transactions kernel + lanes (sync/local-kernel.ts,
+# canvas-edit.ts, element-ids.ts), hub-held votes (annotations/votes-local.ts) and the cli/lib guards
+# (routes/agent.ts, ai/lease-home.ts). Unstaged, `docker build` failed with `Could not resolve`. The test
+# `dockerfile-bundler-copies.test.mjs` walks the studio's import graph against this stage's COPY list.
+COPY apps/hub/src/project-transactions/baseline.mjs \
+     apps/hub/src/project-transactions/kernel.mjs \
+     apps/hub/src/project-transactions/lanes.mjs \
+     apps/hub/src/project-transactions/runs-core.mjs \
+     apps/hub/src/project-transactions/store-core.mjs \
+     /build/apps/hub/src/project-transactions/
+COPY apps/hub/src/votes.mjs /build/apps/hub/src/votes.mjs
+COPY cli/lib/bash-guard.mjs cli/lib/finding-text.mjs cli/lib/confine-out.mjs \
+     cli/lib/confine-root.mjs cli/lib/studio-locate.mjs cli/lib/handoff.mjs \
+     cli/lib/json-schema-lite.mjs cli/lib/pkg-root.mjs /build/cli/lib/
 # The client bundle + stylesheet are COMMITTED artifacts (see CLAUDE.md: what
 # you commit is what ships) — MAUDE_SKIP_RUNTIME_BUILD keeps the runtime bundles
 # verbatim for the same reason. The E1 seal below records what came out of here.
