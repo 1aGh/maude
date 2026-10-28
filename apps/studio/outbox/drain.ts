@@ -56,6 +56,8 @@ export interface PassReport {
 }
 
 const PAUSES = new Set(['format', 'plan']);
+/** How soon a record parked on `after` looks at the content lane again (no event tells it). */
+export const AFTER_RECHECK_MS = 2_000;
 
 export function createOutboxDrain(opts: DrainOptions) {
   const { store } = opts;
@@ -209,6 +211,9 @@ export function createOutboxDrain(opts: DrainOptions) {
       if (isFinal(r)) continue;
       if (r.nextAttemptAt !== null && r.nextAttemptAt > t) at = Math.min(at, r.nextAttemptAt);
       if (r.expiresAt > t) at = Math.min(at, r.expiresAt);
+      // P8 G1b: the `after` gate has no event of its own — the content lane settles on its own clock
+      // (a tx accepted, a create note gone) — so a record parked on it is re-checked, cheaply (a readdir).
+      if (r.gates.includes('after')) at = Math.min(at, t + AFTER_RECHECK_MS);
     }
     const reset = opts.gates().allowanceResetsAt;
     if (typeof reset === 'number' && reset > t) at = Math.min(at, reset);

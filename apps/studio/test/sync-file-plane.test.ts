@@ -1305,6 +1305,34 @@ describe('rate limits', () => {
     expect(wire.journals()).toHaveLength(1);
   });
 
+  test('a cursor-read refusal still counts what waits HERE — the callout has a number to say (P8 06 ad-edge-sync)', async () => {
+    // The hub's per-label read bucket is shared by the cursor poll, History and
+    // the pulls, so under a rate limit the cursor read is the request that meets
+    // the wall. The pass returned before it looked at this disk, reported
+    // `waiting: 0`, and the held passes after it counted only `stuck` rows — so
+    // four notes written while the hub asked to wait never reached the
+    // "N changes are waiting to reach the cloud" callout (its gate is waiting > 0).
+    const hub = fakeHub({});
+    for (let i = 1; i <= 4; i += 1) write(`notes/n${i}.md`, `# Note ${i}\n`);
+    const wire = metered(hub, { refuse: (p) => (p === '/api/journal' ? 429 : null) });
+    let clock = 1_700_000_000_000;
+    const p = plane(hub, { fetchImpl: wire.fetchImpl, now: () => clock });
+
+    const first = await p.reconcile();
+    expect(first.rateLimited).toBeTruthy();
+    expect(first.rateLimited?.waiting).toBe(4);
+    // still nothing pushed: the door is shut, the files only got COUNTED
+    expect(wire.files()).toHaveLength(0);
+    expect(first.pushed).toEqual([]);
+
+    // a held pass reports the same honest count, still without touching the wire
+    const calls = wire.calls.length;
+    clock += 1_000;
+    const held = await p.reconcile();
+    expect(wire.calls.length).toBe(calls);
+    expect(held.rateLimited?.waiting).toBe(4);
+  });
+
   test('the request ceiling bounds a pass that lands NOTHING', async () => {
     // THE DEFECT, isolated. `MAX_FILES_PER_PASS` counted what MOVED, and a
     // failed transfer moves nothing — so the counter stood still and the loop

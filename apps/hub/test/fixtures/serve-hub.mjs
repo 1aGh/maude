@@ -5,7 +5,7 @@
 // SIGTERM.
 //
 //   node serve-hub.mjs <dataDir> [port] [--transactions] [--users]
-//     [--conn-rate-limit N] [--max-pending-documents N]
+//     [--conn-rate-limit N] [--max-pending-documents N] [--asset-write-rate-limit N]
 //
 // --users adds password accounts (the self-hosted sign-in a designer uses):
 // designer@x.test (member) and admin@x.test (admin), password `designer-pass-1`.
@@ -32,6 +32,10 @@ const connRateLimit = rateIdx > 0 ? Number(process.argv[rateIdx + 1]) : undefine
 // (Hocuspocus closes a socket with more than 100 documents mid-authentication).
 const pendingIdx = process.argv.indexOf('--max-pending-documents');
 const maxPendingDocuments = pendingIdx > 0 ? Number(process.argv[pendingIdx + 1]) : undefined;
+// --asset-write-rate-limit N: authenticated file/asset writes (and file reads) per token label per minute, small
+// enough that a test reaches the hub's 429 + Retry-After (06 ad-edge-sync: "N changes are waiting to reach the cloud").
+const writeIdx = process.argv.indexOf('--asset-write-rate-limit');
+const assetWriteRateLimit = writeIdx > 0 ? Number(process.argv[writeIdx + 1]) : undefined;
 export const TEST_PASSWORD = 'designer-pass-1';
 if (!dataDir) {
   process.stderr.write('usage: serve-hub.mjs <dataDir> [port] [--transactions]\n');
@@ -79,6 +83,7 @@ const built = createHub({
   verbose: connRateLimit !== undefined,
   ...(connRateLimit !== undefined ? { connRateLimit } : {}),
   ...(maxPendingDocuments !== undefined ? { maxPendingDocuments } : {}),
+  ...(assetWriteRateLimit !== undefined ? { assetWriteRateLimit } : {}),
 });
 await built.server.listen();
 await built.acceptedReady;

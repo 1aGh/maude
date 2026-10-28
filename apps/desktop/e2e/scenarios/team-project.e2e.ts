@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, $$, browser, expect } from '@wdio/globals';
 
@@ -11,6 +11,8 @@ import {
   syncStatusText,
   toggleTheme,
 } from '../helpers/chrome';
+import { type LocalHub, startLocalHub } from '../fixtures/local-hub.mjs';
+import { openAssistant } from '../helpers/assistant';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -81,6 +83,8 @@ const TEAM = process.env.MAUDE_E2E_TEAM
       password: string;
       hubPid: number;
       adminSecret: string;
+      hubDir: string;
+      hubPort: number;
     })
   : null;
 
@@ -128,6 +132,98 @@ async function eventually(what: string, fn: () => boolean | Promise<boolean>, ti
     interval: 500,
     timeoutMsg: `timed out: ${what}`,
   });
+}
+
+/** The Share cluster's save word (CONTRACT §6): its kind, its exact words, and whether it is a control. */
+async function statusWord(): Promise<{ status: string | null; text: string; control: boolean } | null> {
+  return (await browser.execute(() => {
+    const el = document.querySelector('[data-testid="share-cluster-status"]') as HTMLElement | null;
+    if (!el) return null;
+    const w = el.querySelector('.sh-saved-w') ?? el;
+    return {
+      status: el.getAttribute('data-status'),
+      text: (w.textContent ?? '').trim(),
+      control: !!el.closest('button, [role="button"], a[href]'),
+    };
+  })) as { status: string | null; text: string; control: boolean } | null;
+}
+
+/** Every versioned `.tsx` under a copy's design root (runtime `_*` dirs skipped), as design-relative paths. */
+function canvasesIn(root: string): string[] {
+  const out: string[] = [];
+  const walk = (dir: string, rel: string) => {
+    for (const n of readdirSync(dir)) {
+      if (n.startsWith('_') || n.startsWith('.')) continue;
+      const abs = join(dir, n);
+      const r = rel ? `${rel}/${n}` : n;
+      if (statSync(abs).isDirectory()) walk(abs, r);
+      else if (n.endsWith('.tsx')) out.push(r);
+    }
+  };
+  walk(join(root, '.design'), '');
+  return out.sort();
+}
+
+/** The outbox's intents on disk (`_state/outbox/intents/*.json`, V2-1.14 §5.2). */
+function intentsOf(root: string): { kind?: string; state?: string; gates?: string[]; label?: string }[] {
+  const dir = join(root, '.design', '_state', 'outbox', 'intents');
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((n) => n.endsWith('.json'))
+    .map((n) => {
+      try {
+        return JSON.parse(readFileSync(join(dir, n), 'utf8'));
+      } catch {
+        return {};
+      }
+    });
+}
+
+/** Can the hub be reached at all (connection refused = no). */
+async function hubAnswers(url: string): Promise<boolean> {
+  try {
+    await fetch(`${url}/health`, { signal: AbortSignal.timeout(2_000) });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The one part of "this Mac has no internet" a local run cannot do for real: the page's own network signal. The
+ * hub is REALLY gone (stopped, connection refused) when this is used; this tells the page what macOS would —
+ * `navigator.onLine` false and an `offline` event — so the client surfaces that read it (the empty canvas line,
+ * the Advanced rows) answer as on an offline Mac. `false` puts it back.
+ */
+async function pageOffline(on: boolean): Promise<void> {
+  await browser.execute((off: boolean) => {
+    Object.defineProperty(Navigator.prototype, 'onLine', { configurable: true, get: () => !off });
+    window.dispatchEvent(new Event(off ? 'offline' : 'online'));
+  }, on);
+}
+
+/** P8 G1b — the hub this spec restarted (same dir, same port, same tokens); stopped in `after`. */
+let restarted: LocalHub | null = null;
+
+/** Stop the team hub for real (SIGTERM → connection refused), whichever process holds it now. */
+async function stopHub(t: NonNullable<typeof TEAM>): Promise<void> {
+  if (restarted) {
+    restarted.stop();
+    restarted = null;
+  } else {
+    try {
+      process.kill(t.hubPid, 'SIGTERM');
+    } catch {
+      /* already gone */
+    }
+  }
+  await eventually('the hub to stop answering', async () => !(await hubAnswers(t.hub)), 30_000);
+}
+
+/** Start the same hub again on the same port (serve-hub re-reads its tokens), with optional extra flags. */
+async function startHub(t: NonNullable<typeof TEAM>, extraArgs: string[] = []): Promise<void> {
+  restarted = await startLocalHub({ dir: t.hubDir, port: t.hubPort, extraArgs });
+  expect(restarted.http).toBe(t.hub);
 }
 
 describe('team-project (native-desktop)', () => {
@@ -260,6 +356,15 @@ describe('team-project (native-desktop)', () => {
     const status = await $(tid('settings-conn-hub-status'));
     await status.waitForDisplayed({ timeout: 15_000 });
     expect(await status.getText()).toMatch(/^Connected/);
+    // P8 G1b (06 ad-edge-hub): the team server's row reads like any connection — its own name, the
+    // same Sign out — between the other four rows; the window itself says Saved, like a cloud project.
+    expect(await (await $(tid('settings-conn-hub'))).getText()).toMatch(/own server/i);
+    for (const row of ['settings-cloud', 'settings-github', 'settings-ai-keys', 'figma-connect-card'])
+      expect(await (await $(tid(row))).isExisting()).toBe(true);
+    await eventually('the save word to settle on Saved', async () => (await statusWord())?.status === 'saved', 120_000);
+    const word = await statusWord();
+    expect(word?.status).toBe('saved');
+    expect(word?.text).toBe('Saved');
     expect(await (await $(tid('settings-hub-sign-out'))).isDisplayed()).toBe(true);
     const fold = await $(tid('fold-connections.hub-toggle'));
     if ((await fold.getAttribute('aria-expanded')) !== 'true') await fold.click();
@@ -657,5 +762,194 @@ describe('team-project (native-desktop)', () => {
     );
     await capture('18-resync-log-line');
     await closeDiagnostics();
+  });
+
+  // ── P8 test round G1b — sync, offline, status words (01 cf-status-words · cf-offline-create, 06 ad-edge-sync ·
+  //    ad-edge-where offline column). The hub is a real local one: stopped (connection refused), restarted on the
+  //    same port with the same store, once with a write ceiling so it answers 429 + Retry-After.
+  after(() => {
+    restarted?.stop();
+    restarted = null;
+  });
+
+  it('11 · cf-status-words: Saved, then Syncing… while a change waits — the exact words, never a control', async () => {
+    const t = TEAM as NonNullable<typeof TEAM>;
+    const mine = join(t.managedDir, '.design', 'ui', 'welcome.tsx');
+    const theirs = join(t.teammate, '.design', 'ui', 'welcome.tsx');
+    await closeDiagnostics();
+    await eventually('Saved', async () => (await statusWord())?.status === 'saved', 120_000);
+    const saved = await statusWord();
+    expect(saved).toEqual({ status: 'saved', text: 'Saved', control: false });
+    await capture('19-status-saved');
+
+    process.kill(t.hubPid, 'SIGSTOP');
+    try {
+      writeFileSync(mine, canvas('Welcome, on its way up'));
+      await eventually('Syncing…', async () => (await statusWord())?.status === 'syncing', 60_000);
+      expect(await statusWord()).toEqual({ status: 'syncing', text: 'Syncing…', control: false });
+      // shown, never operated: no Retry beside the word while nothing has failed
+      expect(await $(tid('share-cluster-retry')).isExisting()).toBe(false);
+      await capture('20-status-syncing');
+    } finally {
+      process.kill(t.hubPid, 'SIGCONT');
+    }
+    await eventually('the change at the teammate', () => (read(theirs) ?? '').includes('on its way up'), 120_000);
+    await eventually('Saved again', async () => (await statusWord())?.status === 'saved', 120_000);
+  });
+
+  it('12 · cf-offline-create: the hub is gone — Offline, ⌘N still makes a canvas, the prompt is queued and sends on return', async () => {
+    const t = TEAM as NonNullable<typeof TEAM>;
+    await stopHub(t);
+    // the REAL hub state, before the page is told anything: the cluster's fourth word
+    await eventually(
+      'Offline — kept on this Mac',
+      async () => (await statusWord())?.status === 'offline',
+      150_000
+    );
+    expect(await statusWord()).toEqual({
+      status: 'offline',
+      text: 'Offline — kept on this Mac',
+      control: false,
+    });
+    await capture('21-status-offline');
+
+    // ⌘N still makes a canvas, kept on this Mac
+    const before = canvasesIn(t.managedDir);
+    await settleMotion();
+    await browser.keys(['Meta', 'n']);
+    let made = '';
+    await eventually('a new canvas on this Mac', () => {
+      made = canvasesIn(t.managedDir).find((c) => !before.includes(c)) ?? '';
+      return made !== '';
+    });
+    await (await $(tid('empty-canvas'))).waitForDisplayed({ timeout: 60_000 });
+    expect(canvasesIn(t.teammate)).not.toContain(made);
+
+    // Ask AI stays on; the prompt waits in the outbox on the `hub` gate
+    await openAssistant();
+    const input = await (await $(tid('chat-composer'))).$('.chat-input');
+    await input.waitForDisplayed({ timeout: 30_000 });
+    await input.click();
+    await input.addValue('Three reel covers for Krpole v pohybu');
+    await (await $('[aria-label="Send message"]')).click();
+    const queued = await $(tid('ai-queued-line'));
+    await queued.waitForDisplayed({ timeout: 30_000 });
+    expect((await queued.getText()).trim()).toBe('Queued — sends when this Mac is online.');
+    expect((await (await $(tid('ai-offline-line'))).getText()).trim()).toBe(
+      'AI is back when this Mac is online.'
+    );
+    const waiting = intentsOf(t.managedDir).filter((r) => r.kind === 'ai.prompt' && r.state === 'queued');
+    expect(waiting.length).toBe(1);
+    expect(waiting[0].gates?.[0]).toBe('hub');
+    // the board draws the queued prompt with no follow-up chips under it: nothing has been answered yet
+    await (await $(tid('ai-suggest'))).waitForExist({ reverse: true, timeout: 15_000 });
+
+    // the hub gate alone — the page still believes this Mac is online — already draws the empty canvas's
+    // offline line: the empty canvas and the queued card read the same truth
+    expect(await browser.execute(() => navigator.onLine)).toBe(true);
+    const hubLine = await $(tid('empty-canvas-offline'));
+    await hubLine.waitForDisplayed({ timeout: 30_000 });
+    expect((await hubLine.getText()).trim()).toBe('AI is back when this Mac is online.');
+    expect((await (await $(tid('empty-canvas'))).getText())).toContain('Your canvas is ready.');
+    await capture('22a-hub-away-empty-canvas-line');
+
+    // no internet at all: the page hears it too — the line and the word stay
+    await pageOffline(true);
+    try {
+      const line = await $(tid('empty-canvas-offline'));
+      await line.waitForDisplayed({ timeout: 10_000 });
+      expect((await line.getText()).trim()).toBe('AI is back when this Mac is online.');
+      expect((await (await $(tid('empty-canvas'))).getText())).toContain('Your canvas is ready.');
+      expect(await statusWord()).toEqual({
+        status: 'offline',
+        text: 'Offline — kept on this Mac',
+        control: false,
+      });
+      await capture('22-offline-new-canvas-queued-prompt');
+
+      // 06 ad-edge-where, the Offline column: Resync now is greyed (only what needs the internet), not hidden
+      await (await $(tid('project-pill'))).click();
+      await (await $(tid('project-menu-row-sub-diagnostics'))).click();
+      const advanced = await $(`${tid('project-menu-sub-diagnostics')} [data-sub="Advanced"]`);
+      await advanced.waitForDisplayed({ timeout: 10_000 });
+      await advanced.click();
+      const resync = await $(tid('project-menu-row-sync.resync'));
+      await resync.waitForDisplayed({ timeout: 10_000 });
+      const grey = await browser.execute((sel: string) => {
+        const el = document.querySelector(sel) as HTMLElement | null;
+        return el
+          ? {
+              disabled:
+                el.getAttribute('aria-disabled') === 'true' || (el as HTMLButtonElement).disabled === true,
+              text: (el.textContent ?? '').trim(),
+            }
+          : null;
+      }, tid('project-menu-row-sync.resync'));
+      await capture('23-where-offline-resync-greyed');
+      expect(grey?.disabled).toBe(true);
+      await browser.keys('Escape');
+      await browser.keys('Escape');
+    } finally {
+      await pageOffline(false);
+    }
+
+    // back: the same hub, the same port — the canvas goes up and the prompt sends by itself
+    await startHub(t);
+    await eventually('Saved after the hub came back', async () => (await statusWord())?.status === 'saved', 180_000);
+    await eventually('the new canvas at the teammate', () => canvasesIn(t.teammate).includes(made), 120_000);
+    await eventually(
+      'the queued prompt sent',
+      () => !intentsOf(t.managedDir).some((r) => r.kind === 'ai.prompt' && r.state === 'queued'),
+      120_000
+    );
+    await (await $(tid('ai-queued-line'))).waitForExist({ reverse: true, timeout: 60_000 });
+    await capture('24-back-online-prompt-sent');
+  });
+
+  // P8 G1b-2: NOT drivable on this lane's hub. serve-hub.mjs runs without workspace mode, so it has no checkout
+  // and every file write answers 405 "this hub does not accept file writes" before any rate check (sidecar log:
+  // `[sync/assets] 4 asset(s) did not reach … notes/p8-g1b-1.md — HTTP 405`); the journal file plane — the only
+  // lane that reports files.rateLimited — is never active here. The callout's count fix (a cursor-read 429 said
+  // waiting 0) is pinned by test/sync-file-plane.test.ts; the drawn leg belongs on a workspace-mode hub (the local
+  // cell, scripts/dev/local-cell.mjs). Kept as the script for that lane.
+  it.skip('13 · ad-edge-sync: the hub asks to wait (429) — what waits, that it is safe, Try now; the facts one fold down', async () => {
+    const t = TEAM as NonNullable<typeof TEAM>;
+    await stopHub(t);
+    await startHub(t, ['--asset-write-rate-limit', '1']);
+    await eventually('Saved on the limited hub', async () => (await statusWord())?.status === 'saved', 180_000);
+    const notes = join(t.managedDir, '.design', 'notes');
+    mkdirSync(notes, { recursive: true });
+    for (let i = 1; i <= 4; i++)
+      writeFileSync(join(notes, `p8-g1b-${i}.md`), `# Note ${i}\n\nWritten while the hub asks to wait.\n`);
+
+    const callout = await $(tid('callout-sync-stuck'));
+    await callout.waitForDisplayed({ timeout: 120_000 });
+    const text = await callout.getText();
+    expect(text).toMatch(/\d+ changes? (is|are) waiting to reach the cloud\./);
+    expect(text).toContain("They're safe on this Mac. The cloud is busy and asked to wait — the next try is in");
+    expect((await (await $(tid('callout-sync-stuck-action'))).getText()).trim()).toBe('Try now');
+    const word = await statusWord();
+    await capture('25-sync-stuck-callout');
+    await (await $(tid('callout-sync-stuck-fold-toggle'))).click();
+    await (await $(tid('callout-sync-stuck-row-reply'))).waitForDisplayed({ timeout: 10_000 });
+    expect(await (await $(tid('callout-sync-stuck-row-reply'))).getText()).toContain('429 · rate limited');
+    expect(await (await $(tid('callout-sync-stuck-row-hub'))).getText()).toContain(new URL(t.hub).host);
+    expect(await (await $(tid('callout-sync-stuck-row-next'))).isExisting()).toBe(true);
+    const files = await browser.execute(() =>
+      [...document.querySelectorAll('[data-testid^="callout-sync-stuck-file-"]')].map((e) => e.textContent ?? '')
+    );
+    expect(files.some((f) => /notes\/p8-g1b-\d\.md/.test(f))).toBe(true);
+    await capture('26-sync-stuck-fold');
+    // the status beside the faces keeps a CONTRACT §6 word — Syncing… (the board), never Saved while files wait
+    expect(word).toEqual({ status: 'syncing', text: 'Syncing…', control: false });
+    await (await $(tid('callout-sync-stuck-action'))).click();
+
+    // the ceiling lifts: everything goes up, the callout leaves, the word is Saved
+    await stopHub(t);
+    await startHub(t);
+    await callout.waitForExist({ reverse: true, timeout: 180_000 });
+    await eventually('the notes at the teammate', () => existsSync(join(t.teammate, '.design', 'notes', 'p8-g1b-4.md')), 120_000);
+    await eventually('Saved', async () => (await statusWord())?.status === 'saved', 120_000);
+    await capture('27-sync-stuck-cleared');
   });
 });

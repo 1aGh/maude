@@ -92,6 +92,22 @@ describe('outbox ordering', () => {
     expect(h.sent.map((s) => s.id)).toEqual([r.id]);
   });
 
+  test('O4: when the content lands the waiting intent sends BY ITSELF — nobody has to wake the drain (P8 G1b)', async () => {
+    // Found by the team-project desktop leg (01 cf-offline-create): the hub came back, its `hub` gate
+    // woke the drain while the offline ⌘N canvas was still pending, the prompt re-parked on `after`,
+    // the canvas was accepted a moment later — and nothing ever woke the drain again (§3: "When the
+    // gate opens, the record is sent by itself").
+    h = harness();
+    const r = put(h, prompt('c1', 'three reel covers', { watermark: 100 }));
+    h.contentPending = [100];
+    await h.outbox.drain.wake();
+    expect(h.outbox.store.get(r.id)?.gates).toEqual(['after']);
+    h.contentPending = []; // the create is accepted; no wake() call follows
+    await h.clock.advance(5_000);
+    await settle();
+    expect(h.sent.map((s) => s.id)).toEqual([r.id]);
+  });
+
   test('O4: enqueue takes the watermark from the content lane on disk', () => {
     h = harness();
     const dir = path.join(h.root, '_state', 'outbox');

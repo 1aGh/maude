@@ -31,7 +31,7 @@ import { fileURLToPath } from 'node:url';
 
 import { type LocalHub, startLocalHub } from './fixtures/local-hub.mjs';
 import { assertFreshClientDist } from './helpers/dist-fresh';
-import { useStubClaude } from './helpers/fake-ai';
+import { useFakeAi } from './helpers/fake-ai';
 import { config as base, completeLane } from './wdio.conf';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -107,7 +107,10 @@ async function setUp(): Promise<string> {
   // Home's index and projects dir: fresh and empty, so nothing on this Mac hides the first-run card.
   process.env.MAUDE_INDEX_DIR = mkdtempSync(join(tmpdir(), 'maude-e2e-team-index-'));
   process.env.MAUDE_HOME_PROJECTS_DIR = mkdtempSync(join(tmpdir(), 'maude-e2e-team-projects-'));
-  useStubClaude();
+  // P8 G1b (01 cf-offline-create): the scripted fake AI, signed in, so a prompt queued while the hub is away is
+  // seen to SEND when it returns (the agent answers "ok."). It also puts its stub `claude` first on PATH, so the
+  // person's real CLI and keychain are never reached (what useStubClaude did here before).
+  useFakeAi();
 
   const scratch = mkdtempSync(join(tmpdir(), 'maude-e2e-team-'));
   const hub: LocalHub = await startLocalHub({ dir: join(scratch, 'hub') });
@@ -160,7 +163,7 @@ async function setUp(): Promise<string> {
     ],
     {
       env: {
-        ...process.env, // includes the stub `claude` first on PATH (useStubClaude)
+        ...process.env, // includes the fake AI's stub `claude` first on PATH (useFakeAi)
         HUBS_CONFIG_PATH: teammateHubs,
         // gate-b-sec4: the harness is the app that made this link (sync/link-consent.ts)
         MAUDE_APP_BOUND_HUB: hub.http,
@@ -195,6 +198,10 @@ async function setUp(): Promise<string> {
     // disables/enables the designer through the admin API (fixture secret).
     hubPid: hub.pid,
     adminSecret: 'test-secret',
+    // P8 G1b: the hub's data dir + port, so the spec can STOP it (connection refused → "Offline — kept on this
+    // Mac") and restart the same hub on the same port, with the same tokens (serve-hub re-reads them).
+    hubDir: join(scratch, 'hub'),
+    hubPort: Number(new URL(hub.http).port),
   });
   const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '');
   process.env.MAUDE_E2E_RUN_DIR = resolve(

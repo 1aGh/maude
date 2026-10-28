@@ -6,7 +6,7 @@ import { StIcon } from '../../shell/icons.jsx';
 import { lastUserText } from '../../panels/acp-runtime.js';
 import { deriveSuggestions } from './suggest-why.js';
 import { useAnswered, useResultShown } from './result-shown.js';
-import { useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { repairOfferFor, subscribeRepairOffer } from '../create/repair-offer.js';
 
 // Persistent quick-action verbs (prefill the composer; never fire blind). The
@@ -94,6 +94,7 @@ export function SuggestStrip({
   lastFailed = false,
   chatId = null,
   canvas = null,
+  conn = null,
 }) {
   // P8 C8 (01 cf-render-error): the card keeps one verb; "Ask AI to fix it" is this chip while the card shows.
   const repair = useSyncExternalStore(
@@ -106,6 +107,12 @@ export function SuggestStrip({
   const answered = useAnswered(chatId);
   // P8 c10 (03 `ai-long`): a chip fills the field — with a draft in it (or one being typed) the strip steps aside
   const drafting = useComposer((c) => c.text.trim() !== '');
+  // P8 G1b (01 cf-offline-create): while this chat's ask waits in line there is no reply to follow up on
+  const [queuedCount, setQueuedCount] = useState(0);
+  useEffect(
+    () => (conn?.onQueued ? conn.onQueued((list) => setQueuedCount(list?.length ?? 0)) : undefined),
+    [conn]
+  );
   const sug = deriveSuggestions({
     enabled,
     openComments,
@@ -116,6 +123,7 @@ export function SuggestStrip({
     resultShown,
     repair,
     answered,
+    queued: queuedCount > 0,
   });
   if (!sug || drafting) return null;
   return (

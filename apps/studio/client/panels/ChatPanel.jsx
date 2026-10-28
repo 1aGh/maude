@@ -507,6 +507,7 @@ function ChatThread({
                     lastFailed={!!turnError}
                     chatId={chatId}
                     canvas={activeCanvas}
+                    conn={conn}
                   />
                 </ThreadPrimitive.If>
               }

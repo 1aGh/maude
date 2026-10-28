@@ -83,14 +83,18 @@ export function hubEnv(extra = {}, base = process.env) {
 
 /**
  * Start a local hub. Resolves once it listens (and its accepted-revisions store is ready).
- * @param {{ dir: string, transactions?: boolean, users?: boolean, cloudKey?: string, node?: string }} opts
+ * @param {{ dir: string, port?: number, extraArgs?: string[], transactions?: boolean, users?: boolean, cloudKey?: string, node?: string }} opts
  *   `dir` is the hub's data dir (a throwaway); `cloudKey` switches on cloud identity with that project-token key.
  */
 export function startLocalHub(opts) {
   const node = opts.node ?? findNode24();
-  const args = [join(REPO, 'apps/hub/test/fixtures/serve-hub.mjs'), opts.dir, '0'];
+  // `port` (additive, P8 G1b): restart the SAME hub — same data dir, same port, same tokens (serve-hub re-reads
+  // them) — after a spec stopped it, so the peers' stored hub URL still names it. `extraArgs`: serve-hub flags
+  // such as `--asset-write-rate-limit N`.
+  const args = [join(REPO, 'apps/hub/test/fixtures/serve-hub.mjs'), opts.dir, String(opts.port ?? 0)];
   if (opts.transactions !== false) args.push('--transactions');
   if (opts.users !== false) args.push('--users');
+  for (const a of opts.extraArgs ?? []) args.push(String(a));
   const env = hubEnv({ PATH: `${dirname(node)}${delimiter}${process.env.PATH ?? ''}` });
   if (opts.cloudKey) {
     env.MAUDE_CLOUD_IDENTITY = '1';

@@ -70,6 +70,8 @@ const chip = (id, label, prompt, extra = {}) => ({ id, label, prompt: prompt ?? 
  * @param {string|null} [i.repair=null] — P8 c8 (01 `cf-render-error`): the canvas cannot draw; the composer text of "Ask AI to fix it" (the card keeps ONE verb, the repair is this chip)
  * @param {boolean} [i.resultShown=false] — P8 c6: the result card under the last reply already carries the follow-up chips (03 `ai-done`)
  * @param {boolean} [i.answered=false] — P8 c8: the last turn answered and changed nothing (03 `ai-question`)
+ * @param {boolean} [i.queued=false] — P8 G1b (01 `cf-offline-create`): the last ask waits in line; a follow-up of a
+ *   reply that has not happened follows up on nothing, and the board draws the queued prompt with no chips
  * @param {number} [i.now]
  * @returns {{ context: string, icon: string, chips: Array<{id:string,label:string,prompt:string,testid?:string}>, why: string } | null}
  */
@@ -83,6 +85,7 @@ export function deriveSuggestions({
   resultShown = false,
   repair = null,
   answered = false,
+  queued = false,
   now = Date.now(),
 } = {}) {
   // A broken canvas is not a suggestion the person can switch off: it is the card's other half (01 cf-render-error).
@@ -146,6 +149,7 @@ export function deriveSuggestions({
   // A slash command is not an ask to follow up on (and `/design:edit fix open comments` is a chip's own text).
   if (
     !lastFailed &&
+    !queued &&
     !resultShown &&
     lastAsk?.text &&
     String(lastAsk.text).trim() &&
