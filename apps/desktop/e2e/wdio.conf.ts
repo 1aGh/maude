@@ -113,6 +113,8 @@ const DEDICATED: Record<string, string> = {
   'shell-strip.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:shell-strip',
   // 06 ad-edge-remember: quits and relaunches the app, and starts it once on another config home.
   'remember-folds.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:remember',
+  // P8 test round missing-a: 05 es-all-trashed (alice and bob race), 12 ia-missing, 12 ia-edges D — the cell lane's world.
+  'team-cell-missing.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:team-cell-missing',
 };
 
 // Drift tripwire. Adding a wdio.<name>.conf.ts without listing its spec above

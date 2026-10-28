@@ -297,7 +297,7 @@ describe('team-cell-missing (native-desktop)', () => {
       180_000
     );
     await eventually('Saved', async () => (await statusWord())?.status === 'saved', 120_000);
-    const row = await canvasRow('canvas-row-ui-LetakA6');
+    const row = await canvasRow('canvas-row-ui-letaka6');
     await row.waitForDisplayed({ timeout: 60_000 });
     await row.click();
     await (await $(tid('canvas-frame'))).waitForExist({ timeout: 60_000 });
@@ -416,7 +416,7 @@ describe('team-cell-missing (native-desktop)', () => {
     expect(report.status).toBe(200);
     expect(((await report.json()) as { present: string[] }).present).toEqual([]); // the cell has no bytes
 
-    const gallery = await canvasRow('canvas-row-ui-Gallery');
+    const gallery = await canvasRow('canvas-row-ui-gallery');
     await gallery.waitForDisplayed({ timeout: 60_000 });
     await gallery.click();
     await (await $(tid('canvas-frame'))).waitForExist({ timeout: 60_000 });
