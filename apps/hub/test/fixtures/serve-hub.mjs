@@ -63,6 +63,13 @@ if (existsSync(tokensFile)) {
       owner: 'bob@x.test',
     }).value,
     viewer: addToken(dataDir, { label: 'viewer', scope: '*', readOnly: true }).value,
+    // a teammate with her own name (desktop e2e ai-runs: Tereza's studio — the hub names her "tereza")
+    tereza: addToken(dataDir, {
+      label: 'tereza-laptop',
+      scope: '*',
+      role: 'member',
+      owner: 'tereza@x.test',
+    }).value,
   };
   writeFileSync(tokensFile, JSON.stringify(tokens));
 }

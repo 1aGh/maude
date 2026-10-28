@@ -17,7 +17,7 @@
  * Run: `pnpm --filter @maude/desktop-e2e e2e:ai-runs` (after `pnpm test:e2e:desktop:build`).
  */
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { createWriteStream, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url';
 
 import { type LocalHub, startLocalHub } from './fixtures/local-hub.mjs';
 import { assertFreshClientDist } from './helpers/dist-fresh';
-import { useStubClaude } from './helpers/fake-ai';
+import { useFakeAi } from './helpers/fake-ai';
 import { config as base, completeLane } from './wdio.conf';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -45,6 +45,7 @@ export default function CombineKampan() {
       <DCSection id="kampan" title="Combine kampaň">
         <DCArtboard id="post" label="Post 1:1" width={1080} height={1080}><h1>${post}</h1><p>keep one</p></DCArtboard>
         <DCArtboard id="story" label="Story 9:16" width={1080} height={1920}><h1>${story}</h1><p>keep two</p></DCArtboard>
+        <DCArtboard id="cover" label="FB cover" width={1920} height={1005}><h1>Cover title</h1><p>keep three</p></DCArtboard>
       </DCSection>
     </DesignCanvas>
   );
@@ -75,7 +76,12 @@ function project(dir: string, hub: string, who: string, withCanvas: boolean): vo
   mkdirSync(join(dir, '.design', 'ui'), { recursive: true });
   writeFileSync(
     join(dir, '.design', 'config.json'),
-    JSON.stringify({ name: 'Combine kampaň', designRoot: '.design', formatVersion: 2, linkedHub: { url: hub, linkedAt: Date.now() } })
+    JSON.stringify({
+      name: 'Combine kampaň',
+      designRoot: '.design',
+      formatVersion: 2,
+      linkedHub: { url: hub, linkedAt: Date.now() },
+    })
   );
   if (withCanvas) writeFileSync(join(dir, '.design', REL), aiRunsCanvas());
   for (const args of [
@@ -102,7 +108,7 @@ let scratch = '';
 if (!process.env.MAUDE_E2E_AI_RUNS) scratch = await setUp();
 
 async function setUp(): Promise<string> {
-  useStubClaude();
+  useFakeAi(); // Mac 1's chats run on the scripted fake ACP agent; the stub `claude` is first on PATH
   const scratch = mkdtempSync(join(tmpdir(), 'maude-e2e-ai-runs-'));
   const hub = await startLocalHub({ dir: join(scratch, 'hub') });
   hubs.push(hub);
@@ -112,12 +118,19 @@ async function setUp(): Promise<string> {
   project(mac2Root, hub.http, 'Tereza Nováková', true);
   mkdirSync(join(scratch, 'mac2-config'), { recursive: true });
   const mac2Hubs = join(scratch, 'mac2-config', 'hubs.json');
-  hubsFile(mac2Hubs, hub.http, hub.tokens.bob);
+  hubsFile(mac2Hubs, hub.http, hub.tokens.tereza); // her own token: the hub names her "tereza"
   assertFreshClientDist(join(ROOT, 'apps/studio'));
   const mac2Port = await freePort();
   const mac2 = spawn(
     'bun',
-    ['--no-env-file', join(ROOT, 'apps/studio/server.ts'), '--root', mac2Root, '--port', String(mac2Port)],
+    [
+      '--no-env-file',
+      join(ROOT, 'apps/studio/server.ts'),
+      '--root',
+      mac2Root,
+      '--port',
+      String(mac2Port),
+    ],
     {
       env: {
         ...process.env, // the stub `claude` first on PATH
@@ -128,10 +141,16 @@ async function setUp(): Promise<string> {
         MAUDE_NO_AUTOBUILD: '1',
         NO_OPEN: '1',
       },
-      stdio: ['ignore', 'ignore', 'pipe'],
+      stdio: ['ignore', 'pipe', 'pipe'],
     }
   );
   children.push(mac2);
+  // Mac 2's own log, next to the shots (its runs, leases and sync lines explain a red R1)
+  const runDir = resolve(HERE, '../../../.ai/device/scenario-runs/ai-runs');
+  mkdirSync(runDir, { recursive: true });
+  const mac2Log = createWriteStream(join(runDir, `mac2-${Date.now()}.log`));
+  mac2.stdout?.pipe(mac2Log);
+  mac2.stderr?.pipe(mac2Log);
   await until('Tereza’s canvas on the hub', async () => {
     const r = await fetch(`${hub.http}/api/projects/current/v1/bootstrap`, {
       headers: { authorization: `Bearer ${hub.tokens.owner}` },
@@ -153,6 +172,8 @@ async function setUp(): Promise<string> {
   process.env.MAUDE_AI_RUNS_E2E = '1';
   process.env.MAUDE_E2E_AI_RUNS = JSON.stringify({
     hub: hub.http,
+    // the throwaway local hub's owner token: R1 reads the hub's own run list between rounds
+    hubToken: hub.tokens.owner,
     mac1Root,
     mac2Root,
     mac2Origin: `http://127.0.0.1:${mac2Port}`,
