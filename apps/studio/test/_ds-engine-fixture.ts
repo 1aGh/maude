@@ -9,6 +9,7 @@ import path from 'node:path';
 import { createDsEngine, type DsEngine, type DsKernelPort } from '../ds/engine.ts';
 import { type HeadDoc, newHead, readHead, writeHead } from '../ds/head.ts';
 import { buildRevision, revisionWritePlan } from '../ds/revision.ts';
+import { NEW_PROJECT_FORMAT } from '../format.ts';
 import { createProjectUndoRoutes } from '../routes/project-undo.ts';
 import { type LocalHome, openLocalHome } from '../sync/local-kernel.ts';
 
@@ -40,6 +41,8 @@ export const COMPONENTS_CSS = `.btn {
 `;
 
 const CONFIG = {
+  // A v2 project (format.ts FORMAT_GATE_OPTS opens format 1 view only; the desktop e2e DS lanes drive this).
+  formatVersion: NEW_PROJECT_FORMAT,
   designSystems: [
     {
       name: DS,

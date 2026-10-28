@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { NEW_PROJECT_FORMAT } from '../format.ts';
 import { createHomeAi } from '../home/ai.ts';
 import { createHomeCli } from '../home/cli.ts';
 import { createHomeCloud } from '../home/cloud.ts';
@@ -48,7 +49,14 @@ export function makeProject(name: string, canvases: Record<string, string>): Fix
   mkdirSync(join(designRoot, 'ui'), { recursive: true });
   writeFileSync(
     join(designRoot, 'config.json'),
-    JSON.stringify({ name, designRoot: '.design', canvasGroups: [{ label: 'UI', path: 'ui' }] })
+    JSON.stringify({
+      name,
+      designRoot: '.design',
+      // A project a person uses is a v2 project: the format gate opens format 1 view only
+      // (format.ts FORMAT_GATE_OPTS), and the desktop e2e lanes drive these projects.
+      formatVersion: NEW_PROJECT_FORMAT,
+      canvasGroups: [{ label: 'UI', path: 'ui' }],
+    })
   );
   for (const [rel, label] of Object.entries(canvases)) {
     const abs = join(designRoot, rel);
