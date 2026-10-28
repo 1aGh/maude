@@ -234,6 +234,7 @@ import { canvasSlug, writeLocator } from './locator.ts';
 import { prepareManagedProject } from './managed-projects.ts';
 import { materializeMissing } from './materialize-client.ts';
 import { createOutbox, type GateFacts, type IntentRecord } from './outbox/index.ts';
+import { createHubReachability } from './outbox/hub-reachability.ts';
 import { exportCloudSender } from './outbox/senders/export-cloud.ts';
 import { isUnderOrEqual, resolveUrlPathUnder } from './path-containment.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
@@ -1808,9 +1809,17 @@ export function createHttp(
     sync: () => probeAcpAvailability().available,
     onOpen: () => void outbox.drain.wake().catch(() => null),
   });
+  // P8 G1b (01 cf-offline-create) — the `hub` gate's fact, from the sync runtime's own connection state:
+  // a linked project's prompt waits while the hub is past the grace window (V2-1.14 §5.4), and the
+  // hub's return wakes the drain.
+  const hubReach = createHubReachability({
+    linkedHub: () => ctx.cfg.linkedHub?.url ?? null,
+    onReachable: () => void outbox.drain.wake().catch(() => null),
+  });
+  ctx.bus.on('sync:status', (p: unknown) => hubReach.note(p));
   const outboxGates = (): GateFacts => ({
     online: true,
-    hubReachable: true,
+    hubReachable: hubReach.reachable(),
     signedIn: true,
     aiConnected: aiConnectedFact.read(),
     aiReady: true,
@@ -1867,6 +1876,7 @@ export function createHttp(
   const askQueue = createAskQueue({
     outbox,
     gates: outboxGates,
+    project: () => hubReach.project(),
     runs: () => runs,
     ready: () => aiConnectedFact.pending(),
   });
