@@ -711,6 +711,64 @@ export function createAcceptedRevisions({
   }
 
   /**
+   * A BRAND-NEW project takes its format from the writer that founds it (lead decision on Michal 2A,
+   * 2026-10-28): the first writer to connect or propose declares its format, and that is the project's —
+   * a v2 client founds a format-2 project (so it edits from the start, and 1.x peers look), a 1.x
+   * client, which declares nothing, founds a format-1 one (so a 1.x person's own new project on a
+   * just-upgraded hub is never view only to them before they wrote anything). Brand new is the
+   * adoptNewProjectMode test widened by the switch that test itself makes: no accepted revision yet,
+   * epoch 0 or the one new-project switch (1), no documents and no canvas in the checkout. Anything else
+   * — and every call after the first answer — leaves the format alone; a format already set (an owner
+   * flip, a checkout seed) is final through the store's own raise-only rule. `writer: false` (a viewer
+   * or the hub's own paired studio) never founds.
+   */
+  let foundingOpen = true;
+  async function foundNewProject(declared, { writer = true } = {}) {
+    if (!foundingOpen || !writer) return null;
+    let s;
+    try {
+      s = await store.state();
+    } catch {
+      return null; // an unread store founds nothing; the next writer asks again
+    }
+    if (!foundingOpen) return null;
+    const docs = listDocuments().filter(({ name }) => name !== 'maude.files');
+    const brandNew =
+      (s.revision ?? 0) === 0 && (s.epoch ?? 0) <= 1 && !docs.length && !checkoutHasCanvases();
+    foundingOpen = false;
+    if (!brandNew) return null;
+    const want = declaredFormat(declared);
+    if (want <= asFormat(s.formatVersion)) return { founded: asFormat(s.formatVersion) };
+    const out = await seedFormat(want, { by: 'founder' });
+    log.log?.(`[transactions] a new project — founded at format ${out.formatVersion}`);
+    // The founder is still authenticating, so seedFormat's notice missed it: say it again once its
+    // socket is open, so its copy learns the format it founded (the client's gate reads the notice).
+    if (out.changed) {
+      const t = setTimeout(() => {
+        for (const document of server.hocuspocus?.documents?.values?.() ?? []) {
+          for (const connection of document.getConnections?.() ?? []) {
+            try {
+              connection.sendStateless(
+                JSON.stringify({
+                  type: 'maude.mode',
+                  mode: state.mode,
+                  epoch: state.epoch,
+                  writable: writableAfter(connection, state),
+                  formatVersion: asFormat(state.formatVersion),
+                })
+              );
+            } catch {
+              /* gone */
+            }
+          }
+        }
+      }, 300);
+      t.unref?.();
+    }
+    return { founded: out.formatVersion };
+  }
+
+  /**
    * `POST /api/project-format` (V2-1.12 §5.5). Owner, operator or cell secret
    * only — the same `admin` predicate as the save-mode switch. Returns true
    * when handled. `auth(request)` → `{ actor, readOnly, admin }` or null.
@@ -1191,6 +1249,10 @@ export function createAcceptedRevisions({
         // credential on a 403. Decided after the switch the proposal waited on,
         // and against a reading of the store, never the boot default.
         if (!isReady()) await refreshOnce();
+        // A brand-new project takes the format of the writer that founds it.
+        await foundNewProject(declaredFormatFromRequest(request), {
+          writer: who.actor !== 'cell-loopback-sync',
+        });
         if (declaredFormatFromRequest(request) !== projectFormat()) {
           respondJson(426, {
             protocol: 1,
@@ -1412,6 +1474,7 @@ export function createAcceptedRevisions({
     refreshOnce,
     setFormat,
     seedFormat,
+    foundNewProject,
     handleFormatRoute,
     projectFormat,
     isReady,

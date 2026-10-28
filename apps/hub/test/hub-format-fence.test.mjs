@@ -35,22 +35,25 @@ async function until(fn, ms = 8000, what = 'condition') {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function startHub() {
-  const dataDir = mkdtempSync(join(tmpdir(), 'maude-format-fence-'));
-  dirs.push(dataDir);
-  const owner = addToken(dataDir, { label: 'owner-machine', scope: '*', role: 'owner' }).value;
-  const member = addToken(dataDir, {
-    label: 'member',
-    scope: '*',
-    role: 'member',
-    owner: 'm@x.test',
-  }).value;
+async function startHub(reuse = null) {
+  const dataDir = reuse?.dataDir ?? mkdtempSync(join(tmpdir(), 'maude-format-fence-'));
+  if (!reuse) dirs.push(dataDir);
+  const owner =
+    reuse?.owner ?? addToken(dataDir, { label: 'owner-machine', scope: '*', role: 'owner' }).value;
+  const member =
+    reuse?.member ??
+    addToken(dataDir, {
+      label: 'member',
+      scope: '*',
+      role: 'member',
+      owner: 'm@x.test',
+    }).value;
   const built = createHub({ port: 0, dataDir, secret: 'test-secret', verbose: false });
   await built.server.listen();
   await built.acceptedReady;
   const http = built.server.httpURL.replace('0.0.0.0', '127.0.0.1');
   const ws = built.server.webSocketURL.replace('0.0.0.0', '127.0.0.1');
-  return { built, http, ws, owner, member };
+  return { built, http, ws, owner, member, dataDir };
 }
 
 /** A peer on one document. `format` undefined = a pre-compat client (no param). */
@@ -103,8 +106,10 @@ describe('the format fence on a real hub', () => {
       const name = 'ws/local/main/ui-fence';
       // 1. A pre-compat client on a format-1 project — exactly as before.
       const v1 = open(ws, member, name);
+      // the pre-compat client FOUNDS this brand-new project (format 1) before a format-2 peer joins
+      await until(() => v1.provider.synced, 8000, 'v1 synced');
       const reader = open(ws, owner, name, 2);
-      await until(() => v1.provider.synced && reader.provider.synced, 8000, 'synced');
+      await until(() => reader.provider.synced, 8000, 'synced');
       assert.equal(v1.provider.authorizedScope, 'read-write', 'v1 is a writer on format 1');
       v1.write('v1-before;');
       await until(() => reader.text().includes('v1-before;'), 8000, 'v1 write arrives');
@@ -267,6 +272,91 @@ const conn = (user, sent) => ({
   context: { user },
   readOnly: false,
   sendStateless: (m) => sent.push(JSON.parse(m)),
+});
+
+const health = async (http) => (await fetch(`${http}/health`)).json();
+
+describe('a brand-new project takes the format of the writer that founds it (lead, Michal 2A)', () => {
+  test('a v2 founder: the project is format 2 and the v2 writer edits; a 1.x client is a reader', {
+    timeout: 60000,
+  }, async () => {
+    const { built, http, ws, member, owner } = await startHub();
+    const peers = [];
+    try {
+      const name = 'ws/local/main/ui-found-v2';
+      const v2 = peer(ws, member, name, 2);
+      peers.push(v2);
+      await until(() => v2.provider.synced, 8000, 'v2 synced');
+      assert.equal((await health(http)).formatVersion, 2, 'founded at format 2');
+      assert.equal(v2.provider.authorizedScope, 'read-write', 'the v2 founder edits');
+      const other = peer(ws, owner, name, 2);
+      peers.push(other);
+      await until(() => other.provider.synced, 8000, 'second v2 synced');
+      v2.write('v2-founder;');
+      await until(() => other.text().includes('v2-founder;'), 8000, 'the v2 edit arrives');
+      const v1 = peer(ws, owner, name);
+      peers.push(v1);
+      await until(() => v1.provider.synced, 8000, 'v1 synced');
+      assert.equal(v1.provider.authorizedScope, 'readonly', 'a 1.x client looks only');
+    } finally {
+      for (const p of peers) p.close();
+      await built.server.destroy();
+    }
+  });
+
+  test('a 1.x founder: the project stays format 1 and the 1.x writer edits; a later v2 join does not restamp it', {
+    timeout: 60000,
+  }, async () => {
+    const { built, http, ws, member, owner } = await startHub();
+    const peers = [];
+    try {
+      const name = 'ws/local/main/ui-found-v1';
+      const v1 = peer(ws, member, name);
+      peers.push(v1);
+      await until(() => v1.provider.synced, 8000, 'v1 synced');
+      assert.equal(v1.provider.authorizedScope, 'read-write', 'the 1.x founder edits');
+      const v2 = peer(ws, owner, name, 2);
+      peers.push(v2);
+      await until(() => v2.provider.synced, 8000, 'v2 synced');
+      assert.equal((await health(http)).formatVersion, 1, 'still format 1');
+      assert.equal(
+        v2.provider.authorizedScope,
+        'readonly',
+        'the v2 joiner reads a format-1 project'
+      );
+      v1.write('v1-founder;');
+      await until(() => v2.text().includes('v1-founder;'), 8000, 'the 1.x edit arrives');
+    } finally {
+      for (const p of peers) p.close();
+      await built.server.destroy();
+    }
+  });
+
+  test('a new project that already holds content is never restamped (a restart re-asks, and says no)', {
+    timeout: 60000,
+  }, async () => {
+    const first = await startHub();
+    const name = 'ws/local/main/ui-found-content';
+    const v1 = peer(first.ws, first.member, name);
+    await until(() => v1.provider.synced, 8000, 'v1 synced');
+    v1.write('made-on-1.x;');
+    await sleep(1500); // the document is stored
+    v1.close();
+    await first.built.server.destroy();
+    const again = await startHub(first);
+    const peers = [];
+    try {
+      const v2 = peer(again.ws, again.member, name, 2);
+      peers.push(v2);
+      await until(() => v2.provider.synced, 8000, 'v2 synced after the restart');
+      assert.equal((await health(again.http)).formatVersion, 1, 'content exists: not restamped');
+      assert.equal(v2.provider.authorizedScope, 'readonly');
+      assert.match(v2.text(), /made-on-1\.x;/);
+    } finally {
+      for (const p of peers) p.close();
+      await again.built.server.destroy();
+    }
+  });
 });
 
 describe('the fence predicate', () => {

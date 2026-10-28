@@ -277,7 +277,7 @@ export default function Canvas() {
  */
 async function startPeer(
   name,
-  { hubUrl, token, studioRoot = join(ROOT, 'apps/studio'), canvases = {} }
+  { hubUrl, token, studioRoot = join(ROOT, 'apps/studio'), canvases = {}, role = 'member' }
 ) {
   const dir = join(WORK, `peer-${name}`);
   const project = join(dir, 'project');
@@ -296,7 +296,7 @@ async function startPeer(
   const hubs = join(dir, 'hubs.json');
   writeFileSync(
     hubs,
-    JSON.stringify({ hubs: { [hubUrl]: { token, role: 'member', linkedAt: Date.now() } } }),
+    JSON.stringify({ hubs: { [hubUrl]: { token, role, linkedAt: Date.now() } } }),
     {
       mode: 0o600,
     }
@@ -335,6 +335,13 @@ async function startPeer(
     },
     write: (rel, title) => writeFileSync(join(project, '.design', rel), canvasSource(title)),
     config: async () => (await http(`${peer.url}/_config`)).body,
+    /** "Update project" as the Maude window sends it (same-origin; a dry run without `apply`). */
+    migrate: async (apply) =>
+      http1(`${peer.url}/_api/project/migrate`, {
+        method: 'POST',
+        headers: { origin: peer.url, 'sec-fetch-site': 'same-origin' },
+        body: { direction: 'forward', ...(apply ? { apply: true } : {}) },
+      }),
     stop: () => {
       try {
         child.kill('SIGTERM');
@@ -599,27 +606,25 @@ async function main() {
 
   await leg(
     'operator.mode',
-    'the owner switches the new project to accepted revisions (the save mode the v2 desktop lanes use)',
+    'a fresh workspace starts its new project in accepted revisions — no manual switch (Michal 1A)',
     async () => {
       assert(WS.owner.token, 'no owner');
       const api = `${WS.url}/api/projects/current/v1/mode`;
       const auth = { authorization: `Bearer ${WS.owner.token}` };
-      const before = await http(api, { headers: auth });
+      const env = readEnvFile(join(WS.dir, '.env'));
       assert(
-        before.status === 200,
-        `GET mode: ${before.status} ${JSON.stringify(before.body).slice(0, 200)}`
+        env.MAUDE_NEW_PROJECT_MODE === 'transactions',
+        `workspace-up wrote MAUDE_NEW_PROJECT_MODE=${env.MAUDE_NEW_PROJECT_MODE ?? '(absent)'}`
       );
-      if (before.body.mode === 'transactions') return { mode: 'transactions', already: true };
-      const flip = await http(api, {
-        method: 'POST',
-        headers: auth,
-        body: { mode: 'transactions', expectEpoch: before.body.epoch ?? 0 },
-      });
-      assert(
-        flip.status === 200,
-        `switch: ${flip.status} ${JSON.stringify(flip.body).slice(0, 300)}`
+      const mode = await until(
+        'the new project in accepted revisions',
+        async () => {
+          const r = await http(api, { headers: auth });
+          return r.status === 200 && r.body.mode === 'transactions' ? r.body : null;
+        },
+        60_000
       );
-      return { from: before.body.mode, to: flip.body.mode, epoch: flip.body.epoch };
+      return { mode: mode.mode, epoch: mode.epoch, switchedByHand: false };
     }
   );
 
@@ -954,26 +959,48 @@ async function upgradeLegs() {
     'a v2 peer against the 1.x hub (CONTRACT A17: v2 opens it; the hub has no format-v2)',
     async () => {
       assert(peers.v1, 'no v1 hub');
-      peers.v2old = await startPeer('v2-on-v1', { hubUrl: U.url, token: U.member.token });
+      // the OWNER on v2: the full gate (CONTRACT §4.1, Michal 2A) opens the format-1 project view only
+      peers.v2old = await startPeer('v2-on-v1', {
+        hubUrl: U.url,
+        token: U.owner.token,
+        role: 'owner',
+      });
       await until(
         'the 1.x canvases on the v2 peer',
         async () => peers.v2old.read('ui/legacy-one.tsx')?.includes('Made on 1.9.1'),
         120_000
       );
       const cfg = await peers.v2old.config();
-      // the staged gate (format.ts STAGED_FORMAT_GATE_OPTS, newerOnly) keeps a format-1 project editable in v2
-      peers.v2old.write('ui/legacy-two.tsx', 'Edited by v2 on the 1.x hub');
-      await until(
-        'the v2 edit on the 1.x peer',
-        async () => peers.v1.read('ui/legacy-two.tsx')?.includes('Edited by v2'),
-        120_000
+      assert(
+        cfg.readOnly === true && cfg.readOnlyReason === 'format' && cfg.formatVersion === 1,
+        `v2 on a format-1 project is not view only: ${JSON.stringify({ readOnly: cfg.readOnly, reason: cfg.readOnlyReason, fv: cfg.formatVersion })}`
+      );
+      // …and no Update project: the hub is too old (no format-v2) — the team-server line instead
+      const dry = await peers.v2old.migrate(false);
+      const codes = (dry.body?.refusals ?? []).map((r) => r.code);
+      assert(
+        dry.status === 409 && codes.includes('hub-too-old'),
+        `the dry run on a 1.x hub: ${dry.status} ${JSON.stringify(dry.body?.refusals ?? dry.body).slice(0, 300)}`
+      );
+      const apply = await peers.v2old.migrate(true);
+      assert(apply.status === 409, `Update project ran against a 1.x hub: ${apply.status}`);
+      assert(
+        (await peers.v2old.config()).formatVersion === 1,
+        'the project moved to format 2 on a 1.x hub'
+      );
+      // a v2 change on disk never reaches the 1.x peer (view only: nothing goes up)
+      peers.v2old.write('ui/legacy-two.tsx', 'A v2 edit that must not leave');
+      await sleep(15_000);
+      assert(
+        !String(peers.v1.read('ui/legacy-two.tsx')).includes('must not leave'),
+        'a view-only v2 peer pushed to the 1.x hub'
       );
       peers.v2old.stop();
       return {
         formatVersion: cfg.formatVersion ?? null,
-        formatGate: cfg.formatGate ?? null,
         readOnlyReason: cfg.readOnlyReason ?? null,
-        note: 'editable both ways — the staged newerOnly gate; CONTRACT §4.1 full gate would open it view only',
+        dryRun: { status: dry.status, codes, role: dry.body?.project?.linked?.role ?? null },
+        line: 'View only — the team server needs an update before this project can move to Maude 2.',
       };
     }
   );
@@ -999,7 +1026,7 @@ async function upgradeLegs() {
         'the 1.x project on a fresh v2 peer of the upgraded hub',
         async () =>
           (await peerSees(U, 'ui/legacy-one.tsx', 'Made on 1.9.1')) &&
-          (await peerSees(U, 'ui/legacy-two.tsx', 'Edited by v2 on the 1.x hub')),
+          (await peerSees(U, 'ui/legacy-two.tsx', 'Also 1.9.1')),
         120_000
       );
       const docs = await bootstrapDocs(U.url, U.owner.token).catch((e) => [
@@ -1027,18 +1054,60 @@ async function upgradeLegs() {
   );
   await leg(
     'mixed.v1-on-v2-project',
-    'the owner moves the project to format 2: the 1.x peer turns view only and its edit is refused',
+    'on the upgraded hub the owner clicks Update project: editable on v2; the 1.x peer turns view only',
     async () => {
       assert(peers.v1, 'no 1.x peer');
-      const flip = await http(`${U.url}/api/project-format`, {
-        method: 'POST',
-        headers: { authorization: `Bearer ${U.owner.token}` },
-        body: { formatVersion: 2 },
+      peers.v2owner = await startPeer('v2-owner', {
+        hubUrl: U.url,
+        token: U.owner.token,
+        role: 'owner',
       });
-      assert(
-        flip.status === 200,
-        `format flip: ${flip.status} ${JSON.stringify(flip.body).slice(0, 200)}`
+      await until(
+        'the project on the v2 owner',
+        async () => peers.v2owner.read('ui/legacy-one.tsx')?.includes('after the hub upgrade'),
+        120_000
       );
+      // the same banner now offers Update project: the dry run has no refusal (a v2 hub, the owner)
+      const dry = await until(
+        'the dry run offers Update project',
+        async () => {
+          const r = await peers.v2owner.migrate(false);
+          return r.status === 200 && (r.body?.refusals ?? []).length === 0 ? r : null;
+        },
+        60_000
+      );
+      const clicked = await peers.v2owner.migrate(true);
+      assert(
+        clicked.status === 200 && clicked.body?.exitCode === 0 && clicked.body?.dryRun === false,
+        `Update project: ${clicked.status} ${JSON.stringify(clicked.body).slice(0, 300)}`
+      );
+      const snaps = readdirSync(join(peers.v2owner.project, '.design', '_history', '_migrate'));
+      assert(
+        snaps.some((d) => /^v2-/.test(d)),
+        'no _history/_migrate/v2-* backup after Update project'
+      );
+      const v2cfg = await until(
+        'the v2 owner editable at format 2',
+        async () => {
+          const c = await peers.v2owner.config();
+          return c.formatVersion === 2 && c.readOnly === false ? c : null;
+        },
+        60_000
+      );
+      const hubFormat = (await http(`${U.url}/health`)).body.formatVersion;
+      assert(hubFormat === 2, `the hub holds format ${hubFormat} after Update project`);
+      peers.v2owner.write('ui/legacy-one.tsx', 'Edited by the v2 owner after Update project');
+      await until(
+        'the v2 owner edit on the hub',
+        async () => peerSees(U, 'ui/legacy-one.tsx', 'after Update project'),
+        120_000
+      );
+      U.updated = {
+        dryRun: dry.status,
+        snapshot: snaps.find((d) => /^v2-/.test(d)),
+        hubFormat,
+        v2: v2cfg.formatVersion,
+      };
       const cfg = await until(
         'the 1.x peer sees format 2',
         async () => {
@@ -1063,6 +1132,7 @@ async function upgradeLegs() {
         'the hub accepted a 1.x write to a format-2 project'
       );
       return {
+        updateProject: U.updated,
         formatGate: cfg.formatGate,
         readOnlyReason: cfg.readOnlyReason ?? null,
         unchanged: before === after,

@@ -1164,6 +1164,13 @@ export function createHub(config = {}) {
         // DDR-241 §7 — in accepted-revisions mode every content connection is
         // read-only: changes arrive as proposals, only the kernel writes.
         if (connectionConfig && accepted?.acceptedMode()) connectionConfig.readOnly = true;
+        // A brand-new project takes the format of the writer that founds it
+        // (hub-integration foundNewProject) — before the fence below reads it.
+        // Never a viewer, a paused project, or the hub's own paired studio.
+        if (connectionConfig)
+          await accepted?.foundNewProject?.(format, {
+            writer: !door.readOnly && !paused && match.label !== LOOPBACK_SYNC_TOKEN_LABEL,
+          });
         // V2-1.12 §5.4 — a writer of another format is a reader (handshake
         // scope `readonly`, so a patched client knows from the first message).
         if (connectionConfig && accepted?.isReady() && format !== accepted.projectFormat())
@@ -1201,6 +1208,7 @@ export function createHub(config = {}) {
         }
         // DDR-241 §7 — accepted revisions: no client writes content, ever.
         if (connectionConfig && accepted?.acceptedMode()) connectionConfig.readOnly = true;
+        if (connectionConfig) await accepted?.foundNewProject?.(format);
         if (connectionConfig && accepted?.isReady() && format !== accepted.projectFormat())
           connectionConfig.readOnly = true;
         return { user: { name: 'anon', anon: true, format } };
