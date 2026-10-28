@@ -38,7 +38,7 @@ import { type AskQueue, noteRateLimit, promptLabel } from './ask-queue.ts';
 import { createHubWriteAudience, type WriteAudienceSource } from './audience.ts';
 import { buildStudioBrief } from './bootstrap-brief.ts';
 import { AcpBridge, type BridgeUsage } from './bridge.ts';
-import { runsDesignWriteVerb } from './design-write-verb.ts';
+import { shellOpensWindow } from './design-write-verb.ts';
 import { type AiMay, parseMay } from './may-scope.ts';
 import { isNativePluginContext, resolveSessionPlugins } from './plugin-bootstrap.ts';
 import { probeAcpAvailability } from './probe.ts';
@@ -461,10 +461,12 @@ export function createAgentActivityTracker(
       // fails, shut while its permission card waits, never reopened by a denial. Everything else must be
       // claimed by hash (the design hook's post-bash `edit/touched`), so a person's own edit made between
       // or after the verb's calls is never folded into the AI run or its Undo.
+      // V2-8.16 S7 — not only a verb: every call that is not provably a read gets that window (a python
+      // heredoc cut the shot and nothing attributed it). See design-write-verb.ts `shellOpensWindow`.
       const id = u.toolCallId;
       if (!id) return;
       const command = (u.rawInput as { command?: unknown } | null | undefined)?.command;
-      if (!shellSeen.has(id) && runsDesignWriteVerb(command)) {
+      if (!shellSeen.has(id) && shellOpensWindow(command)) {
         shellSeen.add(id);
         shellWindow(id, true);
       }

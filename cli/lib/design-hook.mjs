@@ -10,7 +10,7 @@
 //   pre-bash    PreToolUse Bash   use-trash · use-verb · not-a-writer · human-only · out-of-project (bash-guard)
 //                                 · an untrusted-content reader has no shell (S12.7)
 //                                                                                     → deny or nothing
-//   post-bash   PostToolUse Bash  a `maude design` write verb's writes → touched     → nothing
+//   post-bash   PostToolUse Bash  what a write verb / any not-provably-read call wrote → touched → nothing
 //   stop        Stop              stop-tier check of the run's files · run/end      → block or nothing
 //               SubagentStop      (same command) hand-off result + the files it owns → block or nothing
 //   subagent-start SubagentStart  records agent_id → {type, at, handoffs}           → nothing
@@ -61,6 +61,7 @@ import {
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import {
+  bashMayWrite,
   classifyBash,
   designVerbOf,
   designWritesSince,
@@ -662,6 +663,11 @@ async function sessionStart(ctx) {
     const rel = typeof active === 'string' ? active.replace(/^\.design\//, '') : null;
     if (rel && SAFE_CANVAS_RE.test(rel) && !rel.split('/').includes('..'))
       lines.push(`Maude is showing ${rel} (the active canvas).`);
+    // V2-8.16 S1 — a terminal session rarely loads the design skill for "put it back", and re-typed
+    // the old text by hand (a new change: no restore version, no one-step undo). Told once, here.
+    lines.push(
+      'Put a canvas back to an earlier version with `maude design history restore <canvas> <ref>` (refs: `history list`), never by re-typing it.'
+    );
   }
   if (!lines.length) return null;
   return {
@@ -1179,7 +1185,10 @@ function preBash(ctx, input) {
   // (post-bash and edit/touched {via:'bash'} bind what changed in this tool call's window)
   const toolUseId = hookKey(input.tool_use_id);
   const writers = toolUseId ? writeVerbs(ctx, command) : [];
-  if (!writers.length) return null;
+  // V2-8.16 S7 — and any other call that is not provably a read (a python heredoc, node -e, awk …):
+  // the guard can't read every language, so post-bash binds what changed during the call. No
+  // snapshot for those (no named file): the studio maps the change to every artboard it touched.
+  if (!writers.length && !(toolUseId && bashMayWrite(command, manifestVerbs(ctx)))) return null;
   const snaps = {};
   for (const w of writers) {
     for (const word of w.cmd.words) {

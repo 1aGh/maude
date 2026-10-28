@@ -12,6 +12,7 @@
 // (acp/audience.ts `designCalls`): a verb only named in text (`echo maude design export`) opens nothing,
 // one run through `bash -c`, `$(which maude)`, an absolute path or `maude-safe` does.
 
+import { bashMayWrite } from '../../../cli/lib/bash-guard.mjs';
 import { MAUDE_VERBS } from '../actions/verbs.ts';
 import { designCalls } from './audience.ts';
 
@@ -29,4 +30,22 @@ export function runsDesignWriteVerb(command: unknown): boolean {
     if (effect !== undefined && effect !== 'none') return true;
   }
   return false;
+}
+
+/** The design verbs in the hook manifest's shape (`design <verb>`), for `bashMayWrite`. */
+const VERB_TABLE = MAUDE_VERBS.filter((v) => v.scope === 'design').map((v) => ({
+  verb: `design ${v.verb}`,
+  effect: v.effect,
+}));
+
+/**
+ * V2-8.16 S7 — does this shell call open the run's claim-only window? A write verb does (above); so
+ * does ANY call that is not provably a read (`bashMayWrite`, cli/lib/bash-guard.mjs — the design
+ * hook's own reader): the agent cut a shot with `python3 - <<'EOF' … open(p,'w') … EOF`, which no
+ * guard rule names, and the change landed outside the run. The window is the call's own (tool_call →
+ * completed, shut while its card waits), so the A1 bound holds: only an outside-the-app save made
+ * WHILE an AI call runs can fold into the run; a save in the Maude window is never stageable.
+ */
+export function shellOpensWindow(command: unknown): boolean {
+  return runsDesignWriteVerb(command) || bashMayWrite(command, VERB_TABLE);
 }

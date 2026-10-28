@@ -149,6 +149,41 @@ describe('acp / a shell write verb opens the run stage', () => {
   });
 });
 
+// V2-8.16 S7 (acp) — the agent cut the shot with `python3 - <<'EOF' … open(p,'w').write(s) … EOF` in
+// .design/ui. No verb, no edit tool: the stage never opened, so the change landed as "changed outside the
+// app" — no AI version, no one-step Undo. Any Bash call that is not provably a read opens a claim-only
+// window for its own duration, the same window a write verb gets (A1), whatever language does the writing.
+describe('acp / any Bash call that may write opens a claim-only window', () => {
+  const S7 =
+    `cd "${DESIGN}/ui" && python3 - <<'EOF'\np='Alligators Cinematic Cut.tsx'\n` +
+    `s=open(p).read()\nopen(p,'w').write(s.replace('56','30'))\nEOF\ngit diff --stat`;
+  test('the S7 python heredoc opens and shuts its own window', () => {
+    const calls: Call[] = [];
+    const t = createAgentActivityTracker(mkCtx(calls), ai, 'c7');
+    t.beginTurn?.('shorten the huddle', 'r_s7');
+    shell(t, S7, 'p1');
+    done(t, 'p1');
+    for (const cmd of ['node -e "x"', 'perl -pi -e s/a/b/ ui/C.tsx', 'cat x > ui/C.tsx'])
+      shell(t, cmd, cmd);
+    t.endTurn('done');
+    const windows = calls.map((c) => (c[3] as { shell: { call: string; open: boolean } }).shell);
+    expect(windows.slice(0, 2)).toEqual([
+      { call: 'p1', open: true },
+      { call: 'p1', open: false },
+    ]);
+    expect(windows.filter((w) => w.open).length).toBe(4);
+  });
+  test('a read-only call still opens nothing (a person’s save is never folded in by `ls`)', () => {
+    const calls: Call[] = [];
+    const t = createAgentActivityTracker(mkCtx(calls), ai, 'c8');
+    t.beginTurn?.('look', 'r_ro');
+    shell(t, `cd "${DESIGN}" && ls; ls ui | head -50; wc -l "ui/C.tsx"`, 'r1');
+    shell(t, 'grep -n "from={" ui/C.tsx | head', 'r2');
+    t.endTurn('done');
+    expect(calls).toEqual([]);
+  });
+});
+
 describe('acp / runsDesignWriteVerb', () => {
   test('write verbs, in a pipeline or after a cd', () => {
     expect(runsDesignWriteVerb('maude design reel-place recap --next')).toBe(true);

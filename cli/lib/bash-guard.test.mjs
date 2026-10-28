@@ -9,7 +9,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { classifyBash, designVerbOf, designWritesSince, parseBash } from './bash-guard.mjs';
+import {
+  bashMayWrite,
+  classifyBash,
+  designVerbOf,
+  designWritesSince,
+  parseBash,
+} from './bash-guard.mjs';
 import { SUB_VERBS } from './sub-verbs.mjs';
 
 const ROOT = '/p';
@@ -554,4 +560,56 @@ test('the use-verb / use-trash messages name a route that exists', () => {
   assert.match(mv, /maude design trash move <canvas path>/);
   assert.ok(SUB_VERBS.trash.move, 'trash move is a dispatched sub-verb');
   for (const m of [mv, rm]) assert.doesNotMatch(m, /design canvas move/);
+});
+
+// V2-8.16 S7 — a Bash call the AI makes in a run is the run's writer unless it is provably a read.
+// The guard can't parse every interpreter (python3 - <<EOF … open(p,'w') …), so the run claims what
+// changes during the call; only a command made of known readers keeps a person's save out of it.
+const VERBS = [
+  { verb: 'design screenshot', effect: 'none' },
+  { verb: 'design canvas-rects', effect: 'none' },
+  { verb: 'design reel-place', effect: 'project-file' },
+];
+test('V2-8.16 bashMayWrite — the S7 heredoc and every unknown writer may write', () => {
+  const S7 = `cd "/p/.design/ui" && python3 - <<'EOF'\np='Alligators Cinematic Cut.tsx'\ns=open(p).read()\nopen(p,'w').write(s)\nEOF\ngit diff --stat`;
+  for (const cmd of [
+    S7,
+    "node -e \"require('fs').writeFileSync('x.tsx','')\"",
+    'perl -pi -e s/a/b/ C.tsx',
+    'awk \'{print > "C.tsx"}\' C.tsx',
+    'dd of=C.tsx if=/tmp/x',
+    'cat /tmp/x > ui/C.tsx',
+    'echo hi >> ui/C.tsx',
+    'ls | tee ui/C.tsx',
+    'cp /tmp/x ui/C.tsx',
+    'sort -o C.tsx C.tsx',
+    'find . -name "*.tsx" -exec sed -i "" s/a/b/ {} +',
+    'find . -name "*.tsx" -fprint out.txt',
+    'maude design reel-place recap --next',
+    '$EDITOR ui/C.tsx',
+    'bash -c "ls"',
+    'echo "unterminated',
+  ])
+    assert.equal(bashMayWrite(cmd, VERBS), true, cmd);
+});
+test('V2-8.16 bashMayWrite — a command made only of readers writes nothing', () => {
+  for (const cmd of [
+    'ls -la .design',
+    'cd .design && ls; ls ui | head -50; wc -l "ui/Alligators Cinematic Cut.tsx"',
+    'grep -n "from={" ui/C.tsx | head -20',
+    "cat <<'EOF'\nhello\nEOF",
+    'find . -iname "*alligator*" -not -path "*/node_modules/*"',
+    'head -c 1500 x.json 2>/dev/null; echo',
+    'rg -n huddle ui 2>&1 | wc -l',
+    'maude design screenshot --canvas ui/C.tsx --out /tmp/x.png',
+    'maude design not-a-verb', // the CLI refuses an unknown verb: it writes nothing
+    'echo maude design reel-place',
+    'jq .layout ui/C.meta.json',
+    'sleep 1 && pwd',
+  ])
+    assert.equal(bashMayWrite(cmd, VERBS), false, cmd);
+});
+test('V2-8.16 bashMayWrite — without the verb table every maude design verb may write', () => {
+  assert.equal(bashMayWrite('maude design screenshot --full', null), true);
+  assert.equal(bashMayWrite(undefined, VERBS), false);
 });
