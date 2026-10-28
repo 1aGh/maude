@@ -97,6 +97,7 @@ Menu
 | Diagnostics | Debug, Status, Developer | the Menu submenu |
 | Stickers | Stamps (as the tool) | the E tool and its gallery [C12]. "Stamp" in copy means only a **vote stamp**; the internal id may stay `stamp` |
 | Linked library — view only | Can view (for a library) | the state of a design system linked from a team library [C18]. "Can view" is a people permission only |
+| <who> invited you here — their comment is on <canvas>. | her / his comment, "Opened from <who>'s link" (for an invite) | the invite-landing toast (S6.11, corrected 2026-10-28: the app knows nobody's gender, so they/them — "their" says whose comment it is) |
 | Untitled canvas | New canvas 1, Canvas | a new canvas's name (+ " 2", " 3") [C4]; Home names it from the prompt with a non-AI heuristic, offline create too |
 
 ## 4 · Voice rules

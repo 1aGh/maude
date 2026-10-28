@@ -355,6 +355,7 @@ pub fn parse_link(url: &str) -> Option<LinkAddress> {
                 canvas: None,
                 artboard: Some(a.to_string()),
                 thread: None,
+                via: None,
             })
             .ok()
             .and_then(|t| t.artboard)
@@ -551,6 +552,7 @@ fn route_now(app: &AppHandle, url: &str) {
                     canvas: address.canvas.clone(),
                     artboard: address.artboard.clone(),
                     thread: None,
+                    via: None,
                 }),
             );
             o.label().to_string()
@@ -564,6 +566,7 @@ fn route_now(app: &AppHandle, url: &str) {
                     canvas: address.canvas.clone(),
                     artboard: address.artboard.clone(),
                     thread: None,
+                    via: None,
                 }
             }),
         ),

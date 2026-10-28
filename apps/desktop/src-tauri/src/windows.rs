@@ -2166,6 +2166,10 @@ pub struct OpenTarget {
     pub artboard: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub thread: Option<String>,
+    /// S6.11 — `"invite"` when Home's invite flow lands on the thread (its toast names the inviter). Only
+    /// beside a thread (`validate_target`), and only from Home (`open_project` drops it for a project tab).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub via: Option<String>,
 }
 
 /// A comment thread id as the cloud stores it on an invite
@@ -2201,6 +2205,9 @@ pub fn validate_target(t: OpenTarget) -> Result<OpenTarget, String> {
     Ok(OpenTarget {
         canvas,
         artboard,
+        // S6.11 — `via: "invite"` only beside a thread: the landing says "<who> invited you here". Anything
+        // else is dropped, never an error (an older page sends none).
+        via: t.via.filter(|v| v == "invite" && t.thread.is_some()),
         thread: t.thread,
     })
 }
@@ -2436,6 +2443,15 @@ pub fn intent_for(
     }
 }
 
+/// S6.11 — `via: "invite"` is Home's word (its invite flow): a project tab cannot make another tab say
+/// "<who> invited you here", so its `via` is dropped. Everything else in the target stays.
+pub fn via_for(caller: &Caller, mut target: OpenTarget) -> OpenTarget {
+    if matches!(caller, Caller::Project(_)) {
+        target.via = None;
+    }
+    target
+}
+
 /// What is parked once the window is known (S6.7): `moveToCloud` survives only
 /// on a NEW tab opened by folder — the create-local path, a project Home just
 /// made. On a pid open, or a tab that was already open, it is dropped (the rest
@@ -2484,7 +2500,7 @@ pub async fn open_project(
     };
     let st = crate::app_state::load(&app);
     let path = resolve_open_root(&caller, &st, pid.as_deref(), root.as_deref())?;
-    let target = target.map(validate_target).transpose()?;
+    let target = target.map(validate_target).transpose()?.map(|t| via_for(&caller, t));
     let intent = intent_for(&caller, intent)?;
     if !path.is_dir() {
         return Err("That project folder doesn’t exist.".to_string());
@@ -2795,6 +2811,30 @@ mod tests {
         assert!(intent_for(&project, Some(i)).is_err());
     }
 
+    /// S6.11: `via: "invite"` survives only beside a thread, and only from Home.
+    #[test]
+    fn open_target_via_invite_is_homes_and_needs_a_thread() {
+        let t = |thread: Option<&str>, via: &str| OpenTarget {
+            canvas: Some("ui/Poster.tsx".into()),
+            artboard: None,
+            thread: thread.map(str::to_string),
+            via: Some(via.to_string()),
+        };
+        let ok = validate_target(t(Some("th_01"), "invite")).unwrap();
+        assert_eq!(ok.via.as_deref(), Some("invite"));
+        assert_eq!(validate_target(t(None, "invite")).unwrap().via, None, "no thread, no via");
+        assert_eq!(validate_target(t(Some("th_01"), "mention")).unwrap().via, None, "only invite");
+        assert_eq!(via_for(&Caller::Home, ok.clone()).via.as_deref(), Some("invite"));
+        let project = Caller::Project(CallerProject {
+            label: "p-via".into(),
+            pid: "via".into(),
+            root: A.into(),
+        });
+        let dropped = via_for(&project, ok.clone());
+        assert_eq!(dropped.via, None, "a project tab cannot say someone invited you");
+        assert_eq!(dropped.thread.as_deref(), Some("th_01"));
+    }
+
     /// S6.7: `target.thread` — an id, only with its canvas; a NEW window gets it
     /// parked (never in `?open=`), an open one in `shell://navigate`.
     #[test]
@@ -2803,6 +2843,7 @@ mod tests {
             canvas: canvas.map(str::to_string),
             artboard: None,
             thread: Some(thread.to_string()),
+            via: None,
         };
         let ok = validate_target(t(Some("ui/Poster.tsx"), "th_01-ab")).unwrap();
         assert_eq!(ok.thread.as_deref(), Some("th_01-ab"));
@@ -2881,9 +2922,9 @@ mod tests {
         assert!(resolve_open_root(&Caller::Home, &st, Some("lwork"), Some("/x")).is_err());
         assert!(resolve_open_root(&Caller::Home, &st, None, None).is_err());
         // A target canvas goes through the deep-link path check.
-        assert!(validate_target(OpenTarget { canvas: Some("../etc/x.tsx".into()), artboard: None, thread: None }).is_err());
+        assert!(validate_target(OpenTarget { canvas: Some("../etc/x.tsx".into()), artboard: None, thread: None, via: None }).is_err());
         assert_eq!(
-            validate_target(OpenTarget { canvas: Some(".design/ui/a.tsx".into()), artboard: Some("hero".into()), thread: None })
+            validate_target(OpenTarget { canvas: Some(".design/ui/a.tsx".into()), artboard: Some("hero".into()), thread: None, via: None })
                 .unwrap()
                 .canvas
                 .as_deref(),
@@ -3887,6 +3928,7 @@ mod tests {
             canvas: Some("ui/a.tsx".into()),
             artboard: Some("hero".into()),
             thread: None,
+            via: None,
         };
         park_navigate_for_new(&Opened::New("p-nav-new".into()), Some(&full));
         assert_eq!(PENDING_NAVIGATE.take("p-nav-other"), None);
@@ -3900,6 +3942,7 @@ mod tests {
             canvas: Some("ui/a.tsx".into()),
             artboard: None,
             thread: None,
+            via: None,
         };
         park_navigate_for_new(&Opened::New("p-nav-canvas".into()), Some(&canvas_only));
         assert_eq!(PENDING_NAVIGATE.take("p-nav-canvas"), None);
@@ -4092,6 +4135,7 @@ mod tests {
             canvas: None,
             artboard: Some("hero".into()),
             thread: None,
+            via: None,
         };
         TABS_RESTORED.park("p-gone", TabsRestored { count: 2 });
         PENDING_NAVIGATE.park("p-gone", t.clone());

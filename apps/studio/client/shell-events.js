@@ -47,6 +47,21 @@ export function threadLandedWords(author, file) {
   return openedFromWords({ who, canvas });
 }
 
+/**
+ * S6.11 (CONTRACT §3, corrected 2026-10-28) — an invite's landing: "<who> invited you here — their comment is on
+ * <canvas>." The app knows nobody's gender, so they/them. `who` is the thread's stored author (the inviter's
+ * comment); none → null, and the landing keeps S1.18's words.
+ */
+export function invitedHereWords(author, file) {
+  const who = typeof author === 'string' && author.trim() ? author.trim().slice(0, 80) : null;
+  if (!who) return null;
+  const canvas = String(file ?? '')
+    .split('/')
+    .pop()
+    .replace(CANVAS_RE, '');
+  return `${who} invited you here — their comment is on ${canvas}.`;
+}
+
 export const openedExistingWords = (name) => `${name} is open in this window.`;
 export const linkOpenedWords = (name) => `Opened ${name} from a link.`;
 export const tabsRestoredWords = (count) =>
@@ -75,7 +90,11 @@ export function navigatePlan(payload, { paths, designRel, activePath }) {
   // S9.17 — a mention notice's click names the comment thread too (Rust `valid_thread_id`, only
   // together with its canvas); a junk id is dropped, the canvas still opens.
   const thread = okThread(payload.thread) ? payload.thread : null;
-  return thread ? { rel, file, artboard, thread } : { rel, file, artboard };
+  if (!thread) return { rel, file, artboard };
+  // S6.11 — Home's invite flow marks its landing (Rust keeps `via` only from Home, beside a thread)
+  return payload.via === 'invite'
+    ? { rel, file, artboard, thread, via: 'invite' }
+    : { rel, file, artboard, thread };
 }
 
 // The thread rule Rust's `valid_thread_id` applies (contract S6-S9 §5.3).
@@ -122,7 +141,10 @@ export function applyShellNavigate(payload, deps) {
     schedule(() => run('comments.open-thread', { file, id: thread, reply: true }), 0);
     schedule(() => {
       run('tool.comment');
-      deps.toast?.(threadLandedWords(deps.threadAuthor?.(file, thread), file));
+      const author = deps.threadAuthor?.(file, thread);
+      deps.toast?.(
+        (plan.via === 'invite' && invitedHereWords(author, file)) || threadLandedWords(author, file)
+      );
     }, LANDING_SHOT_MS);
   }
   return plan;
