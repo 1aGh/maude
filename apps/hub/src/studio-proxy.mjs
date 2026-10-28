@@ -444,6 +444,34 @@ export function isAssetWriteCompletion(method, path, statusCode) {
   );
 }
 
+/** The studio's "Update project" route (routes/project-format.ts). */
+export const PROJECT_MIGRATE_PATH = '/_api/project/migrate';
+const MIGRATE_BODY_BYTES = 64 * 1024;
+const MIGRATE_REPLY_BYTES = 8 * 1024 * 1024;
+
+export function isProjectMigrate(method, path) {
+  return method === 'POST' && path === PROJECT_MIGRATE_PATH;
+}
+
+/** A whole stream as one Buffer, or a throw past `max` bytes. */
+function readCapped(stream, max) {
+  return new Promise((resolve, reject) => {
+    const parts = [];
+    let n = 0;
+    stream.on('data', (chunk) => {
+      n += chunk.length;
+      if (n > max) {
+        stream.destroy?.();
+        reject(new Error('too large'));
+        return;
+      }
+      parts.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    stream.on('end', () => resolve(Buffer.concat(parts)));
+    stream.on('error', reject);
+  });
+}
+
 function refuse(response, status, body) {
   const payload = JSON.stringify(body);
   response.writeHead(status, {
@@ -501,6 +529,14 @@ export function createStudioProxy({
    * child's environment.
    */
   onAssetWritten = null,
+  /**
+   * "Update project" in a hub that serves its own checkout (lead decision on Michal 2A): called
+   * after the studio child answered the OWNER's `POST /_api/project/migrate` with a 2xx, and
+   * awaited BEFORE that answer reaches the browser — the hub raises its own project format to the
+   * checkout's marker now (`raiseFormatToCheckout`), so no window opens with the two disagreeing.
+   * Null = the plain byte pipe (no hub authority to raise).
+   */
+  onProjectMigrated = null,
 } = {}) {
   /**
    * The canvas capability a shell request is handed, or null.
@@ -641,24 +677,34 @@ export function createStudioProxy({
       return true;
     }
 
-    await forward({
-      request,
-      response,
-      port: up.port,
-      headers: upstreamHeaders(request.headers, {
-        role: doorRole,
-        access: session.access,
-        canvasOnly,
-        user: session.email,
-        sessionKey: session.sessionKey,
-        publicUrl,
-        canvasToken: canvasTokenFor(session, request, canvasOnly),
-        // A canvas-only session gets no project-wide render capability (it is
-        // viewer-scoped to the whole project); its exports wait on one that
-        // carries its grants.
-        renderToken: canvasOnly ? null : (mintRenderToken?.(session) ?? null),
-      }),
+    const headers = upstreamHeaders(request.headers, {
+      role: doorRole,
+      access: session.access,
+      canvasOnly,
+      user: session.email,
+      sessionKey: session.sessionKey,
+      publicUrl,
+      canvasToken: canvasTokenFor(session, request, canvasOnly),
+      // A canvas-only session gets no project-wide render capability (it is
+      // viewer-scoped to the whole project); its exports wait on one that
+      // carries its grants.
+      renderToken: canvasOnly ? null : (mintRenderToken?.(session) ?? null),
     });
+    if (onProjectMigrated && isProjectMigrate(method, pathname)) {
+      // The format is the WHOLE project's: a canvas grant never confers it (PROJECT_ONLY), however
+      // high its role — the manifest's `delete` already keeps editors and viewers out.
+      if (canvasOnly) {
+        refuse(response, 403, {
+          error: readOnlyMessageFor(doorRole),
+          reason: 'read-only',
+          capability: verdict.capability,
+        });
+        return true;
+      }
+      await forwardMigrate({ request, response, port: up.port, headers, session });
+      return true;
+    }
+    await forward({ request, response, port: up.port, headers });
     // B3 — only on a write that SUCCEEDED. The studio's own caps and sniff have
     // already run by the time it answered 2xx, so mirroring here inherits every
     // one of them rather than re-deciding what an asset is.
@@ -670,6 +716,47 @@ export function createStudioProxy({
       }
     }
     return true;
+  }
+
+  /**
+   * The owner's Update project, through the hub: the request body and the studio's report are
+   * small JSON, so both are held (capped) — the answer waits until the hub raised its own format.
+   * A raise that fails is logged and the studio's answer still goes out: the checkout DID update,
+   * and the owner's next probe of the callout (the dry run on opening) raises again.
+   */
+  async function forwardMigrate({ request, response, port, headers, session }) {
+    let payload;
+    try {
+      payload = await readCapped(request, MIGRATE_BODY_BYTES);
+    } catch {
+      refuse(response, 413, { error: 'request too large' });
+      return;
+    }
+    // upstreamHeaders already dropped the hop-by-hop ones (transfer-encoding): the body is whole.
+    const out = { ...headers, 'content-length': String(payload.length) };
+    let res;
+    let body;
+    try {
+      res = await forwardRaw({ port, method: 'POST', path: request.url, headers: out, payload });
+      body = await readCapped(res, MIGRATE_REPLY_BYTES);
+    } catch {
+      refuse(response, 502, { error: 'the project server is not answering' });
+      return;
+    }
+    const status = res.statusCode ?? 502;
+    if (status >= 200 && status < 300) {
+      try {
+        await onProjectMigrated({ session });
+      } catch (err) {
+        console.error(`[studio-proxy] the project format was not raised: ${err?.message ?? err}`);
+      }
+    }
+    const replyHeaders = {
+      ...filterResponseHeaders(res.headers),
+      'content-length': String(body.length),
+    };
+    response.writeHead(status, replyHeaders);
+    response.end(body);
   }
 
   /**

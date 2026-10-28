@@ -83,6 +83,19 @@ describe('the older-project callout', () => {
     ).toBe('non-owner');
   });
 
+  test('a cloud cell: an editor the door refuses gets the owner line, not the button', () => {
+    // The cell's door answers a non-owner's dry run 403 read-only (studio-manifest `delete`).
+    const refused = {
+      error: 'You can look at this project, but not change it.',
+      reason: 'read-only',
+    };
+    expect(olderGateState({ cfg: older, plan: refused })).toEqual({
+      kind: 'non-owner',
+      line: "View only — the owner hasn't updated this project for Maude 2 yet.",
+      action: null,
+    });
+  });
+
   test('the owner on a 1.x hub: the team-server line + how to update it; others the owner line', () => {
     expect(olderGateState({ cfg: older, plan: linked('owner', ['hub-too-old']) })).toEqual({
       kind: 'hub-too-old',

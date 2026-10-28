@@ -18,6 +18,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import * as Y from 'yjs';
 
 import { createAcceptedRevisions } from '../src/project-transactions/hub-integration.mjs';
+import { openSqliteProjectStore } from '../src/project-transactions/store-sqlite.mjs';
 import { createHub } from '../src/server.mjs';
 import { addToken } from '../src/tokens.mjs';
 
@@ -493,5 +494,39 @@ describe('the format barrier (the setMode order)', () => {
     await acc3.refresh();
     assert.equal((await acc3.seedFormat(3)).changed, false);
     assert.equal(acc3.projectFormat(), 1);
+  });
+
+  // Lead decision on the cloud-cell open question (Michal 2A): the owner's Update project in a
+  // cell raises the hub's OWN format to the checkout's marker now — even where the one-time seed
+  // refuses (an earlier owner decision) — raise-only, capped, with the barrier's notice.
+  test("Update project in a cell raises the hub's format to the checkout's now, where the seed would not", async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'maude-format-raise-'));
+    const store = openSqliteProjectStore(dir);
+    try {
+      // An owner went to 2 and back to 1 once: the checkout seed can never move this project again.
+      await store.setFormat({ formatVersion: 2, by: 'o@x' });
+      await store.setFormat({ formatVersion: 1, by: 'o@x' });
+      const sent = [];
+      const acc = coordinator({ store, connections: [conn({ format: 2 }, sent)] });
+      await acc.refresh();
+      assert.equal((await acc.seedFormat(2)).changed, false, 'the boot seed refuses here');
+      assert.equal(acc.projectFormat(), 1);
+      const raised = await acc.raiseFormatToCheckout(2, { by: 'owner@x' });
+      assert.equal(raised.changed, true);
+      assert.equal(acc.projectFormat(), 2);
+      assert.equal((await store.state()).formatVersion, 2);
+      assert.deepEqual(
+        sent.map((n) => [n.type, n.formatVersion, n.writable]),
+        [['maude.mode', 2, true]],
+        'the v2 writer is told at once'
+      );
+      // raise-only and capped
+      assert.equal((await acc.raiseFormatToCheckout(1)).changed, false);
+      assert.equal((await acc.raiseFormatToCheckout(3)).changed, false);
+      assert.equal(acc.projectFormat(), 2);
+    } finally {
+      store.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

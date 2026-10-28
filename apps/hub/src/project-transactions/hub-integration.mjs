@@ -711,6 +711,30 @@ export function createAcceptedRevisions({
   }
 
   /**
+   * "Update project" in a hub that serves its own checkout (a cloud cell, a workspace hub): the
+   * owner's Update project rewrote the checkout through the studio child, and the hub now raises
+   * its OWN project format to the checkout's marker AT ONCE — the cell twin of Move to cloud's
+   * `raiseFormat` (routes/cloud-move.ts: the hub never stays below the folder's marker), and not
+   * the next boot's checkout seed, which is one-time and refuses after any earlier decision (lead,
+   * Michal 2A, 2026-10-28). It is the owner's flip (`setFormat`: barrier, notices, the child's
+   * mirror), RAISE-ONLY (never lowers — only the owner's explicit unflip does) and capped at what
+   * this hub knows. The caller is the studio door, which has already required the owner.
+   */
+  async function raiseFormatToCheckout(n, { by = 'owner' } = {}) {
+    const want = asFormat(n);
+    const cur = asFormat((await store.state()).formatVersion);
+    if (want <= cur) return { changed: false, formatVersion: cur };
+    if (want > HUB_MAX_FORMAT) {
+      log.warn?.(
+        `[transactions] the checkout declares format ${want}, newer than this hub knows (${HUB_MAX_FORMAT}) — not raised`
+      );
+      return { changed: false, formatVersion: cur };
+    }
+    const out = await setFormat({ formatVersion: want, by });
+    return { changed: true, formatVersion: out.formatVersion, epoch: out.epoch };
+  }
+
+  /**
    * A BRAND-NEW project takes its format from the writer that founds it (lead decision on Michal 2A,
    * 2026-10-28): the first writer to connect or propose declares its format, and that is the project's —
    * a v2 client founds a format-2 project (so it edits from the start, and 1.x peers look), a 1.x
@@ -1474,6 +1498,7 @@ export function createAcceptedRevisions({
     refreshOnce,
     setFormat,
     seedFormat,
+    raiseFormatToCheckout,
     foundNewProject,
     handleFormatRoute,
     projectFormat,

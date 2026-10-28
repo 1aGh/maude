@@ -790,6 +790,15 @@ export function createHub(config = {}) {
         onAssetWritten: () => {
           writeBehind?.note();
         },
+        // Update project in a cell (lead, Michal 2A): the owner's migrate landed in the checkout —
+        // the hub's own project format rises to its marker NOW (raise-only, the owner's flip), not
+        // at the next boot's one-time seed. Awaited before the browser hears it.
+        onProjectMigrated: async ({ session }) => {
+          if (!accepted) return;
+          await accepted.raiseFormatToCheckout(checkoutFormatVersion(), {
+            by: session?.email || 'owner',
+          });
+        },
         // NEVER LET THIS THROW INTO THE REQUEST LOOP.
         //
         // `mintRenderToken` refuses without a hub secret — correctly; a

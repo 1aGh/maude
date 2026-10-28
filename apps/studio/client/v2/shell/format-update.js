@@ -58,6 +58,10 @@ export function olderGateState({ cfg, plan }) {
     return { kind: 'non-owner', line: OLDER_COPY.olderNonOwner, action: null };
   }
   if (plan === undefined) return { kind: 'checking', line: OLDER_COPY.olderStatus, action: null };
+  // A cloud cell's door refuses a non-owner's dry run (403 read-only): only the owner updates there.
+  if (plan?.reason === 'read-only') {
+    return { kind: 'non-owner', line: OLDER_COPY.olderNonOwner, action: null };
+  }
   if (!plan || plan.error) return { kind: 'owner', line: OLDER_COPY.olderStatus, action: 'update' };
   const codes = (plan.refusals ?? []).map((r) => r?.code).filter(Boolean);
   const owner = ownsProject(plan.project?.linked?.role);
