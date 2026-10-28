@@ -113,7 +113,29 @@ test('cloud and team-project lanes sit on the local hub, never a real one', () =
   // a first run for real: Home's first-run flag cleared, a fresh index, the real `claude` held off
   assert.match(team, /join\('home', 'home\.json'\)/);
   assert.match(team, /MAUDE_INDEX_DIR/);
-  assert.match(team, /useStubClaude\(\)/);
+  assert.match(team, /useStubClaude\(\)|useFakeAi\(\)/, 'the stub `claude` first on PATH (useFakeAi includes it)');
+  // V2-8.18: the Docker gate may point this lane at a container — only a loopback one, refused at runtime otherwise
+  if (/MAUDE_E2E_HUB_TARGET/.test(team)) {
+    assert.match(team, /assertLoopbackHubTarget\(target\.http\)/, 'the target is checked before it is believed');
+    const guard = team.slice(team.indexOf('function assertLoopbackHubTarget'));
+    assert.match(guard, /'127\.0\.0\.1', 'localhost', '\[::1\]', '::1'/);
+    assert.match(guard, /throw new Error/);
+    assert.doesNotMatch(guard.slice(0, guard.indexOf('\n}\n')), /\.cloud\.maude\.sh|studyfi|maude\.sh/);
+  }
+});
+
+test('team-project refuses a hub target that is not loopback (behaviour of the guard itself)', () => {
+  const team = read('wdio.team-project.conf.ts');
+  const m = team.match(/export function assertLoopbackHubTarget[\s\S]*?\n}\n/);
+  assert.ok(m, 'the guard is exported by name');
+  const body = m[0].replace('export function', 'function').replace('(url: string): void', '(url)');
+  const guard = new Function(`${body}; return assertLoopbackHubTarget;`)();
+  for (const ok of ['http://127.0.0.1:8080', 'http://localhost:9', 'http://[::1]:7/']) {
+    assert.doesNotThrow(() => guard(ok), ok);
+  }
+  for (const bad of ['https://hub.maude.sh', 'http://10.0.0.5:8080', 'http://127.0.0.1.evil.test', 'nonsense', '']) {
+    assert.throws(() => guard(bad), /loopback hub only/, bad);
+  }
 });
 
 test('the two-Mac AI runs lane sits on a local hub and throwaway projects, never the committed fixture', () => {
