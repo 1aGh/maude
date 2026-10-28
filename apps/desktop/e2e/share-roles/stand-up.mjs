@@ -535,10 +535,17 @@ export async function standUp(opts = {}) {
     );
     const studios = {};
     /** Boot a studio on `project` with `hubs` as its credential store; resolves to its address. */
-    async function bootStudio(root, project, hubs) {
+    async function bootStudio(root, project, hubs, person = null) {
       assertFreshClientDist(join(REPO, 'apps/studio'));
       const home = join(root, 'home');
       mkdirSync(home, { recursive: true });
+      // P8 G1a — a person's identity in their throwaway HOME: a desktop's collab presence names peers by
+      // `git config user.name` (api.ts gitCurrentUser), so without it every peer read `anonymous-…`
+      if (person && !existsSync(join(home, '.gitconfig')))
+        writeFileSync(
+          join(home, '.gitconfig'),
+          `[user]\n\tname = ${person.name}\n\temail = ${person.email}\n`
+        );
       const port = await freePort();
       const studioEnv = {
         ...process.env,
@@ -588,13 +595,13 @@ export async function standUp(opts = {}) {
       const cred = await credentialFor(who);
       const hubs = join(root, 'config', 'hubs.json');
       writeJsonAtomic(hubs, { hubs: { [hubUrl]: cred.record } });
-      const { url, proc } = await bootStudio(root, project, hubs);
+      const { url, proc } = await bootStudio(root, project, hubs, PEOPLE[who]);
       studios[who] = { url, project, hubs, claim: claimKey(cred.verdict), proc };
       log(`${who}'s studio ${url}`);
       return url;
     }
     /** The owner's studio, for a headless check only: the native app runs its own sidecar on the same project. */
-    const startOwnerStudio = () => bootStudio(ownerDir, nativeProject, ownerHubs);
+    const startOwnerStudio = () => bootStudio(ownerDir, nativeProject, ownerHubs, PEOPLE.owner);
 
     // A person's access changed (raised, narrowed): do the credential exchange a studio would, and say it
     // in hubs.json. A person who lost everything is left alone — the hub ends their sessions itself.
