@@ -206,6 +206,16 @@ waiting for that record.
 - **Cloud lane media uploads** to the local hub fail intermittently. Worth a look.
 - **Case-variant credential Read** against Claude Code's matcher, and a **WKWebView DNS-prefetch check**. Both need a real Mac.
 
+## The rc-soak checklist
+
+Every ledger row closed as `soak`: it can't be driven on this Mac, so it is checked on the rc soak. Each line gives
+the reason. `node scripts/v2-ledger.mjs pr-soak` writes this list, and `check` fails if it drifts from the ledger.
+Rows closed as `not-a-state` (the board draws a state the product never reaches) stay in the ledger with their note.
+
+<!-- v2-ledger:soak:start -->
+_No row is left to the soak._
+<!-- v2-ledger:soak:end -->
+
 ## After the merge
 
 **V2-8.12, the release candidate (you trigger it, outside this PR).**

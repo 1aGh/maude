@@ -104,7 +104,8 @@ if (existsSync(TASKLIST)) {
       if (mustAppear) problems.push(`${r.id}: missing from the native task-list snapshot`);
       continue;
     }
-    if ((st === 'completed') !== (r.status === 'verified'))
+    // `soak` / `not-a-state` close a row like `verified` (with a note; see v2-ledger.mjs).
+    if ((st === 'completed') !== ['verified', 'soak', 'not-a-state'].includes(r.status))
       problems.push(`${r.id}: native list says ${st}, ledger says ${r.status}`);
   }
   for (const id of native.keys())
