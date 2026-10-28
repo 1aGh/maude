@@ -13,7 +13,9 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
-const SPEC = join(ROOT, 'apps/desktop/e2e/scenarios/project-tabs.e2e.ts');
+const SPECS = ['project-tabs', 'git-switch-repos'].map((n) =>
+  join(ROOT, `apps/desktop/e2e/scenarios/${n}.e2e.ts`)
+);
 
 /** The body of `async function <name>(…) { … }` in `text` (brace-matched), or null. */
 export function functionBody(text, name) {
@@ -34,12 +36,15 @@ test('functionBody finds a brace-matched body', () => {
   assert.equal(functionBody(src, 'g'), null);
 });
 
-test("project-tabs' poll predicate re-queries the pill and never waits on a held handle", () => {
-  const body = functionBody(readFileSync(SPEC, 'utf8'), 'triggerText');
-  assert.ok(body, 'triggerText() not found in project-tabs.e2e.ts');
-  assert.doesNotMatch(
-    body,
-    /\bwaitFor(Displayed|Exist|Clickable)\s*\(/,
-    'triggerText runs inside waitBranch’s waitUntil: a long wait on one handle outlives a remount'
-  );
-});
+for (const spec of SPECS) {
+  const name = spec.split('/').pop();
+  test(`${name}: the branch poll re-queries the pill and never waits on a held handle`, () => {
+    const body = functionBody(readFileSync(spec, 'utf8'), 'triggerText');
+    assert.ok(body, `triggerText() not found in ${name}`);
+    assert.doesNotMatch(
+      body,
+      /\bwaitFor(Displayed|Exist|Clickable)\s*\(/,
+      'triggerText runs inside a waitUntil: a long wait on one handle outlives a remount'
+    );
+  });
+}
