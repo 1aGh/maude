@@ -131,6 +131,19 @@ export const VIEW_ACTIONS: ActionDef[] = [
     search: { hidden: true },
   },
   {
+    // V2-8.16 (journey S8) — Assets › Add files… (the + at the bar's right end, or files dropped on the tab): each file
+    // comes in cleaned (an SVG is sanitized) and content-named assets/<sha8>.<ext>. The panel runs it itself, so no
+    // ⌘K row; the action exists so bringing a file in has its one AI path (`maude design import-asset`, agents.ts).
+    // Without it an agent asked to bring a logo into the project hand-copied it somewhere else. A write: Can edit and up.
+    id: 'assets.add',
+    label: 'Add files…',
+    kind: 'command',
+    icon: 'plus',
+    exec: 'shell',
+    enabled: { minRole: 'edit' },
+    search: { hidden: true },
+  },
+  {
     // S8.16 (ia-gen-ask) — Assets › Generate: say the picture, the selected artboard sets the shape; before anything is
     // sent one line says how long and whose account pays, one line the licence. The best take lands in the frame. A
     // paid call to a provider: Can edit and up, and the server refuses a run without its single-use quote.

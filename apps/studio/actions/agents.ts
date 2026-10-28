@@ -545,7 +545,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   },
   // S8.19c — one edit-op; an agent edits the same string literals by hand.
   'asset.relink': TSX(
-    'Replace every string literal that names the missing file with the copy’s assets/<sha8>.<ext> path (import it first with the asset import); keep each reference’s leading / or ./'
+    'Replace every string literal that names the missing file with the copy’s assets/<sha8>.<ext> path (import it first: `maude design import-asset <file>`); keep each reference’s leading / or ./'
   ),
   // S2.8 — an artboard's size is its JSX width/height (+ the bare `fixed` prop); its place is the meta layout.
   'artboard.resize': TSX(
@@ -772,7 +772,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   ),
   // S2.15 — pictures: plain `<img>` edits; the recipes are canvas-tsx.md § Place, replace and crop an image.
   'image.place': TSX(
-    'Add <img src="assets/<sha8>.<ext>" alt="" style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }} /> as the last child of the frame (import the file first with the asset import; src is always a flat assets/ name). On a frame or picture that already holds one picture, change only its src. On an artboard use position: "absolute", left: "0", top: "0" and put it first. Over HTTP: POST /_api/edit-op {op: "image.place", targets: [frame?], params: {asset | assets, mode: "fill" | "loose" | "fill-in-order" | "grid", artboard?, natural?: {w, h}, alt?}}'
+    'Add <img src="assets/<sha8>.<ext>" alt="" style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }} /> as the last child of the frame (import the file first: `maude design import-asset <file>` prints its assets/<sha8>.<ext>; src is always a flat assets/ name). On a frame or picture that already holds one picture, change only its src. On an artboard use position: "absolute", left: "0", top: "0" and put it first. Over HTTP: POST /_api/edit-op {op: "image.place", targets: [frame?], params: {asset | assets, mode: "fill" | "loose" | "fill-in-order" | "grid", artboard?, natural?: {w, h}, alt?}}'
   ),
   'image.crop': TSX(
     'Fill is objectFit: "cover"; Fit is objectFit: "contain"; Crop is "cover" + objectPosition: "X% Y%" + data-image-fit="crop", and past 100 % transform: "scale(Z)" with transformOrigin: "X% Y%" and overflow: "hidden" on the frame; Tile is a <div role="img" data-image-tile="assets/…" style={{ backgroundImage: "url(\\"assets/…\\")", backgroundRepeat: "repeat" }}>. Over HTTP: POST /_api/edit-op {op: "image.crop", targets: [picture], params: {fit?, zoom?, x?, y?}}'
@@ -813,6 +813,14 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     agent: cli('maude design import-figma'),
   },
   // S8.12 — the Assets tab's ↵ on a picked tile: the same write as `image.place`, started from the tab. The agent edits the TSX.
+  // V2-8.16 (journey S8) — Assets › Add files…: a file comes in cleaned (an SVG sanitized, DDR-167) and content-named
+  // assets/<sha8>.<ext>. The verb is the same import, so an agent never copies or hand-cleans a file into the project.
+  'assets.add': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'none',
+    agent: cli('maude design import-asset <file>'),
+  },
   'assets.place': {
     effect: 'project',
     minRole: 'edit',
