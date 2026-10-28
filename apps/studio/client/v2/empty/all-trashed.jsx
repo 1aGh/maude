@@ -68,6 +68,10 @@ async function readTrash(fetchImpl) {
   }
 }
 
+// One function for the life of the module: a default of `globalThis.fetch.bind(...)` is a NEW function on every
+// render, and the effects below list `fetchImpl` — every answer then re-ran them, an endless read/render loop.
+const shellFetch = (...args) => globalThis.fetch(...args);
+
 const defaultToast = (message, ok, action) =>
   import('../../shell/util.js').then((m) => m.shellToast(message, ok, action));
 
@@ -84,7 +88,7 @@ export function AllTrashed({
   artboardCount,
   ready = true,
   canEdit,
-  fetchImpl = globalThis.fetch?.bind(globalThis),
+  fetchImpl = shellFetch,
   toast = defaultToast,
   onChanged,
   now = Date.now,

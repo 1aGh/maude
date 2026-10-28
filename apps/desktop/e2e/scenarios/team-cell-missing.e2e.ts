@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -553,8 +554,23 @@ describe('team-cell-missing (native-desktop)', () => {
     await browser.pause(1_500); // the outlines (canvas side) follow the card
     await capture('05-es-all-trashed');
 
+    const origin = (await browser.execute(() => location.origin)) as string;
     await restore.click();
-    await browser.pause(4_000);
+    // DIAGNOSIS (Restore hang): from OUTSIDE the page — does the studio finish the restores, and is the web content busy?
+    for (let i = 0; i < 6; i++) {
+      await new Promise((r) => setTimeout(r, 2_000));
+      const t = await fetch(`${origin}/_api/trash`, { signal: AbortSignal.timeout(5_000) })
+        .then((r) => r.json() as Promise<{ items?: Array<{ kind?: string; path?: string }> }>)
+        .then((j) => (j.items ?? []).filter((x) => x.kind === 'artboard' && x.path === LETAK).length)
+        .catch((e) => `ERR ${String(e)}`);
+      const cpu = execSync("ps -ax -o pcpu,command | grep -i 'WebContent\\|maude-server' | grep -v grep | cut -c1-110")
+        .toString()
+        .trim()
+        .replace(/\n/g, ' ¦ ');
+      console.log(
+        `[team-cell-missing] +${(i + 1) * 2}s trash=${t} file=${JSON.stringify(ids(read(join(c.designer, '.design', LETAK))))} cpu=${cpu}`
+      );
+    }
     console.log(
       `[team-cell-missing] after Restore: ${await browser.execute(() =>
         Array.from(document.querySelectorAll('[data-testid^="notice-"]'))
