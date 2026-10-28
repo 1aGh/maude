@@ -10,7 +10,7 @@
 //   pre-bash    PreToolUse Bash   use-trash · use-verb · not-a-writer · human-only · out-of-project (bash-guard)
 //                                 · an untrusted-content reader has no shell (S12.7)
 //                                                                                     → deny or nothing
-//   post-bash   PostToolUse Bash  a `maude design` write verb's writes → touched     → nothing
+//   post-bash   PostToolUse Bash  what a write verb / any not-provably-read call wrote → touched → nothing
 //   stop        Stop              stop-tier check of the run's files · run/end      → block or nothing
 //               SubagentStop      (same command) hand-off result + the files it owns → block or nothing
 //   subagent-start SubagentStart  records agent_id → {type, at, handoffs}           → nothing
@@ -61,6 +61,7 @@ import {
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import {
+  bashMayWrite,
   classifyBash,
   designVerbOf,
   designWritesSince,
@@ -1179,7 +1180,10 @@ function preBash(ctx, input) {
   // (post-bash and edit/touched {via:'bash'} bind what changed in this tool call's window)
   const toolUseId = hookKey(input.tool_use_id);
   const writers = toolUseId ? writeVerbs(ctx, command) : [];
-  if (!writers.length) return null;
+  // V2-8.16 S7 — and any other call that is not provably a read (a python heredoc, node -e, awk …):
+  // the guard can't read every language, so post-bash binds what changed during the call. No
+  // snapshot for those (no named file): the studio maps the change to every artboard it touched.
+  if (!writers.length && !(toolUseId && bashMayWrite(command, manifestVerbs(ctx)))) return null;
   const snaps = {};
   for (const w of writers) {
     for (const word of w.cmd.words) {

@@ -505,6 +505,28 @@ describe('no studio — fail-open, snapshot + check + rollback still run', () =>
     rmSync(join(project, '.design', '_runs', 's4'), { recursive: true, force: true });
   });
 
+  // V2-8.16 S7 — the same python heredoc on the terminal lane: the guard can't read the script, so
+  // post-bash binds what the call changed (Stop then checks it) — any call that is not a pure read.
+  test('V2-8.16 post-bash binds a python heredoc’s write; a pure read binds nothing', async () => {
+    const ui = join(project, '.design', 'ui');
+    const py = `cd "${ui}" && python3 - <<'EOF'\np='C.tsx'\ns=open(p).read()\nopen(p,'w').write(s)\nEOF`;
+    const e = bash(project, 's7', 'py1', py);
+    expect(await hook('pre-bash', e)).toMatchObject({ status: 0, stdout: '' });
+    writeFileSync(canvasPath(project), CANVAS.replace('<p>x</p>', '<p>q</p>')); // the script ran
+    expect(await hook('post-bash', e)).toMatchObject({ status: 0, stdout: '' });
+    const touched = JSON.parse(
+      readFileSync(join(project, '.design', '_runs', 's7', 'touched.json'), 'utf8')
+    );
+    expect(touched['ui/C.tsx']).toMatchObject({ by: 'main', via: 'bash' });
+    const r = bash(project, 's8', 'ls1', `cd "${ui}" && ls; wc -l C.tsx`);
+    await hook('pre-bash', r);
+    writeFileSync(canvasPath(project), CANVAS);
+    await hook('post-bash', r);
+    expect(existsSync(join(project, '.design', '_runs', 's8', 'touched.json'))).toBe(false);
+    for (const s of ['s7', 's8'])
+      rmSync(join(project, '.design', '_runs', s), { recursive: true, force: true });
+  });
+
   test('post-edit on a synced board: one hint to prefer `annotate --ops`', async () => {
     const boardP = join(project, '.design', 'ui', 'C.annotations.json');
     const editBoard = (id) => ({

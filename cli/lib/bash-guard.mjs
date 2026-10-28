@@ -727,6 +727,99 @@ export function designVerbOf(cmd, verbs) {
   return { verb: w[1].text, effect: row?.effect ?? null };
 }
 
+// ── V2-8.16: may this call write at all? ─────────────────────────────────────────────────────
+
+/**
+ * Commands that only read: no flag of theirs writes a file (`sort -o`, `uniq a b`, `xxd -r`, `sed`'s
+ * `w`, `awk`'s `print >`, `git diff --output` are why those are NOT here). `find` is a reader unless an
+ * action that runs or writes follows (FIND_WRITES).
+ */
+const READERS = new Set([
+  'ls',
+  'cat',
+  'head',
+  'tail',
+  'wc',
+  'grep',
+  'egrep',
+  'fgrep',
+  'rg',
+  'pwd',
+  'echo',
+  'printf',
+  'stat',
+  'file',
+  'tree',
+  'which',
+  'type',
+  'true',
+  'false',
+  'test',
+  '[',
+  'basename',
+  'dirname',
+  'realpath',
+  'readlink',
+  'date',
+  'sleep',
+  'cut',
+  'tr',
+  'nl',
+  'jq',
+  'diff',
+  'cmp',
+  'du',
+  'df',
+  'cd',
+  'pushd',
+  'popd',
+  'column',
+  'shasum',
+  'md5',
+  'sha256sum',
+  'find',
+]);
+const FIND_WRITES = /^-(?:delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)$/;
+
+/**
+ * V2-8.16 S7 — can `command` write a file? `false` only when it parses and EVERY simple command is a
+ * known reader (READERS, or a `maude design` verb whose effect in `verbs` is `none`; an unknown verb
+ * the CLI refuses) with no output redirection but a descriptor or a /dev sink. Anything else — an
+ * interpreter (`python3 - <<EOF … open(p,'w')`), a word the reader can't see, an unparseable command,
+ * any `maude design` verb when `verbs` is null — may write. The caller opens the run's claim-only
+ * window for the call's duration: the guard can't read every language, so the run claims what changes
+ * while the call runs, and only a provable read keeps a person's save out of it (V2-8.9 A1).
+ */
+export function bashMayWrite(command, verbs = null) {
+  if (typeof command !== 'string' || !command.trim()) return false;
+  const cmds = parseBash(command);
+  if (!cmds) return true;
+  for (const cmd of cmds) {
+    for (const r of cmd.redirs) {
+      if (!OUT_OPS.has(r.op)) continue;
+      const t = r.target;
+      if (r.op === '>&' && t?.literal && /^(?:\d+|-)$/.test(t.text)) continue;
+      if (t?.literal && DEV_SINKS.has(t.text)) continue;
+      return true;
+    }
+    if (!cmd.words.length) continue; // a bare assignment or redirection, judged above
+    if (maudeWords(cmd)) {
+      if (!verbs) return true;
+      const v = designVerbOf(cmd, verbs);
+      if (!v) return true; // `maude <top-level>`: not judged here
+      // effect null = no such verb in the table: the CLI refuses it and writes nothing
+      if (v.effect !== 'none' && v.effect !== null) return true;
+      continue;
+    }
+    const e = effective(cmd.words);
+    if (!e || !READERS.has(e.name)) return true;
+    if (cmd.words.length !== e.args.length + 1) return true; // a wrapper (`env`, `sudo`) runs it
+    if (e.name === 'find' && e.args.some((a) => !a.literal || FIND_WRITES.test(a.text)))
+      return true;
+  }
+  return false;
+}
+
 /**
  * The pre-bash decision for `command` run in `cwd`: { code, reason } or null (no decision).
  * Every path is realpath'd before it is judged (`designPath`): the design-root rules see the file
