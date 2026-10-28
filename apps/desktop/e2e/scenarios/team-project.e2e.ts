@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, $$, browser, expect } from '@wdio/globals';
@@ -81,8 +82,25 @@ const TEAM = process.env.MAUDE_E2E_TEAM
       password: string;
       hubPid: number;
       adminSecret: string;
+      /** V2-8.18: the hub is a container (wdio.team-project.conf.ts MAUDE_E2E_HUB_TARGET) */
+      hubContainer?: string;
+      hubAway?: 'kill' | 'pause';
     })
   : null;
+
+/** The server goes away: SIGSTOP the in-process hub, or kill / pause its container (same volume). */
+function hubAway(t: NonNullable<typeof TEAM>) {
+  if (!t.hubContainer) return void process.kill(t.hubPid, 'SIGSTOP');
+  execFileSync(
+    'docker',
+    t.hubAway === 'pause' ? ['pause', t.hubContainer] : ['kill', '--signal', 'KILL', t.hubContainer]
+  );
+}
+/** …and comes back. */
+function hubBack(t: NonNullable<typeof TEAM>) {
+  if (!t.hubContainer) return void process.kill(t.hubPid, 'SIGCONT');
+  execFileSync('docker', [t.hubAway === 'pause' ? 'unpause' : 'start', t.hubContainer]);
+}
 
 const canvas = (
   title: string
@@ -338,7 +356,7 @@ describe('team-project (native-desktop)', () => {
     const t = TEAM as NonNullable<typeof TEAM>;
     const mine = join(t.managedDir, '.design', 'ui', 'welcome.tsx');
     const theirs = join(t.teammate, '.design', 'ui', 'welcome.tsx');
-    process.kill(t.hubPid, 'SIGSTOP');
+    hubAway(t);
     try {
       writeFileSync(mine, canvas('Welcome, written while the server was away'));
       await eventually(
@@ -352,7 +370,7 @@ describe('team-project (native-desktop)', () => {
       await capture('08-server-away-edit-pending');
       expect(read(theirs) ?? '').not.toContain('written while the server was away');
     } finally {
-      process.kill(t.hubPid, 'SIGCONT');
+      hubBack(t);
     }
     await eventually(
       'the edit made while the server was away at the teammate',
@@ -371,7 +389,7 @@ describe('team-project (native-desktop)', () => {
     const t = TEAM as NonNullable<typeof TEAM>;
     const mine = join(t.managedDir, '.design', 'ui', 'welcome.tsx');
     const theirs = join(t.teammate, '.design', 'ui', 'welcome.tsx');
-    process.kill(t.hubPid, 'SIGSTOP');
+    hubAway(t);
     try {
       writeFileSync(mine, canvas('Welcome, written before the switch'));
       await eventually(
@@ -398,7 +416,7 @@ describe('team-project (native-desktop)', () => {
       // The bytes are still the ones this machine wrote, not a pull over them.
       expect(read(mine) ?? '').toContain('written before the switch');
     } finally {
-      process.kill(t.hubPid, 'SIGCONT');
+      hubBack(t);
     }
     await eventually(
       'the pending edit at the teammate after the switch',
@@ -468,7 +486,7 @@ describe('team-project (native-desktop)', () => {
     await closeDiagnostics();
     await settleMotion();
 
-    process.kill(t.hubPid, 'SIGSTOP');
+    hubAway(t);
     try {
       writeFileSync(mine, canvas('Home, mine while offline'));
       await eventually(
@@ -480,7 +498,7 @@ describe('team-project (native-desktop)', () => {
         60_000
       );
     } finally {
-      process.kill(t.hubPid, 'SIGCONT');
+      hubBack(t);
     }
     writeFileSync(theirs, canvas('Home, theirs right after'));
 
@@ -523,7 +541,7 @@ describe('team-project (native-desktop)', () => {
     await closeDiagnostics();
     await settleMotion();
 
-    process.kill(t.hubPid, 'SIGSTOP');
+    hubAway(t);
     try {
       writeFileSync(theirs, canvas('Welcome, theirs while offline'));
       // the teammate's studio has no status line: its `_sync.json` says when the save is queued for the server
@@ -533,7 +551,7 @@ describe('team-project (native-desktop)', () => {
         60_000
       );
     } finally {
-      process.kill(t.hubPid, 'SIGCONT');
+      hubBack(t);
     }
     // this Mac saves right after the server is back
     writeFileSync(mine, canvas('Welcome, mine right after'));

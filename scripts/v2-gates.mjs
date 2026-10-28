@@ -195,6 +195,15 @@ const GATES = [
     kind: 'attest',
     check: aiParityCoverageCheck,
   },
+  {
+    id: 'V2-8.18',
+    title: 'Self-hosted hub + cell images (Docker)',
+    kind: 'command',
+    // ONE lane hold: the desktop legs (selfhost-entry, team-project on the container) need this Mac's screen,
+    // and the gate runs them inline. Builds the hub (v2 + v1.9.1 from the tag) and cell images locally,
+    // nothing pushed; cleans every `maude-v2-docker-*` container/volume/image on the way out. ~1h+ cold.
+    cmd: laneLong('node scripts/v2-verify/docker-selfhost.mjs', 7200),
+  },
 ];
 
 // ── evidence ──────────────────────────────────────────────────────────────────────────
