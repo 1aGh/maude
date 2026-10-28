@@ -9,7 +9,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync 
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildFixture } from './fixtures.mjs';
-import { gradeCode } from './grade.mjs';
+import { cssReaches, gradeCode, headOf } from './grade.mjs';
 import { holdInForce, hookDecisions, readRunState, runBase } from './runstate.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -348,6 +348,61 @@ export async function runSmoke({ out, log = console.log } = {}) {
   expect(
     '…so run-log:busy-not-touched still catches a touch of the busy artboard',
     g.quality['run-log:busy-not-touched']?.pass === false
+  );
+
+  // p8-eval-grader: a DS switch's proposals live in the run folder, which the Stop hook deletes — the grader
+  // must find them in the run log, and a sheet addition that no busy-artboard markup uses must not read as a touch.
+  const ds = fresh('multids');
+  const dsRun = join(out, 'ds-runlog', 'sess-ds', 'ds-switch');
+  mkdirSync(dsRun, { recursive: true });
+  writeFileSync(
+    join(dsRun, 'ui-panels-gitpanel.json'),
+    JSON.stringify({ canvas: '.design/ui/panels/GitPanel.tsx', edits: [] })
+  );
+  writeFileSync(join(dsRun, 'review.md'), '# review\n');
+  const dsTask = {
+    id: 'smoke',
+    expect: {
+      readOnlyVersioned: true,
+      dsReview: { canvases: ['ui/panels/GitPanel.tsx'], to: 'maude-v2' },
+    },
+  };
+  g = gradeCode({ task: dsTask, project: ds.dir, transcript: EMPTY_TR, manifest: {} });
+  expect(
+    'ds-switch proposals gone from _runs/ (the Stop hook deleted them) → graded missing without a run log',
+    g.quality['ds-review-summary']?.pass === false && g.quality['ds-proposals']?.pass === false
+  );
+  g = gradeCode({
+    task: dsTask,
+    project: ds.dir,
+    transcript: EMPTY_TR,
+    manifest: {},
+    runlog: join(out, 'ds-runlog'),
+  });
+  expect(
+    '…and found in the run log when one is given',
+    g.quality['ds-review-summary']?.pass === true && g.quality['ds-proposals']?.pass === true,
+    JSON.stringify([g.quality['ds-review-summary'], g.quality['ds-proposals']])
+  );
+  const cssRel = '.design/ui/Onboarding.css';
+  const cssBefore = headOf(busy.dir, cssRel);
+  const onbSrc = readFileSync(join(busy.d, ONB), 'utf8');
+  expect(
+    'a stylesheet addition for a class the busy artboard does not render does not reach it',
+    cssBefore != null &&
+      cssReaches(cssBefore, `${cssBefore}\n.ob-smoke-only { color: red; }\n`, onbSrc, ONB, 'hub') ===
+        false
+  );
+  expect(
+    '…an addition on a class the artboard renders, or a changed old line, does',
+    cssReaches(cssBefore, `${cssBefore}\n.ob-head { color: red; }\n`, onbSrc, ONB, 'hub') === true &&
+      cssReaches(
+        cssBefore,
+        cssBefore.replace('letter-spacing', 'letter-spacing-x'),
+        onbSrc,
+        ONB,
+        'hub'
+      ) === true
   );
 
   // the deleted stand-ins stay deleted
