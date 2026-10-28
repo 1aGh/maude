@@ -341,7 +341,7 @@ export function isHostedByShell(): boolean {
 export function peersPayload(
   list: readonly (Pick<ForeignAwareness, 'clientID' | 'name'> &
     Partial<
-      Pick<ForeignAwareness, 'artboard' | 'idleSince' | 'surface' | 'inComments' | 'summon'>
+      Pick<ForeignAwareness, 'artboard' | 'idleSince' | 'surface' | 'inComments' | 'summon' | 'role'>
     >)[],
   followTarget: number | null = null
 ): Array<{
@@ -352,6 +352,7 @@ export function peersPayload(
   idleSince?: number;
   surface?: 'browser';
   inComments?: boolean;
+  role?: 'owner' | 'member' | 'viewer' | 'observer';
 }> {
   return list.slice(0, PEERS_MAX).map((p) => {
     const out: ReturnType<typeof peersPayload>[number] = {
@@ -364,6 +365,7 @@ export function peersPayload(
     if (p.idleSince) out.idleSince = p.idleSince;
     if (p.surface === 'browser') out.surface = 'browser';
     if (p.inComments) out.inComments = true;
+    if (p.role) out.role = p.role; // P8 G2 (b) — room-stamped
     return out;
   });
 }
@@ -371,7 +373,7 @@ const peerListKey = (list: readonly ForeignAwareness[]) =>
   list
     .map(
       (p) =>
-        `${p.clientID}:${p.name}:${p.artboard ?? ''}:${p.idleSince ?? ''}:${p.surface ?? ''}:${p.inComments ? 1 : 0}:${p.summon?.id ?? ''}`
+        `${p.clientID}:${p.name}:${p.artboard ?? ''}:${p.idleSince ?? ''}:${p.surface ?? ''}:${p.inComments ? 1 : 0}:${p.summon?.id ?? ''}:${p.role ?? ''}`
     )
     .join('|');
 

@@ -189,6 +189,12 @@ export interface Ws {
   closeWiderThan(current: Access): number;
 }
 
+/** P8 G2 (b) — the conn's role on this canvas for the room's stamp; no access → no role. */
+function roleOfConn(access: Access | undefined, canvas: string | null): Pick<RoomConn, 'role'> {
+  const role = access?.roleFor(canvas) ?? null;
+  return role ? { role } : {};
+}
+
 /** The close a socket gets when the access it was opened under is no longer the session's. */
 export const ACCESS_CHANGED_CLOSE = Object.freeze({ code: 4403, reason: 'access-changed' });
 
@@ -508,6 +514,8 @@ export function createWs(
       ...(access
         ? { summon: access.can('summon', scope?.canvasOfSlug(access, slug) ?? null) }
         : {}),
+      // P8 G2 (b) — the role word peers see ("· Can edit"), stamped by the room (collab/room.ts)
+      ...roleOfConn(access, access ? canvasOfSlug(access, slug, ctx.paths.designRel) : null),
       send(payload: Uint8Array) {
         try {
           // Bun's ws.send accepts Uint8Array directly as binary.
