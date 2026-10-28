@@ -126,7 +126,11 @@ export function createAccessNotices({
         () => {
           let n = 0;
           try {
-            n = endSessions(who);
+            // P8 G1a — a narrowing names the role now; the hub spares only tokens granting exactly it.
+            n = endSessions(
+              who,
+              change === 'narrowed' && payload.role ? { keepRole: payload.role } : undefined
+            );
           } catch (err) {
             console.error(`[access] ending sessions failed: ${err?.message ?? err}`);
           }
