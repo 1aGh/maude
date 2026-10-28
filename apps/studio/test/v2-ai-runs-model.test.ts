@@ -163,6 +163,20 @@ describe('the rings the canvas draws (dgn ai-runs)', () => {
     });
   });
 
+  test('P8 t-ai (14 ed-edge-ask): a run on a selection wears no artboard ring - its outline is the one on the elements; a question still rings', () => {
+    const el = (e: string) => ({ canvas: KEY, artboard: 'post', element: e });
+    const inPlace = mine({
+      scope: { canvas: 'ui/combine.tsx', artboards: ['post'], elements: [el('card-1'), el('card-2')] },
+      leases: [lease('post')],
+    });
+    expect(ringsFor(view([inPlace]), { activeCanvas: FILE })).toEqual({});
+    // the same run, waiting for you: the artboard it asks about is ringed (azure)
+    const asking = { ...inPlace, state: 'needs-you' };
+    expect(ringsFor(view([asking]), { activeCanvas: FILE }).post?.state).toBe('needs-you');
+    // an ask on the artboard itself is unchanged
+    expect(ringsFor(view([mine({})]), { activeCanvas: FILE }).post?.state).toBe('running');
+  });
+
   test("Tereza's run: her name leads the tag; another canvas gets no ring", () => {
     const v = view(
       [],

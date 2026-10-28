@@ -231,8 +231,13 @@ export function ringsFor(view, { activeCanvas, entryOf } = {}) {
         ? r.touched[r.scope.canvas]
         : []
     );
+    // 14 ed-edge-ask / ed-edge-ai: a run on a SELECTION works inside those elements only - its one outline is the
+    // scope / hold outline on them ("not the page"). The artboard still counts as busy (the lease, the waiting
+    // card); it just wears no ring of its own while the run is working.
+    const inPlace = !needsNow && Array.isArray(r.scope?.elements) && r.scope.elements.length > 0;
     for (const l of r.leases || []) {
       if (!onCanvas(l, activeCanvas, entryOf)) continue;
+      if (inPlace) continue;
       if (needsNow && whole && !touchedNow.has(l.artboard)) continue;
       const needs = needsNow;
       out[l.artboard] = {
