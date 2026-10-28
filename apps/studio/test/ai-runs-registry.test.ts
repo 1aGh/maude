@@ -255,6 +255,33 @@ describe('the registry over the in-process home', () => {
     expect(reg.get(c2.runId)?.leases[0]?.token).toBe(2);
   });
 
+  test('a /design:edit run that waited is RUNNING once granted (its turn is the terminal’s), so its end publishes', async () => {
+    // P8 G2 (ai-runs R1): the grant handed to a line started a hook-driven run as `starting` — the state that
+    // waits for a bridge to accept a prompt, which a terminal run never has — so its end was refused
+    // (`turn-end from starting`), it never published, and it held Post for good.
+    const { reg, published } = registry();
+    const c1 = await reg.ask({
+      chatId: 'c1',
+      origin: 'maude-chat',
+      label: 'Bigger headline',
+      prompt: 'p1',
+      scope: { canvas: 'ui/C.tsx', artboards: ['P'] },
+    });
+    await reg.started(c1.runId);
+    const edit = await reg.ask({
+      origin: 'design-edit',
+      label: 'Claude edited C',
+      scope: { canvas: 'ui/C.tsx', artboards: ['P'] },
+    });
+    expect(edit.state).toBe('waiting');
+    await reg.turnEnded(c1.runId, 'done');
+    expect(reg.get(edit.runId)?.state).toBe('running');
+    reg.endNow(edit.runId, 'done');
+    await tick();
+    expect(reg.get(edit.runId)).toMatchObject({ state: 'ended', outcome: 'done' });
+    expect(published.map((p) => p.runId)).toEqual([c1.runId, edit.runId]);
+  });
+
   test('one chat has one active run: a second ask waits behind it, whatever the artboards', async () => {
     const { reg, sent } = registry();
     const r1 = await reg.ask({

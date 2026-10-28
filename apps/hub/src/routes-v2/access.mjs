@@ -242,7 +242,17 @@ export function createAccessService({
   // minted dies, and every socket it opened is closed. In a cloud cell the
   // revocation sweep runs FIRST, so the project token the old claim rode is
   // refused at the next `/auth/login` (on the control plane's clock).
-  async function endSessions(email) {
+  //
+  // P8 G1a — a narrowing that names the role the person holds NOW spares the tokens that grant exactly that
+  // role and nothing more: the credential their window re-exchanged inside the grace (Can view's browser
+  // lane, which the poll then presents). Everything the old claim minted still dies, and so does a token
+  // that grants more (the old claim re-presented before the sweep). No role named, a canvas-shaped token,
+  // an ending: every session ends, as before.
+  const keepsOnly = (role) => (token) => {
+    const a = resolveAccess(claimForMatch(token));
+    return a.role === role && !a.canvasOnly && a.grants.length === 0;
+  };
+  async function endSessions(email, { keepRole = null } = {}) {
     if (cloud() && sweepNow) {
       try {
         await sweepNow();
@@ -251,14 +261,15 @@ export function createAccessService({
       }
     }
     let n = 0;
-    for (const label of revokeTokensForOwner(dataDir, email)) n += kickLabel(label);
+    const keep = keepRole ? keepsOnly(keepRole) : null;
+    for (const label of revokeTokensForOwner(dataDir, email, { keep })) n += kickLabel(label);
     n += kickEmail(email);
     return n;
   }
 
   const notices = createAccessNotices({
     connections,
-    endSessions: (email) => endSessions(email),
+    endSessions: (email, opts) => endSessions(email, opts),
     // S9.21d — the ended person's cookies hear why at the studio door's 401.
     remember: (email, reason) => rememberEndedSessions(dataDir, email, reason, now()),
     graceMs,

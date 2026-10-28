@@ -41,6 +41,12 @@ export function sanitizeInComments(v: unknown): boolean {
   return v === true;
 }
 
+/** P8 G2 (b) — the room-stamped project role (collab/room.ts); anything else is no role. */
+export type PresenceRole = 'owner' | 'member' | 'viewer' | 'observer';
+export function sanitizeRole(v: unknown): PresenceRole | null {
+  return v === 'owner' || v === 'member' || v === 'viewer' || v === 'observer' ? v : null;
+}
+
 export function sanitizeSummon(v: unknown): Summon | null {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
   const o = v as Record<string, unknown>;

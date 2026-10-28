@@ -496,6 +496,24 @@ export function digestToken(dataDir, value) {
   }
 }
 
+/** One owner's tokens with what each grants, as `verifyToken` reads them (no value, no digest). */
+function listOwnerClaims(dataDir, owner) {
+  if (typeof owner !== 'string' || owner.length === 0) return [];
+  try {
+    return db(dataDir)
+      .prepare('SELECT label, role, read_only, access FROM tokens WHERE owner = ?')
+      .all(owner)
+      .map((row) => ({
+        label: row.label,
+        readOnly: !!row.read_only,
+        ...(row.role ? { role: row.role } : {}),
+        ...(row.access ? { access: accessFromRow(row.access) } : {}),
+      }));
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Revoke every token belonging to one user. Returns the labels removed, so the
  * caller can kick exactly those live sessions (DDR-053 §4).
@@ -507,8 +525,15 @@ export function digestToken(dataDir, value) {
  * @param {string} owner
  * @returns {string[]} labels of the revoked tokens
  */
-export function revokeTokensForOwner(dataDir, owner) {
-  const doomed = listTokensForOwner(dataDir, owner).map((t) => t.label);
+export function revokeTokensForOwner(dataDir, owner, { keep = null } = {}) {
+  // P8 G1a — `keep(token)` spares a token (a narrowing's survivor, routes-v2/access.mjs). It is asked with
+  // what the STORE says the token grants ({ label, role?, readOnly, access? }), never anything presented.
+  const doomed =
+    typeof keep === 'function'
+      ? listOwnerClaims(dataDir, owner)
+          .filter((t) => !keep(t))
+          .map((t) => t.label)
+      : listTokensForOwner(dataDir, owner).map((t) => t.label);
   if (doomed.length === 0) return [];
   const handle = db(dataDir);
   const del = handle.prepare('DELETE FROM tokens WHERE label = ? AND owner = ?');

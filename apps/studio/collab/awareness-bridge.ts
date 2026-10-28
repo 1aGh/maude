@@ -181,6 +181,25 @@ export const CAPABILITY_FIELDS: Readonly<Record<string, string>> = Object.freeze
 });
 
 /**
+ * P8 G2 lead decision (b) — write the connection's `role` onto the states `clients` published,
+ * IN PLACE (beside `stripUnheldFields`, before the room re-encodes them): whatever the client
+ * sent is overwritten, and with no `role` the field is removed — a client never names its own.
+ */
+export function stampRole(
+  awareness: Awareness,
+  clients: readonly number[],
+  role: string | undefined
+): void {
+  const states = awareness.getStates();
+  for (const id of clients) {
+    const state = states.get(id) as Record<string, unknown> | undefined;
+    if (!state || typeof state !== 'object') continue;
+    if (role) state.role = role;
+    else delete state.role;
+  }
+}
+
+/**
  * Drop every capability field `held` lacks from the states `clients` published, IN PLACE,
  * before the room re-encodes them for its peers (and before `bridgeAwareness` relays them
  * to the hub — the room's own listener is registered first, so it runs first). Returns how

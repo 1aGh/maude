@@ -56,3 +56,18 @@ Not built, either because no CONTRACT line names them or because the weekly budg
   two people racing (hub stopped, A trashes a–c, B trashes d, B lands first). Drive it as a race lane or soak it.
 - 12 ia-missing: "Waiting for alice's device" — the hub names the holder by e-mail local part and reports no Mac/PC kind
   yet ("Mac" in the board). Plan: run it inside team-cell's rate-limited window (alice's one write spent on a note).
+- ai-runs (`apps/desktop/e2e/multiplayer/ai-runs.e2e.ts`, lane `e2e:ai-runs`, NOT in the V2-8.3 record): R1 is red once the
+  canvas is open — both Post-scoped runs start `waiting` before anyone holds Post. Likely the spec's Post selection in
+  Mac 1's `_active.json` becomes a person's edit-hold (S2.18), which an AI run waits for by design; confirm with
+  `/_api/ai/runs` `waiting[0].heldBy`, then select nothing on Mac 1 for R1. "Undo this chat" needs a fake-ACP chat run.
+  cf-busy / ai-tereza / ed-edge-undo (two studios on one hub, Tereza's own token) not driven.
+- A remote peer's presence relayed through a hub is not role-stamped by the room (it arrives as the hub sent it).
+- cloud-attach 2b shot: after "Moved to the cloud — your canvases are going up now." the sheet also shows a red
+  "Sharing is not available right now. Try again in a minute." line the board does not draw — most likely the cloud
+  stub has no access API. Check against a real cell on the rc soak.
+- Real GitHub lifecycle (V2-8.16, iagh66/maude-git-smoke): green ×2 signed out. The signed-in PR path (Add to main →
+  a real pull request, DDR-162) was not run — it needs a GitHub sign-in in the app and creates PRs, beyond the
+  lifecycle-push consent. Ask Michal before running it.
+- AI-driven canvas trash (`maude design trash move`, V2-8.16): the delete row is recorded like the UI's, as
+  `canvas.delete` by the person, not under the AI run. Attribution needs a `runForCreate`-style claim from
+  `X-Maude-Chat` on `DELETE /_api/canvas` plus a claim API for deletes.

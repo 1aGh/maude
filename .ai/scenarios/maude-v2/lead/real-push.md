@@ -2,6 +2,7 @@
 
 Michal confirmed this directly in the lead's chat. 2026-10-27: "ano, jednou push na iagh66/maude-git-smoke".
 2026-10-28 he widened it: "souhlasím s reálným pushem lifecycle, muzes jich pushovat kolik potrebujes".
+2026-10-28 later: "ano muzes delat a zavirat push a PRs, nemusis se me ptat" — PRs on that repo are covered too (open, merge/close, clean up), no need to ask.
 The consent covers lifecycle runs against that throwaway repo only, as many as the check needs: a re-run after
 a red, or a run 2x to show it is stable. It covers no other GitHub repo. If a run goes red, diagnose it, clean
 the remote up, fix it (fail-first if it is a product bug), then re-run.

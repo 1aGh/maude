@@ -145,6 +145,8 @@ const MAX_FACES = 4;
 
 /** Who is here: you first, AI while it is editing, then other people (name only — hub-supplied,
  *  so initials are all that is drawn). */
+const FACE_ROLES = ['owner', 'member', 'viewer', 'observer'];
+
 export function facesOf({ you, agentActive = false, peers = [], max = MAX_FACES } = {}) {
   const out = [
     { initials: faceLetter(you || 'You'), name: you ? `${you} (you)` : 'You', you: true },
@@ -163,6 +165,8 @@ export function facesOf({ you, agentActive = false, peers = [], max = MAX_FACES 
       idleSince: Number.isFinite(p?.idleSince) ? p.idleSince : null,
       surface: p?.surface === 'browser' ? 'browser' : 'app',
       inComments: p?.inComments === true,
+      // P8 G2 (b) — the room-stamped role (closed set), for the "· Can edit" word (presence/model.ts roleWord)
+      role: FACE_ROLES.includes(p?.role) ? p.role : null,
     });
   return out.slice(0, max);
 }

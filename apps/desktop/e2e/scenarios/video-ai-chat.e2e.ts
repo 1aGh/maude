@@ -101,6 +101,27 @@ async function dropClipsOnComposer(files: string[]): Promise<void> {
   }, files.map(b64));
 }
 
+/** What the runs list and the accepted history say about the cut, for a failure message. */
+async function runsDiag(): Promise<string> {
+  return browser.execute(async () => {
+    try {
+      const get = async (url: string) => (await fetch(url, { cache: 'no-store' })).json();
+      const runs = ((await get('/_api/ai/runs')).mine ?? []).map((x: Record<string, unknown>) => ({
+        runId: x.runId,
+        state: x.state,
+        outcome: x.outcome,
+        scope: x.scope,
+      }));
+      const history = ((await get('/_api/project/history?limit=12')).history ?? []).map(
+        (h: Record<string, unknown>) => ({ kind: h.kind, actor: h.actor, label: h.label })
+      );
+      return `runs ${JSON.stringify(runs)} · history ${JSON.stringify(history)}`.slice(0, 1800);
+    } catch (e) {
+      return `runs: ${e}`;
+    }
+  });
+}
+
 describe('video-ai-chat — twelve clips in, a cut on the beat out, a take swapped by hand', () => {
   before(async function () {
     if (!haveFfmpeg()) this.skip();
@@ -221,10 +242,16 @@ describe('video-ai-chat — twelve clips in, a cut on the beat out, a take swapp
     expect(said).toContain('too dark');
     expect(said).toContain('shaky');
     expect((await text('ai-left-out-use')).trim()).toBe('Use them anyway');
-    await browser.waitUntil(
-      async () => (await text('timeline-ai-status')).includes('Made by AI · 14 shots'),
-      { timeout: 30_000, timeoutMsg: `the chip said ${await text('timeline-ai-status')}` }
-    );
+    // the chip may be absent altogether (the timeoutMsg is built before the wait, so it must not throw on that)
+    const chip = async () =>
+      (await $(tid('timeline-ai-status')).isExisting()) ? text('timeline-ai-status') : '(no chip)';
+    try {
+      await browser.waitUntil(async () => (await chip()).includes('Made by AI · 14 shots'), {
+        timeout: 30_000,
+      });
+    } catch {
+      throw new Error(`the chip said ${await chip()} · ${await runsDiag()}`);
+    }
     expect(await $(tid('timeline-ai-keep-going')).isExisting()).toBe(false);
 
     // every shot starts on a beat: 120 BPM at 30 fps = 15 frames a beat; the starts are read from the file

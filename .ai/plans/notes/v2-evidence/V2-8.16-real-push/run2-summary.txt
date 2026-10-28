@@ -1,0 +1,15 @@
+run run2 2026-10-28T14:46:36Z base dcd41a761
+prefs mtime before: 1793188027
+== ls-remote --heads before
+e404914ab61fc78f87b1525fc44d4b272f368ea5	refs/heads/main
+main before: e404914ab61fc78f87b1525fc44d4b272f368ea5
+wdio exit: 1
+main after: e404914ab61fc78f87b1525fc44d4b272f368ea5
+log token-free: yes
+== cleanup
+delete refs/heads/smoke/from-remote
+delete refs/heads/smoke/ui-lifecycle
+== ls-remote --heads after
+e404914ab61fc78f87b1525fc44d4b272f368ea5	refs/heads/main
+cleanup: only refs/heads/main — OK
+prefs mtime after: 1793188027

@@ -345,6 +345,30 @@ describe('Share roles: Can view asks, Can edit is removed, a link is turned off 
     );
   });
 
+  it('Share › Advanced: Invite by GitHub username waits there, with its own Invite (desktop only)', async () => {
+    // 02 ob-local-moved / ob-adv-sheets: the main Invite stays primary; inviting by GitHub username is one
+    // disclosure away, on the desktop only (it needs this Mac's GitHub sign-in), and its Invite stays off
+    // until there is a name.
+    await ownerOpensShare('project');
+    expect((await $(tid('share-invite-submit')).getText()).trim()).toBe('Invite');
+    const github = $(tid('share-github'));
+    if (!(await github.isDisplayed())) await $(tid('share-other-ways-toggle')).click();
+    await github.waitForDisplayed({ timeout: STEP_MS });
+    expect((await github.$('label').getText()).trim()).toBe('Invite by GitHub username');
+    expect(await $(tid('share-github-username')).getAttribute('placeholder')).toBe('@username');
+    const ghInvite = $(tid('share-github-invite'));
+    expect((await ghInvite.getText()).trim()).toBe('Invite');
+    expect(await ghInvite.isEnabled()).toBe(false);
+    await $(tid('share-github-username')).setValue('@tereza');
+    await browser.waitUntil(() => ghInvite.isEnabled(), {
+      timeout: STEP_MS,
+      timeoutMsg: 'the GitHub Invite never turned on with a name in the field',
+    });
+    await capture(report, 'owner-advanced-github-invite');
+    await $(tid('share-github-username')).clearValue();
+    await ownerClosesShare();
+  });
+
   it('a link turned off: the person on it reads "This link was turned off."', async () => {
     // The owner copies a link for this canvas; the copy is read where it is written.
     await browser.execute(() => {
