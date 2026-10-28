@@ -87,6 +87,40 @@ test('fail-open: a word or command it cannot follow gives no decision', () => {
   assert.equal(parseBash('X=$(echo a'), null);
 });
 
+// V2-8.16 (journey S7, ACP lane): the agent cut a video with `f="<canvas>" && sed -i … "$f"` from a
+// cwd inside .design/. The `$f` word was unseen, so the guard failed open, the write never went
+// through Edit or a verb, and the AI run held nothing (no "Made by AI", no one-step Undo). A
+// variable an earlier command in the SAME script set to a literal is followed; everything else
+// stays unseen.
+test('a variable set to a literal earlier in the script is followed', () => {
+  const at = (cmd, cwd = ROOT) => classifyBash(cmd, { cwd, designRoot: DR })?.code ?? null;
+  const FOLLOWED = [
+    [`f="C.tsx" && sed -i '' -e 's/a/b/' "$f" && git diff --stat`, `${DR}/ui`, 'not-a-writer'],
+    [`f=".design/ui/C.tsx"; perl -0pi -e 's/a/b/' "$f"`, ROOT, 'not-a-writer'],
+    [`d=.design/ui; sed -i -e 's/a/b/' "$d/C.tsx"`, ROOT, 'not-a-writer'],
+    [`d=.design/ui; sed -i -e 's/a/b/' "\${d}/C.tsx"`, ROOT, 'not-a-writer'],
+    ['F=.design/ui/C.tsx\nrm "$F"', ROOT, 'use-trash'],
+    ['export F=.design/ui/C.tsx; rm $F', ROOT, 'use-trash'],
+    ['a=.design; b="$a/ui/C.tsx"; echo x > "$b"', ROOT, 'not-a-writer'],
+  ];
+  for (const [cmd, cwd, want] of FOLLOWED) assert.equal(at(cmd, cwd), want, cmd);
+  const STILL_UNSEEN = [
+    // a prefix assignment is not in effect while the command's own words expand
+    `f=.design/ui/C.tsx sed -i -e 's/a/b/' "$f"`,
+    // re-bound by the loop, `read`, `unset`, or a value the reader can't see
+    `f=.design/ui/C.tsx; for f in /tmp/*.tsx; do sed -i -e 's/a/b/' "$f"; done`,
+    `f=.design/ui/C.tsx; read f; rm "$f"`,
+    `f=.design/ui/C.tsx; unset f; rm "$f"`,
+    `f=.design/ui/C.tsx; f=$(ls /tmp | head -1); rm "$f"`,
+    // two expansions in one word, and an unquoted value that would split
+    `f=.design; g=ui; rm "$f/$g/C.tsx"`,
+    'f=".design/ui/A B.tsx"; rm $f',
+    // a read of the followed path stays a read
+    `f=.design/ui/C.tsx; cp "$f" /tmp/`,
+  ];
+  for (const cmd of STILL_UNSEEN) assert.equal(at(cmd), null, cmd);
+});
+
 // Phase 2 gate round 3: a command name is judged as the binary that runs — the parsed word
 // (quotes and backslashes removed), basename'd and case-folded (APFS finds `RM` as `rm`).
 const NAMED = [
