@@ -841,8 +841,19 @@ describe('team-project (native-desktop)', () => {
     const waiting = intentsOf(t.managedDir).filter((r) => r.kind === 'ai.prompt' && r.state === 'queued');
     expect(waiting.length).toBe(1);
     expect(waiting[0].gates?.[0]).toBe('hub');
+    // the board draws the queued prompt with no follow-up chips under it: nothing has been answered yet
+    await (await $(tid('ai-suggest'))).waitForExist({ reverse: true, timeout: 15_000 });
 
-    // no internet at all: the page hears it too — the empty canvas keeps its first sentence and adds the line
+    // the hub gate alone — the page still believes this Mac is online — already draws the empty canvas's
+    // offline line: the empty canvas and the queued card read the same truth
+    expect(await browser.execute(() => navigator.onLine)).toBe(true);
+    const hubLine = await $(tid('empty-canvas-offline'));
+    await hubLine.waitForDisplayed({ timeout: 30_000 });
+    expect((await hubLine.getText()).trim()).toBe('AI is back when this Mac is online.');
+    expect((await (await $(tid('empty-canvas'))).getText())).toContain('Your canvas is ready.');
+    await capture('22a-hub-away-empty-canvas-line');
+
+    // no internet at all: the page hears it too — the line and the word stay
     await pageOffline(true);
     try {
       const line = await $(tid('empty-canvas-offline'));
@@ -895,8 +906,12 @@ describe('team-project (native-desktop)', () => {
     await capture('24-back-online-prompt-sent');
   });
 
-  // P8 G1b: run 1 never showed callout-sync-stuck (120 s) with the hub's write ceiling at 1 — the four notes/*.md
-  // did not produce files.rateLimited. Skipped until the 429 path is found (hand-back § Continue).
+  // P8 G1b-2: NOT drivable on this lane's hub. serve-hub.mjs runs without workspace mode, so it has no checkout
+  // and every file write answers 405 "this hub does not accept file writes" before any rate check (sidecar log:
+  // `[sync/assets] 4 asset(s) did not reach … notes/p8-g1b-1.md — HTTP 405`); the journal file plane — the only
+  // lane that reports files.rateLimited — is never active here. The callout's count fix (a cursor-read 429 said
+  // waiting 0) is pinned by test/sync-file-plane.test.ts; the drawn leg belongs on a workspace-mode hub (the local
+  // cell, scripts/dev/local-cell.mjs). Kept as the script for that lane.
   it.skip('13 · ad-edge-sync: the hub asks to wait (429) — what waits, that it is safe, Try now; the facts one fold down', async () => {
     const t = TEAM as NonNullable<typeof TEAM>;
     await stopHub(t);
@@ -920,7 +935,10 @@ describe('team-project (native-desktop)', () => {
     expect(await (await $(tid('callout-sync-stuck-row-reply'))).getText()).toContain('429 · rate limited');
     expect(await (await $(tid('callout-sync-stuck-row-hub'))).getText()).toContain(new URL(t.hub).host);
     expect(await (await $(tid('callout-sync-stuck-row-next'))).isExisting()).toBe(true);
-    expect(await (await $(tid('callout-sync-stuck-file-0'))).getText()).toMatch(/notes\/p8-g1b-\d\.md/);
+    const files = await browser.execute(() =>
+      [...document.querySelectorAll('[data-testid^="callout-sync-stuck-file-"]')].map((e) => e.textContent ?? '')
+    );
+    expect(files.some((f) => /notes\/p8-g1b-\d\.md/.test(f))).toBe(true);
     await capture('26-sync-stuck-fold');
     // the status beside the faces keeps a CONTRACT §6 word — Syncing… (the board), never Saved while files wait
     expect(word).toEqual({ status: 'syncing', text: 'Syncing…', control: false });
