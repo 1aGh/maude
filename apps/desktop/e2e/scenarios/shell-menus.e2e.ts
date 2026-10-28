@@ -60,7 +60,7 @@ const BOARD: Record<string, [string, string][]> = {
     ['Zoom in', '⌘+'],
     ['Zoom out', '⌘−'],
     ['Zoom to fit', '⌘0'],
-    ['Actual size', '⌘1'],
+    ['Actual size', '⇧0'], // the board draws ⌘1; V2-3.11 gave ⌘1..⌘8 to the tabs (actions/defs/native.ts), so Actual size is ⇧0
     ['Advanced', ''],
   ],
   'View › Advanced': [

@@ -162,7 +162,8 @@ describe('shell-strip (11 pn-tab-a, pn-tab-menu, pn-windows, pn-tab-a20)', () =>
   });
 
   it('pn-tab-a20: twenty tabs — a square and a short name each, "N more" holds the rest, the active tab stays in the row', async () => {
-    await focusTab(tabA); // the tab menu closed B; open the rest from a project tab that shows its project
+    // open the rest from Home: a project tab we hold may rest (cap 2) and then is not showing its project
+    await browser.switchToWindow('home');
     const roots = Array.from({ length: 19 }, (_, i) => makeProject(`proj${String(i + 1).padStart(2, '0')}`));
     let last = '';
     for (const root of roots) {
@@ -172,10 +173,11 @@ describe('shell-strip (11 pn-tab-a, pn-tab-menu, pn-windows, pn-tab-a20)', () =>
     }
     await waitWindow(last);
     await focusTab(last);
-    await browser.waitUntil(async () => (await strip()).tabs.length === 20, {
+    // twenty project tabs = twenty webviews besides `home` and `strip` (the row draws only what fits)
+    await browser.waitUntil(async () => (await browser.getWindowHandles()).length === 22, {
       timeout: 60_000,
       interval: 500,
-      timeoutMsg: 'the strip never listed twenty tabs',
+      timeoutMsg: 'the shell never held twenty project tabs',
     });
     const d = await browser.waitUntil(
       async () => {
@@ -205,7 +207,12 @@ describe('shell-strip (11 pn-tab-a, pn-tab-menu, pn-windows, pn-tab-a20)', () =>
     await capture('pn-tab-a20 more list');
     const pick = await $$('[data-testid^="tab-overview-row-"]')[0];
     const pickLabel = (await pick.getAttribute('data-testid')).replace('tab-overview-row-', '');
-    await pick.click();
+    // a row takes the person on mousedown (strip.js `rowEl`); the driver's click is a bare `click`, so send the press
+    await browser.execute((label: string) => {
+      document
+        .querySelector(`[data-testid="tab-overview-row-${label}"]`)
+        ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true, cancelable: true }));
+    }, pickLabel);
     await browser.waitUntil(async () => (await strip()).active === pickLabel, {
       timeout: 15_000,
       interval: 250,
