@@ -572,6 +572,44 @@ part('4')(
           }),
         { timeout: 30_000, timeoutMsg: 'Colour was still an outline after it landed' }
       );
+      // 13 · ds-make-filling draws more than "Colour is no longer an outline": the sections that landed are drawn as
+      // sections (editable), and every section that has not landed yet is a quiet outline that says it is next
+      // ("Space & shape — next"), in the board's order. Read it off the frame as the board draws it.
+      const frameState = (await browser.execute(() => {
+        const f = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+        const d = f.contentDocument as Document;
+        const outlines = Array.from(d.querySelectorAll('[data-testid^="ds-outline-"]')).map((e) => ({
+          id: e.getAttribute('data-testid') ?? '',
+          state: e.getAttribute('data-ds-state') ?? '',
+          text: (e.textContent ?? '').replace(/\s+/g, ' ').trim(),
+        }));
+        const sections = Array.from(d.querySelectorAll('[data-testid^="ds-section-"]')).map(
+          (e) => e.getAttribute('data-testid') ?? ''
+        );
+        return { outlines, sections };
+      })) as {
+        outlines: { id: string; state: string; text: string }[];
+        sections: string[];
+      };
+      console.log(`[ds-make-filling] frame: ${JSON.stringify(frameState)}`);
+      const OUTLINE_WORDS: Record<string, string> = {
+        'ds-outline-space': 'Space & shape — next',
+        'ds-outline-motion': 'Motion — next',
+        'ds-outline-components': 'Components — next',
+        'ds-outline-patterns': 'Patterns — next',
+      };
+      // Brand, Colour and Type are drawn as sections now (A with B's serif is in the working files) ...
+      for (const done of ['ds-section-colour', 'ds-section-type'])
+        expect(frameState.sections).toContain(done);
+      expect(frameState.outlines.map((o) => o.id)).not.toContain('ds-outline-colour');
+      expect(frameState.outlines.map((o) => o.id)).not.toContain('ds-outline-type');
+      // ... and the four that are still to come wait as outlines, saying so, none of them "drawing" without a run
+      for (const [id, words] of Object.entries(OUTLINE_WORDS)) {
+        const o = frameState.outlines.find((x) => x.id === id);
+        expect(o, `${id} should wait as an outline`).toBeDefined();
+        expect(o?.state).toBe('waiting');
+        expect(o?.text).toBe(words);
+      }
       await capture('ds-make-filling');
     });
 
