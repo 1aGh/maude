@@ -26,6 +26,8 @@ export function startLocalHub(opts: {
   users?: boolean;
   /** Run in cloud-identity mode with this project-token key (the way a cell runs). */
   cloudKey?: string;
+  /** P8 G1b-3: run in workspace mode with this checkout (a cell-shaped hub: file door + journal). */
+  workspace?: string;
   node?: string;
   /** Test seam: the spawn the hub is started with (defaults to node:child_process spawn). */
   spawn?: typeof import('node:child_process').spawn;

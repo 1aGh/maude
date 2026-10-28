@@ -83,7 +83,7 @@ export function hubEnv(extra = {}, base = process.env) {
 
 /**
  * Start a local hub. Resolves once it listens (and its accepted-revisions store is ready).
- * @param {{ dir: string, port?: number, extraArgs?: string[], transactions?: boolean, users?: boolean, cloudKey?: string, node?: string }} opts
+ * @param {{ dir: string, port?: number, extraArgs?: string[], transactions?: boolean, users?: boolean, cloudKey?: string, node?: string, workspace?: string }} opts
  *   `dir` is the hub's data dir (a throwaway); `cloudKey` switches on cloud identity with that project-token key.
  */
 export function startLocalHub(opts) {
@@ -91,7 +91,11 @@ export function startLocalHub(opts) {
   // `port` (additive, P8 G1b): restart the SAME hub — same data dir, same port, same tokens (serve-hub re-reads
   // them) — after a spec stopped it, so the peers' stored hub URL still names it. `extraArgs`: serve-hub flags
   // such as `--asset-write-rate-limit N`.
-  const args = [join(REPO, 'apps/hub/test/fixtures/serve-hub.mjs'), opts.dir, String(opts.port ?? 0)];
+  const args = [
+    join(REPO, 'apps/hub/test/fixtures/serve-hub.mjs'),
+    opts.dir,
+    String(opts.port ?? 0),
+  ];
   if (opts.transactions !== false) args.push('--transactions');
   if (opts.users !== false) args.push('--users');
   for (const a of opts.extraArgs ?? []) args.push(String(a));
@@ -99,6 +103,16 @@ export function startLocalHub(opts) {
   if (opts.cloudKey) {
     env.MAUDE_CLOUD_IDENTITY = '1';
     env.MAUDE_PROJECT_TOKEN_KEY = opts.cloudKey;
+  }
+  // `workspace` (additive, P8 G1b-3 team-cell lane): the hub OWNS a checkout, as a cell does — its file door
+  // accepts writes into `<workspace>/.design`, it keeps the file journal (the `ledger` capability) and
+  // serve-hub arms the journal's poke. No studio child (MAUDE_STUDIO_CHILD=0): the peers here are a teammate's
+  // studio and the app, both outside the hub, exactly like a desktop linked to a cell.
+  if (opts.workspace) {
+    env.MAUDE_WORKSPACE_MODE = '1';
+    env.MAUDE_REPO_DIR = opts.workspace;
+    env.MAUDE_DESIGN_ROOT = '.design';
+    env.MAUDE_STUDIO_CHILD = '0';
   }
   const spawnHub = opts.spawn ?? spawn;
   return new Promise((ok, fail) => {
