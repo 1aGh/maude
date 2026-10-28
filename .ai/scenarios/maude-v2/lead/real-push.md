@@ -1,9 +1,10 @@
-# V2-8.16 live check: ONE real push lifecycle run against iagh66/maude-git-smoke (#23)
+# V2-8.16 live check: real push lifecycle runs against iagh66/maude-git-smoke (#23)
 
-Michal confirmed this directly in the lead's chat on 2026-10-27: "ano, jednou push na iagh66/maude-git-smoke".
-The consent covers ONE lifecycle run against that throwaway repo only. No other GitHub repo, no second run.
-If the run goes red, stop and hand back. Do not re-run it.
-
+Michal confirmed this directly in the lead's chat. 2026-10-27: "ano, jednou push na iagh66/maude-git-smoke".
+2026-10-28 he widened it: "souhlasím s reálným pushem lifecycle, muzes jich pushovat kolik potrebujes".
+The consent covers lifecycle runs against that throwaway repo only, as many as the check needs: a re-run after
+a red, or a run 2x to show it is stable. It covers no other GitHub repo. If a run goes red, diagnose it, clean
+the remote up, fix it (fail-first if it is a product bug), then re-run.
 ## What to build (nothing is committed to the product)
 Work in your worktree, based on the current feat tip. Do NOT commit any GitHub-pointing conf or fixture. The
 committed e2e lane must stay local-only (decision v2-p8-e2e-lifecycle-local-bare-remote). Keep the variant files
@@ -34,7 +35,7 @@ committed.
   missing.
 
 ## Run
-- One run only. Before you start: `stat -f %m ~/.config/maude/prefs.json` must be the value stat prints at the start (1793064398 before the 2026-10-28 reboot — re-stat), and the same
+- Run until green twice in a row (each run is followed by the cleanup below). Before you start: `stat -f %m ~/.config/maude/prefs.json` must be the value stat prints at the start (1793064398 before the 2026-10-28 reboot — re-stat), and the same
   afterwards.
 - Record `git ls-remote --heads` of the repo before and after the run.
 

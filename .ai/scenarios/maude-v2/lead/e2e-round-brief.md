@@ -20,7 +20,7 @@ reason it goes to the rc soak.
 1. Drive the exact state the artboard draws. Where it exists, use the harness the repo already has:
    - desktop e2e: `apps/desktop/e2e/` (WebdriverIO + vendored tauri webdriver; `helpers/`, lanes in
      `apps/desktop/e2e/package.json` and `wdio.*.conf.ts`).
-   - browser e2e: `apps/studio/e2e/*.e2e.mjs`, incl. `multiplayer/`.
+   - browser e2e: `apps/studio/test/e2e/*.e2e.mjs`; multi-peer desktop specs live in `apps/desktop/e2e/multiplayer/`.
    - local cell: `scripts/dev/local-cell.mjs`; hub in workspace mode plus a studio child, a second person through a
      minted session or a second profile/sidecar. The team-project and share-roles lanes show how.
    - fake AI: the scripted fake ACP agent that runs the design plugin's real hook (decision
@@ -34,7 +34,7 @@ reason it goes to the rc soak.
 4. If a test finds a **product bug**, fix it in the same branch with a fail-first test: revert the fix, watch the
    test go red, restore it. Say so in the hand-back. A client change means
    `cd apps/studio && MAUDE_SKIP_RUNTIME_BUILD=1 bun run build.ts --release`, then commit `dist/client.bundle.js` +
-   `dist/styles.css` and run `node apps/desktop/scripts/check-client-boots-source.mjs` (memory: app.jsx edits need
+   `dist/styles.css` and run `node scripts/check-client-boots-source.mjs` (memory: app.jsx edits need
    the boot check).
 5. A row that truly cannot be driven locally (an OS banner from a real notification centre, an e-mail from a real
    provider, a second physical display, a page served only by cloud.maude.sh) gets one line in your hand-back:
