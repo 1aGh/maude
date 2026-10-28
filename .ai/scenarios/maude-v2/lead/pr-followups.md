@@ -71,3 +71,6 @@ Not built, either because no CONTRACT line names them or because the weekly budg
 - AI-driven canvas trash (`maude design trash move`, V2-8.16): the delete row is recorded like the UI's, as
   `canvas.delete` by the person, not under the AI run. Attribution needs a `runForCreate`-style claim from
   `X-Maude-Chat` on `DELETE /_api/canvas` plus a claim API for deletes.
+- V2-8.9 round B A1 known gap: a person's own canvas save during the few seconds an auto-tier verb (no permission
+  card) is actually running can still land in that AI run and its Undo. Closing it needs each writer verb to claim
+  its own writes before writing (~40 verbs).
