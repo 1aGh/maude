@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 
 import { classifyBash, designVerbOf, designWritesSince, parseBash } from './bash-guard.mjs';
+import { SUB_VERBS } from './sub-verbs.mjs';
 
 const ROOT = '/p';
 const DR = '/p/.design';
@@ -514,6 +515,9 @@ test('the use-verb / use-trash messages name a route that exists', () => {
   const mv = msg('mv .design/ui/C.tsx .design/ui/D.tsx');
   const rm = msg('rm .design/ui/C.tsx');
   assert.match(mv, /curl-local .*\/_api\/fs-move/);
-  assert.match(rm, /curl-local .*\/_api\/canvas\?file=/);
-  for (const m of [mv, rm]) assert.doesNotMatch(m, /design (canvas move|trash move)/);
+  // V2-8.16: `maude design trash move` exists now (sub-verbs.mjs), and both refusals name it for the trash
+  assert.match(rm, /maude design trash move <canvas path>/);
+  assert.match(mv, /maude design trash move <canvas path>/);
+  assert.ok(SUB_VERBS.trash.move, 'trash move is a dispatched sub-verb');
+  for (const m of [mv, rm]) assert.doesNotMatch(m, /design canvas move/);
 });

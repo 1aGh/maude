@@ -2,6 +2,9 @@
 //
 // The shared Trash from a terminal (S1.17; S1-trash.md; routes/trash.ts):
 //   list      GET  /_api/trash                      (effect none → auto)
+//   move      DELETE /_api/canvas?file=<canvas>     (effect project → auto) — V2-8.16: the canvas
+//             row menu's "Move canvas to trash" (client/v2/canvases/trash-canvas.js) sends exactly
+//             this, so Version history records the same `@manifest delete` and `restore` undoes it
 //   restore   POST /_api/trash/restore { id }       (effect project → auto)
 //   clear     POST /_api/trash/clear   { items? }   (OWNER only; asks first)
 // The requests come from history/surface-requests.ts — the same builders the Trash view uses, so a
@@ -34,15 +37,18 @@ import {
 } from './_studio-verb.mjs';
 
 export const USAGE = `usage: maude design trash list [--json] [--root <project>]
+       maude design trash move <canvas path> [--json] [--root <project>]
        maude design trash restore <id | canvas path> [--json] [--root <project>]
        maude design trash clear [--item <id>]... [--yes] [--json] [--root <project>]
   list     what is in the Trash, newest first: id, kind, canvas, who trashed it, when
+  move     move one canvas (the .tsx and everything that belongs to it) to the Trash — the same
+           as "Move canvas to trash" in Canvases; \`restore\` brings it back
   restore  bring one item back (an id from \`list\`, or the canvas path when only one item has it);
            a canvas whose path was taken comes back under a new name
   clear    delete for good — everything, or the --item ids. Restore can't bring them back.
            Only the project owner may; the studio refuses everyone else. Asks first (--yes skips
            the question, for a script).
-list reads only; restore changes the project; clear is the owner's, at a terminal.
+list reads only; move and restore change the project; clear is the owner's, at a terminal.
 Exit 0 ok · 1 not found / refused / not available · 2 usage · 3 no studio running.
 `;
 
@@ -163,6 +169,40 @@ async function restore(words) {
   return refusal('restore', r);
 }
 
+/** The canvas path a verb names, design-root-relative (`ui/home.tsx`), or a UsageError. */
+function canvasOperand(word) {
+  const path = String(word)
+    .replace(/^\.\//, '')
+    .replace(/^\.design\//, '');
+  if (!/\.tsx$/i.test(path) || path.split('/').includes('..') || path.startsWith('/'))
+    throw new UsageError(`${clean(word)} is not a canvas path (ui/<name>.tsx)`);
+  return path;
+}
+
+async function move(words) {
+  const { flags, pos } = parseWords(words, { bool: ['--json'], value: ['--root'] });
+  if (pos.length !== 1) throw new UsageError('move takes one canvas path');
+  const path = canvasOperand(pos[0]);
+  const c = await connect('trash', flags['--root']);
+  if (c.exit) return c.exit;
+  // The route the row menu's "Move canvas to trash" calls (client/v2/canvases/trash-canvas.js).
+  const r = await call(c.studio, `/_api/canvas?${new URLSearchParams({ file: path })}`, {
+    method: 'DELETE',
+  });
+  const b = r?.body ?? {};
+  if (r?.status === 200 && b.ok) {
+    if (flags['--json']) process.stdout.write(`${JSON.stringify(untrustedJson(b))}\n`);
+    else
+      process.stdout.write(
+        `→ moved ${field(b.rel ?? path)} to the Trash (\`maude design trash restore ${field(b.rel ?? path)}\` brings it back)\n`
+      );
+    return 0;
+  }
+  const why = clean(b.error ?? (r ? `HTTP ${r.status}` : 'no answer'));
+  process.stderr.write(`maude design trash move: refused — ${why}\n`);
+  return 1;
+}
+
 /** The question a person is owed before a delete-for-good. */
 function confirm(question) {
   return new Promise((done) => {
@@ -235,7 +275,7 @@ async function clear(words) {
   return refusal('clear', r);
 }
 
-const SUBS = { list, restore, clear };
+const SUBS = { list, move, restore, clear };
 
 if (import.meta.main) {
   runVerb('trash', USAGE, async (words) => {

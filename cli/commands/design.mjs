@@ -208,7 +208,7 @@ const BIN_VERBS = new Set([
   // studio's accepted rows, or its git log for a local project). Sub-verbs are tiered one by one.
   'history',
   // S1.17 (S1-trash.md, V2-1.11 §5.3). `trash list` / `trash restore <id>` read and bring back from the
-  // shared Trash; `trash clear` is the project OWNER's delete-for-good (human tier, asks first).
+  // shared Trash; `trash move <canvas>` (V2-8.16) puts one canvas there, as the row menu does; `trash clear` is the project OWNER's delete-for-good (human tier, asks first).
   'trash',
   // V2-2.4b (§5.3). `comments list` reads this project's comment threads. Read-only here; replying
   // and resolving (S9) will be their own prompt-tier sub-verbs.
@@ -497,8 +497,8 @@ Studio (talk to the running Maude window — contract V2-1.11 §5.3):
         Restore a canvas / undo an action or a whole AI chat, each as ONE new version; name a version (synced projects). Asks first.
   history restore <canvas> <ref> --artboard <id> | --element <artboard>/<id> · history restore <canvas> @last-good
         Put back only one artboard or object, or the last version that drew without an error.
-  trash list [--json] · trash restore <id | canvas path>
-        What is in the Trash; bring one item back.
+  trash list [--json] · trash move <canvas> · trash restore <id | canvas path>
+        What is in the Trash; move one canvas to it (as Canvases › Move canvas to trash); bring one item back.
   trash clear [--item <id>]... [--yes]
         Delete for good — the project owner's, at a terminal; asks first.
   comments list [<canvas>] [--open | --all] [--mine] [--json]

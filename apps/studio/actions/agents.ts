@@ -192,17 +192,37 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'canvases.find': { effect: 'none', agent: cli('maude design index') },
   'canvases.refresh': { effect: 'none', agent: cli('maude design index') },
   // ── canvas ──
-  'canvas.new': TSX('Write a new .tsx under the design root with a DCArtboard per screen'),
+  // V2-8.16 (lead: option a) — a new canvas is MADE by the app's own create (POST /_api/canvas, which
+  // records it in Version history and claims it for the chat's run — runForCreate), then edited. The
+  // design hook refuses a hand-written new canvas (new-canvas); test/ai-parity-hook-crosscheck.test.ts.
+  'canvas.new': TSX(
+    `Create it with \`maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header "Content-Type: application/json" --data '{"kind":"blank","name":"<name>"}'\` (port: .design/_server.json; the answer's rel is the file), then Edit that .tsx: a DCArtboard per screen`
+  ),
   'canvas.new-brief': TSX(
-    'Write a brief .tsx from plugins/design/templates/brief-board.tsx.template under the design root'
+    `Create it with \`maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header "Content-Type: application/json" --data '{"kind":"brief-board","name":"<name>"}'\` (port: .design/_server.json; the answer's rel is the file), then Edit that brief .tsx`
   ),
-  // S6.3 — a canvas from one sentence: the agent writes the new .tsx itself (V2-1.1 §5.9: `file:'canvas-tsx'`).
+  // S6.3 — a canvas from one sentence (V2-1.1 §5.9: `file:'canvas-tsx'`). From Home the server has already made
+  // the file from the sentence; otherwise the agent makes it with the app's create first (V2-8.16).
   'home.ask': TSX(
-    'Write a new canvas .tsx under newCanvasDir: add every artboard empty with kind and size first, then fill big before small, words last (SKILL.md § A first draft from Home)'
+    `The canvas exists when Home asks (the server made it from the sentence); otherwise create it with \`maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header "Content-Type: application/json" --data '{"kind":"blank"}'\` (the answer's rel is the file). Then Edit it: add every artboard empty with kind and size first, then fill big before small, words last (SKILL.md § A first draft from Home)`
   ),
-  'canvas.duplicate': TSX('Copy the .tsx and its .meta.json under a new name in the same folder'),
-  'canvas.rename': TSX('Rename the .tsx and its .meta.json together'),
-  'canvas.move': TSX('Move the .tsx and its .meta.json to another folder under the design root'),
+  // V2-8.16 — whole-file ops go through the studio's own routes: the design hook refuses an agent's
+  // mv / cp / rm of a versioned design file (bash-guard use-verb · not-a-writer · use-trash), and the
+  // route is what records the move / create in Version history. test/ai-parity-hook-crosscheck.test.ts.
+  'canvas.duplicate': {
+    effect: 'project',
+    agent: cli(
+      `maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header "Content-Type: application/json" --data '{"duplicateOf":"<canvas path>"}'`
+    ),
+  },
+  'canvas.rename': {
+    effect: 'project',
+    agent: cli(`maude design curl-local http://127.0.0.1:<port>/_api/fs-move --method POST --header "Content-Type: application/json" --data '{"file":"<canvas path>","toName":"<new name>"}'`),
+  },
+  'canvas.move': {
+    effect: 'project',
+    agent: cli(`maude design curl-local http://127.0.0.1:<port>/_api/fs-move --method POST --header "Content-Type: application/json" --data '{"file":"<canvas path>","toDir":"<folder>"}'`),
+  },
   // S11.7 — the code view and the broken-canvas card. The agent reads the same two routes through verbs
   // (S11.6): `canvas-source` is the code (or one artboard's lines), `canvas-errors` the structured errors.
   'canvas.view-code': { effect: 'none', agent: cli('maude design canvas-source') },
@@ -212,8 +232,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'canvas.ask-ai-fix': { effect: 'none', agent: cli('maude design canvas-errors') },
   'canvas.last-good': RESTORE('maude design history restore <canvas> @last-good'),
   // S1.2 — the row menu's other rows. The link is the canvas's address (`maude design open <canvas>` moves
-  // the person's view to it). Trash: until S1.17's `maude design trash`, an agent parks the files the way
-  // `DELETE /_api/canvas` does, and the Trash lists them from the manifest.
+  // the person's view to it). Trash: `maude design trash move` (V2-8.16) sends the row menu's own
+  // `DELETE /_api/canvas`, so Version history records the delete — the design hook refuses an agent's mv/rm.
   // S11.9 — the row menu's Advanced group. The two native doors open Finder / the editor on the PERSON's Mac:
   // an agent already holds the file (the project path is in `maude design index`), so they are the person's.
   'canvas.reveal-in-finder': {
@@ -231,7 +251,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     ),
   },
   'canvas.copy-file-path': { effect: 'none', agent: cli('maude design index') },
-  'canvas.rename-file': TSX('Rename the .tsx and its .meta.json together'),
+  'canvas.rename-file': {
+    effect: 'project',
+    agent: cli(`maude design curl-local http://127.0.0.1:<port>/_api/fs-move --method POST --header "Content-Type: application/json" --data '{"file":"<canvas path>","toName":"<new name>"}'`),
+  },
   'canvas.copy-link': {
     effect: 'none',
     agent: human('view-pref', 'copies to the clipboard; an agent shares the canvas path instead'),
@@ -240,11 +263,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'project',
     minRole: 'edit',
     undo: 'version',
-    agent: file(
-      'canvas-tsx',
-      'design:design',
-      'Move the .tsx and its sidecars to <designRoot>/_trash/<stamp>__<slug>/ and write _trash-manifest.json {canvas, slug, trashed[]} beside them; Trash restores from it'
-    ),
+    agent: cli('maude design trash move <canvas>'),
   },
   // S1.2 — pins are the person's (`/_api/pins`); the sort order is a per-project view preference.
   'canvases.pin': PREF(
@@ -274,7 +293,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'view.advanced-open-all': PREF('opens every panel’s Advanced fold; a UI preference'),
   'view.advanced-close-all': PREF('folds every panel’s Advanced section; a UI preference'),
   'canvas.reload': PREF('reloads the user’s view; the studio reloads on every file change'),
-  'canvas.new-video': TSX('Write a new video-comp .tsx canvas', 'design:video-comp'),
+  'canvas.new-video': TSX(
+    `Create it with \`maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header "Content-Type: application/json" --data '{"kind":"video-comp","name":"<name>","clips":[]}'\` (port: .design/_server.json; the answer's rel is the file), then Edit that video-comp .tsx`,
+    'design:video-comp'
+  ),
   'canvas.close': PREF('closes the user’s tab'),
   'video.assemble': {
     effect: 'project',
@@ -857,10 +879,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     minRole: 'edit',
     undo: 'none',
     server: { route: '/_api/assets/trash', method: 'POST' },
-    agent: file(
-      'canvas-tsx',
-      'design:design',
-      'Move assets/<name> and the sidecars that share its stem (<name>.photo.json, <stem>.<edit8>.photo.json, <name>.gen.json, transcripts) into <designRoot>/_trash/<stamp>__asset-<name>/ and write _trash-manifest.json {kind: "asset", asset, slug, trashed[]} beside them — only a picture no canvas uses and no older version shows (`maude design assets --not-used` lists them; nothing is listed until older versions are checked). Over HTTP: POST /_api/assets/trash {assets: ["assets/<name>"]} answers per item: moved, or used | kept-by-versions | checking'
+    // V2-8.16 — the route, not mv: it refuses a picture a canvas uses or an older version shows and
+    // answers per item (moved, or used | kept-by-versions | checking); `assets --not-used` lists them.
+    agent: cli(
+      `maude design curl-local http://127.0.0.1:<port>/_api/assets/trash --method POST --header "Content-Type: application/json" --data '{"assets":["assets/<name>"]}'`
     ),
   },
   // P8 round 7 — Rename… an asset: assets/<name>.<ext> and its sidecars take the new name (asset-rename.ts). Never a
@@ -870,10 +892,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     minRole: 'edit',
     undo: 'none',
     server: { route: '/_api/assets/rename', method: 'POST' },
-    agent: file(
-      'canvas-tsx',
-      'design:design',
-      'Rename assets/<name>.<ext> to assets/<new name>.<ext> (same extension) together with the sidecars that share its stem (<name>.photo.json, <stem>.<edit8>.photo.json, <name>.gen.json, transcripts) — only a picture no canvas uses and no older version shows (`maude design assets --not-used` lists them). Over HTTP: POST /_api/assets/rename {asset: "assets/<name>.<ext>", name: "<new name>"} answers {ok, to} or 409 {reason: used | kept-by-versions | checking | exists | same | bad-name | invalid | missing}'
+    // V2-8.16 — the route, not mv: {ok, to} or 409 {reason: used | kept-by-versions | checking | exists |
+    // same | bad-name | invalid | missing}.
+    agent: cli(
+      `maude design curl-local http://127.0.0.1:<port>/_api/assets/rename --method POST --header "Content-Type: application/json" --data '{"asset":"assets/<name>.<ext>","name":"<new name>"}'`
     ),
   },
   'tool.create-default': TSX(

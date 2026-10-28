@@ -32,6 +32,7 @@ Moving a canvas to the Trash is reversible; clearing the Trash out is not.
 
 ```sh
 maude design trash list                       # canvases and artboards in the Trash, who and when
+maude design trash move ui/home.tsx           # move one canvas to the Trash (row menu › Move to trash)
 maude design trash restore canvas:e1          # bring one back (an id from list, or the canvas path if only one item has it)
 ```
 
@@ -39,4 +40,6 @@ maude design trash restore canvas:e1          # bring one back (an id from list,
 - Restoring a deleted **artboard** needs its canvas to be out of the Trash first.
 - **Clearing out is the owner's, at a terminal** (`maude design trash clear`, which asks first). You never run it:
   the person confirms it in the Trash view, or the owner types it. If a canvas must go for good, tell the person.
-- No verb moves a canvas to the Trash yet. Ask the person (row menu › Move to trash). Never delete a canvas file.
+- To move a canvas to the Trash, run `maude design trash move <canvas>`: it is the row menu's Move to trash, so
+  Version history shows it and `trash restore` brings it back. Never `rm` or `mv` a canvas file (the hook refuses it).
+  One artboard goes by deleting its DCArtboard block with Edit.
