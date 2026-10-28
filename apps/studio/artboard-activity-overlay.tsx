@@ -327,14 +327,20 @@ export function ArtboardRingsLayer() {
   const liveBy = useRef({ rings: false, holds: false });
   const [live, setLive] = useState(false);
   const rings = useMemo<AiRings>(() => {
-    if (!drafted || shellRings[drafted.id]) return shellRings;
+    if (!drafted) return shellRings;
+    const held = shellRings[drafted.id];
+    // The run LEASES the artboard it has just written (its post-edit hook), so the shell usually speaks for it with
+    // the fixed "AI is working": the drafted artboard renames that tag to its own name (01 cf-ai-drafting). A
+    // needs-you ring, or another person's, keeps its own words.
+    if (held && !(held.state === 'running' && held.who === 'you' && held.tag === TAG_WORKING_WORDS))
+      return shellRings;
     return {
       ...shellRings,
       [drafted.id]: {
         state: 'running',
         who: 'you',
         tag: drawingTag(drafted.label) ?? TAG_WORKING_WORDS,
-        waiting: 0,
+        waiting: held?.waiting ?? 0,
       },
     };
   }, [shellRings, drafted]);
@@ -548,7 +554,10 @@ export function ArtboardRingsLayer() {
             data-at="below"
             data-grouped={groupIds.includes(id) ? 'true' : undefined}
             data-fresh={r.state === 'done' && fresh.has(id) ? 'true' : undefined}
-            data-drawing={drafted?.id === id && !shellRings[id] ? 'true' : undefined}
+            data-drawing={
+              // the memo above replaced the shell's ring (or made one) only for the artboard being drawn
+              drafted?.id === id && rings[id] !== shellRings[id] ? 'true' : undefined
+            }
           >
             <span className="dc-ai-sweep">
               <span className="dc-ai-wipe-lab" data-side="before">
