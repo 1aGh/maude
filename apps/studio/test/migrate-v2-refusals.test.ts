@@ -126,6 +126,37 @@ describe('maude migrate v2 — refusals', () => {
     );
   });
 
+  test('linked refusals carry a CODE the app maps to its line (one-button Update project, Michal 2A)', async () => {
+    p = fixtureProject();
+    setConfig({ linkedHub: { url: 'https://hub.example', linkedAt: 1 } });
+    const code = async (o: Parameters<typeof planMigration>[0]) =>
+      (await planMigration(o)).refusals.map((r) => r.code);
+    const owner = { url: 'https://hub.example', token: 't', role: 'owner' };
+    expect(
+      await code(opts(p, { hub: { ...owner, role: 'member' }, hubClient: fakeHub().client }))
+    ).toEqual(['not-owner']);
+    expect(
+      await code(
+        opts(p, {
+          hub: owner,
+          hubClient: fakeHub({ formatVersion: null, capabilities: ['ledger'] }).client,
+        })
+      )
+    ).toEqual(['hub-too-old']);
+    expect(
+      await code(
+        opts(p, { hub: owner, hubClient: fakeHub({ formatVersion: 1, reachable: false }).client })
+      )
+    ).toEqual(['offline']);
+    expect(await code(opts(p, { hub: null }))).toEqual(['no-sign-in']);
+    // the hub admin may update it too: the hub reads `admin` as the project owner (roles.ts)
+    const admin = await planMigration(
+      opts(p, { hub: { ...owner, role: 'admin' }, hubClient: fakeHub().client })
+    );
+    expect(admin.refusals).toEqual([]);
+    expect(admin.exitCode).toBe(EXIT.done);
+  });
+
   test('--reverse on a project that is not at format 2', async () => {
     p = fixtureProject();
     await refused(opts(p, { direction: 'reverse' }), /not at format 2/);

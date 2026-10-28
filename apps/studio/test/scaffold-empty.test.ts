@@ -13,6 +13,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { FORMAT_GATE_OPTS, formatGate, NEW_PROJECT_FORMAT } from '../format.ts';
 import { addGuideCanvases, GUIDE_CANVASES, scaffoldDesign } from '../scaffold-design.ts';
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'maude-scaffold-empty-'));
@@ -20,6 +21,30 @@ const canvasesIn = (ui: string) =>
   readdirSync(ui).filter((f) => f.endsWith('.tsx') || f.endsWith('.meta.json'));
 
 describe('scaffoldDesign — a new project has 0 canvases', () => {
+  test('a project v2 creates is a format-2 project (editable here, view only in 1.x — CONTRACT §4.1)', () => {
+    const dir = tmp();
+    try {
+      expect(scaffoldDesign(dir, 'Fresh').ok).toBe(true);
+      const cfg = JSON.parse(readFileSync(join(dir, '.design', 'config.json'), 'utf8'));
+      expect(cfg.formatVersion).toBe(NEW_PROJECT_FORMAT);
+      expect(NEW_PROJECT_FORMAT).toBe(2);
+      // …and it never re-stamps an EXISTING project: a format-1 config stays format 1 (no
+      // migration on open — only Update project changes it)
+      const v1 = tmp();
+      mkdirSync(join(v1, '.design'), { recursive: true });
+      writeFileSync(join(v1, '.design', 'config.json'), '{"name":"Old"}\n');
+      expect(scaffoldDesign(v1, 'Old').ok).toBe(false);
+      expect(readFileSync(join(v1, '.design', 'config.json'), 'utf8')).toBe('{"name":"Old"}\n');
+      rmSync(v1, { recursive: true, force: true });
+      // the full gate (format.ts FORMAT_GATE_OPTS) leaves it editable
+      expect(
+        formatGate({ cfg, paths: { designRoot: join(dir, '.design') } }, FORMAT_GATE_OPTS)
+      ).toBe(null);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test('writes the config and no canvas, no Welcome, no guides', () => {
     const dir = tmp();
     try {

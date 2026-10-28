@@ -7,12 +7,12 @@
 //
 // Ships WITH the http.ts wiring from the V2-2.14 hand-back (red without it:
 // today every format answers 200 to every write, and /_config has no format
-// fields). Written for the STAGED wiring (`newerOnly: true`); when the lead
-// flips to the full gate, the format-1 case becomes "view only until Update
-// project" and its expectations flip with it.
+// fields). The FULL gate (CONTRACT §4.1, Michal 2A 2026-10-28): a format-1
+// project is view only until "Update project", which snapshots it to
+// `_history/_migrate/v2-<stamp>/` and lifts the gate without a restart.
 
 import { afterEach, describe, expect, test } from 'bun:test';
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Subprocess } from 'bun';
 
@@ -29,10 +29,11 @@ afterEach(async () => {
 
 const ENV = { MAUDE_NO_AUTOBUILD: '1', NO_OPEN: '1' };
 
+/** `formatVersion` undefined = a format-1 project (the key absent, as every v1 project has it). */
 async function boot(formatVersion?: number) {
   box = makeSandbox();
   const cfgPath = path.join(box.designRoot, 'config.json');
-  const cfg = JSON.parse(readFileSync(cfgPath, 'utf8'));
+  const { formatVersion: _drop, ...cfg } = JSON.parse(readFileSync(cfgPath, 'utf8'));
   writeFileSync(
     cfgPath,
     `${JSON.stringify(formatVersion ? { ...cfg, formatVersion } : cfg, null, 2)}\n`
@@ -59,7 +60,7 @@ async function boot(formatVersion?: number) {
   return { base, send };
 }
 
-describe('the format gate in a running studio (staged wiring: newerOnly)', () => {
+describe('the format gate in a running studio (the full gate, CONTRACT §4.1)', () => {
   test('a project NEWER than this build: view only, with the reason', async () => {
     const { send } = await boot(3);
     const cfg = (await (await send('/_config', 'GET')).json()) as Record<string, unknown>;
@@ -92,13 +93,31 @@ describe('the format gate in a running studio (staged wiring: newerOnly)', () =>
     expect((await send('/_api/project/migrate', 'POST', { apply: true })).status).toBe(409);
   }, 30_000);
 
-  test('"Update project" on a format-1 project: 200, and /_config follows without a restart', async () => {
+  test('a format-1 project is VIEW ONLY until "Update project"; the click snapshots, then lifts the gate without a restart', async () => {
     const { send } = await boot();
     const before = (await (await send('/_config', 'GET')).json()) as Record<string, unknown>;
-    expect(before).toMatchObject({ formatVersion: 1, formatGate: null, readOnly: false });
+    expect(before).toMatchObject({
+      formatVersion: 1,
+      formatGate: { projectFormat: 1, supported: 2, source: 'config' },
+      readOnly: true,
+      readOnlyReason: 'format',
+    });
+    const layout = await send('/_api/canvas-meta', 'PATCH', {
+      file: '.design/ui/card.tsx',
+      patch: { layout: { artboards: [{ id: 'a', x: 1, y: 2 }] } },
+    });
+    expect(layout.status).toBe(403);
+    expect(await layout.json()).toMatchObject({
+      detail: 'format',
+      formatVersion: 1,
+      message: 'View only — this project still uses Maude 1.',
+    });
     const r = await send('/_api/project/migrate', 'POST', { direction: 'forward', apply: true });
     expect(r.status).toBe(200);
     expect(await r.json()).toMatchObject({ dryRun: false, exitCode: 0 });
+    // the one click backed the project up first (docs/MIGRATING-V1-TO-V2.md)
+    const snaps = readdirSync(path.join(box!.designRoot, '_history', '_migrate'));
+    expect(snaps.some((d) => /^v2-/.test(d))).toBe(true);
     const deadline = Date.now() + 3000;
     let cfg: Record<string, unknown> = {};
     while (Date.now() < deadline) {
@@ -111,6 +130,39 @@ describe('the format gate in a running studio (staged wiring: newerOnly)', () =>
       readOnlyReason: null,
       formatVersion: 2,
       formatGate: null,
+    });
+    const after = await send('/_api/canvas-meta', 'PATCH', {
+      file: '.design/ui/card.tsx',
+      patch: { layout: { artboards: [{ id: 'a', x: 1, y: 2 }] } },
+    });
+    expect(after.status).toBe(200);
+  }, 30_000);
+
+  test('nothing migrates a format-1 project by itself: boot, /_config, the format view and a dry run leave it as it was', async () => {
+    // Michal 2026-10-28 (via the lead): a local format-1 project is view only and OFFERS Update
+    // project — there is no migration on open. Only the person's click (apply + Sec-Fetch-Site) writes.
+    const { send } = await boot();
+    const cfgPath = path.join(box!.designRoot, 'config.json');
+    const bytes = readFileSync(cfgPath, 'utf8');
+    expect(JSON.parse(bytes).formatVersion).toBeUndefined();
+    await send('/_config', 'GET');
+    expect((await send('/_api/project/format', 'GET')).status).toBe(200);
+    const dry = await send('/_api/project/migrate', 'POST', { direction: 'forward' });
+    expect(await dry.json()).toMatchObject({ dryRun: true, exitCode: 0 });
+    // an apply from anything but the Maude window is refused (no Sec-Fetch-Site)
+    const port = new URL((await send('/_config', 'GET')).url).port;
+    const forged = await fetch(`http://localhost:${port}/_api/project/migrate`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: `http://localhost:${port}` },
+      body: JSON.stringify({ direction: 'forward', apply: true }),
+    });
+    expect(forged.status).toBe(403);
+    await Bun.sleep(500);
+    expect(readFileSync(cfgPath, 'utf8')).toBe(bytes);
+    expect(existsSync(path.join(box!.designRoot, '_history', '_migrate'))).toBe(false);
+    expect(await (await send('/_config', 'GET')).json()).toMatchObject({
+      formatVersion: 1,
+      readOnlyReason: 'format',
     });
   }, 30_000);
 

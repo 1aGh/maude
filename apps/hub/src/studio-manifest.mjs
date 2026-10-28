@@ -360,11 +360,16 @@ export const STUDIO_ROUTES = Object.freeze({
   // project, it holds no candidate of a person's).
   '/_api/project/conflict': REFUSED,
   // V2-2.5 — the studio's route table (apps/studio/routes/*.ts), scraped like the literal.
-  // The format view is a read; a cell is migrated by the hub (V2-1.12 I7), never by a
-  // member's POST; the outbox records carry personal text (C27) and a cell is multi-user.
-  // The `:param` outbox paths match no exact route or prefix here: refused default-closed.
+  // The format view is a read; the outbox records carry personal text (C27) and a cell is
+  // multi-user. The `:param` outbox paths match no exact route or prefix here: refused
+  // default-closed.
   '/_api/project/format': { safe: 'read', unsafe: null },
-  '/_api/project/migrate': REFUSED,
+  // "Update project" in a cell (lead decision on Michal 2A, 2026-10-28): the OWNER of the whole
+  // project only — `delete` is owner-only and a canvas grant never confers it (PROJECT_ONLY; the
+  // door refuses a canvas-only session outright). Never a member's POST. The studio child rewrites
+  // the checkout and the hub raises its own project format before the answer goes back
+  // (studio-proxy `onProjectMigrated` → `raiseFormatToCheckout`).
+  '/_api/project/migrate': { safe: null, unsafe: 'delete' },
   '/_api/outbox': REFUSED,
   // S9.19 — the desktop's door to ITS linked hub's /api/access/* (routes/share.ts), with the Mac's
   // stored credential. A cell IS the hub: the HUB answers a browser tab's /_api/share/* itself

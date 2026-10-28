@@ -791,6 +791,15 @@ export function createHub(config = {}) {
         onAssetWritten: () => {
           writeBehind?.note();
         },
+        // Update project in a cell (lead, Michal 2A): the owner's migrate landed in the checkout —
+        // the hub's own project format rises to its marker NOW (raise-only, the owner's flip), not
+        // at the next boot's one-time seed. Awaited before the browser hears it.
+        onProjectMigrated: async ({ session }) => {
+          if (!accepted) return;
+          await accepted.raiseFormatToCheckout(checkoutFormatVersion(), {
+            by: session?.email || 'owner',
+          });
+        },
         // NEVER LET THIS THROW INTO THE REQUEST LOOP.
         //
         // `mintRenderToken` refuses without a hub secret — correctly; a
@@ -1165,6 +1174,13 @@ export function createHub(config = {}) {
         // DDR-241 §7 — in accepted-revisions mode every content connection is
         // read-only: changes arrive as proposals, only the kernel writes.
         if (connectionConfig && accepted?.acceptedMode()) connectionConfig.readOnly = true;
+        // A brand-new project takes the format of the writer that founds it
+        // (hub-integration foundNewProject) — before the fence below reads it.
+        // Never a viewer, a paused project, or the hub's own paired studio.
+        if (connectionConfig)
+          await accepted?.foundNewProject?.(format, {
+            writer: !door.readOnly && !paused && match.label !== LOOPBACK_SYNC_TOKEN_LABEL,
+          });
         // V2-1.12 §5.4 — a writer of another format is a reader (handshake
         // scope `readonly`, so a patched client knows from the first message).
         if (connectionConfig && accepted?.isReady() && format !== accepted.projectFormat())
@@ -1202,6 +1218,7 @@ export function createHub(config = {}) {
         }
         // DDR-241 §7 — accepted revisions: no client writes content, ever.
         if (connectionConfig && accepted?.acceptedMode()) connectionConfig.readOnly = true;
+        if (connectionConfig) await accepted?.foundNewProject?.(format);
         if (connectionConfig && accepted?.isReady() && format !== accepted.projectFormat())
           connectionConfig.readOnly = true;
         return { user: { name: 'anon', anon: true, format } };

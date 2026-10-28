@@ -182,6 +182,8 @@ export async function bootGateCell(
       {
         name: 'test',
         designRoot: D,
+        // a v2 project: the full format gate (Michal 2A) would open a format-1 one view only
+        formatVersion: 2,
         canvasGroups: [
           { label: 'System', path: 'system' },
           { label: 'UI', path: 'ui' },

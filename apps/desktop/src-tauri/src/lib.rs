@@ -468,6 +468,8 @@ async fn open_project_folder(app: tauri::AppHandle, webview: tauri::Webview) -> 
 /// Write a minimal bootable `.design/` into `dir` (mirrors apps/studio/scaffold-design.ts)
 /// so a non-Maude folder opened via File ▸ Open Project can boot instead of crash-
 /// looping. A real design system is created later via /design:setup-ds.
+/// `formatVersion: 2`: a project v2 creates is a v2 project (apps/studio/format.ts
+/// NEW_PROJECT_FORMAT) — the full format gate opens a format-1 project view only.
 pub(crate) fn write_minimal_design(dir: &std::path::Path) -> std::io::Result<()> {
     let design = dir.join(".design");
     if design.join("config.json").exists() {
@@ -481,7 +483,7 @@ pub(crate) fn write_minimal_design(dir: &std::path::Path) -> std::io::Result<()>
         .unwrap_or_else(|| "Untitled".to_string());
     // `{name:?}` debug-formats the string with JSON-safe quoting/escaping.
     let config = format!(
-        "{{\n  \"$schema\": \"https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/config.schema.json\",\n  \"name\": {name:?},\n  \"designRoot\": \".design\",\n  \"canvasGroups\": [\n    {{ \"label\": \"Design system\", \"path\": \"system\" }},\n    {{ \"label\": \"UI kit\", \"path\": \"ui\" }}\n  ],\n  \"designSystems\": [],\n  \"completenessProfile\": \"standard\"\n}}\n"
+        "{{\n  \"$schema\": \"https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/config.schema.json\",\n  \"name\": {name:?},\n  \"designRoot\": \".design\",\n  \"formatVersion\": 2,\n  \"canvasGroups\": [\n    {{ \"label\": \"Design system\", \"path\": \"system\" }},\n    {{ \"label\": \"UI kit\", \"path\": \"ui\" }}\n  ],\n  \"designSystems\": [],\n  \"completenessProfile\": \"standard\"\n}}\n"
     );
     std::fs::write(design.join("config.json"), config)?;
     std::fs::write(design.join("ui").join(".gitkeep"), "")?;
@@ -957,6 +959,22 @@ mod tests {
             boot_plan(Some(p("/e2e")), Some(p("/last"))),
             BootPlan::Project(p("/e2e"))
         );
+    }
+
+    // A folder opened via File ▸ Open Project becomes a NEW v2 project: format 2, or the full
+    // format gate (apps/studio/format.ts FORMAT_GATE_OPTS) would open it view only.
+    #[test]
+    fn a_minimal_design_is_a_format_2_project() {
+        let dir = std::env::temp_dir().join(format!("maude-minimal-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        write_minimal_design(&dir).unwrap();
+        let cfg: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(dir.join(".design/config.json")).unwrap())
+                .unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(cfg["formatVersion"], serde_json::json!(2));
+        assert_eq!(cfg["designRoot"], serde_json::json!(".design"));
     }
 
     // The save_export download tests moved with it to export_save.rs (S8.23).

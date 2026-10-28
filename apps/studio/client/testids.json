@@ -14611,6 +14611,182 @@
     "v2": "new"
   },
   {
+    "hook": "format-older-callout",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The v2 side of the format gate (Michal 2A): a format-1 project is view only. `data-kind` = `checking` / `owner` (View only — this project still uses Maude 1. + Update project) / `non-owner` (the owner hasn't updated it) / `hub-too-old` (the team server needs an update + How to update) / `offline` (updating needs the team server, this Mac is offline).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/format-update.jsx",
+      "symbol": "OlderFormatCallout"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/format-update-model.test.ts",
+      "apps/desktop/e2e/format-update.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "format-older-update",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The callout's Update project button — local project, or the owner / hub admin of a linked one on a v2 hub. Opens `format-update-dialog`.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/format-update.jsx",
+      "symbol": "OlderFormatCallout"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/format-update-model.test.ts",
+      "apps/desktop/e2e/format-update.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "format-older-team-server",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The callout's How to update button — the owner of a project on a 1.x team server. Opens `format-team-server-dialog`.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/format-update.jsx",
+      "symbol": "OlderFormatCallout"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/format-update-model.test.ts",
+      "apps/desktop/e2e/format-update.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "format-update-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The confirm: Update \"<project>\" for Maude 2? · People still on Maude 1 can look at it but can't change it until they update. Asked once on opening an older project (never updates by itself).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/format-update.jsx",
+      "symbol": "OlderFormatCallout"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/format-update-model.test.ts",
+      "apps/desktop/e2e/format-update.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "format-update-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The dialog's Update project: `POST /_api/project/migrate` apply (snapshots to `_history/_migrate/v2-<stamp>/` first), then the toast Updated for Maude 2.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/format-update.jsx",
+      "symbol": "OlderFormatCallout"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/format-update-model.test.ts",
+      "apps/desktop/e2e/format-update.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "format-update-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The dialog's Cancel: the project stays view only with the callout's Update project.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/format-update.jsx",
+      "symbol": "OlderFormatCallout"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/format-update-model.test.ts",
+      "apps/desktop/e2e/format-update.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "format-update-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The dialog's line when the apply was refused: The project was not updated — <why>. Nothing in it changed.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/format-update.jsx",
+      "symbol": "OlderFormatCallout"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/format-update-model.test.ts",
+      "apps/desktop/e2e/format-update.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "format-team-server-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "How to update the team server: who does it, the one command, Maude Cloud is already up to date.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/format-update.jsx",
+      "symbol": "OlderFormatCallout"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/format-update-model.test.ts",
+      "apps/desktop/e2e/format-update.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "format-team-server-command",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The command a self-hosted team server is updated with: `maude hub workspace-up --image-tag <this release>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/format-update.jsx",
+      "symbol": "OlderFormatCallout"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/format-update-model.test.ts",
+      "apps/desktop/e2e/format-update.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "format-team-server-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Copy command — puts `format-team-server-command` on the clipboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/format-update.jsx",
+      "symbol": "OlderFormatCallout"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/format-update-model.test.ts",
+      "apps/desktop/e2e/format-update.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "format-team-server-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Close the team-server sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/format-update.jsx",
+      "symbol": "OlderFormatCallout"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/format-update-model.test.ts",
+      "apps/desktop/e2e/format-update.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "callout-<kind>",
     "kind": "testid",
     "pattern": true,

@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { Readable } from 'node:stream';
 import { test } from 'node:test';
 
 import {
@@ -1757,4 +1758,101 @@ test('every role the shell door serves carries its claim upstream', async () => 
     assert.equal(forwarded.length, 1, role);
     assert.deepEqual(decodeAccess(forwarded[0].headers['x-maude-access']), { v: 1, role });
   }
+});
+
+// ------------------------------------------- Update project in a cell (Michal 2A, lead)
+//
+// A cell's Update project: only the owner of the whole project reaches the studio's migrate route,
+// and the hub raises its OWN project format (the hook) BEFORE the answer reaches the browser — so
+// no window ever opens with the checkout at 2 and the hub still at 1.
+
+function migrateProxy(events, { status = 200 } = {}) {
+  return makeProxy({
+    forwardRaw: async ({ method, path, headers, payload }) => {
+      events.push(['child', method, path, String(payload), headers['content-length']]);
+      const res = Readable.from([Buffer.from('{"dryRun":false,"exitCode":0}')]);
+      res.statusCode = status;
+      res.headers = { 'content-type': 'application/json', 'transfer-encoding': 'chunked' };
+      return res;
+    },
+    onProjectMigrated: async ({ session }) => {
+      await new Promise((r) => setTimeout(r, 5));
+      events.push(['raised', session.email]);
+    },
+  });
+}
+
+function migrateRequest(body = '{"direction":"forward","apply":true}') {
+  const req = Readable.from([Buffer.from(body)]);
+  req.headers = { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' };
+  req.url = '/_api/project/migrate';
+  return req;
+}
+
+test('Update project in a cell: the owner reaches the studio, and the hub raises before the answer', async () => {
+  const events = [];
+  const { proxy } = migrateProxy(events);
+  const r = fakeResponse();
+  const realEnd = r.end.bind(r);
+  r.end = (b) => {
+    events.push(['answered']);
+    realEnd(b);
+  };
+  await proxy.handle({
+    request: migrateRequest(),
+    response: r,
+    pathname: '/_api/project/migrate',
+    method: 'POST',
+    session: { email: 'o@b.c', role: 'owner' },
+  });
+  assert.equal(r.statusCode, 200);
+  assert.deepEqual(
+    events.map((e) => e[0]),
+    ['child', 'raised', 'answered'],
+    'the hub format rises before the browser hears the update landed'
+  );
+  assert.equal(events[0][3], '{"direction":"forward","apply":true}', 'the body reaches the studio');
+  assert.equal(events[0][4], String(events[0][3].length));
+  assert.equal(events[1][1], 'o@b.c');
+  assert.equal(r.headers['transfer-encoding'], undefined);
+  assert.match(String(r.body), /"exitCode":0/);
+});
+
+test('Update project in a cell: an editor and a viewer never reach it', async () => {
+  for (const session of [
+    { email: 'm@b.c', role: 'member' },
+    { email: 'v@b.c', role: 'viewer' },
+  ]) {
+    const events = [];
+    const { proxy, forwarded } = migrateProxy(events);
+    const r = fakeResponse();
+    await proxy.handle({
+      request: migrateRequest(),
+      response: r,
+      pathname: '/_api/project/migrate',
+      method: 'POST',
+      session,
+    });
+    assert.equal(r.statusCode, 403, session.role);
+    assert.equal(JSON.parse(r.body).reason, 'read-only');
+    assert.equal(events.length + forwarded.length, 0, `${session.role}: nothing ran`);
+  }
+});
+
+test('Update project in a cell: a refused update raises nothing', async () => {
+  const events = [];
+  const { proxy } = migrateProxy(events, { status: 409 });
+  const r = fakeResponse();
+  await proxy.handle({
+    request: migrateRequest(),
+    response: r,
+    pathname: '/_api/project/migrate',
+    method: 'POST',
+    session: { email: 'o@b.c', role: 'owner' },
+  });
+  assert.equal(r.statusCode, 409);
+  assert.deepEqual(
+    events.map((e) => e[0]),
+    ['child']
+  );
 });

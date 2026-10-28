@@ -6,6 +6,8 @@ import { useState } from 'react';
 import { isNativeApp, restartToUpdate } from '../github.js';
 import { useShellStore } from '../stores/shell-store.jsx';
 import { StIcon } from './icons.jsx';
+import { isOlderGate } from '../v2/shell/format-update.js';
+import { OlderFormatCallout } from '../v2/shell/format-update.jsx';
 
 /**
  * V2-1.12 §5.8 — the 1.x side of a project that moved to Maude 2. The words
@@ -25,7 +27,7 @@ export const DOWNLOAD_URL = 'https://maude.sh/download';
 /**
  * What the format banner says and offers — pure, so every variant is tested.
  *
- *   • not gated, or gated by an OLDER project (v2's own dialog owns that) → null
+ *   • not gated, or gated by an OLDER project (OlderFormatCallout owns that) → null
  *   • a cloud tab: the cell runs the compat build; look only, no action (§9 Q2)
  *   • the desktop app: a staged update → restart into it; none staged once the
  *     person asked → the "isn't out yet" line, no action (§9 Q1 — the updater
@@ -62,6 +64,8 @@ export function FormatGateBanner() {
     updateReady,
     askedForUpdate,
   });
+  // An OLDER project (format 1 in v2) is the v2 side: view only + Update project (Michal 2A).
+  if (isOlderGate(cfg)) return <OlderFormatCallout />;
   if (!state) return null;
   const onAction = () => {
     if (state.action === 'restart') {

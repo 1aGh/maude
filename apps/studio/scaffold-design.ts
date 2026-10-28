@@ -9,6 +9,7 @@
 
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
+import { NEW_PROJECT_FORMAT } from './format.ts';
 
 const CONFIG_SCHEMA =
   'https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/config.schema.json';
@@ -1219,6 +1220,9 @@ export function scaffoldDesign(dir: string, name?: string): ScaffoldResult {
       $schema: CONFIG_SCHEMA,
       name: projectName,
       designRoot: '.design',
+      // A project v2 creates is a v2 project: the full format gate (format.ts FORMAT_GATE_OPTS)
+      // opens anything else view only.
+      formatVersion: NEW_PROJECT_FORMAT,
       canvasGroups: [
         { label: 'Design system', path: 'system' },
         { label: 'UI kit', path: 'ui' },

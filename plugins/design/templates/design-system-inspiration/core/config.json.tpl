@@ -3,6 +3,7 @@
   "name": "{{project_name}}",
   "projectLabel": "{{project_label}}",
   "designRoot": ".design",
+  "formatVersion": 2,
   "canvasGroups": [
     { "label": "Design system", "path": "system" },
     { "label": "UI kit", "path": "ui" }

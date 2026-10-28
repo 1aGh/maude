@@ -41,6 +41,7 @@ import { renewHubCredential } from '../cloud/renew.ts';
 import { Y_TYPES } from '../collab/persistence.ts';
 import type { Context, LinkedHub } from '../context.ts';
 import { PROJECT_CONFIG_CACHE_REL, reloadConfig, sanitizeProjectConfig } from '../context.ts';
+import { SUPPORTED_FORMAT } from '../format.ts';
 import type { TrashListing, TrashOutcome } from '../history/trash.ts';
 import { createHistory } from '../history.ts';
 import { SYNTHETIC_FS_DELAY_MS } from '../hmr-broadcast.ts';
@@ -1146,7 +1147,13 @@ export function createSyncRuntime(
     }
     if (changed) {
       console.log(
-        `[sync] the project format is ${formatVersion}${outboundPaused() ? ' — newer than this build writes; open to look at, nothing goes up until Maude is updated' : ''}`
+        `[sync] the project format is ${formatVersion}${
+          !outboundPaused()
+            ? ''
+            : formatVersion > SUPPORTED_FORMAT
+              ? ' — newer than this build writes; open to look at, nothing goes up until Maude is updated'
+              : ' — older than this build edits; open to look at, nothing goes up until the owner runs Update project'
+        }`
       );
       ctx.bus.emit('config-updated');
     }

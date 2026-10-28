@@ -36,13 +36,15 @@ A Maude 2 project carries `"formatVersion": 2` in `.design/config.json`. A proje
 
 Open the project, then choose **Update project** in the view-only line. The dialog asks *Update "<project>" for Maude 2?* and says what it means: *People still on Maude 1 can look at it but can't change it until they update. Nothing in the project is lost.* When it finishes, a toast says *Updated for Maude 2. People on Maude 1 can look but not edit.*
 
+Maude 2 never updates a project by itself: opening a Maude 1 project only asks, once. A project Maude 2 creates is a Maude 2 project from the start, and so is a brand-new team project that a Maude 2 app starts on a Maude 2 team server.
+
 Who can update:
 
 | Situation | What the view-only line says |
 | --- | --- |
 | You own the project, or it is not shared | **Update project** |
 | Somebody else owns the shared project | *View only — the owner hasn't updated this project for Maude 2 yet.* |
-| The team server is too old to move projects | *View only — the team server needs an update before this project can move to Maude 2.* |
+| The team server is too old to move projects | *View only — the team server needs an update before this project can move to Maude 2.* The owner also gets **How to update**: on the server, run `maude hub workspace-up --image-tag <release>` again (it keeps the settings, secrets and data). Once the server is updated, the line turns into **Update project**. |
 | You own a team project and this Mac is offline | *View only — updating the project needs the team server, and this Mac is offline.* |
 
 ### Updating from a terminal: `maude migrate v2`

@@ -409,6 +409,16 @@ export function envEntries(cfg, { hubSecret, adminPassword, renderSecret }) {
       comment: 'the browser studio is a project participant (required for accepted revisions)',
     },
     {
+      // Michal 1A (2026-10-28): a brand-new project saves through accepted
+      // revisions from the start — the same rule a cloud cell runs with
+      // (cell-config). The hub applies it only to a project that never
+      // switched and holds no canvas (hub-integration adoptNewProjectMode), so
+      // an existing project keeps its mode; the owner's switch still covers it.
+      key: 'MAUDE_NEW_PROJECT_MODE',
+      value: 'transactions',
+      comment: 'a NEW project saves through accepted revisions; existing ones keep their mode',
+    },
+    {
       key: 'MAUDE_ADMIN_EMAIL',
       value: cfg.adminEmail,
       comment: 'first user, created on first boot',
@@ -561,6 +571,7 @@ export function renderCompose(cfg) {
     ...(cfg.local ? ['HUB_INSECURE_HTTP'] : []),
     'MAUDE_WORKSPACE_MODE',
     'MAUDE_CELL_PAIRING',
+    'MAUDE_NEW_PROJECT_MODE',
     'MAUDE_ADMIN_EMAIL',
     // The password has to cross into the container too, or the hub knows WHO
     // the first user is and has no way to create them — which is precisely the

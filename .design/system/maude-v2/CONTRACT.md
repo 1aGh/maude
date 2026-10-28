@@ -99,6 +99,7 @@ Menu
 | Linked library — view only | Can view (for a library) | the state of a design system linked from a team library [C18]. "Can view" is a people permission only |
 | <who> invited you here — their comment is on <canvas>. | her / his comment, "Opened from <who>'s link" (for an invite) | the invite-landing toast (S6.11, corrected 2026-10-28: the app knows nobody's gender, so they/them — "their" says whose comment it is) |
 | Untitled canvas | New canvas 1, Canvas | a new canvas's name (+ " 2", " 3") [C4]; Home names it from the prompt with a non-AI heuristic, offline create too |
+| View only | Read only, Locked, Read-only mode | a project this build does not edit — its file format is older or newer [A17]. Distinct from *Can view* (a people permission) |
 
 ## 4 · Voice rules
 
@@ -146,6 +147,7 @@ Menu
 - **Settings › Advanced** [C34]: "Local server port" is display only; "Faster canvas engine" and "Send anonymous usage data" are not built (no-telemetry); "Decision memory" shows a count when kgai is set up, else "Not set up".
 - **Timeline tracks** [C35]: Text · Graphics · Video · Music by default; "+ track" under the timeline's Advanced adds Video 2 / Music 2; existing comps' overlay lanes migrate to Video 2. **Sound only** is .m4a (AAC; .wav under Advanced); the **captions file** is .srt (.vtt under Advanced) [C36].
 - **Home tab backend** [C38]: one project-less Home server mode (shared, loopback) serves the same client bundle in Home mode; the shell owns the cross-project index (recents, pins, open tabs, thumbnails cache).
+- **Project format** [A17, Michal 2A 2026-10-28]: v2 opens a format-1 project *View only* until it is updated; it never updates by itself. The callout says "View only — this project still uses Maude 1." + **Update project** to whoever may update it (a local project, or the owner / hub admin of a linked one); opening the project asks once — **Update "Alligators brand" for Maude 2?** · "People still on Maude 1 can look at it but can't change it until they update. Nothing in the project is lost." · **Update project** / Cancel — then the toast "Updated for Maude 2. People on Maude 1 can look but not edit." Anyone else: "View only — the owner hasn't updated this project for Maude 2 yet." The owner offline: "View only — updating the project needs the team server, and this Mac is offline." The owner on a team server too old for Maude 2: "View only — the team server needs an update before this project can move to Maude 2." + **How to update**, a sheet titled **Update the team server** with the one command (`maude hub workspace-up --image-tag <release>`), **Copy command** and **Close**; once the server is updated the line turns into Update project by itself. A project v2 creates is format 2.
 
 ## 7 · Cross-canvas behaviour rules (decided — Gate 0, Michal 2026-10-08)
 

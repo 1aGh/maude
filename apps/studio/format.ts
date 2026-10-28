@@ -161,11 +161,9 @@ export interface FormatGateOptions {
   hubFormat?: number | null;
   /**
    * Gate only projects NEWER than this build (the 1.x direction), and leave
-   * older ones editable. The contract's full behaviour (§4.1: v2 opens a
-   * format-1 project view only until it is updated) is `false`; `true` is the
-   * staged wiring for the branch until the "Update project" dialog and
-   * format-2 test sandboxes exist — measured: the full gate turns every
-   * existing project and test sandbox view-only (V2-2.14 hand-back).
+   * older ones editable. The studio does NOT run with it any more: the
+   * contract's full behaviour (§4.1, Michal 2A 2026-10-28) — v2 opens a
+   * format-1 project view only until "Update project" — is `FORMAT_GATE_OPTS`.
    */
   newerOnly?: boolean;
 }
@@ -201,6 +199,13 @@ export const FORMAT_COPY = {
     "People still on Maude 1 can look at it but can't change it until they update. Nothing in the project is lost.",
   dialogAction: 'Update project',
   toastUpdated: 'Updated for Maude 2. People on Maude 1 can look but not edit.',
+  /** The owner on a 1.x hub (Michal 2A): the callout's one action opens how to update the server. */
+  teamServerAction: 'How to update',
+  teamServerTitle: 'Update the team server',
+  teamServerBody:
+    'Whoever runs your team server updates it; the projects on it stay as they are. On the server, run the command below again — it keeps the settings and secrets and starts the new version on the same data. Maude Cloud team servers are already up to date. Once the server is updated, Update project appears here.',
+  teamServerCopy: 'Copy command',
+  teamServerClose: 'Close',
 } as const;
 
 /** The line a refusal carries, by direction. */
@@ -251,11 +256,19 @@ export function formatGateAllowsWrite(
 }
 
 /**
- * The gate options the studio runs with today — STAGED (V2-2.14): only a
- * project NEWER than this build is gated. `http.ts` and the sync runtime both
- * pass this constant (test/format-sync.test.ts pins it).
+ * The gate options the studio runs with — the FULL gate (CONTRACT §4.1,
+ * decision maude/v2-michal-1a-2a-format-gate-one-button-migrate): a project
+ * edits only at exactly this build's format, so v2 opens a format-1 project
+ * view only until its owner runs "Update project" (`POST /_api/project/migrate`,
+ * the one write the gate lets through). Every project v2 creates is stamped
+ * `formatVersion: SUPPORTED_FORMAT` (`NEW_PROJECT_FORMAT`). `http.ts`,
+ * `server.ts` and the sync runtime all pass this one constant
+ * (test/format-sync.test.ts pins it).
  */
-export const STAGED_FORMAT_GATE_OPTS: FormatGateOptions = { newerOnly: true };
+export const FORMAT_GATE_OPTS: FormatGateOptions = {};
+
+/** The format a project this build CREATES is stamped with (`config.json` `formatVersion`). */
+export const NEW_PROJECT_FORMAT = SUPPORTED_FORMAT;
 
 /**
  * A canvas build that failed because the canvas imports a `@maude/canvas-lib`

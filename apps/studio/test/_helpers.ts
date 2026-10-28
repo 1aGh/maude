@@ -20,6 +20,9 @@ export function makeSandbox(): Sandbox {
       {
         name: 'test',
         designRoot: '.design',
+        // v2 edits only a format-2 project (format.ts FORMAT_GATE_OPTS, CONTRACT §4.1); a test of
+        // the format-1 view-only path drops the key itself (format-gate-studio.test.ts).
+        formatVersion: 2,
         canvasGroups: [
           { label: 'System', path: 'system' },
           { label: 'UI', path: 'ui' },

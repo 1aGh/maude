@@ -366,6 +366,7 @@ describe('/_api/canvas — POST round-trip', () => {
       JSON.stringify({
         name: 'test',
         designRoot: '.design',
+        formatVersion: 2,
         newCanvasDir: '../../../../tmp',
         canvasGroups: [
           { label: 'System', path: 'system' },

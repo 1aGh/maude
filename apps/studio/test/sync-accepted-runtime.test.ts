@@ -208,7 +208,13 @@ async function startPeer(name: string, repoRoot: string, url: string): Promise<P
 async function api(hub: Hub, route: string, init: RequestInit = {}) {
   const res = await fetch(`${hub.http}/api/projects/current/v1/${route}`, {
     ...init,
-    headers: { authorization: `Bearer ${hub.tokens.owner}`, 'content-type': 'application/json' },
+    // A v2 writer: the v2 peers found the project at format 2 (lead, Michal 2A), and the hub fences
+    // a writer that declares nothing (1.x) on it with 426.
+    headers: {
+      authorization: `Bearer ${hub.tokens.owner}`,
+      'content-type': 'application/json',
+      'x-maude-format': '2',
+    },
   });
   return { status: res.status, body: (await res.json()) as Record<string, unknown> };
 }
@@ -689,7 +695,12 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     expect(old?.retired).toBe(true);
     const late = await fetch(`${hub.http}/api/projects/current/v1/proposals`, {
       method: 'POST',
-      headers: { authorization: `Bearer ${hub.tokens.bob}`, 'content-type': 'application/json' },
+      // a v2 writer (see api())
+      headers: {
+        authorization: `Bearer ${hub.tokens.bob}`,
+        'content-type': 'application/json',
+        'x-maude-format': '2',
+      },
       body: JSON.stringify({
         protocol: 1,
         projectId: boot.body.projectId,
