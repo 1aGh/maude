@@ -126,6 +126,24 @@ test('the browser studio is a project participant by default (MAUDE_CELL_PAIRING
   assert.match(renderCompose(ok(BASE)), /MAUDE_CELL_PAIRING: \$\{MAUDE_CELL_PAIRING\}/);
 });
 
+test('a fresh workspace starts NEW projects in accepted revisions (MAUDE_NEW_PROJECT_MODE, Michal 1A)', () => {
+  // 2026-10-28: the operator path no longer needs the owner's manual switch for a brand-new
+  // project. The hub applies it only to a project that never switched and holds no canvas
+  // (hub-integration adoptNewProjectMode), so an existing project is untouched — and the
+  // manual switch stays for it. Pairing is on in the same stack, which the switch requires.
+  const byKey = Object.fromEntries(
+    envEntries(ok(BASE), { hubSecret: 'x' }).map((e) => [e.key, e.value])
+  );
+  assert.equal(byKey.MAUDE_NEW_PROJECT_MODE, 'transactions');
+  assert.equal(byKey.MAUDE_CELL_PAIRING, '1');
+  // written into .env AND forwarded to the container (the hand-maintained pair, see S3 below)
+  assert.match(
+    renderCompose(ok(BASE)),
+    /MAUDE_NEW_PROJECT_MODE: \$\{MAUDE_NEW_PROJECT_MODE\}/
+  );
+  assert.match(renderEnv(envEntries(ok(BASE), { hubSecret: 'x' })), /^MAUDE_NEW_PROJECT_MODE='transactions'$/m);
+});
+
 test('.env includes S3 only when configured', () => {
   const without = envEntries(ok(BASE), { hubSecret: 'x' }).map((e) => e.key);
   assert.ok(!without.includes('MAUDE_S3_BUCKET'));
