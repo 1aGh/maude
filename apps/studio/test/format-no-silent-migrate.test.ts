@@ -28,13 +28,18 @@ describe('no path migrates a project silently', () => {
       .map((f) => path.relative(STUDIO, f))
       .filter((f) => f !== path.join('migrate', 'engine.ts'))
       .sort();
-    expect(callers).toEqual([path.join('migrate', 'cli.ts'), path.join('routes', 'project-format.ts')]);
+    expect(callers).toEqual([
+      path.join('migrate', 'cli.ts'),
+      path.join('routes', 'project-format.ts'),
+    ]);
   });
 
   test('the route applies only on an explicit apply from the Maude window', () => {
     const src = readFileSync(path.join(STUDIO, 'routes', 'project-format.ts'), 'utf8');
     expect(src).toMatch(/body\.apply === true && dry\.exitCode === EXIT\.done/);
-    expect(src).toMatch(/body\.apply === true && req\.headers\.get\('sec-fetch-site'\) !== 'same-origin'/);
+    expect(src).toMatch(
+      /body\.apply === true && req\.headers\.get\('sec-fetch-site'\) !== 'same-origin'/
+    );
   });
 
   test('the CLI applies only with --apply', () => {

@@ -30,9 +30,10 @@ export const OLDER_COPY = {
 /** The one command a self-hosted team server is updated with (`maude hub workspace-up`: re-running is
  *  the upgrade path — it reuses `.env`'s secrets and the data volume). Pinned to this app's release. */
 export function teamServerCommand(version) {
-  const v = typeof version === 'string' && /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)
-    ? version
-    : 'latest';
+  const v =
+    typeof version === 'string' && /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)
+      ? version
+      : 'latest';
   return `maude hub workspace-up --image-tag ${v}`;
 }
 

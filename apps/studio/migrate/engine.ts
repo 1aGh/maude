@@ -27,10 +27,9 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
-
+import { projectRoleForAccount } from '../access/roles.ts';
 import { readHeadLines } from '../acp/transcript-io.ts';
 import { migrateAnnotationsV2 } from '../annotations/migrate-boot.ts';
-import { projectRoleForAccount } from '../access/roles.ts';
 import { asFormat } from '../format.ts';
 import { type DsTokensEmitter, defaultDsEmitter } from './ds-registry.ts';
 import { createHubFormatClient, type HubFormatClient } from './hub.ts';

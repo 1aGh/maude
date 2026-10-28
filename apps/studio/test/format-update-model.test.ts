@@ -38,7 +38,9 @@ describe('the older-project callout', () => {
         expect({ k, v }).toEqual({ k, v: want });
       }
     }
-    expect(OLDER_COPY.dialogTitle('Alligators brand')).toBe('Update "Alligators brand" for Maude 2?');
+    expect(OLDER_COPY.dialogTitle('Alligators brand')).toBe(
+      'Update "Alligators brand" for Maude 2?'
+    );
   });
 
   test('not an older project → no callout (format 2, a newer one, no gate)', () => {
@@ -53,9 +55,11 @@ describe('the older-project callout', () => {
   });
 
   test('a local project: view only + Update project', () => {
-    expect(olderGateState({ cfg: older, plan: { exitCode: 0, refusals: [], steps: [] } })).toEqual(
-      { kind: 'owner', line: 'View only — this project still uses Maude 1.', action: 'update' }
-    );
+    expect(olderGateState({ cfg: older, plan: { exitCode: 0, refusals: [], steps: [] } })).toEqual({
+      kind: 'owner',
+      line: 'View only — this project still uses Maude 1.',
+      action: 'update',
+    });
     // while the dry run is in flight: the line, no button yet
     expect(olderGateState({ cfg: older, plan: undefined })).toMatchObject({ action: null });
   });
@@ -85,9 +89,9 @@ describe('the older-project callout', () => {
       line: 'View only — the team server needs an update before this project can move to Maude 2.',
       action: 'team-server',
     });
-    expect(
-      olderGateState({ cfg: older, plan: linked('member', ['hub-too-old']) })?.kind
-    ).toBe('non-owner');
+    expect(olderGateState({ cfg: older, plan: linked('member', ['hub-too-old']) })?.kind).toBe(
+      'non-owner'
+    );
   });
 
   test('the owner offline: the offline line, no button', () => {

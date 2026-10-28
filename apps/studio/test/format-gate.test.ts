@@ -12,11 +12,11 @@ import path from 'node:path';
 import {
   asFormat,
   FORMAT_COPY,
+  FORMAT_GATE_OPTS,
   type FormatCtx,
   formatConfigFields,
   formatGate,
   formatGateAllowsWrite,
-  FORMAT_GATE_OPTS,
   formatRefusalResponse,
   HUB_FORMAT_REL,
   noteHubFormat,

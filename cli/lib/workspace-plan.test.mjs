@@ -137,11 +137,11 @@ test('a fresh workspace starts NEW projects in accepted revisions (MAUDE_NEW_PRO
   assert.equal(byKey.MAUDE_NEW_PROJECT_MODE, 'transactions');
   assert.equal(byKey.MAUDE_CELL_PAIRING, '1');
   // written into .env AND forwarded to the container (the hand-maintained pair, see S3 below)
+  assert.match(renderCompose(ok(BASE)), /MAUDE_NEW_PROJECT_MODE: \$\{MAUDE_NEW_PROJECT_MODE\}/);
   assert.match(
-    renderCompose(ok(BASE)),
-    /MAUDE_NEW_PROJECT_MODE: \$\{MAUDE_NEW_PROJECT_MODE\}/
+    renderEnv(envEntries(ok(BASE), { hubSecret: 'x' })),
+    /^MAUDE_NEW_PROJECT_MODE='transactions'$/m
   );
-  assert.match(renderEnv(envEntries(ok(BASE), { hubSecret: 'x' })), /^MAUDE_NEW_PROJECT_MODE='transactions'$/m);
 });
 
 test('.env includes S3 only when configured', () => {

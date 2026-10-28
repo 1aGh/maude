@@ -1,4 +1,11 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { $, browser, expect } from '@wdio/globals';
@@ -94,9 +101,9 @@ describe('format-update (Michal 2A: a format-1 project is view only + Update pro
     expect(await $(tid('format-update-cancel')).getText()).toBe('Cancel');
     await capture('fu-1 the confirm on opening');
     // only asking: the file is still format 1 and no backup exists
-    expect(JSON.parse(readFileSync(join(root, '.design', 'config.json'), 'utf8')).formatVersion).toBe(
-      undefined
-    );
+    expect(
+      JSON.parse(readFileSync(join(root, '.design', 'config.json'), 'utf8')).formatVersion
+    ).toBe(undefined);
     expect(existsSync(join(root, '.design', '_history', '_migrate'))).toBe(false);
   });
 
@@ -121,7 +128,9 @@ describe('format-update (Michal 2A: a format-1 project is view only + Update pro
     await browser.waitUntil(
       () =>
         browser.execute(() =>
-          document.body.innerText.includes('Updated for Maude 2. People on Maude 1 can look but not edit.')
+          document.body.innerText.includes(
+            'Updated for Maude 2. People on Maude 1 can look but not edit.'
+          )
         ),
       { timeout: 20_000, interval: 200, timeoutMsg: 'no "Updated for Maude 2" toast' }
     );
@@ -130,7 +139,9 @@ describe('format-update (Michal 2A: a format-1 project is view only + Update pro
     const { cfg, write } = await probe();
     expect(cfg).toMatchObject({ formatVersion: 2, readOnly: false, formatGate: null });
     expect(write).toBe(200);
-    expect(JSON.parse(readFileSync(join(root, '.design', 'config.json'), 'utf8')).formatVersion).toBe(2);
+    expect(
+      JSON.parse(readFileSync(join(root, '.design', 'config.json'), 'utf8')).formatVersion
+    ).toBe(2);
     const snaps = readdirSync(join(root, '.design', '_history', '_migrate'));
     expect(snaps.some((d) => /^v2-/.test(d))).toBe(true);
     await capture('fu-4 editable after Update project');

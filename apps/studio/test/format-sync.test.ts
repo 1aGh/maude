@@ -18,9 +18,9 @@ import { join } from 'node:path';
 
 import {
   CELL_SELF_HUB,
+  FORMAT_GATE_OPTS,
   formatHubUrl,
   readHubFormatCache,
-  FORMAT_GATE_OPTS,
   SUPPORTED_FORMAT,
 } from '../format.ts';
 import {
