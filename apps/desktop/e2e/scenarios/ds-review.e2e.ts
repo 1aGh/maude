@@ -593,20 +593,22 @@ part('4')(
       };
       console.log(`[ds-make-filling] frame: ${JSON.stringify(frameState)}`);
       const OUTLINE_WORDS: Record<string, string> = {
-        'ds-outline-space': 'Space & shape — next',
+        'ds-outline-brand': 'Brand — next',
         'ds-outline-motion': 'Motion — next',
         'ds-outline-components': 'Components — next',
         'ds-outline-patterns': 'Patterns — next',
       };
-      // Brand, Colour and Type are drawn as sections now (A with B's serif is in the working files) ...
-      for (const done of ['ds-section-colour', 'ds-section-type'])
+      // What landed is drawn as sections: Colour and Type (A with B's serif) — and Space, whose tokens the fixture
+      // carries. Brand (no logo yet) and everything after Space has not been written, so each waits as an outline
+      // that says it is next, in the order of the canvas (ds/board/outline.tsx outlineStateOf: no content = waiting).
+      for (const done of ['ds-section-colour', 'ds-section-type', 'ds-section-space'])
         expect(frameState.sections).toContain(done);
       expect(frameState.outlines.map((o) => o.id)).not.toContain('ds-outline-colour');
       expect(frameState.outlines.map((o) => o.id)).not.toContain('ds-outline-type');
-      // ... and the four that are still to come wait as outlines, saying so, none of them "drawing" without a run
+      // the quiet outlines, none "drawing" (no AI run holds a section in this lane: the scripted agent's turn is over)
+      expect(frameState.outlines.map((o) => o.id)).toEqual(Object.keys(OUTLINE_WORDS));
       for (const [id, words] of Object.entries(OUTLINE_WORDS)) {
         const o = frameState.outlines.find((x) => x.id === id);
-        expect(o, `${id} should wait as an outline`).toBeDefined();
         expect(o?.state).toBe('waiting');
         expect(o?.text).toBe(words);
       }
