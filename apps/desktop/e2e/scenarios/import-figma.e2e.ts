@@ -7,6 +7,7 @@ import { pressMenuRow } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
+import { canvasRow } from '../helpers/tree';
 
 /**
  * S8.17 — Import from Figma (canvas 12 · ia-figma-sheets, ia-figjam), DOM-driven.
@@ -34,7 +35,9 @@ const CANVAS = join(DESIGN, 'ui/Uniformy-2027.tsx');
 const META = join(DESIGN, 'ui/Uniformy-2027.meta.json');
 // S8.17b: the file's comments land as pins in the canvas's thread file
 const PINS = join(DESIGN, '_comments/ui-uniformy-2027.json');
-const fixtures = createFixtureGuard('import-figma', [CANVAS, META, PINS]);
+const BOARD_KEY = 'Em6NOwaOFTYV7NlQT4NK8l';
+const BOARD = join(DESIGN, 'ui-smoke.annotations.json');
+const fixtures = createFixtureGuard('import-figma', [CANVAS, META, PINS, BOARD]);
 const tid = (s: string) => `[data-testid="${s}"]`;
 
 async function openSheet() {
@@ -159,5 +162,43 @@ describe('import-figma', () => {
     expect(pins[0]?.thread).toHaveLength(1);
     expect(pins.every((p) => p.artboard)).toBe(true);
     expect(existsSync(join(DESIGN, 'ui-uniformy-2027.annotations.json'))).toBe(false);
+  });
+
+  // P8 test round (12 · ia-figjam, 15 · an-figjam): the board ARRIVING, not only the door. The FigJam file is the
+  // fixture `files_Em6NOwaOFTYV7NlQT4NK8l.json` — a section with two stickies, a third beside it, a connector between
+  // them and a voting widget that cannot come across. It lands on the OPEN canvas's whiteboard as stickies, never as
+  // pictures, in one change, and the summary says what could not come across.
+  it('5 · (fixture) a FigJam link: the board arrives as stickies on the whiteboard, the widget is named', async function () {
+    if (!FIXTURE_ON) return this.skip();
+    const row = await canvasRow('canvas-row-ui-smoke');
+    await row.waitForExist({ timeout: 30_000 });
+    await row.click();
+    await openSheet();
+    await typeLink(`https://www.figma.com/board/${BOARD_KEY}/Retro`);
+    await (await $(tid('figma-import-preview'))).click();
+    await (await $(tid('figma-import-mode-board'))).waitForDisplayed({ timeout: 10_000 });
+    await capture('07-figjam-door');
+    await (await $(tid('figma-import-run'))).click();
+    await (await $(tid('figma-import-summary'))).waitForDisplayed({ timeout: 20_000 });
+    await capture('08-figjam-arrived');
+    const summary = await (await $(tid('figma-import-summary'))).getText();
+    expect(summary).toMatch(/stick/i);
+    expect(summary).toMatch(/widget/i);
+    await browser.waitUntil(() => existsSync(BOARD), {
+      timeout: 15_000,
+      timeoutMsg: 'no whiteboard file after the FigJam import',
+    });
+    const els = JSON.parse(readFileSync(BOARD, 'utf8')).elements as Array<Record<string, unknown>>;
+    const stickies = els.filter((e) => e.type === 'sticky');
+    expect(stickies.map((e) => e.text)).toEqual(
+      expect.arrayContaining([
+        'Plakáty na školách fungovaly',
+        'Registrace přes QR — 60 % lidí',
+        'Málo holek na náboru',
+      ])
+    );
+    expect(els.some((e) => e.type === 'section')).toBe(true);
+    expect(els.some((e) => e.type === 'arrow' || e.type === 'connector')).toBe(true);
+    expect(els.some((e) => e.type === 'image')).toBe(false);
   });
 });
