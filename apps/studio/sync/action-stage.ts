@@ -90,6 +90,15 @@ export interface RunStage {
   lanes: Map<string, StagedLane>;
   /** canvas → artboards (V2-1.5 §5.7 attribution). */
   touched: Record<string, string[]>;
+  /**
+   * V2-8.9 round B A1 — a run only a SHELL verb opened (acp/index.ts): it takes an unclaimed write
+   * (the lone-open-run fallback) only while one of its verb calls is open (`shellCalls`) or within
+   * SHELL_SETTLE_MS of the last one closing; otherwise only a write a tool claimed by hash. An edit
+   * tool joining the run clears it (the v1 fallback is that tool's own race cover).
+   */
+  claimOnly?: boolean;
+  shellCalls?: Set<string>;
+  shellClosedAt?: number;
 }
 
 /** What the run list / held card reads (no bytes). */
@@ -179,6 +188,8 @@ export interface ActionStageOptions {
 }
 
 const STOPPED = ' — stopped';
+/** A1 — the watcher delivers a verb's last write a beat after the call returns (cf. AI settle 250 ms). */
+export const SHELL_SETTLE_MS = 1_000;
 const RUN_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const originId = (v: unknown): string | undefined =>
   typeof v === 'string' && RUN_ID.test(v) ? v : undefined;
@@ -372,7 +383,13 @@ export function createActionStage(opts: ActionStageOptions) {
   function begin(
     key: string,
     nextLabel: string,
-    meta: { runId?: string; chatId?: string; actor?: string } = {}
+    meta: {
+      runId?: string;
+      chatId?: string;
+      actor?: string;
+      /** A1 — a shell verb call opening (`open`) or closing its window; absent = an edit tool. */
+      shell?: { call: string; open: boolean };
+    } = {}
   ): void {
     const runId = originId(meta.runId) ?? key;
     keyRun.set(key, runId);
@@ -383,10 +400,11 @@ export function createActionStage(opts: ActionStageOptions) {
         delete existing.endedAt;
         changed();
       }
+      shellWindow(existing, meta.shell);
       return;
     }
     const chatId = originId(meta.chatId);
-    runs.set(runId, {
+    const fresh: RunStage = {
       runId,
       ...(chatId ? { chatId } : {}),
       ...(meta.actor ? { actor: meta.actor } : {}),
@@ -395,9 +413,32 @@ export function createActionStage(opts: ActionStageOptions) {
       since: now(),
       lanes: new Map(),
       touched: {},
-    });
+      ...(meta.shell ? { claimOnly: true, shellCalls: new Set<string>() } : {}),
+    };
+    runs.set(runId, fresh);
+    shellWindow(fresh, meta.shell);
     changed();
   }
+
+  /** A1 — open/close one shell verb call's window; an edit tool (no `shell`) lifts the scoping. */
+  function shellWindow(r: RunStage, shell: { call: string; open: boolean } | undefined): void {
+    if (!shell) {
+      delete r.claimOnly;
+      delete r.shellCalls;
+      delete r.shellClosedAt;
+      return;
+    }
+    if (!r.claimOnly) return; // an edit tool already opened it: the v1 rule stands
+    r.shellCalls ??= new Set();
+    if (shell.open) r.shellCalls.add(shell.call);
+    else if (r.shellCalls.delete(shell.call)) r.shellClosedAt = now();
+  }
+
+  /** May `r` take a write nobody claimed (the lone-open-run fallback)? */
+  const takesUnclaimed = (r: RunStage) =>
+    !r.claimOnly ||
+    (r.shellCalls?.size ?? 0) > 0 ||
+    (r.shellClosedAt !== undefined && now() - r.shellClosedAt <= SHELL_SETTLE_MS);
 
   /** A tool reported writing `hash` (sha256 of the content) to canvas `slug`. */
   function claim(keyOrRun: string, slug: string, hash?: string | null): void {
@@ -432,14 +473,16 @@ export function createActionStage(opts: ActionStageOptions) {
       const byHash = open.find((r) => claims.get(r.runId)?.hashes.has(key));
       if (byHash) return byHash;
     }
-    const covering = open.filter((r) => coversSlug(r, slug));
+    // A1 — a shell-opened run outside its verb's window takes only what a tool claimed by hash.
+    const free = open.filter(takesUnclaimed);
+    const covering = free.filter((r) => coversSlug(r, slug));
     // S12.16 — a NEW canvas joins a run only when a run said it wrote it. The lone-open-run
     // fallback below is right for a change to a canvas that exists (a tool wrote it); for a create
     // it would swallow a person's new canvas into whichever AI run happens to be open.
     if (explicit) return covering.length === 1 ? covering[0] : null;
     if (covering.length === 1) return covering[0];
     if (covering.length > 1) return null;
-    if (open.length === 1) return open[0];
+    if (open.length === 1) return free[0] ?? null; // the lone run, unless it is claim-scoped now
     if (open.length > 1) return null;
     // Nothing open: a held run that covers this canvas keeps its cold start.
     return all.find((r) => r.state === 'held' && coversSlug(r, slug)) ?? null;

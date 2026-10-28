@@ -174,6 +174,8 @@ export interface AcpBridgeOptions {
    * so any existing audit/logging consumer keeps seeing every request.
    */
   onPermission?: (req: RequestPermissionRequest) => void;
+  /** V2-8.9 round B A1 — how a permission request resolved (`granted` = an allow option). */
+  onPermissionDecided?: (req: RequestPermissionRequest, granted: boolean) => void;
   /**
    * The actual approve/deny UI hook (retires DDR-125 F2's blanket auto-
    * approve) — fires once per request with a fresh nonce `id`; the caller
@@ -1601,80 +1603,84 @@ export class AcpBridge {
         this.opts.onUpdate(u, seq);
         void this.appendTranscript({ role: 'agent', update: u }, seq);
       },
-      requestPermission: (params: RequestPermissionRequest): Promise<RequestPermissionResponse> => {
-        // issue-82 / ethical-hacker finding — a message the child had already
-        // started writing before `stop()` killed it can still be dispatched
-        // in the brief window before the process actually dies. Fail closed
-        // immediately rather than register a pending entry a stale client
-        // response could later resolve as "allow" against a torn-down session.
-        if (this.stopped) return Promise.resolve({ outcome: { outcome: 'cancelled' } });
-        // Milestone B (retires DDR-125 F2's blanket auto-approve) — the
-        // permission POLICY is now the selected session mode (sourced from
-        // Claude Code itself): `bypassPermissions`/`dontAsk` short-circuit
-        // adapter-side and never reach here at all; every OTHER mode routes
-        // through this real approve/deny gate. `onPermission` stays as a
-        // transparency callback (every request, however it resolves);
-        // `onPermissionRequest` is the actual UI hook the client answers.
-        this.opts.onPermission?.(params);
-        // P8 c7 (decision maude/v2-p8-c7-ai-may-enforced) — an "AI may" switch the person turned off
-        // refuses the call here, against the CURRENT state, with no card: the person already said no.
-        // Before the write gate, so an off switch is never auto-approved as an in-project write.
-        // `reject_once` makes the adapter answer "refused" (the agent moves on) rather than abort.
-        {
-          const toolCallId = params.toolCall?.toolCallId;
-          const name = typeof toolCallId === 'string' ? this.toolNames.get(toolCallId) : undefined;
-          // V2-8.9 M2 — a credential store, named in a path or a shell command: refused the same way.
-          if (
-            credentialRefusal(params.toolCall, this.credentialPaths, this.scopeRoot) ||
-            mayRefusal(name, params.toolCall, this.may, this.scopeRoot, this.assetsRoots)
-          ) {
-            const reject = (params.options ?? []).find((o) => o.kind === 'reject_once');
-            return Promise.resolve({
-              outcome: reject
-                ? { outcome: 'selected', optionId: reject.optionId }
-                : { outcome: 'cancelled' },
+      // V2-8.9 round B A1 — every way this resolves is reported (`onPermissionDecided`): a shell verb's
+      // run-stage window reopens only on a grant.
+      requestPermission: (params: RequestPermissionRequest): Promise<RequestPermissionResponse> =>
+        this.reportDecision(params, (): Promise<RequestPermissionResponse> => {
+          // issue-82 / ethical-hacker finding — a message the child had already
+          // started writing before `stop()` killed it can still be dispatched
+          // in the brief window before the process actually dies. Fail closed
+          // immediately rather than register a pending entry a stale client
+          // response could later resolve as "allow" against a torn-down session.
+          if (this.stopped) return Promise.resolve({ outcome: { outcome: 'cancelled' } });
+          // Milestone B (retires DDR-125 F2's blanket auto-approve) — the
+          // permission POLICY is now the selected session mode (sourced from
+          // Claude Code itself): `bypassPermissions`/`dontAsk` short-circuit
+          // adapter-side and never reach here at all; every OTHER mode routes
+          // through this real approve/deny gate. `onPermission` stays as a
+          // transparency callback (every request, however it resolves);
+          // `onPermissionRequest` is the actual UI hook the client answers.
+          this.opts.onPermission?.(params);
+          // P8 c7 (decision maude/v2-p8-c7-ai-may-enforced) — an "AI may" switch the person turned off
+          // refuses the call here, against the CURRENT state, with no card: the person already said no.
+          // Before the write gate, so an off switch is never auto-approved as an in-project write.
+          // `reject_once` makes the adapter answer "refused" (the agent moves on) rather than abort.
+          {
+            const toolCallId = params.toolCall?.toolCallId;
+            const name =
+              typeof toolCallId === 'string' ? this.toolNames.get(toolCallId) : undefined;
+            // V2-8.9 M2 — a credential store, named in a path or a shell command: refused the same way.
+            if (
+              credentialRefusal(params.toolCall, this.credentialPaths, this.scopeRoot) ||
+              mayRefusal(name, params.toolCall, this.may, this.scopeRoot, this.assetsRoots)
+            ) {
+              const reject = (params.options ?? []).find((o) => o.kind === 'reject_once');
+              return Promise.resolve({
+                outcome: reject
+                  ? { outcome: 'selected', optionId: reject.optionId }
+                  : { outcome: 'cancelled' },
+              });
+            }
+          }
+          // feature-acp-write-path-scope Task 3 — THE WRITE-PATH GATE. This is the
+          // branch that replaces `Edit`/`Write`/`NotebookEdit`'s former presence on
+          // MAUDE_DEFAULT_ALLOWED_TOOLS. An in-project write short-circuits here
+          // with no pending entry, no client frame and no prompt — byte-for-byte
+          // the DDR-184 experience. Everything else falls through to the real gate
+          // that already exists; this deliberately does NOT build a parallel path.
+          // V2-8.9 round 2 (decision maude/v2-8.9-round2-writer-verbs-audience) — a design-root writer
+          // verb the session was spawned without an allow rule for (a hub-linked project): the bridge
+          // approves it once, unless the audience check holds it for the person.
+          // M2 read boundary (decision maude/v2-michal-m2-read-boundary) — a read inside the project,
+          // the bundled plugins, Maude's package, the temp folders or a folder this chat was allowed to
+          // read is approved once; any other read is the person's card, without "Always allow" (the
+          // adapter would turn it into a session rule no Remove could take back).
+          const read = this.classifyRead(params);
+          if (read) return read;
+          const verb = this.writerVerbHold(params);
+          if (verb) return verb;
+          const scope = this.classifyWrite(params);
+          if (scope.autoApprove) {
+            const auto: RequestPermissionResponse = {
+              outcome: { outcome: 'selected', optionId: scope.autoApprove },
+            };
+            // V2-8.9 H1 (decision maude/v2-8.9-lead-h1-audience-aware-write-gate) — an in-project
+            // write that would carry a design-root file this chat read to someone who cannot see it
+            // (a canvas-scoped hub grantee) is not auto-approved: it becomes the person's card.
+            const held = this.audienceHold(scope.targets ?? []);
+            if (!held) return Promise.resolve(auto);
+            return held.then((info) => {
+              if (this.stopped) return { outcome: { outcome: 'cancelled' } };
+              return info ? this.askPerson(params, { stripAlways: true, info }) : auto;
             });
           }
-        }
-        // feature-acp-write-path-scope Task 3 — THE WRITE-PATH GATE. This is the
-        // branch that replaces `Edit`/`Write`/`NotebookEdit`'s former presence on
-        // MAUDE_DEFAULT_ALLOWED_TOOLS. An in-project write short-circuits here
-        // with no pending entry, no client frame and no prompt — byte-for-byte
-        // the DDR-184 experience. Everything else falls through to the real gate
-        // that already exists; this deliberately does NOT build a parallel path.
-        // V2-8.9 round 2 (decision maude/v2-8.9-round2-writer-verbs-audience) — a design-root writer
-        // verb the session was spawned without an allow rule for (a hub-linked project): the bridge
-        // approves it once, unless the audience check holds it for the person.
-        // M2 read boundary (decision maude/v2-michal-m2-read-boundary) — a read inside the project,
-        // the bundled plugins, Maude's package, the temp folders or a folder this chat was allowed to
-        // read is approved once; any other read is the person's card, without "Always allow" (the
-        // adapter would turn it into a session rule no Remove could take back).
-        const read = this.classifyRead(params);
-        if (read) return read;
-        const verb = this.writerVerbHold(params);
-        if (verb) return verb;
-        const scope = this.classifyWrite(params);
-        if (scope.autoApprove) {
-          const auto: RequestPermissionResponse = {
-            outcome: { outcome: 'selected', optionId: scope.autoApprove },
-          };
-          // V2-8.9 H1 (decision maude/v2-8.9-lead-h1-audience-aware-write-gate) — an in-project
-          // write that would carry a design-root file this chat read to someone who cannot see it
-          // (a canvas-scoped hub grantee) is not auto-approved: it becomes the person's card.
-          const held = this.audienceHold(scope.targets ?? []);
-          if (!held) return Promise.resolve(auto);
-          return held.then((info) => {
-            if (this.stopped) return { outcome: { outcome: 'cancelled' } };
-            return info ? this.askPerson(params, { stripAlways: true, info }) : auto;
-          });
-        }
-        // V2-8.9 L2 — a read-only shell command (cat, head, rg…) on a path outside this chat's read
-        // boundary: no "Always allow" — it would become a standing `Bash(cat:*)` rule that reads
-        // anywhere, outside the folder consent.
-        if (!scope.stripAlways && this.bashReadsOutsideNow(params))
-          return this.askPerson(params, { ...scope, stripAlways: true });
-        return this.askPerson(params, scope);
-      },
+          // V2-8.9 L2 — a read-only shell command (cat, head, rg…) on a path outside this chat's read
+          // boundary: no "Always allow" — it would become a standing `Bash(cat:*)` rule that reads
+          // anywhere, outside the folder consent.
+          if (!scope.stripAlways && this.bashReadsOutsideNow(params))
+            return this.askPerson(params, { ...scope, stripAlways: true });
+          return this.askPerson(params, scope);
+        }),
       unstable_createElicitation: (
         params: CreateElicitationRequest
       ): Promise<CreateElicitationResponse> => {
@@ -2289,6 +2295,42 @@ export class AcpBridge {
       }, wait);
     };
     arm(limit);
+  }
+
+  /** A1 — run `decide`, then tell `onPermissionDecided` whether an allow option won. */
+  private reportDecision(
+    params: RequestPermissionRequest,
+    decide: () => Promise<RequestPermissionResponse>
+  ): Promise<RequestPermissionResponse> {
+    const tell = (granted: boolean) => {
+      try {
+        this.opts.onPermissionDecided?.(params, granted);
+      } catch {
+        /* a consumer's fault never changes the answer */
+      }
+    };
+    let p: Promise<RequestPermissionResponse>;
+    try {
+      p = decide();
+    } catch (e) {
+      tell(false);
+      throw e;
+    }
+    return p.then(
+      (r) => {
+        const o = r.outcome as { outcome: string; optionId?: string };
+        const kind =
+          o.outcome === 'selected'
+            ? params.options?.find((x) => x.optionId === o.optionId)?.kind
+            : undefined;
+        tell(typeof kind === 'string' && kind.startsWith('allow'));
+        return r;
+      },
+      (e) => {
+        tell(false);
+        throw e;
+      }
+    );
   }
 
   /**
