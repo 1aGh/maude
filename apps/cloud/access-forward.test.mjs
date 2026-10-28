@@ -504,3 +504,34 @@ describe('decideClaim (pure) — G1: a grant adds, never lowers', () => {
     assert.equal(v.ok, false);
   });
 });
+
+// V2-8.9 round B L2 — the narrowing notice names a `role` only when it is the person's WHOLE claim after the
+// change: the cell spares tokens that grant exactly that role and nothing more (hub keepsOnly), so a
+// canvas-scoped role (the max of project role and grant) must never spare a project-wide token.
+describe('a narrowing names the role only when it is the whole claim after it (L2)', () => {
+  it('Can view on the project + Can edit on A, narrowed to Can comment on A → no role', async () => {
+    const { env, sqlite } = await fixture();
+    sqlite
+      .prepare(
+        `INSERT INTO canvas_grants (project_id, account_id, canvas_path, role, source, granted_at)
+         VALUES (?, 'a4', ?, 'member', 'invite', 1)`
+      )
+      .run(P, A);
+    const res = await forward(env, `people/a4?canvas=${encodeURIComponent(A)}`, {
+      method: 'PATCH',
+      actor: 'owner',
+      body: { role: 'viewer' },
+    });
+    assert.equal(res.status, 200);
+    const notice = cell.calls.find((c) => c.url.endsWith('/internal/access-changed'));
+    assert.equal(notice.body.change, 'narrowed');
+    assert.equal(notice.body.role, undefined, 'a canvas-scoped role spares no project-wide token');
+  });
+
+  it('a project-wide demotion with no grants still names the role it leaves', async () => {
+    const { env } = await fixture();
+    await forward(env, 'people/a2', { method: 'PATCH', actor: 'owner', body: { role: 'viewer' } });
+    const notice = cell.calls.find((c) => c.url.endsWith('/internal/access-changed'));
+    assert.equal(notice.body.role, 'viewer');
+  });
+});
