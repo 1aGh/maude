@@ -23,7 +23,7 @@
  * Run: `pnpm test:e2e:desktop:team-project` (after `pnpm test:e2e:desktop:build`).
  */
 import { type ChildProcess, spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -113,7 +113,29 @@ async function setUp(): Promise<string> {
   useFakeAi();
 
   const scratch = mkdtempSync(join(tmpdir(), 'maude-e2e-team-'));
-  const hub: LocalHub = await startLocalHub({ dir: join(scratch, 'hub') });
+  // V2-8.18 — MAUDE_E2E_HUB_TARGET (a 0600 JSON file the Docker gate writes): the same lane against a
+  // self-hosted hub CONTAINER instead of the in-process hub. Its people already exist (designer@x.test with
+  // TEAM_PASSWORD, invited through /join; a teammate session); the server-away steps become `docker kill` +
+  // `docker start` (or pause/unpause) on the same volume. Absent, nothing changes.
+  const target = process.env.MAUDE_E2E_HUB_TARGET
+    ? (JSON.parse(readFileSync(process.env.MAUDE_E2E_HUB_TARGET, 'utf8')) as {
+        http: string;
+        container: string;
+        adminSecret: string;
+        ownerToken: string;
+        teammateToken: string;
+        away?: 'kill' | 'pause';
+      })
+    : null;
+  const hub: LocalHub = target
+    ? {
+        http: target.http.replace(/\/$/, ''),
+        ws: '',
+        tokens: { owner: target.ownerToken, alice: target.teammateToken },
+        pid: 0,
+        stop: () => {},
+      }
+    : await startLocalHub({ dir: join(scratch, 'hub') });
   hubs.push(hub);
   const managedDir = join(
     appDir,
@@ -197,11 +219,15 @@ async function setUp(): Promise<string> {
     // The spec pauses the hub (SIGSTOP/SIGCONT) for the server-away step, and
     // disables/enables the designer through the admin API (fixture secret).
     hubPid: hub.pid,
-    adminSecret: 'test-secret',
-    // P8 G1b: the hub's data dir + port, so the spec can STOP it (connection refused → "Offline — kept on this
-    // Mac") and restart the same hub on the same port, with the same tokens (serve-hub re-reads them).
-    hubDir: join(scratch, 'hub'),
-    hubPort: Number(new URL(hub.http).port),
+    adminSecret: target?.adminSecret ?? 'test-secret',
+    ...(target
+      ? { hubContainer: target.container, hubAway: target.away ?? 'kill' }
+      : {
+          // P8 G1b: the hub's data dir + port, so the spec can STOP it (connection refused → "Offline — kept on this
+          // Mac") and restart the same hub on the same port, with the same tokens (serve-hub re-reads them).
+          hubDir: join(scratch, 'hub'),
+          hubPort: Number(new URL(hub.http).port),
+        }),
   });
   const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '');
   process.env.MAUDE_E2E_RUN_DIR = resolve(

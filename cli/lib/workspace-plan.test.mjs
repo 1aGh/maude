@@ -320,6 +320,17 @@ test('the compose file matches the scheme it is actually serving', () => {
   assert.ok(!real.includes('HUB_INSECURE_HTTP'));
 });
 
+// V2-8.18 (the local workspace run by the Docker gate): `"80:80"` publishes on every interface, so a
+// --local trial — plain HTTP, sign-in passwords in the clear — answered anyone on the same Wi-Fi.
+test('--local publishes its plain-HTTP port on loopback only; a real workspace stays public', () => {
+  const local = renderCompose(ok(LOCAL));
+  assert.match(local, /- "127\.0\.0\.1:80:80"/);
+  assert.ok(!/- "80:80"/.test(local), 'no all-interfaces binding in local mode');
+  const real = renderCompose(ok(BASE));
+  assert.match(real, /- "80:80"/, 'a real workspace still answers ACME + the redirect on :80');
+  assert.match(real, /- "443:443"/);
+});
+
 test('the admin PASSWORD reaches the container, not just the address', () => {
   // The half-wired state that shipped: `.env` held both, compose forwarded
   // only the email, so the hub knew who the first user was and had no way to

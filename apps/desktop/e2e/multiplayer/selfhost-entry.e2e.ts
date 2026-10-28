@@ -1,4 +1,5 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { $, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
@@ -18,6 +19,11 @@ const target = JSON.parse(readFileSync(run.input, 'utf8')) as {
   email: string;
   password: string;
 };
+// the same dir selfhost-entry.conf.ts cleans (macOS: the shared e2e bundle's app dir)
+const e2eAppDir = (scratch: string) =>
+  process.platform === 'darwin'
+    ? join(homedir(), 'Library', 'Application Support', 'com.maude.app.e2e')
+    : join(scratch, 'data', 'com.maude.app.e2e');
 const tid = (id: string) => `[data-testid="${id}"]`;
 const canvasName = `Native selfhost ${run.scratch.split('-').at(-1)}`;
 const editedTitle = `${canvasName} edited by designer`;
@@ -37,7 +43,7 @@ async function probe(query: string, operation = 'read', value: unknown = null) {
   );
 }
 
-describe('S01 self-host entry on a clean Linux native profile', () => {
+describe('S01 self-host entry on a clean native profile (Linux, or macOS on a local container)', () => {
   it('signs in to the team server, opens its project and creates a canvas through its UI', async () => {
     startReport('S01 actual self-host entry — Linux native debug');
     await pinCurrentWindow();
@@ -74,10 +80,16 @@ describe('S01 self-host entry on a clean Linux native profile', () => {
     }
     await capture('managed-copy-open');
 
-    const roots = join(run.scratch, 'data/com.maude.app.e2e/projects');
-    const copies = readdirSync(roots).filter((name) =>
-      existsSync(join(roots, name, '.design/config.json'))
-    );
+    const roots = join(e2eAppDir(run.scratch), 'projects');
+    // this server's copies only: on macOS the e2e app dir is shared with the other lanes
+    const copies = readdirSync(roots).filter((name) => {
+      try {
+        const c = JSON.parse(readFileSync(join(roots, name, '.design/config.json'), 'utf8'));
+        return new URL(c.linkedHub?.url).origin === new URL(target.hubUrl).origin;
+      } catch {
+        return false;
+      }
+    });
     expect(copies).toHaveLength(1);
     const copy = join(roots, copies[0]);
     const cfg = JSON.parse(readFileSync(join(copy, '.design/config.json'), 'utf8'));

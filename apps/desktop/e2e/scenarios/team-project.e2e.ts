@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, $$, browser, expect } from '@wdio/globals';
@@ -83,10 +84,33 @@ const TEAM = process.env.MAUDE_E2E_TEAM
       password: string;
       hubPid: number;
       adminSecret: string;
-      hubDir: string;
-      hubPort: number;
+      /** P8 G1b: the in-process hub's data dir + port (absent when the hub is a container) */
+      hubDir?: string;
+      hubPort?: number;
+      /** V2-8.18: the hub is a container (wdio.team-project.conf.ts MAUDE_E2E_HUB_TARGET) */
+      hubContainer?: string;
+      hubAway?: 'kill' | 'pause';
     })
   : null;
+
+/**
+ * The server goes away: SIGSTOP the in-process hub, or kill / pause its container (same volume).
+ * The offline-race steps (9a, 9) pass 'pause': they depend on WHICH save reaches the hub first, which a held
+ * connection keeps (as SIGSTOP does) and a restart does not — after a kill each peer reconnects on its own
+ * backoff. The crash on the same volume is steps 7 and 7b.
+ */
+function hubAway(t: NonNullable<typeof TEAM>, mode = t.hubAway) {
+  if (!t.hubContainer) return void process.kill(t.hubPid, 'SIGSTOP');
+  execFileSync(
+    'docker',
+    mode === 'pause' ? ['pause', t.hubContainer] : ['kill', '--signal', 'KILL', t.hubContainer]
+  );
+}
+/** …and comes back. */
+function hubBack(t: NonNullable<typeof TEAM>, mode = t.hubAway) {
+  if (!t.hubContainer) return void process.kill(t.hubPid, 'SIGCONT');
+  execFileSync('docker', [mode === 'pause' ? 'unpause' : 'start', t.hubContainer]);
+}
 
 const canvas = (
   title: string
@@ -207,7 +231,10 @@ let restarted: LocalHub | null = null;
 
 /** Stop the team hub for real (SIGTERM → connection refused), whichever process holds it now. */
 async function stopHub(t: NonNullable<typeof TEAM>): Promise<void> {
-  if (restarted) {
+  if (t.hubContainer) {
+    // V2-8.18: a container hub stops for real (connection refused) and comes back on the same volume
+    execFileSync('docker', ['stop', t.hubContainer]);
+  } else if (restarted) {
     restarted.stop();
     restarted = null;
   } else {
@@ -222,6 +249,13 @@ async function stopHub(t: NonNullable<typeof TEAM>): Promise<void> {
 
 /** Start the same hub again on the same port (serve-hub re-reads its tokens), with optional extra flags. */
 async function startHub(t: NonNullable<typeof TEAM>, extraArgs: string[] = []): Promise<void> {
+  if (t.hubContainer) {
+    if (extraArgs.length) throw new Error(`a container hub cannot restart with ${extraArgs.join(' ')}`);
+    execFileSync('docker', ['start', t.hubContainer]);
+    await eventually('the container hub to answer again', () => hubAnswers(t.hub), 60_000);
+    return;
+  }
+  if (!t.hubDir || !t.hubPort) throw new Error('no hub dir/port to restart the in-process hub');
   restarted = await startLocalHub({ dir: t.hubDir, port: t.hubPort, extraArgs });
   expect(restarted.http).toBe(t.hub);
 }
@@ -443,7 +477,7 @@ describe('team-project (native-desktop)', () => {
     const t = TEAM as NonNullable<typeof TEAM>;
     const mine = join(t.managedDir, '.design', 'ui', 'welcome.tsx');
     const theirs = join(t.teammate, '.design', 'ui', 'welcome.tsx');
-    process.kill(t.hubPid, 'SIGSTOP');
+    hubAway(t);
     try {
       writeFileSync(mine, canvas('Welcome, written while the server was away'));
       await eventually(
@@ -457,12 +491,19 @@ describe('team-project (native-desktop)', () => {
       await capture('08-server-away-edit-pending');
       expect(read(theirs) ?? '').not.toContain('written while the server was away');
     } finally {
-      process.kill(t.hubPid, 'SIGCONT');
+      hubBack(t);
     }
     await eventually(
       'the edit made while the server was away at the teammate',
       () => (read(theirs) ?? '').includes('written while the server was away'),
       120_000
+    );
+    // CONTRACT §Save status: once the server is back and the edit delivered, the Share cluster's one word is
+    // "Saved" again (V2-8.18 — on the container lane the server was killed and restarted on its volume)
+    await eventually(
+      'the Share cluster to say Saved again',
+      async () => /^saved\b/i.test(((await syncStatusText()) ?? '').trim()),
+      90_000
     );
     await capture('09-server-back-edit-delivered');
   });
@@ -476,7 +517,7 @@ describe('team-project (native-desktop)', () => {
     const t = TEAM as NonNullable<typeof TEAM>;
     const mine = join(t.managedDir, '.design', 'ui', 'welcome.tsx');
     const theirs = join(t.teammate, '.design', 'ui', 'welcome.tsx');
-    process.kill(t.hubPid, 'SIGSTOP');
+    hubAway(t);
     try {
       writeFileSync(mine, canvas('Welcome, written before the switch'));
       await eventually(
@@ -503,7 +544,7 @@ describe('team-project (native-desktop)', () => {
       // The bytes are still the ones this machine wrote, not a pull over them.
       expect(read(mine) ?? '').toContain('written before the switch');
     } finally {
-      process.kill(t.hubPid, 'SIGCONT');
+      hubBack(t);
     }
     await eventually(
       'the pending edit at the teammate after the switch',
@@ -573,7 +614,7 @@ describe('team-project (native-desktop)', () => {
     await closeDiagnostics();
     await settleMotion();
 
-    process.kill(t.hubPid, 'SIGSTOP');
+    hubAway(t, 'pause');
     try {
       writeFileSync(mine, canvas('Home, mine while offline'));
       await eventually(
@@ -585,7 +626,7 @@ describe('team-project (native-desktop)', () => {
         60_000
       );
     } finally {
-      process.kill(t.hubPid, 'SIGCONT');
+      hubBack(t, 'pause');
     }
     writeFileSync(theirs, canvas('Home, theirs right after'));
 
@@ -628,7 +669,7 @@ describe('team-project (native-desktop)', () => {
     await closeDiagnostics();
     await settleMotion();
 
-    process.kill(t.hubPid, 'SIGSTOP');
+    hubAway(t, 'pause');
     try {
       writeFileSync(theirs, canvas('Welcome, theirs while offline'));
       // the teammate's studio has no status line: its `_sync.json` says when the save is queued for the server
@@ -638,7 +679,7 @@ describe('team-project (native-desktop)', () => {
         60_000
       );
     } finally {
-      process.kill(t.hubPid, 'SIGCONT');
+      hubBack(t, 'pause');
     }
     // this Mac saves right after the server is back
     writeFileSync(mine, canvas('Welcome, mine right after'));
