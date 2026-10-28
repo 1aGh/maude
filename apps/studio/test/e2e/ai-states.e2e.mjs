@@ -335,7 +335,10 @@ describe('03 ai-queue-rule - one AI at a time per artboard, everything else side
       'Tablet still wears a ring (now the second ask)'
     );
     await ui.shot('03-ai-queue-rule.started-by-itself');
+    // one agent writes at a time: each scripted edit is a read-then-write of the same file, so two released in the
+    // same instant can drop one of them (the fixture's race, not the studio's) - the last one waits for the first
     lane.gate('c');
+    await until(() => /data-edited="c"/.test(lane.read(LANDING)), 'the second Tablet change', 30_000);
     lane.gate('a');
     await until(
       () => /data-edited="c"/.test(lane.read(LANDING)) && /data-edited="a"/.test(lane.read(LANDING)),
@@ -621,10 +624,11 @@ describe('14 ed-edge-ai + ed-edge-ask - AI works in place on a selection', () =>
     await until(() => /Links - Newsletter/.test(lane.read(HOME_FILE)), 'the footer change', 30_000);
     assert.match(lane.read(HOME_FILE), /Calm software, mine/, 'your headline survived the run');
     await until(() => ui.tid('ai-result').count(), 'the result card', 30_000);
-    assert.equal(
-      await ui.inFrame(() => document.querySelectorAll('[data-testid="edit-ai-hold"]').length),
-      0,
-      'the hold goes with the run'
+    // the hold goes with the run (the shell relays it on its next read of the registry, a beat after the card)
+    await until(
+      async () => (await ui.inFrame(() => document.querySelectorAll('[data-testid="edit-ai-hold"]').length)) === 0,
+      'the hold to go with the run',
+      8000
     );
   });
 });
