@@ -127,7 +127,10 @@ const DEDICATED: Record<string, string> = {
   // Every dedicated config's spec must be listed (two configs may share one spec, e.g. ds-review +
   // ds-review-master seed different worlds for the same scenario file).
   const unlisted = confs.filter((c) => {
-    const m = readFileSync(join(HERE, c), 'utf8').match(
+    const text = readFileSync(join(HERE, c), 'utf8');
+    // a spec outside scenarios/ (multiplayer/) is never in the default glob — nothing to exclude
+    if (/specs:\s*\[resolve\(HERE, 'multiplayer'/.test(text)) return false;
+    const m = text.match(
       /scenarios['"]?,\s*['"]([\w.-]+\.e2e\.ts)['"]|scenarios\/([\w.-]+\.e2e\.ts)/
     );
     const spec = m ? m[1] || m[2] : null;

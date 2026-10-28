@@ -1176,7 +1176,10 @@ function createSession(slug: string): CollabSession {
     const ws = wsRef;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     if (origin === ws) return;
-    const changed = added.concat(updated, removed);
+    // P8 G2 co-twelve — only OUR presence goes to the room. Our awareness also times other peers out locally
+    // (after a sleep, in a throttled tab); telling the room so removed them for everybody. The room drops a
+    // foreign entry too (collab/room.ts `ownAwareness`); this keeps an honest client from sending one.
+    const changed = added.concat(updated, removed).filter((id) => id === awareness.clientID);
     broadcastAwareness(ws, changed);
   };
   awareness.on('update', onAwarenessUpdate);

@@ -11,6 +11,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 
 import * as decoding from 'lib0/decoding';
+import * as encoding from 'lib0/encoding';
 import { Awareness, removeAwarenessStates } from 'y-protocols/awareness';
 import * as Y from 'yjs';
 import {
@@ -461,7 +462,54 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
     handleMessage(frame, doc, awareness, conn);
   }
 
-  function receive(conn: RoomConn, payload: Uint8Array): void {
+  /**
+   * P8 G2 co-twelve — a connection writes only its OWN presence. y-protocols encodes every changed client, so a
+   * peer that timed the others out locally (a laptop waking from sleep, a throttled tab) used to tell the room
+   * "they are gone" — and the room removed them for everybody, then ignored their next renewal (same clock).
+   * An entry passes when this conn already owns the clientID, or claims one nobody holds (not owned by another
+   * conn, not a hub-relayed or the room's own state). Everything else is dropped before the apply; a frame left
+   * with no entry is dropped whole. Non-awareness frames pass untouched.
+   */
+  function ownAwareness(conn: RoomConn, payload: Uint8Array): Uint8Array | null {
+    let entries: { clientID: number; clock: number; json: string }[];
+    let dropped = false;
+    try {
+      const outer = decoding.createDecoder(payload);
+      if (decoding.readVarUint(outer) !== MESSAGE_AWARENESS) return payload;
+      const dec = decoding.createDecoder(decoding.readVarUint8Array(outer));
+      const count = decoding.readVarUint(dec);
+      entries = [];
+      const states = awareness.getStates();
+      for (let i = 0; i < count; i++) {
+        const clientID = decoding.readVarUint(dec);
+        const clock = decoding.readVarUint(dec);
+        const json = decoding.readVarString(dec);
+        const owner = connByClient.get(clientID);
+        const mine = owner === conn.id || (owner === undefined && !states.has(clientID));
+        if (mine) entries.push({ clientID, clock, json });
+        else dropped = true;
+      }
+    } catch {
+      return null;
+    }
+    if (!dropped) return payload;
+    if (entries.length === 0) return null;
+    const inner = encoding.createEncoder();
+    encoding.writeVarUint(inner, entries.length);
+    for (const e of entries) {
+      encoding.writeVarUint(inner, e.clientID);
+      encoding.writeVarUint(inner, e.clock);
+      encoding.writeVarString(inner, e.json);
+    }
+    const out = encoding.createEncoder();
+    encoding.writeVarUint(out, MESSAGE_AWARENESS);
+    encoding.writeVarUint8Array(out, encoding.toUint8Array(inner));
+    return encoding.toUint8Array(out);
+  }
+
+  function receive(conn: RoomConn, raw: Uint8Array): void {
+    const payload = ownAwareness(conn, raw);
+    if (!payload) return;
     if (conn.follow === true) {
       receiveFollow(conn, payload);
       return;
