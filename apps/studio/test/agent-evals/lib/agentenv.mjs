@@ -41,6 +41,7 @@ export function agentEnv(base, trialDir) {
     NO_OPEN: '1',
     MAUDE_NO_AUTOBUILD: '1',
     MAUDE_FORCE_SOURCE: '1',
+    MAUDE_PORT_BASE: base.MAUDE_PORT_BASE ?? '48399', // a studio the agent's verbs start stays out of 4399–4408
     CLAUDE_CODE_DISABLE_CRON: '1',
     XDG_CONFIG_HOME: join(trialDir, 'home', '.config'),
     MAUDE_MACHINE_FILE: join(trialDir, 'home', 'machine.json'),

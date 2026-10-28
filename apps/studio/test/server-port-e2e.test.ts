@@ -32,4 +32,15 @@ describe('resolvePort', () => {
     expect(resolvePort(['x'], { ...E2E, PORT: '6000' })).toEqual({ port: 6000, explicit: true });
     expect(resolvePort(['x'], { MDCC_DEV_PORT: '6001' })).toEqual({ port: 6001, explicit: true });
   });
+
+  // 2026-10-28: the V2-8.16 eval's studios (no e2e marker: an MAUDE_E2E_* marker also changes the ACP lookup) took
+  // :4399 whenever the person's studyfi-design studio was briefly down. MAUDE_PORT_BASE moves the ladder's start
+  // without making the port explicit, so parallel trials still walk past each other.
+  test('MAUDE_PORT_BASE moves where the ladder starts, and stays a ladder', () => {
+    const got = resolvePort(['bun', 'server.ts', '--root', '/t'], { MAUDE_PORT_BASE: '48399' });
+    expect(got).toEqual({ port: 48399, explicit: false });
+    for (let i = 0; i < PORT_LADDER; i++) expect(inCliRange(got.port + i)).toBe(false);
+    expect(resolvePort(['x'], { MAUDE_PORT_BASE: '48399', PORT: '6000' })).toEqual({ port: 6000, explicit: true });
+    expect(resolvePort(['x'], { MAUDE_PORT_BASE: 'nope' }).port).toBe(CLI_DEFAULT_PORT);
+  });
 });

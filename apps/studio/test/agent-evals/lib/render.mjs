@@ -15,6 +15,7 @@ const ENV = (repo) => ({
   NO_OPEN: '1',
   MAUDE_NO_AUTOBUILD: '1',
   MAUDE_FORCE_SOURCE: '1',
+  MAUDE_PORT_BASE: process.env.MAUDE_PORT_BASE ?? '48399',
   CLAUDE_PROJECT_DIR: repo,
 });
 

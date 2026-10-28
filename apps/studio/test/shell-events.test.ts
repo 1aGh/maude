@@ -166,6 +166,40 @@ describe('shell events reach this window', () => {
     expect(s.toasts).toEqual([]);
   });
 
+  // The page restarts this subscription when its tree / cloud state flips (hooks/use-tabs.jsx deps). Rust's park is
+  // one-shot, so a take answered AFTER its own subscription stopped was the only copy of "2 tabs reopened" — the
+  // relaunch lane lost the pill that way once (V2-8.3 chain run, 2026-10-28).
+  test('a take answered after its subscription stopped goes to the one that is live now', async () => {
+    let release: (v: unknown) => void = () => {};
+    let taken = false;
+    const held = new Promise((r) => {
+      release = r;
+    });
+    const core = (
+      window as unknown as { __TAURI__: { core: { invoke: (c: string, a?: unknown) => unknown } } }
+    ).__TAURI__.core;
+    const was = core.invoke;
+    core.invoke = (cmd: string, args?: unknown) => {
+      if (cmd === 'take_tabs_restored') {
+        invokes.push(cmd);
+        if (taken) return Promise.resolve(null); // already emptied by the first take
+        taken = true;
+        return held;
+      }
+      return was(cmd, args);
+    };
+    const first = start();
+    await tick();
+    first.stop(); // the page re-ran its effect: the first take is still in flight
+    const second = start();
+    await tick();
+    release({ count: 2 });
+    await tick();
+    expect(first.toasts).toEqual([]);
+    expect(second.toasts).toEqual(['2 tabs reopened. Each one starts when you open it.']);
+    second.stop();
+  });
+
   test('a shell without take_tabs_restored still toasts from the event', async () => {
     const s = start();
     await tick();

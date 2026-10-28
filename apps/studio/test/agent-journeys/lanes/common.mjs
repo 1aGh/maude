@@ -55,6 +55,8 @@ export function harnessEnv(base = process.env, machineFile = null) {
     NO_OPEN: '1',
     MAUDE_NO_AUTOBUILD: '1',
     MAUDE_FORCE_SOURCE: '1',
+    // the harness's studios stay out of the person's 4399–4408 (port.ts); 48399–48408 is clear of e2e's 47399+
+    MAUDE_PORT_BASE: base.MAUDE_PORT_BASE ?? '48399',
     MAUDE_MACHINE_FILE:
       machineFile ??
       base.MAUDE_MACHINE_FILE ??
