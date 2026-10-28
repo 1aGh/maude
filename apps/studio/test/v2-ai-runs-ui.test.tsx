@@ -469,6 +469,44 @@ describe('the rings on the canvas', () => {
     expect(q('ai-ring-tablet')).toBeNull();
   });
 
+  test('P8 t-ai: the run LEASES the artboard it just wrote, and the shell then calls it "AI is working" - the drafted artboard still reads "AI is drawing <its name>" (01 cf-ai-drafting, found live)', async () => {
+    const { act } = await overlay();
+    const running = { state: 'running', who: 'you', tag: 'AI is working', waiting: 0 };
+    await act(async () => {
+      post({ dgn: 'ai-runs', artboards: { post: running } });
+    });
+    const board = document.createElement('div');
+    board.setAttribute('data-dc-screen', 'tablet');
+    board.setAttribute('data-dc-label', 'Tablet');
+    board.getBoundingClientRect = () =>
+      ({ left: 10, top: 10, width: 234, height: 334, right: 244, bottom: 344, x: 10, y: 10 }) as DOMRect;
+    document.body.append(board);
+    await act(async () => {
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+    });
+    expect(q('ai-ring-tablet')?.textContent).toContain('AI is drawing Tablet');
+    // the post-edit hook leases Tablet: the shell now sends a running ring for it, with the fixed words
+    await act(async () => {
+      post({ dgn: 'ai-runs', artboards: { post: running, tablet: running } });
+    });
+    expect(q('ai-ring-tablet')?.textContent).toContain('AI is drawing Tablet');
+    expect(q('ai-ring-tablet')?.getAttribute('data-drawing')).toBe('true');
+    // the artboard that did not just land keeps the neutral words
+    expect(q('ai-ring-post')?.textContent).toContain('AI is working');
+    // a needs-you ring is never renamed
+    await act(async () => {
+      post({
+        dgn: 'ai-runs',
+        artboards: {
+          post: running,
+          tablet: { state: 'needs-you', who: 'you', tag: 'Waiting for you', waiting: 0 },
+        },
+      });
+    });
+    expect(q('ai-ring-tablet')?.textContent).toContain('Waiting for you');
+  });
+
   test('P8 c3: a run that holds objects only (no artboard lease) is live too; the artboard that landed just before is the one being drawn', async () => {
     const { act } = await overlay();
     const board = document.createElement('div');
