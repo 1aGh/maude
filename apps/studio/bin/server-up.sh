@@ -148,8 +148,27 @@ if [ -f "$STATE" ]; then
   # Sandboxed agents may reach Studio while kill -0 returns EPERM. Verify the
   # server's identity over HTTP instead of mistaking denied signalling for death.
   HEALTH=""
+  PROBE_RC=0
+  probe() {
+    HEALTH=$(curl -fs --max-time "$1" "http://localhost:$PORT/_health" 2>/dev/null)
+    PROBE_RC=$?
+  }
   if [ -n "$PORT" ]; then
-    HEALTH=$(curl -fs --max-time 2 "http://localhost:$PORT/_health" 2>/dev/null || true)
+    # A probe that TIMES OUT (curl 28) means something is listening on the port: a busy studio on a loaded Mac,
+    # not a dead one. Ask again with longer waits before calling it stale — respawning a live studio starts a
+    # second instance and the first one ends (2026-10-28: the design.studyfi.com sync went down twice). A refused
+    # connection or a wrong identity is still stale.
+    probe 2
+    for wait in 5 10; do
+      [ "$PROBE_RC" = 28 ] || break
+      echo "… /_health on port $PORT is slow; asking again (${wait}s)" >&2
+      probe "$wait"
+    done
+    if [ "$PROBE_RC" = 28 ]; then
+      echo "✗ a server is listening on port $PORT but has not answered /_health in 17s; not starting a second one" >&2
+      echo "  (stop it first if it is stuck: pid ${PID:-?}, see $STATE)" >&2
+      exit 1
+    fi
   fi
   if [ -n "$PID" ] && [ -n "$PORT" ] \
      && printf '%s' "$HEALTH" | node -e '
