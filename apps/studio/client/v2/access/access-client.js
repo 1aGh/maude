@@ -47,6 +47,12 @@ export function sessionRole(cfg, rel) {
   return best ?? undefined;
 }
 
+/**
+ * P8 G1a — is this session Can view (look only) on canvas `rel`? The registry's `view` rank: no Export, no
+ * Handoff, no View code. From `sessionRole`, so a desktop narrowed to Can view (no `cloud.role`) reads it too.
+ */
+export const observerOn = (cfg, rel) => sessionRole(cfg, rel) === 'observer';
+
 const EDIT_RANK = RANK.member;
 
 /**

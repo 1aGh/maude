@@ -24,7 +24,8 @@ import { useRenderSignal } from '../v2/create/use-render-error.js';
 import { freeCentre } from '../v2/empty/free-centre.js';
 import { ArrivingCanvas, NotLocalCanvas, useCanvasAvailability } from '../v2/empty/not-local.jsx';
 import { insetsNow } from '../v2/shell/insets-now.js';
-import { framesIsolated } from '../v2/access/access-client.js';
+import { normalizeOpenPath } from '../share-link.js';
+import { framesIsolated, sessionRole } from '../v2/access/access-client.js';
 
 export function Viewport({
   tabs,
@@ -63,7 +64,8 @@ export function Viewport({
   // canvas follows the open canvas when the tab changes. Can view is never offered it (the server
   // refuses the source to them too). The shell store is read optionally so a bare Viewport still renders.
   const shell = useContext(ShellStoreContext)?.shellCore;
-  const role = cfg?.cloud?.role;
+  // P8 G1a — the server's role on the open canvas (`/_config.access`), not a cloud tab's `cloud.role` alone
+  const role = sessionRole(cfg, activePath ? normalizeOpenPath(activePath, cfg?.designRel) : null);
   const [codeReq, setCodeReq] = useState(null);
   useEffect(
     () =>

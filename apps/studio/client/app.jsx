@@ -276,7 +276,7 @@ import { getRunsStore, noteAiRuns } from './v2/ai/runs-store.js';
 import { OPEN_AI_EVENT } from './v2/ai/needs-you-toast.js';
 import { OPEN_ASSETS_EVENT } from './v2/ai/AttachMenu.jsx';
 import { TRASH_CHANGED_EVENT } from './v2/left-panel/use-trash.js';
-import { ACCESS_FRAME_EVENT } from './v2/access/access-client.js';
+import { ACCESS_FRAME_EVENT, observerOn, sessionRole } from './v2/access/access-client.js';
 import { isFollowLocation } from './v2/present/follow-location.js';
 import FollowView from './v2/present/follow-view.jsx';
 import { OrderNotesMount } from './v2/present/order-notes-mount.jsx';
@@ -1878,13 +1878,19 @@ function ShellProjectPill() {
   }, [handlers, native]);
 
   const isCloudTab = !!cfg?.cloud;
+  // P8 G1a — the role on the OPEN canvas, as the server resolved it (`/_config.access`): a desktop linked to a
+  // v2 hub has no `cloud.role`, so reading that alone gave a window narrowed to Can view the Can comment menu
+  // (Export, ⇧⌘E). The same value feeds the Export sheet's access line and the vote sheet.
+  const activeRel = activePath ? normalizeOpenPath(activePath, cfg?.designRel) : null;
+  const activeRole = sessionRole(cfg, activeRel);
+  const activeObserver = observerOn(cfg, activeRel);
   const ctx = useMemo(
     () =>
       menuCtx({
         native,
         cloudTab: isCloudTab,
         readOnly: viewerMode,
-        observer: cfg?.cloud?.role === 'observer',
+        observer: activeObserver,
         canvasOpen,
         presenting: presentMode,
         // S3.8 — Copy presentation link reads both: a cloud-linked desktop, and the network up.
@@ -1895,7 +1901,7 @@ function ShellProjectPill() {
       native,
       isCloudTab,
       viewerMode,
-      cfg?.cloud?.role,
+      activeObserver,
       canvasOpen,
       presentMode,
       cloudLinkedHub?.url,
@@ -2923,6 +2929,11 @@ function ShellTree() {
       rightIds,
     },
   } = useShellStore();
+  // P8 G1a — the server's role on the open canvas (Export sheet access line, vote sheet), never `cloud.role` alone
+  const activeRole = sessionRole(
+    cfg,
+    activePath ? normalizeOpenPath(activePath, cfg?.designRel) : null
+  );
 
   // V2-4.1 — panel layout (⌘\ hide, View › Advanced pin) and the insets the islands cause.
   const {
@@ -3325,7 +3336,7 @@ function ShellTree() {
           designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}
           projectName={cfg?.cloud?.projectName || cfg?.name || project || ''}
           // S8.9 — Can comment gets the sheet with one line on top; the server is the lock
-          access={{ canEdit: !viewerMode, role: cfg?.cloud?.role }}
+          access={{ canEdit: !viewerMode, role: activeRole }}
           lastFinishedAt={exportLastFinishedAt}
           {...exportSelectionV2(selected, activePath)}
           activePath={activePath}
@@ -3377,7 +3388,7 @@ function ShellTree() {
         iframesRef={iframesRef}
         activePath={activePath}
         canEdit={!viewerMode}
-        role={cfg?.cloud?.role}
+        role={activeRole}
         notify={notify}
       />
       {templatesReq && (
