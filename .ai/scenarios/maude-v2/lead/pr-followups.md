@@ -65,3 +65,6 @@ Not built, either because no CONTRACT line names them or because the weekly budg
 - cloud-attach 2b shot: after "Moved to the cloud — your canvases are going up now." the sheet also shows a red
   "Sharing is not available right now. Try again in a minute." line the board does not draw — most likely the cloud
   stub has no access API. Check against a real cell on the rc soak.
+- Real GitHub lifecycle (V2-8.16, iagh66/maude-git-smoke): green ×2 signed out. The signed-in PR path (Add to main →
+  a real pull request, DDR-162) was not run — it needs a GitHub sign-in in the app and creates PRs, beyond the
+  lifecycle-push consent. Ask Michal before running it.
