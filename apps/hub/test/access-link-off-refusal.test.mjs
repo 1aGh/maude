@@ -155,6 +155,26 @@ describe('a notice ends the session and leaves the reason behind', () => {
     assert.equal(endedSessionReason(dataDir, t.aComment), null, 'narrowed signs in again');
   });
 
+  // P8 G1a (decision maude/v2-p8-g1a-commenter-door-and-viewer-removal-poll) — a Can view desktop holds no hub
+  // socket, so it hears no notice: it polls GET /api/access/me with its stored bearer. That bearer's own
+  // refusal says why, through the same memo; every other bearer gets today's plain 401.
+  test('GET /api/access/me: the ended bearer hears access-withdrawn, nobody else hears a reason', async () => {
+    const me = (token) =>
+      fetch(`${hub.http}/api/access/me`, {
+        headers: { authorization: `Bearer ${token}`, 'x-maude-access': '2' },
+      }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) }));
+    const ended = await me(t.member);
+    assert.equal(ended.status, 401);
+    assert.equal(ended.body?.reason, 'access-withdrawn');
+    const narrowed = await me(t.aComment);
+    assert.equal(narrowed.status, 401);
+    assert.notEqual(narrowed.body?.reason, 'access-withdrawn', 'narrowed signs in again');
+    assert.notEqual(narrowed.body?.reason, 'link-off');
+    const forged = await me(`${t.member}x`);
+    assert.equal(forged.status, 401);
+    assert.equal(forged.body?.reason, 'unauthorized', 'a forged bearer: today’s answer');
+  });
+
   test('raised never leaves a reason', async () => {
     assert.equal((await changed({ email: 'olga@x.test', change: 'raised' })).status, 202);
     await sleep(GRACE + 200);

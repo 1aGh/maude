@@ -26,7 +26,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { GRANT_ROLES, resolveAccess } from '../../../studio/access/scope.ts';
 import { claimForMatch, NOT_IN_SCOPE_REFUSAL, presentedBearer } from '../access-gate.mjs';
 import { cloudIdentityEnabled } from '../cloud-identity.mjs';
-import { rememberEndedSessions } from '../ended-sessions.mjs';
+import { endedSessionReason, rememberEndedSessions } from '../ended-sessions.mjs';
 import {
   canvasOfInvite,
   createAccessRequest,
@@ -695,7 +695,14 @@ export async function handleAccessRoute(ctx) {
   } catch {
     match = null;
   }
-  if (!match) return answer(ctx, refusal(401, 'unauthorized', 'Sign in to see who has access.'));
+  if (!match) {
+    // P8 G1a — a Can view desktop holds no hub socket, so no notice reaches it: it polls `me` with its stored
+    // bearer. When an access notice ENDED that bearer's own session, its 401 says why (the S9.21d memo, keyed
+    // by this exact token's digest — every other bearer, forged or live, gets today's answer).
+    const ended = token && svc.dataDir ? endedSessionReason(svc.dataDir, token) : null;
+    if (ended) return answer(ctx, refusal(401, ended, 'Your access to this project ended.'));
+    return answer(ctx, refusal(401, 'unauthorized', 'Sign in to see who has access.'));
+  }
   const rest = ctx.path.slice(PREFIX.length);
   const actor = typeof match.owner === 'string' && match.owner ? match.owner.toLowerCase() : null;
   const access = resolveAccess(claimForMatch(match));

@@ -566,6 +566,39 @@ describe('Can comment — 04 md-comment-only · 05 es-viewer · 09 ex-edges', ()
       await shot(lukas, 'pn-cant-open-removed');
     });
   });
+
+  it('pn-cant-open: the owner removes Petra while she looks (Can view, no hub socket) — the same access card', async () => {
+    // Petra is Can view since the narrowing above. A Can view window holds no hub socket, so the hub's notice
+    // never reaches it: it asks GET /api/access/me itself, on focus and about every 60 s (decision
+    // maude/v2-p8-g1a-commenter-door-and-viewer-removal-poll). Focus is what a person does when they look back.
+    const { people } = await json(await hub('/api/access/people'));
+    const her = people.find((p) => p.name?.startsWith('Petra'));
+    assert.ok(her, JSON.stringify(people));
+    const gone = await hub(`/api/access/people/${her.id}`, { method: 'DELETE' });
+    assert.equal(gone.status, 204);
+    await step(petra, 'pn-cant-open-removed-can-view', async () => {
+      const card = petra.locator(tid('access-ended'));
+      await until(
+        'the access card on a Can view window',
+        async () => {
+          await petra.evaluate(() => window.dispatchEvent(new Event('focus')));
+          await sleep(1000);
+          return card.isVisible();
+        },
+        90_000
+      );
+      const words = await text(card);
+      assert.ok(words.includes(`You no longer have access to ${rig.run.project}.`), words);
+      assert.ok(
+        words.includes(
+          'Your last changes were saved first. If this is a surprise, ask someone on the team.'
+        ),
+        words
+      );
+      assert.equal(await text(petra.locator(tid('access-ended-home'))), 'Back to Home');
+      await shot(petra, 'pn-cant-open-removed-can-view');
+    });
+  });
 });
 
 // ── 04 md-edge-viewer: a view-only link, in a browser on the cell door ────────────────────────

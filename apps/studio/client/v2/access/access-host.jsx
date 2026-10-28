@@ -24,11 +24,14 @@ import {
   ACCESS_FRAME_EVENT,
   canvasName,
   canvasRel,
+  doorRefusal,
   REFUSAL_PROBE,
   roleRank,
   setTrashedOpen,
   shellAccessFrame,
   VIEW_ONLY_EVENT,
+  VIEWER_ACCESS_POLL,
+  viewerPolls,
   WORDS,
   watchRefusals,
 } from './access-client.js';
@@ -222,6 +225,45 @@ export function AccessHost({
       document.removeEventListener('visibilitychange', probe);
     };
   }, []);
+
+  // P8 G1a — a Can view window holds no hub socket, so no `ended` notice reaches it: it asks the hub itself
+  // (`VIEWER_ACCESS_POLL`, on the tick and on focus). Only the refusal of this Mac's own credential with a
+  // reason `doorRefusal` reads ends the window; a plain 401, a 403, unlinked or unreachable change nothing.
+  useEffect(() => {
+    if (!viewerPolls(role, live.current.state)) return undefined;
+    let asking = false;
+    let gone = false;
+    const ask = () => {
+      if (gone || asking || !viewerPolls(role, live.current.state)) return;
+      if (document.visibilityState === 'hidden') return;
+      asking = true;
+      Promise.resolve()
+        .then(() => window.fetch(VIEWER_ACCESS_POLL.path, { cache: 'no-store' }))
+        .then(async (r) => {
+          if (gone || r?.status !== 401) return;
+          const outcome = doorRefusal(401, await r.json().catch(() => null));
+          const prev = live.current.state;
+          const next = accessHostRefusal(prev, outcome);
+          if (next !== prev) {
+            live.current.state = next;
+            setState(next);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          asking = false;
+        });
+    };
+    const t = setInterval(ask, VIEWER_ACCESS_POLL.ms);
+    window.addEventListener('focus', ask);
+    document.addEventListener('visibilitychange', ask);
+    return () => {
+      gone = true;
+      clearInterval(t);
+      window.removeEventListener('focus', ask);
+      document.removeEventListener('visibilitychange', ask);
+    };
+  }, [role]);
 
   useEffect(() => {
     let t;
