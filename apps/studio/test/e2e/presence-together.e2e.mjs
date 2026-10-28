@@ -30,7 +30,7 @@ import { after, before, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
-import { sleep, startServer } from './harness.mjs';
+import { e2eProjectConfig, sleep, startServer } from './harness.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FILE = 'ui/Combine-kampan.tsx';
@@ -70,7 +70,7 @@ const META = {
 function makeKampan() {
   const root = mkdtempSync(join(tmpdir(), 'maude-presence-e2e-'));
   mkdirSync(join(root, '.design', 'ui'), { recursive: true });
-  writeFileSync(join(root, '.design', 'config.json'), JSON.stringify({ name: 'presence-e2e' }));
+  writeFileSync(join(root, '.design', 'config.json'), JSON.stringify(e2eProjectConfig('presence-e2e')));
   writeFileSync(join(root, '.design', FILE), CANVAS);
   writeFileSync(join(root, '.design', 'ui', 'Combine-kampan.meta.json'), JSON.stringify(META));
   return root;

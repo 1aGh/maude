@@ -20,7 +20,7 @@ import { after, before, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
-import { sleep, startServer } from './harness.mjs';
+import { e2eProjectConfig, sleep, startServer } from './harness.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIX = join(HERE, '../../../desktop/e2e/fixtures/project/.design');
@@ -31,7 +31,7 @@ function makeVideoProject() {
   const d = join(root, '.design');
   mkdirSync(join(d, 'ui'), { recursive: true });
   mkdirSync(join(d, 'assets'), { recursive: true });
-  writeFileSync(join(d, 'config.json'), JSON.stringify({ name: 'together-e2e' }));
+  writeFileSync(join(d, 'config.json'), JSON.stringify(e2eProjectConfig('together-e2e')));
   // the fixture video, with its captions already there (the lane and the Transcript need them)
   const src = readFileSync(join(FIX, 'ui/VideoTranscript.tsx'), 'utf8').replace(
     '    </TransitionSeries>\n',

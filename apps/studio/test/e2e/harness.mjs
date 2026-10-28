@@ -72,10 +72,19 @@ export async function makeProjectFor(board) {
     : makeProject({ board });
 }
 
+/**
+ * The `.design/config.json` of a throwaway project. The studio opens a format-1 project (no `formatVersion`) view
+ * only (2A, FORMAT_GATE_OPTS), so a v2 scenario needs `formatVersion: 2`. E2E_LEGACY=1 models a 1.x project for the
+ * pre-v2 baseline studio and keeps the bare config.
+ */
+export function e2eProjectConfig(name) {
+  return process.env.E2E_LEGACY === '1' ? { name } : { name, formatVersion: 2 };
+}
+
 export function makeProject({ board = null, legacySvg = null } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'maude-ann-e2e-'));
   mkdirSync(join(root, '.design', 'ui'), { recursive: true });
-  writeFileSync(join(root, '.design', 'config.json'), JSON.stringify({ name: 'ann-e2e' }));
+  writeFileSync(join(root, '.design', 'config.json'), JSON.stringify(e2eProjectConfig('ann-e2e')));
   writeFileSync(join(root, '.design', 'ui', 'Board.tsx'), CANVAS);
   writeFileSync(join(root, '.design', 'ui', 'Board.meta.json'), JSON.stringify(META));
   if (board) {

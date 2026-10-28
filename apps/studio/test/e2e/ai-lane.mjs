@@ -134,7 +134,7 @@ export async function startAiLane({ files = {}, name = 'Studio site', prefs = {}
   mkdirSync(gates, { recursive: true });
   mkdirSync(join(home, 'xdg', 'maude'), { recursive: true });
   mkdirSync(bin, { recursive: true });
-  writeFileSync(join(project, '.design', 'config.json'), JSON.stringify({ name }));
+  writeFileSync(join(project, '.design', 'config.json'), JSON.stringify({ name, formatVersion: 2 }));
   for (const [rel, text] of Object.entries(files)) {
     mkdirSync(dirname(join(project, rel)), { recursive: true });
     writeFileSync(join(project, rel), text);
