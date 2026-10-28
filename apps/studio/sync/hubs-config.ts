@@ -77,6 +77,20 @@ export interface HubRecord {
    * just meets the hub's 429 sooner. Absent means the breaker is on.
    */
   unlimitedDeletes?: boolean;
+  /**
+   * The account the hub vouched at sign-in (its `user.email`), so Settings › Connections can say
+   * "Signed in as <account>" (06 ad-edge-hub). Display only — never an access decision. Written by
+   * a password / invite sign-in, carried forward by a silent renewal; absent on a pasted token and
+   * on every credential written before it shipped, which simply shows no line. A 1.x build ignores it.
+   */
+  account?: string;
+}
+
+/** An account name safe to store and draw: an e-mail-ish printable string, at most 254 characters. */
+export function safeAccount(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  return t.length > 0 && t.length <= 254 && /^[\w.+@-]+$/.test(t) ? t : null;
 }
 
 export interface HubsConfig {

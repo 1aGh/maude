@@ -22,7 +22,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { probeHubHealth } from '../sync/hub-link.ts';
-import { getHubRecord, normalizeUrl } from '../sync/hubs-config.ts';
+import { getHubRecord, normalizeUrl, safeAccount } from '../sync/hubs-config.ts';
 import type { RouteSpec } from './table.ts';
 
 /** A token shorter than this shows no characters at all. */
@@ -34,6 +34,8 @@ export interface HubDetails {
   tokenLast4: string | null;
   healthy: boolean | null;
   version: string | null;
+  /** P8-T G1b-3 — "Signed in as": the account the sign-in recorded; null on an older credential. */
+  account: string | null;
 }
 
 export interface ConnectionsRouteDeps {
@@ -73,10 +75,25 @@ export async function hubDetails(deps: ConnectionsRouteDeps): Promise<HubDetails
   try {
     norm = normalizeUrl(url);
   } catch {
-    return { url, credentialed: false, tokenLast4: null, healthy: null, version: null };
+    return {
+      url,
+      credentialed: false,
+      tokenLast4: null,
+      healthy: null,
+      version: null,
+      account: null,
+    };
   }
   const record = getHubRecord(norm, deps.hubsPath?.());
-  if (!record) return { url, credentialed: false, tokenLast4: null, healthy: null, version: null };
+  if (!record)
+    return {
+      url,
+      credentialed: false,
+      tokenLast4: null,
+      healthy: null,
+      version: null,
+      account: null,
+    };
   const probe = deps.probe ?? probeHubHealth;
   let healthy: boolean | null = null;
   let version: string | null = null;
@@ -87,7 +104,14 @@ export async function hubDetails(deps: ConnectionsRouteDeps): Promise<HubDetails
   } catch {
     healthy = false;
   }
-  return { url, credentialed: true, tokenLast4: tokenLast4(record.token), healthy, version };
+  return {
+    url,
+    credentialed: true,
+    tokenLast4: tokenLast4(record.token),
+    healthy,
+    version,
+    account: safeAccount(record.account),
+  };
 }
 
 export function createConnectionsRoutes(deps: ConnectionsRouteDeps): RouteSpec[] {

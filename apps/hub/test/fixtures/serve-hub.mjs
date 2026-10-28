@@ -97,10 +97,16 @@ if (transactions) {
   }
 }
 
+// A workspace-mode hub (MAUDE_WORKSPACE_MODE=1 + MAUDE_REPO_DIR, as a cell runs): arm the file journal's
+// poke + walk-import the way `main()` in server.mjs does, so a peer learns a file landed without waiting for
+// its poll. No object storage here, so no tail. A plain hub has no journal and this is a no-op.
+if (built.workspaceMode) await built.startJournalReconciler({ target: null });
+
 process.stdout.write(`${JSON.stringify({ http, ws, port: new URL(http).port, tokens })}\n`);
 
 const stop = async () => {
   try {
+    if (built.workspaceMode) await built.stopJournal().catch(() => {});
     await built.server.destroy();
   } finally {
     process.exit(0);

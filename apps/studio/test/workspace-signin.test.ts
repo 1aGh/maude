@@ -103,6 +103,16 @@ describe('credential custody', () => {
     expect(JSON.stringify(stored)).not.toContain('hunter2222222');
   });
 
+  test('the account the workspace vouched is saved with the token (Settings › Signed in as)', async () => {
+    const stored: Array<{ account?: string }> = [];
+    const { impl } = scriptedFetch({ '/health': HEALTHY, '/auth/login': LOGGED_IN });
+    await signInToWorkspace(CREDS, {
+      fetchImpl: impl,
+      save: (_u, _t, _r, _e, account) => void stored.push({ account }),
+    });
+    expect(stored).toEqual([{ account: 'alice@example.com' }]);
+  });
+
   test('nothing is saved when sign-in fails', async () => {
     const stored: string[] = [];
     const { impl } = scriptedFetch({

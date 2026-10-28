@@ -119,15 +119,43 @@ describe('GET /_api/connections/hub', () => {
     dir = mkdtempSync(join(tmpdir(), 's11-14-'));
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
-  const setup = (token: string | null, url = 'https://hub.studio-brno.cz') => {
+  const setup = (
+    token: string | null,
+    url = 'https://hub.studio-brno.cz',
+    extra: Record<string, unknown> = {}
+  ) => {
     writeFileSync(join(dir, 'config.json'), JSON.stringify({ linkedHub: { url, linkedAt: 1 } }));
     const hubs = join(dir, 'hubs.json');
     writeFileSync(
       hubs,
-      JSON.stringify({ hubs: token ? { [url]: { token, linkedAt: 1 } } : {}, trusted: [] })
+      JSON.stringify({
+        hubs: token ? { [url]: { token, linkedAt: 1, ...extra } } : {},
+        trusted: [],
+      })
     );
     return hubs;
   };
+
+  // P8-T G1b-3 — 06 ad-edge-hub: "Signed in as you@studio-brno", the account the hub vouched at sign-in.
+  test('Signed in as: the account the sign-in recorded; an old hubs.json without one is none, never an error', async () => {
+    const probe = async () => ({ ok: true, version: 'maude-hub 2.0.0' });
+    let hubs = setup(FULL, undefined, { account: 'you@studio-brno' });
+    expect((await hubDetails({ designRoot: dir, hubsPath: () => hubs, probe }))?.account).toBe(
+      'you@studio-brno'
+    );
+    hubs = setup(FULL); // a credential written before the field existed
+    expect(
+      (await hubDetails({ designRoot: dir, hubsPath: () => hubs, probe }))?.account
+    ).toBeNull();
+    hubs = setup(FULL, undefined, { account: '<img src=x onerror=alert(1)>' });
+    expect(
+      (await hubDetails({ designRoot: dir, hubsPath: () => hubs, probe }))?.account
+    ).toBeNull();
+    hubs = setup(FULL, undefined, { account: { email: 'x@y' } });
+    expect(
+      (await hubDetails({ designRoot: dir, hubsPath: () => hubs, probe }))?.account
+    ).toBeNull();
+  });
 
   test('the last four characters, the version, and nothing else of the token', async () => {
     const hubs = setup(FULL);
@@ -147,6 +175,7 @@ describe('GET /_api/connections/hub', () => {
       tokenLast4: 'a91f',
       healthy: true,
       version: 'maude-hub 2.0.0',
+      account: null,
     });
     // the probe is handed the address and nothing else — the token never travels with it
     expect(probed).toEqual([['https://hub.studio-brno.cz']]);
@@ -244,6 +273,7 @@ const BASE: Record<string, unknown> = {
       tokenLast4: 'a91f',
       healthy: true,
       version: 'maude-hub 2.0.0',
+      account: 'you@studio-brno',
       token: SECRET, // a server that over-shares must still not reach the DOM
     },
   },
@@ -378,10 +408,34 @@ describe('Settings › Connections, rendered (06 ad-edge-hub)', () => {
     expect(q('settings-hub-token')?.textContent).toContain('•••• •••• a91f');
     expect(q('settings-hub-token-replace')?.textContent).toBe('Replace…');
     expect(q('settings-hub-version')?.textContent).toContain('maude-hub 2.0.0');
+    // P8-T G1b-3 — the board's order: Address · Access token · Signed in as · Hub version
+    expect(q('settings-hub-account')?.textContent).toBe('Signed in asyou@studio-brno');
+    const order = ['settings-hub-token', 'settings-hub-account', 'settings-hub-version'].map((t) =>
+      q(t)
+    );
+    for (let i = 1; i < order.length; i++)
+      expect(
+        (order[i - 1] as Node).compareDocumentPosition(order[i] as Node) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
     // the token is never rendered beyond its last four
     const html = document.body.innerHTML;
     expect(html).not.toContain(SECRET);
     expect(html).not.toContain('0123456789');
+  });
+
+  test('a credential from before the account was recorded draws no Signed in as line, and nothing breaks', async () => {
+    const { account: _gone, ...hub } = (
+      BASE['/_api/connections/hub'] as { hub: Record<string, unknown> }
+    ).hub;
+    installFetch({ '/_api/connections/hub': { ok: true, hub } });
+    await mount();
+    await click(q('fold-connections.hub-toggle'));
+    await settle();
+    expect(q('settings-hub-token')?.textContent).toContain('•••• •••• a91f');
+    expect(q('settings-hub-version')?.textContent).toContain('maude-hub 2.0.0');
+    expect(q('settings-hub-account')).toBeNull();
+    expect(document.body.textContent).not.toContain('undefined');
   });
 
   test('Replace… writes through POST /_api/hub/link only, and the typed token leaves the DOM', async () => {

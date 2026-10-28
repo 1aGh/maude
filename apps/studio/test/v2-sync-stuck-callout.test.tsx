@@ -135,6 +135,47 @@ describe('the model: a paused lane becomes one calm callout', () => {
       'Syncing…'
     );
   });
+
+  // P8-T G1b-3 — measured on the team-cell lane (a workspace hub, --asset-write-rate-limit 1): the PUT that met the
+  // 429 is also counted `failed: 1` (class unreachable) in the same pass, and "1 file could not be delivered" outranked
+  // the pause, so the word beside the faces read Saved over a callout saying 2 changes are waiting.
+  test('a file the pause held back is waiting, not failed: still Syncing…, not "to review"', () => {
+    const measured = stuck(
+      { docs: { synced: 1, pending: 0, rejected: 0 } },
+      {
+        synced: 2,
+        pulled: 1,
+        conflicts: 0,
+        pushed: 2,
+        failed: 1,
+        progress: {
+          phase: 'paused',
+          tracked: 6,
+          delivered: 3,
+          remaining: 3,
+          bytesRemaining: 141,
+          blocked: [],
+        },
+        blocked: {
+          files: 1,
+          bytes: 47,
+          unmeasured: 0,
+          byClass: { unreachable: { files: 1, bytes: 47 } },
+        },
+        rateLimited: { until: NOW + 40_000, waiting: 2 },
+      }
+    );
+    const p = syncPresentation(measured as never, { now: NOW });
+    expect(p?.phase).toBe('syncing');
+    expect(saveStatus({ linked: true, online: true, phase: p?.phase ?? null }).word).toBe(
+      'Syncing…'
+    );
+    // a failure with no pause around it still needs a person
+    const { rateLimited: _r, ...unpaused } = measured.files as Record<string, unknown>;
+    expect(syncPresentation({ ...measured, files: unpaused } as never, { now: NOW })?.phase).toBe(
+      'attention'
+    );
+  });
 });
 
 // ── the real host over a shell store ───────────────────────────────────────────────────────────

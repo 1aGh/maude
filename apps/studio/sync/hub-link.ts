@@ -26,7 +26,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSy
 import { dirname } from 'node:path';
 
 import { legacyClaim } from '../access/scope.ts';
-import { hubsConfigPath, normalizeUrl, v1RoleProjection } from './hubs-config.ts';
+import { hubsConfigPath, normalizeUrl, safeAccount, v1RoleProjection } from './hubs-config.ts';
 
 export interface HubLinkResult {
   status: number;
@@ -49,6 +49,8 @@ interface HubsFile {
       codeModulesAllowed?: boolean;
       /** Local consent — see `HubRecord.unlimitedDeletes` in hubs-config.ts. */
       unlimitedDeletes?: boolean;
+      /** Who signed in — see `HubRecord.account` in hubs-config.ts. Display only. */
+      account?: string;
     }
   >;
   trusted?: string[];
@@ -137,7 +139,13 @@ export function saveHubCredential(
   role?: string,
   expiresAt?: number,
   /** The profile's hubs.json (Home prepares per profile, N-H1); absent = this process's file. */
-  path: string = hubsConfigPath()
+  path: string = hubsConfigPath(),
+  /**
+   * P8-T G1b-3 — the account the hub vouched at sign-in (`user.email`), for "Signed in as" in
+   * Settings › Connections. Replaced like `role`: absent (a pasted token) stores none, so a new
+   * credential never inherits the last person's name; a silent renewal passes the old one on.
+   */
+  account?: string | null
 ): void {
   const dir = dirname(path);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
@@ -167,6 +175,7 @@ export function saveHubCredential(
     ...(typeof expiresAt === 'number' && Number.isFinite(expiresAt) ? { expiresAt } : {}),
     ...(typeof priorConsent === 'boolean' ? { codeModulesAllowed: priorConsent } : {}),
     ...(typeof priorDeletes === 'boolean' ? { unlimitedDeletes: priorDeletes } : {}),
+    ...(safeAccount(account) ? { account: safeAccount(account) as string } : {}),
   };
   if (!Array.isArray(cfg.trusted)) cfg.trusted = [];
   if (!cfg.trusted.includes(normUrl)) cfg.trusted.push(normUrl);
