@@ -239,6 +239,12 @@ export async function openCanvas(server) {
   // Fit everything into view: a double-click on empty canvas is the shell's fit().
   await page.mouse.dblclick(frameBox.x + 12, frameBox.y + frameBox.height - 12);
   await page.waitForTimeout(700);
+  // S4.9 — the annotation layer answers pointers in Preview only; Edit shows it quiet (a click passes through to
+  // the design). Every scenario here drives the layer, so open in Preview. A pre-v2 baseline has no modes.
+  if (process.env.E2E_LEGACY !== '1') {
+    await page.locator('[data-testid="palette-mode-preview"]').first().click({ timeout: 10_000 });
+    await page.waitForTimeout(500);
+  }
   const c = {
     browser,
     page,
