@@ -407,6 +407,7 @@ async function bootServer() {
       // S5.1b — the local kernel's machine stamp stays in the throwaway HOME, never the person's.
       MAUDE_MACHINE_FILE: join(home, '.config', 'maude', 'machine.json'),
       NO_OPEN: '1',
+      MAUDE_PORT_BASE: process.env.MAUDE_PORT_BASE ?? '48399', // never the person's 4399–4408 (port.ts)
       MAUDE_NO_AUTOBUILD: '1',
       MAUDE_SYNC_IN_CI: '1',
       TZ: 'UTC',

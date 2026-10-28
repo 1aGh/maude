@@ -105,6 +105,7 @@ server = spawn('bun', [join(STUDIO, 'server.ts'), '--root', projectRoot], {
   env: {
     ...process.env,
     NO_OPEN: '1',
+    MAUDE_PORT_BASE: process.env.MAUDE_PORT_BASE ?? '48399', // never the person's 4399–4408 (port.ts)
     MAUDE_NO_AUTOBUILD: '1',
     MAUDE_SYNC_IN_CI: '1',
     // S5.1b — the unlinked boot project stamps a machine id; keep it in the throwaway dir, never
