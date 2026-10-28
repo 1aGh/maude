@@ -25,6 +25,7 @@ describe('POST /_api/canvas — designSystem', () => {
       JSON.stringify({
         name: 'test',
         designRoot: '.design',
+        formatVersion: 2,
         canvasGroups: [
           { label: 'System', path: 'system' },
           { label: 'UI', path: 'ui' },
