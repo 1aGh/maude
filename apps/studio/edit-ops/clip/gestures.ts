@@ -107,7 +107,7 @@ const MAX_DROP = 50;
 
 /**
  * `clip.insert` — footage dropped on the timeline: a beat at `index`, or an overlay / audio clip at `from`.
- * `items: [{ mediaTag, src, durationInFrames }]` is a multi-file drop: they land in order, in this ONE write.
+ * `items: [{ mediaTag, src, durationInFrames, name? }]` is a multi-file drop (`name`: the file's own name): they land in order, in this ONE write.
  * (Without `items` the request's own `mediaTag` / `src` / `durationInFrames` is the one clip.)
  */
 const insert: EditOp = {
@@ -136,6 +136,8 @@ const insert: EditOp = {
         return bad(req.file, 'The footage has no readable kind.');
       if (present(it.src) && typeof it.src !== 'string')
         return bad(req.file, 'The footage has no readable path.');
+      if (present(it.name) && typeof it.name !== 'string')
+        return bad(req.file, 'The footage has no readable name.');
       const r = applyInsertClipAt(req.file, out, artboardOf(req), {
         lane,
         ...(at !== undefined ? { index: at + k } : {}),
@@ -143,6 +145,7 @@ const insert: EditOp = {
         durationInFrames: frames(req.file, it.durationInFrames, 'durationInFrames', 1),
         mediaTag: (it.mediaTag as string | null | undefined) ?? null,
         src: (it.src as string | null | undefined) ?? null,
+        name: (it.name as string | null | undefined) ?? null,
         placeholder:
           ph && typeof ph === 'object' && typeof ph.prompt === 'string'
             ? { prompt: ph.prompt, kind: typeof ph.kind === 'string' ? ph.kind : 'veo' }

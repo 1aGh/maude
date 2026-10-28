@@ -396,6 +396,11 @@ function ensureBunOnPath(childEnv, pkgRoot) {
   }
 }
 
+/** A path inside a `bun --compile` binary's embedded filesystem (mirrors apps/studio isVirtualPath). */
+export function isVirtualNapiPath(p) {
+  return typeof p === 'string' && /^(\/\$bunfs\/|[A-Za-z]:[\\/]~BUN[\\/])/.test(p);
+}
+
 function runBinDispatch(verb, { args, pkgRoot }) {
   if (!BIN_VERBS.has(verb)) {
     process.stderr.write(`maude design: "${verb}" is not a dev-tooling verb.\n${usage()}`);
@@ -434,6 +439,12 @@ function runBinDispatch(verb, { args, pkgRoot }) {
     process.exit(2);
   }
   const childEnv = { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot };
+  // p8-t-video-2 — a `/$bunfs/…` (or Windows `B:/~BUN/…`) NAPI_RS_NATIVE_LIBRARY_PATH names the oxc
+  // binding INSIDE a compiled maude-server (DDR-042) and exists nowhere else; a sidecar child inherits it.
+  // With it set, oxc-parser's loader tries only that path, so every parse-reaching helper (reel-place, …)
+  // died with "Cannot find native binding". Drop it — the helper's own oxc-parser finds its binding.
+  if (isVirtualNapiPath(childEnv.NAPI_RS_NATIVE_LIBRARY_PATH))
+    delete childEnv.NAPI_RS_NATIVE_LIBRARY_PATH;
   // For verbs that boot the dev-server, resolve the compiled platform binary the
   // SAME way `maude design serve` does and hand the path down. The binary embeds
   // yjs + every runtime dep; `bun server.ts` from source does NOT (the deps live

@@ -20,6 +20,7 @@ afterAll(() => {
 
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { clipLabel } from '../client/v2/timeline/fit-fill.jsx';
 import { TimelineIslandContext } from '../client/v2/timeline/island-context.js';
 import { playbackStore } from '../client/v2/timeline/playhead.js';
 import TimelinePanel from '../client/v2/timeline/Timeline.jsx';
@@ -215,5 +216,29 @@ describe('loop band and poster', () => {
     mount(SEQ.slice(0, 2), { island: { poster: 105 } });
     expect(q('[data-testid="timeline-poster-flag"]')?.textContent).toBe('Poster');
     expect(q('[data-testid="timeline-poster-flag"]')?.getAttribute('data-frame')).toBe('105');
+  });
+});
+
+// p8-t-video-2 (07 · "IMG_5120 is vertical") — a dropped clip goes by its file's name, never its content hash
+describe('clip names', () => {
+  test('a named clip shows its name; an unnamed hash-file clip is "Clip N"', () => {
+    mount([
+      {
+        ...beat('x', 0, 240),
+        stableId: 'name:IMG_5120',
+        label: 'Video',
+        mediaSrc: 'assets/9f1c2b7a.mov',
+      },
+      { ...beat('y', 240, 210), stableId: 'c1#1', label: 'Video', mediaSrc: 'assets/0badc0de.mp4' },
+    ]);
+    expect(all('[data-track="video"] .tl-clip-lab').map((e) => e.textContent)).toEqual([
+      'IMG_5120',
+      'Clip 2',
+    ]);
+  });
+
+  test('the vertical-clip question names the clip the same way', () => {
+    expect(clipLabel('name:IMG_5120', 'assets/9f1c2b7a.mov')).toBe('IMG_5120');
+    expect(clipLabel('c1#1', 'assets/9f1c2b7a.mov')).toBe('9f1c2b7a.mov');
   });
 });

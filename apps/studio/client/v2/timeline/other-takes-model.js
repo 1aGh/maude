@@ -62,11 +62,17 @@ export function takesOf({
   for (const s of usable) if (!best || quality(s) > quality(best)) best = s;
 
   const fits = (start) => !finite(sourceSeconds) || start + lenSec <= sourceSeconds + EPS;
-  const rows = usable
-    .filter((s) => fits(s.start))
+  const offered = usable.filter((s) => fits(s.start));
+  // the clip's own window sits inside these shots; it is on ONE take — AI's pick when the pick holds it,
+  // else the earliest. (Two overlapping shots used to give two rows of the same window, and "swapping"
+  // to the second changed nothing — p8-t-video-2, the AI cut's e2e.)
+  const holders = offered
+    .filter((s) => at >= s.start - EPS && at + lenSec <= s.end + EPS)
+    .sort((a, b) => a.start - b.start);
+  const on = holders.includes(best) ? best : (holders[0] ?? null);
+  const rows = offered
     .map((s) => {
-      // the clip's own window when it sits inside this shot: the take it is already on
-      const current = at >= s.start - EPS && at + lenSec <= s.end + EPS;
+      const current = s === on;
       const srcStart = current ? at : s.start;
       return {
         srcStart,
@@ -78,14 +84,14 @@ export function takesOf({
       };
     })
     .sort((a, b) => a.srcStart - b.srcStart);
-  // two shots can both contain the clip's window; only the first is "in the cut"
-  let seen = false;
-  for (const t of rows) {
-    if (!t.current) continue;
-    if (seen) t.current = false;
-    seen = true;
-  }
-  return { lenSec, takes: rows, canSwap: rows.some((t) => !t.current) };
+  // a take whose window is the one the clip is already on IS that take: one row, keeping its pick mark
+  const cur = rows.find((t) => t.current);
+  const takes = rows.filter((t) => {
+    if (!cur || t === cur || Math.abs(t.srcStart - cur.srcStart) > EPS) return true;
+    if (t.pick) cur.pick = true;
+    return false;
+  });
+  return { lenSec, takes, canSwap: takes.some((t) => !t.current) };
 }
 
 /** The params of the swap, for `video.take.swap`. */

@@ -2269,6 +2269,7 @@ function ShellTimelinePanel() {
         // legacy append path.
         const fps = timelineFps;
         const list = (Array.isArray(files) ? files : [files]).filter(Boolean);
+        const fileStem = (n) => String(n || '').replace(/\.[A-Za-z0-9]{1,8}$/, '');
         (async () => {
           // Dogfood fix — dropping media on the timeline of a canvas with
           // NO video-comp used to dead-end in "Insert refused: no
@@ -2291,7 +2292,7 @@ function ShellTimelinePanel() {
                   body: file,
                 });
                 const up = await r.json().catch(() => ({}));
-                if (up?.path) clips.push({ src: up.path, mediaKind });
+                if (up?.path) clips.push({ src: up.path, mediaKind, name: fileStem(file.name) });
                 else shellToast(`Upload failed: ${up?.error || `HTTP ${r.status}`}`);
               } catch {
                 shellToast('Upload failed: network error');
@@ -2315,6 +2316,7 @@ function ShellTimelinePanel() {
               mediaTag: x.c.mediaKind === 'audio' ? 'Audio' : 'Video',
               src: x.c.src,
               durationInFrames: x.durationInFrames,
+              name: x.c.name,
             });
             // The first clip always opens the storyline; later audio goes to the audio band. S7.9: the whole
             // drop is ONE `clip.insert` per band (one write, one undo step), not one write per file.
@@ -2405,7 +2407,8 @@ function ShellTimelinePanel() {
             // inherent duration, so they keep the fallback.
             const probedSec =
               mediaTag === 'Video' ? await probeMediaDuration(up.path).catch(() => null) : null;
-            const item = { mediaTag, src: up.path };
+            // p8-t-video-2 — the clip keeps the file's own name ("IMG_5120"), not the asset's content hash.
+            const item = { mediaTag, src: up.path, name: fileStem(file.name) };
             if (pos && (isAudio || pos.lane === 'audio')) {
               // Default: stretch toward the end of the cut.
               const from = Math.max(0, pos.frame ?? 0);

@@ -57,6 +57,25 @@ describe('what is offered', () => {
     expect(cur?.label).toBe('0:03.4–0:05.9');
   });
 
+  // p8-t-video-2 — the AI cut's e2e offered "0:01–0:02" twice (once in the cut, once as AI's pick) and the
+  // first free row changed nothing. Two overlapping shots holding the clip's window are ONE take.
+  test('overlapping shots that both hold the clip are one take; every other take is a different window', () => {
+    const overlap = [
+      { start: 0.5, end: 2.5, quality: 0.5, usable: true },
+      { start: 1, end: 2.2, quality: 0.9, usable: true }, // AI's pick, holds the clip too
+      { start: 3, end: 4.5, quality: 0.6, usable: true },
+    ];
+    const m = takesOf({ shots: overlap, lengthFrames: 30, fps: FPS, trimBeforeFrames: 30 });
+    expect(m.takes.map((t) => [t.label, t.current, t.pick])).toEqual([
+      ['0:00.5–0:01.5', false, false],
+      ['0:01–0:02', true, true],
+      ['0:03–0:04', false, false],
+    ]);
+    const cur = m.takes.find((t) => t.current);
+    for (const t of m.takes)
+      if (t !== cur) expect(t.srcStart).not.toBeCloseTo(cur?.srcStart ?? -1, 2);
+  });
+
   test('speed counts: a 1.5× clip of 75 frames uses 3.75 s of source', () => {
     const m = takesOf({ shots: SHOTS, ...CLIP, rate: 1.5 });
     expect(m.lenSec).toBe(3.75);

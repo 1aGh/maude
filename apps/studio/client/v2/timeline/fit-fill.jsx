@@ -28,6 +28,13 @@ import {
  * }} p
  * @returns {{ ask: { stableId: string, name: string, url: string }|null, answer: (fit: string, same: boolean) => void, dismiss: () => void }}
  */
+/** What the question calls the clip: its name (`name:<name>` identity), else its file. */
+export function clipLabel(stableId, src) {
+  return typeof stableId === 'string' && stableId.startsWith('name:')
+    ? stableId.slice(5)
+    : String(src).split('/').pop();
+}
+
 export function useFitFill({ seq, comp, url, canvas, artboardId, canEdit, runFit }) {
   const [ask, setAsk] = useState(null);
   const run = useRef(runFit);
@@ -61,7 +68,8 @@ export function useFitFill({ seq, comp, url, canvas, artboardId, canEdit, runFit
         if (standing !== 'fill') run.current(standing);
         return;
       }
-      setAsk({ stableId, name: String(src).split('/').pop(), url });
+      // p8-t-video-2 — a dropped clip carries its file's name ("IMG_5120"); an unnamed one shows its file
+      setAsk({ stableId, name: clipLabel(stableId, src), url });
     });
     return () => {
       dead = true;

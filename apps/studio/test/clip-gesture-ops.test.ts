@@ -210,6 +210,74 @@ describe('dropping three clips is one gesture: one write, one undo step', () => 
     expect(order).toEqual(['a', 'b', 'c']);
   });
 
+  // p8-t-video-2 (board 07 "IMG_5120 is vertical"): a dropped clip keeps the name of the file it came from —
+  // the timeline label and the clip's identity — not the asset's content hash. A second drop of the same file
+  // gets " 2"; a name the comp cannot carry is cleaned; an overlay keeps its name too.
+  test('dropped clips keep their file names as the clip name — unique, cleaned, on every lane', async () => {
+    const s = sandbox();
+    const route = editOpRoute(s.designRoot, s.root);
+    const r = await route.handle(
+      post({
+        file: FILE,
+        op: 'clip.insert',
+        targets: [],
+        params: {
+          artboard: 'reel',
+          lane: 'storyline',
+          index: 3,
+          items: [
+            {
+              mediaTag: 'Video',
+              src: 'assets/9f1c2b7a.mov',
+              durationInFrames: 60,
+              name: 'IMG_5120',
+            },
+            {
+              mediaTag: 'Video',
+              src: 'assets/9f1c2b7a.mov',
+              durationInFrames: 60,
+              name: 'IMG_5120',
+            },
+            { mediaTag: 'Video', src: 'assets/0badc0de.mp4', durationInFrames: 30, name: 'one' },
+            { mediaTag: 'Video', src: 'assets/1badc0de.mp4', durationInFrames: 30, name: 'a"<b>' },
+          ],
+        },
+      }),
+      {}
+    );
+    expect(r.status).toBe(200);
+    const j = (await r.json()) as { detail?: { stableIds?: unknown[] } };
+    expect(j.detail?.stableIds).toEqual([
+      'name:IMG_5120',
+      'name:IMG_5120 2',
+      'name:one 2',
+      'name:a b',
+    ]);
+    const names = [...s.read().matchAll(/<TransitionSeries\.Sequence name="([^"]+)"/g)].map(
+      (m) => m[1]
+    );
+    expect(names).toEqual(['one', 'two', 'three', 'IMG_5120', 'IMG_5120 2', 'one 2', 'a b']);
+
+    const o = await route.handle(
+      post({
+        file: FILE,
+        op: 'clip.insert',
+        targets: [],
+        params: {
+          artboard: 'reel',
+          lane: 'overlay',
+          from: 30,
+          items: [
+            { mediaTag: 'Img', src: 'assets/5e5e5e5e.png', durationInFrames: 60, name: 'logo' },
+          ],
+        },
+      }),
+      {}
+    );
+    expect(o.status).toBe(200);
+    expect(s.read()).toMatch(/<Sequence name="logo" from=\{30\} durationInFrames=\{60\}>/);
+  });
+
   test('a bad item refuses the whole drop and writes nothing', async () => {
     const s = sandbox();
     const route = editOpRoute(s.designRoot, s.root);

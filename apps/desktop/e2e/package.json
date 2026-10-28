@@ -18,6 +18,7 @@
     "e2e:cell-tab": "wdio run ./wdio.cell-tab.conf.ts",
     "e2e:ai-quit": "wdio run ./wdio.ai-quit.conf.ts",
     "e2e:generate-takes": "wdio run ./wdio.generate-takes.conf.ts",
+    "e2e:video-ai": "wdio run ./wdio.video-ai.conf.ts",
     "e2e:import-figma": "wdio run ./wdio.import-figma.conf.ts",
     "e2e:relaunch": "wdio run ./wdio.relaunch.conf.ts",
     "e2e:home": "wdio run ./wdio.home.conf.ts",
