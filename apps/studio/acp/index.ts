@@ -38,6 +38,7 @@ import { type AskQueue, noteRateLimit, promptLabel } from './ask-queue.ts';
 import { createHubWriteAudience, type WriteAudienceSource } from './audience.ts';
 import { buildStudioBrief } from './bootstrap-brief.ts';
 import { AcpBridge, type BridgeUsage } from './bridge.ts';
+import { runsDesignWriteVerb } from './design-write-verb.ts';
 import { type AiMay, parseMay } from './may-scope.ts';
 import { isNativePluginContext, resolveSessionPlugins } from './plugin-bootstrap.ts';
 import { probeAcpAvailability } from './probe.ts';
@@ -401,6 +402,15 @@ export function createAgentActivityTracker(
     return `${ctx.paths.designRel}/${posix}`;
   }
 
+  /** Open the turn's project action (its run stage) once. */
+  function openAction(): void {
+    actionOpen = true;
+    ctx.syncControl?.current?.()?.beginAiAction?.(actionKey, turnLabel, {
+      ...(turnRun ? { runId: turnRun } : {}),
+      ...(STAGE_ID.test(chatId) ? { chatId } : {}),
+    });
+  }
+
   function onUpdate(update: SessionUpdate): void {
     const u = update as {
       sessionUpdate?: string;
@@ -415,6 +425,14 @@ export function createAgentActivityTracker(
     const kind =
       (typeof u.kind === 'string' ? u.kind : u.toolCallId && kindByToolCall.get(u.toolCallId)) ||
       '';
+    if (kind === 'execute') {
+      // p8-t-video-3 — an agent that edits THROUGH THE SHELL (`maude design reel-place …`) opens the turn's
+      // stage at the verb's start, before its first write: the watcher then stages that write into the run
+      // instead of recording it as "changed outside the app" (no AI action, no Made by AI, no one-step Undo).
+      const command = (u.rawInput as { command?: unknown } | null | undefined)?.command;
+      if (!actionOpen && runsDesignWriteVerb(command)) openAction();
+      return;
+    }
     if (!EDIT_KINDS.has(kind)) return;
     const candidates: unknown[] = [];
     if (Array.isArray(u.locations)) for (const l of u.locations) candidates.push(l?.path);
@@ -432,14 +450,8 @@ export function createAgentActivityTracker(
     }
     if (u.toolCallId && keys.size) keysByToolCall.set(u.toolCallId, keys);
     for (const key of keys) {
-      if (!actionOpen) {
-        // T16 — the turn's first canvas edit opens its project action.
-        actionOpen = true;
-        ctx.syncControl?.current?.()?.beginAiAction?.(actionKey, turnLabel, {
-          ...(turnRun ? { runId: turnRun } : {}),
-          ...(STAGE_ID.test(chatId) ? { chatId } : {}),
-        });
-      }
+      // T16 — the turn's first canvas edit opens its project action.
+      if (!actionOpen) openAction();
       if (u.sessionUpdate === 'tool_call_update' && u.status === 'completed') claimWrite(key);
       const last = lastBeat.get(key);
       if (last == null) {
