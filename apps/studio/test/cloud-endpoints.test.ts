@@ -284,6 +284,57 @@ describe('detach — the in-app unlink (fix 7 Disconnect)', () => {
   });
 });
 
+describe('detach keeps the project format the hub mirror carried (p8-detach-format)', () => {
+  const hubUrl = 'https://format-keeper.cloud.maude.sh';
+
+  /** A linked project whose config has `cfg` and whose hub mirror says `mirror`. */
+  async function setup(name: string, cfg: Record<string, unknown>, mirror: number | null) {
+    const { createCloudEndpoints } = await import('../cloud/endpoints.ts');
+    const { noteHubFormat } = await import('../format.ts');
+    const { mkdirSync } = await import('node:fs');
+    const repoRoot = join(scratch, name);
+    const designRoot = join(repoRoot, '.design');
+    mkdirSync(designRoot, { recursive: true });
+    writeFileSync(
+      join(designRoot, 'config.json'),
+      JSON.stringify({ designRoot: '.design', ...cfg, linkedHub: { url: hubUrl, linkedAt: 1 } })
+    );
+    if (mirror !== null) noteHubFormat(designRoot, { hub: hubUrl, formatVersion: mirror });
+    const api = createCloudEndpoints({
+      paths: { repoRoot, designRoot },
+      syncControl: { restart: async () => ({ syncing: false, canvases: 0, reason: 'unlinked' }) },
+    });
+    const after = () => JSON.parse(readFileSync(join(designRoot, 'config.json'), 'utf8'));
+    return { api, designRoot, after };
+  }
+
+  test('a hub mirror at 2 is written into the config, so the solo project still edits', async () => {
+    const { formatGate, FORMAT_GATE_OPTS } = await import('../format.ts');
+    const t = await setup('keep-fmt-2', {}, 2);
+    expect((await t.api.detach()).status).toBe(200);
+    const cfg = t.after();
+    expect(cfg.linkedHub).toBeUndefined();
+    expect(cfg.formatVersion).toBe(2);
+    // Reloaded as the next boot would: no hub, the config alone decides.
+    expect(formatGate({ cfg, paths: { designRoot: t.designRoot } }, FORMAT_GATE_OPTS)).toBeNull();
+  });
+
+  test('a mirror at 1 or no mirror at all writes no formatVersion', async () => {
+    const one = await setup('keep-fmt-mirror-1', {}, 1);
+    await one.api.detach();
+    expect('formatVersion' in one.after()).toBe(false);
+    const none = await setup('keep-fmt-no-mirror', {}, null);
+    await none.api.detach();
+    expect('formatVersion' in none.after()).toBe(false);
+  });
+
+  test('a config already at 2 is unchanged, and a lower mirror never lowers it', async () => {
+    const t = await setup('keep-fmt-cfg-2', { formatVersion: 2 }, 1);
+    await t.api.detach();
+    expect(t.after().formatVersion).toBe(2);
+  });
+});
+
 describe('localIdentityHint — only an exact, corroborated agreement is silent', () => {
   const CLOUD = 'https://cloud.maude.sh';
 

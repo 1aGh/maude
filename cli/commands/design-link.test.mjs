@@ -231,6 +231,55 @@ test('unlink drops linkedHub + token; idempotent on solo repo', async () => {
   cleanup();
 });
 
+// p8-detach-format: decision 2A keeps a hub-linked project's format in a
+// per-hub mirror; dropping the link must carry it into the config (raise only).
+function writeMirror(formatVersion, hub = URL) {
+  mkdirSync(join(workspace, '.design/_state'), { recursive: true });
+  writeFileSync(
+    join(workspace, '.design/_state/hub-format.json'),
+    JSON.stringify({ hub, formatVersion, epoch: 1, seenAt: '2026-10-28T00:00:00.000Z' })
+  );
+}
+const readCfg = () => JSON.parse(readFileSync(join(workspace, '.design/config.json'), 'utf8'));
+
+for (const verb of ['unlink', 'detach']) {
+  test(`${verb} carries a hub mirror at 2 into the config, so the solo project still edits`, async () => {
+    await runCli(['design', 'link', URL, '--token', 'mau_test']);
+    writeMirror(2);
+    const res = await runCli(['design', verb, ...(verb === 'detach' ? ['--yes'] : [])]);
+    assert.equal(res.status, 0, res.stderr);
+    const cfg = readCfg();
+    assert.equal(cfg.linkedHub, undefined);
+    assert.equal(cfg.formatVersion, 2);
+    cleanup();
+  });
+}
+
+for (const [what, arrange] of [
+  ['a mirror at 1', () => writeMirror(1)],
+  ['another hub’s mirror at 2', () => writeMirror(2, 'http://127.0.0.1:1')],
+  ['no mirror', () => {}],
+]) {
+  test(`unlink writes no formatVersion for ${what}`, async () => {
+    await runCli(['design', 'link', URL, '--token', 'mau_test']);
+    arrange();
+    await runCli(['design', 'unlink']);
+    assert.equal('formatVersion' in readCfg(), false);
+    cleanup();
+  });
+}
+
+test('unlink never lowers a config already at 2', async () => {
+  await runCli(['design', 'link', URL, '--token', 'mau_test']);
+  const cfg = readCfg();
+  cfg.formatVersion = 2;
+  writeFileSync(join(workspace, '.design/config.json'), JSON.stringify(cfg));
+  writeMirror(1);
+  await runCli(['design', 'unlink']);
+  assert.equal(readCfg().formatVersion, 2);
+  cleanup();
+});
+
 test('unlink --keep-token leaves hubs.json entry intact', async () => {
   await runCli(['design', 'link', URL, '--token', 'mau_test']);
   await runCli(['design', 'unlink', '--keep-token']);

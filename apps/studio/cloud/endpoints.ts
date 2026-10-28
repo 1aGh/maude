@@ -27,6 +27,7 @@ import {
 } from 'node:fs';
 import { basename, dirname, join, relative, sep } from 'node:path';
 import { browserDoorOf } from '../client/v2/cloud/browser-door.js';
+import { asFormat, projectFormat } from '../format.ts';
 import { deleteHubCredential, saveHubCredential } from '../sync/hub-link.ts';
 import { getHubToken, normalizeUrl } from '../sync/hubs-config.ts';
 import { deleteProjectLink, linksPath, recordProjectLink } from '../sync/link-consent.ts';
@@ -669,6 +670,16 @@ export function createCloudEndpoints(ctx: Ctx) {
       const linked = (cfg as { linkedHub?: { url?: unknown } }).linkedHub;
       const url = typeof linked?.url === 'string' ? linked.url : null;
       if (linked) {
+        // Decision 2A: the project's format is max(config, hub). A project
+        // pulled from, or raised through, a hub can hold its format ONLY in the
+        // per-hub mirror; dropping the link would then read it back as format
+        // 1 (view only, never auto-migrated). Carry the hub's value into the
+        // config in the same write — raise only, via projectFormat, never lower.
+        const kept = projectFormat({
+          cfg: { formatVersion: cfg.formatVersion, linkedHub: url ? { url } : null },
+          paths: { designRoot: ctx.paths.designRoot },
+        }).value;
+        if (kept > asFormat(cfg.formatVersion)) cfg.formatVersion = kept;
         delete cfg.linkedHub;
         // Temp + rename (security review 2026-08-10, F5) — config.json is the
         // SERVED project config (tokensCssRel, canvasGroups); a crash mid-write
