@@ -816,6 +816,10 @@ export function createRunRegistry(opts: RegistryOptions) {
    * otherwise `lease-lost`. The old home run is ended, so the claim goes on a fresh home run id.
    */
   async function reclaim(rec: RunRecord) {
+    // A renew answer can be older than the run: it ended (and released its keys) while the renew was on the wire.
+    // Re-claiming then would put the keys on a fresh home run that nobody renews or ends — it holds them for the
+    // whole lease TTL and every next ask waits behind it (P8 ai-runs R1).
+    if (!isLive(records.get(rec.runId) ?? rec)) return;
     if (!rec.leases.length) {
       if (rec.state === 'waiting') await transition(rec.runId, { type: 'lease-lost' });
       return;
@@ -840,7 +844,14 @@ export function createRunRegistry(opts: RegistryOptions) {
     const keys = rec.leases.map(({ canvas, artboard }) => ({ canvas, artboard }));
     const c = await home.claim(fresh, { keys, expectFence });
     const cur = records.get(rec.runId);
-    if (!cur || !isLive(cur)) return;
+    if (!cur || !isLive(cur)) {
+      // it ended during the re-claim: the fresh home run is nobody's — end it and hand its keys on
+      const ans = await withTimeout(home.end(fresh, cur?.outcome ?? 'stopped'), END_BUDGET_MS, {
+        refused: 'unreachable' as const,
+      });
+      if (!ans.refused) await applyGrants(ans.granted ?? []);
+      return;
+    }
     if (!c.refused && c.granted.length === keys.length) {
       noteTokens(c.granted);
       persist({ ...setLeases(cur, c.granted), homeRunId: fresh });

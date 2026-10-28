@@ -517,6 +517,54 @@ describe('records on disk and the boot crash scan', () => {
   });
 });
 
+// P8 ai-runs R1 (desktop e2e, two Macs on one hub): a renew in flight while the run ends. The home answers the
+// renew "ended" (the end landed first), and the registry re-claimed the keys for a run that was already over —
+// on a FRESH home run nobody renews or ends. That stray run held Post 1:1 for its whole lease TTL, so the next
+// round's two asks both waited (`waiting[0].heldBy` = the Mac's own stray run).
+describe('a renew that races the run’s end', () => {
+  test('re-claims nothing for a run that ended meanwhile: the artboard is free for the next ask', async () => {
+    const inner = createLocalLeaseHome({ actor: 'you' });
+    let open: () => void = () => {};
+    const gate = new Promise<void>((r) => {
+      open = r;
+    });
+    let gated = false;
+    const home: LeaseHome = {
+      ...inner,
+      renew: async (b) => {
+        if (!gated) {
+          gated = true;
+          await gate; // the renew is on the wire while the turn ends
+        }
+        return inner.renew(b);
+      },
+    };
+    const { reg } = registry({ home });
+    const a = await reg.ask({
+      chatId: 'c1',
+      origin: 'maude-chat',
+      scope: { canvas: 'ui/C.tsx', artboards: ['P'] },
+    });
+    await reg.started(a.runId);
+    expect(reg.get(a.runId)?.state).toBe('running');
+    const renewing = reg.renewNow();
+    await tick();
+    await reg.turnEnded(a.runId, 'done');
+    expect(reg.get(a.runId)?.state).toBe('ended');
+    open();
+    await renewing;
+    for (let i = 0; i < 5; i++) await tick();
+    const b = await reg.ask({
+      chatId: 'c2',
+      origin: 'maude-chat',
+      scope: { canvas: 'ui/C.tsx', artboards: ['P'] },
+    });
+    expect(b.state).not.toBe('waiting');
+    expect(b.waiting).toEqual([]);
+    reg.close();
+  });
+});
+
 describe('the hub unreachable mid-run (§5.6)', () => {
   test('a claim past its budget is provisional; a failed CAS before publish → lease-lost, stage held, nothing published', async () => {
     const inner = createLocalLeaseHome({ actor: 'you' });
