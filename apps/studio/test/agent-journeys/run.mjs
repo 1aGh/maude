@@ -222,6 +222,7 @@ async function live() {
         NO_OPEN: env.NO_OPEN,
         MAUDE_NO_AUTOBUILD: env.MAUDE_NO_AUTOBUILD,
         MAUDE_FORCE_SOURCE: '1',
+        MAUDE_PORT_BASE: env.MAUDE_PORT_BASE,
         MAUDE_MACHINE_FILE: env.MAUDE_MACHINE_FILE,
       });
       let turns = [];
