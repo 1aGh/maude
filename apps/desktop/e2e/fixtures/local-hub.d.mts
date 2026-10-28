@@ -18,6 +18,10 @@ export interface LocalHub {
 
 export function startLocalHub(opts: {
   dir: string;
+  /** Listen on this port (default 0 = any): restart the same hub on the same port after stopping it. */
+  port?: number;
+  /** Extra serve-hub flags, e.g. `['--asset-write-rate-limit', '1']`. */
+  extraArgs?: string[];
   transactions?: boolean;
   users?: boolean;
   /** Run in cloud-identity mode with this project-token key (the way a cell runs). */
