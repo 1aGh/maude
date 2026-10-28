@@ -42,6 +42,7 @@ import {
   type TimelineAwareness,
 } from './collab/timeline-awareness.ts';
 import {
+  type PresenceRole,
   presenceName,
   type Summon,
   type Surface,
@@ -49,6 +50,7 @@ import {
   sanitizeFollowTarget,
   sanitizeIdleSince,
   sanitizeInComments,
+  sanitizeRole,
   sanitizeSummon,
   sanitizeSurface,
 } from './presence/fields.ts';
@@ -168,6 +170,11 @@ export interface CollabAwarenessState {
   inComments?: boolean;
   summon?: Summon | null;
   followTarget?: number | null;
+  /**
+   * P8 G2 (b) — the person's project role, STAMPED BY THE ROOM from their socket's access
+   * (collab/room.ts `stampRole`); whatever a client sends is overwritten. Read-only here.
+   */
+  role?: PresenceRole | null;
   /**
    * Server-side `disconnect` matches awareness states to outgoing peers by
    * this token (must equal the ws.data.id the server assigns at upgrade).
@@ -684,6 +691,7 @@ export function sanitizeForeignState(clientID: number, state: unknown): ForeignA
     inComments: sanitizeInComments(s.inComments),
     summon: sanitizeSummon(s.summon),
     followTarget: sanitizeFollowTarget(s.followTarget),
+    role: sanitizeRole(s.role),
   };
 }
 

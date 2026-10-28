@@ -9,11 +9,14 @@ import { DGN_TABLE } from '../bridge/dgn-protocol.ts';
 import { stripUnheldFields } from '../collab/awareness-bridge.ts';
 import {
   collapseFaces,
+  menuSubline,
   NOT_FOLLOWING,
   peopleList,
   pickSummon,
   syncFollow,
 } from '../presence/model.ts';
+import { roleOfPeer } from '../client/v2/presence/use-presence-host.js';
+import { facesOf } from '../client/v2/shell/save-status.js';
 import { readForeignPeers } from '../use-collab.tsx';
 
 const NOW = 1_800_000_000_000;
@@ -134,5 +137,55 @@ describe('the canvas tells the shell where people are (dgn `peers`)', () => {
     expect(parse([{ clientID: 7, name: 'T', surface: 'tv' }])).toBeNull();
     expect(parse([{ clientID: 7, name: 'T', idleSince: -5 }])).toBeNull();
     expect(parse([{ clientID: 7, name: 'T', inComments: 'yes' }])).toBeNull();
+  });
+  test('P8 G2 (b) — the room-stamped role crosses from a closed set; any other value is dropped, the peer stays', () => {
+    for (const role of ['owner', 'member', 'viewer', 'observer'])
+      expect(parse([{ clientID: 7, name: 'Tereza', role }])).toEqual({
+        peers: [{ clientID: 7, name: 'Tereza', role }],
+      });
+    for (const role of ['admin', 'Can edit', 1, { r: 'owner' }, '<b>'])
+      expect(parse([{ clientID: 7, name: 'Tereza', role }])).toEqual({
+        peers: [{ clientID: 7, name: 'Tereza' }],
+      });
+  });
+});
+
+function person(name: string, extra: Record<string, unknown>) {
+  const a = room();
+  a.setLocalState({ ...base, name, ...extra });
+  return a;
+}
+
+describe('P8 G2 (b) — the role word comes from the room’s stamp', () => {
+  test('the stamped role reaches the faces as “Can edit” / “Can comment” / “Can view”; no stamp, no word', () => {
+    const me = person('Michal', {});
+    for (const [role, word] of [
+      ['owner', 'Can edit'],
+      ['member', 'Can edit'],
+      ['viewer', 'Can comment'],
+      ['observer', 'Can view'],
+    ] as const) {
+      const her = person('Tereza', { role });
+      applyAwarenessUpdate(me, encodeAwarenessUpdate(her, [her.clientID]), 'room');
+      const p = readForeignPeers(me).find((x) => x.clientID === her.clientID);
+      expect(p?.role).toBe(role);
+      expect(menuSubline(p as never, { roleOf: roleOfPeer, now: NOW })).toBe(`On this canvas · ${word}`);
+    }
+    // the shell's faces keep it (facesOf rebuilt every peer from an allowlist that dropped it)
+    const [, f, g] = facesOf({
+      you: 'Michal',
+      peers: [
+        { clientID: 1, name: 'Tereza', role: 'member' },
+        { clientID: 2, name: 'Jonas', role: 'admin' },
+      ] as never,
+      max: 40,
+    });
+    expect([f?.role, g?.role]).toEqual(['member', null]);
+    expect(menuSubline(f as never, { roleOf: roleOfPeer, now: NOW })).toBe('On this canvas · Can edit');
+    const odd = person('Jonas', { role: 'admin' });
+    applyAwarenessUpdate(me, encodeAwarenessUpdate(odd, [odd.clientID]), 'room');
+    const j = readForeignPeers(me).find((x) => x.clientID === odd.clientID);
+    expect(j?.role).toBeNull();
+    expect(menuSubline(j as never, { roleOf: roleOfPeer, now: NOW })).toBe('On this canvas');
   });
 });

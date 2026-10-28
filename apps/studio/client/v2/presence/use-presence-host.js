@@ -30,6 +30,16 @@ export function labelFromBoards(boards) {
   return (id) => map.get(id) ?? null;
 }
 
+/**
+ * P8 G2 (b) — a person's role id, as the collab room stamped it from their socket's access
+ * (collab/room.ts `stampRole`, overwriting anything the client sent). presence/model.ts
+ * `roleWord` turns it into "Can edit" / "Can comment" / "Can view"; no stamp → no word.
+ */
+export function roleOfPeer(p) {
+  const r = p?.role;
+  return r === 'owner' || r === 'member' || r === 'viewer' || r === 'observer' ? r : null;
+}
+
 export function usePresenceHost({ lane, boards, activePath, canSummon, commentsOpen }) {
   const laneRef = useRef(lane);
   laneRef.current = lane;
@@ -38,6 +48,7 @@ export function usePresenceHost({ lane, boards, activePath, canSummon, commentsO
     () => ({
       run: (id, params) => laneRef.current.presence(id, params),
       labelOf: labelFromBoards(boards),
+      roleOf: roleOfPeer,
       canSummon: !!canSummon,
       canvasLabel: canvasLabelOf(activePath),
     }),

@@ -19,7 +19,7 @@ import {
   stripAwarenessFields,
   stripToWatching,
 } from '../present/relay-strip.ts';
-import { stripUnheldFields } from './awareness-bridge.ts';
+import { stampRole, stripUnheldFields } from './awareness-bridge.ts';
 import { isBodyLane, rootTypesTouched } from './origins.ts';
 import {
   applySyncMessage,
@@ -77,6 +77,12 @@ export interface RoomConn extends CollabConn {
    * socket's access (`summon`: owner + member).
    */
   summon?: boolean;
+  /**
+   * P8 G2 lead decision (b) — the project role this socket's access holds on the canvas
+   * (ws.ts, `access.roleFor`). The room stamps it onto every awareness state the conn owns,
+   * overwriting a client-sent `role`; absent = the conn's states carry no role at all.
+   */
+  role?: 'owner' | 'member' | 'viewer' | 'observer';
   /**
    * S3.7c — a presentation FOLLOWER (a socket opened on the hub's receive-only
    * `follow` capability; server.ts stamps it from the proxy's injected
@@ -394,6 +400,8 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
         // S9.11 — a conn without `summon` never publishes it (stripped before anyone hears).
         if (except.summon === false)
           stripUnheldFields(awareness, added.concat(updated), (cap) => cap !== 'summon');
+        // P8 G2 (b) — the role word comes from the socket's access, never from the client.
+        stampRole(awareness, added.concat(updated), except.role);
         for (const id of added) connByClient.set(id, except.id);
         for (const id of updated) connByClient.set(id, except.id);
         for (const id of removed) connByClient.delete(id);

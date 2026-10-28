@@ -21,6 +21,10 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, browser } from '@wdio/globals';
+import { waitForCanvasOpened } from '../helpers/canvas-frame';
+import { capture } from '../helpers/evidence';
+import { openApp } from '../helpers/target';
+import { canvasRow } from '../helpers/tree';
 
 const ROUNDS = Number(process.env.MAUDE_R1_ROUNDS ?? 50);
 const REL = 'ui/Combine-kampan.tsx';
@@ -59,20 +63,68 @@ async function waitFor<T>(
   }
 }
 
-/** The fake agent on a studio: one run of the v1 lane writing `body` to the canvas. */
-async function fakeRun(origin: string, designRoot: string, body: string, settleMs = 300) {
+type Run = { runId: string; state: string; outcome?: string; scope?: { canvas?: string; artboards?: unknown } };
+
+/** The run states, read from the registry (`GET /_api/ai/runs` › mine) — the v1 start answer carries none. */
+async function runsOf(origin: string): Promise<Run[]> {
+  const v = (await fetch(`${origin}/_api/ai/runs`).then((r) => r.json())) as { mine?: Run[] };
+  return v.mine ?? [];
+}
+const runById = async (origin: string, id: string) =>
+  (await runsOf(origin)).find((r) => r.runId === id) ?? null;
+
+/** The selection the v1 run reads (`_active.json` › selected): Post 1:1, so the run asks for that artboard only. */
+function selectPost(designRoot: string) {
   const file = `.design/${REL}`;
-  const post = (p: string) =>
-    fetch(`${origin}${p}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', origin },
-      body: JSON.stringify({ file, author: 'Claude' }),
-    }).then((r) => r.json());
-  const run = await post('/_api/ai/start');
-  writeFileSync(join(designRoot, REL), body);
-  await sleep(settleMs);
-  await post('/_api/ai/end');
-  return run as { runId?: string; state?: string };
+  writeFileSync(
+    join(designRoot, '_active.json'),
+    JSON.stringify({ active: file, open_tabs: [file], selected: { file, artboard: 'post' } })
+  );
+}
+
+function v1(origin: string, path: '/_api/ai/start' | '/_api/ai/end') {
+  return fetch(`${origin}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin },
+    body: JSON.stringify({ file: `.design/${REL}`, author: 'Claude' }),
+  }).then((r) => r.json()) as Promise<{ cleared?: boolean }>;
+}
+
+/** Start a v1 run on Post 1:1 and read its first state from the registry. */
+async function startOnPost(origin: string, designRoot: string): Promise<Run> {
+  const before = new Set((await runsOf(origin)).map((r) => r.runId));
+  selectPost(designRoot);
+  await v1(origin, '/_api/ai/start');
+  const run = await waitFor(
+    async () =>
+      (await runsOf(origin)).find((r) => !before.has(r.runId) && r.scope?.canvas === REL) ?? null,
+    'the new run in the registry'
+  );
+  expect(run.scope?.artboards).toEqual(['post']);
+  return run;
+}
+
+/**
+ * The fake agent on a studio: one v1 run on Post 1:1. It writes only once its run holds Post (a waiting run's
+ * agent has not begun its turn), then ends. Returns the run's FIRST state.
+ */
+async function fakeRun(origin: string, designRoot: string, body: string, settleMs = 300) {
+  const run = await startOnPost(origin, designRoot);
+  const turn = await waitFor(
+    async () => {
+      const r = await runById(origin, run.runId);
+      return r && r.state !== 'waiting' ? r : null;
+    },
+    'its turn on Post',
+    120_000
+  );
+  if (turn.state !== 'ended') {
+    writeFileSync(join(designRoot, REL), body);
+    await sleep(settleMs);
+    await v1(origin, '/_api/ai/end');
+    await waitFor(async () => (await runById(origin, run.runId))?.state === 'ended', 'the run to end');
+  }
+  return { runId: run.runId, state: run.state };
 }
 
 describe('S5.15 — AI runs across two Macs', () => {
@@ -119,6 +171,11 @@ describe('S5.15 — AI runs across two Macs', () => {
         return null;
       }
     }, 'Mac 1 studio');
+    // open Combine-kampan on Mac 1 (the rings, the canvas frame and its Version history need it)
+    await openApp();
+    await (await canvasRow('canvas-row-ui-combine-kampan')).click();
+    await $(sel('canvas-frame')).waitForExist({ timeout: 60_000 });
+    await waitForCanvasOpened();
   });
 
   after(() => {
@@ -131,42 +188,67 @@ describe('S5.15 — AI runs across two Macs', () => {
         fakeRun(mac1Origin, join(mac1Root, '.design'), canvas(`r${i} you`)),
         fakeRun(mac2Origin, join(mac2Root, '.design'), canvas(`r${i} tereza`)),
       ]);
-      expect([a.state, b.state].sort()).toEqual(['starting', 'waiting']);
+      // a /design:edit run's turn is the terminal's: granted at once it is running; the other waits
+      expect([a.state, b.state].sort()).toEqual(['running', 'waiting']);
       // the canvas shows the holder's ring and "· 1 waiting" on Post while it works
       await $(sel('canvas-frame')).waitForExist();
     }
   });
 
   it('R4: SIGSTOP Mac 2 for 40 s while it holds Post; Mac 1 runs; Mac 2 hears lease-lost and holds', async () => {
-    const holding = fakeRun(mac2Origin, join(mac2Root, '.design'), canvas('Mac 2 frozen'), 1_000);
-    await sleep(200);
+    const mac2Design = join(mac2Root, '.design');
+    const held = await startOnPost(mac2Origin, mac2Design);
+    expect(held.state).toBe('running');
+    writeFileSync(join(mac2Design, REL), canvas('Mac 2 frozen')); // its staged write, never published
+    await sleep(500);
     mac2.kill('SIGSTOP');
-    const waiting = fakeRun(mac1Origin, join(mac1Root, '.design'), canvas('Mac 1 ran'));
-    await sleep(40_000);
-    mac2.kill('SIGCONT');
-    await waiting;
-    await holding;
-    const runs = await fetch(`${mac2Origin}/_api/ai/runs`).then((r) => r.json());
-    expect(JSON.stringify(runs)).toContain('lease-lost');
+    const stoppedAt = Date.now();
+    let mine: { state: string };
+    try {
+      // Mac 1 asks while Mac 2 holds Post: it waits, then runs once the hub lapses Mac 2's lease (TTL 30 s)
+      mine = await fakeRun(mac1Origin, join(mac1Root, '.design'), canvas('Mac 1 ran'));
+      await sleep(Math.max(0, 40_000 - (Date.now() - stoppedAt)));
+    } finally {
+      mac2.kill('SIGCONT');
+    }
+    expect(mine.state).toBe('waiting');
+    // SIGCONT: Mac 2 renews (every 10 s), hears its run is gone, and ends it lease-lost
+    const rec = await waitFor(
+      async () => {
+        const r = await runById(mac2Origin, held.runId).catch(() => null);
+        return r?.state === 'ended' ? r : null;
+      },
+      'Mac 2 to hear lease-lost',
+      60_000
+    );
+    expect(rec.outcome).toBe('lease-lost');
+    // its agent's late end changes nothing, and its frozen write never reaches Mac 1
+    expect((await v1(mac2Origin, '/_api/ai/end')).cleared).toBe(false);
+    await waitFor(
+      () => readFileSync(join(mac1Root, '.design', REL), 'utf8').includes('Mac 1 ran'),
+      'Mac 1’s run on its disk'
+    );
+    await sleep(3_000);
+    expect(readFileSync(join(mac1Root, '.design', REL), 'utf8')).not.toContain('Mac 2 frozen');
   });
 
-  it('Made by AI on the canvas; Version history AI row → Undo this chat is ONE version; the tag clears on Tereza’s edit', async () => {
+  it('Version history › Made by AI lists the AI runs; a v1 run names no chat, so it offers no "Undo this chat"', async () => {
+    // Undo this chat needs the row's chat (ChatUndoButton: kind ai + chatId + yours); a v1 `/design:edit` run has
+    // none. The chat-run half (one version for the whole chat) is in apps/studio/test/v2-chat-undo.test.tsx and
+    // goes to the fake-ACP lane next (hand-back § Continue).
+    type H = { history?: { kind?: string; who?: { kind?: string } }[] };
+    await waitFor(async () => {
+      const h = (await fetch(`${mac1Origin}/_api/project/history?limit=200`).then((r) => r.json())) as H;
+      return (h.history ?? []).some((r) => r.kind === 'ai' || r.who?.kind === 'ai');
+    }, 'an AI version on Mac 1', 60_000);
     await browser.keys(['Alt', 'Meta', 'h']); // Version history ⌥⌘H
     await $(sel('vh-panel')).waitForExist();
     await $(sel('vh-filter-ai')).click();
     const row = await $('[data-testid^="vh-row-"]');
+    await row.waitForExist({ timeout: 30_000 });
     await row.click();
-    const undo = await $(sel('vh-undo-chat'));
-    await undo.waitForEnabled();
-    const before = await fetch(`${mac1Origin}/_api/project/history?limit=200`).then((r) =>
-      r.json()
-    );
-    await undo.click();
-    await waitFor(async () => {
-      const after = await fetch(`${mac1Origin}/_api/project/history?limit=200`).then((r) =>
-        r.json()
-      );
-      return after.history.length === before.history.length + 1;
-    }, 'one new version');
+    await expect($(sel('vh-acts'))).toBeExisting();
+    expect(await $(sel('vh-undo-chat')).isExisting()).toBe(false);
+    await capture('ai-runs-vh-ai-row');
   });
 });

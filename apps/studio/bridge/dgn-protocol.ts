@@ -287,6 +287,7 @@ export interface CanvasToShell {
       idleSince?: number;
       surface?: 'browser';
       inComments?: boolean;
+      role?: PeerRole;
     }>;
   };
   // S2.18 (A10, V2-1.15 §5.8) — the single selection's holds, for the inspector's view mode: a person
@@ -1024,6 +1025,9 @@ export const PEERS_MAX = 32;
 export const PEER_NAME_MAX = 64;
 const PEER_COLOR = /^(#[0-9a-f]{3,8}|oklch\([0-9.%\s/-]{1,40}\))$/i;
 const PEER_ARTBOARD = /^[A-Za-z0-9_-]{1,64}$/;
+/** P8 G2 (b) — the room-stamped role; a closed set, any other value is dropped (the peer stays). */
+export type PeerRole = 'owner' | 'member' | 'viewer' | 'observer';
+const PEER_ROLES: readonly unknown[] = ['owner', 'member', 'viewer', 'observer'];
 type PeerEntry = {
   clientID: number;
   name: string;
@@ -1033,13 +1037,14 @@ type PeerEntry = {
   idleSince?: number;
   surface?: 'browser';
   inComments?: boolean;
+  role?: PeerRole;
 };
 const peerList: V = (v) => {
   if (!Array.isArray(v) || v.length > PEERS_MAX) return BAD;
   const out: PeerEntry[] = [];
   for (const x of v) {
     if (!isPlain(x)) return BAD;
-    const { clientID, name, color, following, artboard, idleSince, surface, inComments } = x;
+    const { clientID, name, color, following, artboard, idleSince, surface, inComments, role } = x;
     if (typeof clientID !== 'number' || !Number.isSafeInteger(clientID) || clientID < 0) return BAD;
     if (typeof name !== 'string' || name.length > PEER_NAME_MAX) return BAD;
     if (color !== undefined && (typeof color !== 'string' || !PEER_COLOR.test(color))) return BAD;
@@ -1060,6 +1065,7 @@ const peerList: V = (v) => {
     if (idleSince !== undefined) peer.idleSince = idleSince;
     if (surface === 'browser') peer.surface = 'browser';
     if (inComments === true) peer.inComments = true;
+    if (PEER_ROLES.includes(role)) peer.role = role as PeerRole;
     out.push(peer);
   }
   return out;

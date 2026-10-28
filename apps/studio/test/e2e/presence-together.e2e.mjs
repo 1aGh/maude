@@ -7,7 +7,7 @@
 //   node --test apps/studio/test/e2e/presence-together.e2e.mjs
 //
 //   P1 co-presence   Tereza, Jonas and Petra are here: a face each in the Share cluster, in their own tone (never
-//                    coral), a cursor each on the canvas; Tereza's face opens "On A4 · plakát" · Follow Tereza ·
+//                    coral), a cursor each on the canvas; Tereza's face opens "On A4 · plakát · Can edit" · Follow Tereza ·
 //                    Go to A4 · plakát · Bring everyone here
 //   P2 co-follow     Follow Tereza: a frame in her tone and "Following Tereza esc"; her camera moves and mine moves
 //                    with it; esc stops following
@@ -19,7 +19,8 @@
 //                    shrunk to an initial
 //
 // Shots: $E2E_SHOTS_DIR (default .ai/device/scenario-runs/p8-multiplayer/<stamp>/), one per state.
-// The role word ("· Can edit") is not asserted: no host wires `roleOf` (hand-back question, P8 G2).
+// The role word ("· Can edit", P8 G2 lead decision (b)): the collab room stamps each person's role from their own
+// socket's access (collab/room.ts `stampRole`); a client-sent role is overwritten (test/collab-awareness-role.test.ts).
 
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
@@ -302,7 +303,7 @@ describe('presence — people on one canvas (10 · co-presence … co-twelve)', 
     await menu.waitFor({ timeout: 5_000 });
     assert.equal(
       await menu.locator('[data-testid="presence-face-menu-where"]').textContent(),
-      'On A4 · plakát'
+      'On A4 · plakát · Can edit'
     );
     const rows = await menu.locator('[role="menuitem"]').allTextContents();
     assert.deepEqual(
