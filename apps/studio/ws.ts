@@ -73,6 +73,8 @@ export type WsData =
       access?: Access;
       /** S3.7c — a presentation follower's socket: receive-only in the room (collab/room.ts). */
       follow?: boolean;
+      /** V2-8.9 round B A2 — WHO opened it (a cell's proxy-vouched user; `''` on a desktop). */
+      user?: string;
       /** S9.15c — read-only with no writable lane, comments included (collab/room.ts). */
       lanesClosed?: boolean;
     }
@@ -510,6 +512,8 @@ export function createWs(
         return lanesClosed || trashStopped.has(slug);
       },
       ...(follow ? { follow: true } : {}),
+      // V2-8.9 round B A2 — a freed presence clientID stays with this person (collab/room.ts)
+      person: ws.data.kind === 'collab' ? (ws.data.user ?? '') : '',
       // S9.11 (V2-1.7 §5.5) — `summon` only from a socket whose access holds it on this canvas
       ...(access
         ? { summon: access.can('summon', scope?.canvasOfSlug(access, slug) ?? null) }
