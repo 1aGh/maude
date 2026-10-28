@@ -107,7 +107,7 @@
         "path": "file",
         "format": "canvas-tsx",
         "skill": "design:design",
-        "how": "Write a new .tsx under the design root with a DCArtboard per screen"
+        "how": "Create it with `maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header \"Content-Type: application/json\" --data '{\"kind\":\"blank\",\"name\":\"<name>\"}'` (port: .design/_server.json; the answer's rel is the file), then Edit that .tsx: a DCArtboard per screen"
       }
     },
     {
@@ -120,7 +120,7 @@
         "path": "file",
         "format": "canvas-tsx",
         "skill": "design:design",
-        "how": "Write a brief .tsx from plugins/design/templates/brief-board.tsx.template under the design root"
+        "how": "Create it with `maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header \"Content-Type: application/json\" --data '{\"kind\":\"brief-board\",\"name\":\"<name>\"}'` (port: .design/_server.json; the answer's rel is the file), then Edit that brief .tsx"
       }
     },
     {
@@ -133,7 +133,7 @@
         "path": "file",
         "format": "canvas-tsx",
         "skill": "design:design",
-        "how": "Write a new canvas .tsx under newCanvasDir: add every artboard empty with kind and size first, then fill big before small, words last (SKILL.md § A first draft from Home)"
+        "how": "The canvas exists when Home asks (the server made it from the sentence); otherwise create it with `maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header \"Content-Type: application/json\" --data '{\"kind\":\"blank\"}'` (the answer's rel is the file). Then Edit it: add every artboard empty with kind and size first, then fill big before small, words last (SKILL.md § A first draft from Home)"
       }
     },
     {
@@ -159,7 +159,7 @@
         "path": "file",
         "format": "canvas-tsx",
         "skill": "design:video-comp",
-        "how": "Write a new video-comp .tsx canvas"
+        "how": "Create it with `maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header \"Content-Type: application/json\" --data '{\"kind\":\"video-comp\",\"name\":\"<name>\",\"clips\":[]}'` (port: .design/_server.json; the answer's rel is the file), then Edit that video-comp .tsx"
       }
     },
     {

@@ -192,13 +192,19 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'canvases.find': { effect: 'none', agent: cli('maude design index') },
   'canvases.refresh': { effect: 'none', agent: cli('maude design index') },
   // ── canvas ──
-  'canvas.new': TSX('Write a new .tsx under the design root with a DCArtboard per screen'),
-  'canvas.new-brief': TSX(
-    'Write a brief .tsx from plugins/design/templates/brief-board.tsx.template under the design root'
+  // V2-8.16 (lead: option a) — a new canvas is MADE by the app's own create (POST /_api/canvas, which
+  // records it in Version history and claims it for the chat's run — runForCreate), then edited. The
+  // design hook refuses a hand-written new canvas (new-canvas); test/ai-parity-hook-crosscheck.test.ts.
+  'canvas.new': TSX(
+    `Create it with \`maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header "Content-Type: application/json" --data '{"kind":"blank","name":"<name>"}'\` (port: .design/_server.json; the answer's rel is the file), then Edit that .tsx: a DCArtboard per screen`
   ),
-  // S6.3 — a canvas from one sentence: the agent writes the new .tsx itself (V2-1.1 §5.9: `file:'canvas-tsx'`).
+  'canvas.new-brief': TSX(
+    `Create it with \`maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header "Content-Type: application/json" --data '{"kind":"brief-board","name":"<name>"}'\` (port: .design/_server.json; the answer's rel is the file), then Edit that brief .tsx`
+  ),
+  // S6.3 — a canvas from one sentence (V2-1.1 §5.9: `file:'canvas-tsx'`). From Home the server has already made
+  // the file from the sentence; otherwise the agent makes it with the app's create first (V2-8.16).
   'home.ask': TSX(
-    'Write a new canvas .tsx under newCanvasDir: add every artboard empty with kind and size first, then fill big before small, words last (SKILL.md § A first draft from Home)'
+    `The canvas exists when Home asks (the server made it from the sentence); otherwise create it with \`maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header "Content-Type: application/json" --data '{"kind":"blank"}'\` (the answer's rel is the file). Then Edit it: add every artboard empty with kind and size first, then fill big before small, words last (SKILL.md § A first draft from Home)`
   ),
   // V2-8.16 — whole-file ops go through the studio's own routes: the design hook refuses an agent's
   // mv / cp / rm of a versioned design file (bash-guard use-verb · not-a-writer · use-trash), and the
@@ -287,7 +293,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'view.advanced-open-all': PREF('opens every panel’s Advanced fold; a UI preference'),
   'view.advanced-close-all': PREF('folds every panel’s Advanced section; a UI preference'),
   'canvas.reload': PREF('reloads the user’s view; the studio reloads on every file change'),
-  'canvas.new-video': TSX('Write a new video-comp .tsx canvas', 'design:video-comp'),
+  'canvas.new-video': TSX(
+    `Create it with \`maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header "Content-Type: application/json" --data '{"kind":"video-comp","name":"<name>","clips":[]}'\` (port: .design/_server.json; the answer's rel is the file), then Edit that video-comp .tsx`,
+    'design:video-comp'
+  ),
   'canvas.close': PREF('closes the user’s tab'),
   'video.assemble': {
     effect: 'project',

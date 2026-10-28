@@ -85,15 +85,21 @@ describe('a taught agent path is one the design hook allows', () => {
   });
 
   // The Write half: `new-canvas` refuses a canvas written by hand ("Make it with the app's own create").
-  // These four still TEACH writing one — a lead question (hand-back V2-8.16), held here by name so a
-  // fifth is red and fixing one means taking it off this list.
-  const HAND_MADE_PENDING = ['canvas.new', 'canvas.new-brief', 'canvas.new-video', 'home.ask'];
-  test('the actions that teach a hand-written new canvas are exactly the named pending ones', () => {
+  // Lead (V2-8.16, option a): every new-canvas action is taught as POST /_api/canvas, then Edit.
+  test('no `file` action teaches writing a brand-new canvas .tsx by hand', () => {
     const got = rows
       .filter((r) => r.agent?.path === 'file' && r.agent.how && handMade(r.agent.how))
-      .map((r) => r.id)
-      .sort();
-    expect(got).toEqual([...HAND_MADE_PENDING].sort());
+      .map((r) => r.id);
+    expect(got).toEqual([]);
+    // … and the detector still sees the old wording
+    expect(handMade('Write a new .tsx under the design root with a DCArtboard per screen')).toBe(true);
+  });
+
+  test('the new-canvas actions name the app’s create route', () => {
+    for (const id of ['canvas.new', 'canvas.new-brief', 'canvas.new-video', 'home.ask']) {
+      const how = rows.find((r) => r.id === id)?.agent?.how ?? '';
+      expect({ id, route: how.includes('/_api/canvas --method POST') }).toEqual({ id, route: true });
+    }
   });
 
   test('canvas.trash is taught as the trash verb', () => {
