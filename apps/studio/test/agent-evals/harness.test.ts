@@ -3,11 +3,13 @@
 // The eval itself (`run.mjs suite`) is NOT part of any test run — it costs model usage.
 import { expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { FORMAT_GATE_OPTS, formatGate } from '../../format.ts';
+import { buildFixture, FIXTURES } from './lib/fixtures.mjs';
 import { runSmoke } from './lib/smoke.mjs';
 
 test('agent-eval harness smoke: graders catch planted faults and read the shipped hooks/registry state', async () => {
@@ -45,3 +47,23 @@ test.skipIf(!process.env.MAUDE_EVAL_DRY)(
   },
   900_000
 );
+
+// The studio opens a format-1 project view only (2A, FORMAT_GATE_OPTS), so a fixture that declares no
+// format makes every write trial fail as "read-only — nothing written" and the eval measures nothing.
+test('every eval fixture is a project this build may edit (formatVersion 2, no format gate)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'agent-evals-format-'));
+  try {
+    let built = 0;
+    for (const name of Object.keys(FIXTURES)) {
+      const dest = join(root, name, 'project');
+      if (!buildFixture(name, dest)) continue;
+      built += 1;
+      const cfg = JSON.parse(readFileSync(join(dest, '.design', 'config.json'), 'utf8'));
+      const gate = formatGate({ cfg, paths: { designRoot: join(dest, '.design') } }, FORMAT_GATE_OPTS);
+      expect({ name, formatVersion: cfg.formatVersion, gate }).toEqual({ name, formatVersion: 2, gate: null });
+    }
+    expect(built).toBeGreaterThan(0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}, 120_000);

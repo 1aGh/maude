@@ -633,6 +633,10 @@ export function buildFixture(name, dest) {
     rmSync(dest, { recursive: true, force: true });
     return null;
   }
+  // A v2 project: the studio opens a format-1 project view only (2A), and the agent could write nothing.
+  const cfgPath = join(dest, '.design', 'config.json');
+  const cfg = JSON.parse(readFileSync(cfgPath, 'utf8'));
+  write(cfgPath, `${JSON.stringify({ ...cfg, formatVersion: 2 }, null, 2)}\n`);
   write(join(dest, '.gitignore'), GITIGNORE);
   write(
     join(dest, 'README.md'),
