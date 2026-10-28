@@ -56,3 +56,9 @@ Not built, either because no CONTRACT line names them or because the weekly budg
   two people racing (hub stopped, A trashes a–c, B trashes d, B lands first). Drive it as a race lane or soak it.
 - 12 ia-missing: "Waiting for alice's device" — the hub names the holder by e-mail local part and reports no Mac/PC kind
   yet ("Mac" in the board). Plan: run it inside team-cell's rate-limited window (alice's one write spent on a note).
+- ai-runs (`apps/desktop/e2e/multiplayer/ai-runs.e2e.ts`, lane `e2e:ai-runs`, NOT in the V2-8.3 record): R1 is red once the
+  canvas is open — both Post-scoped runs start `waiting` before anyone holds Post. Likely the spec's Post selection in
+  Mac 1's `_active.json` becomes a person's edit-hold (S2.18), which an AI run waits for by design; confirm with
+  `/_api/ai/runs` `waiting[0].heldBy`, then select nothing on Mac 1 for R1. "Undo this chat" needs a fake-ACP chat run.
+  cf-busy / ai-tereza / ed-edge-undo (two studios on one hub, Tereza's own token) not driven.
+- A remote peer's presence relayed through a hub is not role-stamped by the room (it arrives as the hub sent it).
