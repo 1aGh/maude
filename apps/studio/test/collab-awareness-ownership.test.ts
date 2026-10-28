@@ -124,7 +124,8 @@ describe('A2 — a freed clientID stays with its person', () => {
     const squat = new Awareness(new Y.Doc());
     squat.clientID = tereza.clientID;
     squat.setLocalState({ name: 'Tereza', color: '#f00' });
-    squat.setLocalState({ name: 'Tereza', color: '#f00', x: 1 });
+    // a higher clock than the room's removal mark, so only the person binding refuses it
+    for (let x = 1; x <= 5; x++) squat.setLocalState({ name: 'Tereza', color: '#f00', x });
     room.receive(cx, frame(squat, [tereza.clientID]));
     expect(room.awareness.getStates().has(tereza.clientID)).toBe(false);
 

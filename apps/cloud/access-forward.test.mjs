@@ -285,10 +285,14 @@ describe('PATCH / DELETE people — narrowing reaches live sessions', () => {
       1
     );
     const notice = cell.calls.find((c) => c.url.endsWith('/internal/access-changed'));
+    // P8 G1a: a narrowing says who did it and what it is now; V2-8.9 round B L2: the role is named
+    // because Can view on the project, with no grant, IS the whole claim after the change
     assert.deepEqual(notice.body, {
       email: 'member@example.com',
       change: 'narrowed',
       reason: 'removed',
+      by: 'owner',
+      role: 'observer',
     });
     const owner = await forward(env, 'people/a1', {
       method: 'PATCH',
@@ -509,15 +513,16 @@ describe('decideClaim (pure) — G1: a grant adds, never lowers', () => {
 // change: the cell spares tokens that grant exactly that role and nothing more (hub keepsOnly), so a
 // canvas-scoped role (the max of project role and grant) must never spare a project-wide token.
 describe('a narrowing names the role only when it is the whole claim after it (L2)', () => {
-  it('Can view on the project + Can edit on A, narrowed to Can comment on A → no role', async () => {
-    const { env, sqlite } = await fixture();
-    sqlite
-      .prepare(
-        `INSERT INTO canvas_grants (project_id, account_id, canvas_path, role, source, granted_at)
-         VALUES (?, 'a4', ?, 'member', 'invite', 1)`
-      )
-      .run(P, A);
-    const res = await forward(env, `people/a4?canvas=${encodeURIComponent(A)}`, {
+  it('a canvas-only Can edit on A narrowed to Can comment on A → no role (no project-wide token is spared)', async () => {
+    const { env } = await fixture();
+    const up = await forward(env, `people/a5?canvas=${encodeURIComponent(A)}`, {
+      method: 'PATCH',
+      actor: 'owner',
+      body: { role: 'member' },
+    });
+    assert.equal(up.status, 200);
+    cell.calls.length = 0;
+    const res = await forward(env, `people/a5?canvas=${encodeURIComponent(A)}`, {
       method: 'PATCH',
       actor: 'owner',
       body: { role: 'viewer' },
@@ -525,6 +530,7 @@ describe('a narrowing names the role only when it is the whole claim after it (L
     assert.equal(res.status, 200);
     const notice = cell.calls.find((c) => c.url.endsWith('/internal/access-changed'));
     assert.equal(notice.body.change, 'narrowed');
+    // before the fix this said 'viewer' (roleFor(A)), and the hub kept a project-wide Can comment token
     assert.equal(notice.body.role, undefined, 'a canvas-scoped role spares no project-wide token');
   });
 
