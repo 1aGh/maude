@@ -19,8 +19,9 @@
   person's" note is not withdrawn when the write throws (30 s window). D3 `sync/local-kernel.ts` keeps up to 17
   source copies in memory for an untouched canvas; prune on write. D4 e2e `isOrphanBrowser` could reap a person's
   own agent-browser whose daemon died mid-run; check the run's start marker.
-- **screenshot.sh canvas modes close the shared agent-browser session on exit**, contradicting its own comment; the
-  agent loses its browsing session after every /design:screenshot (functional, not security).
+- screenshot.sh closes its agent-browser session on exit by design (r10: a capture must never outlive itself as a collab
+  peer); the stale comment is corrected and the back-to-back EOF race is fixed (p8-ab-park-race). The agent's own
+  browsing session on the same name still ends with each capture; a separate capture session name would keep it.
 - **Command-gate evidence is self-asserted JSON** a tree writer can forge (old residual, attacker note).
 - **V2-8.17 review lows (V2-8.9-final-v2-8.17.md):** L2 recovery writes follow a symlink at `_history/<slug>` (a
   hub/peer can't plant one, a committed repo symlink can); L3 each remote update during an open overlap check runs
