@@ -292,7 +292,7 @@ function reelPlaceSmoke(binary, strippedPath) {
         fps: 30,
         beats: [
           {
-            clip: 'assets/a.mp4',
+            clip: 'assets/caaf0000.mp4',
             startSec: 0,
             durationFrames: 30,
             name: 'Shot 1',
