@@ -383,6 +383,43 @@ pub fn hide_hidden_items() {
     }
 }
 
+/// Debug-only (`e2e_menu_state`): the menu bar as the app actually built it — each top menu's title and, per
+/// row, `{id, text, enabled}` (a predefined/separator row is `{predefined}`). A scenario compares it to
+/// `menu.actions.json`, so a spec that parses but is not what AppKit shows is a red test.
+#[cfg(debug_assertions)]
+fn bar_state<R: Runtime>(app: &AppHandle<R>) -> Vec<serde_json::Value> {
+    let Some(menu) = app.menu() else {
+        return Vec::new();
+    };
+    let row = |k: &tauri::menu::MenuItemKind<R>| -> serde_json::Value {
+        if let Some(i) = k.as_menuitem() {
+            serde_json::json!({
+                "id": i.id().as_ref(),
+                "text": i.text().unwrap_or_default(),
+                "enabled": i.is_enabled().unwrap_or(false),
+            })
+        } else if let Some(p) = k.as_predefined_menuitem() {
+            serde_json::json!({ "predefined": p.text().unwrap_or_default() })
+        } else {
+            serde_json::json!({ "other": true })
+        }
+    };
+    menu.items()
+        .unwrap_or_default()
+        .iter()
+        .filter_map(|top| {
+            let sub = top.as_submenu()?;
+            let rows: Vec<serde_json::Value> = sub
+                .items()
+                .unwrap_or_default()
+                .iter()
+                .map(&row)
+                .collect();
+            Some(serde_json::json!({ "title": sub.text().unwrap_or_default(), "items": rows }))
+        })
+        .collect()
+}
+
 /// Debug-only e2e helper (V2-3.9 T7): optionally click a native menu item by id (`click`, the
 /// same `on_menu` path AppKit's click takes — WebDriver keys never reach the menu bar), then
 /// answer AppKit's enablement of every `ROLE_ITEMS` id and the active tab. Granted only by
@@ -395,7 +432,12 @@ pub async fn e2e_menu_state(
     #[cfg(debug_assertions)]
     {
         if let Some(id) = click {
-            if route(&id).is_none() && id != crate::quit::MENU_QUIT {
+            // A tab-menu row (`tabmenu:<row>:<label>`) is clicked the same way: the native popup is not
+            // reachable from WebDriver, but its rows run through this same `on_menu`.
+            if route(&id).is_none()
+                && id != crate::quit::MENU_QUIT
+                && crate::tabs::tab_menu_command(&id).is_none()
+            {
                 return Err(format!("no menu item {id}"));
             }
             let a = app.clone();
@@ -412,7 +454,11 @@ pub async fn e2e_menu_state(
                     .focused()
                     .map(str::to_string)
             });
-        Ok(serde_json::json!({ "active": active, "enabled": menu_state(&app) }))
+        Ok(serde_json::json!({
+            "active": active,
+            "enabled": menu_state(&app),
+            "bar": bar_state(&app),
+        }))
     }
     #[cfg(not(debug_assertions))]
     {

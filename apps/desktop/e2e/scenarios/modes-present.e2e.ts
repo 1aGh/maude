@@ -100,6 +100,205 @@ describe('modes-present (S3.13)', () => {
     await landsOn('edit');
   });
 
+  // 04 md-motion (6 · Edit → Preview, in motion): "220 ms on --dur-panel, shaped by --ease-out … Reduce motion: a 1 ms
+  // cut". The camera's own ease is pinned on a manual clock (preview-motion.test.tsx); this is the CHROME half, read
+  // off the real elements while the real app does it: the Preview bar's entrance, and the picture of a panel that
+  // folds toward its icon. The chord is dispatched INSIDE the page so the rAF sampler starts on the same tick.
+    // WebKit prints `.25` where the token says `0.25`: compare the numbers, not the text
+  const squash = (s: string) => (s.match(/-?\d*\.?\d+/g) ?? []).map(Number).join(',');
+  const toMs = (v: string) => (v.endsWith('ms') ? Number.parseFloat(v) : Number.parseFloat(v) * 1000);
+  const ROOT = ':root'; // the shell's tokens live on :root (client/styles/1-tokens-shell.css)
+  type Seen = {
+    name: string;
+    target: string;
+    duration: number;
+    easing: string;
+    samples: { at: number; opacity: number }[];
+  };
+  async function recordTransition(rootSel: string): Promise<{ seen: Seen[]; dur: string; failure: string }> {
+    // started and read back in two plain executes (the async form hides a page error behind one opaque message)
+    const started = await browser.execute((sel: string) => {
+      try {
+      const w = window as unknown as { __rec?: { seen: Record<string, Seen>; failure: string; done: boolean; dur: string } };
+      const rec = { seen: {} as Record<string, Seen>, failure: '', done: false, dur: '' };
+      w.__rec = rec;
+      const t0 = performance.now();
+      const firstTiming = (list: string) => {
+        const close = list.indexOf(')');
+        return list.startsWith('cubic-bezier') && close > 0 ? list.slice(0, close + 1) : list.split(',')[0].trim();
+      };
+      const tick = () => {
+        try {
+          for (const a of document.getAnimations()) {
+            const eff = a.effect as KeyframeEffect | null;
+            const target = eff?.target as HTMLElement | null;
+            if (!target) continue;
+            const isAnim = typeof (a as CSSAnimation).animationName === 'string';
+            const name = isAnim
+              ? (a as CSSAnimation).animationName
+              : ((a as CSSTransition).transitionProperty ?? '');
+            if (!name) continue;
+            const tid = target.getAttribute('data-testid') ?? String(target.className);
+            const cs = getComputedStyle(target);
+            const row = (rec.seen[`${name}@${tid}`] ??= {
+              name,
+              target: tid,
+              duration: Number(eff?.getComputedTiming().duration),
+              easing: firstTiming(isAnim ? cs.animationTimingFunction : cs.transitionTimingFunction),
+              samples: [],
+            });
+            row.samples.push({ at: Number(a.currentTime ?? 0), opacity: Number(cs.opacity) });
+          }
+        } catch (e) {
+          rec.failure = String(e);
+        }
+        if (performance.now() - t0 < 480) requestAnimationFrame(tick);
+        else {
+          rec.dur = getComputedStyle(document.querySelector(sel) as Element)
+            .getPropertyValue('--dur-panel')
+            .trim();
+          rec.done = true;
+        }
+      };
+      requestAnimationFrame(tick);
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'p',
+          code: 'KeyP',
+          altKey: true,
+          metaKey: true,
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+      return 'ok';
+      } catch (e) {
+        return `sampler setup threw ${String(e)}`;
+      }
+    }, rootSel);
+    expect(started).toBe('ok');
+    await browser.waitUntil(
+      async () =>
+        browser.execute(() => (window as unknown as { __rec?: { done: boolean } }).__rec?.done === true),
+      { timeout: 6000, interval: 100, timeoutMsg: 'the transition sampler never finished (no animation frames?)' }
+    );
+    const rec = (await browser.execute(
+      () =>
+        (window as unknown as { __rec: { seen: Record<string, Seen>; failure: string; dur: string } }).__rec
+    )) as { seen: Record<string, Seen>; failure: string; dur: string };
+    return { seen: Object.values(rec.seen), dur: rec.dur, failure: rec.failure };
+  }
+
+  it('md-motion: Edit → Preview eases over --dur-panel (220 ms) on --ease-out, and the bar leads', async () => {
+    await landsOn('edit');
+    const tokens = await browser.execute((sel: string) => {
+      const cs = getComputedStyle(document.querySelector(sel) as Element);
+      return { dur: cs.getPropertyValue('--dur-panel').trim(), ease: cs.getPropertyValue('--ease-out').trim() };
+    }, ROOT);
+    expect(toMs(tokens.dur)).toBe(220);
+    expect(tokens.ease).toMatch(/^cubic-bezier\(/);
+    const EASE_TOKEN = squash(tokens.ease);
+    const run = await recordTransition(ROOT);
+    expect(run.failure).toBe('');
+    await landsOn('preview');
+    const bar = run.seen.find((s) => s.target === 'preview-bar' && s.name === 'sh-pbar-in');
+    if (!bar)
+      throw new Error(
+        `no entrance animation on the Preview bar; saw ${JSON.stringify(run.seen.map((s) => `${s.name}@${s.target}`))}`
+      );
+    expect(bar.duration).toBe(220);
+    expect(squash(bar.easing)).toBe(EASE_TOKEN);
+    // storyboard frame 2 (40 ms): ease-out has done most of the move already — a linear fade would sit at 0.18
+    const near40 = bar.samples.filter((s) => s.at >= 30 && s.at <= 90).sort((a, b) => a.at - b.at)[0];
+    expect(near40).toBeDefined();
+    expect(near40.opacity).toBeGreaterThan(0.3);
+    // storyboard frame 3 (220 ms): landed
+    expect(bar.samples.at(-1)?.opacity).toBeGreaterThan(0.99);
+    // a panel that stopped showing leaves as a ghost on the same clock and curve
+    for (const g of run.seen.filter((s) => s.name === 'sh-island-fold')) {
+      expect(g.duration).toBe(220);
+      expect(squash(g.easing)).toBe(EASE_TOKEN);
+    }
+    await capture('md-motion preview');
+    await chord('Escape', 'Escape');
+    await landsOn('edit');
+  });
+
+  it('md-motion: reduce motion is a 1 ms cut — the app’s own @media rule, applied to the real bar', async () => {
+    await landsOn('edit');
+    // WebDriver cannot flip the OS setting, so read the rule the app ships for it out of the live CSSOM and apply
+    // exactly its declarations to the shell root (what the media query does once it matches), then press Preview.
+    const rule = await browser.execute((sel: string) => {
+      const walk = (list: CSSRuleList, inReduce: boolean): Record<string, string> | null => {
+        for (const r of Array.from(list)) {
+          const reduce =
+            inReduce ||
+            (r instanceof CSSMediaRule && /prefers-reduced-motion:\s*reduce/.test(r.conditionText));
+          if (reduce && r instanceof CSSStyleRule) {
+            if (r.selectorText.split(',').some((x) => x.trim() === sel) && r.style.getPropertyValue('--dur-panel')) {
+              const decl: Record<string, string> = { __selector: r.selectorText };
+              for (const p of Array.from(r.style)) decl[p] = r.style.getPropertyValue(p).trim();
+              return decl;
+            }
+          }
+          const nested = (r as CSSGroupingRule).cssRules;
+          if (nested) {
+            const hit = walk(nested, reduce);
+            if (hit) return hit;
+          }
+        }
+        return null;
+      };
+      for (const sheet of Array.from(document.styleSheets)) {
+        let rules: CSSRuleList;
+        try {
+          rules = sheet.cssRules;
+        } catch {
+          continue;
+        }
+        const hit = walk(rules, false);
+        if (hit) return hit;
+      }
+      return null;
+    }, ROOT);
+    expect(rule).not.toBeNull();
+    const decl = rule ?? {};
+    expect(toMs(decl['--dur-panel'])).toBe(1);
+    expect(toMs(decl['--dur-soft'])).toBe(1);
+    // the rule is on `:root, .maude`: every element it names takes it, as the media query would make it
+    const { __selector: selector, ...props } = decl;
+    await browser.execute(
+      (d: Record<string, string>, sels: string) => {
+        for (const el of Array.from(document.querySelectorAll<HTMLElement>(sels)))
+          for (const [k, v] of Object.entries(d)) el.style.setProperty(k, v);
+      },
+      props,
+      selector
+    );
+    try {
+      const run = await recordTransition(ROOT);
+    expect(run.failure).toBe('');
+      await landsOn('preview');
+      expect(toMs(run.dur)).toBe(1);
+      const bar = run.seen.find((s) => s.target === 'preview-bar' && s.name === 'sh-pbar-in');
+      // a 1 ms animation may be over before the first frame: then there is nothing to see, which is the cut
+      if (bar) expect(bar.duration).toBe(1);
+      expect(run.seen.some((s) => s.name === 'sh-island-fold')).toBe(false); // no ghost under reduced motion
+      await capture('md-motion reduced');
+    } finally {
+      await browser.execute(
+        (d: Record<string, string>, sels: string) => {
+          for (const el of Array.from(document.querySelectorAll<HTMLElement>(sels)))
+            for (const k of Object.keys(d)) el.style.removeProperty(k);
+        },
+        props,
+        selector
+      );
+      await chord('Escape', 'Escape');
+      await landsOn('edit');
+    }
+  });
+
   it('Present from selection: the counter, the label, then esc back to Edit', async () => {
     await chord('Enter', 'Enter', { altKey: true, metaKey: true });
     await $(tid('present-controls')).waitForExist({ timeout: 8000 });

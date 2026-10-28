@@ -105,6 +105,10 @@ const DEDICATED: Record<string, string> = {
   'first-canvas.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:first-canvas',
   // S9.21c: several accounts on one hub (V2-1.7 §7) — an explicit run file from the V2-8 runner.
   'share-roles.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:share-roles',
+  // 11 pn-tab-a / pn-tab-menu / pn-windows / pn-tab-a20: the tab strip, twenty tabs, running cap 2.
+  'shell-strip.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:shell-strip',
+  // 06 ad-edge-remember: quits and relaunches the app, and starts it once on another config home.
+  'remember-folds.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:remember',
 };
 
 // Drift tripwire. Adding a wdio.<name>.conf.ts without listing its spec above

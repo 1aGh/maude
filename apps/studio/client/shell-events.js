@@ -140,6 +140,12 @@ const LINK_PILL = Object.freeze({ ...TOP_PILL, icon: 'link' });
 /** 11 pn-relaunch (06 ad-open-all): the restore pill wears the tabs glyph. */
 const TABS_PILL = Object.freeze({ ...TOP_PILL, icon: 'tab' });
 
+// A take is one-shot (Rust parks the value and the first `take_*` empties it). The page restarts this subscription
+// whenever its tree / cloud state flips, so a take can be ANSWERED after its own subscription stopped: that answer is
+// the only copy, and it is handed to the subscription that is live now (or kept for the next one) — never dropped.
+let live = null;
+const late = new Map();
+
 export function startShellEvents({ invoke, listen, toast, onNavigate }) {
   let alive = true;
   let restoredShown = false;
@@ -170,20 +176,36 @@ export function startShellEvents({ invoke, listen, toast, onNavigate }) {
   });
   sub('shell://tabs-restored', restored);
   sub('shell://navigate', navigate);
-  const ask = (cmd, then) =>
-    Promise.resolve()
-      .then(() => invoke(cmd))
-      .then((v) => v && then(v))
-      .catch(() => {});
-  ask('take_tabs_restored', restored);
-  ask('take_pending_navigate', navigate);
-  // V2-3.6 L1: a link opened this project as a NEW tab (parked, like the restore count).
-  ask('take_link_opened', (p) => {
+  const linkOpened = (p) => {
     const name = cleanName(p?.name);
     if (alive && name) toast(linkOpenedWords(name), true, undefined, LINK_PILL);
-  });
+  };
+  const takes = {
+    take_tabs_restored: restored,
+    take_pending_navigate: navigate,
+    // V2-3.6 L1: a link opened this project as a NEW tab (parked, like the restore count).
+    take_link_opened: linkOpened,
+  };
+  const self = { deliver: (cmd, v) => alive && takes[cmd]?.(v) };
+  live = self;
+  const ask = (cmd) =>
+    Promise.resolve()
+      .then(() => invoke(cmd))
+      .then((v) => {
+        if (!v) return;
+        if (alive) takes[cmd](v);
+        else if (live) live.deliver(cmd, v);
+        else late.set(cmd, v);
+      })
+      .catch(() => {});
+  for (const [cmd, v] of [...late]) {
+    late.delete(cmd);
+    self.deliver(cmd, v);
+  }
+  for (const cmd of Object.keys(takes)) ask(cmd);
   return () => {
     alive = false;
+    if (live === self) live = null;
     for (const off of offs.splice(0)) off();
   };
 }
