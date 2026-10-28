@@ -240,12 +240,22 @@ fi
 # Step 2 — spawn.
 mkdir -p "$DESIGN_ROOT"
 echo "→ starting dev server: $RUNTIME_CMD --root $REPO" >&2
+# Its own session, not the caller's process group: `nohup … &` alone keeps the caller's group, and an agent's shell
+# tool that times out or is stopped signals that whole group — the studio got SIGTERM with nobody asking
+# (2026-10-28). macOS has no setsid(1); perl ships with it. Without perl, plain nohup (the old behaviour).
+detached() {
+  if command -v perl >/dev/null 2>&1; then
+    nohup perl -MPOSIX -e 'POSIX::setsid(); exec { $ARGV[0] } @ARGV or exit 127' -- "$@"
+  else
+    nohup "$@"
+  fi
+}
 if [ "$RUNTIME" = "binary" ]; then
-  nohup "$SERVER_BIN" --root "$REPO" > "$DESIGN_ROOT/_server.log" 2>&1 &
+  detached "$SERVER_BIN" --root "$REPO" > "$DESIGN_ROOT/_server.log" 2>&1 &
 elif [ "$RUNTIME" = "bun" ]; then
-  nohup bun "$SERVER_TS" --root "$REPO" > "$DESIGN_ROOT/_server.log" 2>&1 &
+  detached bun "$SERVER_TS" --root "$REPO" > "$DESIGN_ROOT/_server.log" 2>&1 &
 elif [ "$RUNTIME" = "node" ]; then
-  nohup node "$SERVER_MJS" --root "$REPO" > "$DESIGN_ROOT/_server.log" 2>&1 &
+  detached node "$SERVER_MJS" --root "$REPO" > "$DESIGN_ROOT/_server.log" 2>&1 &
 fi
 disown 2>/dev/null || true
 

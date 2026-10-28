@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -111,6 +111,44 @@ test('a listener that never answers is reported, and no second instance is start
     assert.equal(existsSync(state), true);
   } finally {
     child.kill();
+    w.done();
+  }
+});
+
+// 2026-10-28, the same studio again: server-up started the server with `nohup … &`, so it stayed in the CALLER's
+// process group. An agent's shell tool that times out or is stopped signals its whole group — and the person's
+// studio got SIGTERM ("Stopping…") with nobody having asked for it. The server must live in its own session.
+test('the started server survives a signal to the process group that ran server-up', async () => {
+  const w = world();
+  const pidFile = join(w.root, 'server.pid');
+  writeFileSync(w.bin, `#!/bin/sh\necho $$ > '${pidFile}'\nexec sleep 300\n`);
+  const caller = spawn('bash', [SERVER_UP, '--root', w.repo, '--timeout', '1'], {
+    detached: true, // its own group, standing in for the agent's shell
+    stdio: 'ignore',
+    env: { ...process.env, MAUDE_DEV_SERVER_BIN: w.bin, NO_OPEN: '1', MAUDE_NO_AUTOBUILD: '1' },
+  });
+  const group = caller.pid;
+  await new Promise((r) => caller.once('exit', r));
+  for (let i = 0; i < 50 && !existsSync(pidFile); i++) await new Promise((r) => setTimeout(r, 100));
+  const pid = Number(readFileSync(pidFile, 'utf8').trim());
+  const alive = () => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  try {
+    try {
+      process.kill(-group, 'SIGTERM');
+    } catch {} // the group may already be empty — that is the fix
+    await new Promise((r) => setTimeout(r, 500));
+    assert.equal(alive(), true, 'the studio died with the shell that started it');
+  } finally {
+    try {
+      process.kill(pid, 'SIGKILL');
+    } catch {}
     w.done();
   }
 });
