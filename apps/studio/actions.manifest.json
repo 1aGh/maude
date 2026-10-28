@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "90780e7fd871",
+  "manifestVersion": "0ec9a0ec0b9c",
   "actions": [
     {
       "id": "search.open",
@@ -1288,7 +1288,7 @@
         "path": "file",
         "format": "canvas-tsx",
         "skill": "design:design",
-        "how": "Add <img src=\"assets/<sha8>.<ext>\" alt=\"\" style={{ display: \"block\", width: \"100%\", height: \"100%\", objectFit: \"cover\" }} /> as the last child of the frame (import the file first with the asset import; src is always a flat assets/ name). On a frame or picture that already holds one picture, change only its src. On an artboard use position: \"absolute\", left: \"0\", top: \"0\" and put it first. Over HTTP: POST /_api/edit-op {op: \"image.place\", targets: [frame?], params: {asset | assets, mode: \"fill\" | \"loose\" | \"fill-in-order\" | \"grid\", artboard?, natural?: {w, h}, alt?}}"
+        "how": "Add <img src=\"assets/<sha8>.<ext>\" alt=\"\" style={{ display: \"block\", width: \"100%\", height: \"100%\", objectFit: \"cover\" }} /> as the last child of the frame (import the file first: `maude design import-asset <file>` prints its assets/<sha8>.<ext>; src is always a flat assets/ name). On a frame or picture that already holds one picture, change only its src. On an artboard use position: \"absolute\", left: \"0\", top: \"0\" and put it first. Over HTTP: POST /_api/edit-op {op: \"image.place\", targets: [frame?], params: {asset | assets, mode: \"fill\" | \"loose\" | \"fill-in-order\" | \"grid\", artboard?, natural?: {w, h}, alt?}}"
       }
     },
     {
@@ -1841,7 +1841,7 @@
         "path": "file",
         "format": "canvas-tsx",
         "skill": "design:design",
-        "how": "Replace every string literal that names the missing file with the copy’s assets/<sha8>.<ext> path (import it first with the asset import); keep each reference’s leading / or ./"
+        "how": "Replace every string literal that names the missing file with the copy’s assets/<sha8>.<ext> path (import it first: `maude design import-asset <file>`); keep each reference’s leading / or ./"
       }
     },
     {
@@ -1987,6 +1987,19 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Same as image.place: add <img src=\"assets/<sha8>.<ext>\" alt=\"\" style={{ display: \"block\", width: \"100%\", height: \"100%\", objectFit: \"cover\" }} /> to the selected frame, or first inside the selected artboard (position: \"absolute\", left: \"0\", top: \"0\"). Which files exist and where they are used: `maude design assets`. Over HTTP: POST /_api/edit-op {op: \"image.place\", targets: [frame?], params: {asset, mode: \"fill\" | \"loose\", artboard?}}"
+      }
+    },
+    {
+      "id": "assets.add",
+      "label": "Add files…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design import-asset <file>"
       }
     },
     {
