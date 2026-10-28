@@ -74,3 +74,8 @@ Not built, either because no CONTRACT line names them or because the weekly budg
 - V2-8.9 round B A1 known gap: a person's own canvas save during the few seconds an auto-tier verb (no permission
   card) is actually running can still land in that AI run and its Undo. Closing it needs each writer verb to claim
   its own writes before writing (~40 verbs).
+
+## From p8-format-gate-3 (merged 0c781ec4f)
+
+- No real-hub leg covers a pre-1.9.0 hub's `hub-too-old` refusal (the 1.9.1 image is the compat hub and offers Update project). The refusal is unit-pinned in `migrate-v2-refusals.test.ts`. Adding a v1.8.1 hub image + one Docker-gate leg would close it.
+- `apps/desktop/e2e/scenarios/offline-conflict.e2e.ts:86/94` still signals `hubPid` directly; route it through `hubProcess()` like team-project before that spec ever gets a container hub target (pid 0 → `kill(0)` stops the caller's process group).
