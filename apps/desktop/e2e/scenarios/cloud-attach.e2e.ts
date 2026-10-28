@@ -190,6 +190,15 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
       timeout: 30_000,
       timeoutMsg: 'the card never reached its final words ("Moved to the cloud")',
     });
+    // 02 ob-local-moved — the exact words (move-to-cloud.jsx movingWords; the board's "3 canvases" count is the
+    // board's, CONTRACT wins), and Share now invites: the e-mail field and its Invite are in the same sheet.
+    expect((await moved.getText()).replace(/\s+/g, ' ').trim()).toBe(
+      'Moved to the cloud — your canvases are going up now.'
+    );
+    const inviteEmail = await $(tid('share-invite-email'));
+    await inviteEmail.waitForDisplayed({ timeout: 30_000 });
+    expect((await (await $(tid('share-invite-submit'))).getText()).trim()).toBe('Invite');
+    expect(await (await $(tid('share-move-confirm'))).isExisting()).toBe(false);
     await capture('moved to the cloud');
     await (await $(tid('share-close'))).click();
 
