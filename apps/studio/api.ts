@@ -21,7 +21,7 @@ import {
   projectVisibility,
 } from './access/filters.ts';
 import { currentFrameKey } from './access/frame.ts';
-import { currentAccess } from './access/request.ts';
+import { currentAccess, toDesignRel } from './access/request.ts';
 import { canonicalAnnotations } from './annotations/board-text.ts';
 import {
   type Op as AnnotationOp,
@@ -434,6 +434,9 @@ export interface DuplicateCanvasOpts {
   source?: string;
 }
 
+/** P8 G1a — the hub comment door refused or could not be reached (sync/comment-door.ts). */
+export type DoorRefusal = { ok: false; status: number; code: string; error: string };
+
 export type CreateCanvasResult =
   | { ok: true; file: string; rel: string; slug: string }
   | { ok: false; status: number; error: string };
@@ -583,7 +586,7 @@ export interface Api {
   commentsDelete(id: string): Promise<boolean>;
   commentsAddReply(id: string, payload: { body: string; author?: string }): Promise<Comment | null>;
   /** S9.7b — `POST /_api/comments/op` (routes/comments.ts): one op on `file`'s threads. */
-  commentOp(file: string, op: CommentOp, actor: OpActor): Promise<OpResult>;
+  commentOp(file: string, op: CommentOp, actor: OpActor): Promise<OpResult | DoorRefusal>;
   commentFileOf(id: string): Promise<string | null>;
   gitCommitters(): Promise<GitCommitter[]>;
   /**
@@ -1987,11 +1990,35 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   }
 
   /** S9.7b — one comment op (comments/ops.ts) on `file`'s threads, as the session's `actor`. */
-  async function commentOp(file: string, op: CommentOp, actor: OpActor): Promise<OpResult> {
+  async function commentOp(
+    file: string,
+    op: CommentOp,
+    actor: OpActor
+  ): Promise<OpResult | DoorRefusal> {
     const list = await loadCommentsForFile(file);
+    // P8 G1a — a session that may not edit this canvas (Can comment) holds a read-only
+    // connection: its comment goes to the hub's comment door (sync/comment-door.ts), which
+    // saves it as that person. The replica brings the saved record back here; until it does,
+    // the window is shown the hub's own record (same id), so the author sees it at once.
+    const canvasRel = toDesignRel(file, paths.designRel);
+    const door =
+      canvasRel === null
+        ? null
+        : (ctx.syncControl?.current?.()?.commentDoor?.(fileSlug(file), canvasRel, op, actor) ??
+          null);
+    if (door) {
+      const sent = await door;
+      if (!sent.ok) return sent;
+      const saved = sent.comment;
+      if (saved) {
+        const shown = [...list.filter((c) => c.id !== saved.id), saved as Comment];
+        ctx.bus.emit('comments', { file, comments: dedupeCommentsById(shown) });
+      }
+      return { ok: true, list: list as CommentRecord[], comment: saved, mentioned: [] };
+    }
     const now = new Date().toISOString();
-    const ctx = { actor, now, newId: newCommentId, newReplyId };
-    const result = applyCommentOp(list as CommentRecord[], op, ctx);
+    const opCtx = { actor, now, newId: newCommentId, newReplyId };
+    const result = applyCommentOp(list as CommentRecord[], op, opCtx);
     if (result.ok) await publishComments(file, result.list, list);
     return result;
   }

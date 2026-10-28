@@ -744,7 +744,14 @@ export async function handleAccessChanged(ctx) {
     return answer(ctx, refusal(422, 'body', 'An email and a change are required.'));
   }
   const reason = ACCESS_REASONS.includes(body.reason) ? body.reason : undefined;
-  const { sent } = svc.notices.accessChanged({ email, change: body.change, reason });
+  const { sent } = svc.notices.accessChanged({
+    email,
+    change: body.change,
+    reason,
+    // P8 G1a — who narrowed and the role now; notices.mjs keeps only a clean name and a wire role
+    by: typeof body.by === 'string' ? body.by : undefined,
+    role: typeof body.role === 'string' ? body.role : undefined,
+  });
   return answer(ctx, { status: 202, body: { ok: true, sent } });
 }
 

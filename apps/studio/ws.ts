@@ -346,6 +346,9 @@ export function createWs(
         type: 'access',
         change: frame.change,
         ...(frame.reason ? { reason: frame.reason } : {}),
+        // P8 G1a — a narrowing's who + role now (already cleaned by sync/access-notices.ts)
+        ...(frame.by ? { by: frame.by } : {}),
+        ...(frame.role ? { role: frame.role } : {}),
       });
     else if (frame?.type === 'maude.access-request')
       toDesktopShell({

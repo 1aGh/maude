@@ -192,7 +192,12 @@ export async function notifyAccessChanged(env, projectId, body, { ctx = null } =
  * not keep the old reach: a revocation row (the 10-minute sweep's input) and
  * an immediate notice. A failed write never fails the change itself.
  */
-export async function accessWentDown(env, projectId, email, { reason, now = Date.now(), ctx }) {
+export async function accessWentDown(
+  env,
+  projectId,
+  email,
+  { reason, now = Date.now(), ctx, by = '', role = null }
+) {
   if (!email) return;
   try {
     await env.DB.prepare(
@@ -211,7 +216,16 @@ export async function accessWentDown(env, projectId, email, { reason, now = Date
   await notifyAccessChanged(
     env,
     projectId,
-    { email, change: verdict.ok ? 'narrowed' : 'ended', ...(reason ? { reason } : {}) },
+    {
+      email,
+      change: verdict.ok ? 'narrowed' : 'ended',
+      ...(reason ? { reason } : {}),
+      // P8 G1a (11 pn-cant-open) — a narrowing says who did it and what it is now: "Tereza changed
+      // you to Can view." A NAME only (never an address) and a wire role; a cell that does not know
+      // the fields drops them (additive).
+      ...(verdict.ok && typeof by === 'string' && by ? { by: by.slice(0, 80) } : {}),
+      ...(verdict.ok && typeof role === 'string' && role ? { role } : {}),
+    },
     { ctx }
   );
 }
@@ -722,7 +736,14 @@ export async function handleAccessForward(request, env, { ctx = null, now = Date
       canvas,
       role: body.role ?? null,
     });
-    if (down) await accessWentDown(env, projectId, target.email, { reason: 'removed', now, ctx });
+    if (down)
+      await accessWentDown(env, projectId, target.email, {
+        reason: 'removed',
+        now,
+        ctx,
+        by: actor?.name ?? '',
+        role: after.roleFor(canvas) ?? null,
+      });
     else if (up)
       await notifyAccessChanged(env, projectId, { email: target.email, change: 'raised' }, { ctx });
     return json(method === 'DELETE' ? null : { ok: true }, method === 'DELETE' ? 204 : 200);
