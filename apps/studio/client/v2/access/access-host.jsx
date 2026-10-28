@@ -49,7 +49,13 @@ export function accessHostStep(state, frame, { activePath, designRel } = {}) {
     const canvas = canvasName(canvasRel(activePath, designRel) ?? '');
     return { state, toast: { title: WORDS.raised(canvas), kind: 'success' }, reread: true };
   }
-  if (n.kind === 'narrowed') return { state, toast: null, reread: true };
+  if (n.kind === 'narrowed')
+    return {
+      state,
+      // S1.20 — said only when the hub named the role now (an older hub names nothing: no toast)
+      toast: n.role ? { title: WORDS.narrowedTo(n.by, n.role), kind: 'info' } : null,
+      reread: true,
+    };
   if (n.kind === 'ended') return { state: { ...state, ended: n.reason }, toast: null };
   if (n.kind === 'link-off') return { state: { ...state, linkOff: true }, toast: null };
   if (n.kind === 'request')

@@ -1,7 +1,7 @@
 // S9.21b — the hub's access notices, heard on a canvas doc socket and relayed to the shell
 // (V2-1.7 §5.6; hub side apps/hub/src/routes-v2/notices.mjs).
 //
-//   { type: 'maude.access', epoch, change: 'raised' | 'narrowed' | 'ended', reason? }
+//   { type: 'maude.access', epoch, change: 'raised' | 'narrowed' | 'ended', reason?, by?, role? }
 //   { type: 'maude.access-request', id, from: { name }, canvas?, at }
 //
 // Every canvas doc socket of this project receives its own copy, so the same notice arrives once
@@ -15,6 +15,8 @@
 export const ACCESS_CHANGES = ['raised', 'narrowed', 'ended'] as const;
 export const ACCESS_REASONS = ['removed', 'link-off', 'expired'] as const;
 export const MAX_NOTICE_NAME = 80;
+/** The wire roles a narrowing may name (hub notices.mjs NOTICE_ROLES). */
+export const NOTICE_ROLES = ['owner', 'member', 'viewer', 'observer'] as const;
 /** How many seen keys are remembered (a long session hears a few per day). */
 const SEEN_CAP = 256;
 
@@ -24,6 +26,9 @@ export type AccessFrame =
       epoch: number;
       change: (typeof ACCESS_CHANGES)[number];
       reason?: (typeof ACCESS_REASONS)[number];
+      /** P8 G1a — a narrowing only: who did it (a clean name) and the wire role now. */
+      by?: { name: string };
+      role?: (typeof NOTICE_ROLES)[number];
     }
   | {
       type: 'maude.access-request';
@@ -72,7 +77,18 @@ export function parseAccessNotice(payload: string): AccessFrame | null {
     const change = ACCESS_CHANGES.find((c) => c === msg?.change);
     if (epoch === null || !change) return null;
     const reason = ACCESS_REASONS.find((r) => r === msg?.reason);
-    return { type: 'maude.access', epoch, change, ...(reason ? { reason } : {}) };
+    const narrowed = change === 'narrowed';
+    const byRaw = msg.by && typeof msg.by === 'object' ? (msg.by as { name?: unknown }).name : null;
+    const by = narrowed ? cleanName(byRaw) : '';
+    const role = narrowed ? NOTICE_ROLES.find((r) => r === msg?.role) : undefined;
+    return {
+      type: 'maude.access',
+      epoch,
+      change,
+      ...(reason ? { reason } : {}),
+      ...(by ? { by: { name: by } } : {}),
+      ...(role ? { role } : {}),
+    };
   }
   if (msg.type === 'maude.access-request') {
     if (typeof msg.id !== 'string' || !ID_RE.test(msg.id)) return null;

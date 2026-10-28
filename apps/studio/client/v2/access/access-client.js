@@ -158,6 +158,9 @@ export const WORDS = Object.freeze({
   notNow: 'Not now',
   review: 'Review',
   raised: (canvas) => `You can edit ${canvas || 'this project'} now.`,
+  // S1.20 (11 pn-cant-open) — a narrowing, said once; the flush ran first (the hub's grace)
+  narrowedTo: (name, role) =>
+    `${firstName(name) || 'Someone'} changed you to ${accessWord(role)}. Your changes were saved first.`,
   endedTitle: (project) => `You no longer have access to ${project || 'this project'}.`,
   endedLine: 'Your last changes were saved first. If this is a surprise, ask someone on the team.',
   backHome: 'Back to Home',
@@ -367,7 +370,12 @@ export function watchRefusals(win, onOutcome) {
 export function accessNotice(msg) {
   if (msg?.type !== 'maude.access') return null;
   if (msg.change === 'raised') return { kind: 'raised' };
-  if (msg.change === 'narrowed') return { kind: 'narrowed' };
+  if (msg.change === 'narrowed') {
+    // P8 G1a — who narrowed and the role now, when the hub says (11 pn-cant-open's toast)
+    const by = typeof msg.by?.name === 'string' ? msg.by.name.slice(0, 80) : '';
+    const role = accessWord(msg.role) ? msg.role : null;
+    return { kind: 'narrowed', ...(by ? { by } : {}), ...(role ? { role } : {}) };
+  }
   if (msg.change === 'ended')
     return msg.reason === 'link-off'
       ? { kind: 'link-off' }
@@ -430,7 +438,13 @@ export const VIEW_ONLY_EVENT = 'maude:view-only-gesture';
  */
 export function shellAccessFrame(frame) {
   if (frame?.type === 'access')
-    return accessNotice({ type: 'maude.access', change: frame.change, reason: frame.reason });
+    return accessNotice({
+      type: 'maude.access',
+      change: frame.change,
+      reason: frame.reason,
+      by: frame.by,
+      role: frame.role,
+    });
   if (frame?.type === 'access-request') {
     const r = requestNotice({
       type: 'maude.access-request',

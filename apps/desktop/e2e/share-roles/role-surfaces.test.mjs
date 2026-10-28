@@ -500,6 +500,14 @@ describe('Can comment — 04 md-comment-only · 05 es-viewer · 09 ex-edges', ()
     assert.equal(ok.status, 200, JSON.stringify(await json(ok.clone())));
     await step(petra, 'pn-cant-open-can-view', async () => {
       await accessWord(petra, 'Can view');
+      // S1.20 — the toast says who narrowed and what she is now (the hub's notice names both)
+      const owner = 'Olga'; // stand-up.mjs PEOPLE.owner (Olga Owner), first name
+      await petra
+        .locator('[data-testid^="notice-"]')
+        .filter({ hasText: `${owner} changed you to Can view. Your changes were saved first.` })
+        .first()
+        .waitFor({ timeout: STEP });
+      await shot(petra, 'pn-cant-open-narrowed-toast');
       await petra.locator(tid('share-cluster-ask')).waitFor({ timeout: STEP });
       // the toolbar goes (Can view: none), the canvas stays on screen
       await until('the toolbar to go', async () => (await toolbarSlots(petra)) === null);
