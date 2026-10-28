@@ -789,6 +789,10 @@ const FIND_WRITES = /^-(?:delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fl
  * any `maude design` verb when `verbs` is null — may write. The caller opens the run's claim-only
  * window for the call's duration: the guard can't read every language, so the run claims what changes
  * while the call runs, and only a provable read keeps a person's save out of it (V2-8.9 A1).
+ *
+ * @param {unknown} command
+ * @param {ReadonlyArray<{ verb: string, effect: string | null }> | null} [verbs]
+ * @returns {boolean}
  */
 export function bashMayWrite(command, verbs = null) {
   if (typeof command !== 'string' || !command.trim()) return false;
