@@ -52,3 +52,7 @@ Not built, either because no CONTRACT line names them or because the weekly budg
   live fake run, project-tabs-identity); 12 ia-more-ways, ia-edges; 07 ve-footage (local hub presence stub);
   10 an-vote and co-mention-notify (in-app half) on a cell with minted sessions; the multiplayer `surface` catalogue
   through the Docker container.
+- 05 es-all-trashed: a single teammate cannot empty a canvas ("A canvas keeps at least one artboard"); the state needs
+  two people racing (hub stopped, A trashes a–c, B trashes d, B lands first). Drive it as a race lane or soak it.
+- 12 ia-missing: "Waiting for alice's device" — the hub names the holder by e-mail local part and reports no Mac/PC kind
+  yet ("Mac" in the board). Plan: run it inside team-cell's rate-limited window (alice's one write spent on a note).
