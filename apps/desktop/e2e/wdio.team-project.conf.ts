@@ -51,6 +51,24 @@ function freePort(): Promise<number> {
   });
 }
 
+/**
+ * MAUDE_E2E_HUB_TARGET may only name a hub on THIS machine (the Docker gate's loopback container) — the lane
+ * signs in with a password and kills/stops the hub, so a real hub's URL there must stop the run, not be believed.
+ */
+export function assertLoopbackHubTarget(url: string): void {
+  let host = '';
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    /* unparseable: refused below */
+  }
+  if (!['127.0.0.1', 'localhost', '[::1]', '::1'].includes(host)) {
+    throw new Error(
+      `MAUDE_E2E_HUB_TARGET names "${host || url}": the team-project lane runs on a loopback hub only (127.0.0.1, localhost or ::1), never a real one`
+    );
+  }
+}
+
 export const canvasSource = (
   title: string
 ) => `import { DCArtboard, DCSection, DesignCanvas } from "@maude/canvas-lib";
@@ -127,6 +145,7 @@ async function setUp(): Promise<string> {
         away?: 'kill' | 'pause';
       })
     : null;
+  if (target) assertLoopbackHubTarget(target.http);
   const hub: LocalHub = target
     ? {
         http: target.http.replace(/\/$/, ''),

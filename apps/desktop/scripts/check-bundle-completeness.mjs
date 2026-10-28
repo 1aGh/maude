@@ -28,6 +28,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
+import { stubClaudeEnv } from '../../../scripts/lib/stub-claude.mjs';
 import { classifyHelpers, collectImports } from './helper-deps.mjs';
 
 const RED = '\x1b[31m';
@@ -312,6 +313,8 @@ function reelPlaceSmoke(binary, strippedPath) {
           NO_OPEN: '1',
           MAUDE_NO_AUTOBUILD: '1',
           NAPI_RS_NATIVE_LIBRARY_PATH: '/$bunfs/root/parser.darwin-arm64-smoke.node',
+          // a stub `claude` first on PATH: nothing here may reach the person's real CLI / keychain
+          ...stubClaudeEnv(root, strippedPath),
         },
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'pipe'],
