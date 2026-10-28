@@ -107,6 +107,7 @@
     {"id":"V2-8.15","kind":"task","phase":8,"title":"Docs for people and agents","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"V2-8.16","kind":"task","phase":8,"title":"AI parity","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"V2-8.17","kind":"task","phase":8,"title":"Legacy shared-doc offline overlap (#121)","status":"open","evidence":null,"evidenceHash":null,"commit":null},
+    {"id":"V2-8.18","kind":"task","phase":8,"title":"Self-hosted hub + cell images (Docker)","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"V2-8.11","kind":"task","phase":8,"title":"Branch build + PR","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"V2-8.12","kind":"task","phase":8,"title":"After the merge (owner-triggered, outside this run)","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"V2-8.13","kind":"task","phase":8,"title":"Close-out","status":"open","evidence":null,"evidenceHash":null,"commit":null},
