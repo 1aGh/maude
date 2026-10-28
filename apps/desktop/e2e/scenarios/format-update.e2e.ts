@@ -84,6 +84,25 @@ describe('format-update (Michal 2A: a format-1 project is view only + Update pro
     await waitWindow(tab);
     await focusTab(tab);
     await waitForSidecar();
+    // The precondition, stated: the tab serves THIS format-1 project (gated) before any test looks for the
+    // dialog. A pass-1 run (2026-10-28, loaded machine) timed out on the dialog twice with no trace of what the
+    // tab had served; this turns that into a failure that names it (and gives a slow first load room).
+    let seen: unknown = null;
+    await browser.waitUntil(
+      async () => {
+        seen = await browser.execute(async () => {
+          const c = await (await fetch('/_config')).json();
+          return { name: c.name, formatVersion: c.formatVersion, formatGate: c.formatGate };
+        });
+        const c = seen as { name?: string; formatGate?: unknown };
+        return c.name === NAME && !!c.formatGate;
+      },
+      {
+        timeout: 60_000,
+        interval: 500,
+        timeoutMsg: `the tab never served the format-1 project as gated: ${JSON.stringify(seen)}`,
+      }
+    );
   });
 
   after(async () => {
