@@ -240,8 +240,7 @@ export async function runUnlink({ args, cwd = process.cwd() }) {
     return;
   }
   const url = cfg.linkedHub.url;
-  cfg.linkedHub = undefined;
-  writeDesignConfig(designConfigPath, cfg);
+  dropLinkedHub(cfg, designConfigPath);
   deleteProjectLink(cwd);
 
   let tokenRemoved = false;
@@ -385,8 +384,7 @@ export async function runDetach({ args, cwd = process.cwd() }) {
   // no window where the folder belongs to neither owner.
   if (linked) {
     const url = cfg.linkedHub.url;
-    cfg.linkedHub = undefined;
-    writeDesignConfig(designConfigPath, cfg);
+    dropLinkedHub(cfg, designConfigPath);
     deleteProjectLink(cwd);
     if (!flags['keep-token']) removeHub(url);
     process.stdout.write(`[design detach] unlinked from ${url}.\n`);
@@ -817,6 +815,46 @@ function readDesignConfig(path) {
   } catch (err) {
     throw new Error(`unable to read ${path}: ${err.message}`);
   }
+}
+
+/**
+ * The project format a hub mirror holds for the link that is about to go, as a
+ * number to carry into the config — or null when the config already says it.
+ *
+ * Decision 2A: a project's format is max(config.formatVersion ?? 1, linked
+ * hub's format). A project pulled from, or raised through, a hub can hold its
+ * format ONLY in the per-hub mirror (`<designRoot>/_state/hub-format.json`,
+ * apps/studio/format.ts `readHubFormatCache`); dropping the link without it
+ * reads the person's own project back as format 1 — view only. RAISE ONLY.
+ *
+ * This is the CLI copy of the studio's `detach()` rule
+ * (apps/studio/cloud/endpoints.ts, which calls `projectFormat`). The CLI is
+ * Node and cannot import the studio's TypeScript, so the mirror read is
+ * restated here; `apps/studio/test/detach-keeps-format.test.ts` runs both
+ * against the same mirrors so they cannot drift.
+ */
+export function hubFormatToCarry(cfg, designRoot) {
+  const url = cfg?.linkedHub?.url;
+  if (typeof url !== 'string') return null;
+  const asFormat = (v) => (Number.isInteger(v) && v >= 1 ? v : 1);
+  const norm = (u) => u.replace(/\/+$/, '');
+  let mirror;
+  try {
+    mirror = JSON.parse(readFileSync(join(designRoot, '_state', 'hub-format.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+  if (typeof mirror?.hub !== 'string' || norm(mirror.hub) !== norm(url)) return null;
+  const hub = asFormat(mirror.formatVersion);
+  return hub > asFormat(cfg.formatVersion) ? hub : null;
+}
+
+/** Write the config without its link, keeping the project's format (see above). */
+function dropLinkedHub(cfg, designConfigPath) {
+  const carry = hubFormatToCarry(cfg, dirname(designConfigPath));
+  if (carry !== null) cfg.formatVersion = carry;
+  cfg.linkedHub = undefined;
+  writeDesignConfig(designConfigPath, cfg);
 }
 
 function writeDesignConfig(path, cfg) {

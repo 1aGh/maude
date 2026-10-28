@@ -41,7 +41,7 @@ import { renewHubCredential } from '../cloud/renew.ts';
 import { Y_TYPES } from '../collab/persistence.ts';
 import type { Context, LinkedHub } from '../context.ts';
 import { PROJECT_CONFIG_CACHE_REL, reloadConfig, sanitizeProjectConfig } from '../context.ts';
-import { SUPPORTED_FORMAT } from '../format.ts';
+import { projectFormat, SUPPORTED_FORMAT } from '../format.ts';
 import type { TrashListing, TrashOutcome } from '../history/trash.ts';
 import { createHistory } from '../history.ts';
 import { SYNTHETIC_FS_DELAY_MS } from '../hmr-broadcast.ts';
@@ -2901,7 +2901,17 @@ export function createSyncRuntime(
       if (!freshLink || learnedGroups.has(group)) return;
       learnedGroups.add(group);
       if (existsSync(designConfigPath(ctx)) && !ownsSeededConfig) return;
-      if (seedProjectConfig(ctx, learnedGroups, ownsSeededConfig)) ownsSeededConfig = true;
+      if (
+        seedProjectConfig(
+          ctx,
+          learnedGroups,
+          ownsSeededConfig,
+          // The hub's format as this link knows it (the mirror its /health,
+          // bootstrap or notice wrote) — the pulled project keeps it.
+          projectFormat(formatCtx).value
+        )
+      )
+        ownsSeededConfig = true;
       // ONE GROUP, ONCE. `freshLink` was a `const`, so after the first config
       // was written every FURTHER undeclared group was accepted and appended —
       // the relaxation perpetuating itself instead of closing, and a hub free to
@@ -6933,6 +6943,11 @@ function designConfigPath(ctx: Context): string {
  * writes what the pull actually brought down, so the next boot needs no
  * relaxation and the tree lists the project it just received.
  *
+ * A hub at format 2 or higher stamps `formatVersion` (decision 2A): the
+ * pulled project is a format-N project, and without the stamp a later detach
+ * or relink would read it back as format 1 (view only). A 1.x hub stamps
+ * nothing — absent already means 1.
+ *
  * ADDITIVE AND ONE-SHOT. It refuses outright if a config already exists — a
  * user's own declaration is never edited by the sync runtime, and the caller's
  * `freshLink` gate means this cannot run on a project that had canvases.
@@ -6942,7 +6957,8 @@ function designConfigPath(ctx: Context): string {
 function seedProjectConfig(
   ctx: Context,
   learnedGroups: ReadonlySet<string>,
-  owned: boolean
+  owned: boolean,
+  hubFormat = 1
 ): boolean {
   const file = designConfigPath(ctx);
   if (existsSync(file) && !owned) return false;
@@ -6956,6 +6972,7 @@ function seedProjectConfig(
           name: ctx.cfg.name,
           designRoot: ctx.paths.designRel,
           canvasGroups: groups.map((p) => ({ label: p, path: p })),
+          ...(hubFormat >= 2 ? { formatVersion: hubFormat } : {}),
         },
         null,
         2
