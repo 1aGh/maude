@@ -52,7 +52,7 @@ test('the per-spec reset runs between apps (onWorkerEnd after stopE2eApp), never
   const end = conf.slice(conf.indexOf('onWorkerEnd:'));
   assert.match(
     end,
-    /await stopE2eApp\(Number\(process\.env\.TAURI_WEBDRIVER_PORT\)\)[\s\S]*resetE2eAppState\(\)[\s\S]*restoreFixtureTree\(\)[\s\S]*resetFixtureRuntime\(\)/
+    /await stopE2eApp\(Number\(process\.env\.TAURI_WEBDRIVER_PORT\)\)[\s\S]*resetE2eAppState\(\)[\s\S]*restoreFixtureTree\([^)]*\)[\s\S]*resetFixtureRuntime\(\)/
   );
 });
 
