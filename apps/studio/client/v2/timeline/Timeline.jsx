@@ -107,6 +107,13 @@ function rowKind(seq) {
 function displayNameOf(seq, i) {
   // P8 C3 (07 · ve-text) — a title goes by its words (timeline-parse.js `text`), never by "AbsoluteFill"
   if (seq.text) return seq.text;
+  // p8-t-video-2 — a named clip goes by its name: the dropped file's ("IMG_5120"), an AI cut's shot ("Tackle 2")
+  if (
+    typeof seq.stableId === 'string' &&
+    seq.stableId.startsWith('name:') &&
+    seq.stableId.length > 5
+  )
+    return seq.stableId.slice(5);
   const raw =
     ['Video', 'OffthreadVideo', 'Audio', 'Img', 'MaudeVideo', 'MaudeAudio', 'MaudeImg'].includes(
       seq.label

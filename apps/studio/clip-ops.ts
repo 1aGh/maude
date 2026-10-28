@@ -280,6 +280,30 @@ export interface InsertAtOptions {
   /** Task 22 — a prompt-carrying AI slate instead of media. Prompt is USER
    *  TEXT → JSON.stringify into the JSX (DDR-150 P1). */
   placeholder?: { prompt: string; kind: string } | null;
+  /** p8-t-video-2 — the clip's name (the dropped file's, sans extension): the timeline label and its
+   *  `name:<name>` identity. Cleaned to what a comp carries and made unique in the comp (" 2", " 3", …). */
+  name?: string | null;
+}
+
+/** A clip name as the comp can carry it — the same rule as an AI cut's shot names (video/reel-place.ts). */
+const CLIP_NAME_MAX = 60;
+const CLIP_NAME_UNSAFE = /[^\p{L}\p{N} ._'()-]+/gu;
+
+/** ` name="…"` for a new clip, unique among the comp's named clips; '' when there is no usable name. */
+function clipNameAttr(cc: { clips: Array<{ stableId: string }> }, raw: unknown): string {
+  const base = (typeof raw === 'string' ? raw : '')
+    .replace(CLIP_NAME_UNSAFE, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, CLIP_NAME_MAX)
+    .trim();
+  if (!base) return '';
+  const taken = new Set(
+    cc.clips.filter((c) => c.stableId.startsWith('name:')).map((c) => c.stableId.slice(5))
+  );
+  let name = base;
+  for (let k = 2; taken.has(name); k++) name = `${base.slice(0, CLIP_NAME_MAX - 4)} ${k}`;
+  return ` name="${escapeAttr(name)}"`;
 }
 
 const PLACEHOLDER_KINDS = new Set(['veo', 'motion', 'image']);
@@ -340,6 +364,7 @@ export function applyInsertClipAt(
     );
   }
   const dur = Math.max(1, Math.round(opts.durationInFrames));
+  const nameAttr = clipNameAttr(cc, opts.name);
   const srcTrim = (opts.src ?? '').trim();
   const media: { tag: string; src: string; importName: string; specifier: string } | null =
     opts.mediaTag && INSERTABLE_MEDIA.has(opts.mediaTag) && srcTrim
@@ -412,7 +437,7 @@ export function applyInsertClipAt(
           : '';
       s2.appendLeft(
         rootClose,
-        `  <TransitionSeries>\n${indent}  <TransitionSeries.Sequence durationInFrames={${dur}}>` +
+        `  <TransitionSeries>\n${indent}  <TransitionSeries.Sequence${nameAttr} durationInFrames={${dur}}>` +
           `${gfChild}\n` +
           `${indent}  </TransitionSeries.Sequence>\n${indent}</TransitionSeries>\n${indent.slice(2)}`
       );
@@ -442,7 +467,7 @@ export function applyInsertClipAt(
         : '';
     if (opts.placeholder) ensureNamedImport(s, source, 'AIPlaceholder', '@maude/canvas-lib');
     if (media) ensureNamedImport(s, source, media.importName, media.specifier);
-    const beatText = `<${seriesPrefix}.Sequence durationInFrames={${dur}}>${mediaText}</${seriesPrefix}.Sequence>`;
+    const beatText = `<${seriesPrefix}.Sequence${nameAttr} durationInFrames={${dur}}>${mediaText}</${seriesPrefix}.Sequence>`;
     if (index === 0) {
       // Head insert: B (T) before the first beat.
       const [rs] = spanWithFraming(source, anchor.start, anchor.end);
@@ -532,7 +557,7 @@ export function applyInsertClipAt(
   if (media) ensureNamedImport(s, source, media.importName, media.specifier);
   if (titleText) ensureNamedImport(s, source, 'AbsoluteFill', 'remotion');
   ensureNamedImport(s, source, 'Sequence', 'remotion');
-  const clipText = `\n${indent}<Sequence from={${from}} durationInFrames={${dur}}>${mediaText}</Sequence>`;
+  const clipText = `\n${indent}<Sequence${nameAttr} from={${from}} durationInFrames={${dur}}>${mediaText}</Sequence>`;
   s.appendRight(insertAt, clipText);
   let out = s.toString();
   try {

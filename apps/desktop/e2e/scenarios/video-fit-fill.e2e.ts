@@ -97,9 +97,16 @@ describe('video-fit-fill — a real vertical file on a wide video, and a video w
       timeout: 20_000,
       timeoutMsg: 'a vertical clip on a wide video never asked how it should sit',
     });
-    // The board names the file ("IMG_5120 is vertical"); a dropped clip is stored under its content hash and the
-    // timeline does not keep the file's name, so today the title carries the stored name. Proposal in the hand-back.
-    expect(await text('timeline-fit-ask-title')).toMatch(/ is vertical — how should it sit\?$/);
+    // The board names the file ("IMG_5120 is vertical"): the dropped clip keeps its file's name (p8-t-video-2) —
+    // in the file, on the timeline and in the question — though the footage is stored under its content hash.
+    expect(onDisk()).toMatch(/<TransitionSeries\.Sequence name="IMG_5120"/);
+    expect(await text('timeline-fit-ask-title')).toBe('IMG_5120 is vertical — how should it sit?');
+    expect(
+      await browser.execute(
+        () =>
+          document.querySelector('[data-testid="timeline-seq-0"] .tl-clip-lab')?.textContent ?? null
+      )
+    ).toBe('IMG_5120');
     // the three ways, in the board's order, with its small lines; Blur behind is the one that is on
     const options = await browser.execute(() =>
       ['fill', 'fit', 'blur'].map((k) => {
@@ -142,7 +149,10 @@ describe('video-fit-fill — a real vertical file on a wide video, and a video w
     // a dropped clip may carry sound (the studio cannot tell), so it is silenced the way a person does: Volume 0
     await (await $(tid('timeline-seq-0'))).click();
     const field = await $('[data-testid="insp-clip-volume"] input:not([type="range"])');
-    await field.waitForExist({ timeout: 10_000, timeoutMsg: 'the clip inspector has no Volume field' });
+    await field.waitForExist({
+      timeout: 10_000,
+      timeoutMsg: 'the clip inspector has no Volume field',
+    });
     const before = onDisk();
     await field.click();
     await browser.execute((el: HTMLInputElement) => {
@@ -158,7 +168,10 @@ describe('video-fit-fill — a real vertical file on a wide video, and a video w
       timeoutMsg: 'Volume 0 did not reach the file',
     });
     const hint = await $(tid('timeline-music-hint'));
-    await hint.waitForExist({ timeout: 15_000, timeoutMsg: 'the Music track did not say it is silent' });
+    await hint.waitForExist({
+      timeout: 15_000,
+      timeoutMsg: 'the Music track did not say it is silent',
+    });
     expect(await hint.getText()).toContain('No sound in this video.');
     expect((await (await $(tid('timeline-music-add'))).getText()).trim()).toBe('Add music');
     expect(await (await $(tid('timeline-music-ask'))).getText()).toContain('ask AI for a track');
