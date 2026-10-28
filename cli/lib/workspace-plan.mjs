@@ -651,7 +651,7 @@ ${
     image: caddy:2-alpine
     restart: unless-stopped
     ports:
-      - "80:80"${cfg.local ? '' : '\n      - "443:443"'}
+      - "${cfg.local ? '127.0.0.1:80:80' : '80:80'}"${cfg.local ? '' : '\n      - "443:443"'}
     environment:
       PUBLIC_DOMAIN: \${PUBLIC_DOMAIN}
       ACME_EMAIL: \${ACME_EMAIL}${cfg.canvasDomain ? '\n      CANVAS_DOMAIN: ${CANVAS_DOMAIN}' : ''}
