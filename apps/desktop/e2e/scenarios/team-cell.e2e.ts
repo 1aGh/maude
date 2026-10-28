@@ -206,7 +206,10 @@ describe('team-cell (native-desktop)', () => {
           .then((j) => {
             const { files, docs, state, queuedOps, assets, conflicts } = j ?? {};
             const f = files ? { ...files, delivery: undefined } : files;
-            return JSON.stringify({ state, queuedOps, docs, files: f, assets, conflicts }).slice(0, 3000);
+            return JSON.stringify({ state, queuedOps, docs, files: f, assets, conflicts }).slice(
+              0,
+              3000
+            );
           })
       );
       console.log(`[team-cell] sync status while the callout shows: ${st}`);
