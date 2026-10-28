@@ -203,6 +203,13 @@ function HubFields({ url, hub, replace, credentialed }) {
           {replace && stored ? <ReplaceToken hub={hub} /> : null}
         </span>
       </ConnField>
+      {/* P8-T G1b-3 (06 ad-edge-hub): who this credential signed in as. A credential from before the
+          field existed carries none — no line, never an error. */}
+      {typeof d?.account === 'string' && d.account ? (
+        <ConnField k="Signed in as" mono testid="settings-hub-account">
+          {d.account}
+        </ConnField>
+      ) : null}
       {d?.version ? (
         <ConnField k="Hub version" mono testid="settings-hub-version">
           {d.version}

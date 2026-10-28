@@ -209,11 +209,21 @@ export function createHomeHub(opts: { fetchImpl?: typeof fetch } = {}): HomeHub 
         error: joinError(res.status, j?.reason, j?.error),
       });
     }
-    const user = (j.user && typeof j.user === 'object' ? j.user : {}) as { role?: unknown };
+    const user = (j.user && typeof j.user === 'object' ? j.user : {}) as {
+      role?: unknown;
+      email?: unknown;
+    };
     const role = typeof user.role === 'string' ? user.role : 'member';
     const expiresAt = typeof j.expiresAt === 'number' ? j.expiresAt : undefined;
     try {
-      saveHubCredential(a.url, j.token, role, expiresAt, hubsConfigPath);
+      saveHubCredential(
+        a.url,
+        j.token,
+        role,
+        expiresAt,
+        hubsConfigPath,
+        typeof user.email === 'string' ? user.email : email.trim()
+      );
     } catch {
       return answer(500, {
         ok: false,

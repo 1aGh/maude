@@ -78,3 +78,39 @@ test('role + expiresAt round-trip through the store (the renewal deadline surviv
   const cfg2 = JSON.parse(readFileSync(process.env.HUBS_CONFIG_PATH as string, 'utf8'));
   expect(cfg2.hubs['https://hub.example.dev'].expiresAt).toBeUndefined();
 });
+
+// P8-T G1b-3 (06 ad-edge-hub "Signed in as <account>"): the account the hub vouched at sign-in is
+// kept beside the token. Additive: a 1.x build ignores the key, an old file without it reads as none.
+test('the signed-in account round-trips; an unprintable or overlong one is never stored', () => {
+  const p = process.env.HUBS_CONFIG_PATH as string;
+  const account = () => JSON.parse(readFileSync(p, 'utf8')).hubs['https://hub.example.dev'].account;
+  saveHubCredential(
+    'https://hub.example.dev',
+    'mau_secret',
+    'member',
+    undefined,
+    p,
+    'you@studio-brno'
+  );
+  expect(account()).toBe('you@studio-brno');
+  for (const bad of [
+    '<img src=x onerror=alert(1)>',
+    'a\nb@x.test',
+    `${'a'.repeat(300)}@x.test`,
+    '',
+  ]) {
+    saveHubCredential('https://hub.example.dev', 'mau_secret', 'member', undefined, p, bad);
+    expect(account()).toBeUndefined();
+  }
+  // a pasted token (no sign-in) names no account: the old one is not carried onto a new credential
+  saveHubCredential(
+    'https://hub.example.dev',
+    'mau_secret',
+    'member',
+    undefined,
+    p,
+    'you@studio-brno'
+  );
+  saveHubCredential('https://hub.example.dev', 'mau_other');
+  expect(account()).toBeUndefined();
+});

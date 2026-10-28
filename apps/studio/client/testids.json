@@ -29534,6 +29534,22 @@
     "v2": "new in v2 (S11.14)"
   },
   {
+    "hook": "settings-hub-account",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Connections › your team’s own server › Advanced › Signed in as: the account the hub vouched at sign-in (`hubs.json` `account`). Absent for a pasted token or a credential saved before the field existed.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:v2-s11-14-connections",
+      "e2e:team-project"
+    ],
+    "v2": "new in v2 (P8-T G1b-3)"
+  },
+  {
     "hook": "settings-hub-version",
     "kind": "testid",
     "pattern": false,

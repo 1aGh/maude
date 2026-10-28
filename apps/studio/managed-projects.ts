@@ -170,7 +170,7 @@ export async function prepareManagedProject(
         // S6.6: the credential goes to the SAME hubs.json it is read back from below — before,
         // a non-default profile stored it in the process-global file and then could not find it
         save: hubsPath
-          ? (u, t, role, exp) => saveHubCredential(u, t, role, exp, hubsPath)
+          ? (u, t, role, exp, account) => saveHubCredential(u, t, role, exp, hubsPath, account)
           : undefined,
       }
     );

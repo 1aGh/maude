@@ -179,7 +179,15 @@ export async function renewHubCredential(
   const freshRole = named((cellLogin.body.user as { role?: unknown } | undefined)?.role);
   const role = freshRole ?? named(getHubRecord(norm)?.role) ?? named(match.role) ?? FLOOR_ROLE;
   try {
-    saveHubCredential(norm, cellLogin.body.token, role, expiresAt ?? undefined);
+    // the same person, renewed: the account they signed in as stays on the credential
+    saveHubCredential(
+      norm,
+      cellLogin.body.token,
+      role,
+      expiresAt ?? undefined,
+      undefined,
+      getHubRecord(norm)?.account
+    );
   } catch {
     return { ok: false, reason: 'save-failed' };
   }
