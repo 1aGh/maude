@@ -116,6 +116,18 @@ test('cloud and team-project lanes sit on the local hub, never a real one', () =
   assert.match(team, /useStubClaude\(\)/);
 });
 
+test('the two-Mac AI runs lane sits on a local hub and throwaway projects, never the committed fixture', () => {
+  const conf = read('wdio.ai-runs.conf.ts');
+  assert.match(conf, /startLocalHub/);
+  assert.match(conf, /process\.env\.MAUDE_PROJECT_ROOT = mac1Root/);
+  assert.match(conf, /HUBS_CONFIG_PATH/);
+  assert.match(conf, /MAUDE_APP_BOUND_HUB/);
+  assert.match(conf, /useStubClaude\(\)/);
+  const spec = read('multiplayer/ai-runs.e2e.ts');
+  assert.doesNotMatch(spec, /process\.env\.MAUDE_PROJECT_ROOT/, 'the fake run would write into the repo fixture');
+  assert.match(spec, /MAUDE_E2E_AI_RUNS/);
+});
+
 // The one place a lane may name a Maude Cloud host: the cell-tab lane's door URL. `*.cloud.maude.sh` has no wildcard
 // record (NXDOMAIN) — the tab is created and pinned, the page itself never loads; the Rust door rule (windows.rs
 // `cell_door`) accepts nothing else, so the lane cannot name a local cell.
@@ -124,6 +136,8 @@ const HOST_OK =
 const LANE_FILES = [
   'wdio.acp-fake.conf.ts',
   'wdio.ai-quit.conf.ts',
+  'wdio.ai-runs.conf.ts',
+  'multiplayer/ai-runs.e2e.ts',
   'wdio.cell-tab.conf.ts',
   'wdio.cloud.conf.ts',
   'wdio.team-project.conf.ts',

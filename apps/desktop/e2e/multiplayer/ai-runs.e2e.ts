@@ -15,44 +15,35 @@
 //
 // Needs: an unlocked screen with the test window in front (WebKit freezes otherwise — memory), NO_OPEN=1 on
 // every studio spawn, a throwaway project copy (never this repo's .design), MAUDE_MACHINE_FILE=$(mktemp).
-// Run: MAUDE_AI_RUNS_E2E=1 pnpm test:e2e:desktop -- --spec e2e/multiplayer/ai-runs.e2e.ts
+// Run: pnpm --filter @maude/desktop-e2e e2e:ai-runs (wdio.ai-runs.conf.ts: the hub, Mac 2 and Mac 1's throwaway
+// project are set up in the launcher; never the committed fixture, which the fake run would write into).
 
-import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { $, browser } from '@wdio/globals';
 
-const HERE = fileURLToPath(new URL('.', import.meta.url));
-const REPO = join(HERE, '..', '..', '..', '..');
-const HUB_FIXTURE = join(REPO, 'apps', 'hub', 'test', 'fixtures', 'serve-hub.mjs');
-const STUDIO = join(REPO, 'apps', 'studio', 'server.ts');
 const ROUNDS = Number(process.env.MAUDE_R1_ROUNDS ?? 50);
 const REL = 'ui/Combine-kampan.tsx';
 const sel = (id: string) => `[data-testid="${id}"]`;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// the same canvas wdio.ai-runs.conf.ts seeds on Mac 2 (`aiRunsCanvas`), with the two titles changed
 const canvas = (
   post = 'Post title',
   story = 'Story title'
-) => `import { DCArtboard } from '@maude/canvas-lib';
+) => `import { DCArtboard, DCSection, DesignCanvas } from '@maude/canvas-lib';
 
 export default function CombineKampan() {
   return (
-    <div>
-      <DCArtboard id="post" width={1080} height={1080}><h1>${post}</h1><p>keep one</p></DCArtboard>
-      <DCArtboard id="story" width={1080} height={1920}><h1>${story}</h1><p>keep two</p></DCArtboard>
-    </div>
+    <DesignCanvas>
+      <DCSection id="kampan" title="Combine kampaň">
+        <DCArtboard id="post" label="Post 1:1" width={1080} height={1080}><h1>${post}</h1><p>keep one</p></DCArtboard>
+        <DCArtboard id="story" label="Story 9:16" width={1080} height={1920}><h1>${story}</h1><p>keep two</p></DCArtboard>
+      </DCSection>
+    </DesignCanvas>
   );
 }
 `;
-
-function node24(): string {
-  const v = spawnSync('node', ['-v'], { encoding: 'utf8' }).stdout.trim();
-  if (!v.startsWith('v24.')) throw new Error(`the local hub needs Node 24 (found ${v})`);
-  return 'node';
-}
 
 async function waitFor<T>(
   fn: () => Promise<T | null | false> | T | null | false,
@@ -66,37 +57,6 @@ async function waitFor<T>(
     if (Date.now() > end) throw new Error(`timed out: ${what}`);
     await sleep(100);
   }
-}
-
-function startHub(
-  dir: string
-): Promise<{ proc: ChildProcess; http: string; tokens: Record<string, string> }> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn(node24(), [HUB_FIXTURE, dir, '0', '--transactions'], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    let buf = '';
-    proc.stdout?.on('data', (c: Buffer) => {
-      buf += c.toString();
-      const line = buf.split('\n').find((l) => l.startsWith('{'));
-      if (line) resolve({ proc, ...JSON.parse(line) });
-    });
-    proc.on('exit', (code) => code && reject(new Error(`hub exited ${code}: ${buf}`)));
-  });
-}
-
-/** Mac 2: a headless studio on its own project copy, linked to the hub as Tereza. */
-function startStudio(project: string, port: number, hubsFile: string): ChildProcess {
-  return spawn('bun', ['run', STUDIO, '--root', project, '--port', String(port)], {
-    env: {
-      ...process.env,
-      NO_OPEN: '1',
-      MAUDE_NO_AUTOBUILD: '1',
-      MAUDE_MACHINE_FILE: join(mkdtempSync(join(tmpdir(), 'mac2-')), 'machine.json'),
-      HUBS_CONFIG_PATH: hubsFile,
-    },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
 }
 
 /** The fake agent on a studio: one run of the v1 lane writing `body` to the canvas. */
@@ -120,33 +80,29 @@ describe('S5.15 — AI runs across two Macs', () => {
     it.skip('set MAUDE_AI_RUNS_E2E=1 (unlocked screen, signed-in test hub) to run', () => {});
     return;
   }
-  let hub: Awaited<ReturnType<typeof startHub>>;
-  let mac2: ChildProcess;
+  // wdio.ai-runs.conf.ts set it all up in the launcher: one local hub, Tereza's studio (Mac 2) and the app's
+  // throwaway project (Mac 1), both linked to the hub.
+  const rig = JSON.parse(process.env.MAUDE_E2E_AI_RUNS ?? '{}') as {
+    mac1Root: string;
+    mac2Root: string;
+    mac2Origin: string;
+    mac2Pid: number;
+  };
+  const mac2Origin = rig.mac2Origin;
+  const mac1Root = rig.mac1Root;
+  const mac2Root = rig.mac2Root;
   let mac1Origin = '';
-  const mac2Origin = 'http://127.0.0.1:4597';
-  let mac1Root = '';
-  let mac2Root = '';
+  const mac2 = {
+    kill: (sig: NodeJS.Signals) => {
+      try {
+        process.kill(rig.mac2Pid, sig);
+      } catch {
+        /* gone */
+      }
+    },
+  };
 
   before(async () => {
-    const tmp = mkdtempSync(join(tmpdir(), 'ai-runs-e2e-'));
-    hub = await startHub(join(tmp, 'hub'));
-    const hubsFile = join(tmp, 'hubs.json');
-    const port = new URL(hub.http).port;
-    writeFileSync(
-      hubsFile,
-      JSON.stringify({
-        hubs: {
-          [`http://127.0.0.1:${port}`]: { token: hub.tokens.alice },
-          [`http://localhost:${port}`]: { token: hub.tokens.bob },
-        },
-      }),
-      { mode: 0o600 }
-    );
-    mac1Root = process.env.MAUDE_PROJECT_ROOT ?? join(tmp, 'mac1');
-    mac2Root = join(tmp, 'mac2');
-    cpSync(mac1Root, mac2Root, { recursive: true });
-    writeFileSync(join(mac1Root, '.design', REL), canvas());
-    mac2 = startStudio(mac2Root, 4597, hubsFile);
     await waitFor(
       () =>
         fetch(`${mac2Origin}/_health`)
@@ -154,13 +110,19 @@ describe('S5.15 — AI runs across two Macs', () => {
           .catch(() => false),
       'Mac 2 studio'
     );
-    mac1Origin = JSON.parse(readFileSync(join(mac1Root, '.design', '_server.json'), 'utf8')).url;
+    // Mac 1's copy of the canvas arrives through the hub
+    await waitFor(() => existsSync(join(mac1Root, '.design', REL)), 'the canvas on Mac 1', 60_000);
+    mac1Origin = await waitFor(() => {
+      try {
+        return JSON.parse(readFileSync(join(mac1Root, '.design', '_server.json'), 'utf8')).url;
+      } catch {
+        return null;
+      }
+    }, 'Mac 1 studio');
   });
 
   after(() => {
-    mac2?.kill('SIGCONT');
-    mac2?.kill('SIGTERM');
-    hub?.proc.kill('SIGTERM');
+    mac2.kill('SIGCONT');
   });
 
   it(`R1: both Macs ask on Post 1:1 within 5 ms, ${ROUNDS} rounds — one writer at a time, the other waits`, async () => {
