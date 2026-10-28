@@ -1,5 +1,6 @@
-import { browser, expect } from '@wdio/globals';
+import { $, browser, expect } from '@wdio/globals';
 
+import { clearComposer, openAssistant, requireAi } from '../helpers/assistant';
 import { capture, startReport } from '../helpers/evidence';
 import { invokeTauri } from '../helpers/native';
 import { readServerInfo, waitForSidecar } from '../helpers/sidecar';
@@ -95,6 +96,60 @@ function serverGone(root: string): boolean {
   }
 }
 
+const LIVE = new Set(['waiting', 'starting', 'running']);
+type MineRun = { runId: string; state: string; outcome?: string };
+/** Project B's own server (its `_server.json`), read fresh — B's server restarted onto profile Y in step 2. */
+const SECONDARY_ORIGIN = (): string => readServerInfo(SECONDARY).url;
+
+/** Wait until B's registry (`GET /_api/ai/runs` › mine) satisfies `ok` — read from the test runner, not a tab. */
+async function waitForRun(origin: string, ok: (mine: MineRun[]) => boolean, what: string) {
+  await browser.waitUntil(
+    async () => {
+      try {
+        const v = (await fetch(`${origin}/_api/ai/runs`).then((r) => r.json())) as { mine?: MineRun[] };
+        return ok(v.mine ?? []);
+      } catch {
+        return false;
+      }
+    },
+    { timeout: 60_000, interval: 250, timeoutMsg: `timed out: ${what}` }
+  );
+}
+
+/** Send `text` from the focused tab's AI panel (the scripted agent picks its script from the words). */
+async function sendPrompt(text: string): Promise<void> {
+  const composer = await $('[data-testid="chat-composer"]');
+  await composer.waitForDisplayed({ timeout: 60_000 });
+  await clearComposer();
+  const input = await composer.$('.chat-input');
+  await input.click();
+  await input.addValue(text);
+  await (await $('[aria-label="Send message"]')).click();
+}
+
+/** The accessible name of `label`'s strip mark ("AI is working" · "Done" · "AI needs you"). */
+async function dotLabel(label: string): Promise<string | null> {
+  const back = await browser.getWindowHandle();
+  await browser.switchToWindow('strip');
+  const v = await browser.execute(
+    (l: string) =>
+      document
+        .querySelector(`#tabs [data-label="${l}"] [data-testid="tab-dot"]`)
+        ?.getAttribute('aria-label') ?? null,
+    label
+  );
+  await browser.switchToWindow(back);
+  return v;
+}
+
+/** Shoot the strip itself (the tab marks live in that webview, not in the project's). */
+async function captureStrip(name: string): Promise<void> {
+  const back = await browser.getWindowHandle();
+  await browser.switchToWindow('strip');
+  await capture(name);
+  await browser.switchToWindow(back);
+}
+
 /** Is `label` the selected, visible tab? Read without focusing it. */
 async function visible(label: string): Promise<boolean> {
   await browser.switchToWindow(label);
@@ -144,42 +199,71 @@ describe('project-tabs-identity (native-desktop)', () => {
     await capture('2-a-still-x');
   });
 
-  // V2-3.9 T6 (contract V2-3.7 §6): the activity poller's dot, set before the notification
-  // cooldown. The fixture has no agent to finish a turn, so `e2e_ai_transition` runs the dot
-  // half of one poll tick (notify.rs); activation clears it.
-  it('a background tab whose AI finishes gets the dot; activating it clears the dot', async () => {
+  // V2-3.9 T6 (contract V2-3.7 §6) + S5.14 (03 `ai-other-tab`, CONTRACT §1 "one small state mark (AI working ·
+  // done · needs you)"): a REAL chat run in the background tab, on the scripted fake ACP agent (wdio.tabs-identity
+  // .conf.ts → useFakeAi). The activity poller (every 6 s) reads B's runs: the spark while B's run is live, the done
+  // dot once it ended `done`, and the azure "?" while B's next run waits for the person. Activating B clears it.
+  it('a background tab whose AI finishes gets the dot; activating it clears the dot', async function () {
+    await focusTab(tabB);
+    await requireAi(this);
+    await openAssistant();
+    await sendPrompt('Take 25 seconds');
+    await waitForRun(SECONDARY_ORIGIN(), (m) => m.some((r) => LIVE.has(r.state)), 'a live run in B');
+
     await focusTab(tabA);
-    expect((await strip()).dots).toEqual({});
-    // The active tab never takes a dot.
-    expect(
-      await invokeTauri<boolean>('e2e_ai_transition', { root: PRIMARY, state: 'finished' })
-    ).toBe(false);
-    expect(
-      await invokeTauri<boolean>('e2e_ai_transition', { root: SECONDARY, state: 'finished' })
-    ).toBe(true);
-    await browser.waitUntil(async () => (await strip()).dots[tabB] === 'done', {
-      timeout: 5_000,
-      timeoutMsg: `no done dot on ${tabB}: ${JSON.stringify((await strip()).dots)}`,
+    await browser.waitUntil(async () => (await strip()).dots[tabB] === 'working', {
+      timeout: 20_000,
+      interval: 200,
+      timeoutMsg: `no AI-working spark on ${tabB}: ${JSON.stringify((await strip()).dots)}`,
     });
-    // S5.14: needs-you is a LEVEL — the activity poller (every 6 s) re-reads it from B's runs and, B having no run
-    // that waits, takes it off again at its next tick (`tabs::mark_for`). The helper's mark is real until then:
-    // that it was set is the command's answer; that the strip drew it is read at once, before a tick can clear it.
-    expect(
-      await invokeTauri<boolean>('e2e_ai_transition', { root: SECONDARY, state: 'awaiting-input' })
-    ).toBe(true);
-    await browser.waitUntil(async () => (await strip()).dots[tabB] === 'needs-you', {
-      timeout: 5_000,
-      interval: 50,
-      timeoutMsg: `no needs-you dot on ${tabB}`,
-    });
+    // The active tab never takes a mark, and the spark says what it is.
     expect((await strip()).dots[tabA]).toBeUndefined();
-    await capture('2b-dot-on-background-b');
+    expect(await dotLabel(tabB)).toBe('AI is working');
+    await captureStrip('2b-ai-other-tab-working');
+
+    await browser.waitUntil(async () => (await strip()).dots[tabB] === 'done', {
+      timeout: 60_000,
+      interval: 200,
+      timeoutMsg: `no done dot on ${tabB} after its run ended: ${JSON.stringify((await strip()).dots)}`,
+    });
+    expect(await dotLabel(tabB)).toBe('Done');
+    await waitForRun(
+      SECONDARY_ORIGIN(),
+      (m) => m.some((r) => r.state === 'ended' && r.outcome === 'done'),
+      'B’s run ended done'
+    );
+    await captureStrip('2b-ai-other-tab-done');
+
+    // Needs you is a LEVEL: B's next turn asks the person before a shell call (Manual mode) — the "?".
+    await focusTab(tabB);
+    await sendPrompt('Run the Bash tool: `date`');
+    await waitForRun(SECONDARY_ORIGIN(), (m) => m.some((r) => r.state === 'needs-you'), 'B’s run waits for you');
+    await focusTab(tabA);
+    await browser.waitUntil(async () => (await strip()).dots[tabB] === 'needs-you', {
+      timeout: 20_000,
+      interval: 200,
+      timeoutMsg: `no needs-you mark on ${tabB}: ${JSON.stringify((await strip()).dots)}`,
+    });
+    expect(await dotLabel(tabB)).toBe('AI needs you');
+    expect((await strip()).dots[tabA]).toBeUndefined();
+    await captureStrip('2b-dot-on-background-b');
+
     await focusTab(tabB);
     await browser.waitUntil(async () => (await strip()).dots[tabB] === undefined, {
       timeout: 5_000,
       timeoutMsg: 'activating B did not clear its dot',
     });
     expect((await strip()).dots).toEqual({});
+    // Answer the card (Reject): the turn ends and leaves nothing waiting for the later steps.
+    const card = await $('[data-testid="chat-permission-prompt"]');
+    const reject = await card.$('.btn--danger');
+    await reject.waitForDisplayed({ timeout: 10_000 });
+    await reject.click();
+    await waitForRun(
+      SECONDARY_ORIGIN(),
+      (m) => !m.some((r) => LIVE.has(r.state) || r.state === 'needs-you'),
+      'nothing live in B'
+    );
   });
 
   it('a notification click focuses that project’s tab', async () => {

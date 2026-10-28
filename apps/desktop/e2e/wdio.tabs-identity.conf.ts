@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { lifecycleFixtureOnce } from './fixtures/make-lifecycle-fixture';
+import { useFakeAi } from './helpers/fake-ai';
 import { config as base } from './wdio.conf';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -27,6 +28,9 @@ process.env.XDG_CONFIG_HOME ??= mkdtempSync(join(tmpdir(), 'maude-e2e-xdg-'));
 // never touches the person's keychain. Every profile starts signed out.
 process.env.MAUDE_E2E_FAKE_KEYCHAIN = '1';
 delete process.env.MAUDE_E2E_GITHUB_SIGNED_IN_PROFILES;
+// 03 `ai-other-tab`: a REAL run in the background tab, on the scripted fake ACP agent (decision
+// maude/v2-8.5-g2-fake-acp-hook-agent) — never a real `claude` (the stub is first on PATH).
+useFakeAi();
 process.env.MAUDE_E2E_SHELL_LOG ??= resolve(
   HERE,
   '../../../.ai/device/scenario-runs/project-tabs-identity',
