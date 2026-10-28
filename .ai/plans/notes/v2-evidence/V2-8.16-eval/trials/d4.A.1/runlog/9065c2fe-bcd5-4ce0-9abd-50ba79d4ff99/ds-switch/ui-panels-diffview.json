@@ -1,0 +1,29 @@
+{
+  "canvas": "ui/panels/DiffView.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";",
+      "new": "import \"../../system/maude-v2/colors_and_type.css\";",
+      "why": "Load the maude-v2 tokens instead of maude. Every token the canvas and DiffView.css use exists in maude-v2 under the same name (--dv-split is the canvas's own variable)."
+    },
+    {
+      "old": "import \"../../system/maude/preview/_components.css\";",
+      "new": "import \"../../system/maude-v2/preview/_components.css\";",
+      "why": "Use the maude-v2 shared component styles."
+    },
+    {
+      "old": "return <div className=\"maude\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "new": "return <div className=\"maude-v2\" data-theme=\"light\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "why": "maude-v2's tokens are scoped to .maude-v2[data-theme]; light is its default theme."
+    }
+  ],
+  "notes": [
+    "maude-v2 has no .callout / .callout--info, .panel or .btn--icon; they are used here (the changes summary, the compare panels, the icon buttons) and will render unstyled until restyled with maude-v2 parts (.island, .icon-btn) or added to DiffView.css.",
+    "The canvas is marked handed-off. Switching changes what was handed off, so check with whoever took it.",
+    "The theme goes from dark to light. Use data-theme=\"dark\" instead if the dark look should stay.",
+    "The comments in DiffView.css still name system/maude."
+  ]
+}

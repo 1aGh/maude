@@ -1,0 +1,97 @@
+[
+  {
+    "journey": "S1",
+    "lane": "terminal",
+    "pass": false,
+    "harnessFailure": false,
+    "infra": null,
+    "turns": [
+      {
+        "turn": 1,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.4570398,
+        "numTurns": 19
+      },
+      {
+        "turn": 2,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.888715,
+        "numTurns": 8
+      },
+      {
+        "turn": 3,
+        "code": 0,
+        "ok": true,
+        "costUsd": 0.9759544,
+        "numTurns": 4
+      },
+      {
+        "turn": 4,
+        "code": 0,
+        "ok": true,
+        "costUsd": 1.1125946000000002,
+        "numTurns": 5
+      },
+      {
+        "turn": 5,
+        "code": 0,
+        "ok": true,
+        "costUsd": 1.4225164000000001,
+        "numTurns": 10
+      },
+      {
+        "turn": 6,
+        "code": 0,
+        "ok": true,
+        "costUsd": 1.4734138,
+        "numTurns": 2
+      }
+    ],
+    "results": [
+      {
+        "id": "created-by-ai",
+        "grader": "history",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "renamed",
+        "grader": "moved",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "version-restored",
+        "grader": "history",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "restored-content",
+        "grader": "text",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "restore-by-verb",
+        "grader": "tool-used",
+        "pass": true,
+        "why": ""
+      },
+      {
+        "id": "back-from-trash",
+        "grader": "trash",
+        "pass": false,
+        "why": "ui/Greeting.tsx: trashed false, live true, still listed false"
+      },
+      {
+        "id": "no-hard-delete",
+        "grader": "no-tool",
+        "pass": true,
+        "why": ""
+      }
+    ]
+  }
+]

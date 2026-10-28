@@ -1,0 +1,30 @@
+{
+  "canvas": "ui/panels/RepoBranchSwitcher.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    { "old": " * @ds          maude\n * @platform    desktop", "new": " * @ds          maude-v2\n * @platform    desktop", "why": "Header names the canvas's design system." },
+    { "old": "import \"../../system/maude/colors_and_type.css\";", "new": "import \"../../system/maude-v2/colors_and_type.css\";", "why": "Load the maude-v2 tokens. Every token the canvas and RepoBranchSwitcher.css use exists in maude-v2." },
+    { "old": "import \"../../system/maude/preview/_components.css\";", "new": "import \"../../system/maude-v2/preview/_components.css\";", "why": "Load the maude-v2 shared component classes." },
+    { "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame /></div>", "new": "<div className=\"maude-v2 ds\" data-theme=\"dark\"><ShellFrame /></div>", "why": "Artboard 'resting': scope to maude-v2 tokens (.maude-v2/.ds[data-theme])." },
+    { "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame open /></div>", "new": "<div className=\"maude-v2 ds\" data-theme=\"dark\"><ShellFrame open /></div>", "why": "Artboard 'switch-popup': scope to maude-v2." },
+    { "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame open onDraft /></div>", "new": "<div className=\"maude-v2 ds\" data-theme=\"dark\"><ShellFrame open onDraft /></div>", "why": "Artboard 'on-draft': scope to maude-v2." },
+    { "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame onDraft foldConfirm /></div>", "new": "<div className=\"maude-v2 ds\" data-theme=\"dark\"><ShellFrame onDraft foldConfirm /></div>", "why": "Artboard 'fold-confirm': scope to maude-v2." },
+    { "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame newDraft /></div>", "new": "<div className=\"maude-v2 ds\" data-theme=\"dark\"><ShellFrame newDraft /></div>", "why": "Artboard 'new-draft': scope to maude-v2." },
+    { "old": "<div className=\"maude\" data-theme=\"dark\"><ShellFrame onDraft switching", "new": "<div className=\"maude-v2 ds\" data-theme=\"dark\"><ShellFrame onDraft switching", "why": "Artboard 'switching': scope to maude-v2." },
+    { "old": "<div className=\"panel rb-mini\">", "new": "<div className=\"island rb-mini\">", "why": "maude-v2 has no .panel; floating chrome is .island." },
+    { "old": "<div className=\"tree-row rb-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"true\">", "new": "<div className=\"row-item rb-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"true\">", "why": "maude-v2 has no .tree-row; its list row is .row-item. Indent and selected weight stay in RepoBranchSwitcher.css (.rb-row[data-depth], .rb-row[aria-selected])." },
+    { "old": "<div className=\"tree-row rb-row\" data-depth=\"1\" role=\"treeitem\" aria-selected=\"true\">", "new": "<div className=\"row-item rb-row\" data-depth=\"1\" role=\"treeitem\" aria-selected=\"true\" aria-current=\"true\">", "why": ".row-item marks the current row with aria-current; aria-selected stays for the treeitem role and the local .rb-row rule." },
+    { "old": "<div className=\"tree-row rb-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"rb-row-icon\" /><span className=\"rb-row-name\">Checkout Sheet</span>", "new": "<div className=\"row-item rb-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"rb-row-icon\" /><span className=\"rb-row-name\">Checkout Sheet</span>", "why": ".tree-row → .row-item" },
+    { "old": "<div className=\"tree-row rb-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"rb-row-icon\" /><span className=\"rb-row-name\">Settings</span>", "new": "<div className=\"row-item rb-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"rb-row-icon\" /><span className=\"rb-row-name\">Settings</span>", "why": ".tree-row → .row-item" },
+    { "old": "<div className=\"tree-row rb-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"false\">", "new": "<div className=\"row-item rb-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"false\">", "why": ".tree-row → .row-item" }
+  ],
+  "notes": [
+    "Theme: kept data-theme=\"dark\" on all six wrappers. maude-v2 is light-first; switching is one word per wrapper.",
+    "Presence: the canvas uses --presence-agent for the 'on a draft' amber state. In maude-v2 that role is coral and reserved for AI presence (CONTRACT §6, C32), so the draft state would read as an AI marker. Needs a decision: move the draft tint to --status-warn, or accept.",
+    "Accent: the fold-back CTA is a filled --accent button. In maude-v2 that's azure, the colour Share uses ('Share stays the one solid azure'). Check whether two solid azure buttons on screen is OK.",
+    "Words: 'Project' and 'draft / Shared version' are fine against the CONTRACT; 'Open another folder…' would be 'Open project… ⌘O' in maude-v2 words. Copy is not changed here.",
+    "Token-level look shifts: accent indigo → azure, larger radii, system UI / SF Mono fonts."
+  ]
+}

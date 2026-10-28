@@ -1,0 +1,80 @@
+{
+  "journey": "S8",
+  "lane": "terminal",
+  "pass": true,
+  "harnessFailure": false,
+  "infra": null,
+  "turns": [
+    {
+      "turn": 1,
+      "code": 0,
+      "ok": true,
+      "costUsd": 0.20978580000000002,
+      "numTurns": 7
+    },
+    {
+      "turn": 2,
+      "code": 0,
+      "ok": true,
+      "costUsd": 0.3451906,
+      "numTurns": 5
+    },
+    {
+      "turn": 3,
+      "code": 0,
+      "ok": true,
+      "costUsd": 0.3776376,
+      "numTurns": 2
+    }
+  ],
+  "results": [
+    {
+      "id": "asset-imported",
+      "grader": "files",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "asset-clean",
+      "grader": "files",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "import-by-verb",
+      "grader": "tool-used",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "export-written",
+      "grader": "files",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "export-by-verb",
+      "grader": "tool-used",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "exports-listed",
+      "grader": "tool-used",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "no-route-by-hand",
+      "grader": "no-tool",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "canvas-untouched",
+      "grader": "untouched",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

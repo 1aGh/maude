@@ -1,0 +1,151 @@
+{
+  "task": "b3",
+  "group": "board",
+  "fixture": "board300",
+  "topology": "A",
+  "delegates": "board-reader",
+  "run": {
+    "code": 0,
+    "killed": false,
+    "wallMs": 50053
+  },
+  "metrics": {
+    "subtype": "success",
+    "isError": false,
+    "costUsd": 0.7161794,
+    "durationMs": 47792,
+    "apiMs": 41080,
+    "turns": 14,
+    "tokens": 460939,
+    "inTok": 24,
+    "outTok": 3776,
+    "cacheRead": 386737,
+    "cacheWrite": 70402,
+    "freshTokens": 74202,
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "permissionDenials": [
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"cd \\\"$PWD\\\"; maude design read-annotations \\\".design/ui/GitPanel.tsx\\\" --json | head -c 200000 > /private/tmp/claude-501/-private-var-folders-t--kf80xz3j79sfmkrq4snj2qk00000gn-T-maude-agen"
+      },
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"maude design read-annotations .design/ui/GitPanel.tsx --json | grep -o '{\\\"id\\\":\\\"[^\\\"]*\\\",\\\"type\\\":\\\"arrow\\\",\\\"from\\\":\\\"stk-014\\\"[^}]*}'\",\"description\":\"Confirm the new arrow exists\"}"
+      }
+    ],
+    "subagents": 0,
+    "subagentTypes": [],
+    "mainToolUses": 12,
+    "subToolUses": 0
+  },
+  "agents": [],
+  "invariants": {
+    "check": {
+      "pass": true,
+      "why": ""
+    },
+    "scope": {
+      "pass": true,
+      "why": ""
+    },
+    "ids-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "locked-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "no-bash-writes": {
+      "pass": true,
+      "why": ""
+    },
+    "owns": {
+      "pass": true,
+      "why": ""
+    },
+    "board-locked-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "board-ai-author": {
+      "pass": true,
+      "why": ""
+    },
+    "board-author-immutable": {
+      "pass": true,
+      "why": ""
+    }
+  },
+  "quality": {
+    "stop-gate-settled": {
+      "pass": true,
+      "why": "the Stop gate blocked the run and it ended with a failing check"
+    },
+    "arrow-bound": {
+      "pass": true,
+      "why": "1 new arrow(s); sticky stk-014 section sec-003"
+    },
+    "board-minimal": {
+      "pass": true,
+      "why": "0 existing element(s) changed"
+    },
+    "finished": {
+      "pass": true,
+      "why": "success"
+    },
+    "judge": {
+      "pass": true,
+      "why": "pass (4): The diff adds exactly one arrow, bound from stk-014 (exact text \"tour starts before the canvas loads\") to sec-003 (labelled \"Performance\"). Nothing else on the board changed. Other stickies have similar text, but they carry a \"loose:\" prefix or a \"(+1 …)\" suffix, so stk-014 is the right match. The arrow is marked as AI-authored. The final message is somewhat odd, since it argues with a \"stop check\", but the board result is correct.",
+      "unknown": false
+    }
+  },
+  "invPass": true,
+  "qualPass": true,
+  "judge": {
+    "verdict": "pass",
+    "score": 4,
+    "why": "The diff adds exactly one arrow, bound from stk-014 (exact text \"tour starts before the canvas loads\") to sec-003 (labelled \"Performance\"). Nothing else on the board changed. Other stickies have similar text, but they carry a \"loose:\" prefix or a \"(+1 …)\" suffix, so stk-014 is the right match. The arrow is marked as AI-authored. The final message is somewhat odd, since it argues with a \"stop check\", but the board result is correct.",
+    "costUsd": 0.0313509,
+    "model": "sonnet"
+  },
+  "render": {
+    "ran": false,
+    "error": null,
+    "shots": []
+  },
+  "changed": [
+    "M .design/ui-gitpanel.annotations.json",
+    "?? .design/_cache/index/ds-usage.json"
+  ],
+  "runState": [
+    {
+      "session": "58637d48-db5b-4741-ab9f-18b841de7cc1",
+      "touched": {
+        "ui-gitpanel.annotations.json": {
+          "at": 1793181620152,
+          "by": "main",
+          "via": "bash",
+          "artboards": null
+        }
+      },
+      "stopBlocks": 1,
+      "shots": 0,
+      "bases": 1
+    }
+  ],
+  "hooks": {
+    "events": 1,
+    "denies": [],
+    "blocks": [
+      "stop:run-folder"
+    ],
+    "errors": [],
+    "ms": {},
+    "checkMs": []
+  },
+  "harnessFailure": false,
+  "finalText": "I didn't change anything in response to that check. The stop check is wrong this time, and doing what it asks would damage the board.\n\n**What I found:**\n- The only change to the board since the last commit is one added line: my arrow, which is already marked as made by AI.\n- The elements it flags already have a person as author. For example, the Onboarding section and the pricing vote are both authored by Tereza, and the stickies, sections and arrows have Jonas, Ivana, Marek, Petra or Tereza.\n- It's treating every element on the board as new, including ones I never touched.\n\n**Why I left it alone:** Doing what it asks would mark about 300 people's notes, sections and arrows as AI-made and wipe out who wrote them. The vote \"Which pricing layout should we ship?\" belongs to the people who started it, and AI can't write votes at all.\n\n**Where things stand:** The arrow from \"tour starts before the canvas loads\" to the Performance section is in place, and nothing else on the board changed. If this error appears again, the check itself needs a look. It seems to be comparing against the wrong earlier version of the board, maybe an empty one."
+}
