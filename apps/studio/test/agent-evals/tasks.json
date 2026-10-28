@@ -311,7 +311,7 @@
       "group": "edit",
       "fixture": "marketing21",
       "delegates": null,
-      "prompt": "Add a small 'Partneři akce' line above the sponsor logos on the IG event square post of the Combine campaign canvas.",
+      "prompt": "Add a small 'Partneři akce' line just above the green bottom bar on the IG event square post of the Combine campaign canvas.",
       "expect": {
         "allow": ["ui/2026/combine/Combine-kampan.tsx"],
         "artboards": { "ui/2026/combine/Combine-kampan.tsx": ["ig-event-square"] },
@@ -320,7 +320,7 @@
       "render": [
         { "canvas": "ui/2026/combine/Combine-kampan.tsx", "artboards": ["ig-event-square"] }
       ],
-      "rubric": "The ig-event-square artboard shows a small 'Partneři akce' label above its sponsor logos in the club style; no other artboard changed."
+      "rubric": "The ig-event-square artboard shows a small 'Partneři akce' label just above its green bottom bar in the club style; no other artboard changed."
     },
     {
       "id": "e6",
@@ -343,7 +343,7 @@
       "group": "edit",
       "fixture": "video",
       "delegates": null,
-      "prompt": "Shorten the video's cold open — the first shot — to 2 seconds.",
+      "prompt": "Shorten the video's cold open — the first shot — to 1 second.",
       "expect": {
         "allow": [
           "ui/Alligators Cinematic Cut.tsx",
@@ -352,7 +352,7 @@
         ],
         "mustChange": ["ui/Alligators Cinematic Cut.tsx"]
       },
-      "rubric": "The first shot now lasts 2 seconds (60 frames at 30 fps) and the rest of the timeline follows without gaps or overlaps; nothing unrelated changed."
+      "rubric": "The first shot now lasts 1 second (30 frames at 30 fps) and the rest of the timeline follows without gaps or overlaps; nothing unrelated changed."
     },
     {
       "id": "e8",
