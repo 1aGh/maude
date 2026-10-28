@@ -24,7 +24,8 @@
 // not found (so CI can distinguish "bundle incomplete" from "ran wrong").
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import { classifyHelpers, collectImports } from './helper-deps.mjs';
@@ -251,6 +252,89 @@ if (doSmoke) {
         ok(`smoke ${h.verb}`, 'reached helper (no missing runtime/dep/helper)');
       }
     }
+    reelPlaceSmoke(target.binary, strippedPath);
+  }
+}
+
+// p8-t-video-2 — `--help` stops before any import that loads a native module, so it never saw that a
+// parse-reaching verb could not load oxc-parser's binding. `reel-place` on a fixture cut parses the canvas
+// (check fast tier + clip ops). It runs the way the AI's Bash runs it inside the app: with the stripped PATH
+// AND the `/$bunfs/…` oxc binding path a sidecar child inherited before p8-t-video-2 — a helper must place
+// the shot whatever its parent leaked.
+function reelPlaceSmoke(binary, strippedPath) {
+  const root = mkdtempSync(join(tmpdir(), 'maude-smoke-reel-'));
+  try {
+    const design = join(root, '.design');
+    mkdirSync(join(design, 'ui'), { recursive: true });
+    writeFileSync(join(design, 'config.json'), '{}');
+    writeFileSync(
+      join(design, 'ui', 'recap.tsx'),
+      [
+        "import { DCArtboard, DesignCanvas, VideoComp } from '@maude/canvas-lib';",
+        "import { AbsoluteFill } from 'remotion';",
+        "const Recap = () => <AbsoluteFill style={{ background: '#000' }}></AbsoluteFill>;",
+        'export default function Canvas() {',
+        '  return (',
+        '    <DesignCanvas>',
+        '      <DCArtboard id="recap" kind="video" width={1080} height={1920}>',
+        '        <VideoComp component={Recap} durationInFrames={900} fps={30} width={1080} height={1920} />',
+        '      </DCArtboard>',
+        '    </DesignCanvas>',
+        '  );',
+        '}',
+        '',
+      ].join('\n')
+    );
+    writeFileSync(
+      join(design, 'recap.edl.json'),
+      JSON.stringify({
+        version: 1,
+        fps: 30,
+        beats: [
+          {
+            clip: 'assets/a.mp4',
+            startSec: 0,
+            durationFrames: 30,
+            name: 'Shot 1',
+            transition: null,
+          },
+        ],
+      })
+    );
+    let output = '';
+    let status = 0;
+    try {
+      output = execFileSync(binary, ['design', 'reel-place', 'recap', '--next', '--root', root], {
+        cwd: root,
+        env: {
+          PATH: strippedPath,
+          HOME: process.env.HOME || '/tmp',
+          NO_OPEN: '1',
+          MAUDE_NO_AUTOBUILD: '1',
+          NAPI_RS_NATIVE_LIBRARY_PATH: '/$bunfs/root/parser.darwin-arm64-smoke.node',
+        },
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 60000,
+      });
+    } catch (e) {
+      status = e.status ?? 1;
+      output = `${e.stdout || ''}${e.stderr || ''}`;
+    }
+    const placed = readFileSync(join(design, 'ui', 'recap.tsx'), 'utf8').includes(
+      'TransitionSeries.Sequence'
+    );
+    if (status === 0 && placed && /^Placed shot 1 of 1/.test(output)) {
+      ok('smoke reel-place (parses a canvas)', 'placed shot 1 — native parser binding loads');
+    } else {
+      const line =
+        output.split('\n').find((l) => /^\s*(error:|cause:)|Cannot find/.test(l)) ||
+        output.split('\n')[0] ||
+        '';
+      fail('smoke reel-place (parses a canvas)', `exit ${status} — ${line.slice(0, 200)}`);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 }
 
