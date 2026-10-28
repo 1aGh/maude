@@ -9,6 +9,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Subprocess } from 'bun';
 
+import { GRADERS, observe } from './agent-journeys/graders.mjs';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
 const CLI = path.join(import.meta.dir, '..', '..', '..', 'cli', 'bin', 'maude.mjs');
@@ -26,10 +27,10 @@ export default function Greeting() {
 }
 `;
 
-type Row = { kind: string; canvases: string[]; lanes?: Record<string, string[]> };
+type Row = { revision: number; kind: string; canvases: string[]; lanes?: Record<string, string[]> };
 
 describe('maude design trash move → Version history → trash restore, on a real studio', () => {
-  let proc: Subprocess;
+  let proc: Subprocess | null = null;
   let port: number;
   let root: string;
   let designRoot: string;
@@ -42,7 +43,7 @@ describe('maude design trash move → Version history → trash restore, on a re
     proc = await bootServer(root, port, { MAUDE_NO_AUTOBUILD: '1' });
   });
   afterAll(async () => {
-    await killProc(proc);
+    if (proc) await killProc(proc);
   });
 
   const maude = (args: string[]) => {
@@ -80,20 +81,27 @@ describe('maude design trash move → Version history → trash restore, on a re
   test('move → a delete row in Version history, listed in the Trash → restore brings it back', async () => {
     const abs = path.join(designRoot, 'ui', 'Greeting.tsx');
     // the cold start publishes the canvas first (its create row), so a delete has a doc to delete
-    await until(() => rowsOf('ui/Greeting.tsx'), (r) => r.length > 0, 'the canvas in history');
+    const before = await until(
+      () => rowsOf('ui/Greeting.tsx'),
+      (r) => r.length > 0,
+      'the canvas in history'
+    );
+    const head = Math.max(...before.map((r) => r.revision));
 
     const moved = maude(['trash', 'move', 'ui/Greeting.tsx']);
     expect({ code: moved.code, err: moved.err }).toEqual({ code: 0, err: '' });
     expect(moved.out).toContain('ui/Greeting.tsx');
     expect(existsSync(abs)).toBe(false);
 
+    // ONE new row for the canvas, on its @manifest lane (the delete; its op is checked from the store below)
     const rows = await until(
       () => rowsOf('ui/Greeting.tsx'),
-      (r) => r.some((x) => x.kind === 'canvas.delete'),
-      'a canvas.delete row'
+      (r) => r.some((x) => x.revision > head),
+      'a row for the move'
     );
-    const del = rows.find((x) => x.kind === 'canvas.delete') as Row;
-    expect(Object.values(del.lanes ?? {}).flat()).toContain('@manifest');
+    const del = rows.filter((x) => x.revision > head);
+    expect(del).toHaveLength(1);
+    expect(Object.values(del[0]?.lanes ?? {}).flat()).toContain('@manifest');
 
     const listed = maude(['trash', 'list', '--json']);
     expect(listed.code).toBe(0);
@@ -112,5 +120,12 @@ describe('maude design trash move → Version history → trash restore, on a re
       path: string;
     }[];
     expect(after.map((i) => i.path)).not.toContain('ui/Greeting.tsx');
+
+    // The journey's own grader (S1 back-from-trash), read from the store once the studio is down:
+    // a `@manifest delete` effect for the canvas, live again, not listed.
+    await killProc(proc as Subprocess);
+    proc = null;
+    const graded = GRADERS.trash({ path: 'ui/Greeting.tsx', state: 'restored' }, observe({ project: root }));
+    expect(graded).toEqual({ pass: true, why: '' });
   }, 90_000);
 });

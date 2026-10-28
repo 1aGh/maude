@@ -38,7 +38,8 @@ afterAll(() => rmSync(project, { recursive: true, force: true }));
 function impliedCommand(how: string): string | null {
   const first = how.split(/;| — |\. Over HTTP/)[0] as string;
   // inside a file: an element / artboard / JSX edit is the Edit tool's, never a file op
-  if (/JSX|element|DCArtboard|<[a-z]/.test(first)) return null;
+  // (`<designRoot>` / `<slug>` are placeholders, not tags)
+  if (/JSX|element|DCArtboard|<(?:div|svg|img|path|p|h\d|Sequence|Video|Audio)\b/.test(first)) return null;
   const asset = /\bassets\/</.test(first);
   if (!asset && !/\.tsx\b/.test(first)) return null;
   const src = asset ? '.design/assets/a.png' : '.design/ui/a.tsx';
