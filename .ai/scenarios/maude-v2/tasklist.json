@@ -1,5 +1,5 @@
 {
-  "taken": "2026-10-25T20:55:53.519Z",
+  "taken": "2026-10-28T19:59:20.000Z",
   "tasks": [
     {
       "id": "V2-0.0",
@@ -283,23 +283,23 @@
     },
     {
       "id": "V2-8.0",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "V2-8.1",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "V2-8.2",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "V2-8.3",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "V2-8.4",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "V2-8.5",
@@ -343,10 +343,18 @@
     },
     {
       "id": "V2-8.15",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "V2-8.16",
+      "status": "in_progress"
+    },
+    {
+      "id": "V2-8.17",
+      "status": "in_progress"
+    },
+    {
+      "id": "V2-8.18",
       "status": "in_progress"
     }
   ]

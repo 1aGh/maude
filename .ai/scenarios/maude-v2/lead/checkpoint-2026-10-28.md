@@ -75,3 +75,5 @@ port base. Round-B follow-ups that won't be fixed are in `lead/pr-followups.md`.
 - The Mac mini (`hub`) is unreachable over ssh; nothing in the final plan needs it.
 
 Update 2026-10-28 ~17:00: HEAD 8f238f19a (sec-lows merged). Weekly 57 %, 5h 50 %. Still open before the eval: p8-format-gate-2, p8-journey-fixes.
+
+Update 2026-10-28 ~21:00: HEAD 177b70038. p8-format-gate (2A+1A) merged 0c781ec4f (Docker gate 22/22, e2e 205/0, hub 1953/0); p8-journey-fixes and p8-feat-reds merged earlier. No builder running; every merged worktree removed (86 GB free). Weekly 60 %. Eval resumed 20:57 (54 trials, ETA ~23:00), keeper told. Final tooling staged in the scratchpad `rec/`: record.sh, the probe (compiled) and `chain4.sh` (8.1 → screen wait → 8.3 → **8.18** → 8.2; 8.18 needs the screen too: its desktop legs run inline). Michal's design server now runs on :4420 (pid 37375, `maude design serve`), not :4399.
