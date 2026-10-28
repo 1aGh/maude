@@ -9,7 +9,8 @@
 
 import { MAUDE_VERBS } from '../actions/verbs.ts';
 
-const DESIGN_VERB_RE = /(?:^|[\s;&|(`])maude\s+design\s+([a-z][a-z0-9-]*)(?:\s+([a-z][a-z0-9-]*))?/g;
+const DESIGN_VERB_RE =
+  /(?:^|[\s;&|(`])maude\s+design\s+([a-z][a-z0-9-]*)(?:\s+([a-z][a-z0-9-]*))?/g;
 
 const DESIGN_EFFECT = new Map<string, string>(
   MAUDE_VERBS.filter((v) => v.scope === 'design').map((v) => [v.verb, v.effect])

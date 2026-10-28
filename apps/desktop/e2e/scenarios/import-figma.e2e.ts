@@ -184,15 +184,45 @@ describe('import-figma', () => {
     await (await $(tid('figma-import-mode-board'))).waitForDisplayed({ timeout: 10_000 });
     await capture('07-figjam-door');
     await (await $(tid('figma-import-run'))).click();
-    await (await $(tid('figma-import-summary'))).waitForDisplayed({ timeout: 20_000 });
+    try {
+      await (await $(tid('figma-import-summary'))).waitForDisplayed({ timeout: 20_000 });
+    } catch {
+      const err = (await $(tid('figma-import-error')).isExisting())
+        ? await (await $(tid('figma-import-error'))).getText()
+        : '(no error shown)';
+      const run = await $(tid('figma-import-run'));
+      const run_ = (await run.isExisting())
+        ? `${await run.getText()} disabled=${await run.getAttribute('disabled')}`
+        : '(no run button)';
+      const replay = await browser.execute(async (key: string) => {
+        const r = await fetch('/_api/annotations/figjam', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            file: 'ui/Smoke.tsx',
+            url: `https://www.figma.com/board/${key}/Retro`,
+          }),
+        });
+        return `${r.status} ${(await r.text()).slice(0, 400)}`;
+      }, BOARD_KEY);
+      await capture('08-figjam-stuck');
+      throw new Error(
+        `the FigJam summary never appeared — error: ${err} — run: ${run_} — replay: ${replay}`
+      );
+    }
     await capture('08-figjam-arrived');
     const summary = await (await $(tid('figma-import-summary'))).getText();
-    expect(summary).toMatch(/stick/i);
+    // the sheet's words (boardSummaryRows): a count of items on the annotation layer in one section — the stickies
+    // themselves are asserted on the board file below
+    expect(summary).toMatch(/5 items on the annotation layer, in one section/);
     expect(summary).toMatch(/widget/i);
-    await browser.waitUntil(() => existsSync(BOARD), {
-      timeout: 15_000,
-      timeoutMsg: 'no whiteboard file after the FigJam import',
-    });
+    // the fixture project already carries a seeded board, so the file exists from the start: wait for the
+    // import's own stickies to reach it (the board is flushed to its file a beat after the change lands)
+    await browser.waitUntil(
+      () =>
+        existsSync(BOARD) && readFileSync(BOARD, 'utf8').includes('Plakáty na školách fungovaly'),
+      { timeout: 15_000, timeoutMsg: 'the imported stickies never reached the whiteboard file' }
+    );
     const els = JSON.parse(readFileSync(BOARD, 'utf8')).elements as Array<Record<string, unknown>>;
     const stickies = els.filter((e) => e.type === 'sticky');
     expect(stickies.map((e) => e.text)).toEqual(
