@@ -11,8 +11,10 @@
 //     the real registry.
 // Only the model process (`claude -p`, run.mjs) gets the person's real HOME — it needs the login.
 
+import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { stubClaudeEnv } from '../../../../../scripts/lib/stub-claude.mjs';
@@ -28,6 +30,19 @@ import { scanCanvas } from './tsx.mjs';
 
 export { CLI };
 
+/**
+ * Where agent-browser puts its daemon sockets for this trial. Its default is `<HOME>/.agent-browser/`, and a
+ * unix socket path may be at most 103 bytes on macOS: a trial's throwaway HOME lives under
+ * `$TMPDIR/maude-agent-evals/<run>/trials/<id>/home`, which is already ~94 bytes, so EVERY capture died with
+ * "Session name 'default' is too long. Socket path would be 113 bytes (max 103)" (p8-eval-grader) — the cause of
+ * the `render-non-blank` "navigation failed" in the whole v2-8.16 run. A short per-trial dir under $TMPDIR fixes it.
+ */
+export function socketDirFor(trialDir) {
+  const dir = join(tmpdir(), `mab-${createHash('sha1').update(trialDir).digest('hex').slice(0, 8)}`);
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
 /** The env every process of the trial's STUDIO side gets (studio, check, runs, screenshots, graders). */
 export function studioEnv(trialDir, base = process.env) {
   const home = join(trialDir, 'home');
@@ -36,6 +51,7 @@ export function studioEnv(trialDir, base = process.env) {
     {
       ...base,
       HOME: home,
+      AGENT_BROWSER_SOCKET_DIR: base.AGENT_BROWSER_SOCKET_DIR ?? socketDirFor(trialDir),
       XDG_CONFIG_HOME: join(home, '.config'),
       XDG_DATA_HOME: join(home, '.local', 'share'),
       XDG_CACHE_HOME: join(home, '.cache'),

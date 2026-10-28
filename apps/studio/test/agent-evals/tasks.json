@@ -407,7 +407,7 @@
       "expect": {
         "untouched": [{ "canvas": "ui/Onboarding.tsx", "artboard": "hub" }],
         "allow": ["ui/Onboarding.tsx"],
-        "finalMentions": ["busy|another AI"]
+        "finalMentions": ["busy|another (of your )?AI|in use by another"]
       },
       "rubric": "The hub artboard is unchanged because another AI is changing it; the answer says so (it can wait or be done on a copy) and does not edit a copy without being asked unless it says it did."
     },

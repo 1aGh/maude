@@ -16,7 +16,8 @@ const SCHEMA = {
   },
 };
 
-function listRuns(project) {
+/** The run folder's files: the live `_runs/` plus the harness's run log (the Stop hook deletes the former). */
+function listRuns(project, runlog = null) {
   const out = [];
   const walk = (d) => {
     let ents = [];
@@ -34,7 +35,24 @@ function listRuns(project) {
     }
   };
   walk(join(project, '.design', '_runs'));
-  return out.slice(0, 40);
+  const live = out.length;
+  if (runlog) walkAbs(runlog, out);
+  return [...out.slice(0, live), ...out.slice(live)].slice(0, 40);
+}
+
+function walkAbs(dir, out) {
+  let ents = [];
+  try {
+    ents = readdirSync(dir);
+  } catch {
+    return;
+  }
+  for (const f of ents) {
+    const p = join(dir, f);
+    if (statSync(p).isDirectory()) {
+      if (f !== 'snap' && f !== 'base') walkAbs(p, out);
+    } else if (!/hooklog|touched|agents|run\.json|stop-last|shots\.jsonl/.test(f)) out.push(p);
+  }
 }
 
 function listTrash(project) {
@@ -65,6 +83,7 @@ export function judge({
   model = 'sonnet',
   budgetUsd = 1.5,
   env,
+  runlog = null,
 }) {
   const shotList =
     shots
@@ -91,7 +110,7 @@ git diff against the state before the run (may be truncated):
 ${diff}
 >>>
 
-Run-folder files (hand-offs, proposals, drafts): ${listRuns(project).join(', ') || '(none)'}
+Run-folder files (hand-offs, proposals, drafts — the run folder is deleted when the run ends, so those are the harness's copy of it, as absolute paths): ${listRuns(project, runlog).join(', ') || '(none)'}
 
 Maude's trash (.design/_trash/ — runtime state, gitignored, so git status does not show it; it is how Maude keeps a removed canvas restorable): ${listTrash(project).join(', ') || '(empty)'}
 

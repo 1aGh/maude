@@ -7,6 +7,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { REPO_ROOT } from './paths.mjs';
 import { pngStats } from './png.mjs';
 import { scanCanvas } from './tsx.mjs';
 
@@ -18,6 +19,39 @@ const ENV = (repo) => ({
   MAUDE_PORT_BASE: process.env.MAUDE_PORT_BASE ?? '48399',
   CLAUDE_PROJECT_DIR: repo,
 });
+
+/**
+ * The headless browser the capture drives, resolved against the PERSON's HOME. A trial's studio env has a
+ * throwaway HOME (lib/trial.mjs), where `ensure-browser` cannot see the Playwright headless shell under
+ * ~/Library/Caches and falls back to the system Google Chrome — not the browser the live agent's own
+ * captures use. Resolve it once here, from the real HOME, and hand the path to the capture so the grader and
+ * the agent screenshot with the same engine. null → the caller's own default stays.
+ * (The cause of the v2-8.16 "navigation failed" was the daemon's socket path, see `socketDirFor`.)
+ */
+let headless;
+export function headlessBrowser(realEnv = process.env) {
+  if (headless !== undefined) return headless;
+  const r = spawnSync(
+    'bash',
+    [join(REPO_ROOT, 'apps', 'studio', 'bin', 'ensure-browser.sh'), '--quiet', '--no-download'],
+    { env: realEnv, encoding: 'utf8', timeout: 30_000 }
+  );
+  const path = String(r.stdout ?? '').trim().split('\n').pop();
+  headless = r.status === 0 && path && existsSync(path) ? path : null;
+  return headless;
+}
+
+/** The env a capture runs in: the trial's, plus the real headless browser unless the caller pinned one. */
+function captureEnv(env, project, session) {
+  const base = env ? { ...env, CLAUDE_PROJECT_DIR: project } : ENV(project);
+  // Its own agent-browser session per capture. screenshot.sh closes its session on exit (_ab-park.sh); the
+  // daemon is still going down when the next capture starts on the SAME name, which then dies with
+  // "Invalid response: EOF while parsing" — so every capture after the first in a row failed. A caller's pin wins.
+  if (session && !base.AGENT_BROWSER_SESSION) base.AGENT_BROWSER_SESSION = session;
+  if (base.AGENT_BROWSER_EXECUTABLE_PATH) return base;
+  const exe = headlessBrowser();
+  return exe ? { ...base, AGENT_BROWSER_EXECUTABLE_PATH: exe } : base;
+}
 
 export function serverUp(cli, project, env = null) {
   const r = spawnSync('node', [cli, 'design', 'server-up', '--root', project, '--timeout', '30'], {
@@ -67,7 +101,7 @@ export function renderCheck({ cli, project, trialDir, targets, env = null }) {
   const port = serverUp(cli, project, env);
   if (!port) return { ran: true, error: 'server did not start', shots };
   mkdirSync(join(trialDir, 'shots'), { recursive: true });
-  for (const t of targets) {
+  for (const [i, t] of targets.entries()) {
     const out = join(
       trialDir,
       'shots',
@@ -93,7 +127,7 @@ export function renderCheck({ cli, project, trialDir, targets, env = null }) {
         '15',
       ],
       {
-        env: env ? { ...env, CLAUDE_PROJECT_DIR: project } : ENV(project),
+        env: captureEnv(env, project, `r${i}`),
         encoding: 'utf8',
         timeout: 90_000,
       }
@@ -117,7 +151,7 @@ export function renderCheck({ cli, project, trialDir, targets, env = null }) {
           : String(r.stderr ?? '')
               .split('\n')
               .filter(Boolean)
-              .slice(-2)
+              .slice(-6)
               .join(' | '),
     });
   }

@@ -10,7 +10,9 @@ import { fileURLToPath } from 'node:url';
 
 import { FORMAT_GATE_OPTS, formatGate } from '../../format.ts';
 import { buildFixture, FIXTURES } from './lib/fixtures.mjs';
+import { renderCheck } from './lib/render.mjs';
 import { runSmoke } from './lib/smoke.mjs';
+import { CLI, startTrial, studioEnv } from './lib/trial.mjs';
 
 test('agent-eval harness smoke: graders catch planted faults and read the shipped hooks/registry state', async () => {
   const out = mkdtempSync(join(tmpdir(), 'agent-evals-smoke-'));
@@ -67,3 +69,56 @@ test('every eval fixture is a project this build may edit (formatVersion 2, no f
     rmSync(root, { recursive: true, force: true });
   }
 }, 120_000);
+
+// p8-eval-grader: the render grader captures through the TRIAL's env. Its throwaway HOME sits under
+// `$TMPDIR/maude-agent-evals/<run>/trials/<id>/home`, and agent-browser's default socket dir
+// (`<HOME>/.agent-browser/default.sock`) then exceeds the 103-byte unix-socket limit: every capture died
+// "Session name 'default' is too long. Socket path would be 113 bytes", the grader logged "navigation failed" and
+// the judge never got a screenshot (13 of 40 v2-8.16 trials). Pins the path itself, then the whole grader path:
+// a real studio on a fixture clone, the trial env, one artboard → a real, non-blank PNG. No model.
+test('a trial env keeps the agent-browser socket path under the 103-byte unix limit, however deep the trial dir', () => {
+  const deep = join(tmpdir(), 'maude-agent-evals', 'v2-8.16', 'trials', 'n3.A.1', 'x'.repeat(40));
+  const env = studioEnv(deep, { PATH: process.env.PATH });
+  expect(env.AGENT_BROWSER_SOCKET_DIR).toBeTruthy();
+  expect(`${env.AGENT_BROWSER_SOCKET_DIR}/default.sock`.length).toBeLessThanOrEqual(103);
+  rmSync(deep, { recursive: true, force: true });
+  rmSync(env.AGENT_BROWSER_SOCKET_DIR, { recursive: true, force: true });
+});
+
+test.skipIf(!Bun.which('agent-browser'))(
+  'render grader: under the trial\'s throwaway HOME a fixture artboard still captures non-blank',
+  async () => {
+    const root = mkdtempSync(join(tmpdir(), 'agent-evals-render-'));
+    const project = join(root, 'project');
+    const trialDir = join(root, 'trial');
+    let trial: Awaited<ReturnType<typeof startTrial>> | null = null;
+    try {
+      expect(buildFixture('app5', project)).toBeTruthy();
+      trial = await startTrial(project, trialDir, {});
+      expect(trial.env.HOME).toBe(join(trialDir, 'home'));
+      const r = renderCheck({
+        cli: CLI,
+        project,
+        trialDir,
+        // two in a row: each capture closes its agent-browser session on exit, and the next one on the same
+        // name used to hit the dying daemon ("Invalid response: EOF while parsing")
+        targets: [
+          { canvas: 'ui/GitPanel.tsx', artboard: 'changes' },
+          { canvas: 'ui/GitPanel.tsx', artboard: 'publish' },
+        ],
+        env: trial.env,
+      });
+      expect(r.error).toBeUndefined();
+      expect(r.shots.map((s: any) => ({ err: s.err, path: !!s.path, blank: s.stats?.blank }))).toEqual([
+        { err: '', path: true, blank: false },
+        { err: '', path: true, blank: false },
+      ]);
+    } finally {
+      await trial?.stop();
+      if (trial?.env.AGENT_BROWSER_SOCKET_DIR)
+        rmSync(trial.env.AGENT_BROWSER_SOCKET_DIR, { recursive: true, force: true });
+      rmSync(root, { recursive: true, force: true });
+    }
+  },
+  300_000
+);

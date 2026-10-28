@@ -51,6 +51,60 @@ function globRe(g) {
 }
 const matchAny = (globs, rel) => globs.some((g) => globRe(g).test(rel));
 
+function readSafeFile(p) {
+  try {
+    return readFileSync(p, 'utf8');
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Does a change to the canvas's sibling stylesheet reach `artboard`? A stylesheet is shared by every
+ * artboard, so ANY edit used to count as touching the busy one — which flagged an agent that only ADDED
+ * a rule for a class it put on the free artboards. Reached when: a line of the old sheet was changed or
+ * removed, the addition is not whole flat rules, or an added selector's classes ALL appear in the markup
+ * the artboard renders (its own source plus the components it uses, transitively) or it names no class.
+ */
+export function cssReaches(before, after, canvasSrc, canvas, artboard) {
+  if (before == null) return true; // a new sheet the canvas did not have: cannot tell
+  const old = before.split('\n');
+  let i = 0;
+  const added = [];
+  for (const line of after.split('\n')) {
+    if (i < old.length && line === old[i]) i++;
+    else added.push(line);
+  }
+  if (i < old.length) return true; // an old line changed or went away
+  const text = added.join('\n').replace(/\/\*[\s\S]*?\*\//g, '').trim();
+  if (!text) return false;
+  if (!/^(?:[^{}]+\{[^{}]*\}\s*)+$/.test(text)) return true; // not whole flat rules
+  const scan = scanCanvas(canvas, canvasSrc);
+  const ab = scan.artboards.find((x) => x.id === artboard);
+  if (!ab) return true;
+  let markup = canvasSrc.slice(ab.start, ab.end);
+  const seen = new Set();
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const m of markup.matchAll(/<([A-Z]\w*)/g)) {
+      if (seen.has(m[1])) continue;
+      seen.add(m[1]);
+      const decl = scan.decls.find((d) => d.names.includes(m[1]));
+      if (decl) {
+        markup += `\n${canvasSrc.slice(decl.start, decl.end)}`;
+        grew = true;
+      }
+    }
+  }
+  for (const m of text.matchAll(/([^{}]+)\{[^{}]*\}/g)) {
+    for (const sel of m[1].split(',')) {
+      const classes = [...sel.matchAll(/\.([A-Za-z_][\w-]*)/g)].map((x) => x[1]);
+      if (!classes.length || classes.every((c) => markup.includes(c))) return true;
+    }
+  }
+  return false;
+}
+
 function walk(dir, pred, acc = []) {
   if (!existsSync(dir)) return acc;
   for (const f of readdirSync(dir)) {
@@ -270,7 +324,14 @@ export function gradeCode({ task, project, transcript, manifest, registry = null
     const hit = att.scope === 'file' || att.artboards.includes(u.artboard);
     let cssHit = false;
     const css = u.canvas.replace(/\.tsx$/, '.css');
-    if (design.some((c) => c.rel === css)) cssHit = true;
+    if (design.some((c) => c.rel === css))
+      cssHit = cssReaches(
+        headOf(project, `.design/${css}`),
+        readSafeFile(join(project, '.design', css)),
+        after,
+        u.canvas,
+        u.artboard
+      );
     set(
       inv,
       `untouched:${u.artboard}`,
@@ -471,13 +532,13 @@ export function gradeCode({ task, project, transcript, manifest, registry = null
 
   // ── DS switch = review, not apply ──
   if (e.dsReview) {
-    const props = walk(
-      join(project, '.design', '_runs'),
-      (p) => /\/ds-switch\/.+\.json$/.test(p) && !p.endsWith('.out.json')
+    // The released Stop hook deletes `_runs/<session>/` when the run ends, so the proposals only outlive the
+    // trial in the run log (lib/trial.mjs snapshotRuns); look in both, the live folder first.
+    const roots = [join(project, '.design', '_runs'), ...(runlog ? [runlog] : [])];
+    const props = roots.flatMap((r) =>
+      walk(r, (p) => /\/ds-switch\/.+\.json$/.test(p) && !p.endsWith('.out.json'))
     );
-    const review = walk(join(project, '.design', '_runs'), (p) =>
-      /\/ds-switch\/review\.(md|json)$/.test(p)
-    );
+    const review = roots.flatMap((r) => walk(r, (p) => /\/ds-switch\/review\.(md|json)$/.test(p)));
     const missing = [];
     let applies = 0;
     let total = 0;

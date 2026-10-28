@@ -11,6 +11,8 @@
 //   bun apps/studio/test/agent-evals/run.mjs suite  --tasks pilot|all|e1,b2 [--topology A] [--trials 3] [--out DIR] [--no-lane] [--skip-done]
 //   bun apps/studio/test/agent-evals/run.mjs dry    [--tasks e1,e8,x2,x3] [--out DIR]       scripted agent, REAL hooks/studio/registry; no model
 //   bun apps/studio/test/agent-evals/run.mjs grade  --dir <trial dir>                        re-grade a finished trial
+//   bun apps/studio/test/agent-evals/run.mjs regrade --out DIR [--only b2.A.1,n3.A.1] [--rejudge]   every finished trial, current graders;
+//                                                                  the old grade.json is kept once as grade.pre-fix.json
 //   bun apps/studio/test/agent-evals/run.mjs report [--out DIR]
 //   bun apps/studio/test/agent-evals/run.mjs smoke                                            no model: fixtures + graders
 //
@@ -19,7 +21,7 @@
 // Outputs go to --out (default $TMPDIR/maude-agent-evals/<date>/ — never inside the repo, never committed).
 
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -33,7 +35,7 @@ import { judge } from './lib/judge.mjs';
 import { DESIGN_PLUGIN, HERE } from './lib/paths.mjs';
 import { gitDiff, renderCheck, renderTargets, serverDown } from './lib/render.mjs';
 import { readTranscript } from './lib/transcript.mjs';
-import { snapshotRuns, startTrial, studioEnv, watchRuns } from './lib/trial.mjs';
+import { snapshotRuns, startTrial, stopStudio, studioEnv, watchRuns } from './lib/trial.mjs';
 
 const CLI = join(REPO, 'cli', 'bin', 'maude.mjs');
 const argv = process.argv.slice(2);
@@ -212,17 +214,23 @@ async function gradeTrial(
   });
   let render = { ran: false, shots: [] };
   // a dry run never calls a model, so no judge; screenshots only when asked for (--render on)
-  if (dry ? opt('render', 'off') === 'on' : RENDER) {
+  // The dry run renders too: it is the only model-free path that exercises this grader on a real studio.
+  if (dry ? opt('render', 'on') === 'on' : RENDER) {
+    // A re-grade has no live trial: give it the trial's own env (throwaway HOME, stub claude, its machine
+    // file) — never the person's — and stop the studio it boots.
+    const env = live?.env ?? studioEnv(trialDir);
     try {
       render = renderCheck({
         cli: CLI,
         project,
         trialDir,
         targets: renderTargets(task, code, project),
-        env: live?.env ?? null,
+        env,
       });
     } catch (e) {
       render = { ran: true, error: String(e.message), shots: [] };
+    } finally {
+      if (!live) await stopStudio(project);
     }
   }
   const blank = render.shots.filter((s) => !s.path || s.stats?.blank);
@@ -246,6 +254,7 @@ async function gradeTrial(
       shots: render.shots,
       model: JUDGE_MODEL,
       env: liveEnv(trialDir),
+      runlog: join(trialDir, 'runlog'),
     });
   if (verdict) {
     code.quality.judge = {
@@ -575,11 +584,18 @@ const commands = {
       const p = join(dir, d);
       if (!existsSync(join(p, 'grade.json'))) continue;
       const [id, topo] = d.split('.');
+      if (opt('only', '') && !opt('only', '').split(',').includes(d)) continue;
+      // keep the grade the trial was first given, once, so a before/after is always possible
+      if (!existsSync(join(p, 'grade.pre-fix.json'))) copyFileSync(join(p, 'grade.json'), join(p, 'grade.pre-fix.json'));
       const prev = JSON.parse(readSafe(join(p, 'grade.json')));
       const rejudge =
         flag('rejudge') ||
         (opt('rejudge-tasks', '') || '').split(',').includes(id) ||
-        /^judge failed/.test(prev.judge?.why ?? '');
+        /^judge failed/.test(prev.judge?.why ?? '') ||
+        // the judge saw no screenshots / no run folder (the capture or the run-log lookup failed): its verdict is void
+        prev.judge?.verdict === 'unknown' ||
+        prev.quality?.['render-non-blank']?.pass === false ||
+        ['ds-proposals', 'ds-review-summary'].some((k) => prev.quality?.[k]?.pass === false);
       const g = await gradeTrial(
         p,
         taskById(id),

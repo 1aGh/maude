@@ -109,6 +109,11 @@ export const DRY = {
         'no run base was kept'
       ),
       ...need(g.quality['stop-gate-settled']?.pass !== false, 'stop-gate-settled red'),
+      // the render grader on the trial's own studio and env (p8-eval-grader: it once failed every capture)
+      ...need(
+        g.quality['render-non-blank']?.pass,
+        `render-non-blank missing or red: ${g.quality['render-non-blank']?.why ?? 'not run'}`
+      ),
     ],
     faults: [
       {
