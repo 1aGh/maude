@@ -96,10 +96,18 @@ async function waitAnyResting(
   return hit as unknown as { label: string; name: string; url: string };
 }
 
-/** The branch HEAD is on — Version history › Advanced › Branch (S11.10); the dock names the project only. */
+/**
+ * The branch HEAD is on — Version history › Advanced › Branch (S11.10); the dock names the project only.
+ * One poll of `waitBranch`: '' until the project pill shows, then the branch. A fresh query every round, never
+ * a wait on a held handle — the vendored macOS WebDriver reports a stale element as "A JavaScript exception
+ * occurred", which webdriverio does not refetch, so a pill remounted after the find was polled dead for the
+ * whole budget (V2-8.3 red, 2026-10-28; scripts/test/desktop-e2e-tabs-requery.test.mjs).
+ */
 async function triggerText(): Promise<string> {
-  const t = await $(tid('repo-switcher-trigger'));
-  await t.waitForDisplayed({ timeout: 120_000 });
+  const shown = await $(tid('repo-switcher-trigger'))
+    .isDisplayed()
+    .catch(() => false);
+  if (!shown) return '';
   return currentBranch();
 }
 
