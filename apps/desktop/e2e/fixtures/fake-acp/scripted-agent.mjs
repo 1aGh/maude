@@ -17,6 +17,8 @@
 //   Bash tool … `date`               A shell call that waits for the person (Needs you).
 //   "Step 1" … "Step 40"             Forty slow edits to the first canvas under .design (partial work to publish).
 //   "from 1 to 4000"                 A long streamed reply, until the person stops it.
+//   "Take N seconds"                 A quiet turn that works N seconds (N ≤ 600) and ends `done` with no write: a live
+//                                    run the shell can watch (03 ai-other-tab: the tab's spark, then its done dot).
 //   "Keep going from where you …"    (a resumed run) the forty slow edits again.
 //   anything else                    "ok."
 //
@@ -208,6 +210,16 @@ async function run(ctx) {
       await nap(s, 6000);
     }
     await say(sessionId, 'All forty steps are done.');
+    return { stopReason: 'end_turn' };
+  }
+
+  // ── a quiet turn of N seconds (03 ai-other-tab, 01 cf-busy) ──
+  const slow = /Take (\d{1,3}) seconds/.exec(text);
+  if (slow) {
+    await say(sessionId, 'Working on it.');
+    await nap(s, Math.min(600, Number(slow[1])) * 1000);
+    if (s.cancelled) return cancelled();
+    await say(sessionId, 'Done.');
     return { stopReason: 'end_turn' };
   }
 

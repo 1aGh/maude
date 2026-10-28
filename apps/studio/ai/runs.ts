@@ -165,6 +165,8 @@ export function createRunRegistry(opts: RegistryOptions) {
   let seq = 0;
   /** the last fence this registry saw per key (§5.6 provisional claims) */
   const lastFence = new Map<string, number>();
+  /** Runs whose `begin` is on the wire: the home does not know them yet, so a renew must not ask about them. */
+  const beginning = new Set<string>();
   let timer: ReturnType<typeof setInterval> | null = null;
   let progressTimer: ReturnType<typeof setInterval> | null = null;
   const bannerFiles = new Set<string>();
@@ -620,6 +622,7 @@ export function createRunRegistry(opts: RegistryOptions) {
       // each edit reaches. The home learns of it in the background (renewal needs the row).
       const s = transitionSync(rec0.runId, { type: 'granted' });
       if (s && rec0.origin !== 'maude-chat') transitionSync(rec0.runId, { type: 'accepted' });
+      beginning.add(rec0.runId);
       void home
         .begin({
           runId: rec0.runId,
@@ -631,22 +634,34 @@ export function createRunRegistry(opts: RegistryOptions) {
           wants: [],
           enqueue: false,
         })
-        .catch(() => null);
+        .catch(() => null)
+        .finally(() => beginning.delete(rec0.runId));
       return records.get(rec0.runId) ?? rec0;
     }
     const multi = wants.length > 1;
-    const ans = await home.begin({
-      runId: hid(rec0), // S5.11b: a copy run begins under its fresh home id
-      askId: rec0.askId,
-      chatId: rec0.chatId,
-      origin: rec0.origin,
-      label: rec0.label,
-      device,
-      wants,
-      enqueue: !multi,
-    });
+    beginning.add(rec0.runId);
+    let ans: Awaited<ReturnType<LeaseHome['begin']>>;
+    try {
+      ans = await home.begin({
+        runId: hid(rec0), // S5.11b: a copy run begins under its fresh home id
+        askId: rec0.askId,
+        chatId: rec0.chatId,
+        origin: rec0.origin,
+        label: rec0.label,
+        device,
+        wants,
+        enqueue: !multi,
+      });
+    } finally {
+      beginning.delete(rec0.runId);
+    }
     let rec = records.get(rec0.runId) ?? rec0;
-    if (!isLive(rec)) return rec;
+    if (!isLive(rec)) {
+      // ended while `begin` was on the wire (stopped, cancelled): the home run it just made is nobody's — end it
+      // there too, or its lease / ticket holds the artboard for the whole TTL (P8 ai-runs R1)
+      if (!ans.refused) await endOnHome({ ...rec, runId: rec0.runId, homeRunId: hid(rec0) });
+      return records.get(rec0.runId) ?? rec;
+    }
     if (ans.refused === 'unreachable') {
       // §5.6: the hub is away — lease locally, provisionally, at the last fence seen
       const prov = wants.map((k) => ({ ...k, token: lastFence.get(leaseKeyId(k)) ?? 0 }));
@@ -784,6 +799,7 @@ export function createRunRegistry(opts: RegistryOptions) {
           (r) =>
             isLive(r) &&
             !r.behind &&
+            !beginning.has(r.runId) &&
             (r.origin === 'maude-chat' || t - (r.hookAt ?? r.createdAt) < HOOK_LAPSE_MS)
         );
         if (live.length) {
@@ -816,6 +832,10 @@ export function createRunRegistry(opts: RegistryOptions) {
    * otherwise `lease-lost`. The old home run is ended, so the claim goes on a fresh home run id.
    */
   async function reclaim(rec: RunRecord) {
+    // A renew answer can be older than the run: it ended (and released its keys) while the renew was on the wire.
+    // Re-claiming then would put the keys on a fresh home run that nobody renews or ends — it holds them for the
+    // whole lease TTL and every next ask waits behind it (P8 ai-runs R1).
+    if (!isLive(records.get(rec.runId) ?? rec)) return;
     if (!rec.leases.length) {
       if (rec.state === 'waiting') await transition(rec.runId, { type: 'lease-lost' });
       return;
@@ -840,7 +860,14 @@ export function createRunRegistry(opts: RegistryOptions) {
     const keys = rec.leases.map(({ canvas, artboard }) => ({ canvas, artboard }));
     const c = await home.claim(fresh, { keys, expectFence });
     const cur = records.get(rec.runId);
-    if (!cur || !isLive(cur)) return;
+    if (!cur || !isLive(cur)) {
+      // it ended during the re-claim: the fresh home run is nobody's — end it and hand its keys on
+      const ans = await withTimeout(home.end(fresh, cur?.outcome ?? 'stopped'), END_BUDGET_MS, {
+        refused: 'unreachable' as const,
+      });
+      if (!ans.refused) await applyGrants(ans.granted ?? []);
+      return;
+    }
     if (!c.refused && c.granted.length === keys.length) {
       noteTokens(c.granted);
       persist({ ...setLeases(cur, c.granted), homeRunId: fresh });
