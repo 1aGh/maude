@@ -25,6 +25,32 @@ ab_park_arm() {
   AB_PARK_SESSION="${1:-}"
 }
 
+# `close` answers while the daemon is still shutting down: its socket stays on disk for a few hundred ms and
+# still ACCEPTS a connection, so the next capture on the same session name (an agent looping screenshots in one
+# shell) reaches the dying daemon and fails with "Invalid response: EOF". ab_park therefore returns only once the
+# session's socket is gone, and the next call starts a fresh daemon. Bounded (AB_PARK_WAIT_MS, default 3000) and
+# polled, never a fixed sleep: a daemon that does not die in time costs the helper 3 s, not a hang.
+# The socket is where agent-browser puts it: $AGENT_BROWSER_SOCKET_DIR, else $XDG_RUNTIME_DIR/agent-browser, else
+# ~/.agent-browser; <session>.sock. (A path over macOS's 103 bytes is refused by agent-browser itself before any
+# daemon starts, so there is nothing to wait for.)
+ab_park_wait_gone() {
+  local session="${AB_PARK_SESSION:-${AGENT_BROWSER_SESSION:-default}}" dir sock waited=0
+  local limit="${AB_PARK_WAIT_MS:-3000}"
+  if [ -n "${AGENT_BROWSER_SOCKET_DIR:-}" ]; then
+    dir="$AGENT_BROWSER_SOCKET_DIR"
+  elif [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+    dir="$XDG_RUNTIME_DIR/agent-browser"
+  else
+    dir="$HOME/.agent-browser"
+  fi
+  sock="$dir/$session.sock"
+  while [ -S "$sock" ] && [ "$waited" -lt "$limit" ]; do
+    sleep 0.05
+    waited=$((waited + 50))
+  done
+  return 0
+}
+
 ab_park() {
   [ -n "$AB_PARK_ARMED" ] || return 0
   AB_PARK_ARMED=""
@@ -36,6 +62,7 @@ ab_park() {
     "$ab" open about:blank >/dev/null 2>&1 || true
     "$ab" close >/dev/null 2>&1 || true
   fi
+  ab_park_wait_gone
 }
 
 trap ab_park EXIT
