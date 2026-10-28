@@ -16,6 +16,7 @@ import {
   syncFollow,
 } from '../presence/model.ts';
 import { roleOfPeer } from '../client/v2/presence/use-presence-host.js';
+import { facesOf } from '../client/v2/shell/save-status.js';
 import { readForeignPeers } from '../use-collab.tsx';
 
 const NOW = 1_800_000_000_000;
@@ -170,6 +171,17 @@ describe('P8 G2 (b) — the role word comes from the room’s stamp', () => {
       expect(p?.role).toBe(role);
       expect(menuSubline(p as never, { roleOf: roleOfPeer, now: NOW })).toBe(`On this canvas · ${word}`);
     }
+    // the shell's faces keep it (facesOf rebuilt every peer from an allowlist that dropped it)
+    const [, f, g] = facesOf({
+      you: 'Michal',
+      peers: [
+        { clientID: 1, name: 'Tereza', role: 'member' },
+        { clientID: 2, name: 'Jonas', role: 'admin' },
+      ] as never,
+      max: 40,
+    });
+    expect([f?.role, g?.role]).toEqual(['member', null]);
+    expect(menuSubline(f as never, { roleOf: roleOfPeer, now: NOW })).toBe('On this canvas · Can edit');
     const odd = person('Jonas', { role: 'admin' });
     applyAwarenessUpdate(me, encodeAwarenessUpdate(odd, [odd.clientID]), 'room');
     const j = readForeignPeers(me).find((x) => x.clientID === odd.clientID);
