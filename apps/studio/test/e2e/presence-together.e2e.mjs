@@ -91,6 +91,15 @@ async function openPerson(browser, server, name, { clockAt = null } = {}) {
   );
   if (clockAt !== null) await ctx.clock.install({ time: clockAt });
   const page = await ctx.newPage();
+  // Every collab socket this person opens (the canvas's room): how many, how many closed, frames heard.
+  const ws = { opened: 0, closed: 0, rx: 0, urls: [] };
+  page.on('websocket', (s) => {
+    if (!s.url().includes('/_ws/collab/')) return;
+    ws.opened++;
+    ws.urls.push(s.url().replace(/^ws:\/\/[^/]+/, ''));
+    s.on('framereceived', () => ws.rx++);
+    s.on('close', () => ws.closed++);
+  });
   await page.addInitScript(() => {
     try {
       localStorage.setItem('mdcc-usage-tour-seen', '1');
@@ -101,7 +110,7 @@ async function openPerson(browser, server, name, { clockAt = null } = {}) {
     waitUntil: 'domcontentloaded',
   });
   const frame = await mountedFrame(page);
-  return { name, ctx, page, frame, first: name.split(' ')[0] };
+  return { name, ctx, page, frame, first: name.split(' ')[0], ws };
 }
 
 async function mountedFrame(page) {
@@ -423,11 +432,11 @@ describe('presence — people on one canvas (10 · co-presence … co-twelve)', 
   });
 });
 
-// P8 G2 FINDING (open): with twelve people in one local room each canvas hears only 3–4 of the other eleven
-// (faces "+1", cursors 3–4 per person), every run. P6 rules out the 30 s awareness timeout and one browser
-// per person rules out a shared connection pool. Until it is fixed this suite runs only on request.
-const TWELVE = process.env.E2E_TWELVE === '1';
-describe('presence — twelve people on one canvas (10 · co-twelve)', { skip: !TWELVE && 'P8 G2 finding: a twelve-person room hears 3–4 peers each (E2E_TWELVE=1 runs it)' }, () => {
+// P8 G2 finding, fixed: with twelve people each canvas heard only 3–4 of the other eleven. An idle person's clock
+// jumped (fastForward — a laptop waking from sleep does the same), their awareness timed the others out, told the
+// room so, and the room removed them for everybody (collab/room.ts `ownAwareness`, use-collab.tsx;
+// test/collab-awareness-ownership.test.ts). The failure message names each person's cursors and collab socket.
+describe('presence — twelve people on one canvas (10 · co-twelve)', () => {
   let server;
   const people = [];
   const ACTIVE = [
@@ -484,11 +493,16 @@ describe('presence — twelve people on one canvas (10 · co-twelve)', { skip: !
     await waitFor(async () => (await more.textContent()) === '+8', '+8').catch(async (e) => {
       const seen = await you.page.evaluate(() =>
         [...document.querySelectorAll('[data-testid^="share-cluster-face"]')].map((el) =>
-          el.textContent
+          `${el.textContent}:${el.getAttribute('aria-label') ?? ''}`
         )
       );
       // who each person's canvas hears (cursors) — a person who never arrived is missing here
-      const hear = await Promise.all(people.map(async (w) => `${w.first}:${(await cursors(w)).length}`));
+      const hear = await Promise.all(
+        people.map(
+          async (w) =>
+            `${w.first}:${(await cursors(w)).length}[ws ${w.ws.opened}/${w.ws.closed} rx${w.ws.rx}]`
+        )
+      );
       throw new Error(`${e.message}: faces ${JSON.stringify(seen)} · cursors ${hear.join(' ')}`);
     });
     assert.equal((await faces(you)).length, 3);
