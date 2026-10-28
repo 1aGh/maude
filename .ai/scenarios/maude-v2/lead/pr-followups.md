@@ -39,3 +39,16 @@
   `file-tree-move.e2e.ts:77`, `offline-conflict.e2e.ts:102`, `team-project.e2e.ts:202,543`.
 - Desktop e2e lane on the Mac mini (GUI-session launcher, isolation, probe), so a record doesn't need the MacBook.
 - Hub `test/files-ctl-keepalive.test.mjs` "with the keep-alive, an idle control socket stays up" failed once inside V2-8.1 (2026-10-28 08:17, load ~19 falling); 3/3 green alone. Timing-sensitive (≈4 s idle window) under load.
+
+## Phase 8 test round B — left for after the merge (lead, 2026-10-28)
+
+Not built, either because no CONTRACT line names them or because the weekly budget was kept for the final gates:
+- 01 cf-ai-drafting: the faint "Mobile — next" ghost and the "Desktop done · Mobile next" step line appear only in a board
+  note. No CONTRACT line or slice names them. Not built; spec them if wanted.
+- Hold tag "AI is drawing the footer" (S2.18 prose) vs. the fixed "AI is working" (decision v2-S5.11-neutral-ring-tags):
+  kept neutral. If wanted, `holdsFor` in `client/v2/ai/runs-model.js` can build verb + element name (never the prompt).
+- an-ai-write chips "Make these changes / Put them in a section" (board) vs. the generic follow-ups: no CONTRACT line.
+- Tests not driven (follow-up): 13 ds-make-filling (desktop lane, ds-review part 4); 03 ai-other-tab (second tab +
+  live fake run, project-tabs-identity); 12 ia-more-ways, ia-edges; 07 ve-footage (local hub presence stub);
+  10 an-vote and co-mention-notify (in-app half) on a cell with minted sessions; the multiplayer `surface` catalogue
+  through the Docker container.
