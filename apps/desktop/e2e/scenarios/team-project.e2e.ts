@@ -100,7 +100,7 @@ const TEAM = process.env.MAUDE_E2E_TEAM
  * backoff. The crash on the same volume is steps 7 and 7b.
  */
 function hubAway(t: NonNullable<typeof TEAM>, mode = t.hubAway) {
-  if (!t.hubContainer) return void process.kill(t.hubPid, 'SIGSTOP');
+  if (!t.hubContainer) return void process.kill(hubProcess(t), 'SIGSTOP');
   execFileSync(
     'docker',
     mode === 'pause' ? ['pause', t.hubContainer] : ['kill', '--signal', 'KILL', t.hubContainer]
@@ -108,8 +108,18 @@ function hubAway(t: NonNullable<typeof TEAM>, mode = t.hubAway) {
 }
 /** …and comes back. */
 function hubBack(t: NonNullable<typeof TEAM>, mode = t.hubAway) {
-  if (!t.hubContainer) return void process.kill(t.hubPid, 'SIGCONT');
+  if (!t.hubContainer) return void process.kill(hubProcess(t), 'SIGCONT');
   execFileSync('docker', [mode === 'pause' ? 'unpause' : 'start', t.hubContainer]);
+}
+/**
+ * The in-process hub's pid — never 0. Against a container hub the conf sets `hubPid: 0`, and
+ * `process.kill(0, 'SIGSTOP')` stops this whole process GROUP (wdio, the Docker gate, the test lane),
+ * so the SIGCONT after it never runs and the lane hangs. Every signal to the hub goes through here.
+ */
+function hubProcess(t: NonNullable<typeof TEAM>): number {
+  if (!Number.isInteger(t.hubPid) || t.hubPid <= 0)
+    throw new Error(`no in-process hub to signal (hubPid ${t.hubPid}) — use hubAway/hubBack`);
+  return t.hubPid;
 }
 
 const canvas = (
@@ -209,11 +219,15 @@ function intentsOf(
     });
 }
 
-/** Can the hub be reached at all (connection refused = no). */
+/**
+ * Does the hub itself answer (connection refused = no). Only a 2xx counts: behind the self-host
+ * workspace's Caddy (the Docker gate's target) a stopped hub container still gets a 502 from the
+ * proxy, which is the proxy answering, not the hub.
+ */
 async function hubAnswers(url: string): Promise<boolean> {
   try {
-    await fetch(`${url}/health`, { signal: AbortSignal.timeout(2_000) });
-    return true;
+    const r = await fetch(`${url}/health`, { signal: AbortSignal.timeout(2_000) });
+    return r.ok;
   } catch {
     return false;
   }
@@ -245,7 +259,7 @@ async function stopHub(t: NonNullable<typeof TEAM>): Promise<void> {
     restarted = null;
   } else {
     try {
-      process.kill(t.hubPid, 'SIGTERM');
+      process.kill(hubProcess(t), 'SIGTERM');
     } catch {
       /* already gone */
     }
@@ -256,7 +270,8 @@ async function stopHub(t: NonNullable<typeof TEAM>): Promise<void> {
 /** Start the same hub again on the same port (serve-hub re-reads its tokens), with optional extra flags. */
 async function startHub(t: NonNullable<typeof TEAM>, extraArgs: string[] = []): Promise<void> {
   if (t.hubContainer) {
-    if (extraArgs.length) throw new Error(`a container hub cannot restart with ${extraArgs.join(' ')}`);
+    if (extraArgs.length)
+      throw new Error(`a container hub cannot restart with ${extraArgs.join(' ')}`);
     execFileSync('docker', ['start', t.hubContainer]);
     await eventually('the container hub to answer again', () => hubAnswers(t.hub), 60_000);
     return;
@@ -841,7 +856,8 @@ describe('team-project (native-desktop)', () => {
     expect(saved).toEqual({ status: 'saved', text: 'Saved', control: false });
     await capture('19-status-saved');
 
-    process.kill(t.hubPid, 'SIGSTOP');
+    // held, not dropped (a paused container keeps the connection as SIGSTOP does): the change waits
+    hubAway(t, 'pause');
     try {
       writeFileSync(mine, canvas('Welcome, on its way up'));
       await eventually('Syncing…', async () => (await statusWord())?.status === 'syncing', 60_000);
@@ -850,7 +866,7 @@ describe('team-project (native-desktop)', () => {
       expect(await $(tid('share-cluster-retry')).isExisting()).toBe(false);
       await capture('20-status-syncing');
     } finally {
-      process.kill(t.hubPid, 'SIGCONT');
+      hubBack(t, 'pause');
     }
     await eventually(
       'the change at the teammate',
