@@ -30,6 +30,7 @@ import path from 'node:path';
 
 import { readHeadLines } from '../acp/transcript-io.ts';
 import { migrateAnnotationsV2 } from '../annotations/migrate-boot.ts';
+import { projectRoleForAccount } from '../access/roles.ts';
 import { asFormat } from '../format.ts';
 import { type DsTokensEmitter, defaultDsEmitter } from './ds-registry.ts';
 import { createHubFormatClient, type HubFormatClient } from './hub.ts';
@@ -42,6 +43,9 @@ export const TRASH_DIR_REL = path.join('_trash', 'migrate-v2');
 export const FILE_LIST_CAP = 500;
 
 export const EXIT = { done: 0, atTarget: 10, refused: 11, error: 1, usage: 2 } as const;
+
+/** Why a LINKED project cannot be updated from this Mac now — the app's banner line per code. */
+export type LinkRefusalCode = 'no-sign-in' | 'offline' | 'hub-too-old' | 'not-owner';
 
 export interface MigrateOptions {
   repoRoot: string;
@@ -102,8 +106,9 @@ export interface MigrateReport {
     };
   };
   steps: StepReport[];
-  /** refusals that stop the whole run before any step (format, config, lock…) */
-  refusals: Array<{ path: string; reason: string }>;
+  /** refusals that stop the whole run before any step (format, config, lock…). A linked-hub
+   *  refusal carries a `code` the app maps to its line (format.ts `olderGateState`). */
+  refusals: Array<{ path: string; reason: string; code?: LinkRefusalCode }>;
   totals: { modify: number; create: number; remove: number; refused: number; lost: number };
   snapshot: string | null;
   durationMs: number;
@@ -327,8 +332,8 @@ async function plan(opts: MigrateOptions, dryRun: boolean): Promise<Plan> {
     report.durationMs = Math.round(performance.now() - t0);
     return out;
   };
-  const refuse = (reason: string, p = '') => {
-    report.refusals.push({ path: p, reason });
+  const refuse = (reason: string, p = '', code?: LinkRefusalCode) => {
+    report.refusals.push({ path: p, reason, ...(code ? { code } : {}) });
     return finish();
   };
 
@@ -356,15 +361,30 @@ async function plan(opts: MigrateOptions, dryRun: boolean): Promise<Plan> {
     const role = opts.hub?.role ?? 'unknown';
     report.project.linked = { hub: linkUrl, role, hubFormat: null, capabilities: [] };
     if (!client)
-      return refuse('this project is linked, and this Mac has no sign-in for its team server');
+      return refuse(
+        'this project is linked, and this Mac has no sign-in for its team server',
+        '',
+        'no-sign-in'
+      );
     const health = await client.health();
     if (!health.ok)
-      return refuse('the team server cannot be reached — updating the project needs it');
+      return refuse(
+        'the team server cannot be reached — updating the project needs it',
+        '',
+        'offline'
+      );
     hubFormat = health.formatVersion;
     report.project.linked = { hub: linkUrl, role, hubFormat, capabilities: health.capabilities };
     if (!health.capabilities.includes('format-v2'))
-      return refuse('the team server needs an update before this project can move to Maude 2');
-    if (role !== 'owner') return refuse("only the project's owner can update it for Maude 2");
+      return refuse(
+        'the team server needs an update before this project can move to Maude 2',
+        '',
+        'hub-too-old'
+      );
+    // The hub's own bar (v2-2.18-format-owner-bar): an owner of the whole project — a hub
+    // `admin` is the owner there (access/roles.ts projectRoleForAccount).
+    if (projectRoleForAccount(role) !== 'owner')
+      return refuse("only the project's owner can update it for Maude 2", '', 'not-owner');
     out.hub = { client, ...(typeof health.epoch === 'number' ? { epoch: health.epoch } : {}) };
   }
   const before = Math.max(local, hubFormat ?? 1);

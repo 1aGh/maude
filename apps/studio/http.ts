@@ -148,7 +148,7 @@ import {
   formatGateAllowsWrite,
   formatRefusalResponse,
   projectFormat,
-  STAGED_FORMAT_GATE_OPTS,
+  FORMAT_GATE_OPTS,
 } from './format.ts';
 import {
   type AudioMatch,
@@ -778,7 +778,7 @@ export interface ServeCanvasTestHooks {
  */
 function canvasBuildErrorResponse(err: unknown, ctx: Context): Response {
   const msg = err instanceof Error ? err.message : String(err);
-  const line = canvasFormatLine(msg, formatGate(ctx, STAGED_FORMAT_GATE_OPTS));
+  const line = canvasFormatLine(msg, formatGate(ctx, FORMAT_GATE_OPTS));
   return new Response(`Canvas build error: ${line ? `${line}\n\n` : ''}${msg}`, {
     status: 500,
     headers: { 'Content-Type': 'text/plain; charset=utf-8' },
@@ -1845,13 +1845,11 @@ export function createHttp(
   });
   outbox.store.load();
   outbox.store.prune();
-  // V2-1.12 §5.6 — the format gate, STAGED: `newerOnly: true` gates only a
-  // project newer than this build. Flip to `{}` (the contract's full gate: a
-  // format-1 project is view only until "Update project") once the S1/P3
-  // dialog and format-2 test sandboxes land — today the full gate makes every
-  // existing project and test sandbox view only. One constant in format.ts, so
-  // the sync runtime (sync/format-sync.ts) can never disagree with this gate.
-  const gateNow = () => formatGate(ctx, STAGED_FORMAT_GATE_OPTS);
+  // V2-1.12 §5.6 — the format gate, FULL (CONTRACT §4.1, Michal 2A): a project
+  // not at this build's format is view only; a format-1 one until "Update
+  // project". One constant in format.ts, so the sync runtime
+  // (sync/format-sync.ts) can never disagree with this gate.
+  const gateNow = () => formatGate(ctx, FORMAT_GATE_OPTS);
   // V2-2.5 — THE route table (routes/index.ts), every spec behind `guardTableRoute`. Its exact
   // paths merge into `routes` below, so `readOnlyRefusal` wraps them like every legacy key; its
   // `:param` paths run first in the fall-through (behind the same `guardedFetch` refusal).
@@ -2287,7 +2285,7 @@ export function createHttp(
         const rec = url ? getHubRecord(url) : null;
         return url && rec ? { url, token: rec.token, role: rec.role ?? 'member' } : null;
       },
-      formatView: (req) => formatConfigFields(ctx, roleReadOnly(req), STAGED_FORMAT_GATE_OPTS),
+      formatView: (req) => formatConfigFields(ctx, roleReadOnly(req), FORMAT_GATE_OPTS),
       onMigrated: () => {
         if (reloadConfig(ctx)) ctx.bus.emit('config-updated');
       },

@@ -16,6 +16,7 @@ import {
   formatConfigFields,
   formatGate,
   formatGateAllowsWrite,
+  FORMAT_GATE_OPTS,
   formatRefusalResponse,
   HUB_FORMAT_REL,
   noteHubFormat,
@@ -86,7 +87,26 @@ describe('the gate', () => {
     expect(formatGate(ctx({}), { supported: 1 })).toBe(null);
   });
 
-  test('newerOnly (the staged wiring): only a NEWER project is gated', () => {
+  test('the gate the studio runs with is the FULL gate (CONTRACT §4.1, Michal 2A): format 1 is view only', () => {
+    // v2 opens a format-1 project view only until it is updated — no `newerOnly` staging left.
+    expect(FORMAT_GATE_OPTS).toEqual({});
+    expect(formatGate(ctx({}), FORMAT_GATE_OPTS)).toEqual({
+      projectFormat: 1,
+      supported: 2,
+      source: 'config',
+    });
+    expect(formatConfigFields(ctx({}), false, FORMAT_GATE_OPTS)).toMatchObject({
+      readOnly: true,
+      readOnlyReason: 'format',
+      formatVersion: 1,
+    });
+    expect(formatGate(ctx({ formatVersion: 2 }), FORMAT_GATE_OPTS)).toBe(null);
+    expect(formatGate(ctx({ formatVersion: 3 }), FORMAT_GATE_OPTS)).toMatchObject({
+      projectFormat: 3,
+    });
+  });
+
+  test('newerOnly (the 1.x-direction option): only a NEWER project is gated', () => {
     expect(formatGate(ctx({}), { newerOnly: true })).toBe(null);
     expect(formatGate(ctx({ formatVersion: 3 }), { newerOnly: true })).toEqual({
       projectFormat: 3,

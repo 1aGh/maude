@@ -52,7 +52,7 @@ import { installLogRing } from './debug-bundle.ts';
 import { initDiagnostics, registerStatus, stopDiagnostics } from './diagnostics/store.ts';
 import { parseEmbedOrigins } from './embed-origins.ts';
 import { createExportJobQueue } from './exporters/jobs.ts';
-import { formatGate, STAGED_FORMAT_GATE_OPTS } from './format.ts';
+import { formatGate, FORMAT_GATE_OPTS } from './format.ts';
 import { createFsWatch } from './fs-watch.ts';
 import { createGenerationJobQueue } from './generation/jobs.ts';
 import { createGitWatch } from './git/watch.ts';
@@ -371,7 +371,7 @@ const acp = createAcp(ctx, aiActivity, {
   // access (`accessFor`, re-read per frame), the same answer the HTTP gate gives.
   readOnly: () =>
     acpRefusal(accessForDesktop(ctx.cfg.linkedHub?.url, accessFor)) !== null ||
-    formatGate(ctx, STAGED_FORMAT_GATE_OPTS) !== null,
+    formatGate(ctx, FORMAT_GATE_OPTS) !== null,
 });
 acpTurns = acp;
 // V2-1.14 — the outbox lives in createHttp (below); the chat reaches its door lazily.
