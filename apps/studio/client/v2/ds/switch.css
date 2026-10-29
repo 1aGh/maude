@@ -203,9 +203,28 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    width: 100%;
+    margin: 0;
     padding: var(--space-1) var(--space-2);
+    border: 0;
     border-radius: var(--radius-sm);
+    background: transparent;
+    font: inherit;
     font-size: var(--type-sm);
+    text-align: left;
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .dsp-door:hover,
+  .dsp-door:focus-visible {
+    background: var(--accent-muted);
+    color: var(--fg-0);
+    outline: none;
+  }
+  .dsp-door[aria-disabled='true'] {
+    opacity: 0.5;
+    cursor: default;
+    background: transparent;
     color: var(--fg-1);
   }
   .dsp-door kbd {

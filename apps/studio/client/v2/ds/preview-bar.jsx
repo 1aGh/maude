@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { useDismissOutside } from '../shell/use-dismiss-outside.js';
+import { doorRows } from './preview-doors.js';
 import {
   PREVIEW_WORDS,
   hideDsPreviewMenu,
@@ -60,6 +61,9 @@ export function DsPreviewBar({
   onSwitch,
   usedBy = null,
   defaultName = null,
+  readOnly = false,
+  runAction = null,
+  canRunAction = null,
 }) {
   const listRef = useRef(null);
   const [anchor, setAnchor] = useState(null);
@@ -86,6 +90,22 @@ export function DsPreviewBar({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [blocked, stopAndReturn]);
+
+  // The doors at the foot run registry actions through the host's runner (the one path ⌘K and the Canvases panel use).
+  // Without a runner they are greyed with the reason — never a row that does nothing.
+  const doors = doorRows({
+    from: session.from,
+    readOnly,
+    canRun: (id) => typeof runAction === 'function' && (canRunAction ? !!canRunAction(id) : true),
+  });
+  const runDoor = (door) => {
+    if (door.disabled) return;
+    runAction(door.action.id, door.action.params);
+    // "Open" navigates away, so the preview ends with it; Make and Link open a sheet over the canvas: the menu goes,
+    // the banner and the preview stay (esc and Switch… still work)
+    if (door.id === 'open') stopDsPreview();
+    else hideDsPreviewMenu();
+  };
 
   const onKeyDown = (e) => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -151,11 +171,30 @@ export function DsPreviewBar({
             </div>
           ))}
           <hr className="dsp-sep" />
-          {PREVIEW_WORDS.doors.map((d) => (
-            <div key={d.id} className="dsp-door" data-testid="ds-preview-door" data-door={d.id}>
+          {doors.map((d) => (
+            <button
+              key={d.id}
+              type="button"
+              className="dsp-door"
+              data-testid="ds-preview-door"
+              data-door={d.id}
+              data-action={d.action.id}
+              aria-disabled={d.disabled ? 'true' : undefined}
+              aria-description={d.disabled ? d.why : undefined}
+              title={d.disabled ? d.why : undefined}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => runDoor(d)}
+              onKeyDown={(e) => {
+                // ↵ on a door runs the door; the list's own ↵ (switch) must not also fire
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                e.stopPropagation();
+                runDoor(d);
+              }}
+            >
               <span>{d.label}</span>
               {d.key ? <kbd>{d.key}</kbd> : null}
-            </div>
+            </button>
           ))}
           <p className="dsp-hint dsp-hint--quiet">{PREVIEW_WORDS.hint}</p>
         </div>

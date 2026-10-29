@@ -6,7 +6,9 @@
 // switch-bus.js. Nothing is trusted from the page: the server judges every canvas, tick and system again.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { viewerModeOn } from '../access/access-client.js';
 import { getPaletteEnv } from '../search/search-env.js';
+import { menuRunner } from '../shell/menu-runner.js';
 import { defaultSystemName } from './new-canvas-default.js';
 import { DsPreviewBar } from './preview-bar.jsx';
 import { requestPreviewMenu, stopDsPreview, useDsPreview } from './preview-mode.js';
@@ -188,6 +190,9 @@ export function DsSwitchHost({ cfg, activePath, toast, fetchImpl }) {
           usedBy={followedBy(openCanvasRel(activePath, cfg), cfg)}
           defaultName={defaultSystemName(cfg?.designSystems, cfg?.defaultDesignSystem)}
           blocked={!!sheet}
+          readOnly={viewerModeOn(cfg, activePath)}
+          runAction={(id, params) => menuRunner.run(id, params)}
+          canRunAction={(id) => menuRunner.canRun(id)}
           onSwitch={(target) => requestDsSwitch({ to: target, from: session.from, scope: 'all' })}
         />
       ) : null}

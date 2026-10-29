@@ -198,3 +198,101 @@ describe('copy: the panel and the menu say the same thing', () => {
     expect(notes().studio).not.toContain('used by this canvas');
   });
 });
+
+// P8 fidelity (Michal: "every button must do something") — the three doors at the foot of the menu run the registry
+// actions the Canvases panel and ⌘K already run (one path), or are greyed with the reason; none is a dead row.
+describe('the doors at the foot', () => {
+  type Ran = [string, unknown];
+  const doorProps = (ran: Ran[], over: Record<string, unknown> = {}) => ({
+    runAction: (id: string, params: unknown) => {
+      ran.push([id, params]);
+      return true;
+    },
+    canRunAction: () => true,
+    ...over,
+  });
+  const door = (id: string) =>
+    document.querySelector<HTMLElement>(
+      `[data-testid="ds-preview-door"][data-door="${id}"]`
+    ) as HTMLElement;
+  const click = (el: Element) =>
+    act(async () => {
+      el.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+    });
+
+  test('Open the Design system goes to the system the menu was opened from, and the preview ends', async () => {
+    const ran: Ran[] = [];
+    await mount(doorProps(ran));
+    await click(door('open'));
+    expect(ran).toEqual([['ds.go-to', { ds: 'studio' }]]);
+    expect(getDsPreview()).toBeNull();
+  });
+
+  test('Make a design system runs ds.make and closes the menu (the sheet is not a navigation: the banner stays)', async () => {
+    const ran: Ran[] = [];
+    await mount(doorProps(ran));
+    await click(door('make'));
+    expect(ran).toEqual([['ds.make', {}]]);
+    expect(q('ds-preview-menu')).toBeNull();
+    expect(getDsPreview()).not.toBeNull();
+  });
+
+  test('Link a team library runs ds.library-link and closes the menu', async () => {
+    const ran: Ran[] = [];
+    await mount(doorProps(ran));
+    await click(door('link'));
+    expect(ran).toEqual([['ds.library-link', {}]]);
+    expect(q('ds-preview-menu')).toBeNull();
+    expect(getDsPreview()).not.toBeNull();
+  });
+
+  test('↵ on Open the Design system runs it (and does not switch)', async () => {
+    const ran: Ran[] = [];
+    const switched: string[] = [];
+    await mount(doorProps(ran, { onSwitch: (t: string) => switched.push(t) }));
+    await key(door('open'), 'Enter');
+    expect(ran).toEqual([['ds.go-to', { ds: 'studio' }]]);
+    expect(switched).toEqual([]);
+  });
+
+  test('↵ on the list (not on a door) still opens the switch review', async () => {
+    const ran: Ran[] = [];
+    const switched: string[] = [];
+    await mount(doorProps(ran, { onSwitch: (t: string) => switched.push(t) }));
+    await key(q('ds-preview-menu') as HTMLElement, 'Enter');
+    expect(switched).toEqual(['gator']);
+    expect(ran).toEqual([]);
+  });
+
+  test('a viewer: Make and Link are greyed with the reason and do nothing; Open still works', async () => {
+    const ran: Ran[] = [];
+    await mount(doorProps(ran, { readOnly: true }));
+    for (const id of ['make', 'link']) {
+      expect(door(id).getAttribute('aria-disabled')).toBe('true');
+      expect(door(id).getAttribute('aria-description')).toMatch(/edit access/);
+      expect(door(id).getAttribute('title')).toMatch(/edit access/);
+      await click(door(id));
+      await key(door(id), 'Enter');
+    }
+    expect(ran).toEqual([]);
+    expect(q('ds-preview-menu')).not.toBeNull();
+    expect(door('open').getAttribute('aria-disabled')).toBeNull();
+    await click(door('open'));
+    expect(ran).toEqual([['ds.go-to', { ds: 'studio' }]]);
+  });
+
+  test('a door whose action has no runner here is greyed and says so', async () => {
+    const ran: Ran[] = [];
+    await mount(doorProps(ran, { canRunAction: (id: string) => id !== 'ds.library-link' }));
+    expect(door('link').getAttribute('aria-disabled')).toBe('true');
+    expect(door('link').getAttribute('aria-description')).toMatch(/not available/i);
+    await click(door('link'));
+    expect(ran).toEqual([]);
+  });
+
+  test('a bar mounted with no runner at all has no clickable door', async () => {
+    await mount();
+    for (const id of ['open', 'make', 'link'])
+      expect(door(id).getAttribute('aria-disabled')).toBe('true');
+  });
+});

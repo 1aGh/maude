@@ -34228,7 +34228,7 @@
     "hook": "ds-preview-door",
     "kind": "testid",
     "pattern": false,
-    "meaning": "P8-C2: A row at the foot of the Preview-in menu: Open the Design system, Make a design system…, Link a team library… (data-door).",
+    "meaning": "P8-C2: A row at the foot of the Preview-in menu: Open the Design system, Make a design system…, Link a team library… (data-door). Each is a button that runs its registry action (ds.go-to · ds.make · ds.library-link); greyed with `aria-disabled` + the reason when the role or the window cannot.",
     "producer": {
       "file": "apps/studio/client/v2/ds/preview-bar.jsx",
       "symbol": "DsPreviewBar"
