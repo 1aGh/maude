@@ -16,7 +16,12 @@
 //   --out <md>   the report (default .ai/plans/notes/v2-evidence/V2-8-dead-controls-dynamic.md)
 //   --json <f>   the raw rows
 //   CRAWL_BUDGET_MIN=<n> per shell and mode (default 40); states past it are listed 'unreachable'
+//   --replay <path>[|<path>…]  judge only the states on those paths (' › '-joined state names, the first is a
+//                root name: 'shell', 'canvas Landing' …). Every path but the last is only walked (it sets the
+//                fixture up, e.g. creates an artboard); the last path's state is judged. Reproduces one report row.
 //   --plant-dead the crawler's own red test: plants a no-op button in the shell, which must be DEAD (exit 1)
+//   --plant-noise (with --plant-dead) also fires an unrelated status message every 200 ms in a far corner: the
+//                 button must still be DEAD (an announcement counts only inside the control's own area)
 //
 // Run it through the lane: scripts/v2-test-lane.sh --wait 3600 --max 3600 -- node scripts/v2-verify/dead-controls.mjs
 // Needs: apps/studio deps installed, the committed release bundle in apps/studio/dist (it boots with
@@ -40,7 +45,14 @@ const arg = (n, d) => {
 };
 const MODES = arg('--mode', 'tauri,browser').split(',');
 const ONLY = arg('--only', 'project,home').split(',');
-const OUT = arg('--out', join(REPO, '.ai/plans/notes/v2-evidence/V2-8-dead-controls-dynamic.md'));
+const REPLAY = arg('--replay', null)?.split('|');
+const OUT = arg(
+  '--out',
+  // a replay judges a handful of states: never let it overwrite the full report
+  REPLAY
+    ? join(REPO, '.ai/plans/notes/v2-evidence/V2-8-dead-controls-replay.md')
+    : join(REPO, '.ai/plans/notes/v2-evidence/V2-8-dead-controls-dynamic.md')
+);
 const JSON_OUT = arg('--json', null);
 
 const require = createRequire(join(STUDIO, 'package.json'));
@@ -138,7 +150,7 @@ async function crawlMode(mode, i) {
       roots: PROJECT_ROOTS,
       secret: null,
     });
-  if (ONLY.includes('home') && rig.homeUrl)
+  if (ONLY.includes('home') && rig.homeUrl && !REPLAY)
     runs.push({
       label: 'home',
       url: rig.homeUrl,
@@ -146,7 +158,7 @@ async function crawlMode(mode, i) {
       roots: HOME_ROOTS,
       secret: rig.homeSecret,
     });
-  if (ONLY.includes('home') && !rig.homeUrl)
+  if (ONLY.includes('home') && !rig.homeUrl && !REPLAY)
     all.unreachable.push({ mode, surface: 'home', why: 'Home server never wrote its info file' });
   for (const run of runs) {
     const c = new Crawler({
@@ -157,17 +169,19 @@ async function crawlMode(mode, i) {
       readySel: run.ready,
       label: run.label,
       plantDead: argv.includes('--plant-dead'),
+      plantNoise: argv.includes('--plant-noise'),
       budgetMs: Number(process.env.CRAWL_BUDGET_MIN || 40) * 60_000,
       onResult: (r) => r.effect === 'DEAD' && console.error(`  DEAD  ${r.surface} · ${r.control}`),
     });
     await c.open();
     try {
-      await c.run(run.roots);
+      if (REPLAY) await c.runPaths(run.roots, REPLAY);
+      else await c.run(run.roots);
     } catch (e) {
       all.unreachable.push({
         mode,
         surface: run.label,
-        why: `crawler crashed: ${String(e.stack || e).slice(0, 400)}`,
+        why: `crawler crashed: ${String(e.stack || e).slice(0, 6000)}`,
       });
     }
     await c.close();

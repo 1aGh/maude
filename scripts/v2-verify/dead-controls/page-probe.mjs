@@ -63,10 +63,37 @@ export const PAGE_PROBE = String.raw`(() => {
     return null;
   };
   const isCanvasContent = (el) => !!el.closest('[data-dc-screen]') && !/^Artboard /.test(el.getAttribute('aria-label') || '');
+  const REGION_SEL = '[role=dialog],[role=menu],[role=listbox],[role=tooltip],aside,nav,header,main,section,[data-testid]';
+  const regionEl = (el) => (!el || el === document.body ? document.body : el.closest(REGION_SEL) || document.body);
   const regionOf = (el) => {
-    if (!el || el === document.body) return 'body';
-    const r = el.closest('[role=dialog],[role=menu],[role=listbox],[role=tooltip],aside,nav,header,main,section,[data-testid]');
-    return r ? (r.getAttribute('data-testid') || r.getAttribute('aria-label') || r.getAttribute('role') || r.tagName) : 'body';
+    const r = regionEl(el);
+    return r === document.body ? 'body' : (r.getAttribute('data-testid') || r.getAttribute('aria-label') || r.getAttribute('role') || r.tagName);
+  };
+  // A live region: an element a screen reader reads out when it changes.
+  const LIVE_SEL = '[role=status],[role=alert],[aria-live]:not([aria-live=off])';
+  const asEl = (n) => (n && n.nodeType === 1 ? n : n && n.parentElement) || null;
+  // The live region a mutation touched, if any: the region itself added, one added inside the node, or text
+  // changed inside one.
+  const liveOfMutation = (m) => {
+    const hits = [];
+    for (const n of m.addedNodes || []) {
+      if (n.nodeType !== 1) continue;
+      if (n.matches?.(LIVE_SEL)) hits.push(n);
+      else hits.push(...(n.querySelectorAll?.(LIVE_SEL) || []));
+    }
+    const host = asEl(m.target);
+    const up = host && host.closest ? host.closest(LIVE_SEL) : null;
+    if (up) hits.push(up);
+    return hits;
+  };
+  // "Own area" of the clicked control: the region (dialog, menu, panel, test-id'd block …) it sits in — or, for a
+  // control with none, its own container. An announcement counts for a control only inside that area: a "Saved"
+  // status ticking in the corner while a dead button is clicked is not that button's doing.
+  const ownAreaOf = (el) => {
+    if (!el) return null;
+    const r = regionEl(el.parentElement);
+    if (r !== document.body) return r;
+    return el.parentElement && el.parentElement !== document.body ? el.parentElement : el;
   };
 
   function enumerate() {
@@ -132,7 +159,7 @@ export const PAGE_PROBE = String.raw`(() => {
   let st = null;
   let mo = null;
   function start() {
-    st = { announced: 0, triggers: triggerText(), fields: fieldValues(), clips: clips.length, muts: 0, self: 0, aria: [], url: location.href, popups: popups(), region: regionOf(document.activeElement), opens: opens.length, checked: target && 'checked' in target ? target.checked : null, value: target && 'value' in target ? target.value : null };
+    st = { area: ownAreaOf(target), announced: 0, triggers: triggerText(), fields: fieldValues(), clips: clips.length, muts: 0, self: 0, aria: [], url: location.href, popups: popups(), region: regionOf(document.activeElement), opens: opens.length, checked: target && 'checked' in target ? target.checked : null, value: target && 'value' in target ? target.value : null };
     mo = new MutationObserver((list) => {
       for (const m of list) {
         if (m.type === 'attributes' && m.attributeName === 'data-crawl-target') continue;
@@ -141,8 +168,12 @@ export const PAGE_PROBE = String.raw`(() => {
           continue;
         }
         if (inTooltip(m.target) || [...(m.addedNodes || [])].some(inTooltip) || [...(m.removedNodes || [])].some((x) => x.nodeType === 1 && x.matches?.('[role=tooltip],[data-tooltip],.tooltip'))) continue;
-        // a live region (re)inserted is an announcement, even when it says the same line as before
-        for (const n of m.addedNodes || []) if (n.nodeType === 1 && (n.matches?.('[role=status],[role=alert]') || n.querySelector?.('[role=status],[role=alert]'))) st.announced++;
+        // a live region (re)inserted or changed INSIDE the clicked control's own area is an announcement, even when
+        // it says the same line as before; one anywhere else is somebody else's
+        for (const live of liveOfMutation(m)) {
+          const a = st.area;
+          if (a && (a.contains(live) || live.contains(a) || (target && target.contains(live)))) { st.announced++; break; }
+        }
         const onSelf = target && (m.target === target || target.contains(m.target));
         if (onSelf && m.type === 'attributes' && /^(class|style|data-focus|data-hover|data-state)/.test(m.attributeName || '')) { st.self++; continue; }
         st.muts++;

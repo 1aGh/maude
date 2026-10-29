@@ -53,8 +53,11 @@ export function tauriStub(homeSecret) {
 }
 
 // The crawler's own red test (`--plant-dead`): a visible button in the shell that does nothing.
-export const PLANT_DEAD = `(() => {
+// `--plant-noise` adds what a real shell does around it: a status message in a far corner, re-announced every
+// 200 ms. It is not the button's doing, so the button must still come out DEAD.
+export const plantDeadScript = (noisy = false) => `(() => {
   if (window.top !== window) return;
+  const noisy = ${noisy ? 'true' : 'false'};
   const add = () => {
     if (!document.body || document.querySelector('[data-testid="crawl-planted-dead"]')) return;
     const b = document.createElement('button');
@@ -62,10 +65,24 @@ export const PLANT_DEAD = `(() => {
     b.textContent = 'Planted dead';
     b.style.cssText = 'position:fixed;left:50%;top:8px;z-index:2147483647';
     document.body.appendChild(b);
+    if (noisy) {
+      const region = document.createElement('footer');
+      region.dataset.testid = 'crawl-noise-region';
+      region.style.cssText = 'position:fixed;right:8px;bottom:8px;z-index:2147483646';
+      document.body.appendChild(region);
+      let n = 0;
+      setInterval(() => {
+        const s = document.createElement('div');
+        s.setAttribute('role', 'status');
+        s.textContent = 'Saved ' + ++n;
+        region.replaceChildren(s);
+      }, 200);
+    }
   };
   document.addEventListener('DOMContentLoaded', add);
   setInterval(add, 500);
 })();`;
+export const PLANT_DEAD = plantDeadScript(false);
 
 export class Crawler {
   constructor({
@@ -81,6 +98,7 @@ export class Crawler {
     log = (m) => console.error(m),
     onResult = null,
     plantDead = false,
+    plantNoise = false,
   }) {
     Object.assign(this, {
       browser,
@@ -95,6 +113,7 @@ export class Crawler {
       log,
       onResult,
       plantDead,
+      plantNoise,
     });
     this.results = [];
     this.errors = [];
@@ -121,7 +140,7 @@ export class Crawler {
         `try { sessionStorage.setItem('maude-home-page-secret', ${JSON.stringify(this.homeSecret)}); } catch {}`
       );
     await this.context.addInitScript(PAGE_PROBE);
-    if (this.plantDead) await this.context.addInitScript(PLANT_DEAD);
+    if (this.plantDead) await this.context.addInitScript(plantDeadScript(this.plantNoise));
     await this.context.route('**/*', (route) => {
       const u = route.request().url();
       if (isLoopback(u)) return route.continue();
@@ -342,6 +361,75 @@ export class Crawler {
       );
       await this.crawlState(st, queue);
     }
+  }
+
+  /**
+   * `--replay`: walk the given state paths (' › '-joined names, as the report prints them) and judge only the
+   * last one. A path's first segment names a root; each later segment is the control clicked in the state before.
+   */
+  async runPaths(roots, paths) {
+    const walk = async (path) => {
+      const [rootName, ...segs] = path.split(' › ').map((x) => x.trim());
+      const root = roots.find((r) => r.name === rootName);
+      if (!root) throw new Error(`--replay: no root named "${rootName}"`);
+      let steps = [...root.steps];
+      let name = rootName;
+      let parentIds = null;
+      let popup = false;
+      for (const seg of segs) {
+        if (!(await this.replay(steps))) throw new Error(`--replay: could not reach "${name}"`);
+        const here = await this.controls();
+        const c = here.find((x) => (x.tid || x.name) === seg);
+        if (!c)
+          throw new Error(
+            `--replay: "${seg}" is not in the state "${name}" (there: ${here
+              .map((x) => x.tid || x.name)
+              .slice(0, 400)
+              .join(' | ')})`
+          );
+        parentIds = new Set(here.map((x) => x.id));
+        steps = [
+          ...steps,
+          { kind: 'click', frame: c.frame, key: c.key, occ: c.occ, label: c.tid || c.name },
+        ];
+        name = `${name} › ${seg}`;
+        popup = !!c.haspopup || /^menuitem/.test(c.role);
+      }
+      return { steps, name, parentIds, depth: segs.length, popup };
+    };
+    // the judged state's parent is read FIRST, before any setup path changes the fixture: a control a setup
+    // path creates (the Desktop artboard) is then new in the judged state, as it is in a full crawl
+    const last = await walk(paths[paths.length - 1]);
+    for (const p of paths.slice(0, -1)) {
+      // reaching a state executes its clicks, so a setup path (create an artboard) takes effect right here
+      const st = await walk(p);
+      await this.replay(st.steps);
+    }
+    this.log(`[${this.mode}] ${this.label} · replay: ${last.name}`);
+    if (await this.replay(last.steps)) {
+      const here = await this.controls();
+      const fresh = here.filter((c) => !last.parentIds?.has(c.id));
+      const modes = await this.page
+        .evaluate(() =>
+          [...document.querySelectorAll('[data-testid^="palette-mode-"]')]
+            .map(
+              (e) =>
+                `${e.dataset.testid.slice(13)}=${e.getAttribute('aria-pressed') ?? e.getAttribute('aria-selected') ?? e.getAttribute('aria-checked')}`
+            )
+            .join(' ')
+        )
+        .catch(() => '?');
+      this.log(`[${this.mode}] ${this.label} · replay canvas mode: ${modes}`);
+      this.log(
+        `[${this.mode}] ${this.label} · replay state shows ${here.length} controls, ${fresh.length} new; artboard labels: ${
+          here
+            .filter((c) => /^Artboard /.test(c.name))
+            .map((c) => c.name)
+            .join(', ') || 'none'
+        }`
+      );
+    }
+    await this.crawlState(last, []);
   }
 
   async crawlState(st, queue) {

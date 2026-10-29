@@ -60,7 +60,11 @@ try {
     new MutationObserver((l) => {
       for (const m of l)
         for (const n of [...m.addedNodes, ...m.removedNodes])
-          if (n.nodeType === 1 && (n.matches?.('[data-testid="ai-attach-notice"]') || n.querySelector?.('[data-testid="ai-attach-notice"]')))
+          if (
+            n.nodeType === 1 &&
+            (n.matches?.('[data-testid="ai-attach-notice"]') ||
+              n.querySelector?.('[data-testid="ai-attach-notice"]'))
+          )
             window.__muts += 1;
     }).observe(document.body, {
       subtree: true,
