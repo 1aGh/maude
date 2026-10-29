@@ -22,6 +22,7 @@ import {
 } from './access/filters.ts';
 import { currentFrameKey } from './access/frame.ts';
 import { currentAccess, toDesignRel } from './access/request.ts';
+import { saveHold } from './ai/save-hold.ts';
 import { canonicalAnnotations } from './annotations/board-text.ts';
 import {
   type Op as AnnotationOp,
@@ -1432,6 +1433,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   const onCommentsChanged = hooks.onCommentsChanged;
   const onAnnotationsChanged = hooks.onAnnotationsChanged;
   const { paths, cfg } = ctx;
+  // p8-a1-save-hold — a person's save held behind an AI interpreter call says its bytes when it lands
+  saveHold().attach({ emit: (ev, p) => ctx.bus.emit(ev, p), designRoot: paths.designRoot });
 
   // Phase 12.1 — in-memory reorder revert log (Cmd+Z for drag/keyboard moves).
   // Whole-file {before, after} per reorder, keyed by a monotonic seq the client
@@ -1483,6 +1486,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     let replaced = base;
     return sayingCanvasWrites(
       {
+        ...(label ? { label } : {}),
         writing: (abs, content) => {
           ctx.bus.emit('source-writing', {
             rel: path.relative(paths.designRoot, abs),
@@ -2579,8 +2583,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // --- Shared document lane: layout → versioned meta, stamps last_modified. ---
     if (patch.layout !== undefined) {
       let current: Record<string, unknown> = {};
+      // p8-a1-save-hold — a layout move held behind an AI interpreter call is what the meta WILL hold
+      const waiting = saveHold().read(metaAbs);
       try {
-        const parsed = JSON.parse(await Bun.file(metaAbs).text());
+        const parsed = JSON.parse(waiting ?? (await Bun.file(metaAbs).text()));
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
           current = parsed as Record<string, unknown>;
         }
@@ -2612,6 +2618,25 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       // (mergeSharedMetaIntoLocal), so a layout edit doesn't churn the newline.
       const baseText = Object.keys(current).length ? JSON.stringify(current) : null;
       const nextText = `${JSON.stringify(next, null, 2)}\n`;
+      // p8-a1-save-hold — a person's move to a canvas a running interpreter call names waits until the
+      // call is done (+ settle), then lands through this same write and proposal, as theirs
+      if (saveHold().holds(metaAbs)) {
+        let diskText = '';
+        try {
+          diskText = await Bun.file(metaAbs).text();
+        } catch {
+          /* no meta yet */
+        }
+        saveHold().hold(metaAbs, nextText, {
+          base: waiting ?? diskText,
+          landWith: async (bytes, landedBase) => {
+            await Bun.write(metaAbs, bytes);
+            hooks.onMetaChanged?.(file, bytes, landedBase || null);
+            announceWritten(path.relative(paths.designRoot, metaAbs));
+          },
+        });
+        return { ...((await loadCanvasMeta(file)) ?? {}), layout: next.layout };
+      }
       await Bun.write(metaAbs, nextText);
       hooks.onMetaChanged?.(file, nextText, baseText);
       // Same reason as the annotations sidecar below, and the same bug: this

@@ -27,6 +27,7 @@ import {
   type RunScope,
 } from '../ai/run-lifecycle.ts';
 import type { RunRegistry } from '../ai/runs.ts';
+import { saveHold } from '../ai/save-hold.ts';
 import { claimHashOf } from '../ai/write-claim.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import type { AiActivity } from '../collab/ai-activity.ts';
@@ -457,7 +458,15 @@ export function createAgentActivityTracker(
   function shellWindow(call: string, open: boolean): void {
     if (open) shellOpen.add(call);
     else shellOpen.delete(call);
-    openAction({ call, open, files: shellFiles.get(call) ?? [] });
+    const files = shellFiles.get(call) ?? [];
+    // p8-a1-save-hold — while it is open a person's save to these files waits (ai/save-hold.ts)
+    saveHold().window(
+      call,
+      open,
+      files.map((f) => resolve(ctx.paths.repoRoot, f)),
+      actionKey
+    );
+    openAction({ call, open, files });
   }
 
   function onPermission(toolCallId: string | undefined, decided?: { granted: boolean }): void {
