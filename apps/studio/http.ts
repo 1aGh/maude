@@ -683,12 +683,31 @@ function safePathUnderRoot(reqUrl: string, repoRoot: string): string | null {
 
 // `dist/` lives next to server.ts when running source-mode (bun run server.ts)
 // and inside the standalone binary's embedded FS in --compile mode.
-/** `/_config.saveMode` (p8-update-to-accepted): the live sync's DDR-241 mode, null in solo. */
+/**
+ * `/_config.saveMode` (p8-update-to-accepted): the live sync's DDR-241 mode, null in solo.
+ * p8-fix-a F19 — `'pending'` until the hub has answered once (a project that has never heard from it, and
+ * has no remembered answer, is NOT `legacy`): the shell shows "saves the old way" only for a real `legacy`.
+ */
 export function saveModeOf(
-  runtime: { acceptedMode?(): boolean } | null | undefined
-): 'accepted' | 'legacy' | null {
+  runtime: { acceptedMode?(): boolean; acceptedModeKnown?(): boolean } | null | undefined
+): 'accepted' | 'legacy' | 'pending' | null {
   if (!runtime?.acceptedMode) return null;
+  if (runtime.acceptedModeKnown && !runtime.acceptedModeKnown()) return 'pending';
   return runtime.acceptedMode() ? 'accepted' : 'legacy';
+}
+
+/**
+ * p8-fix-a F19 — this project's own page on the cloud dashboard (`<dashboard>/projects/<id>`), for the
+ * links that name a setting on it (Saving). Needs BOTH the configured dashboard and the cell's tenant id
+ * (the dashboard's project id: the studio door builds its sign-in URL from the same pair); absent when
+ * either is missing, and the client falls back to the dashboard root.
+ */
+export function projectDashboardUrl(
+  env: Record<string, string | undefined> = process.env
+): string | null {
+  const dashboard = (env.HUB_DASHBOARD_URL ?? '').replace(/\/+$/, '');
+  const tenant = env.MAUDE_TENANT_ID ?? '';
+  return dashboard && tenant ? `${dashboard}/projects/${encodeURIComponent(tenant)}` : null;
 }
 
 const DIST_DIR = join(HERE, 'dist');
@@ -2758,6 +2777,8 @@ export function createHttp(
               ...(process.env.HUB_DASHBOARD_URL
                 ? { dashboardUrl: process.env.HUB_DASHBOARD_URL }
                 : {}),
+              // F19 — this project's own dashboard page, when the cell knows its id.
+              ...(projectDashboardUrl() ? { projectUrl: projectDashboardUrl() } : {}),
               projectName: process.env.MAUDE_PROJECT_NAME ?? ctx.cfg.name ?? null,
               // WHO the tab is signed in as, and WHAT that makes them —
               // per REQUEST, from the proxy's injected headers, never from

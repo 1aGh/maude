@@ -141,7 +141,10 @@ export function isSaveModeOffer(cfg) {
 export function saveModeState({ cfg, plan }) {
   if (!isSaveModeOffer(cfg)) return null;
   if (cfg.cloud) {
-    const href = cfg.cloud.dashboardUrl;
+    // p8-fix-a F19 — the project's own Saving page when the cell knows its id; else the dashboard root
+    const href = cfg.cloud.projectUrl
+      ? `${String(cfg.cloud.projectUrl).replace(/\/+$/, '')}/saving`
+      : cfg.cloud.dashboardUrl;
     if (!href || !ownsProject(cfg.cloud.role)) return null;
     return { kind: 'save-mode-cloud', line: SAVE_COPY.cloudStatus, action: 'dashboard', href };
   }

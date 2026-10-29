@@ -325,6 +325,8 @@ export interface Context {
           | { op: 'dir.move'; from: string; to: string }
       ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean }> | null;
       acceptedMode?(): boolean;
+      /** p8-fix-a F19 — has the hub (or a remembered answer for this hub) said how the project saves yet? */
+      acceptedModeKnown?(): boolean;
       /** S11.4 — the availability read model's input (sync/availability.ts); a read, never a fetch. */
       availability?(): import('./sync/availability.ts').AvailabilitySource;
       commentsConfirmedOnHub?(slug: string): boolean;
