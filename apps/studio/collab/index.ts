@@ -84,7 +84,15 @@ export function createCollab(ctx: Context, api: Api): Collab {
       // `contested` (p8-undo-collab-refuse): texts a collaborator changed during this step — the
       // home refuses its ⌘Z (annotations/text-steps.ts).
       const contested = registryRef?.takeTextContest(slug) ?? [];
-      ctx.bus.emit('annotations-projected', { slug, board, contested });
+      // `draft` (p8-fix-d F13): only a text session's idle-typing drafts — the home records them
+      // with that session's commit, as one step.
+      const draft = registryRef?.takeDraftOnly(slug) === true;
+      ctx.bus.emit('annotations-projected', {
+        slug,
+        board,
+        contested,
+        ...(draft ? { draft } : {}),
+      });
     },
     onAnnotationsSeeded: (slug, board) => {
       diskBase.set(slug, board);
