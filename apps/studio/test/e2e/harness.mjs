@@ -259,6 +259,22 @@ export async function openCanvas(server) {
       return press(x, y, opts);
     };
   }
+  // Esc runs a ladder (tool, then Hand, then out of Preview into Edit, S4.8), and every scenario resets with a few
+  // Escapes. They want the layer, so when the mode was left, put it back the way a click on the palette does (a DOM
+  // click: it must not take the keyboard focus off the canvas).
+  const want = { mode: process.env.E2E_LEGACY === '1' ? null : 'preview' };
+  const pressKey = page.keyboard.press.bind(page.keyboard);
+  page.keyboard.press = async (key, opts) => {
+    await pressKey(key, opts);
+    if (key !== 'Escape' || !want.mode) return;
+    const left = await page.evaluate((m) => {
+      const b = document.querySelector(`[data-testid="palette-mode-${m}"]`);
+      if (!b || b.getAttribute('aria-pressed') === 'true') return false;
+      b.click();
+      return true;
+    }, want.mode);
+    if (left) await page.waitForTimeout(150);
+  };
   const c = {
     browser,
     page,
@@ -402,6 +418,7 @@ export async function openCanvas(server) {
     /** Switch the shell's mode ('edit' | 'preview'): the layer is quiet in Edit and live in Preview (S4.9). */
     async setMode(mode) {
       if (process.env.E2E_LEGACY === '1') return;
+      want.mode = mode;
       await page.locator(`[data-testid="palette-mode-${mode}"]`).first().click({ timeout: 10_000 });
       await page.waitForTimeout(500);
       await page.mouse.click(frameBox.x + 12, frameBox.y + frameBox.height - 12); // focus back on the canvas

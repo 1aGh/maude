@@ -74,7 +74,7 @@ after(async () => {
 
 async function reset() {
   for (let i = 0; i < 3; i++) await c.page.keyboard.press('Escape');
-  await c.page.keyboard.press('v');
+  // (no `v`: it is Edit's Select, which would leave Preview; Preview's resting tool is the Hand)
   await sleep(200);
 }
 
