@@ -12,6 +12,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { humanReport } from '../migrate/cli.ts';
 import { applyMigration, EXIT, planMigration } from '../migrate/engine.ts';
 import { fakeHub, fixtureProject, opts, type Project, run } from './_migrate-harness.ts';
 
@@ -226,5 +227,19 @@ describe('Update project — refusals of the switch', () => {
     const r = await run(opts(p));
     expect(r.exitCode).toBe(EXIT.done);
     expect(r.project.linked).toBe(null);
+  });
+});
+
+describe('maude migrate v2 — the printed report names the save mode', () => {
+  test('dry run, then a switch that failed after the format moved', async () => {
+    const hub = legacyFormat1();
+    const o = opts(p as Project, { hub: owner, hubClient: hub.client });
+    expect(humanReport(await planMigration(o))).toContain(
+      'saving the old way → accepted revisions (with --apply)'
+    );
+    hub.state.refuseMode = { status: 503, code: 'retryable' };
+    const out = humanReport(await run(o));
+    expect(out).toContain('saving the old way (not switched)');
+    expect(out).toContain('format updated, still saving the old way (retryable)');
   });
 });
