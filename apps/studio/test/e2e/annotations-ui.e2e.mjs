@@ -443,10 +443,9 @@ describe('R7 — Task 19: drafts and a collaborator while editing', () => {
     assert.ok(await c.editorState(), 'still editing');
   });
 
-  // todo, not skip: ⌘Z restores the field's whole earlier value ('shared A') and drops the collaborator's 'Peer: '
-  // prefix. The text merge (setTextMerge) is not registered in the canvas iframe, so undo's inverse takes the
-  // unmerged path. A product bug in undo-merge that needs a design call (pr-followups, p8-browser-e2e-format).
-  test('a collaborator’s edit shows a marker; the commit keeps both texts; undo removes only mine', { todo: 'undo drops a collaborator’s concurrent text edit — pr-followups' }, async () => {
+  // p8-undo-collab-refuse (Michal option b2): ⌘Z on a text a collaborator changed meanwhile is
+  // refused — their text stays and the shell says so (its stale-entry notice).
+  test('a collaborator’s edit shows a marker; the commit keeps both texts; undo is refused and keeps theirs', async () => {
     const cur = (await waitForBoard(server.root, () => true)).get('duo').text;
     await peerOps(server, [
       { op: 'patch', id: 'duo', set: { text: `Peer: ${cur}` }, expect: { text: cur } },
@@ -464,11 +463,19 @@ describe('R7 — Task 19: drafts and a collaborator while editing', () => {
     await c.page.keyboard.press('Enter');
     let board = await waitForBoard(server.root, (b) => b.get('duo')?.text === 'Peer: shared A B');
     assert.equal(board.get('duo').text, 'Peer: shared A B');
-    // Undo reverts this edit only — the collaborator's prefix stays.
+    // Undo is refused: the collaborator changed this text during the edit, so nothing is undone.
     await sleep(300);
     await c.page.keyboard.press('Meta+z');
-    board = await waitForBoard(server.root, (b) => b.get('duo')?.text === 'Peer: shared');
-    assert.equal(board.get('duo').text, 'Peer: shared');
+    const notice = await c.page
+      .getByText(/Can't undo .+ changed it since/)
+      .first()
+      .waitFor({ timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+    assert.ok(notice, 'the "can’t undo — someone else changed it since" notice is shown');
+    await sleep(800);
+    board = await waitForBoard(server.root, () => true);
+    assert.equal(board.get('duo').text, 'Peer: shared A B', 'the collaborator’s text stays');
   });
 
   test('a collaborator deletes the sticky mid-edit — the editor stays, Enter restores it with the text', async () => {
