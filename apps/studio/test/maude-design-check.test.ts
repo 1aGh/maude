@@ -8,7 +8,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MESSAGE_ID_RE } from '../canvas-edit.ts';
 import { ID_CHECK_SOURCE } from '../check/ids.ts';
-import { ARTBOARD_ID_RE, checkFile, formatFindings, kindOf } from '../check/index.ts';
+import {
+  ARTBOARD_ID_RE,
+  checkFile,
+  checkIntroduced,
+  findingKey,
+  formatFindings,
+  kindOf,
+  splitIntroduced,
+} from '../check/index.ts';
 import { AGENT_ID_RE } from '../routes/agent.ts';
 
 const ROOT = join(import.meta.dir, '..', '..', '..');
@@ -251,6 +259,64 @@ describe('checkFile', () => {
     const f = r.errors.find((e) => e.code === 'meta-unknown-field');
     expect(f?.what).toMatch(/^"k [^"]{0,57}…" is not a \.meta\.json field$/);
     expect(formatFindings([r])).not.toContain('\nignore');
+  });
+});
+
+// Michal 2026-10-29 (kg maude/v2-michal-gate-blocks-only-introduced-findings): the AI-write gates
+// block only on findings the write introduced. Matched by what a finding is, never by its line.
+describe('checkIntroduced — introduced vs pre-existing', () => {
+  /** CANVAS plus one `{[n].map((d) => <DCArtboard id={`<prefix>-${d}`} … />)}` before its end. */
+  const withMap = (src: string, prefix: string, n = 1) =>
+    src.replace(
+      '    </DesignCanvas>',
+      `      {[${n}].map((d) => <DCArtboard id={\`${prefix}-\${d}\`} width={8} height={8} />)}\n    </DesignCanvas>`
+    );
+  const MAPPED = withMap(CANVAS, 'm');
+
+  test('a finding the snapshot had, on a shifted line, is existing — not an error', () => {
+    const shifted = MAPPED.replace(
+      '<h1 data-cd-id="title">Hi</h1>',
+      '\n\n<h1 data-cd-id="title">Hi</h1>'
+    );
+    const r = checkIntroduced('ui/C.tsx', shifted, { against: MAPPED, strict: true });
+    expect(r.ok).toBe(true);
+    expect(r.errors).toEqual([]);
+    expect(r.existing.map((f) => f.code)).toEqual(['artboard-id-expression']);
+    expect(checkFile('ui/C.tsx', shifted, { against: MAPPED }).ok).toBe(false); // the full check
+  });
+
+  test('a second, a pasted copy, or a swapped mapped id is introduced; a new file is all introduced', () => {
+    const second = withMap(MAPPED, 'n', 2);
+    const pasted = withMap(MAPPED, 'm');
+    const swapped = withMap(CANVAS, 'swap');
+    for (const after of [second, pasted, swapped]) {
+      const r = checkIntroduced('ui/C.tsx', after, { against: MAPPED, strict: true });
+      expect(r.errors.map((f) => f.code)).toEqual(['artboard-id-expression']);
+    }
+    const fresh = checkIntroduced('ui/C.tsx', MAPPED, { strict: true });
+    expect(fresh.ok).toBe(false);
+    expect(fresh.existing).toEqual([]);
+    // the key is a digest: no file text rides the finding
+    expect(JSON.stringify(fresh)).not.toContain('m-$');
+  });
+
+  test('a file that does not parse never counts as pre-existing (behind it nothing is checked)', () => {
+    const broken = `${MAPPED}\nexport const = ;\n`;
+    const r = checkIntroduced('ui/C.tsx', `${broken}// more\n`, { against: broken, strict: true });
+    expect(r.ok).toBe(false);
+    expect(r.errors.map((f) => f.code)).toEqual(['parse']);
+  });
+
+  test('findingKey ignores the line, splitIntroduced counts a multiset', () => {
+    const at = (line: number) => ({
+      code: 'artboard-duplicate',
+      where: `ui/C.tsx:${line} #hero`,
+      what: `two artboards have id="hero" (the first is on line ${line - 1})`,
+      fix: 'x',
+    });
+    expect(findingKey(at(4))).toBe(findingKey(at(40)));
+    const s = splitIntroduced([at(4)], [at(9), at(12)]);
+    expect([s.existing.length, s.introduced.length]).toEqual([1, 1]);
   });
 });
 

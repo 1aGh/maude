@@ -70,7 +70,7 @@ import {
 } from './bash-guard.mjs';
 import { realpathDeep } from './confine-out.mjs';
 import { sessionRoot } from './confine-root.mjs';
-import { cleanText, fileText, findingLine } from './finding-text.mjs';
+import { cleanFinding, cleanText, fileText, findingLine } from './finding-text.mjs';
 import { DESIGN_REL, findProjectRoot, locateStudio, postStudio } from './studio-locate.mjs';
 
 export const HOOK_EVENTS = [
@@ -780,19 +780,33 @@ function loadSnapshot(ctx, rel) {
 }
 
 /**
- * `maude design check` of one designRoot file → { ok, errors } or null (could not run: fail open).
- * The studio's warm validator when it is up, else a local run of the verb.
+ * `maude design check` of one designRoot file → { ok, errors, existing } or null (could not run:
+ * fail open). The studio's warm validator when it is up, else a local run of the verb. Michal
+ * 2026-10-29 (kg maude/v2-michal-gate-blocks-only-introduced-findings): `errors` are only the
+ * findings this write INTRODUCED against `snapshot` (none = a new file: all of them), `existing`
+ * the ones the file already had — those never block. A studio too old to split answers without
+ * `existing`: every error then blocks, as before.
  */
 async function check(ctx, studio, rel, tier, snapshot, self) {
   if (studio) {
     const r = await postStudio(
       studio,
       '/_api/agent/check',
-      { path: rel, tier, strict: true, ...(snapshot?.existed ? { snapshot: snapshot.rel } : {}) },
+      {
+        path: rel,
+        tier,
+        strict: true,
+        introduced: true,
+        ...(snapshot?.existed ? { snapshot: snapshot.rel } : {}),
+      },
       { timeoutMs: 900 }
     );
     if (r?.status === 200 && r.body && typeof r.body.ok === 'boolean')
-      return { ok: r.body.ok, errors: Array.isArray(r.body.errors) ? r.body.errors : [] };
+      return {
+        ok: r.body.ok,
+        errors: Array.isArray(r.body.errors) ? r.body.errors : [],
+        existing: Array.isArray(r.body.existing) ? r.body.existing : [],
+      };
   }
   if (!self) return null;
   const args = [
@@ -801,6 +815,7 @@ async function check(ctx, studio, rel, tier, snapshot, self) {
     '--tier',
     tier,
     '--json',
+    '--introduced',
     '--root',
     ctx.root,
   ];
@@ -813,7 +828,8 @@ async function check(ctx, studio, rel, tier, snapshot, self) {
   try {
     const results = JSON.parse(p.stdout);
     const errors = results.flatMap((x) => x.errors ?? []);
-    return { ok: errors.length === 0, errors };
+    const existing = results.flatMap((x) => (Array.isArray(x.existing) ? x.existing : []));
+    return { ok: errors.length === 0, errors, existing };
   } catch {
     return null;
   }
@@ -1059,6 +1075,7 @@ async function postEdit(ctx, input, self) {
   const snap = toolUseId ? loadSnapshot(ctx, snapRel(ctx, toolUseId)) : null;
   const studio = await locateStudio(ctx.root, { timeoutMs: LOCATE_MS });
   const res = await check(ctx, studio, t.rel, 'fast', snap, self);
+  const had = alreadyThere(res?.existing);
   if (res && !res.ok) {
     // roll back ONLY if the file still holds exactly what the tool wrote
     let restored = false;
@@ -1076,11 +1093,11 @@ async function postEdit(ctx, input, self) {
     }
     return {
       decision: 'block',
-      reason: `${res.errors.map(findingLine).join('\n')}\n${
+      reason: `${res.errors.map((f) => findingLine(f)).join('\n')}\n${
         restored
           ? 'The file was restored to before this edit — make the change again without these problems.'
           : 'The file was left as it is (it changed after this edit) — fix these problems.'
-      }`,
+      }${had ? `\n${had.brief}` : ''}`,
     };
   }
   let artboards = null; // unknown without the studio's map
@@ -1094,12 +1111,30 @@ async function postEdit(ctx, input, self) {
     if (r?.status === 200 && Array.isArray(r.body?.artboards)) artboards = r.body.artboards;
   }
   recordTouch(ctx, t.rel, { by: input.agent_type ?? 'main', via: 'tool', artboards });
-  const notes = [syncedBoardHint(ctx, t.rel), dsWarnings(ctx, t.rel, input, self, t0)].filter(
-    Boolean
-  );
+  const notes = [
+    had?.full,
+    syncedBoardHint(ctx, t.rel),
+    dsWarnings(ctx, t.rel, input, self, t0),
+  ].filter(Boolean);
   return notes.length
     ? { hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: notes.join('\n') } }
     : null;
+}
+
+const EXISTING_SHOWN = 5;
+/**
+ * The errors a file already had before this write, for the agent: `full` (pre-existing only — the
+ * edit is kept; additionalContext) and `brief` (beside a block, one line). Null when there are none.
+ */
+function alreadyThere(existing) {
+  if (!Array.isArray(existing) || !existing.length) return null;
+  const n = existing.length;
+  const lines = existing.slice(0, EXISTING_SHOWN).map((f) => findingLine(f, 'pre-existing'));
+  if (n > EXISTING_SHOWN) lines.push(`… and ${n - EXISTING_SHOWN} more`);
+  return {
+    full: `${n === 1 ? 'This finding was' : `These ${n} findings were`} already in the file before this edit, so they do not block it (fix them only if the task asks for it):\n${lines.join('\n')}`,
+    brief: `${n === 1 ? 'One more finding was' : `${n} more findings were`} already in the file before this edit and do not block (${[...new Set(existing.map((f) => cleanFinding(f).code))].join(', ')}).`,
+  };
 }
 
 /** The files the `ds` checker reads S-rules / system structure from (the old hook's filter). */
@@ -1326,7 +1361,7 @@ async function subagentStop(ctx, input, self) {
     if (!hs.some((h) => ownsPath(h.doc, `${DESIGN_REL}/${rel}`))) continue;
     if (!existsSync(join(ctx.designRoot, rel))) continue;
     const res = await check(ctx, studio, rel, 'stop', loadSnapshot(ctx, baseRel(ctx, rel)), self);
-    if (res && !res.ok) problems.push(...res.errors.map(findingLine));
+    if (res && !res.ok) problems.push(...res.errors.map((f) => findingLine(f)));
   }
   if (!problems.length) return null;
   const sig = sha(problems.join('\n'));
@@ -1344,7 +1379,7 @@ async function stop(ctx, input, self) {
   for (const rel of Object.keys(touched)) {
     if (!existsSync(join(ctx.designRoot, rel))) continue;
     const res = await check(ctx, studio, rel, 'stop', loadSnapshot(ctx, baseRel(ctx, rel)), self);
-    if (res && !res.ok) problems.push(...res.errors.map(findingLine));
+    if (res && !res.ok) problems.push(...res.errors.map((f) => findingLine(f)));
   }
   // 2. the screenshot gate — only with a studio: `maude design screenshot` needs one to render
   const missing = studio ? missingShots(ctx, touched) : [];

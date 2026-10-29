@@ -36,6 +36,8 @@
 // Bun only (oxc-parser). No fs: callers read the bytes, so the hook can check exactly what was
 // written and the studio's warm validator can check a body it was sent.
 
+import { createHash } from 'node:crypto';
+
 import { parseSync } from 'oxc-parser';
 
 import { cleanFinding, cleanText, fileText, findingLine } from '../../../cli/lib/finding-text.mjs';
@@ -75,6 +77,10 @@ export interface Finding {
   fix: string;
   line?: number;
   element?: { tag: string; label: string; artboard: string | null };
+  /** What tells this finding apart from another of its code when `where`/`what` do not: a hash
+   *  of the offending source (a mapped id's expression, a DCArtboard tag without an id, an id that
+   *  is not an id). Identity only (`findingKey`): a digest, so no file text rides it; never printed. */
+  key?: string;
 }
 
 export interface CheckResult {
@@ -138,9 +144,17 @@ function lineAt(src: string, offset: number): number {
 
 type Node = { type?: string; start?: number; [k: string]: unknown };
 
+type ArtboardTag = {
+  id: string | null;
+  start: number;
+  dynamic: boolean;
+  /** the source span that identifies this tag's id problem: the id attribute, else the tag */
+  span: [number, number];
+};
+
 /** Every `<DCArtboard …>` opening element with its literal `id` (or why it has none). */
-function artboardsOf(program: unknown): { id: string | null; start: number; dynamic: boolean }[] {
-  const out: { id: string | null; start: number; dynamic: boolean }[] = [];
+function artboardsOf(program: unknown): ArtboardTag[] {
+  const out: ArtboardTag[] = [];
   const stack: unknown[] = [program];
   while (stack.length) {
     const n = stack.pop();
@@ -158,10 +172,16 @@ function artboardsOf(program: unknown): { id: string | null; start: number; dyna
           (a) => a.type === 'JSXAttribute' && (a.name as Node & { name?: string })?.name === 'id'
         );
         const value = idAttr?.value as (Node & { value?: unknown }) | undefined;
-        if (!idAttr) out.push({ id: null, start: node.start ?? 0, dynamic: false });
+        const start = node.start ?? 0;
+        const spanOf = (x: Node | undefined): [number, number] => {
+          const from = x?.start ?? start;
+          const to = x?.end;
+          return [from, typeof to === 'number' ? to : from];
+        };
+        if (!idAttr) out.push({ id: null, start, dynamic: false, span: spanOf(node) });
         else if (value?.type === 'Literal' && typeof value.value === 'string')
-          out.push({ id: value.value, start: node.start ?? 0, dynamic: false });
-        else out.push({ id: null, start: node.start ?? 0, dynamic: true });
+          out.push({ id: value.value, start, dynamic: false, span: spanOf(idAttr) });
+        else out.push({ id: null, start, dynamic: true, span: spanOf(idAttr) });
       }
     }
     for (const k in node) {
@@ -222,30 +242,34 @@ function checkCanvasTsx(rel: string, text: string, opts: CheckOptions, r: CheckR
   };
   for (const ab of artboardsOf(parsed.program)) {
     const line = lineAt(text, ab.start);
+    // identity only (findingKey): a digest of the offending source, whitespace-insensitive
+    const key = sourceKey(text.slice(ab.span[0], ab.span[1]));
     if (ab.id === null) {
-      r.errors.push(
-        finding(
+      r.errors.push({
+        ...finding(
           ab.dynamic ? 'artboard-id-expression' : 'artboard-id-missing',
           `${rel}:${line}`,
           ab.dynamic ? 'a DCArtboard id must be a plain string' : 'a DCArtboard has no id',
           'write id="kebab-name" on the DCArtboard',
           line
-        )
-      );
+        ),
+        key,
+      });
       continue;
     }
     if (!ARTBOARD_ID_RE.test(ab.id)) {
       // never echo it: the id is file text, and this one is not an id. One the snapshot already
       // had (a peer's, a clone's) is a warning — the model never sees warnings in a block reason.
-      (hadBefore(ab.id) ? r.warnings : r.errors).push(
-        finding(
+      (hadBefore(ab.id) ? r.warnings : r.errors).push({
+        ...finding(
           'artboard-id-format',
           `${rel}:${line}`,
           `the DCArtboard id on line ${line} is not a valid id`,
           'write id="kebab-name" (letters, digits, - _ . : — at most 128) on the DCArtboard',
           line
-        )
-      );
+        ),
+        key,
+      });
       continue;
     }
     const first = seen.get(ab.id);
@@ -473,6 +497,76 @@ export function checkFile(rel: string, text: string, opts: CheckOptions = {}): C
   r.ok = r.errors.length === 0;
   r.ms = Math.round((performance.now() - t0) * 10) / 10;
   return r;
+}
+
+// ── introduced vs pre-existing (Michal 2026-10-29, kg maude/v2-michal-gate-blocks-only-introduced-findings)
+// The AI-write gates (PostToolUse post-edit against the edit's snapshot, Stop / SubagentStop
+// against the run's base) block only on findings the write INTRODUCED; the ones the file already
+// had go back to the agent as context. A finding is matched across the write by what it is, never
+// by its line (an edit shifts lines): code + `where` without its :line[:col] + `what` without its
+// "line N" + `key` (the offending source, where where/what do not carry it). Counted as a
+// multiset: a finding is introduced when its key occurs more often after the write than before —
+// so a second mapped id, or the same one pasted twice, still blocks.
+
+/** A finding's `key`: a digest of the offending source, so the finding carries no file text. */
+const sourceKey = (src: string) =>
+  createHash('sha256').update(src.replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 20);
+
+/** A finding's identity across an edit: no line numbers, the offending source when it has one. */
+export function findingKey(f: Finding): string {
+  return [
+    f.code,
+    f.where.replace(/:\d+(?::\d+)?(?=$|[\s#›])/g, ''),
+    f.what.replace(/\bline \d+/g, 'line'),
+    f.key ?? '',
+  ].join('\u0000');
+}
+
+/** A finding that hides every other rule (the file does not parse) never counts as pre-existing:
+ *  behind it the check sees nothing the write could have added. */
+const blinds = (f: Finding, rel: string) =>
+  f.code === 'parse' || f.code === 'json' || (f.code === 'board-drop' && f.where === rel);
+
+/** Split `after`'s findings into those the write introduced and those `before` already had. */
+export function splitIntroduced(
+  before: readonly Finding[],
+  after: readonly Finding[],
+  rel = ''
+): { introduced: Finding[]; existing: Finding[] } {
+  const had = new Map<string, number>();
+  for (const f of before) {
+    if (blinds(f, rel)) continue;
+    const k = findingKey(f);
+    had.set(k, (had.get(k) ?? 0) + 1);
+  }
+  const introduced: Finding[] = [];
+  const existing: Finding[] = [];
+  for (const f of after) {
+    const k = findingKey(f);
+    const n = had.get(k) ?? 0;
+    if (n > 0 && !blinds(f, rel)) {
+      had.set(k, n - 1);
+      existing.push(f);
+    } else introduced.push(f);
+  }
+  return { introduced, existing };
+}
+
+/**
+ * `checkFile` for a gate on an AI write: `errors` are only the findings the write introduced
+ * against `opts.against` (the bytes before it), `existing` the errors the file already had. No
+ * `against` (a new file) → every finding is introduced. `ok` = nothing introduced.
+ */
+export function checkIntroduced(
+  rel: string,
+  text: string,
+  opts: CheckOptions = {}
+): CheckResult & { existing: Finding[] } {
+  const after = checkFile(rel, text, opts);
+  if (typeof opts.against !== 'string') return { ...after, existing: [] };
+  const before = checkFile(rel, opts.against, { ...opts, against: null });
+  const { introduced, existing } = splitIntroduced(before.errors, after.errors, rel);
+  return { ...after, ok: introduced.length === 0, errors: introduced, existing };
 }
 
 /** `[code] where · what · fix` lines — what the hook's block reason and the CLI print. */

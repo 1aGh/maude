@@ -2,7 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { artboardIdsOfSource, checkFile, formatFindings } from '../check/index.ts';
+import { artboardIdsOfSource, checkFile, checkIntroduced, formatFindings } from '../check/index.ts';
 import { diskCanvasArtboardIds } from '../check/link-resolver.ts';
 
 const argv = process.argv.slice(2);
@@ -11,10 +11,11 @@ let json = false;
 let strict = false;
 let tier = 'fast';
 let against;
+let introducedOnly = false;
 let rootArg;
 const usage = (msg) => {
   process.stderr.write(
-    `maude design check: ${msg}\nusage: maude design check <file…> [--json] [--strict] [--tier fast|stop] [--against <snapshot>]\n`
+    `maude design check: ${msg}\nusage: maude design check <file…> [--json] [--strict] [--tier fast|stop] [--against <snapshot>] [--introduced]\n`
   );
   process.exit(2);
 };
@@ -26,6 +27,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (flag === '--strict') strict = true;
   else if (flag === '--tier') tier = value();
   else if (flag === '--against') against = value();
+  else if (flag === '--introduced') introducedOnly = true;
   else if (flag === '--root') rootArg = value();
   else if (flag.startsWith('--')) usage(`unknown flag ${flag}`);
   else files.push(w);
@@ -95,7 +97,7 @@ for (const f of files) {
     if (existsSync(src)) artboards = artboardIdsOfSource(src, readFileSync(src, 'utf8'));
   }
   results.push(
-    checkFile(r.rel, text, {
+    (introducedOnly ? checkIntroduced : checkFile)(r.rel, text, {
       against: againstText,
       tier,
       strict,

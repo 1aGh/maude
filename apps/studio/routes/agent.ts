@@ -32,7 +32,7 @@ import {
 } from '../agent-runs.ts';
 import type { RunRecord } from '../ai/run-lifecycle.ts';
 import type { RunRegistry } from '../ai/runs.ts';
-import { artboardIdsOfSource, checkFile } from '../check/index.ts';
+import { artboardIdsOfSource, checkFile, checkIntroduced, type Finding } from '../check/index.ts';
 import { checkIds, walkIdElements } from '../element-ids.ts';
 import type { RouteSpec } from './table.ts';
 
@@ -815,12 +815,18 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
       const srcRel = rel.endsWith('.meta.json') ? rel.replace(/\.meta\.json$/, '.tsx') : null;
       const src = srcRel ? readDesignFile(deps, srcRel) : null;
       const artboards = srcRel && src !== null ? artboardIdsOfSource(srcRel, src) : null;
-      const r = checkFile(rel, text, { against, tier: b.tier, strict: true, artboards });
-      if (r.ok) return json(200, { ok: true });
-      return json(200, {
-        ok: false,
-        errors: r.errors.map((e) => ({ code: e.code, where: e.where, what: e.what, fix: e.fix })),
-      });
+      const opts = { against, tier: b.tier, strict: true, artboards } as const;
+      // `introduced: true` (the hook's gates): errors = only what the write added against the
+      // snapshot, `existing` = what the file already had (Michal 2026-10-29). A new file → all.
+      const r =
+        b.introduced === true
+          ? checkIntroduced(rel, text, opts)
+          : { ...checkFile(rel, text, opts), existing: [] };
+      const shown = (list: readonly Finding[]) =>
+        list.map((e) => ({ code: e.code, where: e.where, what: e.what, fix: e.fix }));
+      const existing = r.existing.length ? { existing: shown(r.existing) } : {};
+      if (r.ok) return json(200, { ok: true, ...existing });
+      return json(200, { ok: false, errors: shown(r.errors), ...existing });
     }),
     spec({ path: '/_api/agent/edit/touched' }, (b) => {
       const session = key(b, 'session');
