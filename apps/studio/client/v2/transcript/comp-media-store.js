@@ -9,6 +9,7 @@
 // says `error`, so a flaky moment does not blank the panel.
 
 import { useSyncExternalStore } from 'react';
+import { SYSTEM_TAB } from '../../shell/constants.js';
 
 const MAX_ENTRIES = 24;
 
@@ -20,6 +21,9 @@ const notify = () => {
   version += 1;
   for (const fn of subs) fn();
 };
+
+/** A comp lives in a canvas file; the Design system tab (`SYSTEM_TAB`) is a view, never a comp — asking for it is a 400. */
+const isComp = (canvas) => !!canvas && canvas !== SYSTEM_TAB;
 
 export const compMediaKey = (canvas, artboard) => `${canvas}\u0000${artboard ?? ''}`;
 
@@ -39,7 +43,7 @@ export const compMediaStore = {
    * A newer ask for the same video wins: an older answer arriving late is dropped.
    */
   async load(canvas, artboard, { fetchImpl = globalThis.fetch } = {}) {
-    if (!canvas) return null;
+    if (!isComp(canvas)) return null;
     const k = compMediaKey(canvas, artboard);
     const prev = entries.get(k);
     const ask = (prev?.ask ?? 0) + 1;
@@ -79,7 +83,7 @@ export const compMediaStore = {
 export function useCompMedia(canvas, artboard) {
   useSyncExternalStore(compMediaStore.subscribe, compMediaStore.version, compMediaStore.version);
   return {
-    media: canvas ? compMediaStore.get(canvas, artboard) : null,
-    status: canvas ? compMediaStore.status(canvas, artboard) : null,
+    media: isComp(canvas) ? compMediaStore.get(canvas, artboard) : null,
+    status: isComp(canvas) ? compMediaStore.status(canvas, artboard) : null,
   };
 }
