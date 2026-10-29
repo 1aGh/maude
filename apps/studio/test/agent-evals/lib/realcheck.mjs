@@ -29,7 +29,8 @@ export function checkFile(project, abs, { against = null } = {}) {
     if (against !== null && against !== undefined) {
       const snap = join(tmp, 'against');
       writeFileSync(snap, against);
-      args.push('--against', snap);
+      // the shipped Stop rule (p8-gate-introduced): only findings the run introduced fail the check
+      args.push('--against', snap, '--introduced');
     }
     const r = spawnSync('node', args, {
       env: { ...process.env, NO_OPEN: '1', MAUDE_NO_UPDATE_CHECK: '1' },
