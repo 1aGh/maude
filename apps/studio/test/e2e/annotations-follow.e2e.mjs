@@ -160,6 +160,8 @@ async function dragDesktop(dx, dy, mid) {
 }
 
 describe('F1–F2 — Desktop moves, its members and the bound arrow follow', () => {
+  // moving an artboard is Edit's gesture (the layer is quiet there and rides along)
+  before(() => c.setMode('edit'));
   test('live: members on screen, the arrow goes around Mobile, the loose note stays', async () => {
     await reset();
     const noteBefore = await c.pageBox('note');
@@ -220,6 +222,8 @@ describe('F3 — one ⌘Z restores the artboard and its members', () => {
 });
 
 describe('F4 — membership you can see', () => {
+  // selecting an annotation is Preview's gesture (S4.9)
+  before(() => c.setMode('preview'));
   test('selecting a member outlines its artboard: "On Desktop · moves with it"', async () => {
     await reset();
     const [x, y] = await c.center('sun');

@@ -244,6 +244,20 @@ export async function openCanvas(server) {
   if (process.env.E2E_LEGACY !== '1') {
     await page.locator('[data-testid="palette-mode-preview"]').first().click({ timeout: 10_000 });
     await page.waitForTimeout(500);
+    // the button took the keyboard focus: give it back to the canvas (empty corner), or V/B/N reach the shell
+    await page.mouse.click(frameBox.x + 12, frameBox.y + frameBox.height - 12);
+    await page.waitForTimeout(300);
+  }
+  // A person's mouse always hovers before it presses: the layer resolves what is under the pointer on the move, and
+  // a press with no move before it (Playwright's mouse.click/dblclick jump straight to down) picks nothing. Every
+  // scenario clicks through page.mouse, so give them the hover a real pointer has.
+  for (const k of ['click', 'dblclick']) {
+    const press = page.mouse[k].bind(page.mouse);
+    page.mouse[k] = async (x, y, opts) => {
+      await page.mouse.move(x, y);
+      await page.waitForTimeout(80);
+      return press(x, y, opts);
+    };
   }
   const c = {
     browser,
@@ -384,6 +398,14 @@ export async function openCanvas(server) {
       for (const m of modifiers) await page.keyboard.down(m);
       await page.mouse.click(x, y);
       for (const m of modifiers) await page.keyboard.up(m);
+    },
+    /** Switch the shell's mode ('edit' | 'preview'): the layer is quiet in Edit and live in Preview (S4.9). */
+    async setMode(mode) {
+      if (process.env.E2E_LEGACY === '1') return;
+      await page.locator(`[data-testid="palette-mode-${mode}"]`).first().click({ timeout: 10_000 });
+      await page.waitForTimeout(500);
+      await page.mouse.click(frameBox.x + 12, frameBox.y + frameBox.height - 12); // focus back on the canvas
+      await page.waitForTimeout(300);
     },
     async drag(from, to, { steps = 12, modifiers = [] } = {}) {
       for (const m of modifiers) await page.keyboard.down(m);

@@ -132,10 +132,10 @@ describe('Can comment on a canvas with notes', () => {
   });
 
   test('T2 N answers with one line and Ask to edit; no sticky appears', async () => {
-    await c.frame
-      .locator('.dc-world')
-      .first()
-      .click({ position: { x: 600, y: 600 } });
+    // focus the canvas on empty paper (`.dc-world` is a zero-size layer: nothing to click)
+    await c.page
+      .locator('[data-testid="canvas-frame"]')
+      .click({ position: { x: 1300, y: 1000 } });
     await c.page.keyboard.press('n');
     const notice = c.page.locator('.maude-notice', { hasText: 'Stickies need Can edit.' });
     await notice.waitFor({ state: 'visible', timeout: 5000 });
