@@ -657,6 +657,11 @@ export interface LocalHome {
     label?: string,
     o?: { early?: boolean; base?: string }
   ): void;
+  /**
+   * F5 — an early note (`source-writing`) whose write then threw: the bytes never landed, so the note is
+   * taken back — left for WRITE_NOTE_MS it would make a later outside write of the same bytes the person's.
+   */
+  withdrawWritten(rel: string, content: string): void;
   /** S5.5b — the runs this home stages (open and held), no bytes. */
   aiRuns(): RunStageSummary[];
   /** A canvas moved on disk (the studio's own move). */
@@ -834,6 +839,24 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       ...(label ? { label } : {}),
       ...(o?.early ? { early: true as const } : {}),
     });
+  }
+
+  function withdrawWritten(rel: string, content: string): void {
+    const canvas = canvasOfRel(rel);
+    if (!canvas || canvas !== rel.replace(/\\/g, '/').replace(/^\/+/, '')) return;
+    const k = `${canvas}|html`;
+    const live = notes.get(k);
+    // only the failed write's own early note: a note the disk's bytes earned stays
+    if (!live?.early || live.hash !== hashBytes(content)) return;
+    notes.delete(k);
+    // the studio write this one replaced (still unread) is the live note again
+    const older = superseded.get(k);
+    const prev = older?.[older.length - 1];
+    if (older && prev && live.baseHash !== undefined && prev.hash === live.baseHash) {
+      older.pop();
+      if (!older.length) superseded.delete(k);
+      notes.set(k, prev);
+    }
   }
 
   /**
@@ -2358,6 +2381,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     observeMove,
     expectMove,
     noteWritten,
+    withdrawWritten,
     aiRuns: () => stage.runs(),
     flush: async () => {
       if (strokes.size) await Promise.allSettled([...strokes]);
@@ -2502,6 +2526,11 @@ export function attachLocalHome<S extends SupervisorLike>(
       });
     }
   );
+  // F5 — a write said early (`source-writing`) that then threw: its bytes never landed, the note goes.
+  ctx.bus.on('source-write-failed', (p: { rel?: unknown; content?: unknown } | null) => {
+    if (!isLocal() || typeof p?.rel !== 'string' || typeof p.content !== 'string') return;
+    get()?.withdrawWritten(p.rel, p.content);
+  });
   // S2.20b (U20) — a collab room projecting its board (collab/index.ts): the person's strokes.
   ctx.bus.on(
     'annotations-projected',
