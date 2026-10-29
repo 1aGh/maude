@@ -58,3 +58,20 @@ test('every browser e2e script that writes a project config states its format', 
   }
   expect(bare).toEqual([]);
 });
+
+// The dev rigs under scripts/dev that serve a project they built (a fresh machine linked to a hub) go through
+// `v2Config`. A hub workspace dir (no linkedHub) is not served by a studio and stays as it is; journal-e2e and
+// cell-materialize-e2e write configs only for a ledger / a hub materialise, never a studio.
+test('the dev sync rigs stamp the format on every studio project they build', () => {
+  const dev = join(HERE, '..', '..', '..', 'scripts', 'dev');
+  const bare: string[] = [];
+  for (const f of ['sync-e2e.mjs', 't32-scale.mjs']) {
+    const src = readFileSync(join(dev, f), 'utf8');
+    for (const part of src.split(/'config\.json'\),/).slice(1)) {
+      const body = part.slice(0, part.indexOf(');'));
+      if (/linkedHub/.test(body) && !/v2Config\(/.test(body)) bare.push(`${f}: ${body.slice(0, 70)}`);
+    }
+  }
+  expect(bare).toEqual([]);
+  expect(readFileSync(join(dev, 'v2-config.mjs'), 'utf8')).toContain('formatVersion');
+});

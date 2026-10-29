@@ -72,6 +72,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { crc32, deflateSync } from 'node:zlib';
 import { stubClaudeEnv } from '../lib/stub-claude.mjs';
+import { v2Config } from './v2-config.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const FIXTURE = join(ROOT, 'apps/hub/test/fixtures/serve-hub.mjs');
@@ -884,11 +885,11 @@ function prepareClean(root, name) {
   writeFileSync(
     join(designOf(root), 'config.json'),
     `${JSON.stringify(
-      {
+      v2Config({
         name: `t32-clean-${name}`,
         canvasGroups: CANVAS_GROUPS,
         linkedHub: { url: HUB_URL, linkedAt: Date.now(), syncFiles: true },
-      },
+      }),
       null,
       2
     )}\n`

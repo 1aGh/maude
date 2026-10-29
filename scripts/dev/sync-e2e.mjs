@@ -40,6 +40,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { Browser, Side, sleep, waitFor } from './sync-e2e/harness.mjs';
+import { v2Config } from './v2-config.mjs';
 import { SCENARIOS } from './sync-e2e/scenarios.mjs';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -471,14 +472,14 @@ async function coldStart(ctx, cellRoot) {
   writeFileSync(
     join(freshDesign, 'config.json'),
     `${JSON.stringify(
-      {
+      v2Config({
         name: 'fresh-machine',
         canvasGroups: [
           { label: 'Canvases', path: 'ui' },
           { label: 'Design system', path: 'system' },
         ],
         linkedHub: { url: `http://127.0.0.1:${port}`, linkedAt: Date.now(), syncFiles: true },
-      },
+      }),
       null,
       2
     )}\n`
