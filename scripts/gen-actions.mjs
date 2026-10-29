@@ -157,7 +157,6 @@ function manifest() {
     effect: v.effect,
     tier: verbTier(v),
     ...(v.hold ? { hold: v.hold } : {}),
-    ...(v.unclaimed ? { unclaimed: true } : {}),
   }));
   const schemas = FORMAT_SCHEMAS.map((f) => {
     const rel = join('apps/studio', f.schema).split('\\').join('/');

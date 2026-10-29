@@ -20,6 +20,7 @@ import { filterRunsView, type Seer } from '../access/filters.ts';
 import { copyLabelOf, metaWithCopy } from '../ai/copy-meta.ts';
 import { isLive, type RunRecord } from '../ai/run-lifecycle.ts';
 import type { RunRegistry } from '../ai/runs.ts';
+import { claimHashOf } from '../ai/write-claim.ts';
 import { CanvasEditError, copyArtboard } from '../canvas-edit.ts';
 import { filterAiEntries } from '../collab/ai-activity.ts';
 import { hashBytes } from '../sync/echo-guard.ts';
@@ -199,7 +200,9 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
     canvas: string,
     artboardId: string,
     copyId: string,
-    staged: boolean
+    staged: boolean,
+    /** p8-a1-claims — claims the sidecar's exact bytes for the waiting run's stage before they land */
+    claim?: (repoRel: string, text: string) => void
   ): Promise<void> {
     if (!deps.meta || !/\.(tsx|html)$/i.test(canvas)) return;
     try {
@@ -215,6 +218,11 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
         copyId,
         label: copyLabelOf(source, copyId) ?? `${artboardId} · copy`,
       });
+      if (next && staged)
+        claim?.(
+          path.posix.join(deps.designRel, canvas.replace(/\.(tsx|html)$/i, '.meta.json')),
+          `${JSON.stringify(next, null, 2)}\n`
+        );
       if (next)
         await deps.meta.write(
           path.posix.join(deps.designRel, canvas),
@@ -267,7 +275,11 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
         err instanceof Error ? err.message : 'could not make the copy'
       );
     }
-    await settleCopyMeta(canvas, at.artboard, copyId, !!(stage && control));
+    await settleCopyMeta(canvas, at.artboard, copyId, !!(stage && control), (rel, text) => {
+      if (!stage || !control) return;
+      const h = claimHashOf(rel, text);
+      if (h) control.claimAiWrite?.(stage.key, rel, h);
+    });
     const out = (await reg.copyStart(id, was)) ?? reg.get(id);
     return out ? copied(out) : refuse(404, 'not-found', 'no such run');
   }

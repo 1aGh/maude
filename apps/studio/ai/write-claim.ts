@@ -126,6 +126,53 @@ export function claimWritesForChat(
   return { runId: run.runId };
 }
 
+/**
+ * p8-a1-claims — the design hook's two claim doors (routes/agent.ts), over one runtime:
+ *   - `claim` — PreToolUse `edit/check` replayed an Edit/Write/MultiEdit on the file's current bytes:
+ *     those exact bytes are the run's, claimed before the tool writes them (the hook blocks the tool
+ *     until it answers, so this is sure to come first);
+ *   - `window` — a Bash call that cannot claim (S7 interpreter, a terminal-lane verb) opens/closes its
+ *     window for the canvases its command names.
+ */
+export function hookClaims(
+  control: () => (ClaimControl & { beginAiAction?: ShellBegin }) | null | undefined,
+  designRel: string
+) {
+  return {
+    claim(r: { run: string; label: string | null }, rel: string, after: string): void {
+      claimWrite(
+        control(),
+        { runId: r.run, chatId: '', label: r.label || 'Claude Code' },
+        `${designRel}/${rel}`,
+        after
+      );
+    },
+    window(
+      r: { run: string; label: string | null },
+      call: string,
+      open: boolean,
+      files: readonly string[]
+    ): void {
+      control()?.beginAiAction?.(`run:${r.run}`, r.label || 'Claude Code', {
+        runId: r.run,
+        claimOnly: true,
+        shell: { call, open, files: files.map((f) => `${designRel}/${f}`) },
+      });
+    },
+  };
+}
+
+type ShellBegin = (
+  key: string,
+  label: string,
+  meta?: {
+    runId?: string;
+    chatId?: string;
+    claimOnly?: boolean;
+    shell?: { call: string; open: boolean; files?: string[] };
+  }
+) => void;
+
 // ── The claims a chat made recently — what a pure-verb shell call may bind afterwards ──────────────
 //
 // The design hook's post-bash binding (routes/agent.ts `bindBashWrites`) used to bind every design file

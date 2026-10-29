@@ -806,7 +806,7 @@ export interface SyncRuntime {
       chatId?: string;
       actor?: string;
       /** V2-8.9 round B A1 — a shell verb call's window (sync/action-stage.ts `claimOnly`). */
-      shell?: { call: string; open: boolean };
+      shell?: { call: string; open: boolean; files?: string[] };
       /** p8-a1-claims — begun by a claim: takes only claimed writes (sync/action-stage.ts). */
       claimOnly?: boolean;
     }
@@ -6415,7 +6415,15 @@ export function createSyncRuntime(
     },
     beginAiAction: (key, label, meta) => {
       if (!acceptedOn() || !acceptedLink) return;
-      acceptedLink.stage.begin(key, label, meta);
+      const { shell, ...rest } = meta ?? {};
+      // p8-a1-claims — a window names its canvases repo-relative; a sidecar names its canvas
+      const slugs = (shell?.files ?? [])
+        .map((f) => slugForRepoRel(String(f).replace(/\.(?:meta|annotations)\.json$/i, '.tsx')))
+        .filter((c): c is string => !!c);
+      acceptedLink.stage.begin(key, label, {
+        ...rest,
+        ...(shell ? { shell: { call: shell.call, open: shell.open, slugs } } : {}),
+      });
     },
     endAiAction: async (key, outcome, o) => {
       if (!acceptedLink) return null;

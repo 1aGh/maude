@@ -1572,4 +1572,46 @@ export function designWritesSince(designRoot, since, { max = 64, maxEntries = 20
   return out.sort();
 }
 
+/**
+ * p8-a1-claims — the canvas-lane files (a canvas `.tsx`, its `.meta.json`, its `.annotations.json`) of
+ * `designRoot` that `command` NAMES: its design-root-relative path, or its file name, appears in the
+ * command text (heredoc bodies included) at a name boundary. A call that cannot claim its writes (the S7
+ * interpreter fallback: `python3 - <<EOF … open(p,'w')`, `sed -i`, `bash -c`, a terminal-lane verb) gets a
+ * time window for THESE files only, so a person's save to any other file during it stays theirs. A path
+ * the command only computes (a glob loop) is not named: that write lands as the person's (the safe side).
+ */
+export function namedDesignFiles(designRoot, command, { max = 32, maxEntries = 20000 } = {}) {
+  if (typeof command !== 'string' || !command) return [];
+  const out = [];
+  let seen = 0;
+  const LANE = /\.(?:tsx|jsx|meta\.json|annotations\.json)$/i;
+  const named = (needle) => {
+    let i = command.indexOf(needle);
+    while (i >= 0) {
+      const before = i === 0 ? '' : command[i - 1];
+      const after = command[i + needle.length] ?? '';
+      if (!/[A-Za-z0-9_-]/.test(before) && !/[A-Za-z0-9_.-]/.test(after)) return true;
+      i = command.indexOf(needle, i + 1);
+    }
+    return false;
+  };
+  const walk = (dir, relDir) => {
+    let names;
+    try {
+      names = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const d of names) {
+      if (out.length >= max || ++seen > maxEntries) return;
+      if (d.name.startsWith('_') || d.name.startsWith('.') || d.name === 'node_modules') continue;
+      const rel = relDir ? `${relDir}/${d.name}` : d.name;
+      if (d.isDirectory()) walk(join(dir, d.name), rel);
+      else if (d.isFile() && LANE.test(d.name) && (named(rel) || named(d.name))) out.push(rel);
+    }
+  };
+  walk(designRoot, '');
+  return out.sort();
+}
+
 export { CANVAS_RE };

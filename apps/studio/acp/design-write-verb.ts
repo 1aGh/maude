@@ -39,8 +39,7 @@ export function runsDesignWriteVerb(command: unknown): boolean {
  */
 export const CLAIMING_VERB_TABLE = MAUDE_VERBS.filter((v) => v.scope === 'design').map((v) => ({
   verb: `design ${v.verb}`,
-  // a verb that cannot claim yet (`unclaimed`, actions/verbs.ts) keeps its effect: the window stays
-  effect: v.unclaimed ? v.effect : 'none',
+  effect: 'none',
 }));
 
 /**

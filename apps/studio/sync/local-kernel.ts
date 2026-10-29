@@ -557,7 +557,7 @@ export interface LocalRuntime {
       chatId?: string;
       actor?: string;
       /** V2-8.9 round B A1 — a shell verb call's window (sync/action-stage.ts `claimOnly`). */
-      shell?: { call: string; open: boolean };
+      shell?: { call: string; open: boolean; files?: string[] };
       /** p8-a1-claims — begun by a claim: takes only claimed writes (sync/action-stage.ts). */
       claimOnly?: boolean;
     }
@@ -2253,7 +2253,18 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     },
     beginAiAction(key, label, meta) {
       if (!kernel) return;
-      stage.begin(key, label, meta ?? {});
+      const { shell, ...rest } = meta ?? {};
+      // p8-a1-claims — a window names its canvases repo-relative; the stage keys them by canvas rel
+      const slugs = (shell?.files ?? [])
+        .map((f) => {
+          const rel = designRelOf(f, designRel) ?? String(f).replace(/^\/+/, '');
+          return rel ? canvasOfRel(rel) : null;
+        })
+        .filter((c): c is string => !!c);
+      stage.begin(key, label, {
+        ...rest,
+        ...(shell ? { shell: { call: shell.call, open: shell.open, slugs } } : {}),
+      });
     },
     proposeLane(slug, lane, text, o) {
       if (!lock || closed) return null;

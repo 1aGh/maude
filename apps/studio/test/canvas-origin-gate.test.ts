@@ -362,6 +362,7 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
         '/_api/agent/edit/touched',
         '/_api/agent/run/end',
         '/_api/agent/write/claim', // p8-a1-claims — the claim door is never canvas-reachable
+        '/_api/agent/bash/window',
         '/package.json',
       ]) {
         expect(await code(p)).toBe(403);

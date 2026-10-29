@@ -19,11 +19,13 @@ import path from 'node:path';
 
 import type { SessionUpdate } from '@agentclientprotocol/sdk';
 
+import { namedDesignFiles } from '../../../cli/lib/bash-guard.mjs';
 import { shellOpensWindow } from '../acp/design-write-verb.ts';
 import { createAgentActivityTracker } from '../acp/index.ts';
+import { createAgentRuns } from '../agent-runs.ts';
 import { createLocalLeaseHome } from '../ai/lease-home.ts';
 import { createRunRegistry } from '../ai/runs.ts';
-import { claimWritesForChat } from '../ai/write-claim.ts';
+import { claimWritesForChat, hookClaims } from '../ai/write-claim.ts';
 import { chatHeaderFor, parseRequestArgv } from '../bin/_curl-local.mjs';
 import { chatWriteHeaders } from '../bin/_studio-verb.mjs';
 import { applyEdit } from '../canvas-edit.ts';
@@ -306,8 +308,11 @@ describe('A1 — a person’s save while an AI verb runs is never the run’s', 
     expect(shellOpensWindow(`maude design reel-place recap --next --canvas ${HOME}`)).toBe(false);
     expect(shellOpensWindow(`cd /tmp && maude design canvas-edit ${HOME} t x y`)).toBe(false);
     expect(shellOpensWindow("python3 - <<'EOF'\nopen('x','w')\nEOF")).toBe(true);
-    // a verb that does not claim yet (actions/verbs.ts `unclaimed`) keeps the fallback window
-    expect(shellOpensWindow(`maude design ds-check --fix=mechanical --canvas ${HOME}`)).toBe(true);
+    // every verb claims now, ds-check --fix and import-figma included: no window
+    expect(shellOpensWindow(`maude design ds-check --fix=mechanical --canvas ${HOME}`)).toBe(false);
+    expect(shellOpensWindow(`maude design import-figma https://x.example --into ${HOME}`)).toBe(
+      false
+    );
     expect(shellOpensWindow('ls .design/ui')).toBe(false);
   });
 });
@@ -444,5 +449,236 @@ describe('A1 — the design hook’s post-bash binding takes only what the verbs
     const all = { session: 's1', chat: 'c1', toolUseId: 't2', via: 'bash', since };
     await post('/_api/agent/edit/touched', all);
     expect(touched.sort()).toEqual([HOME, OTHER].sort());
+  });
+});
+
+// ── p8-a1-claims round 2 (lead 2026-10-29): Edit/Write tools, interpreter calls, the terminal lane ────
+
+const editCall = (
+  t: ReturnType<typeof createAgentActivityTracker>,
+  id: string,
+  rawInput: Record<string, unknown>,
+  status: 'pending' | 'completed' = 'pending'
+) =>
+  t.onUpdate({
+    sessionUpdate: status === 'pending' ? 'tool_call' : 'tool_call_update',
+    toolCallId: id,
+    kind: 'edit',
+    status,
+    rawInput,
+  } as unknown as SessionUpdate);
+
+/** The hook routes over the rig's registry + runtime, wired as http.ts wires them. */
+function hooks(r: Awaited<ReturnType<typeof rig>>) {
+  const bracket = {
+    begin: (run: { actor: string; session: string; label: string | null; run: string }) => {
+      if (run.actor === 'maude-chat') return;
+      r.home.runtime.beginAiAction(`agent:${run.session}`, run.label || 'Claude Code', {
+        runId: run.run,
+      });
+    },
+    ...hookClaims(() => r.home.runtime, '.design'),
+  };
+  const specs = agentRouteSpecs({
+    repoRoot: r.root,
+    designRel: '.design',
+    shells: () => 0,
+    emit: () => {},
+    bracket,
+    runs: createAgentRuns(bracket, undefined, r.reg),
+  });
+  return (p: string, body: unknown, headers: Record<string, string> = {}) =>
+    (specs.find((s) => s.path === p) as RouteSpec).handle(
+      new Request(`http://127.0.0.1:4399${p}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', host: '127.0.0.1:4399', ...headers },
+        body: JSON.stringify(body),
+      }),
+      {}
+    );
+}
+
+describe('A1 round 2 — an AI Edit/Write claims its exact bytes; the person’s saves stay theirs', () => {
+  const TITLE = '<h1 data-cd-id="title">Home</h1>';
+  test('(a) AI Edit, then the person saves the same canvas in the same turn: the save is not the run’s', async () => {
+    const r = await rig();
+    const runId = await r.ask('c1', 'Retitle Home');
+    const t = createAgentActivityTracker(r.ctx, ai, 'c1');
+    t.beginTurn?.('Retitle Home', runId);
+    const edit = {
+      file_path: r.abs(HOME),
+      old_string: TITLE,
+      new_string: TITLE.replace('Home', 'AI one'),
+    };
+    editCall(t, 'e1', edit);
+    writeFileSync(r.abs(HOME), r.read(HOME).replace(TITLE, edit.new_string));
+    await r.deliver(HOME);
+    editCall(t, 'e1', edit, 'completed');
+    // the person, from their editor, after the AI's edit — same canvas, same turn
+    writeFileSync(r.abs(HOME), r.read(HOME).replace('Footer', 'My footer'));
+    await r.deliver(HOME);
+    // a second AI edit on top of the person's bytes
+    const edit2 = {
+      file_path: r.abs(HOME),
+      old_string: edit.new_string,
+      new_string: TITLE.replace('Home', 'AI two'),
+    };
+    editCall(t, 'e2', edit2);
+    writeFileSync(r.abs(HOME), r.read(HOME).replace(edit.new_string, edit2.new_string));
+    await r.deliver(HOME);
+    editCall(t, 'e2', edit2, 'completed');
+    expect(await r.publish(runId)).toMatchObject({ status: 'accepted' });
+    const rows = (await r.rows()).filter((x) => x.canvases.includes(HOME));
+    const aiRows = rows.filter((x) => x.kind === 'ai');
+    expect(aiRows.length).toBe(1);
+    expect(rows.filter((x) => x.kind !== 'ai').length).toBeGreaterThan(0);
+    // the run's undo takes back its own titles; the person's footer stays
+    const undo = await r.home.runtime.acceptedUndo(aiRows[0].actionId, false, { via: 'keys' });
+    expect(undo.status).toBe('accepted');
+    await r.home.flush();
+    expect(r.read(HOME)).toContain('My footer');
+    expect(r.read(HOME)).toContain(TITLE);
+  });
+
+  test('(b) an AI Write is the run’s and undoes with it', async () => {
+    const r = await rig();
+    const runId = await r.ask('c1', 'Rewrite Other');
+    const t = createAgentActivityTracker(r.ctx, ai, 'c1');
+    t.beginTurn?.('Rewrite Other', runId);
+    const before = r.read(OTHER);
+    const content = canvas('Other — by the AI');
+    editCall(t, 'w1', { file_path: r.abs(OTHER), content });
+    writeFileSync(r.abs(OTHER), content);
+    await r.deliver(OTHER);
+    editCall(t, 'w1', { file_path: r.abs(OTHER), content }, 'completed');
+    expect(await r.publish(runId)).toMatchObject({ status: 'accepted' });
+    const aiRows = (await r.rows()).filter((x) => x.kind === 'ai');
+    expect(aiRows.map((x) => [x.runId, x.canvases])).toEqual([[runId, [OTHER]]]);
+    const undo = await r.home.runtime.acceptedUndo(aiRows[0].actionId, false, { via: 'keys' });
+    expect(undo.status).toBe('accepted');
+    await r.home.flush();
+    expect(r.read(OTHER)).toBe(before);
+  });
+
+  test('(b) the hook’s PreToolUse claim (edit/check) puts a Maude-chat Edit in the run before it lands', async () => {
+    const r = await rig();
+    const runId = await r.ask('c1', 'Retitle');
+    const post = hooks(r);
+    const begun = await post('/_api/agent/run/begin', {
+      session: 's1',
+      actor: 'maude-chat',
+      chat: 'c1',
+    });
+    expect(begun.status).toBe(200);
+    const next = TITLE.replace('Home', 'Hooked');
+    const res = await post('/_api/agent/edit/check', {
+      session: 's1',
+      chat: 'c1',
+      toolUseId: 'u1',
+      tool: 'Edit',
+      path: HOME,
+      edit: { old: TITLE, new: next },
+    });
+    expect(res.status).toBe(200);
+    writeFileSync(r.abs(HOME), r.read(HOME).replace(TITLE, next));
+    await r.deliver(HOME);
+    expect(await r.publish(runId)).toMatchObject({ status: 'accepted' });
+    expect((await r.rows()).filter((x) => x.kind === 'ai').map((x) => x.runId)).toEqual([runId]);
+  });
+
+  test('(c) a spoofed claim — a browser (canvas origin), another chat, no run — claims nothing', async () => {
+    const r = await rig();
+    const runId = await r.ask('c1', 'Retitle');
+    const post = hooks(r);
+    await post('/_api/agent/run/begin', { session: 's1', actor: 'maude-chat', chat: 'c1' });
+    const planted = TITLE.replace('Home', 'Planted');
+    const check = (body: Record<string, unknown>, headers: Record<string, string> = {}) =>
+      post(
+        '/_api/agent/edit/check',
+        { toolUseId: 'u1', tool: 'Edit', path: HOME, edit: { old: TITLE, new: planted }, ...body },
+        headers
+      );
+    const canvasOrigin = { origin: 'http://127.0.0.1:4400' };
+    expect((await check({ session: 's1', chat: 'c1' }, canvasOrigin)).status).toBe(403);
+    const fetchMeta = { 'sec-fetch-site': 'same-origin' };
+    expect((await check({ session: 's1', chat: 'c1' }, fetchMeta)).status).toBe(403);
+    await check({ session: 's2', chat: 'c2' }); // another chat: it has no live run to claim into
+    await check({ session: 's9' }); // a session with no run at all
+    const window = await post(
+      '/_api/agent/bash/window',
+      { session: 's1', chat: 'c1', toolUseId: 'b1', open: true, files: [HOME] },
+      canvasOrigin
+    );
+    expect(window.status).toBe(403);
+    // the planted bytes, now written: nobody claimed them for c1's run
+    writeFileSync(r.abs(HOME), r.read(HOME).replace(TITLE, planted));
+    await r.deliver(HOME);
+    await r.publish(runId);
+    expect((await r.rows()).map((x) => x.kind)).not.toContain('ai');
+  });
+});
+
+describe('A1 round 2 — a call that cannot claim gets a window for the files it NAMES only', () => {
+  test('(a) S7 python names Home: its write is the run’s; the person’s save to Other meanwhile stays theirs', async () => {
+    const r = await rig();
+    const runId = await r.ask('c1', 'Shorten');
+    const t = createAgentActivityTracker(r.ctx, ai, 'c1');
+    t.beginTurn?.('Shorten', runId);
+    const py =
+      `cd "${r.designRoot}/ui" && python3 - <<'EOF'\np='Home.tsx'\ns=open(p).read()\n` +
+      `open(p,'w').write(s.replace('Footer','Short'))\nEOF`;
+    shell(t, py, 'p1');
+    writeFileSync(r.abs(HOME), r.read(HOME).replace('Footer', 'Short'));
+    await r.deliver(HOME);
+    writeFileSync(r.abs(OTHER), canvas('Other — mine'));
+    await r.deliver(OTHER);
+    done(t, 'p1');
+    expect(await r.publish(runId)).toMatchObject({ status: 'accepted' });
+    const rows = await r.rows();
+    expect(rows.filter((x) => x.kind === 'ai').map((x) => x.canvases)).toEqual([[HOME]]);
+    const other = rows.filter((x) => x.canvases.includes(OTHER)).map((x) => x.kind);
+    expect(other).not.toContain('ai');
+  });
+
+  test('(a) the terminal lane: the hook’s window names its files; another file stays the person’s', async () => {
+    const r = await rig();
+    const post = hooks(r);
+    const begun = await post('/_api/agent/run/begin', { session: 't1', actor: 'claude-code' });
+    expect(begun.status).toBe(200);
+    const runId = ((await begun.json()) as { run: string }).run;
+    const win = (open: boolean) =>
+      post('/_api/agent/bash/window', { session: 't1', toolUseId: 'b1', open, files: [HOME] });
+    expect((await win(true)).status).toBe(200);
+    writeFileSync(r.abs(HOME), r.read(HOME).replace('Footer', 'Terminal'));
+    await r.deliver(HOME);
+    writeFileSync(r.abs(OTHER), canvas('Other — mine'));
+    await r.deliver(OTHER);
+    await win(false);
+    // a person's save to the same file AFTER the window settled is theirs too
+    await new Promise((res) => setTimeout(res, 1_100));
+    // (a different part of the canvas than the run's staged change: an overlap would be a conflict)
+    writeFileSync(r.abs(HOME), r.read(HOME).replace('>Home</h1>', '>Mine again</h1>'));
+    await r.deliver(HOME);
+    expect(await r.publish(runId)).toMatchObject({ status: 'accepted' });
+    const rows = await r.rows();
+    expect(rows.filter((x) => x.kind === 'ai').map((x) => x.canvases)).toEqual([[HOME]]);
+    const other = rows.filter((x) => x.canvases.includes(OTHER)).map((x) => x.kind);
+    expect(other).not.toContain('ai');
+    // the person's later save, made on top of the run's staged bytes, waits behind the run and then
+    // lands as their own action
+    await r.home.flush();
+    const home = (await r.rows()).filter((x) => x.canvases.includes(HOME)).map((x) => x.kind);
+    expect(home.filter((k) => k !== 'ai').length).toBeGreaterThan(0);
+  });
+});
+
+describe('A1 round 2 — which canvases a command names (bash-guard namedDesignFiles)', () => {
+  test('by design-root path or file name, at a name boundary; a look-alike or a glob names nothing', async () => {
+    const r = await rig();
+    const named = (cmd: string) => namedDesignFiles(r.designRoot, cmd);
+    expect(named("python3 - <<'EOF'\np='Home.tsx'\nEOF")).toEqual([HOME]);
+    expect(named(`sed -i s/a/b/ .design/${OTHER}`)).toEqual([OTHER]);
+    expect(named('cat MyHome.tsx Home.tsx.bak')).toEqual([]);
+    expect(named('for f in ui/*.tsx; do sed -i s/a/b/ "$f"; done')).toEqual([]);
   });
 });

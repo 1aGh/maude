@@ -3,6 +3,7 @@
 
 import { readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import { claimWritesSync } from '../bin/_write-claim.mjs';
 import {
   type CanvasContext,
   type CanvasReport,
@@ -286,6 +287,16 @@ export function runCanvasModes(
             stdout: '',
             stderr: `ds-check --fix refused, nothing written: ${file} changed while checking\n`,
           };
+    // p8-a1-claims — inside a Maude chat the fixed bytes are claimed for its run before they land
+    // (bin/_write-claim.mjs); a person's own save meanwhile is different bytes and stays theirs
+    if (!args.dryRun) {
+      const writes = plans.flatMap((plan) =>
+        [...plan]
+          .filter(([, p]) => p.after !== p.before)
+          .map(([file, p]) => ({ rel: file, content: p.after }))
+      );
+      if (writes.length) claimWritesSync(project.designRoot, writes);
+    }
     for (const plan of plans)
       for (const [file, p] of plan) {
         if (p.after === p.before) continue;

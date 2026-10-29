@@ -29,12 +29,6 @@ export interface VerbDef {
   hold?: string;
   /** Why the effect is what it is, when the name doesn't say it. */
   note?: string;
-  /**
-   * p8-a1-claims — a writer verb that does NOT yet claim its canvas writes before they land
-   * (apps/studio/ai/write-claim.ts). Every other verb claims, so a call of it opens no time window; a call
-   * of THIS one keeps the S7 per-call window (the named fallback). Says why it cannot claim yet.
-   */
-  unclaimed?: string;
 }
 
 const d = (verb: string, effect: VerbEffect, extra: Partial<VerbDef> = {}): VerbDef => ({
@@ -151,10 +145,7 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('export', 'project', {
     hold: '/design:export documents `--out ~/Downloads/…` — lead: keeps prompting (decision:maude/v2-2.4b-held-and-prompting-verbs)',
   }),
-  d('ds-check', 'project', {
-    note: '--fix=mechanical / --emit write canvases / tokens.json',
-    unclaimed: 'the --fix write runs inside a synchronous check (ds/canvas-cli.ts runCanvasModes)',
-  }),
+  d('ds-check', 'project', { note: '--fix=mechanical / --emit write canvases / tokens.json' }),
   // ── `maude design`, prompt ────────────────────────────────────────────────────────────────
   d('curl-local', 'external', { note: 'any method/body against any loopback port: every route' }),
   d('draw-build', 'external', { note: 'runs model-authored code (Q2)' }),
@@ -164,11 +155,7 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('fetch-asset', 'external', { note: 'download' }),
   d('ensure-browser', 'external', { note: 'download' }),
   d('transcribe', 'external', { note: 'engine may be a paid cloud fallback' }),
-  d('import-figma', 'external', {
-    note: 'network; --explode',
-    unclaimed:
-      'many staged-rename write sites (bin/_import-figma.mjs); a canvas it creates is not staged anyway',
-  }),
+  d('import-figma', 'external', { note: 'network; --explode' }),
   d('import-brand', 'external', { note: 'network with --url (S8.18): reads a website' }),
   d('photo-bg-remove', 'external', { note: 'first-use ~40 MB model-weight fetch (§5.3 †)' }),
   // S12.13 (V2-1.17 §5.9, S12-slices Q1). Every form, `--status` too (a flag never lowers a verb):

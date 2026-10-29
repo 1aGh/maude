@@ -20,6 +20,7 @@ import type { RoomCallbacks } from '../collab/room.ts';
 import type { Context } from '../context.ts';
 import { createBus } from '../context.ts';
 import { readLaneFromDoc } from '../sync/codec.ts';
+import { hashBytes } from '../sync/echo-guard.ts';
 import { createSyncRuntime, type SyncRuntime } from '../sync/index.ts';
 import { board, elements, sticky } from './fixtures/annotations-v2/boards.ts';
 
@@ -275,6 +276,8 @@ describe.skipIf(!HUB_READY)('annotations — AI run: design change + resolves ar
       runId: 'r_apply0001',
       chatId: 'chat-apply',
     });
+    // p8-a1-claims — the run's tool claims the exact bytes it writes (every run is claim-only)
+    alice.runtime.claimAiWrite?.('r_apply0001', 'design/ui/hero.tsx', hashBytes(hero(720)));
     alice.write('ui/hero.tsx', hero(720));
     await new Promise((r) => setTimeout(r, 400));
     const staged = stageRunAnnotations(alice.runtime, {

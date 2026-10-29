@@ -47,6 +47,22 @@ function rig(
   return { stage, sent };
 }
 
+/**
+ * p8-a1-claims — every run is claim-only: the tool that writes `p.content` claims those bytes for the
+ * open run(s) first (what the ACP tracker / the hook's edit/check / a verb does), then the watcher's
+ * write is captured.
+ */
+function claimed(
+  stage: ReturnType<typeof rig>['stage'],
+  slug: string,
+  doc: string,
+  p: LaneProposal
+) {
+  for (const r of stage.runs())
+    if (r.state === 'open') stage.claim(r.runId, slug, hashBytes(p.content));
+  return stage.capture(slug, doc, p);
+}
+
 const prop = (
   lane: LaneProposal['lane'],
   content: string,
@@ -64,11 +80,12 @@ describe('AI action stage', () => {
   test('changes made while an action is open go out as ONE action when it ends well', async () => {
     const { stage, sent } = rig();
     stage.begin('acp:c1', 'Claude: tidy the header');
-    expect(stage.captures('ui-a', true)).toBe(true);
+    // p8-a1-claims — nothing claimed: a write is the person's, even with this one run open
+    expect(stage.captures('ui-a', true, 'A1')).toBe(false);
     expect(stage.captures('ui-a', false)).toBe(false); // the person's UI edit is theirs
-    const a1 = stage.capture('ui-a', 'doc-a', prop('html', 'A1', 'A0', 'tx1'));
-    const a2 = stage.capture('ui-a', 'doc-a', prop('html', 'A2', 'A1', 'tx2'));
-    const b = stage.capture('ui-b', 'doc-b', prop('html', 'B1', 'B0', 'tx3'));
+    const a1 = claimed(stage, 'ui-a', 'doc-a', prop('html', 'A1', 'A0', 'tx1'));
+    const a2 = claimed(stage, 'ui-a', 'doc-a', prop('html', 'A2', 'A1', 'tx2'));
+    const b = claimed(stage, 'ui-b', 'doc-b', prop('html', 'B1', 'B0', 'tx3'));
     expect(sent).toHaveLength(0);
     expect(existsSync(join(dir, '_state', 'ai-stage.json'))).toBe(true);
 
@@ -94,7 +111,7 @@ describe('AI action stage', () => {
   test('an action that fails publishes nothing and throws nothing away', async () => {
     const { stage, sent } = rig();
     stage.begin('edit:ui/a.tsx', 'Claude edited a');
-    void stage.capture('ui-a', 'doc-a', prop('html', 'half', 'A0', 'tx1'));
+    void claimed(stage, 'ui-a', 'doc-a', prop('html', 'half', 'A0', 'tx1'));
     expect(await stage.end('edit:ui/a.tsx', 'failed')).toBeNull();
     expect(sent).toHaveLength(0);
     expect(stage.summary()).toMatchObject({ state: 'held', canvases: ['ui-a'] });
@@ -107,7 +124,7 @@ describe('AI action stage', () => {
   test('discard answers every held change "discarded", and the dependents with it', async () => {
     const { stage, sent } = rig();
     stage.begin('k', 'AI');
-    const staged = stage.capture('ui-a', 'doc-a', prop('html', 'half', 'A0', 'tx1'));
+    const staged = claimed(stage, 'ui-a', 'doc-a', prop('html', 'half', 'A0', 'tx1'));
     await stage.end('k', 'failed');
     // The person edited on top of the unpublished bytes: it waits behind the stage.
     expect(stage.holdsDependency(['tx1'])).toBe(true);
@@ -137,7 +154,7 @@ describe('AI action stage', () => {
   test('a crash comes back HELD: the next session stages the cold start instead of publishing it', async () => {
     const first = rig();
     first.stage.begin('k', 'Claude: two files');
-    void first.stage.capture('ui-a', 'doc-a', prop('html', 'A1', 'A0', 'tx1'));
+    void claimed(first.stage, 'ui-a', 'doc-a', prop('html', 'A1', 'A0', 'tx1'));
     // ...process dies here.
     const second = rig();
     second.stage.restore();
@@ -166,8 +183,8 @@ describe('AI action stage', () => {
       head: 'h1',
     }));
     stage.begin('k', 'AI');
-    const a = stage.capture('ui-a', 'doc-a', prop('html', 'x', 'A0', 'tx1'));
-    const b = stage.capture('ui-b', 'doc-b', prop('html', 'y', 'B0', 'tx2'));
+    const a = claimed(stage, 'ui-a', 'doc-a', prop('html', 'x', 'A0', 'tx1'));
+    const b = claimed(stage, 'ui-b', 'doc-b', prop('html', 'y', 'B0', 'tx2'));
     await stage.end('k', 'done');
     expect(await a).toEqual({ status: 'rejected', code: 'base-conflict' });
     expect(await b).toEqual({ status: 'rejected', code: 'base-conflict', head: 'h1' });
@@ -233,7 +250,7 @@ describe('per-run stages', () => {
   test('U12: Stop publishes what the run finished as ONE partial version (" — stopped")', async () => {
     const { stage, sent } = rig();
     stage.begin('k', 'Restyle the footer', { runId: 'r_1', chatId: 'c1' });
-    void stage.capture('ui-a', 'doc-a', prop('html', P1, BASE, 'tx1'));
+    void claimed(stage, 'ui-a', 'doc-a', prop('html', P1, BASE, 'tx1'));
     const fence = { runId: 'r_1', leases: [{ entry: 'e1', artboard: 'P', token: 3 }] };
     const r = await stage.end('r_1', 'stopped', { fence });
     expect(r?.status).toBe('accepted');
@@ -275,7 +292,7 @@ describe('per-run stages', () => {
       transactionId: 'g',
     }));
     stage.begin('k', 'AI', { runId: 'r_1' });
-    void stage.capture('ui-a', 'doc-a', prop('html', 'A1', 'A0', 'tx1'));
+    void claimed(stage, 'ui-a', 'doc-a', prop('html', 'A1', 'A0', 'tx1'));
     const r = await stage.end('r_1', 'done', {
       fence: { runId: 'r_1', leases: [{ entry: 'e', artboard: 'P', token: 1 }] },
     });
@@ -286,7 +303,8 @@ describe('per-run stages', () => {
   test('a write no open run claims is not staged when several runs are open', () => {
     const { stage } = rig();
     stage.begin('a', 'c1', { runId: 'r_c1' });
-    expect(stage.captures('ui-a', true, 'whatever')).toBe(true); // the one open run takes it (v1)
+    // p8-a1-claims — being the one open run is not a claim: an unclaimed write is the person's
+    expect(stage.captures('ui-a', true, 'whatever')).toBe(false);
     stage.begin('b', 'c2', { runId: 'r_c2' });
     expect(stage.captures('ui-a', true, 'whatever')).toBe(false); // ambiguous: a person's / outside
     stage.claim('r_c2', 'ui-a', hashBytes('mine'));
@@ -298,7 +316,7 @@ describe('per-run stages', () => {
     first.stage.begin('a', 'c1', { runId: 'r_c1', chatId: 'c1' });
     first.stage.begin('b', 'c2', { runId: 'r_c2' });
     first.stage.claim('r_c1', 'ui-a', hashBytes('A1'));
-    void first.stage.capture('ui-a', 'doc-a', prop('html', 'A1', 'A0', 'tx1'));
+    void claimed(first.stage, 'ui-a', 'doc-a', prop('html', 'A1', 'A0', 'tx1'));
     first.stage.claim('r_c2', 'ui-b', hashBytes('B1'));
     void first.stage.capture('ui-b', 'doc-b', prop('html', 'B1', 'B0', 'tx2'));
     const file = JSON.parse(readFileSync(join(dir, '_state', 'ai-stage.json'), 'utf8'));
@@ -361,7 +379,7 @@ describe('per-run stages', () => {
   test('S2.20c: a waiting edit is listed (no bytes); the inverse queued on it waits behind the SAME run and goes out after it', async () => {
     const { stage, sent } = rig();
     stage.begin('k', 'AI', { runId: 'r_1' });
-    void stage.capture('ui-a', 'doc-a', prop('html', 'A1', 'A0', 'tx_run'));
+    void claimed(stage, 'ui-a', 'doc-a', prop('html', 'A1', 'A0', 'tx_run'));
     const order: string[] = [];
     stage.wait({
       dependsOn: ['tx_run'],
@@ -407,7 +425,7 @@ describe('per-run stages', () => {
   test('S2.20c: discarding the run drops the waiting edit AND the inverse queued on it', async () => {
     const { stage } = rig();
     stage.begin('k', 'AI');
-    void stage.capture('ui-a', 'doc-a', prop('html', 'A1', 'A0', 'tx_run'));
+    void claimed(stage, 'ui-a', 'doc-a', prop('html', 'A1', 'A0', 'tx_run'));
     await stage.end('k', 'failed');
     const out: string[] = [];
     stage.wait({
@@ -427,40 +445,46 @@ describe('per-run stages', () => {
   });
 });
 
-// V2-8.9 round B A1 — a stage a SHELL verb opened is claim-scoped: the lone-open-run fallback applies only
-// while that verb call runs (plus a short settle), so a person's outside edit made before, between or after
-// the verb's calls — or while its permission card waits — is never swept into the AI run.
-describe('a shell-opened run (A1)', () => {
-  test('takes unclaimed writes only while its verb call is open, then only claimed ones', () => {
+// p8-a1-claims — every run is claim-only. A call that cannot claim (S7 interpreter, a terminal-lane verb) opens
+// a window for the canvases its command NAMES: an unclaimed write to one of THOSE joins the run while it is open
+// (plus a short settle); a person's save to any other canvas, or after the settle, stays theirs.
+describe('a call that cannot claim: a named-file window (A1)', () => {
+  test('takes unclaimed writes to its named canvases only while open, then only claimed ones', () => {
     const { stage } = rig();
     clock = 50_000;
-    stage.begin('acp:c9', 'cut', { runId: 'r_sh', shell: { call: 'b1', open: true } });
-    expect(stage.captures('ui-a', true, 'verb bytes')).toBe(true); // the verb's own write
-    stage.begin('acp:c9', 'cut', { runId: 'r_sh', shell: { call: 'b1', open: false } });
-    expect(stage.captures('ui-a', true, 'late verb bytes')).toBe(true); // within the settle
+    const shell = (open: boolean) => ({ call: 'b1', open, slugs: ['ui-a'] });
+    stage.begin('acp:c9', 'cut', { runId: 'r_sh', shell: shell(true) });
+    expect(stage.captures('ui-a', true, 'call bytes')).toBe(true); // the call's own write
+    expect(stage.captures('ui-b', true, 'person bytes')).toBe(false); // another canvas: the person's
+    stage.begin('acp:c9', 'cut', { runId: 'r_sh', shell: shell(false) });
+    expect(stage.captures('ui-a', true, 'late call bytes')).toBe(true); // within the settle
     clock += 5_000;
     expect(stage.captures('ui-a', true, 'person bytes')).toBe(false); // the person's VS Code save
     expect(stage.captures('ui-new', true, 'x')).toBe(false);
     stage.claim('r_sh', 'ui-a', hashBytes('claimed bytes'));
-    expect(stage.captures('ui-a', true, 'claimed bytes')).toBe(true); // the verb claimed it
+    expect(stage.captures('ui-a', true, 'claimed bytes')).toBe(true); // a tool claimed it
   });
 
   test('a call that waits on a permission card is suspended; a denied one never opens', () => {
     const { stage } = rig();
     clock = 90_000;
-    stage.begin('acp:c8', 'export', { runId: 'r_card', shell: { call: 'b2', open: true } });
-    stage.begin('acp:c8', 'export', { runId: 'r_card', shell: { call: 'b2', open: false } });
+    const shell = (open: boolean) => ({ call: 'b2', open, slugs: ['ui-b'] });
+    stage.begin('acp:c8', 'export', { runId: 'r_card', shell: shell(true) });
+    stage.begin('acp:c8', 'export', { runId: 'r_card', shell: shell(false) });
     clock += 5_000;
     expect(stage.captures('ui-b', true, 'person while the card waits')).toBe(false);
   });
 
-  test('an edit tool in the same run brings the v1 fallback back', () => {
+  test('a later begin with no window (an edit tool) never brings a fallback back', () => {
     const { stage } = rig();
     clock = 120_000;
-    stage.begin('acp:c7', 'mixed', { runId: 'r_mix', shell: { call: 'b3', open: true } });
-    stage.begin('acp:c7', 'mixed', { runId: 'r_mix', shell: { call: 'b3', open: false } });
+    const shell = (open: boolean) => ({ call: 'b3', open, slugs: ['ui-c'] });
+    stage.begin('acp:c7', 'mixed', { runId: 'r_mix', shell: shell(true) });
+    stage.begin('acp:c7', 'mixed', { runId: 'r_mix', shell: shell(false) });
     clock += 5_000;
     stage.begin('acp:c7', 'mixed', { runId: 'r_mix' });
+    expect(stage.captures('ui-c', true, 'a person after the edit tool')).toBe(false);
+    stage.claim('r_mix', 'ui-c', hashBytes('edit tool bytes'));
     expect(stage.captures('ui-c', true, 'edit tool bytes')).toBe(true);
   });
 });

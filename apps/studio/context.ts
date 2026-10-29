@@ -389,7 +389,7 @@ export interface Context {
           chatId?: string;
           actor?: string;
           /** V2-8.9 round B A1 — a shell verb call's window (sync/action-stage.ts `claimOnly`). */
-          shell?: { call: string; open: boolean };
+          shell?: { call: string; open: boolean; files?: string[] };
           /** p8-a1-claims — begun by a claim: takes only claimed writes (sync/action-stage.ts). */
           claimOnly?: boolean;
         }

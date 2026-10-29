@@ -7236,8 +7236,7 @@
       "scope": "design",
       "verb": "design ds-check",
       "effect": "project",
-      "tier": "auto",
-      "unclaimed": true
+      "tier": "auto"
     },
     {
       "scope": "design",
@@ -7291,8 +7290,7 @@
       "scope": "design",
       "verb": "design import-figma",
       "effect": "external",
-      "tier": "prompt",
-      "unclaimed": true
+      "tier": "prompt"
     },
     {
       "scope": "design",

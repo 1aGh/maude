@@ -33,6 +33,7 @@ import type { Context } from '../context.ts';
 import { createBus } from '../context.ts';
 import { createProjectUndoRoutes } from '../routes/project-undo.ts';
 import { readLaneFromDoc } from '../sync/codec.ts';
+import { hashBytes } from '../sync/echo-guard.ts';
 import { createSyncRuntime, type SyncRuntime } from '../sync/index.ts';
 import { describeSourceOp } from '../sync/source-ops.ts';
 import { signInToWorkspace } from '../sync/workspace-signin.ts';
@@ -1002,8 +1003,13 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
 
     // --- a clean run: two files, one action
     alice.runtime.beginAiAction?.('acp:chat-1', 'Claude: rename both titles');
-    alice.write('ui/ai-a.tsx', src('ai-a by Claude'));
-    alice.write('ui/ai-b.tsx', src('ai-b by Claude'));
+    // p8-a1-claims — the tool claims the exact bytes it writes (every run is claim-only)
+    const aiWrite = (key: string, rel: string, text: string) => {
+      alice.runtime.claimAiWrite?.(key, `design/${rel}`, hashBytes(text));
+      alice.write(rel, text);
+    };
+    aiWrite('acp:chat-1', 'ui/ai-a.tsx', src('ai-a by Claude'));
+    aiWrite('acp:chat-1', 'ui/ai-b.tsx', src('ai-b by Claude'));
     // The person keeps working on a canvas the agent never touched: theirs,
     // published at once, not swallowed into the agent's action.
     alice.ctx.bus.emit('activity:suppress', 'ui/ai-c.tsx');
@@ -1048,7 +1054,7 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
 
     // --- a failed run: held, unpublished, then published by the person
     alice.runtime.beginAiAction?.('edit:design/ui/ai-a.tsx', 'Claude edited ai-a');
-    alice.write('ui/ai-a.tsx', src('ai-a half done'));
+    aiWrite('edit:design/ui/ai-a.tsx', 'ui/ai-a.tsx', src('ai-a half done'));
     await new Promise((r) => setTimeout(r, 400));
     await alice.runtime.endAiAction?.('edit:design/ui/ai-a.tsx', 'failed');
     await new Promise((r) => setTimeout(r, 800));
@@ -1063,7 +1069,7 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
 
     // --- a failed run the person discards: the accepted version comes back
     alice.runtime.beginAiAction?.('acp:chat-2', 'Claude: experiment');
-    alice.write('ui/ai-b.tsx', src('ai-b experiment'));
+    aiWrite('acp:chat-2', 'ui/ai-b.tsx', src('ai-b experiment'));
     await new Promise((r) => setTimeout(r, 400));
     await alice.runtime.endAiAction?.('acp:chat-2', 'failed');
     const discarded = await alice.runtime.resolveAiAction?.('discard');
@@ -1162,6 +1168,8 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
       runId: 'r_pend0001',
       chatId: 'chat-pend',
     });
+    // p8-a1-claims — the run's tool claims its bytes before they land
+    alice.runtime.claimAiWrite?.('r_pend0001', repoRel, hashBytes(body('by Claude', 'black')));
     alice.write(rel, body('by Claude', 'black'));
     await new Promise((r) => setTimeout(r, 400));
     alice.ctx.bus.emit('activity:suppress', rel);

@@ -1,5 +1,10 @@
 import { claimCreatedCanvas, runForCreate } from './ai/create-claim.ts';
-import { claimWritesForChat, routeWriteClaim, withWriteClaim } from './ai/write-claim.ts';
+import {
+  claimWritesForChat,
+  hookClaims,
+  routeWriteClaim,
+  withWriteClaim,
+} from './ai/write-claim.ts';
 import { MAX_ELEMENTS } from './annotations/constants.ts';
 import { parseOps as parseAnnotationOps } from './annotations/ops.ts';
 import { runTagGate, runTagRefusalResponse } from './annotations/run-tag.ts';
@@ -280,7 +285,6 @@ import {
   serveIndexHtml,
 } from './static-lane.ts';
 import { sanitizeForLog } from './sync/cell-pairing.ts';
-import { hashBytes } from './sync/echo-guard.ts';
 import { linkHub } from './sync/hub-link.ts';
 import { accessFor, getHubRecord } from './sync/hubs-config.ts';
 import { hubHealth } from './sync/journal-client.ts';
@@ -2313,21 +2317,11 @@ export function createHttp(
             ?.beginAiAction?.(`agent:${r.session}`, r.label || 'Claude Code', { runId: r.run });
         },
         // S5.3 — the ai-activity banner of a hook run is DERIVED from the registry (ai/runs.ts
-        // `bannerEntries`), never a second entry in AiActivity. S5.5b — `touch` claims the
-        // write for the run by its content hash (V2-1.5 §5.5 "Write → run").
-        touch: (r, rel) => {
-          let hash: string | null = null;
-          if (/\.tsx$/i.test(rel)) {
-            try {
-              hash = hashBytes(readFileSync(join(ctx.paths.designRoot, rel), 'utf8'));
-            } catch {
-              hash = null;
-            }
-          }
-          ctx.syncControl
-            ?.current?.()
-            ?.claimAiWrite?.(r.run, `${ctx.paths.designRel}/${rel}`, hash);
-        },
+        // `bannerEntries`), never a second entry in AiActivity. p8-a1-claims — `touch` (after the
+        // write) no longer claims what the disk holds then: those could be a person's bytes. The
+        // claims are made BEFORE the write: `claim` (edit/check's replayed bytes) and `window`
+        // (a Bash call that cannot claim, for the canvases it names).
+        ...hookClaims(() => ctx.syncControl?.current?.(), ctx.paths.designRel),
       },
     },
     projectFormat: {
@@ -2576,7 +2570,9 @@ export function createHttp(
     connections: { designRoot: ctx.paths.designRoot },
   }).map(guardTableRoute);
   // p8-a1-claims — outside the gates: a write that names an AI chat answers inside its run's claim
-  const laneRoutes = mountRoutes(tableSpecs.map((s) => claimingTableRoute(s, runs)));
+  // (in place, so every consumer of the table — the mount, the local gate — sees the same specs)
+  tableSpecs.splice(0, tableSpecs.length, ...tableSpecs.map((s) => claimingTableRoute(s, runs)));
+  const laneRoutes = mountRoutes(tableSpecs);
   // V2-2.17 — the project index (contract V2-1.17): built now, updated per fs event, persisted
   // in the machine cache (~/.maude/index/v1, outside the project). Cells write none.
   const projectIndex = createIndexService({

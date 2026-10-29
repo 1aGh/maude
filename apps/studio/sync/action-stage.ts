@@ -91,14 +91,14 @@ export interface RunStage {
   /** canvas → artboards (V2-1.5 §5.7 attribution). */
   touched: Record<string, string[]>;
   /**
-   * V2-8.9 round B A1 — a run only a SHELL verb opened (acp/index.ts): it takes an unclaimed write
-   * (the lone-open-run fallback) only while one of its verb calls is open (`shellCalls`) or within
-   * SHELL_SETTLE_MS of the last one closing; otherwise only a write a tool claimed by hash. An edit
-   * tool joining the run clears it (the v1 fallback is that tool's own race cover).
+   * p8-a1-claims (Michal 2026-10-29) — EVERY run is claim-only: it takes a write only when a tool
+   * claimed exactly those bytes for it (`claim`), never because it is the one run open. The one named
+   * exception is a call that cannot claim (S7 interpreter, terminal-lane verb): while it is open
+   * (`shellCalls`, call → the canvases its command names) or within SHELL_SETTLE_MS of it closing
+   * (`shellClosed`), an unclaimed write to ONE OF THOSE canvases joins the run.
    */
-  claimOnly?: boolean;
-  shellCalls?: Set<string>;
-  shellClosedAt?: number;
+  shellCalls?: Map<string, Set<string>>;
+  shellClosed?: Array<{ slugs: Set<string>; at: number }>;
   /**
    * p8-a1-claims (F17) — canvases this run DELETED (a claimed `maude design trash move`): doc id → the
    * canvas path. Published as `doc.delete` in the run's one action, so its undo brings the canvas back.
@@ -415,13 +415,12 @@ export function createActionStage(opts: ActionStageOptions) {
       runId?: string;
       chatId?: string;
       actor?: string;
-      /** A1 — a shell verb call opening (`open`) or closing its window; absent = an edit tool. */
-      shell?: { call: string; open: boolean };
       /**
-       * p8-a1-claims — begun by a CLAIM (ai/write-claim.ts): the run takes only what was claimed for
-       * it, never an unclaimed write (a fresh run is claim-only with no window); an existing run's
-       * scoping is left as it is.
+       * A1 — a call that cannot claim opening (`open`) or closing its window, for the canvases its
+       * command names (`slugs`, in this stage's slug form; none = it takes nothing).
        */
+      shell?: { call: string; open: boolean; slugs?: string[] };
+      /** p8-a1-claims — every run is claim-only now; kept for callers that still say so. */
       claimOnly?: boolean;
     } = {}
   ): void {
@@ -434,7 +433,7 @@ export function createActionStage(opts: ActionStageOptions) {
         delete existing.endedAt;
         changed();
       }
-      if (!meta.claimOnly) shellWindow(existing, meta.shell);
+      shellWindow(existing, meta.shell);
       return;
     }
     const chatId = originId(meta.chatId);
@@ -447,32 +446,38 @@ export function createActionStage(opts: ActionStageOptions) {
       since: now(),
       lanes: new Map(),
       touched: {},
-      ...(meta.shell || meta.claimOnly ? { claimOnly: true, shellCalls: new Set<string>() } : {}),
     };
     runs.set(runId, fresh);
-    if (!meta.claimOnly) shellWindow(fresh, meta.shell);
+    shellWindow(fresh, meta.shell);
     changed();
   }
 
-  /** A1 — open/close one shell verb call's window; an edit tool (no `shell`) lifts the scoping. */
-  function shellWindow(r: RunStage, shell: { call: string; open: boolean } | undefined): void {
-    if (!shell) {
-      delete r.claimOnly;
-      delete r.shellCalls;
-      delete r.shellClosedAt;
+  /** A1 — open/close the window of one call that cannot claim (no `shell`: nothing changes). */
+  function shellWindow(
+    r: RunStage,
+    shell: { call: string; open: boolean; slugs?: string[] } | undefined
+  ): void {
+    if (!shell) return;
+    r.shellCalls ??= new Map();
+    if (shell.open) {
+      const slugs = new Set(shell.slugs ?? []);
+      if (slugs.size) r.shellCalls.set(shell.call, slugs);
       return;
     }
-    if (!r.claimOnly) return; // an edit tool already opened it: the v1 rule stands
-    r.shellCalls ??= new Set();
-    if (shell.open) r.shellCalls.add(shell.call);
-    else if (r.shellCalls.delete(shell.call)) r.shellClosedAt = now();
+    const was = r.shellCalls.get(shell.call);
+    if (!was) return;
+    r.shellCalls.delete(shell.call);
+    const t = now();
+    r.shellClosed = [
+      ...(r.shellClosed ?? []).filter((c) => t - c.at <= SHELL_SETTLE_MS),
+      { slugs: was, at: t },
+    ];
   }
 
-  /** May `r` take a write nobody claimed (the lone-open-run fallback)? */
-  const takesUnclaimed = (r: RunStage) =>
-    !r.claimOnly ||
-    (r.shellCalls?.size ?? 0) > 0 ||
-    (r.shellClosedAt !== undefined && now() - r.shellClosedAt <= SHELL_SETTLE_MS);
+  /** May `r` take a write to `slug` nobody claimed? Only inside a named-file window (S7 fallback). */
+  const takesUnclaimed = (r: RunStage, slug: string) =>
+    [...(r.shellCalls?.values() ?? [])].some((s) => s.has(slug)) ||
+    (r.shellClosed ?? []).some((c) => now() - c.at <= SHELL_SETTLE_MS && c.slugs.has(slug));
 
   /** A tool reported writing `hash` (sha256 of the content) to canvas `slug`. */
   function claim(keyOrRun: string, slug: string, hash?: string | null): void {
@@ -553,17 +558,21 @@ export function createActionStage(opts: ActionStageOptions) {
       const byHash = open.find((r) => claims.get(r.runId)?.hashes.has(key));
       if (byHash) return byHash;
     }
-    // A1 — a shell-opened run outside its verb's window takes only what a tool claimed by hash.
-    const free = open.filter(takesUnclaimed);
-    const covering = free.filter((r) => coversSlug(r, slug));
-    // S12.16 — a NEW canvas joins a run only when a run said it wrote it. The lone-open-run
-    // fallback below is right for a change to a canvas that exists (a tool wrote it); for a create
-    // it would swallow a person's new canvas into whichever AI run happens to be open.
-    if (explicit) return covering.length === 1 ? covering[0] : null;
-    if (covering.length === 1) return covering[0];
-    if (covering.length > 1) return null;
-    if (open.length === 1) return free[0] ?? null; // the lone run, unless it is claim-scoped now
-    if (open.length > 1) return null;
+    // S12.16 — a NEW canvas joins a run only when that run said it created it (its slug claim);
+    // the create's other lanes follow the canvas the run already staged.
+    if (explicit) {
+      const covering = open.filter((r) => coversSlug(r, slug));
+      return covering.length === 1 ? covering[0] : null;
+    }
+    // p8-a1-claims — no claim for these bytes: the write is the PERSON's, unless a call that cannot
+    // claim (S7) has this canvas in its named-file window. Being the only open run is not a claim.
+    const free = open.filter((r) => takesUnclaimed(r, slug));
+    if (free.length === 1) return free[0];
+    if (free.length > 1) {
+      const covering = free.filter((r) => coversSlug(r, slug));
+      return covering.length === 1 ? covering[0] : null;
+    }
+    if (open.length) return null;
     // Nothing open: a held run that covers this canvas keeps its cold start.
     return all.find((r) => r.state === 'held' && coversSlug(r, slug)) ?? null;
   }

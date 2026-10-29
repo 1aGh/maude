@@ -221,6 +221,7 @@ const CANVAS = [
   '/_api/agent/run/begin',
   '/_api/agent/run/end',
   '/_api/agent/write/claim',
+  '/_api/agent/bash/window',
   '/_api/agent/check',
   '/_api/agent/edit/check',
   '/_api/agent/edit/touched',
