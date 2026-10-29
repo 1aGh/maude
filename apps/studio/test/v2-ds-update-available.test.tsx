@@ -269,6 +269,42 @@ describe('the Update available block', () => {
     await act(async () => q('ds-update-detach')?.click());
     expect([updated, detached]).toEqual([1, 1]);
   });
+  // p8-dead-reasons — Keep this version (`ds.canvas-leave`): the button, and the card quiet once kept
+  test('Keep this version is on the card; a kept update keeps the card away (after a reload too)', async () => {
+    stubServer();
+    let kept = 0;
+    await mount({
+      canvas: 'ui/2026/combine.tsx',
+      el: { instanceInfo: { dsPin: null } },
+      onUpdate: () => {},
+      onKeep: () => kept++,
+      onDetach: () => {},
+    });
+    expect(q('ds-update-keep')?.textContent).toBe('Keep this version');
+    await act(async () => q('ds-update-keep')?.click());
+    expect(kept).toBe(1);
+    // the index after a reload: the canvas declined THIS head
+    await mount({
+      canvas: 'ui/2026/combine.tsx',
+      cfg: { ...CFG, canvasDsKept: { 'ui/2026/combine.tsx': HEAD } },
+      el: { instanceInfo: { dsPin: null } },
+      onKeep: () => {},
+    });
+    expect(document.querySelectorAll('[data-testid="ds-update-available"]').length).toBe(1);
+  });
+  test('Keep posts leave for the canvas', async () => {
+    const posted: Array<[string, Record<string, unknown>]> = [];
+    const f = async (u: string, init: { body: string }) => {
+      posted.push([u, JSON.parse(init.body)]);
+      return { ok: true, status: 200, json: async () => ({ ok: true }) } as Response;
+    };
+    const { canvasLeaveNow } = await import('../client/v2/ds/door-write.js');
+    const r = await canvasLeaveNow({ canvas: 'ui/2026/combine.tsx' }, f as never);
+    expect(posted).toEqual([
+      ['/_api/ds/canvas', { canvas: 'ui/2026/combine.tsx', action: 'leave' }],
+    ]);
+    expect(r.ok).toBe(true);
+  });
   test('quiet on a canvas that follows the system, and on an instance already current', async () => {
     stubServer();
     await mount({ canvas: 'ui/Home.tsx' });

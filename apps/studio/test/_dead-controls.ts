@@ -430,6 +430,7 @@ export function scanSource(
     if (!/<[a-zA-Z]/.test(text)) return null;
     const sf = ts.createSourceFile(f, text, ts.ScriptTarget.Latest, true, kindOf(f));
     const locals = noopLocals(sf);
+    const reasonCtx = reasonCtxFor(sf);
     // An element wired imperatively (its `ref` + an addEventListener in the same file) is wired.
     const imperative =
       /addEventListener\(\s*['"](click|pointerdown|mousedown|keydown|pointerup)/.test(text);
@@ -509,11 +510,22 @@ export function scanSource(
                 ariaDisabled !== 'bare' &&
                 ariaDisabled.kind !== ts.SyntaxKind.FalseKeyword))
           ) {
-            const why = [...attrs.keys()].some((k) => REASON_PROPS.has(k));
+            const why =
+              [...attrs.keys()].some((k) => REASON_PROPS.has(k)) ||
+              // the shared helper: `{...reasonProps(off, kind)}` sets `title` + `aria-description`
+              open.attributes.properties.some(
+                (p) =>
+                  ts.isJsxSpreadAttribute(p) &&
+                  ts.isCallExpression(p.expression) &&
+                  p.expression.expression.getText(sf) === 'reasonProps'
+              );
             const cond = (
               disabled && disabled !== 'bare' ? disabled : ariaDisabled
             ) as ts.Expression | null;
-            if (!why && !spread && !(cond && selfEvidentDisable(cond)))
+            if (!why && !spread && !(cond && selfEvidentDisable(cond, {
+                  ...reasonCtx(open),
+                  click: attrs.get('onClick')?.getText(sf),
+                })))
               findings.push({
                 ...at,
                 finding: 'disabled-no-reason',
@@ -540,7 +552,7 @@ export function scanSource(
  * Anything else (a role, a missing account, a state elsewhere) must say why.
  */
 const BUSY_RE =
-  /^(busy|saving|pending|loading|working|sending|running|submitting|inFlight|isPending|isBusy|isSaving|isLoading|creating|deleting|removing|renaming|joining|leaving|connecting|installing|checking|copying|moving|restoring|uploading|signingIn|starting|stopping|opening|exporting|importing|generating|applying|fetching|publishing|merging|switching|undoing|making|quitting|restarting|signing|settingUp|pulling|converting|linking|unlinking)$/;
+  /^(busy|saving|pending|loading|working|sending|running|submitting|inFlight|isPending|isBusy|isSaving|isLoading|creating|deleting|removing|renaming|joining|leaving|connecting|installing|checking|copying|moving|restoring|uploading|signingIn|starting|stopping|opening|exporting|importing|generating|applying|fetching|publishing|merging|switching|undoing|making|quitting|restarting|signing|settingUp|pulling|converting|linking|unlinking|folding|downloading)$/;
 const isBusyName = (x: ts.Expression): boolean => {
   const n = ts.isIdentifier(x) ? x.text : ts.isPropertyAccessExpression(x) ? x.name.text : '';
   return (
@@ -549,10 +561,225 @@ const isBusyName = (x: ts.Expression): boolean => {
     /(Busy|Loading|Pending|Saving|loadingMore|refreshing|waiting|finding)$/.test(n)
   );
 };
-export function selfEvidentDisable(e: ts.Expression): boolean {
+/**
+ * What the component around a control already shows (p8-dead-reasons):
+ *   · `shown`  — the normalised conditions under which it renders something: `{c && <p/>}` adds `c` (and each
+ *     `&&` operand of it), `{c ? <p/> : <q/>}` adds `c` and `!c`. A disable whose disjunct is one of them has its
+ *     reason on screen beside the control (a refused line, the "no AI" note) — only the SAME component counts;
+ *   · `consts` — the file's single `const x = …` initialisers, so `!canSend` is read through to what it checks.
+ */
+export interface ReasonCtx {
+  shown: Set<string>;
+  consts: Map<string, ts.Expression | null>;
+  /** the control's own onClick text, for "already added" (`there = have.includes(id)` + `onAddTrack(id)`) */
+  click?: string;
+}
+const FIELD_RE =
+  /^(draft|text|value|name|query|title|note|input|prompt|label|message|url|link|email|code|word|words|answer|reason|comment|body|q|val|newName|branchName|branch|slug|file|picked|selection|sentence|description|password|provider|grant|host|hasText|hasValue|hasInput|hasDraft|hasPrompt|\w+(File|Text|Draft|Query|Url))$/i;
+/** `!!x` → `x`, `x?.y` → `x.y`, `(x)` → `x`, `x.length > 0` / `x.length` → `x`; whitespace dropped. */
+export function normCond(s: string): string {
+  let t = s.replace(/\s+/g, '').replace(/\?\./g, '.').replace(/"/g, "'");
+  for (let i = 0; i < 4; i++) {
+    const before = t;
+    while (/^\((.*)\)$/.test(t) && balanced(t.slice(1, -1))) t = t.slice(1, -1);
+    if (t.startsWith('!!')) t = t.slice(2);
+    t = t.replace(/(\.length)?(>0|!==0)$/, '').replace(/\.length$/, '');
+    if (t === before) break;
+  }
+  return t;
+}
+function balanced(s: string): boolean {
+  let d = 0;
+  for (const c of s) {
+    if (c === '(') d++;
+    else if (c === ')' && --d < 0) return false;
+  }
+  return d === 0;
+}
+const containsJsx = (n: ts.Node): boolean => {
+  if (ts.isJsxElement(n) || ts.isJsxSelfClosingElement(n) || ts.isJsxFragment(n)) return true;
+  return ts.forEachChild(n, containsJsx) ?? false;
+};
+/** The top-level function (the component) a node sits in, or the file. */
+function componentOf(n: ts.Node): ts.Node {
+  let top: ts.Node = n.getSourceFile();
+  for (let p: ts.Node | undefined = n.parent; p; p = p.parent)
+    if (
+      (ts.isFunctionDeclaration(p) || ts.isArrowFunction(p) || ts.isFunctionExpression(p)) &&
+      (ts.isSourceFile(p.parent) ||
+        (ts.isVariableDeclaration(p.parent) && ts.isVariableStatement(p.parent.parent.parent)) ||
+        ts.isExportAssignment(p.parent) ||
+        (ts.isCallExpression(p.parent) && ts.isVariableDeclaration(p.parent.parent)))
+    )
+      top = p;
+  return top;
+}
+const shownCache = new WeakMap<ts.Node, Set<string>>();
+function shownIn(scope: ts.Node): Set<string> {
+  const hit = shownCache.get(scope);
+  if (hit) return hit;
+  const out = new Set<string>();
+  const addAnd = (x: ts.Expression) => {
+    out.add(normCond(x.getText()));
+    while (ts.isParenthesizedExpression(x)) x = x.expression;
+    if (
+      ts.isBinaryExpression(x) &&
+      x.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken
+    ) {
+      addAnd(x.left);
+      addAnd(x.right);
+    }
+  };
+  /** Rendered: JSX, or any text when the conditional sits in a `{…}` child of JSX (`{held ? W.held : W.fine}`). */
+  const inJsxText = (n: ts.Node): boolean => {
+    for (let p = n.parent; p; p = p.parent) {
+      if (ts.isJsxExpression(p)) return !ts.isJsxAttribute(p.parent);
+      if (
+        !ts.isConditionalExpression(p) &&
+        !ts.isParenthesizedExpression(p) &&
+        !ts.isBinaryExpression(p)
+      )
+        return false;
+    }
+    return false;
+  };
+  const walk = (n: ts.Node): void => {
+    const text = ts.isConditionalExpression(n) && inJsxText(n);
+    const rendered = (b: ts.Expression) =>
+      containsJsx(b) || (text && !/^(null|undefined|''|"")$/.test(b.getText()));
+    if (ts.isConditionalExpression(n) && (rendered(n.whenTrue) || rendered(n.whenFalse))) {
+      if (rendered(n.whenTrue)) addAnd(n.condition);
+      if (rendered(n.whenFalse)) {
+        const c = n.condition;
+        // `!x ? a : <p/>` — shown under `x`
+        if (ts.isPrefixUnaryExpression(c) && c.operator === ts.SyntaxKind.ExclamationToken)
+          out.add(normCond(c.operand.getText()));
+        else out.add(normCond(`!${c.getText()}`));
+      }
+    }
+    if (
+      ts.isBinaryExpression(n) &&
+      n.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken &&
+      containsJsx(n.right)
+    )
+      addAnd(n.left);
+    ts.forEachChild(n, walk);
+  };
+  walk(scope);
+  shownCache.set(scope, out);
+  return out;
+}
+export function reasonCtxFor(sf: ts.SourceFile): (n: ts.Node) => ReasonCtx {
+  const consts = new Map<string, ts.Expression | null>();
+  const walk = (n: ts.Node): void => {
+    if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer)
+      consts.set(n.name.text, consts.has(n.name.text) ? null : n.initializer);
+    ts.forEachChild(n, walk);
+  };
+  walk(sf);
+  return (n) => ({ shown: shownIn(componentOf(n)), consts });
+}
+
+export function selfEvidentDisable(e: ts.Expression, ctx?: ReasonCtx): boolean {
+  const shown = (x: ts.Expression) => !!ctx?.shown.has(normCond(x.getText()));
+  const constOf = (x: ts.Expression): ts.Expression | null => {
+    while (ts.isParenthesizedExpression(x)) x = x.expression;
+    return ts.isIdentifier(x) ? (ctx?.consts.get(x.text) ?? null) : null;
+  };
+  /** A field's own check: its emptiness or a `looksLikeX(field)` / `checkX(field)` validity call. */
+  const fieldCheck = (x: ts.Expression): boolean => {
+    while (ts.isParenthesizedExpression(x)) x = x.expression;
+    if (ts.isIdentifier(x)) return FIELD_RE.test(x.text);
+    // `hub.password` — a field of a form object
+    if (
+      ts.isPropertyAccessExpression(x) &&
+      FIELD_RE.test(x.name.text) &&
+      !/^(ok|valid)$/.test(x.name.text)
+    )
+      return true;
+    if (ts.isCallExpression(x) && ts.isPropertyAccessExpression(x.expression)) {
+      if (x.expression.name.text === 'trim') return true;
+      // `required.every((q) => isAnswered(q, answers))` — every required question answered
+      if (x.expression.name.text === 'every') {
+        const cb = x.arguments[0];
+        return (
+          !!cb &&
+          (ts.isArrowFunction(cb) || ts.isFunctionExpression(cb)) &&
+          !ts.isBlock(cb.body) &&
+          fieldCheck(cb.body as ts.Expression)
+        );
+      }
+    }
+    // the question's own answer: `isAnswered(q, answers)`
+    if (
+      ts.isCallExpression(x) &&
+      ts.isIdentifier(x.expression) &&
+      x.expression.text === 'isAnswered'
+    )
+      return true;
+    if (ts.isBinaryExpression(x) && x.operatorToken.kind === ts.SyntaxKind.GreaterThanToken)
+      return /\.(trim\(\)\.)?length$/.test(x.left.getText()) && x.right.getText() === '0';
+    if (ts.isCallExpression(x) && ts.isIdentifier(x.expression))
+      return (
+        // the result depends on what was typed alone: `looksLikeEmail(email)`, `figmaLinkKind(url)`
+        x.arguments.length > 0 &&
+        x.arguments.every(
+          (a) =>
+            (ts.isIdentifier(a) && FIELD_RE.test(a.text)) ||
+            (ts.isObjectLiteralExpression(a) &&
+              a.properties.every(
+                (p) => ts.isShorthandPropertyAssignment(p) && FIELD_RE.test(p.name.text)
+              ))
+        )
+      );
+    // `verdict.ok` where `const verdict = checkName(draft)`
+    if (ts.isPropertyAccessExpression(x) && /^(ok|valid)$/.test(x.name.text)) {
+      const c = constOf(x.expression);
+      return !!c && fieldCheck(c);
+    }
+    return false;
+  };
+  /** Is "this is false" self-evident? (`x` is what a `!x` disable negates.) */
+  const negSE = (x: ts.Expression, depth = 0): boolean => {
+    while (ts.isParenthesizedExpression(x)) x = x.expression;
+    if (depth > 4) return false;
+    if (ts.isBinaryExpression(x) && x.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken)
+      return negSE(x.left, depth) && negSE(x.right, depth);
+    if (ts.isBinaryExpression(x) && x.operatorToken.kind === ts.SyntaxKind.BarBarToken)
+      return negSE(x.left, depth) || negSE(x.right, depth);
+    if (ts.isPrefixUnaryExpression(x) && x.operator === ts.SyntaxKind.ExclamationToken)
+      return disj(x.operand);
+    // `relink ? !!(url.trim() || grant.trim()) : !!url.trim()` — false either way for the same reason
+    if (ts.isConditionalExpression(x)) return negSE(x.whenTrue, depth) && negSE(x.whenFalse, depth);
+    // a callback the host did not hand in (`!onJoin`, `!ctx.onReplaceMedia`): the host decides whether the
+    // action is offered here — the same rule as a pass-through `disabled` prop, whose caller owns the reason;
+    // a sheet's submit gate (`canSubmit`) is its caller's form check, likewise
+    if (
+      (ts.isIdentifier(x) || ts.isPropertyAccessExpression(x)) &&
+      /^(on[A-Z]\w*|canSubmit)$/.test(ts.isIdentifier(x) ? x.text : x.name.text)
+    )
+      return true;
+    if (fieldCheck(x) || ctx?.shown.has(normCond(`!${x.getText()}`))) return true;
+    const c = constOf(x);
+    return !!c && negSE(c, depth + 1);
+  };
   // every disjunct must be self-evident
   const disj = (x: ts.Expression): boolean => {
     while (ts.isParenthesizedExpression(x)) x = x.expression;
+    if (shown(x)) return true;
+    // already added: `const there = have.includes(id)` on the control whose click adds that same `id` —
+    // what it would add is on screen already
+    const added = constOf(x);
+    if (
+      added &&
+      ts.isCallExpression(added) &&
+      ts.isPropertyAccessExpression(added.expression) &&
+      added.expression.name.text === 'includes' &&
+      added.arguments.length === 1 &&
+      ts.isIdentifier(added.arguments[0] as ts.Expression) &&
+      new RegExp(`\\(${(added.arguments[0] as ts.Identifier).text}\\)`).test(ctx?.click ?? '')
+    )
+      return true;
     if (ts.isBinaryExpression(x) && x.operatorToken.kind === ts.SyntaxKind.BarBarToken)
       return disj(x.left) && (disj(x.right) || x.right.getText() === 'undefined');
     // `busy && verb === 'Undo'` — only while busy
@@ -572,6 +799,9 @@ export function selfEvidentDisable(e: ts.Expression): boolean {
     // `x.disabled ? true : undefined` / `x.disabled || undefined` — the pass-through below, spelled longer
     if (ts.isConditionalExpression(x) && x.whenFalse.getText() === 'undefined')
       return disj(x.condition);
+    // `live ? undefined : 'true'` — off while the condition is false
+    if (ts.isConditionalExpression(x) && x.whenTrue.getText() === 'undefined')
+      return negSE(x.condition);
     // a pass-through `disabled` prop / `item.disabled`: the wrapper's caller (or the item) owns the reason
     if (
       (ts.isIdentifier(x) && x.text === 'disabled') ||
@@ -586,30 +816,39 @@ export function selfEvidentDisable(e: ts.Expression): boolean {
     ) {
       // `state === 'saving'` / `busy === 'disconnect'` / `x.length === 0` / a pager at its first or last page
       const r = x.right;
-      if (ts.isStringLiteral(r) && (BUSY_RE.test(r.text) || isBusyName(x.left))) return true;
+      const camel = (t: string) => t.replace(/-(\w)/g, (_, c: string) => c.toUpperCase());
+      if (ts.isStringLiteral(r) && (BUSY_RE.test(camel(r.text)) || isBusyName(x.left))) return true;
+      // `busy === w.id` — this row is the one in flight
+      if ((ts.isIdentifier(x.left) || ts.isPropertyAccessExpression(x.left)) && isBusyName(x.left))
+        return true;
       if (
         /^(at|page|index|i|idx|step|current)$/.test(x.left.getText()) &&
         (r.getText() === '0' || /- 1$/.test(r.getText()))
       )
         return true;
+      // a field's own verdict: `kind === 'none'` where `const kind = figmaLinkKind(url)`
+      const lc = constOf(x.left);
+      if (lc && fieldCheck(lc)) return true;
       // nothing picked yet: `x.length === 0`, `n === 0`, `pickedCount === 0`
       if (ts.isNumericLiteral(r) && r.text === '0') return true;
       return false;
     }
-    // `!draft`, `!name.trim()`, `!value?.trim?.()`
+    // `!draft`, `!name.trim()`, `!value?.trim?.()`, `!canPreview` read through its const
     if (ts.isPrefixUnaryExpression(x) && x.operator === ts.SyntaxKind.ExclamationToken) {
       let o: ts.Expression = x.operand;
       while (ts.isParenthesizedExpression(o)) o = o.expression;
+      // nothing there yet: `!units.length`, `!log.total`
+      if (ts.isPropertyAccessExpression(o) && /^(length|total|size|count)$/.test(o.name.text))
+        return true;
+      // a pager at its end: `!canStep(position, 'next')`
       if (
         ts.isCallExpression(o) &&
-        ts.isPropertyAccessExpression(o.expression) &&
-        o.expression.name.text === 'trim'
+        ts.isIdentifier(o.expression) &&
+        /^can(Step|Go)$/.test(o.expression.text) &&
+        o.arguments.some((a) => ts.isStringLiteral(a) && /^(next|prev|back|forward)$/.test(a.text))
       )
         return true;
-      if (ts.isIdentifier(o))
-        return /^(draft|text|value|name|query|title|note|input|prompt|label|message|url|link|email|code|word|words|answer|reason|comment|body|q|val|newName|branchName|branch|slug|file|picked|selection)$/i.test(
-          o.text
-        );
+      return negSE(o);
     }
     return false;
   };

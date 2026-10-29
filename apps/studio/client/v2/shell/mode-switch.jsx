@@ -20,6 +20,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { MODE_WORD, modeSegments } from './canvas-mode.js';
+import { reasonProps } from '../access/disabled-reason.js';
 
 const GLYPH = {
   edit: (
@@ -249,6 +250,7 @@ export function ModeSwitch({
               aria-haspopup="menu"
               aria-expanded={menu}
               disabled={!canPresent}
+              {...reasonProps(!canPresent, 'noCanvas')}
               onClick={() => setMenu((v) => !v)}
             >
               <svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -319,6 +321,7 @@ export function ModeSwitch({
                   className="sh-pm-row"
                   data-testid={row.testid}
                   aria-disabled={copyLink?.enabled ? undefined : 'true'}
+                  {...reasonProps(!copyLink?.enabled, copyLink?.note)}
                   onClick={() => {
                     if (!copyLink?.enabled) return;
                     setMenu(false);

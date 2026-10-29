@@ -18,6 +18,7 @@ import { ADVANCED_FOOT, ADVANCED_ROWS } from './advanced-rows.js';
 // 02 ob-adv-open: the ⌘K in the foot is a Kbd chip, the line around it is ADVANCED_FOOT's words
 const [ADVANCED_FOOT_BEFORE, ADVANCED_FOOT_AFTER] = ADVANCED_FOOT.split('⌘K');
 import { SIGNIN_WORDS as W } from './signin-model.js';
+import { reasonProps } from '../access/disabled-reason.js';
 
 function Line({ kind, title, children, testid }) {
   return (
@@ -43,7 +44,7 @@ function Line({ kind, title, children, testid }) {
  *   onCloud: () => void, onLocal: () => void,
  *   onCancel?: () => void, onReopen?: () => void, onShowCode?: () => void,
  *   advancedOpen?: boolean, onToggleAdvanced?: () => void,
- *   onAdvanced?: (id: string) => void, advancedAvailable?: string[],
+ *   onAdvanced?: (id: string) => void,
  * }} props
  */
 export function SignInCard({
@@ -61,7 +62,6 @@ export function SignInCard({
   advancedOpen = false,
   onToggleAdvanced,
   onAdvanced,
-  advancedAvailable = [],
 }) {
   const offline = mode === 'offline';
   const waiting = mode === 'waiting';
@@ -86,6 +86,7 @@ export function SignInCard({
       className={`btn btn--lg si-btn${offline ? ' si-btn-off' : ' btn--primary'}`}
       data-testid="signin-cloud"
       disabled={offline || !native}
+      {...reasonProps(!native, 'homeBrowser')}
       onClick={onCloud}
     >
       <HIcon name="cloud" size={16} />
@@ -98,6 +99,7 @@ export function SignInCard({
       className={`btn btn--lg si-btn${offline ? ' btn--primary' : ' si-btn-2'}`}
       data-testid="signin-local"
       disabled={!native}
+      {...reasonProps(!native, 'homeBrowser')}
       onClick={onLocal}
     >
       <HIcon name="laptop" size={16} />
@@ -135,6 +137,7 @@ export function SignInCard({
               data-testid="signin-reopen"
               onClick={onReopen}
               disabled={!userCode}
+              {...reasonProps(!userCode, W.waiting)}
             >
               {W.again}
             </button>
@@ -196,6 +199,7 @@ export function SignInCard({
               data-testid="signin-use-code"
               onClick={onShowCode}
               disabled={!userCode || showCode}
+              {...reasonProps(!userCode, W.waiting)}
             >
               {W.useCode}
             </button>
@@ -224,16 +228,15 @@ export function SignInCard({
 
       {advancedOpen && !waiting ? (
         <div className="si-fly" id="signin-advanced-menu" data-testid="signin-advanced-menu">
+          {/* every row opens its sheet (p8-dead-reasons: the old per-row gate was never off in the app) */}
           {ADVANCED_ROWS.map((r) => {
-            const live = advancedAvailable.includes(r.id);
             return (
               <button
                 type="button"
                 className="row-item si-advrow"
                 key={r.id}
                 data-testid={`signin-adv-${r.id}`}
-                aria-disabled={live ? undefined : 'true'}
-                onClick={() => live && onAdvanced?.(r.id)}
+                onClick={() => onAdvanced?.(r.id)}
               >
                 <span className={`si-advrow-ic${r.icon === 'spark' ? ' si-advrow-ic--spark' : ''}`}>
                   {r.icon === 'spark' ? <HSpark size={14} /> : <HIcon name={r.icon} size={16} />}

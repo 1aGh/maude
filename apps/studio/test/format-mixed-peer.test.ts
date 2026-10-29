@@ -146,6 +146,23 @@ describe('mixed v1/v2 peers — meta lane (R6)', () => {
     });
   }
 
+  // p8-dead-reasons: "Keep this version" writes `dsRev` + `dsKept` — top-level keys a 1.x build does not know. A v1
+  // peer's drag must keep them (it opens a format-2 project view only, and its lane merge passes them through).
+  for (const order of ['v2 first', 'v1 first'] as const) {
+    test(`${order}: a kept design-system version (dsRev + dsKept) survives a v1 drag`, () => {
+      const kept = JSON.stringify({
+        ...JSON.parse(m0),
+        dsRev: 'a'.repeat(64),
+        dsKept: 'b'.repeat(64),
+      });
+      const accepted =
+        order === 'v2 first' ? accept('meta', m0, kept, v1) : accept('meta', m0, v1, kept);
+      const m = JSON.parse(accepted);
+      expect(m.layout.artboards[0]).toMatchObject({ id: 'b0', x: 40 });
+      expect([m.dsRev, m.dsKept]).toEqual(['a'.repeat(64), 'b'.repeat(64)]);
+    });
+  }
+
   // S7.1: the video / change-kind keys ride the same top-level map (R6), next to a key no build
   // knows yet. Written through kinds/meta.ts, the way the v2 studio writes them.
   const s7 = (() => {

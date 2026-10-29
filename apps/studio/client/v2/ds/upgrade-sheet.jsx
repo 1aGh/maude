@@ -22,6 +22,7 @@ import {
   upgradeLead,
   upgradeTitle,
 } from './upgrade-model.js';
+import { reasonProps } from '../access/disabled-reason.js';
 
 function Lines({ lines }) {
   return (
@@ -212,6 +213,7 @@ export function DsUpgradeSheet({ label, view, canvases, onAsk, onApply, onCancel
               type="button"
               className="btn btn--primary"
               disabled={!canApply}
+              {...reasonProps(kind === 'review' && !!view.blocker, view.blocker)}
               data-testid="ds-upgrade-go"
               onClick={() => run(onApply)}
             >

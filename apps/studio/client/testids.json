@@ -30451,7 +30451,7 @@
     "hook": "home-create-choose-folder",
     "kind": "testid",
     "pattern": false,
-    "meaning": "\"Choose another folder…\" under Advanced › Location. Resting until the native folder picker is wired.",
+    "meaning": "\"Choose another folder…\" under Advanced › Location. Drawn only once the native folder picker is wired (`onChooseFolder`); absent until then.",
     "producer": {
       "file": "apps/studio/client/v2/signin/CreateLocalSheet.jsx",
       "symbol": "CreateLocalSheet"

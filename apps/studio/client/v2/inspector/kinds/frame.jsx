@@ -16,6 +16,7 @@ import { menuRunner } from '../../shell/menu-runner.js';
 import { registerAdvancedRow } from '../advanced-rows.js';
 import { registerSlot } from '../slots.js';
 import { Quiet, Row, effectiveCss } from '../sections/row.jsx';
+import { editReason, reasonProps } from '../../access/disabled-reason.js';
 
 const PLACED = new Set(['absolute', 'fixed']);
 const FLEXY = /^(inline-)?(flex|grid)$/;
@@ -69,6 +70,7 @@ function ConvertBody({ el, ctx }) {
         className="btn btn--sm"
         data-testid="insp-layout-convert"
         disabled={ctx?.editable === false || ctx?.canEdit === false}
+        {...reasonProps(ctx?.editable === false || ctx?.canEdit === false, editReason(ctx))}
         onClick={() =>
           (ctx?.runAction ?? ((id) => menuRunner.run(id)))('layout.convert-to-absolute')
         }

@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { HIcon, HSpark } from './home-icons.jsx';
 import { Starters } from './Starters.jsx';
 import { TargetChip } from './TargetChip.jsx';
+import { reasonProps } from '../v2/access/disabled-reason.js';
 
 const PLACEHOLDER = 'A calm landing page, light and airy';
 
@@ -103,6 +104,7 @@ export function HomeAsk({
       data-testid={testid}
       aria-label="Send"
       disabled={!canSend}
+      {...reasonProps(!native, 'homeBrowser')}
       onClick={send}
     >
       <HSpark size={14} />
@@ -165,6 +167,7 @@ export function HomeAsk({
           className="btn btn--ghost btn--sm home-empty-canvas"
           data-testid="home-empty-canvas"
           disabled={!native}
+          {...reasonProps(!native, 'homeBrowser')}
           onClick={onEmpty}
         >
           Start with an empty canvas <kbd className="kbd">⌘N</kbd>
@@ -205,6 +208,7 @@ export function HomeAsk({
             className="btn btn--ghost btn--sm home-empty-canvas"
             data-testid="home-askbar-empty"
             disabled={!native}
+            {...reasonProps(!native, 'homeBrowser')}
             onClick={onEmpty}
           >
             Start with an empty canvas <kbd className="kbd">⌘N</kbd>

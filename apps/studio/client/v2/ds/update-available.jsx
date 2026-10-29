@@ -4,7 +4,10 @@
 //
 //   ● Update available
 //   Corners 2 → 6, by You, 10 min ago. 2026/combine was left out of that update.
-//   [Update]  [Detach]
+//   [Update]  [Keep this version]  [Detach]
+//
+// Keep this version (`ds.canvas-leave`, p8-dead-reasons) keeps the canvas on its version and the card away for this
+// update — after a reload too, and on every peer (`.meta.json` `dsKept`); Update stays in the canvas's menu.
 //
 // Update gives THIS instance the current look (`ds.instance-update` writes `data-ds-rev="head"` on it — one
 // edit, one ⌘Z); the rest of the canvas keeps its version. Detach is S2's (`component.detach`). The block is
@@ -12,7 +15,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { registerBlock } from '../inspector/blocks.js';
-import { diffRevisions, leftOutOf, missedUpdate, whatWords } from './update-model.js';
+import { canvasLeaveNow, DS_STATE_CHANGED } from './door-write.js';
+import { diffRevisions, leftOutOf, missedUpdate, relOf, whatWords } from './update-model.js';
 
 const noCache = { cache: 'no-store' };
 const bodies = new Map(); // revision id → body | null (revisions are immutable: cached for the session)
@@ -108,6 +112,7 @@ export function DsUpdateAvailable({
   cfg,
   el,
   onUpdate,
+  onKeep,
   onDetach,
   busy = false,
   error = '',
@@ -115,7 +120,7 @@ export function DsUpdateAvailable({
   const info = leftOutOf(canvas, cfg);
   const missed = useMissedUpdate(info);
   const pin = el?.instanceInfo?.dsPin ?? null;
-  if (!info || pin === 'head' || pin === info.head) return null;
+  if (!info || info.kept || pin === 'head' || pin === info.head) return null;
   const name = canvas.replace(/^.*\//, '').replace(/\.tsx$/i, '');
   const text = missed
     ? whatWords({
@@ -146,6 +151,17 @@ export function DsUpdateAvailable({
           >
             Update
           </button>
+          {onKeep ? (
+            <button
+              type="button"
+              className="btn btn--sm btn--ghost"
+              disabled={busy}
+              data-testid="ds-update-keep"
+              onClick={onKeep}
+            >
+              Keep this version
+            </button>
+          ) : null}
           <button
             type="button"
             className="btn btn--sm btn--ghost"
@@ -187,6 +203,17 @@ export function UpdateAvailableBlock({ el, ctx }) {
       ctx?.onRecordEdit?.({ op: 'edit-op', writeId: r.writeId, label: 'Update' });
     ctx?.refreshInstance?.();
   }, [editable, busy, canvas, ref, ctx]);
+  const [kept, setKept] = useState(false);
+  const keep = useCallback(async () => {
+    if (!editable || busy || !canvas) return;
+    setBusy(true);
+    setError('');
+    const r = await canvasLeaveNow({ canvas: relOf(canvas, ctx?.cfg) });
+    setBusy(false);
+    if (!r.ok) return setError(r.message);
+    setKept(true);
+    window.dispatchEvent(new CustomEvent(DS_STATE_CHANGED));
+  }, [editable, busy, canvas, ctx]);
   const detach = useCallback(() => {
     if (!editable || !ctx?.onRunAction) return;
     ctx.onRunAction({
@@ -197,7 +224,7 @@ export function UpdateAvailableBlock({ el, ctx }) {
     });
     setTimeout(() => ctx.refreshInstance?.(), 450);
   }, [editable, ctx, ref]);
-  if (!canvas) return null;
+  if (!canvas || kept) return null;
   return (
     <DsUpdateAvailable
       canvas={canvas}
@@ -206,6 +233,7 @@ export function UpdateAvailableBlock({ el, ctx }) {
       busy={busy || !editable}
       error={error}
       onUpdate={update}
+      onKeep={keep}
       onDetach={detach}
     />
   );

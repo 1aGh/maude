@@ -58,6 +58,7 @@ import {
   UnsavedList,
   VersionList,
 } from './git-parts.jsx';
+import { reasonProps } from '../access/disabled-reason.js';
 
 /** The git id and the lines of the version being looked at. */
 function useChangedInVersion({ canvas, versionRow, enabled, fetchImpl }) {
@@ -547,6 +548,7 @@ export function HistoryAdvanced({
             className="btn btn--ghost btn--sm"
             data-testid="vh-compare-pictures"
             disabled={!canvas || !canView}
+            {...reasonProps(!canvas || !canView, 'noCanvas')}
             onClick={() => onComparePictures({ file: canvas, beforeSha: version || 'HEAD' })}
           >
             {CW.button}

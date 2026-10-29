@@ -1444,7 +1444,6 @@ export function CssKnobs({
                 <button
                   type="button"
                   className="insp-cp-makeflex"
-                  disabled={!editable}
                   onClick={() => commit('display', 'flex')}
                 >
                   + Auto layout (flex)
@@ -1661,7 +1660,6 @@ export function CssKnobs({
                     <button
                       type="button"
                       className="insp-cp-makeflex"
-                      disabled={!editable}
                       onClick={() => commit('display', 'flex')}
                     >
                       + Auto layout (flex)

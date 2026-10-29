@@ -63,6 +63,12 @@
       "minLength": 1,
       "maxLength": 64
     },
+    "dsKept": {
+      "description": "The design-system head a left-out canvas declined with Keep this version (p8-dead-reasons): the update card stays away until the system moves on. Cleared with dsRev by Update. Set by verbs only.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
     "dsPending": { "$ref": "#/$defs/dsPending" },
     "opt_out_scope": { "enum": ["palette", "aesthetic", "full"] },
     "css_mode": { "enum": ["inline", "tailwind", "modules", "sibling"] },
