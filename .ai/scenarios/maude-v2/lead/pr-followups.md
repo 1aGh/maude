@@ -231,3 +231,8 @@ Any commit outside `.ai/` makes V2-8.1/8.2/8.3/8.18 stale. Fold these into the n
 - Mac mini runner (`scripts/remote-lane.sh`): it was out ~14:40–15:20 on 2026-10-29. macOS privacy (TCC) blocked git
   from `/Volumes/D` during a Software Update, and its Playwright cache was empty (chromium-1228 reinstalled). If it
   happens again, run locally through `scripts/v2-test-lane.sh` (Michal).
+- `scripts/dev/local-cell.mjs` writes the local cell's project (`local-cell-smoke`) without `formatVersion`, so a v2
+  studio opens it view-only (format 1). The V2-8.4 rig needs it at 2. At the freeze, the slot-only patch is in
+  `V2-8.4-tip-v2fmt/report.md`. Fix: wrap the config in `v2Config(...)` (`scripts/dev/v2-config.mjs`). Then rerun the
+  desktop lanes whose fixtures use it (`e2e/fixtures/local-hub.mjs`, `share-roles-cell.mjs`, invite-landing), because they
+  passed V2-8.3 on the format-1 project and may assert view-only behaviour without saying so.
