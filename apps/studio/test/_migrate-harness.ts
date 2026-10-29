@@ -193,6 +193,8 @@ export function fakeHub(
     blockers: init.blockers ?? ([] as string[]),
     /** the switch's own refusal (403 forbidden, 409 browser-not-paired, 503 …) */
     refuseMode: null as null | { status: number; code: string },
+    /** the mode READ's refusal (401 invalid-token: the hub turned the credential down) */
+    refuseModeRead: null as null | { status: number; code: string },
     /** the switch landed but its import is still running (T30 importResuming) */
     importLate: false,
     importPending: false,
@@ -222,6 +224,7 @@ export function fakeHub(
     async mode() {
       calls.push({ op: 'mode', at: ++tick });
       if (!state.reachable) return { ok: false, status: 0, code: 'unreachable' };
+      if (state.refuseModeRead) return { ok: false, ...state.refuseModeRead };
       return { ok: true, mode: state.mode, epoch: state.epoch, importPending: state.importPending };
     },
     async setMode(mode, expectEpoch, o = {}) {

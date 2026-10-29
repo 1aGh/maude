@@ -65,6 +65,17 @@ export function olderGateState({ cfg, plan }) {
   if (!plan || plan.error) return { kind: 'owner', line: OLDER_COPY.olderStatus, action: 'update' };
   const codes = (plan.refusals ?? []).map((r) => r?.code).filter(Boolean);
   const owner = ownsProject(plan.project?.linked?.role);
+  // p8-update-fails-loud: a sign-in the team server turns down is said, with the way out — never an
+  // Update button that can only fail. With no sign-in at all the role is unknown ('unknown'): Sign in.
+  const hub = plan.project?.linked?.hub ?? '';
+  if (codes.includes('token-rejected')) {
+    return owner
+      ? { kind: 'token-rejected', line: FAIL_COPY.olderTokenRejected, action: 'sign-in-again', hub }
+      : { kind: 'non-owner', line: OLDER_COPY.olderNonOwner, action: null };
+  }
+  if (codes.includes('no-sign-in') && (plan.project?.linked?.role ?? 'unknown') === 'unknown') {
+    return { kind: 'no-sign-in', line: FAIL_COPY.olderNotSignedIn, action: 'sign-in', hub };
+  }
   if (codes.includes('not-owner') || codes.includes('no-sign-in')) {
     return { kind: 'non-owner', line: OLDER_COPY.olderNonOwner, action: null };
   }
@@ -134,6 +145,21 @@ export function saveModeState({ cfg, plan }) {
     if (!href || !ownsProject(cfg.cloud.role)) return null;
     return { kind: 'save-mode-cloud', line: SAVE_COPY.cloudStatus, action: 'dashboard', href };
   }
+  // p8-update-fails-loud: the switch cannot run because the team server turned this Mac's sign-in
+  // down — the owner is told so (the project keeps saving the old way and stays editable).
+  if (
+    plan &&
+    !plan.error &&
+    refusalCodes(plan).includes('token-rejected') &&
+    ownsProject(plan.project?.linked?.role)
+  ) {
+    return {
+      kind: 'save-mode-sign-in',
+      line: FAIL_COPY.saveModeTokenRejected,
+      action: 'sign-in-again',
+      hub: plan.project?.linked?.hub ?? '',
+    };
+  }
   if (!plan || plan.error || (plan.refusals ?? []).length) return null;
   const linked = plan.project?.linked;
   if (!linked?.modeDue || !ownsProject(linked.role)) return null;
@@ -174,6 +200,118 @@ export function applyOutcome(report) {
   }
   if (linked.modeImporting) return { done: true, toast: SAVE_COPY.toastImporting };
   return { done: true, toast: formatMoved ? SAVE_COPY.toastBoth : SAVE_COPY.toastSwitched };
+}
+
+// ── p8-update-fails-loud (the alligators report, 2026-10-29: "Update project did nothing"). Every way
+// the Update can fail ends in a worded state with the ONE action that helps — never a silent no-op and
+// never the bare "was not updated". CONTRACT §4: what happened · what is safe · one verb; a retry is
+// "Retry <name>", pressed by hand. The sign-in words are the Sync details card's ("Sign in again").
+
+export const FAIL_COPY = {
+  offline: "The project was not updated — the team server can't be reached. Nothing in it changed.",
+  notSignedIn:
+    "The project was not updated — this Mac isn't signed in to the team server. Nothing in it changed.",
+  tokenRejected:
+    "The project was not updated — the team server turned down this Mac's sign-in. Nothing in it changed.",
+  hubTooOld:
+    'The project was not updated — the team server needs an update first. Nothing in it changed.',
+  oldServer:
+    "The project was not updated — this needs Maude 2's server, and this window is still connected to an older one. Nothing in it changed. Restart Maude, then Update project.",
+  unexpected: 'Something stopped the update. Nothing in the project changed.',
+  switchTokenRejected:
+    "The project still saves the old way — the team server turned down this Mac's sign-in. Nothing in it changed.",
+  toastFormatOnlySignIn:
+    "Updated for Maude 2, but it still saves the old way — the team server turned down this Mac's sign-in. Nothing is lost.",
+  olderTokenRejected:
+    "View only — the team server turned down this Mac's sign-in, so the project can't be updated yet.",
+  olderNotSignedIn: "View only — this Mac isn't signed in to the team server for this project.",
+  saveModeTokenRejected:
+    "This project still saves the old way. The team server turned down this Mac's sign-in.",
+  retry: 'Retry update',
+  signIn: 'Sign in',
+  signInAgain: 'Sign in again',
+  close: 'Close',
+};
+
+/** The label of a failure's one action (null: none — the dialog offers only Close). */
+export function failureActionLabel(action) {
+  if (action === 'retry') return FAIL_COPY.retry;
+  if (action === 'sign-in') return FAIL_COPY.signIn;
+  if (action === 'sign-in-again') return FAIL_COPY.signInAgain;
+  if (action === 'team-server') return OLDER_COPY.teamServerAction;
+  return null;
+}
+
+const isReport = (r) => !!r && typeof r === 'object' && r.format === 'maude.migrate-report';
+const hubOf = (report) => {
+  const h = report?.project?.linked?.hub;
+  return typeof h === 'string' && h ? h : '';
+};
+const refusalCodes = (report) => (report?.refusals ?? []).map((r) => r?.code).filter(Boolean);
+
+/**
+ * The dialog's state when an apply did not go through: { kind, line, action[, hub] }.
+ *   { thrown: true }             — the request never got an answer
+ *   { status, report }           — the route's status and its JSON (null when it was not JSON)
+ * A 404 / 405, or a 200 that is no migrate report, is a server without the route: an older Maude
+ * server behind a newer window (the auto-updater swapped the bundle under a running shell).
+ */
+export function applyFailureState({ status, report, thrown } = {}) {
+  const unexpected = { kind: 'unexpected', line: FAIL_COPY.unexpected, action: 'retry' };
+  if (thrown) return unexpected;
+  if (status === 404 || status === 405 || (status === 200 && !isReport(report)))
+    return { kind: 'old-server', line: FAIL_COPY.oldServer, action: null };
+  if (status !== 409 || !isReport(report)) return unexpected;
+  const codes = refusalCodes(report);
+  const hub = hubOf(report);
+  if (codes.includes('token-rejected'))
+    return { kind: 'token-rejected', line: FAIL_COPY.tokenRejected, action: 'sign-in-again', hub };
+  if (codes.includes('no-sign-in'))
+    return { kind: 'no-sign-in', line: FAIL_COPY.notSignedIn, action: 'sign-in', hub };
+  if (codes.includes('offline'))
+    return { kind: 'offline', line: FAIL_COPY.offline, action: 'retry' };
+  if (codes.includes('hub-too-old'))
+    return { kind: 'hub-too-old', line: FAIL_COPY.hubTooOld, action: 'team-server' };
+  if (codes.includes('not-owner'))
+    return { kind: 'not-owner', line: applyFailureLine(report), action: null };
+  if (!(report.refusals?.length || report.steps?.some((s) => s?.refusals?.length)))
+    return unexpected;
+  return { kind: 'refused', line: applyFailureLine(report), action: 'retry' };
+}
+
+/**
+ * The whole answer of an apply: { done: true, toast[, action, hub] } or { done: false, kind, line,
+ * action[, hub] }. A 200 is read by applyOutcome (the existing toasts); a switch the hub turned down
+ * for the sign-in after the format moved keeps the format-only toast, with Sign in again.
+ */
+export function applyResult({ status, report, thrown } = {}) {
+  if (thrown || status !== 200 || !isReport(report))
+    return { done: false, ...applyFailureState({ status, report, thrown }) };
+  const out = applyOutcome(report);
+  const linked = report.project?.linked ?? null;
+  const signInLost = linked?.modeError === 'token-rejected';
+  if (out.done) {
+    if (signInLost && out.toast === SAVE_COPY.toastFormatOnly)
+      return {
+        done: true,
+        toast: FAIL_COPY.toastFormatOnlySignIn,
+        action: 'sign-in-again',
+        hub: hubOf(report),
+      };
+    return out;
+  }
+  if (out.error === SAVE_COPY.switchFailed) {
+    return signInLost
+      ? {
+          done: false,
+          kind: 'switch-token-rejected',
+          line: FAIL_COPY.switchTokenRejected,
+          action: 'sign-in-again',
+          hub: hubOf(report),
+        }
+      : { done: false, kind: 'switch-failed', line: SAVE_COPY.switchFailed, action: 'retry' };
+  }
+  return { done: false, ...applyFailureState({ status: 409, report }) };
 }
 
 /** The dialog's line when an apply did not go through (what happened · what is safe). */

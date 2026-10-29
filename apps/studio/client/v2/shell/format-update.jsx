@@ -12,11 +12,15 @@
 // dashboard instead (format-update.js saveModeState).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isNativeApp } from '../../github.js';
+import { TeamProjectsDialog } from '../../panels/TeamProjects.jsx';
 import { StIcon } from '../../shell/icons.jsx';
 import { shellToast } from '../../shell/util.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import {
-  applyOutcome,
+  applyResult,
+  FAIL_COPY,
+  failureActionLabel,
   isOlderGate,
   isSaveModeOffer,
   OLDER_COPY,
@@ -29,6 +33,13 @@ import {
 } from './format-update.js';
 
 const RECHECK_MS = 60_000;
+
+/** A failure's action as this window can run it: the team-server sign-in is the desktop app's own
+ *  (Tauri — the Sync details card offers it only there too); in a browser the words stay, no button. */
+function reachable(action) {
+  if ((action === 'sign-in' || action === 'sign-in-again') && !isNativeApp()) return null;
+  return action;
+}
 
 async function migrate(body) {
   const r = await fetch('/_api/project/migrate', {
@@ -102,10 +113,16 @@ export function OlderFormatCallout() {
   const [plan, setPlan] = useState(undefined);
   const [dialog, setDialog] = useState(null); // 'update' | 'team-server' | null
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  // p8-update-fails-loud: { kind, line, action, hub } — the worded state after an apply that did not
+  // go through, and its one action (failureActionLabel). Never a silent no-op.
+  const [failure, setFailure] = useState(null);
   const [copied, setCopied] = useState(false);
+  // the team server's sign-in (Sync details' own dialog), for the hub URL it holds; null = closed
+  const [signInAt, setSignInAt] = useState(null);
   const confirmRef = useRef(null);
   const returnFocus = useRef(null);
+  // one request at a time: a second click in the same tick (before `busy` renders) sends nothing
+  const inFlight = useRef(false);
 
   const probe = useCallback(async () => {
     try {
@@ -158,7 +175,7 @@ export function OlderFormatCallout() {
   const close = useCallback(() => {
     if (busy) return;
     setDialog(null);
-    setError('');
+    setFailure(null);
     setCopied(false);
     const el = returnFocus.current;
     returnFocus.current = null;
@@ -167,32 +184,49 @@ export function OlderFormatCallout() {
 
   const open = (which) => {
     returnFocus.current = document.activeElement;
-    setError('');
+    setFailure(null);
     setDialog(which);
   };
 
+  const linkedHub = () => plan?.project?.linked?.hub ?? cfg?.linkedHub?.url ?? '';
+  const signIn = (hub) => setSignInAt(hub || linkedHub());
+
   const apply = async () => {
-    if (busy) return;
+    if (inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
-    setError('');
+    setFailure(null);
+    let out;
     try {
       const { status, report } = await migrate({ apply: true });
-      const out = status === 200 ? applyOutcome(report) : applyOutcome(null);
-      if (out.done) {
-        setBusy(false);
-        setDialog(null);
-        shellToast(out.toast, true);
-        // the server emits config-updated; /_config follows. Ask again too: a switch that did not
-        // happen after the format moved keeps the (quiet) offer, one that did clears it.
-        void probe();
-        return;
-      }
-      setError(out.error);
-      void probe();
+      out = applyResult({ status, report });
     } catch {
-      setError(applyOutcome(null).error);
+      out = applyResult({ thrown: true });
     }
+    inFlight.current = false;
     setBusy(false);
+    if (out.done) {
+      setDialog(null);
+      const action =
+        out.action === 'sign-in-again'
+          ? { label: FAIL_COPY.signInAgain, onClick: () => signIn(out.hub) }
+          : undefined;
+      shellToast(out.toast, true, action);
+      // the server emits config-updated; /_config follows. Ask again too: a switch that did not
+      // happen after the format moved keeps the (quiet) offer, one that did clears it.
+      void probe();
+      return;
+    }
+    setFailure(out);
+    void probe();
+  };
+
+  /** The dialog's primary button: Update project, or the one action the failure offers. */
+  const primary = () => {
+    const a = failure?.action;
+    if (!failure || a === 'retry') return void apply();
+    if (a === 'sign-in' || a === 'sign-in-again') return signIn(failure.hub);
+    if (a === 'team-server') open('team-server');
   };
 
   const copy = async () => {
@@ -206,8 +240,12 @@ export function OlderFormatCallout() {
 
   if (!state) return null;
   const name = cfg?.cloud?.projectName || cfg?.name || project || 'this project';
-  const quiet = state.kind === 'save-mode' || state.kind === 'save-mode-cloud';
+  const quiet =
+    state.kind === 'save-mode' ||
+    state.kind === 'save-mode-cloud' ||
+    state.kind === 'save-mode-sign-in';
   const words = updateDialogCopy({ older, plan, name });
+  const primaryLabel = failure ? failureActionLabel(reachable(failure.action)) : words.action;
   return (
     <>
       <div
@@ -221,6 +259,17 @@ export function OlderFormatCallout() {
           <StIcon name={quiet ? 'clock' : 'problem'} size={16} />
         </span>
         <span className="sh-callout-t">{state.line}</span>
+        {reachable(state.action) &&
+          (state.action === 'sign-in' || state.action === 'sign-in-again') && (
+            <button
+              type="button"
+              className="btn btn--sm"
+              data-testid="format-older-sign-in"
+              onClick={() => signIn(state.hub)}
+            >
+              {failureActionLabel(state.action)}
+            </button>
+          )}
         {state.action === 'update' && (
           <button
             type="button"
@@ -267,9 +316,14 @@ export function OlderFormatCallout() {
               </p>
             ))}
           </div>
-          {error && (
-            <p className="fu-error" role="alert" data-testid="format-update-error">
-              {error}
+          {failure && (
+            <p
+              className="fu-error"
+              role="alert"
+              data-testid="format-update-error"
+              data-kind={failure.kind}
+            >
+              {failure.line}
             </p>
           )}
           <div className="fu-actions">
@@ -280,20 +334,36 @@ export function OlderFormatCallout() {
               disabled={busy}
               onClick={close}
             >
-              Cancel
+              {failure && !primaryLabel ? FAIL_COPY.close : 'Cancel'}
             </button>
-            <button
-              ref={confirmRef}
-              type="button"
-              className="btn btn--primary"
-              data-testid="format-update-confirm"
-              disabled={busy}
-              onClick={apply}
-            >
-              {busy ? 'Updating…' : words.action}
-            </button>
+            {(busy || primaryLabel) && (
+              <button
+                ref={confirmRef}
+                type="button"
+                className="btn btn--primary"
+                data-testid="format-update-confirm"
+                data-action={failure?.action ?? 'update'}
+                disabled={busy}
+                aria-busy={busy ? 'true' : undefined}
+                onClick={primary}
+              >
+                {busy ? 'Updating…' : primaryLabel}
+              </button>
+            )}
           </div>
         </Dialog>
+      )}
+      {signInAt !== null && (
+        <TeamProjectsDialog
+          title={FAIL_COPY.signInAgain}
+          initialServer={signInAt}
+          onClose={() => {
+            setSignInAt(null);
+            setFailure(null);
+            // signed in again (or not): ask the team server afresh
+            void probe();
+          }}
+        />
       )}
       {dialog === 'team-server' && (
         <Dialog

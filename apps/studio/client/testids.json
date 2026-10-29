@@ -14643,6 +14643,19 @@
     "v2": "new"
   },
   {
+    "hook": "format-older-sign-in",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The callout's Sign in / Sign in again button (p8-update-fails-loud) — the team server turned this Mac's sign-in down (`data-kind` token-rejected / save-mode-sign-in) or there is none (no-sign-in). Opens the team-server sign-in (`team-projects-dialog`). Desktop app only.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/format-update.jsx",
+      "symbol": "OlderFormatCallout"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/p8-update-fails-loud-dialog.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "format-older-team-server",
     "kind": "testid",
     "pattern": false,
