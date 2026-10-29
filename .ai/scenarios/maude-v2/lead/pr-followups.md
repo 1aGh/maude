@@ -79,6 +79,14 @@ Not built, either because no CONTRACT line names them or because the weekly budg
   click-through goes on the soak list. Also: in the race case the cell sometimes leaves the two Macs apart (bob 3,
   alice 1, no conflict shown, still apart after 240 s). The spec pins only "never zero artboards". The silent
   divergence needs its own look.
+- (p8-browser-e2e-format, merged d1602ee99) **Undo drops a collaborator's concurrent text edit (product, open — Michal
+  to decide before or after the PR).** I type into a sticky while a peer prefixes it ("Peer: …"). The commit keeps
+  both texts, but ⌘Z restores the field's whole earlier value, and the peer's prefix is lost. `ops.ts` registers no
+  `setTextMerge` in the canvas iframe, so undo's inverse takes the unmerged path. Fixing it needs a design call: undo
+  either merges text the way the commit does, or refuses with "a collaborator changed this". The test is `todo` in
+  `annotations-ui.e2e.mjs` R7 and still reported. Also: Group/Ungroup in `annotations-parity` click through
+  `dispatchEvent`, because the top row's element bar can sit under the Preview bar island. That may be a layout
+  issue (not ruled on).
 - A remote peer's presence relayed through a hub is not role-stamped by the room (it arrives as the hub sent it).
 - cloud-attach 2b shot: after "Moved to the cloud — your canvases are going up now." the sheet also shows a red
   "Sharing is not available right now. Try again in a minute." line the board does not draw — most likely the cloud
