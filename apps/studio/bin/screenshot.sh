@@ -216,9 +216,10 @@ AB="${MAUDE_AGENT_BROWSER:-agent-browser}"
 # fired automatically by the Report-a-Bug dialog, so on the shared session it
 # would navigate whatever browser an agent has mid-task out from under it. Pin
 # it to its own session; the canvas modes keep the shared SESSION NAME deliberately, so
-# an agent's `/design:*` captures reuse the one name. The browser is not shared: on exit
-# every capture parks its page and closes the session (_ab-park.sh, which also waits for
-# the daemon's socket to go so the next capture on the same name starts a fresh one).
+# an agent's `/design:*` captures reuse the one name. On exit every capture parks its page and
+# closes the session it STARTED (_ab-park.sh, which also waits for the daemon's socket to go so
+# the next capture on the same name starts a fresh one); a session that was already running (the
+# agent's own browsing) is parked on about:blank and left running (p8-fix-a F6).
 if [ "$MODE" = "shell" ] && [ -z "$AGENT_BROWSER_SESSION" ]; then
   export AGENT_BROWSER_SESSION="maude-shell-shot"
 fi

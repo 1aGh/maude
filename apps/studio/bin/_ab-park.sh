@@ -19,10 +19,31 @@
 
 AB_PARK_ARMED=""
 AB_PARK_SESSION=""
+AB_PARK_PREEXISTING=""
 
+# The socket where agent-browser puts the session's daemon: $AGENT_BROWSER_SOCKET_DIR, else
+# $XDG_RUNTIME_DIR/agent-browser, else ~/.agent-browser; <session>.sock.
+ab_park_sock() {
+  local session="${AB_PARK_SESSION:-${AGENT_BROWSER_SESSION:-default}}" dir
+  if [ -n "${AGENT_BROWSER_SOCKET_DIR:-}" ]; then
+    dir="$AGENT_BROWSER_SOCKET_DIR"
+  elif [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+    dir="$XDG_RUNTIME_DIR/agent-browser"
+  else
+    dir="$HOME/.agent-browser"
+  fi
+  printf '%s/%s.sock' "$dir" "$session"
+}
+
+# p8-fix-a F6: note whether the session's daemon is ALREADY running (the agent's own browsing session). A
+# session this helper starts is closed on exit; one that was already there is never closed (the page is still
+# parked on about:blank, so no canvas page stays open as a collab peer).
 ab_park_arm() {
   AB_PARK_ARMED=1
   AB_PARK_SESSION="${1:-}"
+  AB_PARK_PREEXISTING=""
+  [ -S "$(ab_park_sock)" ] && AB_PARK_PREEXISTING=1
+  return 0
 }
 
 # `close` answers while the daemon is still shutting down: its socket stays on disk for a few hundred ms and
@@ -34,16 +55,9 @@ ab_park_arm() {
 # ~/.agent-browser; <session>.sock. (A path over macOS's 103 bytes is refused by agent-browser itself before any
 # daemon starts, so there is nothing to wait for.)
 ab_park_wait_gone() {
-  local session="${AB_PARK_SESSION:-${AGENT_BROWSER_SESSION:-default}}" dir sock waited=0
+  local sock waited=0
   local limit="${AB_PARK_WAIT_MS:-3000}"
-  if [ -n "${AGENT_BROWSER_SOCKET_DIR:-}" ]; then
-    dir="$AGENT_BROWSER_SOCKET_DIR"
-  elif [ -n "${XDG_RUNTIME_DIR:-}" ]; then
-    dir="$XDG_RUNTIME_DIR/agent-browser"
-  else
-    dir="$HOME/.agent-browser"
-  fi
-  sock="$dir/$session.sock"
+  sock="$(ab_park_sock)"
   while [ -S "$sock" ] && [ "$waited" -lt "$limit" ]; do
     sleep 0.05
     waited=$((waited + 50))
@@ -57,12 +71,13 @@ ab_park() {
   local ab="${AB:-agent-browser}"
   if [ -n "$AB_PARK_SESSION" ]; then
     "$ab" --session "$AB_PARK_SESSION" open about:blank >/dev/null 2>&1 || true
-    "$ab" --session "$AB_PARK_SESSION" close >/dev/null 2>&1 || true
+    [ -n "$AB_PARK_PREEXISTING" ] || "$ab" --session "$AB_PARK_SESSION" close >/dev/null 2>&1 || true
   else
     "$ab" open about:blank >/dev/null 2>&1 || true
-    "$ab" close >/dev/null 2>&1 || true
+    [ -n "$AB_PARK_PREEXISTING" ] || "$ab" close >/dev/null 2>&1 || true
   fi
-  ab_park_wait_gone
+  # a session left running has no socket to wait for going away
+  [ -n "$AB_PARK_PREEXISTING" ] || ab_park_wait_gone
 }
 
 trap ab_park EXIT
