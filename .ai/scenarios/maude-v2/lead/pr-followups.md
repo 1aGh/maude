@@ -228,3 +228,6 @@ Any commit outside `.ai/` makes V2-8.1/8.2/8.3/8.18 stale. Fold these into the n
   commands needed approval, and it never ran the allowed verbs. S6 terminal opened with the same denials.
 - Make the journey text grader whitespace-tolerant (`>\s*All saved\s*<`). S2 acp wrote the text on its own line.
 - Evidence: `.ai/plans/notes/v2-evidence/V2-8.16-journeys/2026-10-29-freeze/VERDICT.md`.
+- Mac mini runner (`scripts/remote-lane.sh`): it was out ~14:40–15:20 on 2026-10-29. macOS privacy (TCC) blocked git
+  from `/Volumes/D` during a Software Update, and its Playwright cache was empty (chromium-1228 reinstalled). If it
+  happens again, run locally through `scripts/v2-test-lane.sh` (Michal).
