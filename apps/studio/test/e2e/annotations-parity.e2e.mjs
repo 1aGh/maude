@@ -266,8 +266,10 @@ describe('P2 — the context toolbar', () => {
     const [cx, cy] = await c.center('C');
     await c.page.mouse.dblclick(cx, cy);
     await sleep(300);
-    await ctl('Bold').click();
+    // a sticky has no Bold button on its bar (S4.19): bold is the key while the editor is open (R6 in annotations-ui)
+    await c.page.keyboard.press('Meta+b');
     await c.frame.locator('[data-testid="annot-sticky-list"]').click(); // the sticky bar's one List toggle: bullets first
+    await c.click(20 + 300, 1400); // outside → commit (the edit lands on the board with it)
     const b = await waitForBoard(server.root, (bd) => bd.get('C')?.list === 'bullet');
     assert.equal(b.get('C').bold, true);
   });
