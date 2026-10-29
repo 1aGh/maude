@@ -17,7 +17,7 @@ import { canvasRow } from '../helpers/tree';
  *      every dev-server process.
  *   2. The studio page reads `/_config` once at boot and caches `canvasOrigin`.
  *   3. When the sidecar crashes and the supervisor respawns it, the main origin
- *      reclaims its deterministic port (4399…) — so the page's WebSocket
+ *      reclaims its deterministic port (46399…; 47399… under e2e) — so the page's WebSocket
  *      reconnects, the status bar goes back to `live`, and the shell keeps
  *      working — while `canvasOrigin` silently points at a port that no longer
  *      exists.

@@ -418,7 +418,7 @@ if (!isWorkspaceMode()) {
 }
 const fsWatch = createFsWatch(ctx);
 
-// Port: --port arg > $PORT > $MDCC_DEV_PORT > 4399 (an e2e studio: 47399) — port.ts.
+// Port: --port arg > $PORT > $MDCC_DEV_PORT > $MAUDE_PORT_BASE > 47399 (e2e) > 46399 (the desktop app) > 4399 — port.ts.
 // When the port wasn't explicitly chosen and the default is busy (another
 // project's dev-server is running on the same machine), walk PORT_LADDER ports before
 // giving up. Explicit ports stay fatal so users notice their own collisions.
