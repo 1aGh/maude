@@ -21,7 +21,8 @@ import { pinCurrentWindow } from '../helpers/windows';
  *      people race: the cell is away, alice moves three artboards to the trash and bob the fourth, bob's lands
  *      first (alice's studio is held until his is accepted). The canvas then has no artboard left on bob's Mac and
  *      the card says so: "LetakA6 has no artboards left." · "<who> moved all four to the trash <ago>." ·
- *      "Restore 4 artboards". (The Restore click-through is unit-pinned; see the card test.)
+ *      "Restore 4 artboards". The card's Restore brings them back on both Macs (F14, p8-fix-c); after the race the
+ *      two Macs end equal or the one apart shows the conflict with both versions kept (F15).
  *
  *  12 · ia-missing       A picture alice holds and the cell does not: bob's Mac asks the cell and is told it is
  *      waiting for alice's device. The hub names the holder by the e-mail's local part and reports no Mac/PC kind
@@ -510,10 +511,31 @@ describe('team-cell-missing (native-desktop)', () => {
     await browser.pause(1_500); // the outlines (canvas side) follow the card
     await capture('05-es-all-trashed');
 
-    // The click itself is not driven here. On a cell-linked copy Restore answered ok in every run, but the file stayed
-    // empty in two of three (most likely the restore is held against the hand edit before the cell takes it — not
-    // confirmed). Restoring into a canvas with no artboard left is pinned by test/restore-artboard.test.ts; the
-    // click-through on a synced project is on the rc-soak list (pr-followups, p8-t-missing-a).
+    // ── Restore: the three come back, on this Mac AND on alice's ──
+    // F14 (p8-fix-c): the file used to stay empty in two of three runs. The trash's own API write left its base
+    // behind in the projection, the hand edit was proposed from the version before the trash, refused as a base
+    // conflict and held on this disk — so the restore landed in the project but never reached this file
+    // (scripts/dev/trash-sync-repro.mjs --scenario restore; test/sync-accepted-projection.test.ts "hands its base back").
+    await restore.click(); // the card is shell DOM, not inside the canvas frame
+    const back = ['flag-back', 'tackle-front', 'tackle-back'];
+    await eventually(
+      'the three artboards back on this Mac',
+      () => ids(read(join(c.designer, '.design', LETAK))).length === 3,
+      120_000
+    );
+    await eventually(
+      'the three artboards back on alice’s Mac',
+      () => ids(read(join(c.teammate, '.design', LETAK))).length === 3,
+      120_000
+    );
+    expect([...ids(read(join(c.designer, '.design', LETAK)))].sort()).toEqual([...back].sort());
+    expect([...ids(read(join(c.teammate, '.design', LETAK)))].sort()).toEqual([...back].sort());
+    await (await $(tid('all-trashed'))).waitForExist({ reverse: true, timeout: 30_000 });
+    expect(await letakTrash()).toEqual([]);
+    // still there a beat later: nothing takes the restore back
+    await browser.pause(5_000);
+    expect(ids(read(join(c.designer, '.design', LETAK)))).toHaveLength(3);
+    await capture('05-es-all-trashed-restored');
   });
 
   it('05 · es-all-trashed (race): two offline trashes never merge to zero — one side keeps its trash, the other is held', async () => {
@@ -557,31 +579,60 @@ describe('team-cell-missing (native-desktop)', () => {
     // ── the cell is back; the two saves meet ──
     await startCell(c);
     process.kill(c.teammatePid, 'SIGCONT');
-    // THE FINDING: they do not merge into an empty canvas. The cell takes one and holds the other (a conflict with a
-    // recovery copy), whichever side gets there first — so a race between two people can never leave a canvas with no
-    // artboard, and board 19 is reached another way (below).
-    // Whichever side the cell takes, the canvas is never empty on either Mac. (Observed outcomes across runs: the later
-    // save held with a conflict; both Macs on the same three; and — once — the two copies left apart, 3 boards here
-    // and 1 at alice's, with no conflict shown. Reported to the lead; this pins the invariant, not who wins.)
-    await browser.pause(45_000);
+    // THE FINDING: they do not merge into an empty canvas. The cell takes one save and refuses the other (the two
+    // trashes together would leave no artboard), whichever side gets there first — so a race between two people can
+    // never leave a canvas with no artboard, and board 19 is reached another way (above).
+    // F15 (p8-fix-c): the two Macs then end EQUAL, or the side whose copy is not the project's holds a source
+    // conflict — the `source-conflict-<slug>` notice the Sync details' Needs-you card reads — with BOTH versions kept
+    // (its own on disk, the project's in _history/<slug>/sync-recovery/incoming.tsx). Never apart in silence. (The
+    // rig: scripts/dev/trash-sync-repro.mjs --scenario race — alice's side is the one held there, 3/3.)
+    const RACE_SLUG = 'ui-race';
+    const heldThere = async (statusUrl: string | null, root: string): Promise<boolean> => {
+      const status = statusUrl
+        ? await fetch(statusUrl, { cache: 'no-store' })
+            .then((r) => r.json())
+            .catch(() => null)
+        : (await bobGet('/_sync-status')).body;
+      const notice = ((status?.notices ?? []) as Array<{ id?: string }>).some(
+        (x) => x?.id === `source-conflict-${RACE_SLUG}`
+      );
+      const theirs = read(
+        join(root, '.design', '_history', RACE_SLUG, 'sync-recovery', 'incoming.tsx')
+      );
+      return notice && theirs !== null && ids(theirs).length > 0;
+    };
+    let outcome = '';
+    await eventually(
+      'the two Macs equal, or the one apart showing the conflict with both versions kept',
+      async () => {
+        const d = ids(read(join(c.designer, '.design', RACE)));
+        const t = ids(read(join(c.teammate, '.design', RACE)));
+        if (d.join(',') === t.join(',') && d.length > 0) outcome = `equal ${JSON.stringify(d)}`;
+        else if (await heldThere(null, c.designer))
+          outcome = `held on this Mac ${JSON.stringify(d)}`;
+        else if (await heldThere(`http://127.0.0.1:${c.teammatePort}/_sync-status`, c.teammate))
+          outcome = `held at alice's ${JSON.stringify(t)}`;
+        else return false;
+        return true;
+      },
+      240_000
+    );
     const n = {
       designer: ids(read(join(c.designer, '.design', RACE))),
       teammate: ids(read(join(c.teammate, '.design', RACE))),
     };
     console.log(
-      `[team-cell-missing] race outcome: designer=${JSON.stringify(n.designer)} teammate=${JSON.stringify(n.teammate)}`
+      `[team-cell-missing] race outcome: ${outcome} — designer=${JSON.stringify(n.designer)} teammate=${JSON.stringify(n.teammate)}`
     );
     for (const side of [n.designer, n.teammate]) {
       expect(side.length).toBeGreaterThan(0);
       expect(side.length).toBeLessThan(4);
     }
-    // the RACE canvas, opened, shows no all-trashed card (the window still holds LetakA6 from the card test, which is
-    // deliberately left empty — its card is not this canvas's)
+    // the RACE canvas, opened, shows no all-trashed card (a card that shows would be the race canvas's own)
     const raceRow = await canvasRow('canvas-row-ui-race');
     await raceRow.waitForDisplayed({ timeout: 60_000 });
     await raceRow.click();
     await (await $(tid('canvas-frame'))).waitForExist({ timeout: 60_000 });
-    // LetakA6's card goes with the switch; a card that stays is the race canvas's own (a failure)
     await (await $(tid('all-trashed'))).waitForExist({ reverse: true, timeout: 20_000 });
     await capture('05-race-second-save-held');
   });
