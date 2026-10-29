@@ -890,6 +890,16 @@ export function bashMayWrite(command, verbs = null) {
     // share the basename (nameOf) with it
     if (e.raw.includes('/')) return true;
     if (cmd.words.length !== e.args.length + 1) return true; // a wrapper (`env`, `sudo`) runs it
+    // p8-secfix-hook-2 R1 — `printf -v PATH %s /tmp/x` assigns through an operand, which the
+    // `assigns` check above never sees: a printf whose first operand is an option (`-v`, `-vNAME`,
+    // `--`) or unreadable may re-point PATH for the next "reader". printf stays a reader otherwise
+    // (dropping it from READERS would open a claim window for every plain `printf '%s' x`).
+    if (
+      e.name === 'printf' &&
+      e.args.length &&
+      (!e.args[0].literal || e.args[0].text.startsWith('-'))
+    )
+      return true;
     if (e.name === 'find' && e.args.some((a) => !a.literal || FIND_WRITES.test(a.text)))
       return true;
   }
@@ -939,17 +949,21 @@ function headNames(words) {
  * p8-secfix-hook (V2-8.9 final delta F2) — may `command` leave a process writing after the call
  * returns? A `&` job, `nohup` / `setsid` / `disown` / `coproc` / `screen` / `tmux` / `at`, a
  * `sh -c` script that does, or an interpreter script whose visible text forks or detaches. An
- * unparseable command may (fail closed). The caller keeps the call's claim window open until the
+ * unparseable command (or a `sh -c` script it can't read) may: that is `unparsed`, true by default
+ * (fail closed — the ACP claim window). The caller keeps the call's claim window open until the
  * turn ends instead of the call's return + settle. A script FILE (`python3 w.py`) is not read —
  * the named residual (binding by what changed, not by time, is follow-up F3).
+ * p8-secfix-hook-2 N3: the design hook passes `unparsed: false` — a background mark binds every
+ * later change to the AI until the turn ends, so it is kept for a call that visibly backgrounds.
  *
  * @param {unknown} command
+ * @param {{ unparsed?: boolean, depth?: number }} [opts]
  * @returns {boolean}
  */
-export function bashBackgrounds(command, depth = 0) {
+export function bashBackgrounds(command, { unparsed = true, depth = 0 } = {}) {
   if (typeof command !== 'string' || !command.trim()) return false;
   const cmds = parseBash(command);
-  if (!cmds) return true;
+  if (!cmds) return unparsed;
   for (const cmd of cmds) {
     if (cmd.bg) return true;
     const names = headNames(cmd.words);
@@ -959,11 +973,16 @@ export function bashBackgrounds(command, depth = 0) {
     if (SHELLS.has(e.name)) {
       const k = e.args.findIndex((a) => a.literal && /^-[A-Za-z]*c[A-Za-z]*$/.test(a.text));
       const script = k === -1 ? null : e.args[k + 1];
-      if (script && !script.literal) return true;
-      if (script && depth < 4 && bashBackgrounds(script.text, depth + 1)) return true;
+      if (script && !script.literal) {
+        if (unparsed) return true;
+        continue;
+      }
+      if (script && depth < 4 && bashBackgrounds(script.text, { unparsed, depth: depth + 1 }))
+        return true;
       // `bash <<EOF … EOF`: the script is stdin
       const doc = k === -1 ? cmd.redirs.find((r) => r.op === '<<' || r.op === '<<-') : null;
-      if (doc?.body && depth < 4 && bashBackgrounds(doc.body, depth + 1)) return true;
+      if (doc?.body && depth < 4 && bashBackgrounds(doc.body, { unparsed, depth: depth + 1 }))
+        return true;
       continue;
     }
     const lang = Object.hasOwn(INTERPRETERS, e.name) ? e.name : null;

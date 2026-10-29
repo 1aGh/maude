@@ -735,3 +735,38 @@ test('F2 bashBackgrounds — every way a shell call leaves a writer running', ()
     assert.equal(bashBackgrounds(cmd), false, cmd);
   assert.equal(bashBackgrounds(undefined), false);
 });
+
+// p8-secfix-hook-2 R1 (V2-8.9 final delta recheck) — `printf -v PATH %s /tmp/x` re-points PATH
+// through an operand, not an assignment, so the F1(a) `cmd.assigns` check never saw it: the next
+// "reader" (`cat`) resolved to a planted `/tmp/x/cat` with no claim window and no bash mark. Any
+// printf whose first operand is an option (or unreadable) may write; a plain printf stays a reader.
+test('R1 printf -v (any printf option) is no reader', () => {
+  for (const cmd of [
+    'printf -v PATH %s /tmp/x; cat f',
+    'printf -vPATH %s /tmp/x; ls',
+    'builtin printf -v PATH %s /tmp/x; cat f',
+    'printf -- -v; cat f',
+    'o=-v; printf "$o" PATH %s /tmp/x; cat f',
+  ])
+    assert.equal(bashMayWrite(cmd, VERBS), true, cmd);
+  for (const cmd of ["printf '%s\\n' hello", 'printf %s -v', 'printf x | head -1'])
+    assert.equal(bashMayWrite(cmd, VERBS), false, cmd);
+});
+
+// p8-secfix-hook-2 N3 — an unparseable command fails closed for the ACP claim window (the default),
+// but the design hook asks with `unparsed: false`: it leaves no background mark for a call it can't
+// read (a session-long mark fed N1). Real `&`, nohup, setsid, disown keep theirs either way.
+test('N3 bashBackgrounds — unparseable is backgrounding only when the caller fails closed', () => {
+  for (const cmd of ['echo "unterminated', `sh -c 'echo "unterminated'`]) {
+    assert.equal(bashBackgrounds(cmd), true, cmd);
+    assert.equal(bashBackgrounds(cmd, { unparsed: false }), false, cmd);
+  }
+  for (const cmd of [
+    'nohup python3 w.py &',
+    'python3 w.py &',
+    'setsid python3 w.py',
+    'python3 w.py & disown',
+    'bash -c "python3 w.py &"',
+  ])
+    assert.equal(bashBackgrounds(cmd, { unparsed: false }), true, cmd);
+});
