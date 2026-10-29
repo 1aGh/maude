@@ -44,6 +44,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { v2Config } from './v2-config.mjs';
+
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 function arg(name, fallback = null) {
@@ -107,7 +109,8 @@ function seedProject() {
   writeFileSync(
     join(designRoot, 'config.json'),
     `${JSON.stringify(
-      {
+      // Format 2: a v2 studio opens a format-1 project view only (2A) and refuses its writes.
+      v2Config({
         name: 'local-cell-smoke',
         // `label` is REQUIRED by config.schema.json, and omitting it is not a
         // cosmetic slip: the client renders `group.label.toUpperCase()`, so a
@@ -118,7 +121,7 @@ function seedProject() {
           { label: 'Design system', path: 'system' },
         ],
         designSystems: [{ name: 'smoke', path: 'system/smoke' }],
-      },
+      }),
       null,
       2
     )}
@@ -182,7 +185,7 @@ function seedPeer(token) {
   writeFileSync(
     join(peerDesign, 'config.json'),
     `${JSON.stringify(
-      {
+      v2Config({
         name: 'desktop-side',
         // See the note in `seedProject` — a missing label is a white screen.
         canvasGroups: [
@@ -196,7 +199,7 @@ function seedPeer(token) {
           // is to exercise it, so it is on.
           syncFiles: true,
         },
-      },
+      }),
       null,
       2
     )}\n`
