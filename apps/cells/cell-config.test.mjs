@@ -580,3 +580,19 @@ test('fetchTenantConfig carries the plan state, and its offline cache keeps it',
   });
   assert.deepEqual(old, { projectName: 'A', seedRepo: 'r', adminEmail: null });
 });
+
+test('the v2 conversion kill switch reaches the cell as CELL_V2_CONVERT — on unless the fleet says 0 (p8-selfhost-convert)', async () => {
+  const boot = (extra) =>
+    cellEnv({
+      tenantId: 'alligators',
+      env: { ...baseEnv, ...extra },
+      hostname: 'alligators.cloud.maude.sh',
+    });
+  assert.equal((await boot({})).CELL_V2_CONVERT, '1', 'unset: the stable 2.0.0 cell converts');
+  assert.equal((await boot({ CELL_V2_CONVERT: '1' })).CELL_V2_CONVERT, '1');
+  assert.equal((await boot({ CELL_V2_CONVERT: '' })).CELL_V2_CONVERT, '1');
+  assert.equal((await boot({ CELL_V2_CONVERT: '0' })).CELL_V2_CONVERT, '0');
+  // A kill switch typed wrong fails closed — the same rule the hub applies.
+  assert.equal((await boot({ CELL_V2_CONVERT: 'false' })).CELL_V2_CONVERT, '0');
+  assert.equal((await boot({ CELL_V2_CONVERT: 0 })).CELL_V2_CONVERT, '0');
+});
