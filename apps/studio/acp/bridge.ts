@@ -34,6 +34,7 @@ import { autoAllowRules } from '../actions/verbs.ts';
 import { HANDOFF_RUN_VERBS } from '../handoff/write-scopes.ts';
 import { DEV_SERVER_ROOT } from '../paths.ts';
 import { readUiPrefs } from '../ui-prefs.ts';
+import { relayAdapterStderr } from './adapter-stderr.ts';
 import {
   type AudienceLeak,
   audienceLeak,
@@ -2527,8 +2528,7 @@ export class AcpBridge {
     try {
       const decoder = new TextDecoder();
       for await (const chunk of stderr) {
-        const line = decoder.decode(chunk).trimEnd();
-        if (line) console.error('[acp-adapter]', line);
+        relayAdapterStderr(decoder.decode(chunk), (line) => console.error('[acp-adapter]', line));
       }
     } catch {
       /* stream closed on teardown */
