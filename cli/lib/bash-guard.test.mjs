@@ -658,7 +658,10 @@ test('F1(d) a printf -v re-pointed variable never makes a redirect into a canvas
 test('F1(d) bindVars unbinds a name every assigning builtin can change', () => {
   const lastTarget = (src) => {
     const cmds = parseBash(src);
-    const r = cmds.filter((c) => c.redirs.length).at(-1).redirs.at(-1);
+    const r = cmds
+      .filter((c) => c.redirs.length)
+      .at(-1)
+      .redirs.at(-1);
     return r.target;
   };
   for (const set of [
