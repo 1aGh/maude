@@ -166,8 +166,10 @@ describe('F1–F2 — Desktop moves, its members and the bound arrow follow', ()
     await reset();
     const noteBefore = await c.pageBox('note');
     const was = desktopAt();
-    // Zoomed out the world is smaller than the page: drag far enough to clear Mobile.
-    await dragDesktop(900, -500, async () => {
+    // Drag in WORLD units, so the zoom Fit chose does not matter: Desktop's centre goes from (460, 1125) to
+    // (1500, 560), past Mobile (1000..1195, 300..722), so Tereza's straight line to it would cross Mobile.
+    const zoom = noteBefore.width / 220; // the note is 220 wide in world units
+    await dragDesktop(1040 * zoom, -565 * zoom, async () => {
       assert.equal(await c.frame.locator('[data-testid="annot-ride"]').count(), 1, 'live overlay');
       const tr = await c.frame.evaluate(
         () => document.querySelector('.dc-annot-scene [data-id="sun"]')?.style.translate ?? ''
