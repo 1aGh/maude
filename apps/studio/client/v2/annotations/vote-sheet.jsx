@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { v2Scope } from './v2-scope.js';
 import { DEFAULT_DURATION, DEFAULT_PER_VOTER, DURATIONS, VOTE_WORDS } from './vote-store.js';
+import { reasonProps } from '../access/disabled-reason.js';
 
 const minutes = (s) => (s % 60 === 0 ? `${s / 60} min` : `${s} s`);
 
@@ -187,6 +188,7 @@ export default function VoteSheet({ state, onStart, onClose }) {
             type="submit"
             className="btn btn--primary btn--sm"
             disabled={off || busy}
+            {...reasonProps(off, line)}
             data-testid="vote-sheet-start"
           >
             {VOTE_WORDS.start}

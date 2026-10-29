@@ -12,6 +12,7 @@ import { Kbd, StIcon } from '../../shell/icons.jsx';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { shellMode } from '../shell/use-canvas-mode-lane.js';
 import { runTakeStep, useSelectedTakes, useTakesLane } from './use-takes-lane.js';
+import { reasonProps } from '../access/disabled-reason.js';
 
 export const MADE_BY_AI = 'Picture made by AI';
 
@@ -34,6 +35,7 @@ export function TakesIsland({ label, madeByAi, canStep, onStep }) {
             data-testid="takes-prev"
             aria-label="Previous take"
             disabled={!canStep}
+            {...reasonProps(!canStep, 'viewer')}
             onClick={() => onStep('prev')}
           >
             <StIcon name="chevron-right" size={12} />
@@ -47,6 +49,7 @@ export function TakesIsland({ label, madeByAi, canStep, onStep }) {
             data-testid="takes-next"
             aria-label="Next take"
             disabled={!canStep}
+            {...reasonProps(!canStep, 'viewer')}
             onClick={() => onStep('next')}
           >
             <StIcon name="chevron-right" size={12} />

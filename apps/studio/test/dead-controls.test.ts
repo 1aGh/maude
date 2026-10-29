@@ -27,7 +27,6 @@ interface Allow {
   registrySurfaces: Record<string, { file: string; hook: string }>;
   registryAllow: Record<string, string>;
   client: Record<string, string>;
-  disabledNoReasonRatchet: Record<string, number>;
 }
 const ALLOW = JSON.parse(
   readFileSync(join(STUDIO, 'test/dead-controls.allow.json'), 'utf8')
@@ -110,21 +109,15 @@ describe('clickable elements in apps/studio/client', () => {
     expect(Object.keys(ALLOW.client).filter((k) => !keys.has(k))).toEqual([]);
   });
 
-  // A disabled control must say why (a tooltip `title` / aria description), unless the reason is on screen
-  // already (in flight, an empty field — `selfEvidentDisable`). The ones that predate this checker are counted
-  // per file: a new one is red, and fixing one lowers the count (the ratchet only goes down).
-  test('disabled without a reason: the ratchet only goes down', () => {
-    const now: Record<string, number> = {};
-    for (const f of report.findings)
-      if (f.finding === 'disabled-no-reason') now[f.file] = (now[f.file] ?? 0) + 1;
-    const grew = Object.entries(now)
-      .filter(([file, n]) => n > (ALLOW.disabledNoReasonRatchet[file] ?? 0))
-      .map(([file, n]) => `${file}: ${n} (was ${ALLOW.disabledNoReasonRatchet[file] ?? 0})`);
-    expect(grew).toEqual([]);
-    const loose = Object.entries(ALLOW.disabledNoReasonRatchet)
-      .filter(([file, n]) => (now[file] ?? 0) < n)
-      .map(([file, n]) => `${file}: ${now[file] ?? 0} < ${n} — lower the ratchet`);
-    expect(loose).toEqual([]);
+  // A disabled control must say why — a tooltip `title` + `aria-description`, the shared
+  // `{...reasonProps(off, kind)}` (client/v2/access/disabled-reason.js) — unless the reason is on screen already
+  // (in flight, an empty field, a line rendered under the same condition — `selfEvidentDisable`). p8-dead-reasons
+  // took the old per-file ratchet (96) to zero, so there is no ratchet left: a new one is red.
+  test('no control is disabled without saying why', () => {
+    const silent = report.findings
+      .filter((f) => f.finding === 'disabled-no-reason')
+      .map((f) => `${f.file}:${f.line} ${f.control} [${f.detail ?? ''}]`);
+    expect(silent).toEqual([]);
   });
 });
 
@@ -171,11 +164,137 @@ describe('the scanner itself (fixtures)', () => {
     expect(
       run('const A = () => <button disabled={!canEdit} title="Can view" onClick={go}>Go</button>;')
     ).toEqual([]);
+    // p8-dead-reasons — the shared reason helper is a reason
+    expect(
+      run(
+        "const A = () => <button disabled={!native} {...reasonProps(!native, 'macApp')} onClick={go}>Go</button>;"
+      )
+    ).toEqual([]);
     // a click guard on a control that also has a real handler is not a noop control
     expect(
       run(
         'const A = () => <button onPointerDown={(e) => e.stopPropagation()} onClick={go}>Go</button>;'
       )
     ).toEqual([]);
+  });
+
+  // p8-dead-reasons: the reason is on screen already, in ways the scanner now reads precisely.
+  test('a reason rendered under the same condition, beside the control, is a reason', () => {
+    // `{cond && <p>why</p>}` / `{cond ? <p>why</p> : …}` in the same component
+    expect(
+      run(
+        'function A() { return <div>{held && <p role="alert">Held</p>}<button disabled={busy || held} onClick={go}>Keep</button></div>; }'
+      )
+    ).toEqual([]);
+    expect(
+      run(
+        'function A() { return <div>{kind === "ask" && !view.canAsk ? <p>No AI</p> : null}<button disabled={busy || !view.canAsk} onClick={go}>Ask</button></div>; }'
+      )
+    ).toEqual([]);
+    // the else branch of a ternary is shown under the negation
+    expect(
+      run(
+        'function A() { return <div>{canAskAI ? <p>fine</p> : <p>no AI</p>}<button disabled={!canAskAI} onClick={go}>Make</button></div>; }'
+      )
+    ).toEqual([]);
+    // `!!refused` rendered as `{refused ? …}`, `x.length` as `x.length > 0`
+    expect(
+      run(
+        'function A() { return <div>{refused ? <p>no</p> : null}{model.refused.length > 0 && <p>x</p>}<button disabled={busy || !!refused || !!model.refused.length} onClick={go}>Go</button></div>; }'
+      )
+    ).toEqual([]);
+    // a condition rendered in ANOTHER component does not count
+    expect(
+      run(
+        'function B() { return held && <p>Held</p>; } function A() { return <button disabled={held} onClick={go}>Keep</button>; }'
+      )
+    ).toEqual(['disabled-no-reason']);
+  });
+
+  test('a local const is read through: `!canSend` where canSend is an empty-field check', () => {
+    expect(
+      run(
+        'function A() { const canPreview = description.trim().length > 0; return <button disabled={!canPreview} onClick={go}>Go</button>; }'
+      )
+    ).toEqual([]);
+    expect(
+      run(
+        'function A() { const ok = url.trim() && email.trim() && password; return <button disabled={!ok || !!busy} onClick={go}>Go</button>; }'
+      )
+    ).toEqual([]);
+    expect(
+      run(
+        'function A() { const ready = looksLikeEmail(email) && !busy; return <button disabled={!ready} onClick={go}>Go</button>; }'
+      )
+    ).toEqual([]);
+    expect(
+      run(
+        'function A() { const verdict = checkName(draft); return <button disabled={busy || !verdict.ok} onClick={go}>Go</button>; }'
+      )
+    ).toEqual([]);
+    // a role in the const is still a reason to say
+    expect(
+      run(
+        'function A() { const canSend = native && prompt.trim().length > 0; return <button disabled={!canSend} onClick={go}>Go</button>; }'
+      )
+    ).toEqual(['disabled-no-reason']);
+  });
+
+  test('more on-screen states: in flight, nothing there yet, a pager at its end', () => {
+    for (const cond of [
+      "list.phase === 'signing-in'",
+      'busy === w.id',
+      '!!folding',
+      'downloading',
+      '!units.length',
+      '!log.total',
+      '!hasText',
+      '!logoFile && !wantsSite',
+      "!canStep(position, 'next')",
+    ])
+      expect([
+        cond,
+        run(`const A = () => <button disabled={${cond}} onClick={go}>Go</button>;`),
+      ]).toEqual([cond, []]);
+    // read through a const / a host callback / a sheet's submit gate
+    for (const [decl, cond] of [
+      ['const ready = relink ? !!(url.trim() || grant.trim()) : !!url.trim();', 'busy || !ready'],
+      ['const kind = figmaLinkKind(url);', "busy || kind === 'none'"],
+      ['const ok = hub.url.trim() && hub.email.trim() && hub.password;', '!ok'],
+      ['const ok = qs.filter((q) => q.required).every((q) => isAnswered(q, a));', '!ok'],
+      ['', 'bgBusy || !onRemoveBackground'],
+      ['', "onJoin ? undefined : 'true'"],
+      ['', '!canSubmit || busy || !onSubmit'],
+    ])
+      expect([
+        cond,
+        run(`function A() { ${decl} return <button disabled={${cond}} onClick={go}>Go</button>; }`),
+      ]).toEqual([cond, []]);
+    // a text ternary rendered as a child counts as shown; one in an attribute does not
+    expect(
+      run(
+        'function A() { return <p>{linked ? W.view : held ? W.keepHeld : W.fine}<button disabled={busy || held} onClick={go}>Keep</button></p>; }'
+      )
+    ).toEqual([]);
+    expect(
+      run(
+        'function A() { return <button className={held ? "a" : "b"} disabled={held} onClick={go}>Keep</button>; }'
+      )
+    ).toEqual(['disabled-no-reason']);
+    // already added: the thing this control adds is on screen
+    expect(
+      run(
+        "function A() { return ['v2', 'm2'].map((id) => { const there = have.includes(id); return <button disabled={there} onClick={() => onAddTrack(id)}>Add</button>; }); }"
+      )
+    ).toEqual([]);
+    expect(
+      run(
+        "function A() { return ['v2'].map((id) => { const there = have.includes(id); return <button disabled={there} onClick={go}>Add</button>; }); }"
+      )
+    ).toEqual(['disabled-no-reason']);
+    // a `canStep` that is a role, not a pager end, still says why
+    expect(run('const A = () => <button disabled={!canStep} onClick={go}>Go</button>;')).toEqual([
+      'disabled-no-reason',
+    ]);
   });
 });

@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { StIcon } from '../shell/icons.jsx';
+import { reasonProps } from '../v2/access/disabled-reason.js';
 
 function Icon({ name, size = 16 }) {
   const p = {
@@ -400,6 +401,8 @@ export function WhisperModelCard() {
   }
 
   const dl = state?.downloading;
+  // one model downloads at a time: its row shows "Downloading… n %", the others rest until it ends
+  const downloading = !!(dl && !dl.error);
   const pctOf = (r, t) => (t > 0 ? Math.min(100, Math.round((r / t) * 100)) : 0);
   const modelsReady = (state?.models || []).some((m) => m.downloaded);
 
@@ -452,7 +455,7 @@ export function WhisperModelCard() {
                   <button
                     type="button"
                     className="btn btn--ghost btn--sm"
-                    disabled={!!(dl && !dl.error)}
+                    disabled={downloading}
                     onClick={() => download(m.id)}
                   >
                     {busy ? 'Downloading…' : 'Download'}
@@ -773,6 +776,8 @@ export function GemmaModelCard() {
   }
 
   const dl = state?.downloading;
+  // one model downloads at a time: its row shows "Downloading… n %", the others rest until it ends
+  const downloading = !!(dl && !dl.error);
   const mlx = state?.mlxVlmAvailable;
   const ff = state?.ffmpegAvailable;
   const ollama = state?.ollama;
@@ -842,7 +847,8 @@ export function GemmaModelCard() {
                   <button
                     type="button"
                     className="btn btn--ghost btn--sm"
-                    disabled={!runtimeReady || !!(dl && !dl.error)}
+                    disabled={!runtimeReady || downloading}
+                    {...reasonProps(!runtimeReady, blockedNote)}
                     onClick={() => download(m.id)}
                   >
                     {busy ? 'Downloading…' : 'Download'}

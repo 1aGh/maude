@@ -36,6 +36,7 @@ import {
   dsTokensSub,
   writeLastUsed,
 } from './targets.js';
+import { reasonProps } from '../access/disabled-reason.js';
 
 const POLL_MS = 2500;
 
@@ -439,6 +440,7 @@ export function HandoffSheet({
                     className="btn btn--primary ex-go"
                     data-testid="export-submit"
                     disabled={!target || !!target.off}
+                    {...reasonProps(!!target?.off, target?.off)}
                     onClick={submit}
                   >
                     <span data-testid="export-submit-label">{HANDOFF_VERB}</span>

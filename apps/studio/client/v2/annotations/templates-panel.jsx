@@ -18,6 +18,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { TEMPLATES } from '../../../annotations/templates.ts';
 import { v2Scope } from './v2-scope.js';
+import { reasonProps } from '../access/disabled-reason.js';
 
 /** The columns of the tile grid (canvas 15 `.an-tpl-g`). */
 export const TEMPLATE_COLUMNS = 4;
@@ -226,6 +227,7 @@ export default function TemplatesPanel({
               data-testid="templates-ask-send"
               aria-label="Ask AI to build it"
               disabled={!canAsk || !ask.trim()}
+              {...reasonProps(!canAsk, NO_CHAT)}
               onClick={send}
             >
               <SparkIcon />

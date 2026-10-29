@@ -3,6 +3,7 @@
 import { GRID_KEYWORD_UNITS } from '../../grid-track-handles.ts';
 import { NumberField, Select, UnitSelect } from '../inspector-controls.jsx';
 import { GRID_TRACK_UNITS } from './css-vocab.jsx';
+import { reasonProps } from '../v2/access/disabled-reason.js';
 
 // feature-3-web-artboards T5 (absorbed feature-grid-track-editor stub) — the
 // CssKnobs "Grid" section's track-list editor: one row per track (a
@@ -37,6 +38,7 @@ export function GridTracksEditor({ label, tracks, editable, onChange }) {
           type="button"
           className="sh-btn insp-cp-gridtracks-add"
           disabled={!editable}
+          {...reasonProps(!editable, 'cantEditHere')}
           onClick={addTrack}
         >
           + Track
@@ -79,15 +81,19 @@ export function GridTracksEditor({ label, tracks, editable, onChange }) {
                   onCommit={(n) => setValue(idx, n)}
                 />
               )}
-              <button
-                type="button"
-                className="sh-btn insp-cp-gridtrack-remove"
-                aria-label={`remove ${label} track ${idx + 1}`}
-                disabled={!editable || tracks.length <= 1}
-                onClick={() => removeTrack(idx)}
-              >
-                ×
-              </button>
+              {/* a grid keeps one track at least: the last one has no remove */}
+              {tracks.length > 1 ? (
+                <button
+                  type="button"
+                  className="sh-btn insp-cp-gridtrack-remove"
+                  aria-label={`remove ${label} track ${idx + 1}`}
+                  disabled={!editable}
+                  {...reasonProps(!editable, 'cantEditHere')}
+                  onClick={() => removeTrack(idx)}
+                >
+                  ×
+                </button>
+              ) : null}
             </div>
           );
         })

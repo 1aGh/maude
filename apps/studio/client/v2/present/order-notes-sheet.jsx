@@ -199,17 +199,20 @@ export function OrderNotesSheet({
                   >
                     ↓
                   </button>
-                  <button
-                    type="button"
-                    className="btn btn--sm btn--ghost pon-skip"
-                    aria-pressed={r.skipped}
-                    aria-label={`Skip “${r.label}”`}
-                    data-testid={`present-order-skip-${r.id}`}
-                    disabled={!r.storable || phase === 'saving'}
-                    onClick={() => setModel((m) => toggleSkip(m, r.id))}
-                  >
-                    {r.skipped ? 'Skipped' : 'Skip'}
-                  </button>
+                  {/* an artboard whose id cannot be stored cannot keep a skip: no Skip for it */}
+                  {r.storable ? (
+                    <button
+                      type="button"
+                      className="btn btn--sm btn--ghost pon-skip"
+                      aria-pressed={r.skipped}
+                      aria-label={`Skip “${r.label}”`}
+                      data-testid={`present-order-skip-${r.id}`}
+                      disabled={phase === 'saving'}
+                      onClick={() => setModel((m) => toggleSkip(m, r.id))}
+                    >
+                      {r.skipped ? 'Skipped' : 'Skip'}
+                    </button>
+                  ) : null}
                 </li>
               );
             })}

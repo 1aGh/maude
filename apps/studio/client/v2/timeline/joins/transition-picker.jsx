@@ -21,6 +21,7 @@ import {
   previewKeyframes,
   tileOfPresentation,
 } from './join-model.js';
+import { reasonProps } from '../../access/disabled-reason.js';
 
 const reducedMotion = () =>
   typeof window !== 'undefined' &&
@@ -194,6 +195,7 @@ export function TransitionPicker({
             data-testid={`timeline-transition-${key}`}
             tabIndex={tile === key || (!tile && key === JOIN_TILES[0][1]) ? 0 : -1}
             disabled={!canEdit}
+            {...reasonProps(!canEdit, 'viewer')}
             onMouseEnter={(e) => play(key, e.currentTarget)}
             onFocus={(e) => play(key, e.currentTarget)}
             onMouseLeave={stop}
