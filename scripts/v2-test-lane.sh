@@ -66,6 +66,17 @@ take_lock() {
   (set -o noclobber; printf '%s\t%s\t%s\n' "$$" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >"$LOCK") 2>/dev/null
 }
 
+# Every studio a run boots (bun preload, node tests, e2e apps and their sidecars, rigs) writes its
+# project snapshot and covers into $MAUDE_INDEX_DIR, default ~/.maude/index/v1 — which Home lists
+# (P8: 2,292 entries on the person's Mac, ~2,120 of them test copies). One throwaway per run unless
+# the caller named one; it is removed with the run.
+LANE_INDEX=""
+if [[ -z "${MAUDE_INDEX_DIR:-}" ]]; then
+  LANE_INDEX="$(mktemp -d "${TMPDIR:-/tmp}/v2-lane-index.XXXXXX")"
+  export MAUDE_INDEX_DIR="$LANE_INDEX"
+fi
+trap 'rm -f "$TICKET"; [[ -n "$LANE_INDEX" ]] && rm -rf "$LANE_INDEX"' EXIT INT TERM
+
 waited=0
 while ! take_lock "$@"; do
   holder_pid="$(cut -f1 "$LOCK" 2>/dev/null)"
@@ -83,7 +94,7 @@ while ! take_lock "$@"; do
   waited=$((waited + 1))
 done
 rm -f "$TICKET"
-trap 'rm -f "$LOCK"' EXIT INT TERM
+trap 'rm -f "$LOCK"; [[ -n "$LANE_INDEX" ]] && rm -rf "$LANE_INDEX"' EXIT INT TERM
 
 dist_status() { git -C "$ROOT" status --porcelain -- apps/studio/dist/ | sort; }
 # Content fingerprint, so a run that rewrites an already-modified file is still noticed.

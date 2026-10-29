@@ -243,6 +243,7 @@ function personEnv(dir, extra = {}) {
     PATH: `${STUB_BIN}:${process.env.PATH}`,
     HOME: join(dir, 'home'),
     XDG_CONFIG_HOME: join(dir, 'config'),
+    MAUDE_INDEX_DIR: join(dir, 'index'), // P8: never the person's ~/.maude/index (Home lists every project indexed there)
     XDG_DATA_HOME: join(dir, 'data'),
     XDG_CACHE_HOME: join(dir, 'cache'),
     TMPDIR: process.env.TMPDIR ?? tmpdir(),

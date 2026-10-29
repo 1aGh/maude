@@ -47,6 +47,7 @@ const baseEnv = {
   ...process.env,
   HOME,
   XDG_CONFIG_HOME: join(HOME, '.config'),
+  MAUDE_INDEX_DIR: join(HOME, 'index'), // P8: never the person's ~/.maude/index (Home lists every project indexed there)
   NO_OPEN: '1',
   MAUDE_NO_AUTOBUILD: '1',
   ...stubClaudeEnv(HOME),

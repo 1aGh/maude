@@ -259,6 +259,11 @@ process.env.MAUDE_MACHINE_FILE ??= join(
   E2E_BUNDLE_ID,
   'machine.json'
 );
+// P8 — …and its project snapshot + covers go to a throwaway machine index, never the person's
+// ~/.maude/index/v1 (Home listed every e2e fixture copy: 1,900+ maude-e2e-* projects). The app's
+// Home server and every sidecar inherit it; a lane that seeds its own index (home, invite-landing)
+// sets it after this runs. The launcher sets it once; workers inherit it through the environment.
+process.env.MAUDE_INDEX_DIR ||= mkdtempSync(join(tmpdir(), 'maude-e2e-index-'));
 
 // Per-run evidence root (consumed by helpers/evidence.ts) — SAME place as
 // `/flow:scenario`: .ai/device/scenario-runs/<scenario>/<YYYY-MM-DD-HHMM>/

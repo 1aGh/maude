@@ -112,6 +112,7 @@ server = spawn('bun', [join(STUDIO, 'server.ts'), '--root', projectRoot], {
     // ~/.config/maude/machine.json (and the person's prefs/config with it).
     XDG_CONFIG_HOME: join(work, 'config'),
     MAUDE_MACHINE_FILE: join(work, 'config', 'maude', 'machine.json'),
+    MAUDE_INDEX_DIR: join(work, 'index'), // P8: never the person's ~/.maude/index (Home lists every project indexed there)
     // the person's real `claude` + keychain stay out of the probe: scripts/lib/stub-claude.mjs
     ...stubClaudeEnv(work),
   },

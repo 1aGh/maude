@@ -333,6 +333,7 @@ function reelPlaceSmoke(binary, strippedPath) {
         env: {
           PATH: strippedPath,
           HOME: process.env.HOME || '/tmp',
+          MAUDE_INDEX_DIR: join(root, '.maude-index'), // P8: never the person's ~/.maude/index (Home lists every project indexed there)
           NO_OPEN: '1',
           MAUDE_NO_AUTOBUILD: '1',
           NAPI_RS_NATIVE_LIBRARY_PATH: '/$bunfs/root/parser.darwin-arm64-smoke.node',
