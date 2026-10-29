@@ -272,6 +272,8 @@ const alice = await startStudio(
 await until(
   'welcome on the hub',
   async () => {
+    // a legacy hub has no accepted-revisions bootstrap: alice saying it is synced is the signal
+    if (LEGACY) return /1\/1 synced/.test(alice.log());
     const r = await fetch(`${hub.http}/api/projects/current/v1/bootstrap`, {
       headers: { authorization: `Bearer ${hub.tokens.owner}` },
     });
@@ -447,7 +449,12 @@ let pass = 0;
 try {
   for (let n = 1; n <= RUNS; n++) {
     const t0 = Date.now();
-    const r = SCENARIO === 'race' ? await raceRun(n) : await restoreRun(n);
+    // a run that cannot reach its next step is a FAIL of that run, not the end of the series (each run
+    // works on its own fresh canvas) — so the rate is honest
+    const r = await (SCENARIO === 'race' ? raceRun(n) : restoreRun(n)).catch((e) => ({
+      ok: false,
+      error: String(e?.message ?? e),
+    }));
     if (r.ok) pass++;
     console.log(
       `[${SCENARIO} ${n}/${RUNS}] ${r.ok ? 'PASS' : 'FAIL'} ${((Date.now() - t0) / 1000).toFixed(1)}s ${JSON.stringify(r)}`
