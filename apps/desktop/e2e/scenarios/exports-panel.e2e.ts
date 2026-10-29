@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import { $, $$, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
@@ -99,6 +99,9 @@ describe('exports-panel (native-desktop)', () => {
     startReport('exports-panel (native-desktop)');
     expect(await isNativeShell()).toBe(true);
     expect(savePath).not.toBe('');
+    // the run dir is shared by every run of a record (V2-8.3 runs each lane 3×): a run starts with an empty save folder,
+    // or run 2 finds run 1's "Panel Hero.png" and the next name is "(3)" (only ever the run dir's own `saved/`)
+    if (basename(dirname(savePath)) === 'saved') rmSync(dirname(savePath), { recursive: true, force: true });
     mkdirSync(dirname(savePath), { recursive: true });
     await waitForSidecar();
     const row = await canvasRow('canvas-row-ui-export');
