@@ -3,24 +3,33 @@
 // inherits process.env — must never write the person's real ones. One throwaway dir per test
 // process unless the environment already names its own.
 import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { delimiter, join } from 'node:path';
+import { homedir, tmpdir } from 'node:os';
+import { delimiter, join, sep } from 'node:path';
 import { writeStubClaude } from '../../../scripts/lib/stub-claude.mjs';
 
 const root = mkdtempSync(join(tmpdir(), 'maude-test-machine-'));
-process.env.MAUDE_LOG_DIR ??= join(root, 'logs');
-process.env.MAUDE_INDEX_DIR ??= join(root, 'index');
+// "Unless the environment already names its own" — a throwaway one. An inherited value that IS the
+// person's (a CI runner exports XDG_CONFIG_HOME=$HOME/.config; a login shell may export any of these)
+// is replaced like an unset one, or the `??=` would keep the real dir it exists to keep tests out of.
+const REAL_DIRS = [join(homedir(), '.config'), join(homedir(), '.maude')];
+const isReal = (v: string) => REAL_DIRS.some((d) => v === d || v.startsWith(d + sep));
+function pin(name: string, value: string): void {
+  const cur = process.env[name];
+  if (!cur || isReal(cur)) process.env[name] = value;
+}
+pin('MAUDE_LOG_DIR', join(root, 'logs'));
+pin('MAUDE_INDEX_DIR', join(root, 'index'));
 // …and the person's own config under ~/.config/maude (prefs.json, keys.json, hubs.json,
 // cloud.json): a canvas or test that POSTs /_api/ui-prefs once rewrote the real prefs.json
 // (2026-10-10). XDG_CONFIG_HOME covers every writer that follows the XDG rule; the prefs path is
 // pinned too in case a test clears XDG for one server. HOME stays: browser caches live there.
-process.env.XDG_CONFIG_HOME ??= join(root, 'config');
-process.env.MAUDE_UI_PREFS_PATH ??= join(root, 'config', 'maude', 'prefs.json');
+pin('XDG_CONFIG_HOME', join(root, 'config'));
+pin('MAUDE_UI_PREFS_PATH', join(root, 'config', 'maude', 'prefs.json'));
 // cloud.json resolves under homedir() directly, not XDG (cloud/endpoints.ts, cloud/renew.ts).
-process.env.MAUDE_CLOUD_CONFIG ??= join(root, 'config', 'maude', 'cloud.json');
+pin('MAUDE_CLOUD_CONFIG', join(root, 'config', 'maude', 'cloud.json'));
 // S5.1b — the local kernel's machine stamp (~/.config/maude/machine.json), written on any unlinked
 // project's boot. XDG covers it too; pinned in case a test clears XDG for one server.
-process.env.MAUDE_MACHINE_FILE ??= join(root, 'config', 'maude', 'machine.json');
+pin('MAUDE_MACHINE_FILE', join(root, 'config', 'maude', 'machine.json'));
 // P8 — a booted studio queues its missing covers 10 s after boot (http.ts `bootCovers`): a test
 // server must not start a Chromium of its own next to the test's. test/p8-thumbs-boot-covers.test.ts
 // pins the pass itself; a test that wants it from a real server sets MAUDE_NO_BOOT_COVERS=0.
