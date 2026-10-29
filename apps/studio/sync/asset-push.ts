@@ -57,6 +57,11 @@ export interface AssetPushResult {
   pushed: string[];
   skipped: number;
   failed: { key: string; reason: string }[];
+  /**
+   * The hub answered the upload `405`: it holds no checkout, so it cannot store media at all. The pass ended there —
+   * the rest were never tried and are NOT failures (they stay on this Mac). `sync/media-gate.ts` stops further passes.
+   */
+  refused?: 'no-checkout';
 }
 
 /**
@@ -80,6 +85,8 @@ export interface AssetPushProgress {
   active: string | null;
   /** True exactly once, on the final emit (also fires when total is 0). */
   finished: boolean;
+  /** Set on the final emit when the hub has no media checkout (see `AssetPushResult.refused`). */
+  refused?: 'no-checkout';
 }
 
 /** Cap on `failures` in a progress emit (same spirit as MAX_REJECTED_SLUGS —
@@ -451,6 +458,7 @@ export async function pushAssets(opts: {
         failures: out.failed.slice(0, MAX_LISTED_FAILURES),
         active,
         finished,
+        ...(out.refused ? { refused: out.refused } : {}),
       });
     } catch {
       /* a broken listener must never break the push */
@@ -518,7 +526,12 @@ export async function pushAssets(opts: {
         timeoutFor,
       });
       if (put.ok) out.pushed.push(rel);
-      else {
+      else if (put.status === 405) {
+        // `this hub does not accept file writes`: no checkout, so no file can ever land here. Stop the pass — the
+        // next file would get the same answer — and say it is not a failure; the media stays on this Mac.
+        out.refused = 'no-checkout';
+        break;
+      } else {
         out.failed.push({ key: rel, reason: await failureReason(put) });
         emitProgress(rel, false, true);
       }

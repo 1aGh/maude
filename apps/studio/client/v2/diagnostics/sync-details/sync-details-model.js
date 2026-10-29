@@ -132,6 +132,8 @@ export function syncDetailsModel(
       })),
     });
   }
+  // p8-ia-edges — a team server with no media checkout: not a failure, one calm card (words: ia-edges, Michal 2026-10-29)
+  if (assets && assets.refused === 'no-checkout') needs.push({ kind: 'assets-stay' });
   const moving =
     assets && !assets.finished && assets.total > 0
       ? {

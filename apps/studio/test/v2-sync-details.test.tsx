@@ -380,3 +380,35 @@ describe('P8 B1 — failed media uploads are in Needs you (the menu already said
     expect(q('diag-sync-need-word')).toBeNull();
   });
 });
+
+describe('p8-ia-edges — a team server without a media checkout says so once, in plain words', () => {
+  const refused = {
+    total: 3,
+    done: 0,
+    pushed: 0,
+    skipped: 0,
+    failedCount: 0,
+    finished: true,
+    failures: [],
+    refused: 'no-checkout',
+  };
+
+  test('one card: what happened, that nothing is lost, and what to do', async () => {
+    await mount({ status: base({ assets: refused }) });
+    const card = q('sync-assets-stay');
+    expect(card?.textContent).toContain(
+      "This team server can't store media, so pictures and videos stay on this Mac."
+    );
+    expect(card?.textContent).toContain('Ask whoever runs the server');
+    expect(q('sync-assets-failed')).toBeNull(); // not a failure, not "0 media uploads failed"
+    expect(q('diag-sync-need-word')?.textContent).toBe('1 need you');
+  });
+
+  test('once the server has a checkout the pass is not refused and the card is gone', async () => {
+    await mount({
+      status: base({ assets: { ...refused, refused: undefined, pushed: 3, done: 3 } }),
+    });
+    expect(q('sync-assets-stay')).toBeNull();
+    expect(q('diag-sync-need-word')).toBeNull();
+  });
+});

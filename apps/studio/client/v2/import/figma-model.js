@@ -57,6 +57,8 @@ export const FIGMA_WORDS = Object.freeze({
   reading: 'Reading the file…',
   importing: 'Importing…',
   cancel: 'Cancel',
+  cantOpen:
+    "Your Figma account can't open this file. Ask its owner to share it with you, then paste the link again.",
   import: 'Import',
   boardTitle: 'Import from FigJam',
   boardFine:
@@ -87,7 +89,8 @@ export function figmaFailureWords(reason) {
     case 'forbidden':
       return 'Your role on this project can’t import. Ask the owner for Can edit.';
     case 'not_found':
-      return "Figma doesn't have that file, or this token can't read it.";
+      // ia-edges G, CONTRACT §3: the account is the subject, the owner is the next step; the link stays in the sheet
+      return FIGMA_WORDS.cantOpen;
     case 'unauthorized':
     case 'forbidden_scope':
       return 'Figma refused the token. Replace it in Settings › Connections.';

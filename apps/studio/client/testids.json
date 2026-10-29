@@ -3450,6 +3450,19 @@
     "v2": "stable"
   },
   {
+    "hook": "sync-assets-stay",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Sync details › Needs you: \"This team server can't store media, so pictures and videos stay on this Mac.\" with the next step; not a failure.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "AssetsStayCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "sync-files",
     "kind": "testid",
     "pattern": false,
@@ -36259,6 +36272,58 @@
     "kind": "testid",
     "pattern": false,
     "meaning": "The Generate ask: Generate — off until a quote and the words are there; hands the single-use quote back.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/generate-ask.jsx",
+      "symbol": "GenerateAsk"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-key-sheet",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Connect a Google key?\" (12 ia-edges H): the dialog Generate answers with when no image key is connected. Role dialog.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/connect-key-sheet.jsx",
+      "symbol": "ConnectKeySheet"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-key-connect",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Connect a Google key?\": Connect — opens Settings › Connections; the waiting prompt runs when the key lands.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/connect-key-sheet.jsx",
+      "symbol": "ConnectKeySheet"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-key-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Connect a Google key?\": Cancel — drops it, nothing runs.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/connect-key-sheet.jsx",
+      "symbol": "ConnectKeySheet"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-ask-waiting",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Generate ask: the line shown while the prompt waits for a Google key to be connected (role status).",
     "producer": {
       "file": "apps/studio/client/v2/assets/generate-ask.jsx",
       "symbol": "GenerateAsk"
