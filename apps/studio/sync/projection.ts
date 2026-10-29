@@ -1120,6 +1120,11 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       if (lane === 'html') {
         observedBody = str;
         lastHtml = str;
+        // F14 (p8-fix-c) — an announced API write whose bytes the project already holds (its own
+        // action was accepted and published first: an artboard trash, a restore) is over here.
+        // Left set, its base (the version BEFORE that write) was handed to the next, unrelated
+        // file edit, which the hub then refused as a base conflict and this disk held.
+        localWrite = null;
         recovered();
       } else if (lane === 'css') {
         lastCss = str;
