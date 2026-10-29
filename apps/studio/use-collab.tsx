@@ -35,6 +35,7 @@ import { readSyncMessage, writeSyncStep1, writeUpdate } from 'y-protocols/sync';
 import * as Y from 'yjs';
 
 import { isTrustedOrigin, touchesBodyLane } from './collab/origins.ts';
+import { encodeEpochClaim, MESSAGE_EPOCH, readEpochVerdict } from './collab/protocol.ts';
 import {
   type EditingAwareness,
   sanitizeEditing,
@@ -912,6 +913,15 @@ interface CollabSession {
   listeners: Set<() => void>;
   /** Tear down the socket + listeners + destroy doc/awareness. */
   stop: () => void;
+  /**
+   * p8-collab-epoch — the server epoch this session's doc was last synced under
+   * (null: never). Claimed on every connect; a mismatch starts a fresh doc.
+   */
+  epoch: string | null;
+  /** How many times the studio restarted under this session and the doc was rebuilt. */
+  resyncs: number;
+  /** Changes made here that could not be placed in the restarted studio's copy (kept, pending). */
+  unplaced: number;
 }
 
 // The session registry MUST live on `window`, not in module scope, and be
@@ -970,9 +980,15 @@ function notifySession(s: CollabSession): void {
   for (const l of s.listeners) l();
 }
 
+/** Origin of the unsent local changes re-applied after a fresh join (never a server socket). */
+const RESYNC_ORIGIN = Object.freeze({ maudeOrigin: 'collab-epoch-resync' });
+/** Bound on the local changes kept while they wait for a server that accepted our epoch. */
+const MAX_UNSENT_BYTES = 4 * 1024 * 1024;
+
 function createSession(slug: string): CollabSession {
-  const doc = new Y.Doc();
-  const awareness = new Awareness(doc);
+  // `let`: a fresh join after a studio restart replaces both (p8-collab-epoch).
+  let doc = new Y.Doc();
+  let awareness = new Awareness(doc);
   const connId = crypto.randomUUID();
 
   const session: CollabSession = {
@@ -987,6 +1003,9 @@ function createSession(slug: string): CollabSession {
     destroyTimer: null,
     listeners: new Set(),
     stop: () => {},
+    epoch: null,
+    resyncs: 0,
+    unplaced: 0,
   };
 
   // Seed local awareness immediately so foreign peers see our name even before
@@ -1043,6 +1062,109 @@ function createSession(slug: string): CollabSession {
   let failedConnects = 0;
   let failureWarned = false;
 
+  // ── Handshake epoch (p8-collab-epoch, decision v2-p8-collab-epoch) ─────────
+  // `standing` is this socket's verdict: 'ok' once the server accepted our
+  // claim. Only then do local changes go out live; before it (and while the
+  // socket is down) they are kept in `unsent`, which the next accepted sync
+  // carries (our sync step 2), or which a fresh join re-applies. A change sent
+  // under an accepted epoch reached that server's room — it is not kept.
+  let standing: 'unknown' | 'ok' = 'unknown';
+  let unsent: Uint8Array[] = [];
+  let unsentBytes = 0;
+  let unsentWarned = false;
+  /** Unsent changes waiting for the fresh doc's first full sync. */
+  let reproposal: Uint8Array | null = null;
+  /** Sockets this session opened — an update from one of them is the server's, not ours. */
+  const sockets = new WeakSet<object>();
+
+  const onOwnUpdate = (update: Uint8Array, origin: unknown) => {
+    if (origin && typeof origin === 'object' && sockets.has(origin)) return;
+    const ws = wsRef;
+    if (ws && ws.readyState === WebSocket.OPEN && standing === 'ok') return;
+    unsent.push(update);
+    unsentBytes += update.byteLength;
+    while (unsentBytes > MAX_UNSENT_BYTES && unsent.length > 1) {
+      unsentBytes -= unsent.shift()?.byteLength ?? 0;
+      if (!unsentWarned) {
+        unsentWarned = true;
+        console.warn(
+          '[collab] too many changes waiting for the studio — the oldest are no longer kept'
+        );
+      }
+    }
+  };
+  doc.on('update', onOwnUpdate);
+
+  function sendClaimAndSync(ws: WebSocket) {
+    sendFrame(ws, encodeEpochClaim(session.epoch ?? ''));
+    // Sync step 1 — announce our state vector so the server can send the
+    // missing pieces (matches the encodeHandshake server path).
+    const encoder = encoding.createEncoder();
+    encoding.writeVarUint(encoder, MESSAGE_SYNC);
+    writeSyncStep1(encoder, doc);
+    sendFrame(ws, encoding.toUint8Array(encoder));
+    // Awareness initial state — fire our local state to the room.
+    broadcastAwareness(ws, [awareness.clientID]);
+  }
+
+  /**
+   * The server is a later instance than the one this doc synced with. Its room
+   * was rebuilt, so the doc we hold is not one it may merge (it would come back
+   * as duplicates and resurrected deletes). Start a fresh doc + presence,
+   * claim the server's epoch, and re-apply only what this page changed and no
+   * accepted server ever received. Consumers re-read `doc` from the context.
+   */
+  function freshJoin(ws: WebSocket, serverEpoch: string) {
+    const oldDoc = doc;
+    const oldAwareness = awareness;
+    const local = (oldAwareness.getLocalState() ?? null) as CollabAwarenessState | null;
+    oldDoc.off('update', onDocUpdate);
+    oldDoc.off('update', onOwnUpdate);
+    oldAwareness.off('update', onAwarenessUpdate);
+    doc = new Y.Doc();
+    awareness = new Awareness(doc);
+    session.doc = doc;
+    session.awareness = awareness;
+    doc.on('update', onDocUpdate);
+    doc.on('update', onOwnUpdate);
+    awareness.on('update', onAwarenessUpdate);
+    if (local) awareness.setLocalState({ ...local, __connId: connId });
+    reproposal = unsent.length ? Y.mergeUpdates(unsent) : null;
+    unsent = [];
+    unsentBytes = 0;
+    session.epoch = serverEpoch;
+    session.resyncs += 1;
+    try {
+      oldAwareness.destroy();
+    } catch {
+      /* ignore */
+    }
+    notifySession(session);
+    try {
+      oldDoc.destroy();
+    } catch {
+      /* ignore */
+    }
+    sendClaimAndSync(ws);
+  }
+
+  /** The fresh doc holds the server's state: put back what only this page had. */
+  function applyReproposal() {
+    const update = reproposal;
+    reproposal = null;
+    if (!update) return;
+    Y.applyUpdate(doc, update, RESYNC_ORIGIN);
+    const pending = doc.store.pendingStructs !== null || doc.store.pendingDs !== null;
+    if (pending) {
+      session.unplaced += 1;
+      notifySession(session);
+      console.info(
+        '[collab] the studio restarted; some changes made on this page refer to content the ' +
+          'restarted studio no longer has. They stay on this page and are not sent.'
+      );
+    }
+  }
+
   function sendFrame(ws: WebSocket, payload: Uint8Array) {
     try {
       // Uint8Array<ArrayBufferLike> vs BufferSource — see saveAsset in api.ts.
@@ -1073,25 +1195,24 @@ function createSession(slug: string): CollabSession {
     const ws = new WebSocket(`${proto}//${location.host}/_ws/collab/${slug}`);
     ws.binaryType = 'arraybuffer';
     wsRef = ws;
+    sockets.add(ws);
+    standing = 'unknown';
+    let resetsOnThisSocket = 0;
 
     ws.addEventListener('open', () => {
       failedConnects = 0;
       failureWarned = false;
       session.connected = true;
       notifySession(session);
-      // Sync step 1 — announce our state vector so the server can send the
-      // missing pieces (matches the encodeHandshake server path).
-      const encoder = encoding.createEncoder();
-      encoding.writeVarUint(encoder, MESSAGE_SYNC);
-      writeSyncStep1(encoder, doc);
-      sendFrame(ws, encoding.toUint8Array(encoder));
-      // Awareness initial state — fire our local state to the room.
-      broadcastAwareness(ws, [awareness.clientID]);
+      // p8-collab-epoch — the claim goes first, so the server knows which
+      // instance this doc belongs to before it asks for any of it.
+      sendClaimAndSync(ws);
     });
 
     ws.addEventListener('close', () => {
       const hadConnected = session.connected;
       session.connected = false;
+      standing = 'unknown';
       notifySession(session);
       wsRef = null;
       if (cancelled) return;
@@ -1127,8 +1248,38 @@ function createSession(slug: string): CollabSession {
         case MESSAGE_SYNC: {
           const encoder = encoding.createEncoder();
           encoding.writeVarUint(encoder, MESSAGE_SYNC);
-          readSyncMessage(decoder, encoder, doc, ws);
+          const type = readSyncMessage(decoder, encoder, doc, ws);
           if (encoding.length(encoder) > 1) sendFrame(ws, encoding.toUint8Array(encoder));
+          // Our sync step 2 answered an accepted server's step 1: it carried
+          // every change kept while unsent.
+          if (type === 0 && standing === 'ok') {
+            unsent = [];
+            unsentBytes = 0;
+          }
+          // The server's step 2 after a fresh join: the doc now holds its state.
+          if (type === 1 && standing === 'ok') applyReproposal();
+          break;
+        }
+        case MESSAGE_EPOCH: {
+          const verdict = readEpochVerdict(payload);
+          if (!verdict) break;
+          if (verdict.accepted) {
+            standing = 'ok';
+            session.epoch = verdict.epoch;
+            break;
+          }
+          // A server that refuses even a fresh doc's claim is not one we can
+          // sync with: stop rather than loop.
+          resetsOnThisSocket += 1;
+          if (resetsOnThisSocket > 1) {
+            try {
+              ws.close();
+            } catch {
+              /* ignore */
+            }
+            break;
+          }
+          freshJoin(ws, verdict.epoch);
           break;
         }
         case MESSAGE_AWARENESS: {
@@ -1161,6 +1312,8 @@ function createSession(slug: string): CollabSession {
     const ws = wsRef;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     if (origin === ws) return; // came from server, don't echo
+    // p8-collab-epoch — not before the server accepted our epoch (kept in `unsent`).
+    if (standing !== 'ok') return;
     if (touchesBodyLane(transaction) && !isTrustedOrigin(origin)) {
       if (!bodyLaneWarned) {
         bodyLaneWarned = true;
@@ -1197,6 +1350,7 @@ function createSession(slug: string): CollabSession {
     cancelled = true;
     if (reconnectTimer) clearTimeout(reconnectTimer);
     doc.off('update', onDocUpdate);
+    doc.off('update', onOwnUpdate);
     awareness.off('update', onAwarenessUpdate);
     const ws = wsRef;
     if (ws && ws.readyState === WebSocket.OPEN) {
