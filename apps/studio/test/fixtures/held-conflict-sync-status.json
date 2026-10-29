@@ -35,13 +35,7 @@
     }
   ],
   "pulled": {
-    "names": [
-      "ui-welcome",
-      "ui-race1",
-      "ui-race2",
-      "ui-race3",
-      "ui-race4"
-    ],
+    "names": ["ui-welcome", "ui-race1", "ui-race2", "ui-race3", "ui-race4"],
     "count": 5
   },
   "connectionUpdatedAt": 1793303159882,

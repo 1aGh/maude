@@ -21,7 +21,6 @@ afterAll(() => {
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { ACTIONS_BY_ID } from '../actions/index.ts';
-import { syncPresentation } from '../sync/presentation.ts';
 import {
   OPEN_DIAGNOSTICS_EVENT,
   openDiagnostics,
@@ -39,6 +38,7 @@ import { menuCtx } from '../client/v2/shell/project-menu-model.js';
 import { facesOf, saveStatus } from '../client/v2/shell/save-status.js';
 import { ShareCluster } from '../client/v2/shell/share-cluster.jsx';
 import { parityFor } from '../client/v2/shell/shell-parity.js';
+import { syncPresentation } from '../sync/presentation.ts';
 
 let root: Root | null = null;
 let host: HTMLElement | null = null;
