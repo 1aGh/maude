@@ -3100,6 +3100,15 @@ export function createSyncRuntime(
       // state to preserve, and one is exactly what a first canvas needs. The
       // supervisor owns cycling (it holds the serialization), so this asks
       // rather than acts — see `server.ts`.
+      // One ask per runtime: the supervisor's cycle replaces this runtime, and a
+      // second ask while it does would only queue a second, pointless cycle.
+      let askedForCycle = false;
+      const askForCycle = (why: string): void => {
+        if (askedForCycle || stopped) return;
+        askedForCycle = true;
+        console.log(`[sync] ${why} — starting sync.`);
+        ctx.bus.emit('sync:needs-restart');
+      };
       const watchForFirst = createRescanScheduler({
         debounceMs: DISCOVERY_DEBOUNCE_MS,
         onError: (err) => console.error('[sync] first-canvas watch failed:', err),
@@ -3108,12 +3117,53 @@ export function createSyncRuntime(
           const again = await scanCanvases(ctx);
           if (admitCanvases(again.canvases, useSharedDoc, { docNameOf: docNameFor }).length === 0)
             return;
-          console.log('[sync] the project has its first syncable canvas — starting sync.');
-          ctx.bus.emit('sync:needs-restart');
+          askForCycle('the project has its first syncable canvas');
         },
       });
       discoveryRescan = watchForFirst;
       discoveryUnsub = ctx.bus.on('canvas-list-update', () => watchForFirst.schedule());
+      // THE OTHER HALF: A TEAMMATE'S FIRST CANVAS (p8-fix-c2 #1). The watch above
+      // reads this disk only, so a copy that booted onto a project with no canvas
+      // anywhere never asked the hub again — a teammate's first canvas (or the
+      // cloud's, or a desktop's for a cell that booted empty) reached it only on a
+      // restart. So the hub is asked on the same 20 s poll (and on the control
+      // channel's documents-changed doorbell) a running copy uses, and a document
+      // it did not list at boot asks for the same cycle.
+      //
+      // ONLY A NEW NAME. What the hub listed at boot was offered to this boot's
+      // pull and refused (the sandbox gate, an opt-out, a bad path) — it is still
+      // refused after a cycle, and cycling on it again would restart the runtime
+      // every poll. A deleted canvas (tombstoned) is not a canvas either.
+      if (!opts.canvases) {
+        const offeredAtBoot = new Set((remoteListing?.documents ?? []).map((d) => d.name));
+        const pollForFirst = async (): Promise<void> => {
+          if (stopped || askedForCycle) return;
+          const raw = await fetchRemoteListing(linkedHub.url, token);
+          if (acceptedLink) await acceptedLink.refresh().catch(() => null);
+          const listing = withAcceptedDocs(raw);
+          if (stopped || listing === null) return;
+          const gone = new Set(
+            (listing.tombstones ?? []).map((t) => t.name).concat([...tombstoned].map(docNameFor))
+          );
+          const fresh = diffRemoteDocs([], listing.documents).hubOnly.filter(
+            (d) => !offeredAtBoot.has(d.name) && !gone.has(d.name)
+          );
+          if (fresh.length === 0) return;
+          askForCycle(`the project's first canvas arrived from the hub (${fresh[0]?.name})`);
+        };
+        remotePull = pollForFirst;
+        documentDiscoveryUnsub = ctx.bus.on('sync:documents-changed', () => {
+          void pollForFirst().catch((err) =>
+            console.error('[sync] first-canvas poll failed:', err)
+          );
+        });
+        remotePollTimer = setInterval(() => {
+          void pollForFirst().catch((err) =>
+            console.error('[sync] first-canvas poll failed:', err)
+          );
+        }, REMOTE_POLL_MS);
+        remotePollTimer.unref?.();
+      }
       return;
     }
 

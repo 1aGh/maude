@@ -12,6 +12,10 @@
 //   --scenario race      F15: the cell goes away, alice trashes A-C, bob trashes D, the cell comes
 //                        back. The two Macs must end EQUAL, or one of them shows a conflict.
 //
+//   --scenario first     p8-fix-c2 #1: only the boot — both copies start on an EMPTY project, then
+//                        one (--first-by alice|bob) makes the first canvas; the other must get it
+//                        without a restart. Every scenario boots this way.
+//
 //   node scripts/dev/trash-sync-repro.mjs --scenario restore --runs 20 [--restorer bob|alice] [--keep]
 //
 // Nothing here touches a real hub, a real ~/.config, the person's index or the keychain: HOME,
@@ -47,6 +51,8 @@ const KEEP = argv.includes('--keep');
 const SETTLE_MS = Number(arg('settle', '0'));
 // --legacy: a hub with no accepted-revisions store (the shared-document mode a 1.x hub speaks)
 const LEGACY = argv.includes('--legacy');
+// who makes the project's first canvas after both copies booted empty (p8-fix-c2 #1)
+const FIRST_BY = arg('first-by', 'alice');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const ids = (src) =>
@@ -124,7 +130,10 @@ const meta = (title) =>
 const scratch = mkdtempSync(join(tmpdir(), 'maude-trash-repro-'));
 const children = [];
 let hub = null;
+let cleaned = false;
 function cleanup() {
+  if (cleaned) return;
+  cleaned = true;
   for (const c of children) {
     try {
       c.kill('SIGCONT');
@@ -140,6 +149,9 @@ process.on('SIGINT', () => {
   cleanup();
   process.exit(130);
 });
+// A boot step that times out rejects the top-level await: the children (two studios, the hub)
+// must not outlive the rig as orphans on a machine-wide test lane.
+process.on('exit', cleanup);
 
 function projectConfig(root, hubUrl) {
   mkdirSync(join(root, '.design', 'ui'), { recursive: true });
@@ -258,22 +270,35 @@ const aliceRoot = join(scratch, 'alice');
 const bobRoot = join(scratch, 'bob');
 projectConfig(aliceRoot, hub.http);
 projectConfig(bobRoot, hub.http);
-// alice is already at work (a canvas on the hub) before bob's copy boots — as the team-cell lane
-// has it: a copy that boots onto a project with no canvas yet does not start its sync.
-writeFileSync(
-  join(aliceRoot, '.design', 'ui', 'welcome.tsx'),
-  SOURCE.replace('Leták A6', 'Welcome')
-);
+// p8-fix-c2 #1 — BOTH copies boot onto a project with no canvas anywhere ("linked … but 0
+// syncable canvases"), and only then does one of them make the project's first canvas. The other
+// must get it without a restart (this rig used to seed a canvas before bob booted to hide that).
 const alice = await startStudio(
   'alice',
   aliceRoot,
   credentials(join(scratch, 'alice-cfg'), hub.http, hub.tokens.alice, aliceRoot)
 );
+const bob = await startStudio(
+  'bob',
+  bobRoot,
+  credentials(join(scratch, 'bob-cfg'), hub.http, hub.tokens.bob, bobRoot)
+);
+await until(
+  'both copies linked with nothing to sync',
+  () => [alice, bob].every((p) => /0 syncable canvases/.test(p.log())),
+  60_000
+);
+const firstBy = FIRST_BY === 'bob' ? bob : alice;
+const firstTo = firstBy === bob ? alice : bob;
+writeFileSync(
+  join(firstBy.root, '.design', 'ui', 'welcome.tsx'),
+  SOURCE.replace('Leták A6', 'Welcome')
+);
 await until(
   'welcome on the hub',
   async () => {
-    // a legacy hub has no accepted-revisions bootstrap: alice saying it is synced is the signal
-    if (LEGACY) return /1\/1 synced/.test(alice.log());
+    // a legacy hub has no accepted-revisions bootstrap: the author saying it is synced is the signal
+    if (LEGACY) return /1\/1 synced/.test(firstBy.log());
     const r = await fetch(`${hub.http}/api/projects/current/v1/bootstrap`, {
       headers: { authorization: `Bearer ${hub.tokens.owner}` },
     });
@@ -282,15 +307,14 @@ await until(
   },
   120_000
 );
-const bob = await startStudio(
-  'bob',
-  bobRoot,
-  credentials(join(scratch, 'bob-cfg'), hub.http, hub.tokens.bob, bobRoot)
-);
+const firstAt = Date.now();
 await until(
-  'welcome on bob’s disk',
-  () => read(join(bobRoot, '.design', 'ui', 'welcome.tsx')) !== null,
+  `the first canvas on ${firstTo.name}’s disk, no restart`,
+  () => read(join(firstTo.root, '.design', 'ui', 'welcome.tsx')) !== null,
   180_000
+);
+console.log(
+  `[rig] ${firstBy.name}’s first canvas reached ${firstTo.name} in ${((Date.now() - firstAt) / 1000).toFixed(1)}s`
 );
 const peers = { alice, bob };
 const disk = (p, rel) => read(join(p.root, '.design', rel));
@@ -451,7 +475,12 @@ try {
     const t0 = Date.now();
     // a run that cannot reach its next step is a FAIL of that run, not the end of the series (each run
     // works on its own fresh canvas) — so the rate is honest
-    const r = await (SCENARIO === 'race' ? raceRun(n) : restoreRun(n)).catch((e) => ({
+    const r = await (SCENARIO === 'first'
+      ? Promise.resolve({ ok: true, firstBy: firstBy.name, firstTo: firstTo.name })
+      : SCENARIO === 'race'
+        ? raceRun(n)
+        : restoreRun(n)
+    ).catch((e) => ({
       ok: false,
       error: String(e?.message ?? e),
     }));
