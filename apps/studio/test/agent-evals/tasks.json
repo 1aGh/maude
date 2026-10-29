@@ -298,7 +298,7 @@
       "prompt": "On the Combine campaign canvas, make the headline on the FB event cover bigger.",
       "expect": {
         "allow": ["ui/2026/combine/Combine-kampan.tsx"],
-        "artboards": { "ui/2026/combine/Combine-kampan.tsx": ["fb-event-cover"] },
+        "artboards": { "ui/2026/combine/Combine-kampan.tsx": ["fb-event-cover", "fb-event-safe"] },
         "mustChange": ["ui/2026/combine/Combine-kampan.tsx"]
       },
       "render": [

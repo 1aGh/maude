@@ -38,3 +38,16 @@ Not fixed tonight: plan A (2026-10-29) starts no new builders, and Michal decide
 is to block only on errors the edit introduced (diff the findings against the pre-edit snapshot) and pass the
 pre-existing ones on as `additionalContext`. A fail-first test would be a mapped-id canvas, a one-line edit, and no
 block.
+
+## After the fix (2026-10-29 ~06:00, feat a299a00bd + 6e87df463)
+
+The post-edit and Stop gates now block only on findings the edit introduced (p8-gate-introduced, Michal's decision).
+The grader's check follows the same rule (`realcheck.mjs --introduced`). e4 and e5 were rerun ×3, with the evidence
+in `../V2-8.16-eval-gate/`:
+- **e5: 3/3 inv, 3/3 qual.** The map stays and only `ig-event-square` changes.
+- **e4: 3/3 inv, 3/3 qual after a task-scope fix.** The rerun first failed only on `fb-event-safe`. That artboard is
+  the cover's own safe-zone check view: it renders the same `<FbEventCover guides />`, so a bigger headline must show
+  there too. The agent's edit was right. The task's allowed artboards now name it (`tasks.json` e4), and the three
+  trials were regraded, not rerun.
+
+**Final: 24/30 pass^3. No FAIL has a product cause.** The rest (n4, d4, x5, b2, e3, n1) are agent-caused.
