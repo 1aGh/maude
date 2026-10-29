@@ -890,6 +890,16 @@ export function bashMayWrite(command, verbs = null) {
     // share the basename (nameOf) with it
     if (e.raw.includes('/')) return true;
     if (cmd.words.length !== e.args.length + 1) return true; // a wrapper (`env`, `sudo`) runs it
+    // p8-secfix-hook-2 R1 — `printf -v PATH %s /tmp/x` assigns through an operand, which the
+    // `assigns` check above never sees: a printf whose first operand is an option (`-v`, `-vNAME`,
+    // `--`) or unreadable may re-point PATH for the next "reader". printf stays a reader otherwise
+    // (dropping it from READERS would open a claim window for every plain `printf '%s' x`).
+    if (
+      e.name === 'printf' &&
+      e.args.length &&
+      (!e.args[0].literal || e.args[0].text.startsWith('-'))
+    )
+      return true;
     if (e.name === 'find' && e.args.some((a) => !a.literal || FIND_WRITES.test(a.text)))
       return true;
   }
@@ -939,17 +949,21 @@ function headNames(words) {
  * p8-secfix-hook (V2-8.9 final delta F2) — may `command` leave a process writing after the call
  * returns? A `&` job, `nohup` / `setsid` / `disown` / `coproc` / `screen` / `tmux` / `at`, a
  * `sh -c` script that does, or an interpreter script whose visible text forks or detaches. An
- * unparseable command may (fail closed). The caller keeps the call's claim window open until the
+ * unparseable command (or a `sh -c` script it can't read) may: that is `unparsed`, true by default
+ * (fail closed — the ACP claim window). The caller keeps the call's claim window open until the
  * turn ends instead of the call's return + settle. A script FILE (`python3 w.py`) is not read —
  * the named residual (binding by what changed, not by time, is follow-up F3).
+ * p8-secfix-hook-2 N3: the design hook passes `unparsed: false` — a background mark binds every
+ * later change to the AI until the turn ends, so it is kept for a call that visibly backgrounds.
  *
  * @param {unknown} command
+ * @param {{ unparsed?: boolean, depth?: number }} [opts]
  * @returns {boolean}
  */
-export function bashBackgrounds(command, depth = 0) {
+export function bashBackgrounds(command, { unparsed = true, depth = 0 } = {}) {
   if (typeof command !== 'string' || !command.trim()) return false;
   const cmds = parseBash(command);
-  if (!cmds) return true;
+  if (!cmds) return unparsed;
   for (const cmd of cmds) {
     if (cmd.bg) return true;
     const names = headNames(cmd.words);
@@ -959,11 +973,16 @@ export function bashBackgrounds(command, depth = 0) {
     if (SHELLS.has(e.name)) {
       const k = e.args.findIndex((a) => a.literal && /^-[A-Za-z]*c[A-Za-z]*$/.test(a.text));
       const script = k === -1 ? null : e.args[k + 1];
-      if (script && !script.literal) return true;
-      if (script && depth < 4 && bashBackgrounds(script.text, depth + 1)) return true;
+      if (script && !script.literal) {
+        if (unparsed) return true;
+        continue;
+      }
+      if (script && depth < 4 && bashBackgrounds(script.text, { unparsed, depth: depth + 1 }))
+        return true;
       // `bash <<EOF … EOF`: the script is stdin
       const doc = k === -1 ? cmd.redirs.find((r) => r.op === '<<' || r.op === '<<-') : null;
-      if (doc?.body && depth < 4 && bashBackgrounds(doc.body, depth + 1)) return true;
+      if (doc?.body && depth < 4 && bashBackgrounds(doc.body, { unparsed, depth: depth + 1 }))
+        return true;
       continue;
     }
     const lang = Object.hasOwn(INTERPRETERS, e.name) ? e.name : null;
@@ -1011,6 +1030,36 @@ export function classifyBash(command, { cwd, designRoot, root, sessionRoot = nul
     if (!p.runtime) return p;
     const g = guard?.(p.rel);
     return g ? { ...p, guard: g } : null;
+  };
+  // p8-secfix-hook-2 N4 — a copy / move INTO an existing runtime folder the guard refuses as a
+  // whole (the run folder: its named state is guarded, the rest of it is not) is judged by where
+  // each source lands, `DEST/<basename(src)>`. The folder verdict stands when the landing name is
+  // unknowable: a non-literal source, `.` / `..`, a trailing `/` (BSD cp and rsync copy the
+  // folder's CONTENTS), `-T` (DEST is the copy itself) or a DEST that is not an existing folder.
+  // Removing or moving the folder away is judged by the folder alone (it holds touched.json).
+  const landing = (dest, srcs, args) => {
+    const p = versioned(dest);
+    if (!p?.guard || !p.runtime || !srcs.length) return p;
+    if (
+      args.some(
+        (a) => a.literal && (a.text === '--no-target-directory' || /^-[a-zA-Z]*T/.test(a.text))
+      )
+    )
+      return p;
+    const abs = isAbsolute(dest.text) ? dest.text : here ? `${here}${sep}${dest.text}` : null;
+    try {
+      if (!abs || !statSync(abs).isDirectory()) return p;
+    } catch {
+      return p;
+    }
+    for (const s of srcs) {
+      if (!s.literal || !s.text || s.text.endsWith('/')) return p;
+      const b = basename(s.text);
+      if (!b || b === '.' || b === '..') return p;
+      const child = versioned({ ...dest, text: `${dest.text.replace(/\/+$/, '')}/${b}` });
+      if (child) return child;
+    }
+    return null;
   };
   for (const cmd of cmds) {
     // redirections into the design root, whoever produces the bytes
@@ -1113,7 +1162,7 @@ export function classifyBash(command, { cwd, designRoot, root, sessionRoot = nul
         if (p) return hit('use-verb', p);
       }
       const dest = t ?? (ops.length >= 2 ? ops[ops.length - 1] : null);
-      const p = versioned(dest);
+      const p = landing(dest, srcs, args);
       if (p) return hit('not-a-writer', p);
       continue;
     }
@@ -1121,7 +1170,9 @@ export function classifyBash(command, { cwd, designRoot, root, sessionRoot = nul
       // by DESTINATION only (V2-1.18 Q5): `cp .design/x /tmp` is a read
       const t = targetDir(args);
       const dest = t ?? (ops.length >= 2 ? ops[ops.length - 1] : null);
-      const p = versioned(dest);
+      // ditto copies a folder's contents, never the folder: its landing names are unknowable
+      const srcs = name === 'ditto' ? [] : t ? ops.filter((a) => a !== t) : ops.slice(0, -1);
+      const p = landing(dest, srcs, args);
       if (p) return hit('not-a-writer', p);
       continue;
     }

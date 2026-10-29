@@ -95,6 +95,13 @@ const BOARD_RE = /\.annotations\.json$/;
 /** V2-1.11 §9 Q5: a Write over an existing canvas longer than this is a lazy rewrite. */
 export const LAZY_WRITE_LINES = 40;
 const LOCATE_MS = 300;
+/**
+ * p8-secfix-hook-2 N1 — the longest a shell mark counts, from the call's start: the studio's own
+ * bound on a bash window (`BASH_WINDOW_MS`, routes/agent.ts), so neither side binds an older write.
+ */
+export const BG_MARK_MS = 15 * 60_000;
+/** p8-secfix-hook-2 N2 — background marks one Stop drains (the newest; older ones are dropped). */
+export const BG_MARKS_MAX = 16;
 /** A bash snapshot is skipped above this (no exact artboard map for it — fail-open). */
 const SNAP_MAX_BYTES = 4 * 1024 * 1024;
 
@@ -520,7 +527,7 @@ const RUN_CONTROL_RE =
   /^_runs(?:\/[^/]+)?(?:\/handoff)?\/?$|^_runs\/(?:[^/]+\/)*(?:agents\.json[^/]*|handoff\/[^/]+\.in\.json)$/;
 /** The hooks' own state under a run folder — nobody else writes it (D1). */
 const HOOK_STATE_RE =
-  /^_runs(?:\/[^/]+)?\/?$|^_runs\/[^/]+\/(?:(?:base|snap|bash)(?:\/.*)?|touched\.json|stop-last[^/]*)$/;
+  /^_runs(?:\/[^/]+)?\/?$|^_runs\/[^/]+\/(?:(?:base|snap|bash)(?:\/.*)?|touched\.json|turn\.json|stop-last[^/]*)$/;
 
 /**
  * The guard for a runtime (`_*`) design path a tool would write: `{ code, reason }` or null.
@@ -797,6 +804,24 @@ function saveSnapshot(ctx, rel, cur) {
 const shellMarkAbs = (ctx, rel) => join(ctx.designRoot, `${baseRel(ctx, rel)}.bash`);
 const shellWrote = (ctx, rel) => existsSync(shellMarkAbs(ctx, rel));
 
+/**
+ * p8-secfix-hook-2 N1 — when this turn began (`turn.json`, written by the prompt hook), or null
+ * (no prompt seen: an older hook build, `no-session`). A value in the future is not a turn start.
+ */
+function turnStart(ctx, now = Date.now()) {
+  const at = readJson(join(ctx.run, 'turn.json'), null)?.at;
+  return typeof at === 'number' && Number.isFinite(at) && at <= now ? at : null;
+}
+/**
+ * Does shell mark `m` still count? It began in THIS turn (a mark left by a turn that ended without
+ * a passing Stop — the person interrupted it — is not this turn's) and at most BG_MARK_MS ago.
+ */
+function liveMark(m, now, turn) {
+  if (typeof m?.at !== 'number' || !Number.isFinite(m.at) || m.at > now) return false;
+  if (now - m.at > BG_MARK_MS) return false;
+  return turn === null || m.at >= turn;
+}
+
 /** Did an AI shell call still in flight (or left running) possibly write `rel` since it began? */
 function shellMayHaveWritten(ctx, rel) {
   let mtime;
@@ -811,9 +836,11 @@ function shellMayHaveWritten(ctx, rel) {
   } catch {
     return false;
   }
+  const now = Date.now();
+  const turn = turnStart(ctx, now);
   return names.some((n) => {
     const m = readJson(join(ctx.run, 'bash', n), null);
-    return typeof m?.at === 'number' && mtime >= m.at;
+    return liveMark(m, now, turn) && mtime >= m.at;
   });
 }
 
@@ -921,10 +948,31 @@ const runKey = (ctx) => {
   return chat ? { session: ctx.session, chat } : { session: ctx.session };
 };
 
+/**
+ * p8-secfix-hook-2 N1 — a prompt starts a turn: its start goes to `turn.json`, and every background
+ * mark left behind is dropped unread. Each belongs to a turn that is over (a passing Stop removes
+ * the run folder, so these are from a turn the person interrupted); draining them now would bind
+ * the person's own saves since then to the AI. Foreground marks stay for their post-bash; they no
+ * longer count once their turn is over (`liveMark`).
+ */
+function startTurn(ctx) {
+  const dir = join(ctx.run, 'bash');
+  let names = [];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    /* no marks */
+  }
+  for (const n of names)
+    if (readJson(join(dir, n), null)?.bg) rmSync(join(dir, n), { force: true });
+  writeAt(join(ctx.run, 'turn.json'), JSON.stringify({ at: Date.now() }));
+}
+
 async function prompt(ctx, input) {
   // V2-1.18 §5.4: the main agent needs its run folder to write hand-offs — named once a session
   const marker = join(ctx.designRoot, '_runs', 'sessions', `${ctx.session}.json`);
   let out = null;
+  if (ctx.session !== 'no-session') startTurn(ctx);
   if (ctx.session !== 'no-session' && !existsSync(marker)) {
     writeAt(marker, JSON.stringify({ at: Date.now() }));
     out = {
@@ -1316,7 +1364,7 @@ function preBash(ctx, input) {
   // p8-secfix-hook F2 — a call that leaves a process running (`nohup … &`, `run_in_background`)
   // keeps its mark until the turn ends: Stop binds what that process wrote after the call returned
   const bg =
-    input.tool_input?.run_in_background === true || bashBackgrounds(command)
+    input.tool_input?.run_in_background === true || bashBackgrounds(command, { unparsed: false })
       ? { bg: true, by: input.agent_type ?? 'main' }
       : {};
   writeAt(
@@ -1422,10 +1470,14 @@ async function bindBashWrites(ctx, toolUseId, mark, by, since) {
 
 /**
  * p8-secfix-hook F2 — at the turn's end (Stop / SubagentStop), what every still-running background
- * call (`bg` mark) wrote since it was last looked at. The marks stay until the run folder goes, so
- * a blocked Stop looks again at the next one.
+ * call (`bg` mark) wrote since it was last looked at. A blocked Stop looks again at the next one;
+ * the marks go with the run folder (a passing Stop) or at the next prompt (startTurn).
+ * p8-secfix-hook-2 N2 — bounded, whatever the number of marks: a mark that no longer counts
+ * (`liveMark`) is dropped, at most BG_MARKS_MAX of the newest are kept (older ones dropped), and
+ * their union is bound with ONE walk (since the earliest unseen start) and ONE studio POST, on the
+ * studio the caller located once for the whole Stop.
  */
-async function drainBackground(ctx) {
+async function drainBackground(ctx, studio) {
   const dir = join(ctx.run, 'bash');
   let names = [];
   try {
@@ -1433,20 +1485,51 @@ async function drainBackground(ctx) {
   } catch {
     return;
   }
+  const now = Date.now();
+  const turn = turnStart(ctx, now);
+  const marks = [];
   for (const n of names) {
     const toolUseId = n.endsWith('.json') ? hookKey(n.slice(0, -5)) : null;
     if (!toolUseId) continue;
-    const mark = readJson(join(dir, n), null);
-    if (!mark?.bg || typeof mark.at !== 'number') continue;
-    const since = typeof mark.seen === 'number' ? mark.seen : mark.at;
-    const by = typeof mark.by === 'string' ? mark.by : 'main';
-    await bindBashWrites(ctx, toolUseId, mark, by, since);
-    writeAt(join(dir, n), JSON.stringify({ ...mark, seen: Date.now() }));
+    const m = readJson(join(dir, n), null);
+    if (!m?.bg) continue;
+    if (!liveMark(m, now, turn)) rmSync(join(dir, n), { force: true });
+    else marks.push({ n, toolUseId, m });
   }
+  marks.sort((a, b) => b.m.at - a.m.at); // newest first
+  for (const x of marks.splice(BG_MARKS_MAX)) rmSync(join(dir, x.n), { force: true });
+  if (!marks.length) return;
+  const sinceOf = (x) =>
+    typeof x.m.seen === 'number' && x.m.seen >= x.m.at && x.m.seen <= now ? x.m.seen : x.m.at;
+  const files = designWritesSince(ctx.designRoot, Math.min(...marks.map(sinceOf)));
+  for (const rel of files) {
+    let at;
+    try {
+      at = statSync(join(ctx.designRoot, rel)).mtimeMs;
+    } catch {
+      /* gone again */
+    }
+    // the write is the newest call's whose window it falls in
+    const owner = marks.find((x) => at === undefined || sinceOf(x) <= at) ?? marks[0];
+    const by = typeof owner.m.by === 'string' ? owner.m.by : 'main';
+    recordTouch(ctx, rel, { by, via: 'bash', artboards: null, at });
+    markShellWrite(ctx, rel); // F4 — no base taken after this write
+  }
+  if (files.length && studio) {
+    const oldest = marks[marks.length - 1];
+    await postStudio(
+      studio,
+      '/_api/agent/edit/touched',
+      { ...runKey(ctx), toolUseId: oldest.toolUseId, via: 'bash', since: oldest.m.at },
+      { timeoutMs: 900 }
+    );
+  }
+  const seen = Date.now();
+  for (const x of marks) writeAt(join(dir, x.n), JSON.stringify({ ...x.m, seen }));
 }
 
 /** SubagentStop: the hand-off result, then the stop-tier check of the run's files it owns. */
-async function subagentStop(ctx, input, self) {
+async function subagentStop(ctx, input, self, studio) {
   const fence = agentFence(ctx, input);
   const hs = fence.hs;
   const id = hookKey(input.agent_id);
@@ -1477,7 +1560,6 @@ async function subagentStop(ctx, input, self) {
       );
   }
   const touched = readJson(join(ctx.run, 'touched.json'), {});
-  const studio = await locateStudio(ctx.root, { timeoutMs: LOCATE_MS });
   for (const rel of Object.keys(touched)) {
     if (!hs.some((h) => ownsPath(h.doc, `${DESIGN_REL}/${rel}`))) continue;
     if (!existsSync(join(ctx.designRoot, rel))) continue;
@@ -1493,10 +1575,11 @@ async function subagentStop(ctx, input, self) {
 }
 
 async function stop(ctx, input, self) {
-  await drainBackground(ctx);
-  if (input.hook_event_name === 'SubagentStop') return subagentStop(ctx, input, self);
-  const touched = readJson(join(ctx.run, 'touched.json'), {});
+  // N2 — the studio is located once per Stop: the drain and the gate share it
   const studio = await locateStudio(ctx.root, { timeoutMs: LOCATE_MS });
+  await drainBackground(ctx, studio);
+  if (input.hook_event_name === 'SubagentStop') return subagentStop(ctx, input, self, studio);
+  const touched = readJson(join(ctx.run, 'touched.json'), {});
   const problems = [];
   for (const rel of Object.keys(touched)) {
     if (!existsSync(join(ctx.designRoot, rel))) continue;

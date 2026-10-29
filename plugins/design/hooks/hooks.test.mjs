@@ -11,6 +11,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -1938,6 +1939,200 @@ describe('p8-secfix-hook F2 — a background call binds what its process writes 
   });
 });
 
+// p8-secfix-hook-2 N1 (V2-8.9 final delta recheck) — a background mark lasted the whole session:
+// a turn that ended without a passing Stop (the person pressed Esc) left it behind, and every later
+// Stop bound the person's own saves to the AI and blocked on the findings those files already had;
+// `shellMayHaveWritten` took the save for a shell write, so the file got no base. A background mark
+// now lasts for the turn it was made in (dropped when the next prompt starts a turn) and never
+// longer than the studio's BASH_WINDOW_MS (15 min).
+const DUP = CANVAS.replace('id="pricing"', 'id="hero"');
+const BG_MS = 15 * 60_000;
+describe('p8-secfix-hook-2 N1 — a background mark lasts for its turn', () => {
+  let project;
+  beforeAll(() => {
+    project = makeProject('maude-hook-bgturn-');
+  });
+  afterAll(() => rmSync(project, { recursive: true, force: true }));
+  const runIn = (s) => join(project, '.design', '_runs', s);
+  const prompt = (s, id) =>
+    hook('prompt', { session_id: s, prompt_id: id, cwd: project, prompt: 'x' });
+  const stop = (s) => hook('stop', { session_id: s, cwd: project, stop_hook_active: false });
+  /** Turn 1: a run_in_background call (a dev server), then the person interrupts — no Stop. */
+  async function interruptedBackgroundTurn(s) {
+    writeFileSync(canvasPath(project), CANVAS);
+    await prompt(s, 'p1');
+    const dev = {
+      ...bash(project, s, 'bgdev', 'npm run dev'),
+      tool_input: { command: 'npm run dev', run_in_background: true },
+    };
+    await hook('pre-bash', dev);
+    await hook('post-bash', dev);
+    expect(JSON.parse(readFileSync(join(runIn(s), 'bash', 'bgdev.json'), 'utf8')).bg).toBe(true);
+    // between the turns the person saves the canvas, which has a finding of its own
+    await Bun.sleep(10);
+    writeFileSync(canvasPath(project), DUP);
+  }
+
+  test("turn 2's Stop neither binds the person's save to the AI nor blocks on its findings", async () => {
+    await interruptedBackgroundTurn('n1a');
+    await prompt('n1a', 'p2');
+    const r = await stop('n1a');
+    expect(r.json?.decision).toBeUndefined();
+    expect(existsSync(join(runIn('n1a'), 'touched.json'))).toBe(false);
+  });
+
+  test('an edit in turn 2 takes its base from the person’s save: the old finding is pre-existing', async () => {
+    await interruptedBackgroundTurn('n1b');
+    await prompt('n1b', 'p2');
+    const e = edit(project, 'n1b', 'e1', '<p>x</p>', '<p>y</p>');
+    expect(await hook('pre-edit', e)).toMatchObject({ status: 0, stdout: '' });
+    writeFileSync(canvasPath(project), DUP.replace('<p>x</p>', '<p>y</p>'));
+    const post = await hook('post-edit', e);
+    expect(post.json?.decision).toBeUndefined();
+    expect(contextOf(post)).toContain('already in the file before this edit');
+    expect((await stop('n1b')).json?.decision).toBeUndefined();
+  });
+
+  test('a mark from before this turn never makes a save a shell write (shellMayHaveWritten)', async () => {
+    writeFileSync(canvasPath(project), CANVAS);
+    await prompt('n1c', 'p1');
+    // a mark the turn-start drop did not reach (left by an older hook build): made before the turn
+    const turnAt = JSON.parse(readFileSync(join(runIn('n1c'), 'turn.json'), 'utf8')).at;
+    mkdirSync(join(runIn('n1c'), 'bash'), { recursive: true });
+    writeFileSync(
+      join(runIn('n1c'), 'bash', 'old.json'),
+      JSON.stringify({ at: turnAt - 5000, snaps: {}, bg: true, by: 'main' })
+    );
+    writeFileSync(canvasPath(project), DUP);
+    const e = edit(project, 'n1c', 'e1', '<p>x</p>', '<p>y</p>');
+    await hook('pre-edit', e);
+    writeFileSync(canvasPath(project), DUP.replace('<p>x</p>', '<p>y</p>'));
+    expect(contextOf(await hook('post-edit', e))).toContain('already in the file before this edit');
+    expect((await stop('n1c')).json?.decision).toBeUndefined();
+  });
+
+  test('a background mark older than BASH_WINDOW_MS (15 min) binds nothing and is dropped', async () => {
+    writeFileSync(canvasPath(project), CANVAS);
+    mkdirSync(join(runIn('n1d'), 'bash'), { recursive: true });
+    const mark = join(runIn('n1d'), 'bash', 'stale.json');
+    writeFileSync(mark, JSON.stringify({ at: Date.now() - BG_MS - 60_000, snaps: {}, bg: true }));
+    writeFileSync(canvasPath(project), DUP);
+    const e = edit(project, 'n1d', 'e1', '<p>x</p>', '<p>y</p>');
+    await hook('pre-edit', e);
+    writeFileSync(canvasPath(project), DUP.replace('<p>x</p>', '<p>y</p>'));
+    expect(contextOf(await hook('post-edit', e))).toContain('already in the file before this edit');
+    expect((await stop('n1d')).json?.decision).toBeUndefined();
+  });
+
+  test('a background call in THIS turn still binds what its process writes (F2 kept)', async () => {
+    writeFileSync(canvasPath(project), CANVAS);
+    await prompt('n1e', 'p1');
+    const dev = {
+      ...bash(project, 'n1e', 'bgdev', 'python3 w.py'),
+      tool_input: { command: 'python3 w.py', run_in_background: true },
+    };
+    await hook('pre-bash', dev);
+    await hook('post-bash', dev);
+    await Bun.sleep(10);
+    writeFileSync(canvasPath(project), DUP);
+    const r = await stop('n1e');
+    expect(r.json?.decision).toBe('block');
+    expect(r.json.reason).toContain('[artboard-duplicate]');
+  });
+
+  // N3 — the hook leaves no background mark for a call it can't parse (the ACP window still fails
+  // closed); a real `&` / run_in_background keeps one
+  test('N3 — an unparseable call gets a plain mark, not a background one', async () => {
+    const odd = bash(project, 'n3', 'odd', 'python3 -c "unterminated');
+    await hook('pre-bash', odd);
+    const m = JSON.parse(readFileSync(join(runIn('n3'), 'bash', 'odd.json'), 'utf8'));
+    expect(m.bg).toBeUndefined();
+    await hook('post-bash', odd);
+    expect(existsSync(join(runIn('n3'), 'bash', 'odd.json'))).toBe(false);
+    for (const [id, input] of [
+      ['amp', bash(project, 'n3', 'amp', 'python3 w.py &')],
+      [
+        'rib',
+        {
+          ...bash(project, 'n3', 'rib', 'python3 -c "unterminated'),
+          tool_input: { command: 'python3 -c "unterminated', run_in_background: true },
+        },
+      ],
+    ]) {
+      await hook('pre-bash', input);
+      const mk = JSON.parse(readFileSync(join(runIn('n3'), 'bash', `${id}.json`), 'utf8'));
+      expect(`${id} ${mk.bg}`).toBe(`${id} true`);
+    }
+  });
+});
+
+// p8-secfix-hook-2 N2 — Stop drained every background mark one at a time: a walk, a studio locate
+// (300 ms) and a POST (900 ms) each. ~50 `x &` marks pushed Stop past its 60 s hook timeout, and a
+// timed-out hook does not block — the gate was skipped. Stop now locates the studio once, binds
+// the union of the marks with one walk and one POST, and keeps at most 16 marks (oldest dropped).
+describe('p8-secfix-hook-2 N2 — Stop stays bounded with many background marks', () => {
+  let project;
+  let server;
+  const calls = { health: 0, touched: 0 };
+  beforeAll(() => {
+    project = makeProject('maude-hook-bgmany-');
+    server = Bun.serve({
+      port: 0,
+      async fetch(req) {
+        const url = new URL(req.url);
+        if (url.pathname === '/_health') {
+          calls.health++;
+          await Bun.sleep(150);
+          return Response.json({
+            app: 'design',
+            rootId: rootIdentity(project),
+            manifestVersion: 'bbbbbbbbbbbb',
+            version: '2.4.0',
+          });
+        }
+        if (url.pathname === '/_api/agent/edit/touched') {
+          calls.touched++;
+          await Bun.sleep(250);
+          return Response.json({ artboards: [] });
+        }
+        return new Response('not found', { status: 404 });
+      },
+    });
+    writeFileSync(
+      join(project, '.design', '_server.json'),
+      JSON.stringify({
+        pid: process.pid,
+        port: server.port,
+        url: `http://127.0.0.1:${server.port}`,
+      })
+    );
+  });
+  afterAll(() => {
+    server?.stop(true);
+    rmSync(project, { recursive: true, force: true });
+  });
+
+  test('50 marks: one locate, one bind, ≤ 16 marks kept, the gate still blocks — fast', async () => {
+    const dir = join(project, '.design', '_runs', 'n2', 'bash');
+    mkdirSync(dir, { recursive: true });
+    const now = Date.now();
+    for (let i = 0; i < 50; i++)
+      writeFileSync(
+        join(dir, `t${i}.json`),
+        JSON.stringify({ at: now - 5000 + i, snaps: {}, bg: true, by: 'main' })
+      );
+    await Bun.sleep(10);
+    writeFileSync(canvasPath(project), DUP);
+    const r = await hook('stop', { session_id: 'n2', cwd: project, stop_hook_active: false });
+    expect(r.json?.decision).toBe('block');
+    expect(r.json.reason).toContain('[artboard-duplicate]');
+    expect(calls).toEqual({ health: 1, touched: 1 });
+    expect(readdirSync(dir).length).toBeLessThanOrEqual(16);
+    expect(readdirSync(dir)).toContain('t49.json'); // the newest are kept
+    expect(r.ms).toBeLessThan(10_000); // the hook timeout is 60 s (hooks.json)
+  }, 120_000);
+});
+
 // Michal 2026-10-29 (kg maude/v2-michal-gate-blocks-only-introduced-findings, V2-8.16 e4/e5): the
 // post-edit gate blocks only what the edit INTRODUCED. A finding the file already had before the
 // edit (the marketing21 fixture's `DISCIPLINY.map(d => <DCArtboard id={`disc-${d.id}`}>)`) goes to
@@ -2212,5 +2407,41 @@ describe('p8-secfix-hook D1 — nobody but the hooks writes the run state', () =
     expect(
       await hook('pre-bash', bash(project, 'd1', 'dc', 'cat .design/_runs/d1/touched.json'))
     ).toMatchObject({ status: 0, stdout: '' });
+  });
+
+  // p8-secfix-hook-2 N4 — the run folder itself was refused as a destination, so `cp x "$RUN"` /
+  // `mv x "$RUN"` (a file landing beside the hooks' state, not in it) were `not-a-writer`. A copy
+  // or move INTO the existing folder is judged by where each source lands; removing or moving the
+  // folder away (it holds touched.json) and anything landing on the named state stay refused.
+  test('N4 — a file copied or moved into the run folder lands; its named state stays guarded', async () => {
+    for (const cmd of [
+      'cp shot.png .design/_runs/d1',
+      'mv /tmp/shot.png .design/_runs/d1',
+      'cp -R /tmp/screens .design/_runs/d1',
+      'cp a.png b.png .design/_runs/d1/',
+      'mkdir -p .design/_runs/d1/screens && cp x.png .design/_runs/d1/screens/x.png',
+    ])
+      expect(`${cmd} ${(await hook('pre-bash', bash(project, 'd1', 'dn', cmd))).stdout}`).toBe(
+        `${cmd} `
+      );
+    expect(await hook('pre-edit', write('_runs/d1/screens/x.png'))).toMatchObject({
+      status: 0,
+      stdout: '',
+    });
+    expect(isDeny(await hook('pre-edit', write('_runs/d1/base/x')), 'not-a-writer')).toBe(true);
+    for (const cmd of [
+      'cp -R /tmp/base .design/_runs/d1', // lands as base/
+      'cp /tmp/touched.json .design/_runs/d1',
+      'mv /tmp/x/stop-last.json .design/_runs/d1',
+      'cp -R /tmp/evil/ .design/_runs/d1', // a trailing / copies the folder's contents
+      'cp -R /tmp/evil/. .design/_runs/d1',
+      'ditto /tmp/evil .design/_runs/d1', // ditto always copies contents
+      'cp -T /tmp/evil .design/_runs/d1',
+      'rm -rf .design/_runs/d1',
+      'mv .design/_runs/d1 /tmp/away',
+    ])
+      expect(
+        `${cmd} ${isDeny(await hook('pre-bash', bash(project, 'd1', 'dn', cmd)), 'not-a-writer')}`
+      ).toBe(`${cmd} true`);
   });
 });
