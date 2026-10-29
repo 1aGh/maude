@@ -59,7 +59,7 @@ An update that fails is not tried again on the same answer: the line says what s
 
 A project linked to a team server either saves the old way or with **accepted revisions**: each change counts as saved once the team server confirms it, and Undo takes back only your own. Maude 2 moves a shared project to accepted revisions by itself, in the same step as the format, when its owner opens it. Anyone with the project open switches over by themselves, and nothing in the project is lost.
 
-- **A Maude 2 project that still saves the old way** switches by itself the same way, owner only: *Switching this project to accepted revisions…*, then *Updated. The project now saves with accepted revisions. A copy of the old files is in Version history, on this Mac only.* Anyone who is not the owner sees no line about saving.
+- **A Maude 2 project that still saves the old way** is view only in Maude 2 (editing the old way is gone): *View only — this project still saves the old way.* It switches by itself the same way when its owner opens it: *Switching this project to accepted revisions…*, then *Updated. The project now saves with accepted revisions. A copy of the old files is in Version history, on this Mac only.* Anyone else sees *View only — this project still saves the old way. It switches once its owner opens it. Ask the owner.*
 
 Other notices and lines:
 
@@ -68,7 +68,7 @@ Other notices and lines:
 | The team server is still bringing changes in after the switch | *Updated for Maude 2. It now saves with accepted revisions — the team server is still bringing changes in, and nothing is lost. A copy of the old files is in Version history, on this Mac only.* |
 | The format moved but the switch did not happen | *Updated for Maude 2, but it still saves the old way. Nothing is lost. A copy of the old files is in Version history, on this Mac only.* The switch then runs by itself as above. |
 | The switch did not happen on a Maude 2 project | *The project still saves the old way. Nothing in it changed.* with **Retry update** |
-| You own the project and opened it in a cloud tab | *This project still saves the old way. Switch it in the dashboard, under Saving.* with **Open dashboard**. A cloud tab cannot run the switch itself. |
+| You own the project and opened it in a cloud tab | *View only — this project still saves the old way. Switch it in the dashboard, under Saving.* with **Open dashboard**. A cloud tab cannot run the switch itself. |
 
 A project Maude 2 creates is a Maude 2 project from the start, and so is a brand-new team project that a Maude 2 app starts on a Maude 2 team server.
 

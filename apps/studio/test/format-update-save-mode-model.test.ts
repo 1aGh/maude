@@ -45,7 +45,7 @@ describe('the save-mode trigger (format 2 + legacy)', () => {
   });
 
   test('the owner switches unasked once the dry run says the switch is due', () => {
-    expect(saveModeState({ cfg: fmt2Legacy, plan: undefined })).toBe(null); // quiet: no "checking"
+    expect(saveModeState({ cfg: fmt2Legacy, plan: undefined })?.kind).toBe('checking'); // view only meanwhile
     expect(saveModeState({ cfg: fmt2Legacy, plan: plan('owner', { modeDue: true }) })).toEqual({
       kind: 'ready',
       line: SAVE_COPY.updating,
@@ -56,16 +56,25 @@ describe('the save-mode trigger (format 2 + legacy)', () => {
     );
   });
 
-  test('owner only, and nothing when the hub cannot switch it now', () => {
-    expect(saveModeState({ cfg: fmt2Legacy, plan: plan('member', { modeDue: true }) })).toBe(null);
+  test('owner only; anyone else, or a hub that cannot switch it now, gets the view-only line (p8-v1-drop)', () => {
+    // editing the old way is gone: the project is view only until it switches, so a non-owner is told why
+    // (was: nothing — the project stayed editable the old way)
+    expect(saveModeState({ cfg: fmt2Legacy, plan: plan('member', { modeDue: true }) })).toEqual({
+      kind: 'non-owner',
+      line: SAVE_COPY.nonOwner,
+      action: null,
+    });
     const blocked = plan('owner', { modeBlocker: 'store-not-durable' }, [
       { path: '', reason: 'x', code: 'store-not-durable' },
     ]);
-    expect(saveModeState({ cfg: fmt2Legacy, plan: blocked })).toBe(null);
-    expect(saveModeState({ cfg: fmt2Legacy, plan: { error: true } })).toBe(null);
-    expect(saveModeState({ cfg: fmt2Legacy, plan: plan('owner', { mode: 'transactions' }) })).toBe(
-      null
-    );
+    expect(saveModeState({ cfg: fmt2Legacy, plan: blocked })).toMatchObject({
+      kind: 'server-setup',
+      line: SAVE_COPY.serverSetup,
+    });
+    expect(saveModeState({ cfg: fmt2Legacy, plan: { error: true } })?.kind).toBe('failed');
+    expect(
+      saveModeState({ cfg: fmt2Legacy, plan: plan('owner', { mode: 'transactions' }) })?.kind
+    ).toBe('checking');
   });
 
   test('a cloud tab: the owner is pointed to the dashboard, nobody else sees anything', () => {
@@ -80,16 +89,17 @@ describe('the save-mode trigger (format 2 + legacy)', () => {
       action: 'dashboard',
       href: 'https://cloud.example',
     });
+    // p8-v1-drop: anyone else sees the view-only line (was: nothing)
     expect(
       saveModeState({
         cfg: { ...cloud, cloud: { ...cloud.cloud, role: 'editor' } },
         plan: undefined,
-      })
-    ).toBe(null);
+      })?.kind
+    ).toBe('non-owner');
     // a self-hosted workspace has no dashboard to send anyone to
-    expect(saveModeState({ cfg: { ...cloud, cloud: { role: 'owner' } }, plan: undefined })).toBe(
-      null
-    );
+    expect(
+      saveModeState({ cfg: { ...cloud, cloud: { role: 'owner' } }, plan: undefined })?.kind
+    ).toBe('non-owner');
   });
 
   test('the older-project callout is unchanged by the second trigger', () => {

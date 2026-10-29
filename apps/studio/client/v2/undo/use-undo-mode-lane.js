@@ -1,8 +1,6 @@
-// client/v2/undo/use-undo-mode-lane.js — S2.20b: the shell ↔ canvas ⌘Z lane (V2-1.5 §5.4, V2-1.2 feed).
+// client/v2/undo/use-undo-mode-lane.js — S2.20b: the canvas → shell ⌘Z lane (V2-1.5 §5.4, V2-1.2 feed).
 //
-//   shell → canvas  `undo-mode {opLog}`  state, parent-gated: on every mode change of a canvas, and to a
-//                                        frame that has just loaded or rendered (a reload forgets it)
-//   canvas → shell  `undo-key {redo}`    active-gated: ⌘Z / ⇧⌘Z pressed with an op-log canvas focused
+//   canvas → shell  `undo-key {redo}`    active-gated: ⌘Z / ⇧⌘Z pressed with the canvas focused
 //
 // sec-a (wave-A attacker, low): the shell can't prove from here that a key was really pressed inside the
 // iframe — a planted canvas could post `undo-key` and run the person's ⌘Z on its own. So the shell honours one
@@ -10,15 +8,11 @@
 // where their own ⌘Z would land anyway), and at most UNDO_KEY_BURST per second (a held key repeats slower
 // than a script). Anything else is dropped without a word.
 //
-// An op-log canvas keeps no durable stack (editing/undo-mode.ts): its keys come here and run the
-// projection (`runUndoKey`), exactly as the shell's own ⌘Z does. Should the projection answer `legacy`
-// after all, the store flips the mode first — this lane tells the frame `opLog: false` synchronously
-// in the store's change — and only then the fallback sends `run-action edit.undo`, which the canvas,
-// now legacy, runs on its own stack (postMessage keeps the order, so the two never ping-pong).
+// The canvas keeps no undo stack (p8-v1-drop deleted the legacy one and its `undo-mode {opLog}` state
+// message): every key comes here and runs the projection (`runUndoKey`), exactly as the shell's own ⌘Z.
 
 import { useEffect, useRef } from 'react';
 import { acceptFromCanvas } from '../../../bridge/dgn-protocol.ts';
-import { runActionMessage } from '../../actions/shell-key-handlers.js';
 import { runUndoKey, undoProjection } from './use-undo-projection.jsx';
 
 /**
@@ -53,35 +47,11 @@ export function createUndoModeLane(o) {
     inWindow++;
     return true;
   };
-  /** path → what the frame was last told (absent = never told: the canvas starts legacy). */
-  const told = new Map();
-
-  // A literal `{ dgn }` per send site so the bridge inventory sees it.
-  const tell = (path, win, force = false) => {
-    if (!win) return;
-    const opLog = store.mode(path) === 'op-log';
-    if (!force && (told.get(path) ?? false) === opLog) return;
-    told.set(path, opLog);
-    try {
-      win.postMessage({ dgn: 'undo-mode', opLog }, '*');
-    } catch {
-      /* detached */
-    }
-  };
-
-  const tellAll = () => {
-    for (const [path, win] of o.frames()) tell(path, win);
-  };
-
   function onMessage(e) {
     const dgn = e?.data?.dgn;
     if (dgn === 'loaded' || dgn === 'canvas-rendered') {
       for (const [path, win] of o.frames()) {
-        if (win && win === e.source) {
-          told.delete(path); // a reloaded document starts legacy again
-          tell(path, win);
-          void store.open?.(path);
-        }
+        if (win && win === e.source) void store.open?.(path);
       }
       return null;
     }
@@ -91,17 +61,10 @@ export function createUndoModeLane(o) {
     const m = acceptFromCanvas(e, { canvasOrigin: o.canvasOrigin(), active });
     if (m?.dgn !== 'undo-key' || !path) return null;
     if (!allowKey()) return null;
-    return runKey(path, m.redo, () => {
-      try {
-        active?.postMessage(runActionMessage(m.redo ? 'edit.redo' : 'edit.undo'), '*');
-      } catch {
-        /* detached */
-      }
-    });
+    return runKey(path, m.redo, store);
   }
 
-  const unsub = store.subscribe(tellAll);
-  return { onMessage, tellAll, dispose: unsub };
+  return { onMessage, dispose: () => {} };
 }
 
 /** Mounted once by the shell (ShellUndoHistory). `iframesRef`: Map<path, HTMLIFrameElement>. */

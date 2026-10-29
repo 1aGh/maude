@@ -120,44 +120,11 @@ describe('use-undo-stack / contract outside provider', () => {
   });
 });
 
-describe('use-undo-stack / runner side-effects', () => {
-  test('HMR replacement waits for the old provider ACK before undoing the next entry', async () => {
-    const file = '.design/ui/HmrUndo.tsx';
-    const seen: unknown[] = [];
-    const confirmations: Array<() => void> = [];
-    registerCommand('deferred', (record) => ({
-      kind: record.kind,
-      label: record.label,
-      do() {},
-      async undo() {
-        seen.push(record.payload);
-        if (record.payload === 'second')
-          await new Promise<void>((resolve) => {
-            confirmations.push(resolve);
-          });
-      },
-    }));
-    const old = captureProvider(file);
-    old.record({ kind: 'deferred', label: 'first', payload: 'first' });
-    old.record({ kind: 'deferred', label: 'second', payload: 'second' });
-    const firstUndo = old.undo();
-    // Wait until the actual side effect starts, without wall-clock timing.
-    for (let i = 0; i < 10 && seen.length === 0; i++) await Promise.resolve();
-    expect(seen).toEqual(['second']);
-    const replacement = captureProvider(file);
-    const secondUndo = replacement.undo();
-    for (let i = 0; i < 5; i++) await Promise.resolve();
-    const beforeAck = [...seen];
-    // Release every started request, including duplicates in the failing case.
-    for (const confirm of confirmations) confirm();
-    await firstUndo;
-    await secondUndo;
-    expect(beforeAck).toEqual(['second']);
-    expect(seen).toEqual(['second', 'first']);
-    expect(loadStackState(file).past).toEqual([]);
-    expect(loadStackState(file).future.map((r) => r.payload)).toEqual(['second', 'first']);
-  });
-
+// p8-v1-drop: the canvas keeps NO undo stack (the legacy DDR-050 stack — undo / redo / record / the
+// per-canvas sessionStorage history — went with editing/undo-mode.ts). ⌘Z is the shell's projection over
+// the op log; the provider only runs a pushed command's side effect. These replace the tests that pinned
+// the stack (undo, redo, record, cross-canvas persistence, the HMR ACK hand-over).
+describe('use-undo-stack / no stack of its own (p8-v1-drop)', () => {
   test('push() invokes rebuilt cmd.do() exactly once', async () => {
     const v = captureProvider(undefined, { layoutPatchFn: () => {} });
     await v.push(rec('move 1'));
@@ -165,97 +132,39 @@ describe('use-undo-stack / runner side-effects', () => {
     expect(undoSpy).toHaveBeenCalledTimes(0);
   });
 
-  test('undo() invokes cmd.undo() on the most recently pushed record', async () => {
-    const v = captureProvider(undefined, { layoutPatchFn: () => {} });
-    await v.push(rec('a', 'A'));
-    await v.push(rec('b', 'B'));
-    await v.undo();
-    expect(undoSpy).toHaveBeenCalledTimes(1);
-    expect(undoSpy.mock.calls[0]?.[0]).toBe('B');
-  });
-
-  test('redo() re-invokes cmd.do() on the most recently undone record', async () => {
+  test('undo() / redo() after a push run nothing: the op log holds the edit', async () => {
     const v = captureProvider(undefined, { layoutPatchFn: () => {} });
     await v.push(rec('a', 'A'));
     await v.undo();
     await v.redo();
-    expect(doSpy).toHaveBeenCalledTimes(2);
-    expect(doSpy.mock.calls[1]?.[0]).toBe('A');
+    expect(undoSpy).toHaveBeenCalledTimes(0);
+    expect(doSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test('record() keeps nothing: a later undo runs nothing', async () => {
+    const v = captureProvider(undefined, { layoutPatchFn: () => {} });
+    v.record(rec('inline-edit', 'X'));
+    await v.undo();
+    expect(doSpy).toHaveBeenCalledTimes(0);
+    expect(undoSpy).toHaveBeenCalledTimes(0);
   });
 
   test('push without a registered sink skips the do() call (rebuild returned null)', async () => {
     const v = captureProvider(undefined, {}); // no sinks → builder returns null
     await v.push(rec('lonely'));
-    // doSpy is the only observable signal here — `lastLabel` is React
-    // state that doesn't refresh under SSR-capture.
     expect(doSpy).toHaveBeenCalledTimes(0);
     expect(undoSpy).toHaveBeenCalledTimes(0);
   });
-});
 
-describe('use-undo-stack / record (already-applied edits)', () => {
-  test('record() appends WITHOUT running do()', async () => {
-    const v = captureProvider(undefined, { layoutPatchFn: () => {} });
-    v.record(rec('inline-edit', 'X'));
-    // undo() is enqueued after record(), so awaiting it flushes record first.
-    await v.undo();
-    expect(doSpy).toHaveBeenCalledTimes(0); // record never runs do()
-    expect(undoSpy).toHaveBeenCalledTimes(1);
-    expect(undoSpy.mock.calls[0]?.[0]).toBe('X');
-  });
-
-  test('record() then redo() (after undo) re-runs do()', async () => {
-    const v = captureProvider(undefined, { layoutPatchFn: () => {} });
-    v.record(rec('e', 'Y'));
-    await v.undo();
-    await v.redo();
-    expect(doSpy).toHaveBeenCalledTimes(1); // only redo's do(), not the record
-    expect(doSpy.mock.calls[0]?.[0]).toBe('Y');
-  });
-
-  test('record() clears the redo future', async () => {
-    const v = captureProvider(undefined, { layoutPatchFn: () => {} });
-    await v.push(rec('a', 'A')); // doSpy: 1
-    await v.undo(); // future = [a]
-    v.record(rec('b', 'B')); // clears future
-    await v.redo(); // future empty → no-op, no extra do()
-    expect(doSpy).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('use-undo-stack / cross-canvas persistence', () => {
-  test('history under a canvasFile survives a fresh provider mount with the same canvasFile', async () => {
-    // First mount: push 2 records.
+  test('nothing is kept under a canvasFile across mounts', async () => {
     {
       const v = captureProvider('ui/Foo.tsx', { layoutPatchFn: () => {} });
-      await v.push(rec('e1'));
-      await v.push(rec('e2'));
+      await v.push(rec('a', 'A'));
+      v.record(rec('b', 'B'));
     }
-    // Second mount (simulates iframe destroy + remount for same canvas).
-    const v2 = captureProvider('ui/Foo.tsx', { layoutPatchFn: () => {} });
-    expect(v2.canUndo).toBe(true);
-    expect(v2.lastLabel).toBeNull(); // labels are per-mount session
-    // Undo the top — should fire spy with rec('e2') payload.
-    await v2.undo();
-    expect(undoSpy).toHaveBeenCalledTimes(1);
-  });
-
-  test('switching canvases keeps each history independent', async () => {
-    {
-      const v = captureProvider('ui/Foo.tsx', { layoutPatchFn: () => {} });
-      await v.push(rec('foo-1'));
-      await v.push(rec('foo-2'));
-    }
-    {
-      const v = captureProvider('ui/Bar.tsx', { layoutPatchFn: () => {} });
-      await v.push(rec('bar-1'));
-    }
-    // Come back to Foo.
-    const v2 = captureProvider('ui/Foo.tsx', { layoutPatchFn: () => {} });
-    expect(v2.canUndo).toBe(true);
-    await v2.undo();
-    // The spy was called for foo-2 last (LIFO).
-    const lastCall = undoSpy.mock.calls[undoSpy.mock.calls.length - 1]?.[0];
-    expect(lastCall).toBeNull(); // payload is null in `rec(label)` default
+    expect(loadStackState('ui/Foo.tsx')).toEqual({ past: [], future: [] });
+    const again = captureProvider('ui/Foo.tsx', { layoutPatchFn: () => {} });
+    await again.undo();
+    expect(undoSpy).toHaveBeenCalledTimes(0);
   });
 });

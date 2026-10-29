@@ -70,20 +70,23 @@ const cloudHeld = (plan) => plan?.autoConvert?.allowed === false;
 
 /**
  * The refusal line for a dry run that names why this Mac cannot convert now; undefined when none does.
- * Shared by both triggers; `quiet` is the format-2 save-mode one (editable, so a non-owner sees nothing).
+ * Shared by both triggers; `save` picks the words of the format-2 one (a project that still saves the
+ * old way — view only since p8-v1-drop, so a non-owner is told too).
  */
-function refusalState(plan, { quiet }) {
+function refusalState(plan, { save = false } = {}) {
   const codes = refusalCodes(plan);
   const owner = ownsProject(plan.project?.linked?.role);
   const hub = plan.project?.linked?.hub ?? '';
-  const nonOwner = quiet
-    ? null
-    : { kind: 'non-owner', line: OLDER_COPY.olderNonOwner, action: null };
+  const nonOwner = {
+    kind: 'non-owner',
+    line: save ? SAVE_COPY.nonOwner : OLDER_COPY.olderNonOwner,
+    action: null,
+  };
   // p8-update-fails-loud: a sign-in the team server turns down is said, with the way out. With no
   // sign-in at all the role is unknown ('unknown'): Sign in.
   if (codes.includes('token-rejected')) {
     if (!owner) return nonOwner;
-    return quiet
+    return save
       ? {
           kind: 'save-mode-sign-in',
           line: FAIL_COPY.saveModeTokenRejected,
@@ -98,31 +101,36 @@ function refusalState(plan, { quiet }) {
         };
   }
   if (codes.includes('no-sign-in') && (plan.project?.linked?.role ?? 'unknown') === 'unknown') {
-    return quiet
-      ? null
-      : { kind: 'no-sign-in', line: FAIL_COPY.olderNotSignedIn, action: 'sign-in', hub };
+    return { kind: 'no-sign-in', line: FAIL_COPY.olderNotSignedIn, action: 'sign-in', hub };
   }
   if (codes.includes('not-owner') || codes.includes('no-sign-in')) return nonOwner;
   if (codes.includes('hub-too-old'))
-    return owner && !quiet
+    return owner
       ? { kind: 'hub-too-old', line: OLDER_COPY.olderHubTooOld, action: 'team-server' }
       : nonOwner;
   if (codes.includes('offline'))
-    return owner && !quiet
-      ? { kind: 'offline', line: OLDER_COPY.olderOwnerOffline, action: null }
+    return owner
+      ? {
+          kind: 'offline',
+          line: save ? SAVE_COPY.offline : OLDER_COPY.olderOwnerOffline,
+          action: null,
+        }
       : nonOwner;
   const blocker = plan.project?.linked?.modeBlocker;
   if (codes.some((c) => SERVER_SETUP.has(c)) || SERVER_SETUP.has(blocker))
-    return owner && !quiet
-      ? { kind: 'server-setup', line: OLDER_COPY.olderServerSetup, action: null }
+    return owner
+      ? {
+          kind: 'server-setup',
+          line: save ? SAVE_COPY.serverSetup : OLDER_COPY.olderServerSetup,
+          action: null,
+        }
       : nonOwner;
   if (codes.length || (plan.refusals ?? []).length) {
     // another refusal (a file that does not load …): say what stopped it; a later probe checks again
-    return quiet ? null : { kind: 'refused', line: applyFailureLine(plan), action: null };
+    return { kind: 'refused', line: applyFailureLine(plan), action: null };
   }
   return undefined;
 }
-
 /**
  * The callout for an older project, or null when there is none.
  *   plan: undefined — not probed yet; { error } — the probe failed; else the dry-run report.
@@ -145,7 +153,7 @@ export function olderGateState({ cfg, plan }) {
   // already converted, and `/_config` has not caught up yet: nothing to run
   if (plan.exitCode === AT_TARGET)
     return { kind: 'checking', line: OLDER_COPY.olderStatus, action: null };
-  const refused = refusalState(plan, { quiet: false });
+  const refused = refusalState(plan);
   if (refused !== undefined) return refused;
   // A Maude Cloud project — the server says so, or this IS the cloud tab: never unasked during the rc.
   if (cloudHeld(plan) || cfg?.cloud) {
@@ -172,14 +180,21 @@ export const RECHECK_KINDS = new Set([
 // ── The second trigger (p8-update-to-accepted, Michal: decision
 // `maude/v2-michal-update-project-switches-legacy-to-accepted`; automatic since p8-v1-drop). A LINKED
 // format-2 project that still saves the old way (DDR-241 legacy shared documents) switches to accepted
-// revisions by itself, owner only. It is not view only, so a non-owner sees nothing. A cloud tab cannot
-// run the switch from the studio (the cell has no owner credential for its own hub here): the owner is
-// pointed to the dashboard's Saving page instead. CONTRACT §3–§4 voice: no "we"/"I", what happened ·
-// what is safe · one verb.
+// revisions by itself, owner only. Editing the old way is gone (p8-v1-drop): until the switch the
+// project is VIEW ONLY (`/_config.formatGate.source === 'save-mode'`), so anyone else is told why. A
+// cloud tab cannot run the switch from the studio (the cell has no owner credential for its own hub
+// here): the owner is pointed to the dashboard's Saving page instead. CONTRACT §3–§4 voice: no "we"/"I",
+// what happened · what is safe · one verb.
 
 export const SAVE_COPY = {
-  status: 'This project still saves the old way.',
+  status: 'View only — this project still saves the old way.',
   updating: 'Switching this project to accepted revisions…',
+  nonOwner:
+    'View only — this project still saves the old way. It switches once its owner opens it. Ask the owner.',
+  offline:
+    'View only — this project still saves the old way. Waiting for the connection to the team server; it switches by itself once it is back.',
+  serverSetup:
+    "View only — this project still saves the old way, and the team server isn't set up to save accepted revisions yet. Once it is, the project switches by itself.",
   toastBoth: OLDER_COPY.toastUpdated,
   toastSwitched:
     'Updated. The project now saves with accepted revisions. A copy of the old files is in Version history, on this Mac only.',
@@ -188,39 +203,49 @@ export const SAVE_COPY = {
   toastFormatOnly:
     'Updated for Maude 2, but it still saves the old way. Nothing is lost. A copy of the old files is in Version history, on this Mac only.',
   switchFailed: 'The project still saves the old way. Nothing in it changed.',
-  cloudStatus: 'This project still saves the old way. Switch it in the dashboard, under Saving.',
+  cloudStatus:
+    'View only — this project still saves the old way. Switch it in the dashboard, under Saving.',
   cloudAction: 'Open dashboard',
 };
 
-/** Is this a linked, editable, format-2 project that still saves the old way (the second trigger)? */
+/** Is this a linked, format-2 project that still saves the old way (the second trigger)? */
 export function isSaveModeOffer(cfg) {
-  if (!cfg || isOlderGate(cfg) || cfg.formatGate) return false;
+  if (!cfg || isOlderGate(cfg)) return false;
   if (cfg.readOnlyReason === 'role') return false;
+  // p8-v1-drop: the server gates such a project view only ('save-mode'); an older server still sends
+  // the bare `saveMode` with no gate
+  if (cfg.formatGate) return cfg.formatGate.source === 'save-mode';
   return cfg.saveMode === 'legacy';
 }
 
 /**
- * The quiet callout for a format-2 project that still saves the old way, or null.
- *   cloud tab → the owner gets the dashboard pointer (no probe); anyone else nothing.
- *   desktop  → 'ready' (switch now, unasked) once the dry run says the switch is due, owner only.
+ * The callout for a format-2 project that still saves the old way, or null.
+ *   cloud tab → the owner gets the dashboard pointer (no probe); anyone else the view-only line.
+ *   desktop  → 'ready' (switch now, unasked) once the dry run says the switch is due, owner only;
+ *              anyone else, or a reason it cannot run now, the line that says so.
  */
 export function saveModeState({ cfg, plan }) {
   if (!isSaveModeOffer(cfg)) return null;
+  const nonOwner = { kind: 'non-owner', line: SAVE_COPY.nonOwner, action: null };
   if (cfg.cloud) {
     // p8-fix-a F19 — the project's own Saving page when the cell knows its id; else the dashboard root
     const href = cfg.cloud.projectUrl
       ? `${String(cfg.cloud.projectUrl).replace(/\/+$/, '')}/saving`
       : cfg.cloud.dashboardUrl;
-    if (!href || !ownsProject(cfg.cloud.role)) return null;
+    if (!href || !ownsProject(cfg.cloud.role)) return nonOwner;
     return { kind: 'save-mode-cloud', line: SAVE_COPY.cloudStatus, action: 'dashboard', href };
   }
-  if (!plan || plan.error || plan.exitCode === AT_TARGET) return null;
-  const refused = refusalState(plan, { quiet: true });
+  if (plan === undefined) return { kind: 'checking', line: SAVE_COPY.status, action: null };
+  if (!plan || plan.error) return { kind: 'failed', line: FAIL_COPY.unexpected, action: 'retry' };
+  if (plan.exitCode === AT_TARGET)
+    return { kind: 'checking', line: SAVE_COPY.status, action: null };
+  const refused = refusalState(plan, { save: true });
   if (refused !== undefined) return refused;
   const linked = plan.project?.linked;
-  if (!linked?.modeDue || !ownsProject(linked.role)) return null;
-  // the switch alone, on a Maude Cloud hub during the rc: nothing automatic, nothing offered here
-  if (cloudHeld(plan)) return null;
+  if (!ownsProject(linked?.role)) return nonOwner;
+  if (!linked?.modeDue) return { kind: 'checking', line: SAVE_COPY.status, action: null };
+  // the switch alone, on a Maude Cloud hub during the rc: nothing automatic, the dashboard owns it
+  if (cloudHeld(plan)) return { kind: 'checking', line: SAVE_COPY.status, action: null };
   return { kind: 'ready', line: SAVE_COPY.updating, action: null };
 }
 

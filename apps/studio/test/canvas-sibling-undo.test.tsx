@@ -153,7 +153,7 @@ describe('canvas-shell honours shell→canvas lanes only from window.parent (V2-
     });
   });
 
-  test('undo / redo: no sibling path reaches the active canvas undo stack', async () => {
+  test('undo / redo: no sibling path reaches ⌘Z; the parent’s run-action hands it to the shell (p8-v1-drop)', async () => {
     // A counting stand-in for the in-canvas stack (a real undo re-renders through a portal that
     // happy-dom rejects once an earlier test file in the same process has left its window behind).
     const calls: string[] = [];
@@ -172,6 +172,14 @@ describe('canvas-shell honours shell→canvas lanes only from window.parent (V2-
       lastLabel: null,
       lastTick: 0,
     };
+    // p8-v1-drop: the canvas keeps no stack of its own — ⌘Z is the shell's projection, so the parent's
+    // run-action becomes `undo-key {redo}` to the shell (was: the canvas stack undid / redid).
+    const posted: Array<{ dgn?: string; redo?: boolean }> = [];
+    const parent = window.parent as unknown as { postMessage: (m: unknown, o?: string) => void };
+    const realPost = parent.postMessage;
+    parent.postMessage = (m: unknown) => {
+      posted.push(m as { dgn?: string; redo?: boolean });
+    };
     await withShell(async () => {
       // A sibling: the retired v1 lanes and the run-action lane reach nothing.
       await send(sibling, { dgn: 'undo' });
@@ -182,11 +190,17 @@ describe('canvas-shell honours shell→canvas lanes only from window.parent (V2-
       // The retired lane from the parent: no handler is left for it either.
       await send(window.parent, { dgn: 'undo' });
       expect(calls).toEqual([]);
-      // The shell itself, on the run-action lane: the stack undoes, then redoes.
+      expect(posted.filter((m) => m?.dgn === 'undo-key')).toEqual([]);
+      // The shell itself, on the run-action lane: handed back as undo-key, never the in-canvas stack.
       await send(window.parent, { dgn: 'run-action', v: 1, id: 'edit.undo' });
       await send(window.parent, { dgn: 'run-action', v: 1, id: 'edit.redo' });
-      expect(calls).toEqual(['undo', 'redo']);
+      expect(calls).toEqual([]);
+      expect(posted.filter((m) => m?.dgn === 'undo-key')).toEqual([
+        { dgn: 'undo-key', redo: false },
+        { dgn: 'undo-key', redo: true },
+      ]);
     }, stack);
+    parent.postMessage = realPost;
   });
 });
 

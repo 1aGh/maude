@@ -66,12 +66,33 @@ export const HUB_FORMAT_REL = path.join('_state', 'hub-format.json');
 export interface FormatCtx {
   cfg: { formatVersion?: unknown; linkedHub?: { url: string } | null };
   paths: { designRoot: string };
+  /**
+   * The live sync runtime (Context.syncControl), when there is one: its DDR-241 save mode. Absent (a
+   * pure caller, the sync runtime's own format context) = the save mode is not part of the answer.
+   */
+  syncControl?: {
+    current?(): { acceptedMode?(): boolean; acceptedModeKnown?(): boolean } | null | undefined;
+  };
 }
 
 export interface FormatGate {
   projectFormat: number;
   supported: number;
-  source: 'config' | 'hub';
+  /** 'save-mode' (p8-v1-drop): a linked project at this build's format that still saves the old way. */
+  source: 'config' | 'hub' | 'save-mode';
+}
+
+/**
+ * p8-v1-drop — does this project still save the old way (DDR-241 legacy shared documents) right now?
+ * Editing in that mode is gone: such a project is view only until it switches to accepted revisions
+ * (by itself, when its owner opens it — client/v2/shell/format-update.js). Unknown (the hub has not
+ * answered yet) is NOT legacy.
+ */
+export function legacySaveMode(ctx: Pick<FormatCtx, 'syncControl'>): boolean {
+  const rt = ctx.syncControl?.current?.();
+  if (!rt?.acceptedMode) return false;
+  if (rt.acceptedModeKnown && !rt.acceptedModeKnown()) return false;
+  return !rt.acceptedMode();
 }
 
 /** A config value → a format: a positive integer, else 1 (absent = 1). */
@@ -211,8 +232,9 @@ export interface FormatGateOptions {
 export function formatGate(ctx: FormatCtx, opts: FormatGateOptions = {}): FormatGate | null {
   const supported = opts.supported ?? SUPPORTED_FORMAT;
   const p = projectFormat(ctx, { hubFormat: opts.hubFormat });
-  if (p.value === supported) return null;
-  return { projectFormat: p.value, supported, source: p.source };
+  if (p.value !== supported) return { projectFormat: p.value, supported, source: p.source };
+  if (legacySaveMode(ctx)) return { projectFormat: p.value, supported, source: 'save-mode' };
+  return null;
 }
 
 /** CONTRACT §4 voice; "Update Maude to edit" is the signed A17 wording (§5.8). */
@@ -227,6 +249,8 @@ export const FORMAT_COPY = {
   newerCanvas: 'This canvas uses Maude 2. Update Maude to see it.',
   /** An older project in v2 — view only until it converts (by itself since p8-v1-drop). */
   olderStatus: 'View only — this project still uses Maude 1.',
+  /** A format-2 linked project that still saves the old way (p8-v1-drop: view only until it switches). */
+  saveModeStatus: 'View only — this project still saves the old way.',
   olderStatusAction: 'Update project',
   olderUpdating: 'Updating this project for Maude 2…',
   olderNonOwner:
@@ -256,6 +280,7 @@ export const FORMAT_COPY = {
 
 /** The line a refusal carries, by direction. */
 export function gateMessage(gate: FormatGate): string {
+  if (gate.source === 'save-mode') return FORMAT_COPY.saveModeStatus;
   return gate.projectFormat > gate.supported ? FORMAT_COPY.newerRefusal : FORMAT_COPY.olderStatus;
 }
 
