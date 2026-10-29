@@ -9,6 +9,7 @@
 
 import { readFileSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
+import { promptOfRun } from '../history/run-label.ts';
 import { nameRequest, objectHistoryRequest, restoreRequest } from '../history/surface-requests.ts';
 import {
   call,
@@ -26,7 +27,7 @@ import {
 
 export const USAGE = `usage: maude design history list [<canvas>] [--limit N] [--json] [--root <project>]
        maude design history show <ref> [<canvas>] [--json] [--root <project>]
-       maude design history diff [<canvas>] [--from <ref>] [--json] [--root <project>]
+       maude design history diff [<canvas>] [--from <ref>] [--to <ref>|now] [--json] [--root <project>]
        maude design history object <canvas> <artboard>/<id> | <annotation-id> [--json] [--root <project>]
        maude design history restore <canvas> <ref> [--artboard <id> | --element <artboard>/<id>] [--json] [--root <project>]
        maude design history undo --action <id> | --chat <id> [--redo] [--json] [--root <project>]
@@ -35,7 +36,9 @@ export const USAGE = `usage: maude design history list [<canvas>] [--limit N] [-
   <ref>     r<n> (a synced project's version) or a commit sha (a local project's)
   list      the versions, newest first
   show      one version: who, when, what it was, the canvases it touched
-  diff      what changed since <ref> (default: the last commit) — local projects
+  diff      what changed since <ref>: a synced project names the canvas and says it in words, from
+            the version before its newest (or --from) to now (or --to); a git project diffs since
+            <ref> (default: the last commit)
   object    one object's versions, newest first (a canvas element by <artboard>/<id>, or a sticky /
             arrow / sticker by its annotation id); rows followed back by matching say so — synced
   restore   the whole canvas back to <ref>, as a NEW version (Now stays in the history) — synced;
@@ -74,10 +77,16 @@ async function gitLog(studio, { repoRel, limit = 50 }) {
 const when = (iso) => (iso ? field(iso).replace('T', ' ').slice(0, 16) : '');
 const canvasesOf = (row) => (row.canvases ?? []).map((c) => field(c).replace(/^\.design\//, ''));
 
+// p8-fix-d F20 — the person by name (the studio's lookup, `actorName`), an AI run as "· AI"
+// (CONTRACT §3), and a prompt-less run's placeholder label ("Claude Code") is not printed as if it
+// were the prompt.
 function syncedLine(row) {
-  const who = `${field(row.actor ?? '?')}${row.mine ? ' (you)' : ''}`;
+  const ai = row.kind === 'ai';
+  const person = row.actorName ?? row.actor ?? '?';
+  const who = `${field(person)}${row.mine ? ' (you)' : ''}${ai ? ' · AI' : ''}`;
+  const label = ai ? (promptOfRun(row.label) ?? '') : (row.label ?? '');
   const where = canvasesOf(row).join(', ');
-  return `r${field(row.revision)}  ${when(row.committedAt)}  ${who}  ${field(row.kind ?? '')}  ${field(row.label ?? '')}${where ? `  · ${where}` : ''}`;
+  return `r${field(row.revision)}  ${when(row.committedAt)}  ${who}  ${field(row.kind ?? '')}${label ? `  ${field(label)}` : ''}${where ? `  · ${where}` : ''}`;
 }
 const gitLine = (e) =>
   `${field(e.sha).slice(0, 9)}  ${when(e.date)}  ${field(e.author)}  ${field(e.message)}`;
@@ -146,18 +155,17 @@ async function show(words) {
 }
 
 async function diff(words) {
-  const { flags, pos } = parseWords(words, { bool: ['--json'], value: ['--from', '--root'] });
+  const { flags, pos } = parseWords(words, {
+    bool: ['--json'],
+    value: ['--from', '--to', '--root'],
+  });
   if (pos.length > 1) throw new UsageError('diff takes at most one canvas');
   const c = await connect('history', flags['--root']);
   if (c.exit) return c.exit;
   const repoRel = canvasArg(c.root, pos[0]);
-  const v = await versions(c.studio, { repoRel, limit: 1 });
-  if (v.kind === 'synced') {
-    process.stderr.write(
-      'maude design history diff: a synced project’s changes are not diffable from here yet — `maude design history show r<n>` says what a version touched\n'
-    );
-    return 1;
-  }
+  const v = await versions(c.studio, { repoRel, limit: 2 });
+  if (v.kind === 'synced') return syncedDiff(c, repoRel, v.rows, flags);
+  if (flags['--to'] !== undefined) throw new UsageError('--to needs a synced project');
   const from = flags['--from'] ?? 'HEAD';
   if (from !== 'HEAD' && !SHA.test(from)) throw new UsageError('--from is a commit sha');
   const r = await call(c.studio, `/_api/git/diff?${new URLSearchParams({ sha: from })}`);
@@ -193,6 +201,54 @@ async function diff(words) {
   }
   if (files.length === 0) process.stdout.write(`no changes since ${from}\n`);
   else writeUntrusted(files.map((f) => cleanLines(unified(f))).join(''));
+  return 0;
+}
+
+/**
+ * p8-fix-d F20 — `diff` on a project whose history is the op log (a synced project, or the local
+ * home): the panel's own words (`GET /_api/project/changes`, V2-1.9 §5.11). From the version before
+ * the canvas's newest (what its latest version changed) or `--from`, to now or `--to`.
+ */
+const REF = /^(r\d{1,12}|git:[0-9a-f]{7,40})$/i;
+async function syncedDiff(c, repoRel, rows, flags) {
+  if (!repoRel) throw new UsageError('diff on a synced project takes a <canvas>');
+  const to = flags['--to'] ?? 'now';
+  if (to !== 'now' && !REF.test(to)) throw new UsageError('--to is r<n>, git:<sha> or now');
+  let from = flags['--from'];
+  if (from !== undefined && !REF.test(from)) throw new UsageError('--from is r<n> or git:<sha>');
+  if (from === undefined) {
+    const before = rows[1];
+    if (!before) {
+      process.stdout.write(`${field(repoRel)} has no earlier version to compare with\n`);
+      return 0;
+    }
+    from = `r${Number(before.revision)}`;
+  }
+  const r = await call(
+    c.studio,
+    `/_api/project/changes?${new URLSearchParams({ path: repoRel, from, to })}`
+  );
+  if (r?.status === 404) return notFound(from, repoRel);
+  if (r?.status !== 200 || !r.body) throw new Error('the studio did not answer');
+  if (!r.body.ok) {
+    if (r.body.reason === 'unreachable')
+      throw new Error('the team server is unreachable — try again in a moment');
+    throw new Error(clean(r.body.reason ?? 'the changes could not be read'));
+  }
+  const changes = Array.isArray(r.body.changes) ? r.body.changes : [];
+  if (flags['--json']) {
+    out({ kind: 'synced', canvas: repoRel, from, to, changes });
+    return 0;
+  }
+  if (changes.length === 0) {
+    process.stdout.write(`no changes between ${from} and ${to}\n`);
+    return 0;
+  }
+  const line = (ch) => {
+    const where = (Array.isArray(ch.artboards) ? ch.artboards : []).map((a) => field(a)).join(', ');
+    return `${where || 'canvas'}  ${field(ch.words ?? '')}\n`;
+  };
+  writeUntrusted(changes.map(line).join(''));
   return 0;
 }
 

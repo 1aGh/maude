@@ -21,7 +21,7 @@
  *             React-free and server-safe (no `diff`).
  */
 
-import { type Op, textMergeCollides } from './ops.ts';
+import { type Op, textMergeCollides, textMergeResult } from './ops.ts';
 import { parseBoard } from './schema.ts';
 import type { AnnotationElement } from './types.ts';
 import { type SlotKind, slotKindOf, slotText } from './ui/text-session.ts';
@@ -76,6 +76,39 @@ export function textRevertCollides(
     const cur = now.get(id);
     if (cur === undefined) continue;
     if (textMergeCollides(left, before.get(id) ?? '', cur) === true) return true;
+  }
+  return false;
+}
+
+/**
+ * p8-fix-d F12 — the same question for several steps undone as ONE action (Undo history, Undo this
+ * chat, an action with several effects on one board). `steps` newest first; each is reverted onto
+ * what the newer reverts left, slot by slot, with the merge the board runs — so a collaborator's
+ * text that landed BETWEEN two of the steps is judged against the step it actually overlaps, not
+ * against a newer step that moved the text since. Any collision → true: the whole undo is refused,
+ * never half applied. One step answers exactly as `textRevertCollides`.
+ */
+export function textRevertChainCollides(
+  steps: ReadonlyArray<{ before: string | null | undefined; after: string }>,
+  current: string | null | undefined
+): boolean {
+  const now = boardTextSlots(current);
+  for (const step of steps) {
+    const before = boardTextSlots(step.before);
+    for (const [id, left] of changedTextSlots(step.before, step.after)) {
+      const replaced = before.get(id);
+      if (left === null) {
+        // the step removed it: its undo brings it back with the text it had
+        if (replaced !== undefined && !now.has(id)) now.set(id, replaced);
+        continue;
+      }
+      const cur = now.get(id);
+      if (cur === undefined) continue;
+      const ours = replaced ?? '';
+      if (textMergeCollides(left, ours, cur) === true) return true;
+      if (replaced === undefined) now.delete(id);
+      else now.set(id, textMergeResult(left, ours, cur));
+    }
   }
   return false;
 }

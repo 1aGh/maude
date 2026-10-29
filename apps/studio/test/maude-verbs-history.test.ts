@@ -99,11 +99,13 @@ describe('maude design history — synced project', () => {
     expect(miss.code).toBe(1);
   });
 
-  test('diff says it is not available for a synced project (exit 1, one line)', async () => {
+  // p8-fix-d F20 — a synced project's diff is the panel's words for one canvas
+  // (test/p8-fix-d-history-synced.test.ts); with no canvas it is a usage error naming it.
+  test('diff on a synced project needs the canvas (usage, exit 2)', async () => {
     studio = fakeStudio(synced);
     const r = await studio.run('history', ['diff']);
-    expect(r.code).toBe(1);
-    expect(r.stderr.trim().split('\n')).toHaveLength(1);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toContain('<canvas>');
   });
 
   test('an unreachable team server is an error, not an empty history', async () => {

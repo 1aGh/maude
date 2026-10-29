@@ -18,6 +18,8 @@
 // added (a new entry — your AI run landing included — clears redo). A fully conflicting undo marks the
 // entry `stale`: it is skipped from then on, with one toast naming who changed it.
 
+import { promptOfRun } from '../../../history/run-label.ts';
+
 export const MAX_ENTRIES = 100;
 export const ENTRY_KINDS = new Set(['edit', 'ai', 'trash', 'restore', 'history.restore']);
 /** The labels a ⌘Z / ⇧⌘Z undo carries (routes/project-undo.ts `via: 'keys'`): a flip, not an entry. */
@@ -41,8 +43,9 @@ const byOrder = (a, b) => a.madeAt - b.madeAt || (a.revision ?? 0) - (b.revision
 const undoesOf = (u) => (Array.isArray(u) ? u : typeof u === 'string' ? [u] : []);
 
 function entryLabel(a) {
-  const base =
-    typeof a.label === 'string' && a.label ? a.label : a.kind === 'ai' ? 'AI edit' : 'Edit';
+  // p8-fix-d F20 — a prompt-less run's placeholder label ("Claude Code") is no label: "AI edit".
+  const own = a.kind === 'ai' ? promptOfRun(a.label) : a.label;
+  const base = typeof own === 'string' && own ? own : a.kind === 'ai' ? 'AI edit' : 'Edit';
   return a.partial && !base.endsWith(STOPPED) ? `${base}${STOPPED}` : base;
 }
 

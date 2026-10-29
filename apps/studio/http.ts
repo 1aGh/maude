@@ -2284,7 +2284,7 @@ export function createHttp(
           if (r.actor === 'maude-chat') return;
           ctx.syncControl
             ?.current?.()
-            ?.beginAiAction?.(`agent:${r.session}`, r.label || 'Claude Code', { runId: r.run });
+            ?.beginAiAction?.(`agent:${r.session}`, r.label || 'AI', { runId: r.run });
         },
         // S5.3 — the ai-activity banner of a hook run is DERIVED from the registry (ai/runs.ts
         // `bannerEntries`), never a second entry in AiActivity. S5.5b — `touch` claims the

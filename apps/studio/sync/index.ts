@@ -6291,12 +6291,40 @@ export function createSyncRuntime(
     textUndoConflict: async (raw, redo = false) => {
       if (redo || !acceptedOn() || !acceptedLink) return false;
       const link = acceptedLink;
+      const you = link.manifest?.you?.actor ?? null;
+      // the targets are this person's newest actions (the stack reads ≤ 200 rows): read once
+      type Row = Awaited<ReturnType<typeof link.history>>['history'][number];
+      let mine: Promise<Row[]> | null = null;
+      const chatRows = new Map<string, Row>();
       return hubTextUndoConflict(asTarget(raw), {
         action: async (actionId) => {
-          const you = link.manifest?.you?.actor ?? null;
-          // the ⌘Z target is one of this person's newest actions (the stack reads ≤ 200 rows)
-          const { history } = await link.history({ limit: 200, ...(you ? { actor: you } : {}) });
-          return history.find((a) => a.actionId === actionId) ?? null;
+          const hit = chatRows.get(actionId);
+          if (hit) return hit;
+          mine ??= link
+            .history({ limit: 200, ...(you ? { actor: you } : {}) })
+            .then((r) => r.history);
+          return (await mine).find((a) => a.actionId === actionId) ?? null;
+        },
+        // p8-fix-d F12 — "Undo this chat" is judged on the very runs acceptedUndo will undo
+        chat: async (chatId) => {
+          if (!you) return null;
+          const { history } = await link.history({
+            limit: 200,
+            chat: chatId,
+            actor: you,
+            kind: 'ai',
+          });
+          for (const a of history) chatRows.set(a.actionId, a);
+          const ids = chatActionIds(
+            history.map((a) => ({
+              actionId: a.actionId,
+              kind: a.kind,
+              mine: a.actor === you,
+              ...originFields(a.origin),
+            })),
+            chatId
+          );
+          return ids.ok ? ids.actionIds : null;
         },
         blob: (hash) => link.blob(hash),
         head: (doc) => link.laneHead(doc, 'annotations'),

@@ -117,7 +117,7 @@ describe('hubTextUndoConflict — judges what the hub ACCEPTED', () => {
     ).toBe(true);
   });
 
-  test('unknown action, unreadable blob, non-annotation lane, several targets → no refusal', async () => {
+  test('unknown action, unreadable blob, non-annotation lane → no refusal', async () => {
     const before = board(sticky('k', 'Hello world'));
     const after = board(sticky('k', 'Hello brave world'));
     const now = board(sticky('k', 'Hello bold world'));
@@ -132,12 +132,95 @@ describe('hubTextUndoConflict — judges what the hub ACCEPTED', () => {
         reads([before, after], [{ ...fx[0], lane: 'html' }], now)
       )
     ).toBe(false);
+    // p8-fix-d F12: a target the hub does not show leaves a multi-target undo to the kernel's rule
     expect(
       await hubTextUndoConflict({ actionIds: ['a1', 'a2'] }, reads([before, after], fx, now))
     ).toBe(false);
     expect(await hubTextUndoConflict({ actionId: 'a1' }, reads([before, after], fx, now))).toBe(
       true
     );
+  });
+});
+
+// p8-fix-d F12 — a multi-target undo (Undo history, Undo this chat) is judged as the ONE action the
+// kernel makes of it: every target, newest first, reverted in turn onto the head. A collision in
+// any target refuses the whole undo (never half a step).
+describe('hubTextUndoConflict — several targets', () => {
+  const h = (s: string) => new Bun.CryptoHasher('sha256').update(s).digest('hex');
+  type Step = { id: string; revision: number; before: string; after: string; doc?: string };
+  const reads = (
+    steps: Step[],
+    heads: Record<string, string>,
+    chats: Record<string, string[]> = {}
+  ) => {
+    const blobs = steps.flatMap((s) => [s.before, s.after]);
+    return {
+      action: async (id: string) => {
+        const st = steps.find((s) => s.id === id);
+        return st
+          ? {
+              revision: st.revision,
+              effects: [
+                {
+                  doc: st.doc ?? 'k',
+                  lane: 'annotations',
+                  beforeHash: h(st.before),
+                  afterHash: h(st.after),
+                },
+              ],
+            }
+          : null;
+      },
+      blob: async (hash: string) => blobs.find((b) => h(b) === hash) ?? null,
+      head: async (doc: string) => heads[doc] ?? null,
+      chat: async (chatId: string) => chats[chatId] ?? null,
+    };
+  };
+  const b0 = board(sticky('k', 'one two three'));
+  const b1 = board(sticky('k', 'one TWO three'));
+  // a peer edited between my two steps (b1 → p1), then my second step (p1 → b2)
+  const p1 = board(sticky('k', 'one TWO three, peer'));
+  const b2 = board(sticky('k', 'ONE TWO three, peer'));
+  const steps: Step[] = [
+    { id: 'a1', revision: 1, before: b0, after: b1 },
+    { id: 'a2', revision: 3, before: p1, after: b2 },
+  ];
+
+  test('a peer edit between the targets that overlaps neither → no refusal', async () => {
+    expect(await hubTextUndoConflict({ actionIds: ['a1', 'a2'] }, reads(steps, { k: b2 }))).toBe(
+      false
+    );
+  });
+
+  test('a peer rewrite of the OLDER target’s word → the whole undo is refused', async () => {
+    const rewritten = board(sticky('k', 'ONE T-W-O three, peer'));
+    expect(
+      await hubTextUndoConflict({ actionIds: ['a1', 'a2'] }, reads(steps, { k: rewritten }))
+    ).toBe(true);
+    // order of the ids does not matter: the revisions order the chain
+    expect(
+      await hubTextUndoConflict({ actionIds: ['a2', 'a1'] }, reads(steps, { k: rewritten }))
+    ).toBe(true);
+  });
+
+  test('a collision on one of two canvases refuses the undo of both', async () => {
+    const other = board(sticky('k', 'x y'));
+    const otherAfter = board(sticky('k', 'x Y'));
+    const two: Step[] = [
+      { id: 'a1', revision: 1, before: b0, after: b1 },
+      { id: 'a2', revision: 2, before: other, after: otherAfter, doc: 'm' },
+    ];
+    const ok = { k: b1, m: otherAfter };
+    expect(await hubTextUndoConflict({ actionIds: ['a1', 'a2'] }, reads(two, ok))).toBe(false);
+    const hit = { k: b1, m: board(sticky('k', 'x Z')) };
+    expect(await hubTextUndoConflict({ actionIds: ['a1', 'a2'] }, reads(two, hit))).toBe(true);
+  });
+
+  test('"Undo this chat" is judged on the chat’s runs', async () => {
+    const rewritten = board(sticky('k', 'ONE T-W-O three, peer'));
+    const r = reads(steps, { k: rewritten }, { c1: ['a1', 'a2'] });
+    expect(await hubTextUndoConflict({ chatId: 'c1' }, r)).toBe(true);
+    expect(await hubTextUndoConflict({ chatId: 'c2' }, r)).toBe(false);
   });
 });
 
@@ -212,7 +295,7 @@ const noop = (): RoomCallbacks => ({
 
 interface Peer {
   runtime: SyncRuntime;
-  undo: (actionId: string) => Promise<{ status: number; body: Record<string, unknown> }>;
+  undo: (actionId: string | string[]) => Promise<{ status: number; body: Record<string, unknown> }>;
 }
 
 async function startPeer(repoRoot: string, url: string): Promise<Peer> {
@@ -274,7 +357,11 @@ async function startPeer(repoRoot: string, url: string): Promise<Peer> {
         new Request('http://localhost/_api/project/undo', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ actionId, via: 'keys' }),
+          body: JSON.stringify(
+            Array.isArray(actionId)
+              ? { actionIds: actionId, via: 'panel' }
+              : { actionId, via: 'keys' }
+          ),
         }),
         {} as never
       );
@@ -379,6 +466,32 @@ describe.skipIf(!HUB_READY)('⌘Z of a text step on a real hub, two studios', ()
     expect(r.status).toBe(200);
     expect(r.body.ok).toBe(true);
     expect(await textOf('two')).toBe('alpha beta gamma and then some delta');
+  }, 30_000);
+
+  // p8-fix-d F12 — Undo history ("undo to here") over two of my steps on a real hub.
+  test('two targets, the peer overwrote the OLDER one’s word → 409, nothing undone', async () => {
+    await stroke(alice, sticky('four', 'red green blue', 'a3'));
+    const older = await stroke(alice, sticky('four', 'red GREEN blue', 'a3'));
+    const newer = await stroke(alice, sticky('five', 'left right', 'a4'));
+    await stroke(bob, sticky('four', 'red GRÜN blue', 'a3'));
+    const r = await alice.undo([newer, older]);
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe('undo-conflict');
+    expect(await textOf('four')).toBe('red GRÜN blue');
+    // the other target was not undone either: never half a step
+    expect(await textOf('five')).toBe('left right');
+  }, 30_000);
+
+  test('two targets, the peer edited elsewhere → both undone, their text kept', async () => {
+    await stroke(alice, sticky('six', 'one two three', 'a5'));
+    const older = await stroke(alice, sticky('six', 'one TWO three', 'a5'));
+    const newer = await stroke(alice, sticky('seven', 'up down', 'a6'));
+    await stroke(bob, sticky('six', 'one TWO three and four', 'a5'));
+    const r = await alice.undo([newer, older]);
+    expect(r.status).toBe(200);
+    expect(r.body.ok).toBe(true);
+    expect(await textOf('six')).toBe('one two three and four');
+    expect(await textOf('seven')).toBeUndefined();
   }, 30_000);
 
   test('nobody touched it → a plain undo', async () => {

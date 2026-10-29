@@ -55,6 +55,7 @@ import {
   changedTextSlots,
   createTextStepLedger,
 } from '../annotations/text-steps.ts';
+import { isDraftWriteId } from '../annotations/ui/text-session.ts';
 import { attributeArtboards } from '../attribute-artboards.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import { bumpTrashSeq, type TrashListing } from '../history/trash.ts';
@@ -64,6 +65,7 @@ import { validateCanvasPath } from './canvas-path.ts';
 import { laneValueFromFile, mergeSharedMetaIntoLocal } from './codec.ts';
 import { hashBytes } from './echo-guard.ts';
 import { canvasLanes, namedField, type RowNamed } from './history-fields.ts';
+import { type HubEffect, hubTextUndoConflict } from './hub-text-undo.ts';
 import { mergeSource } from './source-merge.ts';
 import { type ParkedCanvas, removeClearedCopies } from './trash-clear-copies.ts';
 import {
@@ -582,6 +584,12 @@ export interface LocalRuntime {
       stageable?: boolean;
       /** p8-undo-collab-refuse — texts a collaborator changed during this stroke (collab room). */
       contested?: readonly string[];
+      /**
+       * p8-fix-d F13 — only a text session's idle-typing drafts (a room's draft projection; on the
+       * disk path a `draft-…` write id says it): held back and recorded with the next stroke on
+       * that board, as one step.
+       */
+      draft?: boolean;
     }
   ): null;
   /**
@@ -1541,6 +1549,8 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     lanes: Array<{ lane: string; text: string; baseText: string | null }>,
     o: { kind: string; label: string; origin?: Record<string, unknown> }
   ): Promise<LocalOutcome> {
+    // p8-fix-d F13 — a board this proposal carries starts after the typing held for it.
+    if (draftsHeld.has(slug) && lanes.some((l) => l.lane === 'annotations')) releaseDrafts(slug);
     await readyP;
     return serial(() => proposeLanesNow(slug, lanes, o));
   }
@@ -1652,12 +1662,47 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
   /** The one dedupe key of a stroke — `proposeStroke` and `stageStroke` must agree on it. */
   const strokeKey = (text: string, baseText: string | undefined) =>
     `${baseText ?? '\u0000none'}\u0000${text}`;
+  /**
+   * p8-fix-d F13 — draft strokes held back per board (V2-1.5 §3: a text session is ONE gesture, one
+   * step; DDR-242 AD7: drafts never reach undo). `base` is the board before the first held draft,
+   * `text` the newest draft. The next stroke on that board (the session's commit) is recorded from
+   * `base`, so its ⌘Z restores the text the session opened on. A session whose last draft already
+   * was its final text sends no commit: `settled()` records what is held before anything reads the
+   * log, so ⌘Z (which refreshes first) finds the session's step, and a ⌘Z mid-typing at worst splits
+   * one session into two steps. In memory only, like the ⌘Z stack: after a restart a held draft is
+   * on disk and the next stroke's catch-up records it as `outside`.
+   */
+  const draftsHeld = new Map<
+    string,
+    { base: string | undefined; text: string; contested: Set<string> }
+  >();
+  /** Record what is held for `slug` (or every board) as one step now. */
+  function releaseDrafts(slug?: string): void {
+    for (const [s, held] of [...draftsHeld]) {
+      if (slug !== undefined && s !== slug) continue;
+      draftsHeld.delete(s);
+      proposeStroke(s, held.text, held.base, [...held.contested]);
+    }
+  }
   function proposeStroke(
     slug: string,
     text: string,
     baseText: string | undefined,
-    contested: readonly string[] = []
+    contested: readonly string[] = [],
+    draft = false
   ): void {
+    const held = draftsHeld.get(slug);
+    if (draft) {
+      const c = new Set(held?.contested ?? []);
+      for (const id of contested) c.add(id);
+      draftsHeld.set(slug, { base: held ? held.base : baseText, text, contested: c });
+      return;
+    }
+    if (held) {
+      draftsHeld.delete(slug);
+      baseText = held.base;
+      contested = [...new Set([...held.contested, ...contested])];
+    }
     // A room's projection repeats the board the PUT just proposed: the same bytes ON THE SAME BASE are
     // one stroke. sec-a L1: the base is part of the key — the same bytes over a base the last stroke
     // didn't name (an outside write in between) go on to proposeLanesNow, which keeps its outside row.
@@ -2000,6 +2045,8 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
    */
   async function settled(): Promise<void> {
     await readyP;
+    // p8-fix-d F13 — a held text session is an observation already made.
+    if (draftsHeld.size) releaseDrafts();
     if (lock && !closed) {
       for (const [k, n] of notes) {
         if (now() - n.at > WRITE_NOTE_MS) notes.delete(k);
@@ -2124,9 +2171,17 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       if (redo) return false;
       await settled();
       const target = asTarget(raw);
-      const ids =
+      const o = opened;
+      let ids: string[] =
         'actionId' in target ? [target.actionId] : 'actionIds' in target ? target.actionIds : [];
-      return textSteps.conflict(ids, (slug) => {
+      if ('chatId' in target && o) {
+        const found = chatActionIds(
+          await rowsOf(o, { limit: 200, chat: target.chatId, actor, kind: 'ai' }),
+          target.chatId
+        );
+        ids = found.ok ? found.actionIds : [];
+      }
+      const ledger = textSteps.conflict(ids, (slug) => {
         if (!/^[a-z0-9][a-z0-9._-]*$/i.test(slug) || slug.includes('..')) return null;
         try {
           return boardTextSlots(readFileSync(abs(`${slug}.annotations.json`), 'utf8'));
@@ -2134,6 +2189,28 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
           return new Map();
         }
       });
+      if (ledger || ids.length < 2 || !o) return ledger;
+      // p8-fix-d F12 — several targets as ONE action: the ledger cannot judge them (newer targets move
+      // the text older ones are compared against), so the steps the store recorded are reverted in
+      // turn onto the board's head, exactly as on a hub (sync/hub-text-undo.ts). Fail open.
+      type StoreRow = { actionId: string; revision: number; effects: HubEffect[] };
+      const rows = (await o.store.history({ limit: 200, actor })) as StoreRow[];
+      return hubTextUndoConflict(
+        { actionIds: ids },
+        {
+          action: async (id) => rows.find((r) => r.actionId === id) ?? null,
+          blob: async (hash) => ((await o.store.blob(hash)) as string | null) ?? null,
+          head: async (doc) => {
+            const h = (await o.store.heads([doc]))[doc] as
+              | { lanes?: Record<string, { hash: string | null }> }
+              | undefined;
+            const hash = hashOr(h?.lanes?.annotations?.hash);
+            return hash === EMPTY_HASH
+              ? ''
+              : (((await o.store.blob(hash)) as string | null) ?? null);
+          },
+        }
+      ).catch(() => false);
     },
     async acceptedUndo(raw, redo = false, o) {
       await settled();
@@ -2249,8 +2326,11 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     proposeLane(slug, lane, text, o) {
       if (!lock || closed) return null;
       if (lane === 'annotations') {
-        if (!(o?.stageable === true && stageStroke(slug, text, o.baseText, o.writeId)))
-          proposeStroke(slug, text, o?.baseText, o?.contested);
+        const draft = o?.draft === true || isDraftWriteId(o?.writeId);
+        // p8-fix-d F13 — the person's held typing is their step, never part of an AI run's stage.
+        if (!draft && o?.stageable === true && draftsHeld.has(slug)) releaseDrafts(slug);
+        if (!(!draft && o?.stageable === true && stageStroke(slug, text, o.baseText, o.writeId)))
+          proposeStroke(slug, text, o?.baseText, o?.contested, draft);
       } else noteLane(slug, lane, text);
       return null;
     },
@@ -2505,7 +2585,7 @@ export function attachLocalHome<S extends SupervisorLike>(
   // S2.20b (U20) — a collab room projecting its board (collab/index.ts): the person's strokes.
   ctx.bus.on(
     'annotations-projected',
-    (p: { slug?: unknown; board?: unknown; contested?: unknown } | null) => {
+    (p: { slug?: unknown; board?: unknown; contested?: unknown; draft?: unknown } | null) => {
       if (!isLocal() || typeof p?.slug !== 'string' || typeof p.board !== 'string') return;
       // Emitted BEFORE the room's flush writes: the file still holds the board this stroke replaces.
       const safe = /^[a-z0-9][a-z0-9._-]*$/i.test(p.slug) && !p.slug.includes('..');
@@ -2522,6 +2602,7 @@ export function attachLocalHome<S extends SupervisorLike>(
       }
       get()?.runtime.proposeLane(p.slug, 'annotations', p.board, {
         ...(before === undefined ? {} : { baseText: before }),
+        ...(p.draft === true ? { draft: true } : {}),
         ...(Array.isArray(p.contested)
           ? {
               contested: p.contested

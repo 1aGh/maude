@@ -69,6 +69,23 @@ function expectOf(kind: SlotKind, text: string) {
   return { label: { text } };
 }
 
+/**
+ * p8-fix-d F13 — a draft batch's write id. On the op log a step is a gesture (V2-1.5 §3), and a
+ * text session is one gesture: a board change that carries only drafts is held back by the local
+ * home and recorded together with the session's commit (collab/registry.ts `takeDraftOnly`,
+ * sync/local-kernel.ts). Echo metadata only (annotations-sync.ts) — never authorization: a write
+ * id that lies about being a draft only folds that write into the next step on its board.
+ */
+export const DRAFT_WRITE_PREFIX = 'draft-';
+
+export function draftWriteId(): string {
+  return `${DRAFT_WRITE_PREFIX}${crypto.randomUUID()}`;
+}
+
+export function isDraftWriteId(v: unknown): boolean {
+  return typeof v === 'string' && v.startsWith(DRAFT_WRITE_PREFIX);
+}
+
 /** The patch a draft sends, or null when nothing changed since the last send. */
 export function draftOp(
   s: TextSession,

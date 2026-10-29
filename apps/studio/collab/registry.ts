@@ -15,6 +15,7 @@ import '../annotations/ops-merge.ts';
 import { readReplica, validActionId, writeReplica } from '../annotations/replica.ts';
 import { parseBoard, serializeBoard } from '../annotations/schema.ts';
 import { createTextContest } from '../annotations/text-steps.ts';
+import { isDraftWriteId } from '../annotations/ui/text-session.ts';
 import type { BoardGuard } from '../annotations/vote-guard.ts';
 import { applyCommentsToDoc, stampAnnotationsEdit } from '../sync/codec.ts';
 import { MAX_ANNOTATIONS_BYTES } from '../sync/limits.ts';
@@ -86,6 +87,14 @@ export interface Registry {
    * annotations/text-steps.ts). Taken by the projection that carries those batches; clears.
    */
   takeTextContest(slug: string): string[];
+  /**
+   * p8-fix-d F13 — did every batch since the room last projected its board come from a text
+   * session's idle-typing drafts (`draft-…` write id, annotations/ui/text-session.ts)? Such a
+   * projection is not a ⌘Z step of its own: the local home records it with the session's commit.
+   * A file import or any other batch in the same flush makes it an ordinary step. Taken by the
+   * projection that carries those batches; clears.
+   */
+  takeDraftOnly(slug: string): boolean;
   /**
    * Phase 30 — project agent editing-presence onto a slug's room awareness so
    * it crosses the hub (the loopback `ai-activity` bus event does not). `null`
@@ -174,6 +183,14 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
   // is unchanged.
   const pinned = new Set<string>();
   const textContest = createTextContest();
+  // p8-fix-d F13 — per slug since its last projection: did a draft batch land, did anything else.
+  const flushKinds = new Map<string, { draft: boolean; other: boolean }>();
+  const noteFlushKind = (slug: string, draft: boolean) => {
+    const k = flushKinds.get(slug) ?? { draft: false, other: false };
+    if (draft) k.draft = true;
+    else k.other = true;
+    flushKinds.set(slug, k);
+  };
 
   function wireBridge(slug: string, room: Room): void {
     if (bridges.has(slug)) return;
@@ -250,6 +267,7 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
   function syncRoomFromAnnotations(slug: string, text: string, actionId?: string): void {
     const room = rooms.get(slug);
     if (!room) return;
+    noteFlushKind(slug, false);
     applyAnnotationsToDoc(room.doc, text, 'inspector-write', actionId);
   }
 
@@ -271,6 +289,7 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
     const next = [...r.state.values()];
     if (serializeBoard(next).length > MAX_ANNOTATIONS_BYTES) return 'too-large';
     textContest.record(slug, before, ops);
+    noteFlushKind(slug, isDraftWriteId(actionId));
     // One transaction with the lane's newest-wins stamp, so peers get ONE
     // update and the room's persistence projects it to disk.
     room.doc.transact(() => {
@@ -342,6 +361,11 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
     applyOpsToRoom,
     readRoomBoard,
     takeTextContest: (slug) => textContest.take(slug),
+    takeDraftOnly: (slug) => {
+      const k = flushKinds.get(slug);
+      flushKinds.delete(slug);
+      return !!k && k.draft && !k.other;
+    },
     setAgentEditing,
     attachHubAwareness,
     pin,

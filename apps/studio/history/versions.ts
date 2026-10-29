@@ -27,6 +27,7 @@ import {
 import { type AttributionCache, attributionFor } from '../index/extractors/attribution-cache';
 import type { Change, Lanes } from './describe';
 import { describeVersion } from './describe-version';
+import { promptOfRun } from './run-label.ts';
 
 /** One home's history row (sync/index.ts `AcceptedHistoryRow`, sync/local-kernel.ts `LocalHistoryRow`). */
 export interface HistoryRowLike {
@@ -169,7 +170,8 @@ export function toRowVersion(
     canvas,
     artboards: [],
     changes: [],
-    ...(r.kind === 'ai' && r.label ? { prompt: r.label } : {}),
+    // p8-fix-d F20 — a prompt-less run's placeholder ("Claude Code") is no prompt: titled by its words
+    ...(r.kind === 'ai' && promptOfRun(r.label) ? { prompt: r.label as string } : {}),
     ...(r.kind === 'trash' || r.kind === 'canvas.delete'
       ? { trashedLabel: quoted ?? NAME_OF(canvas) }
       : {}),

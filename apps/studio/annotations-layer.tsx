@@ -105,6 +105,7 @@ import { expandTemplate, templateExtent } from './annotations/ui/template-place.
 import {
   aimCommitOps,
   draftOp,
+  draftWriteId,
   markSent,
   openSession,
   remotelyEdited,
@@ -1472,56 +1473,60 @@ export function AnnotationsLayer() {
    * batch before it. `local` marks a batch already applied to the store: it
    * stays pending (re-applied over replica snapshots) until its echo arrives.
    */
-  const sendOps = useCallback((ops: readonly AnnotationOp[], local = false): Promise<void> => {
-    const file = fileRef.current;
-    if (!file || !ops.length) return putChainRef.current;
-    const actionId = crypto.randomUUID();
-    const pending = pendingRef.current;
-    if (local) {
-      pending.push({ actionId, ops });
-      if (pending.length > 64) pending.splice(0, pending.length - 64);
-    }
-    const settle = () => {
-      const i = pending.findIndex((p) => p.actionId === actionId);
-      if (i >= 0) pending.splice(i, 1);
-    };
-    const dispatch = () =>
-      fetch('/_api/annotations/ops', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file, actionId, ops }),
-      })
-        .then(async (r) => {
-          // A refused save (403 read-only, 405 at a proxy door) previously
-          // dissolved without a trace — the user kept drawing on state that
-          // never reached disk, a peer, or a reload (the cloud canvas-writes
-          // RCA). Optimistic local state is still the right UX; a persistence
-          // failure being INVISIBLE is not.
-          if (!r.ok) {
-            settle();
-            console.warn(`[annotations] save refused (${r.status}) — strokes are local-only`);
-            return undefined;
-          }
-          const res = (await r.json().catch(() => null)) as {
-            rejected?: Array<{ id?: string; reason: string }>;
-          } | null;
-          if (res?.rejected?.length) {
-            console.warn('[annotations] some changes were not applied', res.rejected);
-          }
-          // Without a replica no echo will come; with one, the echo settles
-          // it — unless the board had nothing to change (no echo either).
-          if (!collabRef.current || res?.rejected?.length) settle();
-          else setTimeout(settle, 10_000);
-          return undefined;
+  const sendOps = useCallback(
+    (ops: readonly AnnotationOp[], local = false, draft = false): Promise<void> => {
+      const file = fileRef.current;
+      if (!file || !ops.length) return putChainRef.current;
+      // p8-fix-d F13 — a draft's id says so: the home records it with the session's commit, one step.
+      const actionId = draft ? draftWriteId() : crypto.randomUUID();
+      const pending = pendingRef.current;
+      if (local) {
+        pending.push({ actionId, ops });
+        if (pending.length > 64) pending.splice(0, pending.length - 64);
+      }
+      const settle = () => {
+        const i = pending.findIndex((p) => p.actionId === actionId);
+        if (i >= 0) pending.splice(i, 1);
+      };
+      const dispatch = () =>
+        fetch('/_api/annotations/ops', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file, actionId, ops }),
         })
-        .catch(() => {
-          settle();
-          /* Pending persistence UX is handled by the project outbox work. */
-        });
-    const chained = putChainRef.current.then(dispatch, dispatch);
-    putChainRef.current = chained;
-    return chained;
-  }, []);
+          .then(async (r) => {
+            // A refused save (403 read-only, 405 at a proxy door) previously
+            // dissolved without a trace — the user kept drawing on state that
+            // never reached disk, a peer, or a reload (the cloud canvas-writes
+            // RCA). Optimistic local state is still the right UX; a persistence
+            // failure being INVISIBLE is not.
+            if (!r.ok) {
+              settle();
+              console.warn(`[annotations] save refused (${r.status}) — strokes are local-only`);
+              return undefined;
+            }
+            const res = (await r.json().catch(() => null)) as {
+              rejected?: Array<{ id?: string; reason: string }>;
+            } | null;
+            if (res?.rejected?.length) {
+              console.warn('[annotations] some changes were not applied', res.rejected);
+            }
+            // Without a replica no echo will come; with one, the echo settles
+            // it — unless the board had nothing to change (no echo either).
+            if (!collabRef.current || res?.rejected?.length) settle();
+            else setTimeout(settle, 10_000);
+            return undefined;
+          })
+          .catch(() => {
+            settle();
+            /* Pending persistence UX is handled by the project outbox work. */
+          });
+      const chained = putChainRef.current.then(dispatch, dispatch);
+      putChainRef.current = chained;
+      return chained;
+    },
+    []
+  );
 
   /** Apply a batch here (optimistic) and send it. Returns what undoes it. */
   const applyOpsLocal = useCallback(
@@ -3986,7 +3991,7 @@ export function AnnotationsLayer() {
       if (!session) return;
       const op = draftOp(session, board.committed.get(id), text);
       if (!op) return;
-      void sendOps([op]);
+      void sendOps([op], false, true);
       textSessionRef.current = markSent(session, text);
     },
     [sessionFor, sendOps]
