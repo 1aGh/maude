@@ -340,6 +340,7 @@
             "share-cluster-exports": "once any export exists",
             "share-cluster-comments": "once the open canvas has a comment (or while the Comments panel shows)",
             "share-cluster-faces": "when other people (or Claude) are in the project",
+            "share-cluster-compare": "while a held source conflict waits (Not saved · Compare)",
             "share-cluster-account": "signed in, with two or more accounts on this Mac"
           },
           "access": null,
@@ -725,7 +726,8 @@
           "when": {
             "share-cluster-exports": "once any export exists",
             "share-cluster-comments": "once the open canvas has a comment (or while the Comments panel shows)",
-            "share-cluster-faces": "when other people (or Claude) are in the project"
+            "share-cluster-faces": "when other people (or Claude) are in the project",
+            "share-cluster-compare": "while a held source conflict waits (Not saved · Compare)"
           },
           "access": null,
           "action": "Share"
@@ -1107,7 +1109,8 @@
           "when": {
             "share-cluster-exports": "once any export exists",
             "share-cluster-comments": "once the open canvas has a comment (or while the Comments panel shows)",
-            "share-cluster-faces": "when other people (or Claude) are in the project"
+            "share-cluster-faces": "when other people (or Claude) are in the project",
+            "share-cluster-compare": "while a held source conflict waits (Not saved · Compare)"
           },
           "access": null,
           "action": "Share"
@@ -1373,7 +1376,8 @@
           "when": {
             "share-cluster-exports": "once any export exists",
             "share-cluster-comments": "once the open canvas has a comment (or while the Comments panel shows)",
-            "share-cluster-faces": "when other people (or Claude) are in the project"
+            "share-cluster-faces": "when other people (or Claude) are in the project",
+            "share-cluster-compare": "while a held source conflict waits (Not saved · Compare)"
           },
           "access": null,
           "action": "Share"

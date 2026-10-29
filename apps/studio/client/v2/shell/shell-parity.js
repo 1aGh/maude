@@ -225,6 +225,12 @@ function shareClusterPart(shell, { readOnly, role }) {
       'share-cluster-comments':
         'once the open canvas has a comment (or while the Comments panel shows)',
       'share-cluster-faces': 'when other people (or Claude) are in the project',
+      // p8-held-conflict-status — Not saved · Compare (save-status.js): every editing shell, the cloud tab
+      // included (a cell's held conflict rides the same /_sync-status notices); a read-only session's slot
+      // is its access word, with no status action.
+      ...(access
+        ? {}
+        : { 'share-cluster-compare': 'while a held source conflict waits (Not saved · Compare)' }),
       // S1.22a — the account chip: the desktop's Mac accounts (a cloud tab's account is the hub's).
       ...(shell.id === 'desktop'
         ? { 'share-cluster-account': 'signed in, with two or more accounts on this Mac' }

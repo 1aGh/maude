@@ -10,7 +10,7 @@
 // (`POST /_api/project/ai-action`), sync.cancel-transfer (`POST /_api/sync/cancel-assets`) and
 // sync.sign-in-again (the sign-in dialog). The server gates every write (minRole edit for the picks).
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { safeDetail, syncPresentation } from '../../../../sync/presentation.ts';
 import { lineDiff } from '../../../panels/SourceConflictPanel.jsx';
 import { DELIVERY_WORD, cleanName, resolvedWords, syncDetailsModel } from './sync-details-model.js';
@@ -47,18 +47,35 @@ export function resolveFileConflict(slug, actionId, fetchImpl = fetch) {
   });
 }
 
-function Compare({ slug, fetchImpl }) {
+/** `focusSeq` > 0 opens it at once and scrolls it into view — the Share cluster's Compare (Not saved while a
+ *  held conflict waits) and its toast land here (p8-held-conflict-status); a new seq re-opens it. */
+function Compare({ slug, fetchImpl, focusSeq = 0 }) {
   const [sides, setSides] = useState(null);
   const [open, setOpen] = useState(false);
+  const btnRef = useRef(null);
+  async function load() {
+    const r = await fetchImpl(`/_api/project/conflict?file=${encodeURIComponent(slug)}`)
+      .then((x) => x.json())
+      .catch(() => null);
+    setSides(r?.ok ? r : { ok: false });
+  }
   async function toggle() {
-    if (!open && !sides) {
-      const r = await fetchImpl(`/_api/project/conflict?file=${encodeURIComponent(slug)}`)
-        .then((x) => x.json())
-        .catch(() => null);
-      setSides(r?.ok ? r : { ok: false });
-    }
+    if (!open && !sides) await load();
     setOpen((o) => !o);
   }
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only a new focus request re-opens it
+  useEffect(() => {
+    if (!focusSeq) return;
+    let live = true;
+    (sides ? Promise.resolve() : load()).then(() => {
+      if (!live) return;
+      setOpen(true);
+      btnRef.current?.scrollIntoView?.({ block: 'nearest' });
+    });
+    return () => {
+      live = false;
+    };
+  }, [focusSeq]);
   const rows = sides?.ok
     ? lineDiff(sides.mine ?? '', sides.theirs ?? '').filter((r) => r.kind !== 'same')
     : [];
@@ -67,6 +84,7 @@ function Compare({ slug, fetchImpl }) {
       <button
         type="button"
         className="sd-link"
+        ref={btnRef}
         aria-expanded={open}
         data-testid={`diag-sync-compare-${slug}`}
         onClick={toggle}
@@ -93,7 +111,7 @@ function Compare({ slug, fetchImpl }) {
   );
 }
 
-function ConflictCard({ slug, canvasName, fetchImpl, onResolved }) {
+function ConflictCard({ slug, canvasName, fetchImpl, onResolved, focusSeq = 0 }) {
   const [busy, setBusy] = useState('');
   const [said, setSaid] = useState('');
   const name = cleanName(canvasName || slug, 'This canvas');
@@ -125,7 +143,7 @@ function ConflictCard({ slug, canvasName, fetchImpl, onResolved }) {
         {btn('sync.keep-mine', 'Keep mine')}
         {btn('sync.use-theirs', 'Use theirs')}
         {btn('sync.keep-both', 'Keep both')}
-        <Compare slug={slug} fetchImpl={fetchImpl} />
+        <Compare slug={slug} fetchImpl={fetchImpl} focusSeq={focusSeq} />
       </div>
       {said ? (
         <p className="dg-hint" role="status" data-testid={`diag-sync-conflict-note-${slug}`}>
@@ -211,6 +229,9 @@ export default function SyncDetails({
   names = null,
   onSignInAgain,
   fetchImpl = fetch,
+  // p8-held-conflict-status — open this held conflict's Compare (a slug), once per new `focusSeq`
+  focusConflict = null,
+  focusSeq = 0,
 }) {
   const p = syncPresentation(status, { project });
   const m = syncDetailsModel(status, { project, cloud, native, refused: p?.phase === 'refused' });
@@ -236,6 +257,7 @@ export default function SyncDetails({
                 slug={need.slug}
                 canvasName={names?.get?.(need.slug)}
                 fetchImpl={fetchImpl}
+                focusSeq={need.slug === focusConflict ? focusSeq || 1 : 0}
               />
             ) : need.kind === 'assets-failed' ? (
               <AssetsFailedCard key="assets-failed" need={need} />

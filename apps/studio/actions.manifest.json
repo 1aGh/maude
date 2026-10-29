@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "63b2777e17af",
+  "manifestVersion": "377c13ee93ad",
   "actions": [
     {
       "id": "search.open",
@@ -6150,6 +6150,21 @@
       "agent": {
         "path": "cli",
         "verb": "maude design curl-local -X POST http://127.0.0.1:<port>/_api/project/conflict -d '{\"file\":\"<slug>\",\"choice\":\"keep-both\"}'"
+      }
+    },
+    {
+      "id": "sync.compare",
+      "label": "Compare",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "server": {
+        "route": "/_api/project/conflict",
+        "method": "GET"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design curl-local \"http://127.0.0.1:<port>/_api/project/conflict?file=<slug>\""
       }
     },
     {
