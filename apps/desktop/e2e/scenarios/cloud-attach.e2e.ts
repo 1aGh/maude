@@ -407,7 +407,8 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     const uploadsFailed = /media uploads? failed|uploads? failed/i;
     const terminal = async () => {
       said = await note.getText().catch(() => said);
-      if (uploadsFailed.test(said)) throw new Error(`media uploads failed on the cloud lane: "${said}"`);
+      if (uploadsFailed.test(said))
+        throw new Error(`media uploads failed on the cloud lane: "${said}"`);
       // …and the attention phase (presentation.ts `attention`: "A change needs / N changes need your attention in …"),
       // which waits for the person — terminal, for every cause but a failed upload (above)
       return /Synced with|Not reachable|unreachable|were refused by|nothing to sync yet|needs? your attention in/.test(

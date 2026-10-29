@@ -8,9 +8,8 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-
-import { pidOf } from '../index/snapshot.ts';
 import type { IndexService } from '../index/service.ts';
+import { pidOf } from '../index/snapshot.ts';
 import { createThumbService, type ThumbService } from '../thumbs/service.ts';
 import { makeSandbox } from './_helpers.ts';
 import { b64, fakeJpeg, fakeShim } from './_thumbs-fake.ts';

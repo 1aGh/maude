@@ -7,9 +7,8 @@
 // frame a write created once the canvas has re-rendered it.
 
 import { useMemo, useRef } from 'react';
-
-import { showCanvasToast } from '../canvas-notifications.tsx';
 import { postToShell } from '../bridge/dgn-protocol.ts';
+import { showCanvasToast } from '../canvas-notifications.tsx';
 import type { ContextTarget } from '../context-menu.tsx';
 import { hoverTargetToSelection, resolveSelectionEl } from '../dom-selection.ts';
 import { hasStyleToMatch, matchSignature } from '../edit-ops/select-matching.ts';
