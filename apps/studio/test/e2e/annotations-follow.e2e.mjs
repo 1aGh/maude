@@ -324,7 +324,15 @@ describe('F6 — an arrow binds to the button, not the artboard', () => {
 
   test('an unnamed element is stamped first and the bind stores the id it was given', async () => {
     const before = new Set(disk().keys());
-    const target = await centerOfPage('.pricing');
+    // The Pricing link sits partly under the "sun" sticker; a board item under the end wins the bind (S4.11), so drop
+    // on a part of the link that nothing on the board covers.
+    const pb = await c.frame.locator('.pricing').first().boundingBox();
+    const sb = await c.pageBox('sun');
+    const inSun = (x, y) => x >= sb.x && x <= sb.x + sb.width && y >= sb.y && y <= sb.y + sb.height;
+    const y = pb.y + pb.height / 2;
+    const x = [0.9, 0.75, 0.5, 0.25, 0.1].map((f) => pb.x + pb.width * f).find((px) => !inSun(px, y));
+    assert.ok(x !== undefined, 'a part of the Pricing link is clear of the board');
+    const target = [x, y];
     const start = await c.center('note');
     await drawArrow(start, target);
     // the arrow lands first; the stamp (a write to the TSX) and the bind that stores its id follow
