@@ -204,7 +204,6 @@ import {
 } from './project-transactions/hub-integration.mjs';
 import { openRemoteProjectStore } from './project-transactions/store-remote.mjs';
 import { openSqliteProjectStore } from './project-transactions/store-sqlite.mjs';
-import { BACKUP_PREFIX, conversionGate, createV2Conversion } from './v2-convert.mjs';
 import { createRateStore } from './rate-store.mjs';
 import { canvasTokenTtlMs, mintRenderToken, verifyRenderToken } from './render-token.mjs';
 import { isRevoked } from './revocations.mjs';
@@ -254,6 +253,7 @@ import {
 import { clearTombstone, isTombstoned, listTombstones, recordTombstone } from './tombstones.mjs';
 import { handleUploadSessions, UPLOADS_PREFIX } from './upload-sessions.mjs';
 import { countLinkedOidc } from './users.mjs';
+import { BACKUP_PREFIX, conversionGate, createV2Conversion } from './v2-convert.mjs';
 import { createWorkspaceAgent } from './workspace-agent.mjs';
 import { ensureWorkspaceId } from './workspace-identity.mjs';
 

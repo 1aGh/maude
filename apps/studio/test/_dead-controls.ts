@@ -522,10 +522,17 @@ export function scanSource(
             const cond = (
               disabled && disabled !== 'bare' ? disabled : ariaDisabled
             ) as ts.Expression | null;
-            if (!why && !spread && !(cond && selfEvidentDisable(cond, {
+            if (
+              !why &&
+              !spread &&
+              !(
+                cond &&
+                selfEvidentDisable(cond, {
                   ...reasonCtx(open),
                   click: attrs.get('onClick')?.getText(sf),
-                })))
+                })
+              )
+            )
               findings.push({
                 ...at,
                 finding: 'disabled-no-reason',

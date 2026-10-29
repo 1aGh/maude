@@ -24,8 +24,8 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
-import { gunzipSync } from 'node:zlib';
 import { after, describe, test } from 'node:test';
+import { gunzipSync } from 'node:zlib';
 
 import { openSqliteProjectStore } from '../src/project-transactions/store-sqlite.mjs';
 import { createHub } from '../src/server.mjs';

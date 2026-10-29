@@ -17,10 +17,10 @@ import {
   type Finding,
   findingKey,
   handledMenuIds,
+  STUDIO,
   scanClient,
   scanRegistry,
   scanSource,
-  STUDIO,
 } from './_dead-controls.ts';
 
 interface Allow {
