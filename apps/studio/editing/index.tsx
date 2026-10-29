@@ -10,6 +10,7 @@ import { useEffect, useRef } from 'react';
 import { canvasModeStore, canvasSingleKeys } from '../bridge/canvas-mode-store.ts';
 import { acceptFromShell } from '../bridge/dgn-protocol.ts';
 import { showCanvasToast } from '../canvas-notifications.tsx';
+import type { ContextTarget } from '../context-menu.tsx';
 import { TimelinePresence } from '../collab/timeline-presence.tsx';
 import { resolveSelectionEl } from '../dom-selection.ts';
 import { isEditableTarget } from '../input-router.tsx';
@@ -222,7 +223,20 @@ export function EditingLayer() {
               detail: { artboard: p.artboard, mode: p.mode },
             })
           );
-      } else if (m.id === 'object.enter') {
+      } else if (m.id === 'object.select-matching') {
+        // p8-sweep-static — ⌘K "Select matching": the object menu's own function, on the one selected object
+        const one = selRef.current.length === 1 ? selRef.current[0] : null;
+        const el = one ? resolveSelectionEl(document, one) : null;
+        opsRef.current.menuDeps.selectMatching({
+          kind: 'element',
+          el,
+          cdId: el?.getAttribute('data-cd-id') ?? null,
+          artboardId: el?.closest('[data-dc-screen]')?.getAttribute('data-dc-screen') ?? null,
+          clientX: 0,
+          clientY: 0,
+        } satisfies ContextTarget);
+      } else if (m.id === 'object.enter' || m.id === 'object.select-child') {
+        // object.select-child is the ⌘K / agent entry for the same step as ↵ (registry defs/edit.ts)
         // V2-8.7 — inside a frame, or (a text has nothing to go inside) typing in it; the ↵ key runs the same
         const went = goInside(document, selSet.selected, selSet.replace);
         if (went === 'code')
