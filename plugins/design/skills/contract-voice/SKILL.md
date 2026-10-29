@@ -35,6 +35,7 @@ The two tables below are the contract, verbatim. Say the left column; the middle
 | Linked library — view only | Can view (for a library) | the state of a design system linked from a team library [C18]. "Can view" is a people permission only |
 | <who> invited you here — their comment is on <canvas>. | her / his comment, "Opened from <who>'s link" (for an invite) | the invite-landing toast (S6.11, corrected 2026-10-28: the app knows nobody's gender, so they/them — "their" says whose comment it is) |
 | Untitled canvas | New canvas 1, Canvas | a new canvas's name (+ " 2", " 3") [C4]; Home names it from the prompt with a non-AI heuristic, offline create too |
+| Your Figma account can't open this file. Ask its owner to share it with you, then paste the link again. | Figma doesn't have that file, or this token can't read it. | the Figma import's `not_found` (ia-edges G, Michal 2026-10-29); nothing imports until it opens, and the link stays in the sheet |
 | View only | Read only, Locked, Read-only mode | a project this build does not edit — its file format is older or newer [A17]. Distinct from *Can view* (a people permission) |
 
 ## 4 · Voice rules

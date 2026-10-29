@@ -336,3 +336,39 @@ describe('Make editable is offered on a Figma picture only (ia-figma-arrived)', 
     }
   });
 });
+
+describe('Figma not_found (p8-ia-edges, ia-edges G)', () => {
+  const LINE =
+    "Your Figma account can't open this file. Ask its owner to share it with you, then paste the link again.";
+
+  test('the model maps not_found to the board line (CONTRACT §3)', () => {
+    expect(model.figmaFailureWords('not_found')).toBe(LINE);
+    expect(model.FIGMA_WORDS.cantOpen).toBe(LINE);
+  });
+
+  test('a not_found from the frames route shows that line and keeps the link in the sheet', async () => {
+    localStorage.clear();
+    stubFetch({
+      '/_api/figma/status': () => ({ body: { configured: true } }),
+      '/_index-data': () => ({ body: { groups: [] } }),
+      '/_api/figma/frames': () => ({ status: 404, body: { ok: false, reason: 'not_found' } }),
+    });
+    const root = await mount();
+    await until(() => tid('figma-import-url'));
+    await React.act(async () => type(tid('figma-import-url') as HTMLInputElement, URL_D));
+    await click('figma-import-preview');
+    await until(() => tid('figma-import-error'));
+    expect(tid('figma-import-error')?.textContent).toBe(LINE);
+    expect((tid('figma-import-url') as HTMLInputElement).value).toBe(URL_D);
+    expect(tid('figma-import-panel')?.dataset.step).toBe('link');
+    await React.act(async () => root.unmount());
+  });
+
+  test('the CONTRACT §3 carries the line (the words come from one place)', () => {
+    const contract = readFileSync(
+      join(import.meta.dir, '..', '..', '..', '.design', 'system', 'maude-v2', 'CONTRACT.md'),
+      'utf8'
+    );
+    expect(contract).toContain(LINE);
+  });
+});
