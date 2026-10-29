@@ -23,12 +23,17 @@
 // "Describing 12 of 193 pictures" with Stop sits at the foot while it runs.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { uploadAsset } from '../../../asset-upload.ts';
+import { importFromLink, uploadAsset } from '../../../asset-upload.ts';
 import { mimeFromExt } from '../../dialogs/asset-picker.jsx';
 import { isNativeApp, pickMediaFiles, pickedMediaSource } from '../../github.js';
 import { StIcon } from '../../shell/icons.jsx';
 import { assetUploadOf, useAssetAnswers } from '../assets/asset-state-lane.js';
-import { bindAssetsPanel, takeDescribeRequest, takeGenerateRequest } from '../assets/assets-bus.js';
+import {
+  bindAssetsPanel,
+  takeAddLinkRequest,
+  takeDescribeRequest,
+  takeGenerateRequest,
+} from '../assets/assets-bus.js';
 import { filterAssets } from '../assets/browse-model.js';
 import { BrowseView, browseOrder, MAX_PLACE } from '../assets/browse-view.jsx';
 import { NOTHING_PICKED, pick as pickTile, pickAll } from '../assets/multi-select.js';
@@ -42,7 +47,7 @@ import { filterKind, GROUP_CAP, libraryFootWords } from '../assets/library-foot.
 import { runMeta, runTitle, splitGenerated, useGenerated } from '../assets/generated.js';
 import { splitJustAdded } from '../assets/just-added.js';
 import { placeAsset, placedWords, SELECT_ARTBOARD_LINE } from '../assets/place-asset.js';
-import { addingLine } from '../assets/import-lines.js';
+import { ARRIVAL_LINES, addingLine, linkName } from '../assets/import-lines.js';
 import { toastArrivals } from '../assets/import-toast.js';
 import { SeenLine } from '../assets/search-marks.jsx';
 import { AssetTile } from '../assets/tile.jsx';
@@ -128,6 +133,14 @@ function addFilesBrowser(onProgress) {
 const IMAGE_PATH = /\.(avif|gif|heic|heif|jpe?g|png|svg|tiff?|webp)$/i;
 
 const hasFiles = (e) => Array.from(e.dataTransfer?.types ?? []).includes('Files');
+// p8-import-link (12 · ia-edges F) — a link dragged from a browser, not a file: it comes in through Add from a link…
+const hasLink = (e) =>
+  !hasFiles(e) && Array.from(e.dataTransfer?.types ?? []).includes('text/uri-list');
+const droppedLink = (e) =>
+  (e.dataTransfer?.getData('text/uri-list') ?? '')
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .find((l) => l && !l.startsWith('#')) ?? '';
 
 export function AssetsPanel({
   designRel = '.design',
@@ -192,6 +205,9 @@ export function AssetsPanel({
   const [err, setErr] = useState('');
   const [dropping, setDropping] = useState(false);
   const [asking, setAsking] = useState(() => !readOnly && takeGenerateRequest());
+  // p8-import-link (12 · ia-edges F) — Add from a link…: the field's draft (null = closed) and the link in flight
+  const [linking, setLinking] = useState(() => (!readOnly && takeAddLinkRequest() ? '' : null));
+  const [fetching, setFetching] = useState(null);
   // S8.20 — the describe sheet (⌘K "Search in pictures" asked before the tab was there opens it on mount)
   const [describeAsk, setDescribeAsk] = useState(() => takeDescribeRequest());
   const describe = useDescribe({ fetchImpl, query });
@@ -230,6 +246,31 @@ export function AssetsPanel({
   const pickFiles = () =>
     isNativeApp() ? addFilesNative(noteProgress) : addFilesBrowser(noteProgress);
   const add = () => upload(pickFiles);
+  // p8-import-link — the server fetches the link (https, public addresses only, capped, typed by its bytes) and lands
+  // it in Assets; the line says "Preparing <name>" meanwhile, then "Saved a copy from the link" or why it did not
+  const addLink = async (raw) => {
+    const url = String(raw ?? '').trim();
+    setLinking(null);
+    if (!url) return;
+    const named = linkName(url);
+    setFetching(named.name);
+    setBusy(true);
+    setErr('');
+    try {
+      const r = await importFromLink(url, { fetchImpl });
+      if ('path' in r) await reload();
+      const note = toastArrivals(
+        toast,
+        [{ name: r.name || named.name, host: r.host || named.host, fromLink: true, result: r }],
+        { offline: isOffline?.() === true }
+      );
+      if (!note && !('path' in r))
+        setErr('That link couldn’t be brought in, so nothing was added.');
+    } finally {
+      setFetching(null);
+      setBusy(false);
+    }
+  };
   // 12 · ia-placed — "Placed 6 photos in Fotky ze zápasu. They're in Assets too." with Undo, the same pill a drop says
   const announcePlaced = useCallback(
     (count) => {
@@ -564,6 +605,9 @@ export function AssetsPanel({
         generate: () => {
           if (!live.current.readOnly) setAsking(true);
         },
+        addLink: () => {
+          if (!live.current.readOnly) setLinking((v) => v ?? '');
+        },
         // S8.20 — ⌘K "Search in pictures": off → the sheet (never a silent yes); on → off at once
         describe: () => {
           const d = live.current.describe;
@@ -727,6 +771,15 @@ export function AssetsPanel({
   const emptyWords = copy('es-panels-make.assets-none');
 
   const onDrop = (e) => {
+    if (!readOnly && hasLink(e)) {
+      e.preventDefault();
+      setDropping(false);
+      // F1 — a drag can come from a canvas (it sets text/uri-list itself): a dropped link only FILLS the field,
+      // with its site shown in full, and comes in on the person's ↵ — never on the drop
+      const url = droppedLink(e);
+      if (url) setLinking(url);
+      return;
+    }
     if (readOnly || !hasFiles(e)) return;
     e.preventDefault();
     setDropping(false);
@@ -743,7 +796,7 @@ export function AssetsPanel({
       data-testid="assets-panel"
       data-dropping={dropping ? 'true' : undefined}
       onDragOver={(e) => {
-        if (readOnly || !hasFiles(e)) return;
+        if (readOnly || !(hasFiles(e) || hasLink(e))) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'copy';
         setDropping(true);
@@ -800,6 +853,22 @@ export function AssetsPanel({
               <button
                 type="button"
                 className="sh-iconbtn lp-add"
+                data-testid="assets-add-link"
+                aria-label="Add from a link…"
+                data-tip="Add from a link…"
+                aria-pressed={linking !== null}
+                disabled={busy}
+                onClick={() => {
+                  // the registry action (it opens this tab's field); with no runner bound, the field opens here
+                  if (linking !== null) setLinking(null);
+                  else if (!menuRunner.run('assets.add-link')) setLinking('');
+                }}
+              >
+                <StIcon name="link" size={13} />
+              </button>
+              <button
+                type="button"
+                className="sh-iconbtn lp-add"
                 data-testid="assets-add"
                 aria-label="Add files…"
                 data-tip="Add files…"
@@ -813,9 +882,52 @@ export function AssetsPanel({
         </div>
       )}
       {busy ? (
-        <p className="lp-note" role="status">
-          {addingLine(progress)}
+        <p
+          className="lp-note"
+          role="status"
+          data-testid={fetching ? 'assets-link-preparing' : undefined}
+        >
+          {fetching ? ARRIVAL_LINES.preparing(fetching) : addingLine(progress)}
         </p>
+      ) : null}
+      {linking !== null && !readOnly ? (
+        // 12 · ia-edges F — "A link instead of a file": paste it, ↵ brings a copy in, Esc closes
+        <div className="lp-note lp-rename" data-testid="assets-link">
+          <input
+            // biome-ignore lint/a11y/noAutofocus: the field opens from the button the person just pressed
+            autoFocus
+            className="lp-rename-in"
+            data-testid="assets-link-input"
+            type="url"
+            inputMode="url"
+            placeholder="https://…"
+            aria-label="Link to a picture, video or sound"
+            value={linking}
+            maxLength={2048}
+            onChange={(e) => setLinking(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                setLinking(null);
+              } else if (e.key === 'Enter') {
+                // ↵ brings it in (and never reaches the panel's ↵ = Place)
+                e.preventDefault();
+                e.stopPropagation();
+                void addLink(linking);
+              }
+            }}
+            onBlur={() => {
+              if (!linking.trim()) setLinking(null);
+            }}
+          />
+          {linkName(linking).host ? (
+            // F1 — the whole site, as the browser reads it (punycode for a look-alike name), before ↵
+            <span className="lp-rename-ext" data-testid="assets-link-host">
+              {`From ${linkName(linking).host}`}
+            </span>
+          ) : null}
+        </div>
       ) : null}
       {note}
       {asking && !readOnly ? (

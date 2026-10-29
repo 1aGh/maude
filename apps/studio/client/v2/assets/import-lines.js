@@ -49,13 +49,16 @@ export function removedClause(removed) {
 /**
  * The line for one import answer.
  * @param {object} answer  the route's JSON (`{ ok, reused, converted, removed, reason }`)
- * @param {{ name?: string, original?: boolean }} [ctx]  the file's name as the person knows it; `original` when this
- *   Mac kept where it came from (S8.21 Advanced shows it)
+ * @param {{ name?: string, original?: boolean, fromLink?: boolean, host?: string }} [ctx]  the file’s name as the person knows it;
+ *   `original` when this Mac kept where it came from (S8.21 Advanced shows it); `fromLink` when it came from a link
+ *   (Assets › Add from a link…, `POST /_api/import-link`) — its landing says the copy is the person's own
  * @returns {{ tone: 'info'|'warn', text: string, verb?: string } | null}
  */
 export function importLine(answer, ctx = {}) {
   const name = ctx.name || answer?.name || 'The file';
   if (answer?.ok) {
+    // 12 · ia-edges F — a link lands as a copy: the page can change, the copy won't
+    if (ctx.fromLink) return { tone: 'info', text: ARRIVAL_LINES.fromLink() };
     if (answer.reused) {
       return {
         tone: 'info',
@@ -118,6 +121,46 @@ export function importLine(answer, ctx = {}) {
       return { tone: 'warn', text: 'You can view this project. Adding files needs Can edit.' };
     case 'unsupported':
       return { tone: 'warn', text: `${name} isn’t a picture Maude can bring in.` };
+    // p8-import-link — a link that was not brought in (link-import.ts `LinkReason`); nothing was added in every case
+    case 'link-bad':
+      return {
+        tone: 'warn',
+        text: 'That isn’t a link. Paste an address that starts with https://.',
+      };
+    case 'link-not-https':
+      return { tone: 'warn', text: 'Only https:// links come in, so nothing was added.' };
+    case 'link-refused':
+      return {
+        tone: 'warn',
+        text: 'That link carries a password or an unusual port, so nothing was added.',
+      };
+    // F3 — one answer for a private address, no DNS answer and no connection, so none can be told apart
+    case 'link-unreachable':
+      return { tone: 'warn', text: 'That link can’t be reached from here, so nothing was added.' };
+    case 'link-proxy':
+      return {
+        tone: 'warn',
+        text: 'This Mac sends web traffic through a proxy, so links don’t come in. Download the file and add it.',
+      };
+    case 'link-http':
+      return {
+        tone: 'warn',
+        text: `${ctx.host || 'The site'} didn’t send a file for that link, so nothing was added.`,
+      };
+    case 'link-redirects':
+      return { tone: 'warn', text: 'That link kept pointing elsewhere, so nothing was added.' };
+    case 'link-not-media':
+      return {
+        tone: 'warn',
+        text: 'That link is a page, not a picture, video or sound, so nothing was added.',
+      };
+    case 'link-svg':
+      return {
+        tone: 'warn',
+        text: 'Logos don’t come in from a link. Save the SVG and use Add files…, which cleans it.',
+      };
+    case 'link-not-on-mac':
+      return { tone: 'warn', text: 'Links come in on a Mac. Here, download the file and add it.' };
     default:
       return { tone: 'warn', text: `${name} couldn’t be brought in safely, so it was left out.` };
   }
@@ -133,6 +176,31 @@ export const ARRIVAL_LINES = Object.freeze({
   fromLink: () => 'Saved a copy from the link — the page can change, your copy won’t.',
   addedBy: (who) => `Added by ${who}`,
 });
+
+// biome-ignore lint/suspicious/noControlCharactersInRegex: dropping control characters is the point
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]/g;
+
+/**
+ * p8-import-link — what the line calls a link while it comes in: its last path segment (`combine-2025-12.jpg`), else
+ * its site. Display only — the server names the stored file from its bytes. Anything that does not parse is "the link".
+ * @param {string} url
+ * @returns {{ name: string, host: string }}
+ */
+export function linkName(url) {
+  try {
+    const u = new URL(String(url).trim());
+    let last = u.pathname.split('/').filter(Boolean).pop() ?? '';
+    try {
+      last = decodeURIComponent(last);
+    } catch {
+      /* keep it as it came */
+    }
+    last = last.replace(CONTROL_CHARS, '').trim().slice(0, 120);
+    return { name: last || u.hostname || 'the link', host: u.hostname };
+  } catch {
+    return { name: 'the link', host: '' };
+  }
+}
 
 /** From this size a file is "huge" (12 · ia-edges A: a 500 MB 4K clip): it says it is preparing, not just adding. */
 export const LARGE_FILE_BYTES = 100 * 1024 * 1024;

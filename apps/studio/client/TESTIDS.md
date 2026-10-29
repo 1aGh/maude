@@ -298,6 +298,11 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `assets-panel` | testid | The Assets tab body (the left panel's third tab). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
 | `assets-search` | testid | The Assets tab's search field (names). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
 | `assets-add` | testid | "Add files..." in the Assets tab head (hidden for a viewer). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
+| `assets-add-link` | testid | The link icon in the Assets tab head: Assets › Add from a link… (`assets.add-link`) opens the link field; `aria-pressed` while it is open (hidden for a viewer). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | new |
+| `assets-link` | testid | The Add from a link… field row in the Assets tab (12 · ia-edges F): paste an https link, ↵ brings a copy in, Esc closes. | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | new |
+| `assets-link-input` | testid | The link input inside `assets-link`. | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | new |
+| `assets-link-host` | testid | The site of the link in the Add from a link… field, in full ("From alligators.cz"), shown before ↵ — also when a dropped link filled the field. | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | new |
+| `assets-link-preparing` | testid | The status line while a link comes in: "Preparing <name> — keeps working in the background." | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | new |
 | `assets-from-mac` | testid | "From this Mac..." row under the photos in the Assets tab: the same picker and upload as Add files (hidden for a viewer). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
 | `assets-empty` | testid | The Assets tab's empty state ("No images or footage yet."). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
 | `assets-nohits` | testid | The Assets tab's "Nothing called ..." state. | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |

@@ -836,6 +836,16 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     undo: 'none',
     agent: cli('maude design import-asset <file>'),
   },
+  // p8-import-link — Assets › Add from a link…: the SERVER fetches it under the link gate (https, public addresses only,
+  // pinned, capped, typed by its bytes). An agent holds its own download tools (under Claude Code's permission card) and
+  // brings the downloaded file in like any other: the same import, so it never copies a file into the project by hand.
+  'assets.add-link': {
+    effect: 'external',
+    minRole: 'edit',
+    undo: 'none',
+    server: { route: '/_api/import-link', method: 'POST' },
+    agent: cli('maude design import-asset <file>'),
+  },
   'assets.place': {
     effect: 'project',
     minRole: 'edit',

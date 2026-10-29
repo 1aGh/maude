@@ -346,6 +346,9 @@ const PROJECT = [
   '/_api/fs-move',
   '/_api/fs-mkdir',
   '/_api/import-brand',
+  // p8-import-link — Add from a link… lands a file in the project's Assets: Can edit on the project, never canvas-only
+  '/_api/import-link',
+  '/_api/import-link/key',
   '/_api/git/branch',
   '/_api/git/checkout',
   '/_api/git/fold',

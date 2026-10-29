@@ -11647,6 +11647,71 @@
     "v2": "stable"
   },
   {
+    "hook": "assets-add-link",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The link icon in the Assets tab head: Assets › Add from a link… (`assets.add-link`) opens the link field; `aria-pressed` while it is open (hidden for a viewer).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-link",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Add from a link… field row in the Assets tab (12 · ia-edges F): paste an https link, ↵ brings a copy in, Esc closes.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-link-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The link input inside `assets-link`.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-link-host",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The site of the link in the Add from a link… field, in full (\"From alligators.cz\"), shown before ↵ — also when a dropped link filled the field.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-link-preparing",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The status line while a link comes in: \"Preparing <name> — keeps working in the background.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "assets-from-mac",
     "kind": "testid",
     "pattern": false,

@@ -44,6 +44,7 @@ import { createGenerateRoutes, type GenerateRouteDeps } from './generate.ts';
 import { createHandoffRoutes, type HandoffRouteDeps } from './handoff.ts';
 import { createHelpGuidesRoutes, type HelpGuidesDeps } from './help-guides.ts';
 import { createHistoryRoutes, type HistoryRouteDeps } from './history.ts';
+import { createImportLinkRoutes, type ImportLinkRouteDeps } from './import-link.ts';
 import { createKindRoutes } from './kinds.ts';
 import { createLinksRoutes, type LinksRouteDeps } from './links.ts';
 import { createOutboxRoutes } from './outbox.ts';
@@ -151,6 +152,13 @@ export interface RouteDeps {
   assetDetails?: AssetDetailsRouteDeps;
   /** S8.22 — `POST /_api/import-asset` v2 (main origin, Can edit on the project): PSD/HEIC converters, the dedupe answer */
   assetImport?: AssetImportRouteDeps;
+  /**
+   * p8-import-link — `POST /_api/import-link` (main origin, Can edit on the project): a picture, clip or sound from an
+   * https link, public addresses only. Absent, it is built from the deps it shares — the access `assetImport` judges
+   * with, the Assets writer `chatAttach` lands files through (`api.saveAssetFromStream`), and `describe`'s cell flag
+   * (no `describe` → treated as a cell: refused). So http.ts needs no wiring of its own.
+   */
+  importLink?: ImportLinkRouteDeps;
   /** S8.16 — `/_api/generate-takes*` (main origin, Can edit on the canvas): N takes, the consent quote, ← → */
   generate?: GenerateRouteDeps;
   /** S8.10 — `/_api/handoff*` (main origin, Can edit): Handoff to production as one scoped AI run */
@@ -168,6 +176,17 @@ export interface RouteDeps {
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
+/** p8-import-link — the explicit deps, or the ones derived from the import + attach deps it shares (see `RouteDeps`). */
+function importLinkSpecs(deps: RouteDeps): RouteSpec[] {
+  if (deps.importLink) return createImportLinkRoutes(deps.importLink);
+  if (!deps.assetImport || !deps.chatAttach) return [];
+  return createImportLinkRoutes({
+    access: deps.assetImport.access,
+    saveAsset: deps.chatAttach.saveAsset,
+    inCell: deps.describe ? deps.describe.inCell === true : true,
+  });
+}
+
 export function allSpecs(deps: RouteDeps): RouteSpec[] {
   // ONE run registry (S5.3, ai/runs.ts): the hook routes' view writes it, the shell status counts
   // it (V2-3.4), and `/_api/ai/runs*` reads it — never a second map.
@@ -252,6 +271,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...(deps.describe ? createDescribeRoutes(deps.describe) : []),
     ...(deps.assetDetails ? createAssetDetailsRoutes(deps.assetDetails) : []),
     ...(deps.assetImport ? createAssetImportRoutes(deps.assetImport) : []),
+    ...importLinkSpecs(deps),
     ...(deps.generate ? createGenerateRoutes(deps.generate) : []),
     ...(deps.handoff ? createHandoffRoutes(deps.handoff) : []),
     ...createShareRoutes(deps.share),
