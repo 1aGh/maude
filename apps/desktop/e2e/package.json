@@ -47,6 +47,7 @@
     "e2e:ai-runs": "wdio run ./wdio.ai-runs.conf.ts",
     "e2e:team-cell": "wdio run ./wdio.team-cell.conf.ts",
     "e2e:team-cell-missing": "wdio run ./wdio.team-cell-missing.conf.ts",
+    "e2e:all-trashed": "wdio run ./wdio.all-trashed.conf.ts",
     "e2e:s20": "wdio run ./wdio.s20-deployment.conf.ts",
     "e2e:parity:cloud": "MAUDE_E2E_PARITY_CLOUD=1 wdio run ./wdio.parity.conf.ts"
   },
