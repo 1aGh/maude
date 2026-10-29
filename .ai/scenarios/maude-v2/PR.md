@@ -279,6 +279,11 @@ Rows closed as `not-a-state` (the board draws a state the product never reaches)
 - Any hub or cloud change v2 needs ships v1-compatible first. The 1.x line (v1.9.x) already reads `formatVersion: 2` read-only.
 - Signing and notarizing the rc `.app` needs the Apple profile. Plugins ship from `main`, so an rc bump reaches marketplace users.
 - You soak the rc. Promotion to a stable 2.0.0 is a separate release.
+- **The stable 2.0.0 deploy converts every cloud project** (each cell on its first 2.0.0 start: backup, format 2,
+  accepted revisions; never on an rc). Check the cells-deploy step "Report the Maude 2 cloud conversion"
+  (`[v2-convert] fleet converted=N skipped=N failed=N`) and, per cell, `/health` → `v2Convert`. `failed>0` leaves
+  that project as it was and doesn't fail the deploy: `.ai/release-guide.md` § "Verify the cloud converted every
+  project".
 
 **V2-8.13, close-out.**
 - `bash scripts/v2-done.sh` exits 0.
