@@ -9,7 +9,7 @@
 // takes a project access token (what the control plane hands a person) — `mintProjectToken` makes one the way the
 // control plane does (apps/hub/src/cloud-identity.mjs `accessClaims` + `signAccessToken`, shared on purpose).
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -145,6 +145,34 @@ export function startLocalHub(opts) {
       buf += c.toString('utf8');
     });
   });
+}
+
+/**
+ * The cloud lane's CELL (wdio.cloud.conf.ts), shaped like a real one: cloud-identity mode with `cloudKey`
+ * AND a checkout of its own (workspace mode — a file door + the file journal), seeded with the project's
+ * `config.json` (`projectConfig`, formatVersion 2 for a v2 fixture), the way a cell holds the project it serves.
+ *
+ * p8-fix-e (F9): the lane used to start a plain hub with no checkout. A hub without one carries no journal, so
+ * the desktop took the legacy asset lane and the hub answered every `PUT /assets/<key>` with
+ * `405 this hub does not accept file writes` — "3 media uploads failed" in 3 of 3 V2-8.3 runs. No cloud
+ * project runs on a hub like that.
+ * @param {{ dir: string, cloudKey: string, projectConfig: object, node?: string }} opts
+ */
+export async function startCloudLaneCell(opts) {
+  const checkout = join(opts.dir, 'checkout');
+  const designRoot = join(checkout, opts.projectConfig?.designRoot ?? '.design');
+  mkdirSync(designRoot, { recursive: true });
+  writeFileSync(
+    join(designRoot, 'config.json'),
+    `${JSON.stringify(opts.projectConfig, null, 2)}\n`
+  );
+  const hub = await startLocalHub({
+    dir: join(opts.dir, 'hub'),
+    cloudKey: opts.cloudKey,
+    workspace: checkout,
+    node: opts.node,
+  });
+  return { ...hub, checkout };
 }
 
 /** A project access token the way the control plane mints one for `email` (role: owner | member | viewer…). */

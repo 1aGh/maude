@@ -33,6 +33,14 @@ export function startLocalHub(opts: {
   spawn?: typeof import('node:child_process').spawn;
 }): Promise<LocalHub>;
 
+/** p8-fix-e (F9): the cloud lane's cell — cloud identity + its own checkout seeded with `projectConfig`. */
+export function startCloudLaneCell(opts: {
+  dir: string;
+  cloudKey: string;
+  projectConfig: Record<string, unknown> & { designRoot?: string };
+  node?: string;
+}): Promise<LocalHub & { checkout: string }>;
+
 export function mintProjectToken(
   key: string,
   opts: { email: string; role: string; project?: string; ttlMs?: number }
