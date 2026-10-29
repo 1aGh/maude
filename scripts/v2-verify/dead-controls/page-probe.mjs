@@ -126,10 +126,13 @@ export const PAGE_PROBE = String.raw`(() => {
   const fieldValues = () => [...document.querySelectorAll('input,textarea,select')].map((e) => (e.type === 'checkbox' || e.type === 'radio' ? String(e.checked) : String(e.value ?? ''))).join('\u0001');
   const popups = () => document.querySelectorAll('[role=dialog],[role=alertdialog],[role=menu],[role=listbox],[role=status],[role=alert]').length;
   const inTooltip = (n) => { const e = n && (n.nodeType === 1 ? n : n.parentElement); return !!(e && e.closest && e.closest('[role=tooltip],[data-tooltip],.tooltip')); };
+  // a menu pick that relabels the menu's own trigger ("All kinds" → "Photos") is a visible effect a few
+  // characters long — under the noise floor; snapshot every popup trigger's text instead
+  const triggerText = () => [...document.querySelectorAll('[aria-haspopup]')].map((e) => (e.getAttribute('data-testid') || e.getAttribute('aria-label') || '') + '=' + (e.textContent || '').trim()).join('\u0001');
   let st = null;
   let mo = null;
   function start() {
-    st = { fields: fieldValues(), clips: clips.length, muts: 0, self: 0, aria: [], url: location.href, popups: popups(), region: regionOf(document.activeElement), opens: opens.length, checked: target && 'checked' in target ? target.checked : null, value: target && 'value' in target ? target.value : null };
+    st = { triggers: triggerText(), fields: fieldValues(), clips: clips.length, muts: 0, self: 0, aria: [], url: location.href, popups: popups(), region: regionOf(document.activeElement), opens: opens.length, checked: target && 'checked' in target ? target.checked : null, value: target && 'value' in target ? target.value : null };
     mo = new MutationObserver((list) => {
       for (const m of list) {
         if (m.type === 'attributes' && m.attributeName === 'data-crawl-target') continue;
@@ -150,6 +153,7 @@ export const PAGE_PROBE = String.raw`(() => {
     if (!st) return null;
     mo.disconnect();
     const out = {
+      triggerChanged: triggerText() !== st.triggers,
       muts: st.muts,
       self: st.self,
       aria: st.aria.slice(0, 6),

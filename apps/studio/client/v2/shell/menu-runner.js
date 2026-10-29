@@ -673,15 +673,18 @@ export function cutCopyPaste(
     if (kind === 'paste') {
       // p8-sweep-leftovers — the frame may not read the clipboard (iframe `allow="clipboard-write"` only,
       // DDR-054): the shell reads it on this pick and forwards it; the frame replays it as its ⌘V paste.
-      return Promise.resolve(readClipboard()).then(
-        (data) => {
-          if (!data) return;
-          // V2-8.9 attacker L2 — the person's paste, noted when it reaches the frame (the read may wait)
-          notePasteIntent();
-          postToActiveCanvas?.({ dgn: 'paste-data', ...data });
-        },
-        () => {}
-      );
+      // Nothing readable (empty, refused): the canvas's own lane, as before — in Edit that is the object
+      // clipboard the shell holds (`canvas.paste`), which reads no system clipboard.
+      const own = () => {
+        notePasteIntent();
+        postToActiveCanvas?.(runActionMessage('edit.paste'));
+      };
+      return Promise.resolve(readClipboard()).then((data) => {
+        if (!data) return own();
+        // V2-8.9 attacker L2 — the person's paste, noted when it reaches the frame (the read may wait)
+        notePasteIntent();
+        postToActiveCanvas?.({ dgn: 'paste-data', ...data });
+      }, own);
     }
     postToActiveCanvas?.(runActionMessage(`edit.${kind}`));
     return;

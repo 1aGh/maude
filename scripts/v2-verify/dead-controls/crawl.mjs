@@ -449,6 +449,22 @@ export class Crawler {
       if (res.effect === 'DEAD' && c.current) {
         out.effect = 'current';
         out.note = 'already the selected/pressed choice — clicking it again is a no-op';
+      } else if (res.effect === 'DEAD' && c.frame === 'canvas' && /^Artboard /.test(c.name)) {
+        // an artboard's label on an artboard that is ALREADY selected (a just-made one is): clear the selection
+        // the way the shell does (run-action select.none, from the parent) and click again. An effect then =
+        // the label works and was the current choice; still nothing = a real dead label.
+        await this.page
+          .evaluate(() => {
+            for (const f of document.querySelectorAll('iframe'))
+              f.contentWindow?.postMessage({ dgn: 'run-action', v: 1, id: 'select.none' }, '*');
+          })
+          .catch(() => {});
+        await sleep(SETTLE_MS);
+        const again = this.classify(await this.measure(c, null), null, c);
+        if (again.effect !== 'DEAD') {
+          out.effect = 'current';
+          out.note = `the artboard was already selected — after select.none the same click: ${again.effect}`;
+        }
       } else if (res.effect === 'DEAD' && raw.note === 'a select with one option') {
         out.effect = 'single-option';
       } else if (res.effect === 'DEAD' && raw.note.startsWith('pointer blocked')) {
@@ -590,6 +606,7 @@ export class Crawler {
       raw.opens.push(...v.opens);
       raw.clips.push(...(v.clips ?? []));
       if (v.checkedChanged || v.valueChanged || v.fieldsChanged) raw.value = true;
+      if (v.triggerChanged) raw.label = true;
       if (v.urlChanged && s.frame === this.page.mainFrame()) raw.url = true;
       if (v.focusMoved && (s.frame === f || !c)) raw.focus = v.focusRegion;
     }
@@ -605,6 +622,8 @@ export class Crawler {
     if (raw.popupsDelta > 0) kinds.push('popup');
     if (raw.opens.length) kinds.push(`window.open(${raw.opens[0].slice(0, 60)})`);
     if (raw.value) kinds.push('value');
+    // a radio pick that relabels its menu's trigger (only a pick can: Esc never relabels it)
+    if (raw.label && /^(menuitemradio|option)$/.test(c?.role ?? '')) kinds.push('label');
     if (raw.clips.length) kinds.push(`clipboard(${raw.clips[0]})`);
     if (raw.url && !sig?.url) kinds.push('url');
     // inside a popup state focus always moves when the popup closes — not an effect on its own

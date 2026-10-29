@@ -187,6 +187,9 @@ export function useAttachments({ chatId, attachmentsRef, fetchImpl }) {
 
   /** Paste a screenshot (the menu row): the clipboard's first image, through the same door. */
   const pasteScreenshot = useCallback(async () => {
+    // p8-sweep-leftovers — a second pick with the same clipboard said nothing (the same line was already up):
+    // take the line down first, so the answer is drawn and announced again on every pick
+    setNotice('');
     try {
       const items = await navigator.clipboard.read();
       for (const it of items) {

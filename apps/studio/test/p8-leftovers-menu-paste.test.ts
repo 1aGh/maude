@@ -42,7 +42,7 @@ describe('the shell forwards the clipboard', () => {
     expect(posts).toEqual([{ dgn: 'paste-data', v: 1, text: 'hello' }]);
   });
 
-  test('an empty or refused clipboard posts nothing', async () => {
+  test('an empty or refused clipboard falls back to the canvas lane (the shell-held object clipboard)', async () => {
     const posts: unknown[] = [];
     await runner.cutCopyPaste('paste', iframe(), {
       postToActiveCanvas: (m: unknown) => posts.push(m),
@@ -54,7 +54,11 @@ describe('the shell forwards the clipboard', () => {
         throw new Error('denied');
       },
     });
-    expect(posts).toEqual([]);
+    // `canvas.paste` reads no system clipboard; no paste-data crosses
+    expect(posts).toEqual([
+      { dgn: 'run-action', v: 1, id: 'edit.paste' },
+      { dgn: 'run-action', v: 1, id: 'edit.paste' },
+    ]);
   });
 
   test('the reader keeps text, html and one allowlisted picture; drops oversize and other types', async () => {
