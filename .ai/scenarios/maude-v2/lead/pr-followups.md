@@ -193,3 +193,12 @@ Not built, either because no CONTRACT line names them or because the weekly budg
   command names.
 - **D7: every Update dry run asks the hub's save-mode preview**, which imports every document. Cache it per epoch,
   or skip it unless the call applies the update or comes from the same origin.
+- **From p8-secfix-hook / p8-secfix-studio (merged f1515ed97, 80bf33494).**
+  - Defence in depth for D1: keep each run base's sha256 in hook state. A python write to a computed path, which
+    bash-guard cannot see, then cannot plant a base.
+  - `_runs/<s>/shots.jsonl` (the screenshot gate) can still be planted.
+  - Because Bash writes are bound by time (F3), a person's save during a long call gets the `.bash` marker. Stop then
+    blocks once on that file's genuinely old findings.
+  - A script run from a file (`python3 w.py` that forks) is not read for detaching.
+  - Hub reads already in flight after the ⌘Z deadline run to their own 20 s transport timeout. An abort signal on
+    `link.blob` / `link.laneHead` would end them sooner.
