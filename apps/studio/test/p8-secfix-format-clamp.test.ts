@@ -22,6 +22,7 @@ import {
   noteHubFormat,
   persistableFormat,
   projectFormat,
+  readHubFormatCache,
   SUPPORTED_FORMAT,
 } from '../format.ts';
 import { formatFromHub, MAX_HUB_FORMAT } from '../sync/format-sync.ts';
@@ -135,6 +136,36 @@ describe('the in-memory mirror keeps an honest newer hub, drops nonsense', () =>
     expect(persistableFormat(HUGE)).toBe(SUPPORTED_FORMAT);
     expect(persistableFormat(2)).toBe(2);
     expect(persistableFormat('junk')).toBe(1);
+  });
+});
+
+// p8-secfix-hook-2 R5 (V2-8.9 final delta recheck): a mirror file written BEFORE the F5/D4 fix
+// still holds the hostile hub's 2^53-1, and the mirror is raise-only, so an honest hub could never
+// bring it back down: the project stayed view-only for as long as it was linked. The reader now
+// clamps what it reads — past MAX_HUB_FORMAT a value is nonsense, read as the format detach would
+// keep (SUPPORTED_FORMAT); an honest newer hub's value (≤ MAX_HUB_FORMAT) is kept as it was.
+describe('a pre-fix mirror file is clamped on read (R5)', () => {
+  test('2^53-1 on disk reads back ≤ MAX_HUB_FORMAT and leaves the project editable', () => {
+    const p = linkedProject('pre-fix-mirror', HUGE);
+    expect(
+      JSON.parse(readFileSync(join(p.designRoot, '_state', 'hub-format.json'), 'utf8'))
+    ).toMatchObject({ formatVersion: HUGE });
+    const read = readHubFormatCache(p.designRoot, HUB);
+    expect(read?.formatVersion).toBeLessThanOrEqual(MAX_HUB_FORMAT);
+    expect(read?.formatVersion).toBe(SUPPORTED_FORMAT);
+    const ctx = { cfg: { linkedHub: { url: HUB } }, paths: { designRoot: p.designRoot } };
+    expect(formatGate(ctx, FORMAT_GATE_OPTS)).toBeNull();
+    // an honest hub one format ahead can still raise it (raise-only from the clamped value)
+    expect(noteHubFormat(p.designRoot, { hub: HUB, formatVersion: SUPPORTED_FORMAT + 1 })).toBe(
+      true
+    );
+    expect(readHubFormatCache(p.designRoot, HUB)?.formatVersion).toBe(SUPPORTED_FORMAT + 1);
+  });
+  test('an honest newer hub up to MAX_HUB_FORMAT reads back unchanged', () => {
+    for (const v of [SUPPORTED_FORMAT + 1, MAX_HUB_FORMAT]) {
+      const p = linkedProject(`honest-mirror-${v}`, v);
+      expect(readHubFormatCache(p.designRoot, HUB)?.formatVersion).toBe(v);
+    }
   });
 });
 

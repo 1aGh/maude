@@ -44,6 +44,22 @@ export function formatHubUrl(
   return ctx.cfg.linkedHub?.url ?? null;
 }
 
+/**
+ * The largest number this build reads as a hub's project format
+ * (p8-secfix-studio, V2-8.9 F5). A format is a small integer bumped once per
+ * major file-format change (1 → 2 took the whole 1.x line), so 64 is decades of
+ * honest headroom: a hub two, five or twenty formats ahead still reads as
+ * "newer than this build" and gates the project view only while linked. Past
+ * it the value is nonsense from a hostile hub or a MITM on the unauthenticated
+ * `/health` — ignored like a missing field, the mirror stays as it was. NOT the
+ * security control (any value above SUPPORTED_FORMAT already gates the same
+ * way); that is `persistableFormat`, which keeps every number out of the
+ * versioned config.json. A tight bound such as SUPPORTED_FORMAT + 1 was
+ * rejected: it would IGNORE an honest hub two formats ahead and leave this
+ * build editing a project it cannot read.
+ */
+export const MAX_HUB_FORMAT = 64;
+
 /** Design-root-relative cache of the linked hub's format (runtime, DDR-115). */
 export const HUB_FORMAT_REL = path.join('_state', 'hub-format.json');
 
@@ -91,9 +107,14 @@ export function readHubFormatCache(
   try {
     const raw = JSON.parse(readFileSync(file, 'utf8')) as Partial<HubFormatCache>;
     if (typeof raw?.hub !== 'string' || normHub(raw.hub) !== normHub(hubUrl)) return null;
+    // p8-secfix-hook-2 R5 — a mirror written before the F5/D4 fix can hold a hostile hub's 2^53-1;
+    // raise-only, no honest hub could ever bring it back down. Past MAX_HUB_FORMAT the value is
+    // nonsense: it reads as the format detach keeps (persistableFormat → SUPPORTED_FORMAT), so the
+    // gate opens and formatToKeep is unchanged. An honest newer hub (≤ MAX_HUB_FORMAT) still gates.
+    const stated = asFormat(raw.formatVersion);
     return {
       hub: raw.hub,
-      formatVersion: asFormat(raw.formatVersion),
+      formatVersion: stated > MAX_HUB_FORMAT ? persistableFormat(stated) : stated,
       epoch: typeof raw.epoch === 'number' ? raw.epoch : 0,
       seenAt: typeof raw.seenAt === 'string' ? raw.seenAt : '',
       ...(typeof raw.writtenBy === 'number' ? { writtenBy: raw.writtenBy } : {}),
