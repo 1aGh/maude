@@ -57,6 +57,50 @@ const rangeOf = (src: string, id: string): string => {
   return start < 0 ? '' : src.slice(start, end);
 };
 
+// P8 missing-a: board 19 ("Every artboard moved to the trash") offers Restore N exactly when the canvas holds NO
+// artboard — a canvas an AI run or a hand edit emptied. The splice found its place only beside a neighbour that is
+// still there, so on that canvas every restore was refused (`invalid-result`) and the card's one button did nothing.
+describe('restoring into a canvas with no artboard left', () => {
+  const board = (inner: string, section: boolean) => `import { DCArtboard, DCSection, DesignCanvas } from '@maude/canvas-lib';
+
+export default function Board() {
+  return (
+    <DesignCanvas>
+${section ? `      <DCSection id="main" title="Main">\n${inner}      </DCSection>\n` : inner}    </DesignCanvas>
+  );
+}
+`;
+  const hero = (pad: string) => `${pad}<DCArtboard id="hero" label="Hero" width={100} height={100}>
+${pad}  <h1>Title</h1>
+${pad}</DCArtboard>
+`;
+  const away = (pad: string) => `${pad}<DCArtboard id="away" label="Away" width={100} height={100}>
+${pad}  <p>Copy</p>
+${pad}</DCArtboard>
+`;
+
+  test('puts the artboard back inside the section that is left, byte for byte', () => {
+    const old = board(hero('        ') + away('        '), true);
+    const now = board('', true);
+    const r = restoreArtboard('ui/Board.tsx', { html: now }, { html: old }, 'hero');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const html = r.lanes.html as string;
+    expect(rangeOf(html, 'hero')).toBe(rangeOf(old, 'hero'));
+    expect(html.indexOf('<DCArtboard id="hero"')).toBeGreaterThan(html.indexOf('<DCSection'));
+    expect(html.indexOf('<DCArtboard id="hero"')).toBeLessThan(html.indexOf('</DCSection>'));
+    expect(html).not.toContain('id="away"'); // only the one asked for
+  });
+
+  test('a canvas with no section either: the artboard goes inside the canvas', () => {
+    const old = board(hero('      '), false);
+    const r = restoreArtboard('ui/Board.tsx', { html: board('', false) }, { html: old }, 'hero');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(rangeOf(r.lanes.html as string, 'hero')).toBe(rangeOf(old, 'hero'));
+  });
+});
+
 describe('the one-artboard splice (restoreArtboard)', () => {
   const A = canvas({ title: 'Old title', badge: 'OLD', jersey: 'jersey-old' });
   const NOW = canvas({
