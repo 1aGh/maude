@@ -53,6 +53,7 @@ import { createAccessRelay } from './access-notices.ts';
 import type { RunFence } from './action-stage.ts';
 import { type CanvasSyncAgent, createCanvasSyncAgent } from './agent.ts';
 import { isPushableAssetRel, pushAssets } from './asset-push.ts';
+import { createMediaGate, MEDIA_STAYS_LINE, readServerSignature } from './media-gate.ts';
 import {
   askHubPresence,
   createHeldReporter,
@@ -1577,10 +1578,24 @@ export function createSyncRuntime(
   let legacyLane: boolean | null = null;
   /** A pass was owed before the lane was decided — run it on the verdict. */
   let legacyBootPush: string | null = null;
+  /**
+   * p8-ia-edges — a hub without a media checkout answers every upload 405. The first refusal ends the pass and closes
+   * this gate (one human message in the Sync panel, via the progress' `refused`); no file change, boot or poll tick
+   * sends another PUT until the server's `/health` signature changes (`tick`, on the 20 s remote poll).
+   */
+  let mediaHubUrl: string | null = null;
+  const mediaGate = createMediaGate({
+    probe: () => (mediaHubUrl ? readServerSignature(mediaHubUrl, hubFetch) : Promise.resolve(null)),
+    onNotice: (n) => {
+      if (n) console.warn(`[sync/assets] ${MEDIA_STAYS_LINE}`);
+    },
+  });
 
   /** Run the legacy push now — single-flight with a trailing re-run. */
   function runLegacyPush(hubUrl: string): void {
     if (stopped || cellPairing || legacyLane !== true) return; // the cell never pushes
+    if (!mediaGate.allowed()) return; // the hub has no media checkout; asks again when the server changes
+    mediaHubUrl = hubUrl;
     if (legacyPushRunning) {
       legacyPushAgain = true;
       return;
@@ -1603,6 +1618,7 @@ export function createSyncRuntime(
         if (!stopped) statusStore?.updateAssets?.(p);
       },
     })
+      .then((res) => mediaGate.noteResult(res))
       .catch(() => {
         /* pushAssets never throws; this is a belt for the promise chain */
       })
@@ -1634,6 +1650,7 @@ export function createSyncRuntime(
       return;
     }
     if (legacyLane === false) return; // the plane owns pushes on this hub
+    if (!mediaGate.allowed()) return; // no media checkout on this hub — see `mediaGate`
     if (legacyPushRunning) {
       legacyPushAgain = true;
       return;
@@ -5390,6 +5407,13 @@ export function createSyncRuntime(
     documentDiscoveryUnsub = ctx.bus.on('sync:documents-changed', () => discovery.schedule());
     const pollRemote = (): void => {
       if (parkedNow) return;
+      // p8-ia-edges — a hub that could not store media gets one look per tick; a changed server reopens the lane.
+      void mediaGate
+        .tick()
+        .then((reopened) => {
+          if (reopened && mediaHubUrl && !stopped) scheduleLegacyPush(mediaHubUrl);
+        })
+        .catch(() => {});
       void discovery
         .flush()
         .then(() => pullFilesOnce())

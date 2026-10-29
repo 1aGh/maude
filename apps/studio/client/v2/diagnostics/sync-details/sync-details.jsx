@@ -11,6 +11,7 @@
 // sync.sign-in-again (the sign-in dialog). The server gates every write (minRole edit for the picks).
 
 import { useState } from 'react';
+import { MEDIA_STAYS_LINE, MEDIA_STAYS_NEXT } from '../../../../sync/media-gate.ts';
 import { safeDetail, syncPresentation } from '../../../../sync/presentation.ts';
 import { lineDiff } from '../../../panels/SourceConflictPanel.jsx';
 import { DELIVERY_WORD, cleanName, resolvedWords, syncDetailsModel } from './sync-details-model.js';
@@ -136,6 +137,16 @@ function ConflictCard({ slug, canvasName, fetchImpl, onResolved }) {
   );
 }
 
+// The team server holds no media checkout (sync/media-gate.ts words): said once, with the next step.
+function AssetsStayCard() {
+  return (
+    <div className="sd-card" data-testid="sync-assets-stay">
+      <strong className="sd-ct">{MEDIA_STAYS_LINE}</strong>
+      <span className="sd-cd">{MEDIA_STAYS_NEXT}</span>
+    </div>
+  );
+}
+
 function AssetsFailedCard({ need }) {
   const n = need.count;
   return (
@@ -239,6 +250,8 @@ export default function SyncDetails({
               />
             ) : need.kind === 'assets-failed' ? (
               <AssetsFailedCard key="assets-failed" need={need} />
+            ) : need.kind === 'assets-stay' ? (
+              <AssetsStayCard key="assets-stay" />
             ) : (
               <AiCard key="ai" need={need} fetchImpl={fetchImpl} />
             )
