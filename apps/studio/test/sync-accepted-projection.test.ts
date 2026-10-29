@@ -495,6 +495,43 @@ describe('projection in accepted-revisions mode', () => {
     expect(r.sent.at(-1)?.p.baseContent).toBe(src('B'));
   });
 
+  // The F14 shape through proposeVia: the route arms its base (`activity:suppress`) before the
+  // bytes land; the bytes are an echo of the pending (or just-accepted) value, and that base must
+  // go with them — or the next HAND edit is proposed from the version before the trash and refused.
+  for (const answeredFirst of [false, true]) {
+    test(`proposeVia + an announced write (${answeredFirst ? 'answered before' : 'queued while'} the bytes land): the next hand edit is based on the action`, async () => {
+      const r = rig(src('A'));
+      let answer!: (o: ProposalOutcome) => void;
+      r.projection.noteLocalWrite();
+      void r.projection.proposeVia(
+        'html',
+        src('B'),
+        src('A'),
+        () => new Promise((a) => (answer = a))
+      );
+      if (answeredFirst) {
+        answer({ status: 'accepted', actionId: 'act_1' });
+        await r.settle();
+      }
+      writeFileSync(r.paths.html, src('B'));
+      r.projection.applyFromFs({
+        path: r.paths.html,
+        bytes: enc(src('B')),
+        hash: hashBytes(src('B')),
+      });
+      expect(r.sent).toHaveLength(0);
+      if (!answeredFirst) {
+        answer({ status: 'accepted', actionId: 'act_1' });
+        await r.settle();
+      }
+      r.publish(src('B'));
+      await r.settle();
+      expect(r.edit(src('C'))).toBe(true);
+      expect(r.sent.at(-1)?.p.baseContent).toBe(src('B'));
+      expect(r.conflicts).toHaveLength(0);
+    });
+  }
+
   test('file events before the cold start decided are proposed once it has', () => {
     const paths = {
       html: join(dir, 'ui', 'late.tsx'),

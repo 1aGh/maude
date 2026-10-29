@@ -1182,11 +1182,19 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     }
     clearStrike(evt.path);
     const inFlight = pending.get(lane);
-    // The watcher redelivering what we already proposed is not a new edit.
-    if (inFlight?.lastValue === value) return false;
-    // Nor is our own ACCEPTED value whose publication has not reached this replica yet (an
-    // edit-op's action, answered before the route wrote its bytes — p8-fix-c2 #2).
-    if (lane === 'html' && !inFlight && acceptedOwn === value && !held.has('html')) return false;
+    // The watcher redelivering what we already proposed is not a new edit. Nor is our own
+    // ACCEPTED value whose publication has not reached this replica yet (an edit-op's action,
+    // answered before the route wrote its bytes — p8-fix-c2 #2).
+    const ours =
+      inFlight?.lastValue === value ||
+      (lane === 'html' && !inFlight && acceptedOwn === value && !held.has('html'));
+    if (ours) {
+      // An announced API write whose bytes ARE that value (an edit-op's action, proposed through
+      // `proposeVia`) is over here: its base must not outlive it, or the next, unrelated file edit
+      // is proposed from the version before it and refused (the F14 shape, p8-fix-c).
+      if (lane === 'html') localWrite = null;
+      return false;
+    }
     const current = readLaneFromDoc(doc, lane);
     if (value === current) {
       if (inFlight) return false;

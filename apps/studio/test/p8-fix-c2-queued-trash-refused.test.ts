@@ -379,19 +379,30 @@ describe.skipIf(!HUB_READY)(
         expect(conflictNotice(off)).toBe(false);
         links[offline].cut();
         const sentBefore = off.htmlSends();
-        const queued = await off.trash([artboard]);
-        expect(queued.queued).toBe(true);
-        const kept = off.read(FILE);
-        expect(ids(kept)).toEqual(start.filter((a) => a !== artboard));
-        // The teammate changes the same artboard first, online.
-        const theirsSrc = await editText(on, artboard);
-        expect(on.read(FILE)).toBe(theirsSrc);
-        links[offline].mend();
+        let kept: string | null = null;
+        let theirsSrc = '';
+        try {
+          const queued = await off.trash([artboard]);
+          expect(queued.queued).toBe(true);
+          kept = off.read(FILE);
+          expect(ids(kept)).toEqual(start.filter((a) => a !== artboard));
+          // The teammate changes the same artboard first, online.
+          theirsSrc = await editText(on, artboard);
+          expect(on.read(FILE)).toBe(theirsSrc);
+        } finally {
+          links[offline].mend();
+        }
         // The hub refuses the queued action: the person sees the held conflict, keeps their version,
         // and the project's version is kept beside it.
         await waitFor(() => conflictNotice(off), `${offline}'s held-conflict notice`, 60_000);
         expect(off.read(FILE)).toBe(kept);
-        expect(incoming(offline)).toBe(theirsSrc);
+        // Both versions, as the conflict shows them: this disk's, and the project's (once its
+        // publication reaches this replica — the snapshot beside it was taken at the refusal).
+        expect(incoming(offline)).not.toBeNull();
+        await waitFor(() => {
+          const v = off.runtime.conflictVersions?.(`design/${FILE}`);
+          return v?.mine === kept && v?.theirs === theirsSrc;
+        }, `${offline}'s conflict showing both versions`);
         // ONE proposal of the trash — the duplicate html proposal is gone.
         expect(off.htmlSends() - sentBefore).toBe(1);
         // and the online side was never asked anything
@@ -414,9 +425,12 @@ describe.skipIf(!HUB_READY)(
       const [mine, theirs] = [start[0] as string, start[start.length - 1] as string];
       links.bob.cut();
       const sentBefore = off.htmlSends();
-      expect((await off.trash([mine])).queued).toBe(true);
-      expect((await on.trash([theirs])).queued).toBeUndefined();
-      links.bob.mend();
+      try {
+        expect((await off.trash([mine])).queued).toBe(true);
+        expect((await on.trash([theirs])).queued).toBeUndefined();
+      } finally {
+        links.bob.mend();
+      }
       const want = start.filter((a) => a !== mine && a !== theirs).join(',');
       await waitFor(
         () => ids(off.read(FILE)).join(',') === want && ids(on.read(FILE)).join(',') === want,
