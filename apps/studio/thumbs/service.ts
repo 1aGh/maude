@@ -186,9 +186,11 @@ export const unavailable = (reason: UnavailableReason): ThumbResult => ({
 
 /** The real renderer process (exported for the budget bench, which wraps it to read timings). */
 export function spawnRendererShim(): ShimHandle {
-  const proc = Bun.spawn([resolveExportRuntime(), exportShimPath('_thumbs-playwright.mjs')], {
+  // { cmd, env } together: the compiled-self rung only works with its BUN_BE_BUN (DDR-177).
+  const runtime = resolveExportRuntime();
+  const proc = Bun.spawn([runtime.cmd, exportShimPath('_thumbs-playwright.mjs')], {
     cwd: path.dirname(exportShimPath('_thumbs-playwright.mjs')),
-    env: { ...process.env },
+    env: runtime.env,
     stdin: 'pipe',
     stdout: 'pipe',
     stderr: 'pipe',
