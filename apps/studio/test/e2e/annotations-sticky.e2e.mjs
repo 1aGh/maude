@@ -225,7 +225,9 @@ describe('T5 — ⌘K: Move resolved stickies to the trash', () => {
       .waitFor({ timeout: 8000 })
       .catch(async (e) => {
         const seen = await c.page.evaluate(() =>
-          [...document.querySelectorAll('[role="status"],[role="alert"],[data-testid*="toast"]')].map((n) => n.textContent)
+          [
+            ...document.querySelectorAll('[role="status"],[role="alert"],[data-testid*="toast"]'),
+          ].map((n) => n.textContent)
         );
         throw new Error(`${e.message}\ntoasts: ${JSON.stringify(seen)}`);
       });

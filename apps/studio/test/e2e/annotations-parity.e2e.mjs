@@ -78,6 +78,20 @@ async function reset() {
   await sleep(200);
 }
 
+/**
+ * Arm a Marker tip (S4.8, canvas 14): M arms the last-used tip and opens its popover, a press on the canvas closes
+ * the popover again, and the lit Marker slot reopens it. v1 had a key per tool (B pen, I highlighter, E eraser).
+ */
+async function armTip(tip) {
+  await c.page.keyboard.press('m');
+  await sleep(200);
+  const tips = c.frame.locator('[data-testid="toolbar-popover-marker-tips"]');
+  if (!(await tips.count()))
+    await c.frame.locator('[data-testid^="toolbar-slot-"][data-tip]').first().click();
+  await c.frame.locator(`[data-testid="toolbar-tip-${tip}"]`).click();
+  await sleep(150);
+}
+
 /** World → page through `ref` (world 100,100, 100 wide). */
 async function w2p(wx, wy) {
   const b = await c.pageBox('ref');
@@ -93,7 +107,7 @@ describe('P1 — drawing tools', () => {
   test('pen: a drag draws ink', async () => {
     await reset();
     const b0 = await board();
-    await c.page.keyboard.press('b');
+    await armTip('pen');
     await c.drag(await w2p(100, 600), await w2p(260, 640), { steps: 16 });
     const b1 = await waitForBoard(
       server.root,
@@ -107,7 +121,7 @@ describe('P1 — drawing tools', () => {
   test('highlighter: a drag draws highlighter ink', async () => {
     await reset();
     const b0 = await board();
-    await c.page.keyboard.press('i');
+    await armTip('highlighter');
     await c.drag(await w2p(100, 700), await w2p(260, 720), { steps: 12 });
     const b1 = await waitForBoard(
       server.root,
@@ -150,7 +164,7 @@ describe('P1 — drawing tools', () => {
   test('section: drawn around an element, it contains it', async () => {
     await reset();
     const b0 = await board();
-    await c.page.keyboard.press('Shift+S');
+    await c.page.keyboard.press('s');
     await c.drag(await w2p(560, 260), await w2p(760, 420));
     const b1 = await waitForBoard(
       server.root,
@@ -179,7 +193,7 @@ describe('P1 — drawing tools', () => {
     const b0 = await board();
     const pens = [...b0.values()].filter((e) => e.type === 'pen' && !e.highlighter);
     assert.equal(pens.length, 1, 'precondition: the pen stroke from P1');
-    await c.page.keyboard.press('e');
+    await armTip('eraser');
     await c.drag(await w2p(180, 560), await w2p(180, 680), { steps: 12 });
     const b1 = await waitForBoard(server.root, (b) => !b.has(pens[0].id));
     assert.equal(b1.has(pens[0].id), false);

@@ -236,11 +236,10 @@ export async function openCanvas(server) {
   }
   await page.waitForTimeout(500);
   const frameBox = await page.locator('[data-testid="canvas-frame"]').boundingBox();
-  // Fit everything into view: a double-click on empty canvas is the shell's fit().
-  await page.mouse.dblclick(frameBox.x + 12, frameBox.y + frameBox.height - 12);
-  await page.waitForTimeout(700);
   // S4.9 — the annotation layer answers pointers in Preview only; Edit shows it quiet (a click passes through to
   // the design). Every scenario here drives the layer, so open in Preview. A pre-v2 baseline has no modes.
+  // Preview first, then Fit: the Preview bar is an island with data-occludes="top" and Fit leaves room for it, so
+  // fitting before the switch parks the board under it (toolbars above a top element end up beneath the bar).
   if (process.env.E2E_LEGACY !== '1') {
     await page.locator('[data-testid="palette-mode-preview"]').first().click({ timeout: 10_000 });
     await page.waitForTimeout(500);
@@ -248,6 +247,9 @@ export async function openCanvas(server) {
     await page.mouse.click(frameBox.x + 12, frameBox.y + frameBox.height - 12);
     await page.waitForTimeout(300);
   }
+  // Fit everything into view: a double-click on empty canvas is the shell's fit().
+  await page.mouse.dblclick(frameBox.x + 12, frameBox.y + frameBox.height - 12);
+  await page.waitForTimeout(700);
   // A person's mouse always hovers before it presses: the layer resolves what is under the pointer on the move, and
   // a press with no move before it (Playwright's mouse.click/dblclick jump straight to down) picks nothing. Every
   // scenario clicks through page.mouse, so give them the hover a real pointer has.
