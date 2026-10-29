@@ -98,7 +98,7 @@ export function DsPinnedRows({
               data-ds={r.dsName}
               data-default={r.isDefault ? 'true' : undefined}
               aria-current={on ? 'true' : undefined}
-              title={r.sub ? `${r.label} — ${r.sub}` : 'Open the design system'}
+              title={r.sub ? `${r.label} — ${r.tip ?? r.sub}` : 'Open the design system'}
               onClick={(e) =>
                 // S10.15b: the amber dot is the door to "Bring it up to the schema?"; the rest of the row opens the system
                 onBringUp && r.amber && e.target?.closest?.('[data-testid="canvases-ds-row-warn"]')

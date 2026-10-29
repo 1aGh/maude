@@ -7,8 +7,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getPaletteEnv } from '../search/search-env.js';
+import { defaultSystemName } from './new-canvas-default.js';
 import { DsPreviewBar } from './preview-bar.jsx';
-import { beginDsPreview, stopDsPreview, useDsPreview } from './preview-mode.js';
+import { requestPreviewMenu, stopDsPreview, useDsPreview } from './preview-mode.js';
 import { DsSwitchSheet } from './switch-sheet.jsx';
 import { useCoverOf } from './use-covers.js';
 import { onDsSwitchRequest, requestDsSwitch } from './switch-bus.js';
@@ -143,7 +144,8 @@ export function DsSwitchHost({ cfg, activePath, toast, fetchImpl }) {
         if (names.length < 2) return say(SWITCH_WORDS.noOther);
         if (req.kind === 'preview') {
           const from = req.from && names.includes(req.from) ? req.from : names[0];
-          if (!beginDsPreview({ from, systems: names })) say(SWITCH_WORDS.noOther);
+          // the same row asking again toggles it (open → stopped, hidden → shown)
+          if (requestPreviewMenu({ from, systems: names }) === 'none') say(SWITCH_WORDS.noOther);
           return undefined;
         }
         const canvas = openCanvasRel(at, c);
@@ -183,6 +185,8 @@ export function DsSwitchHost({ cfg, activePath, toast, fetchImpl }) {
           labelOf={labelOf}
           project={cfg?.cloud?.projectName || cfg?.name || ''}
           shown={shownIn}
+          usedBy={followedBy(openCanvasRel(activePath, cfg), cfg)}
+          defaultName={defaultSystemName(cfg?.designSystems, cfg?.defaultDesignSystem)}
           blocked={!!sheet}
           onSwitch={(target) => requestDsSwitch({ to: target, from: session.from, scope: 'all' })}
         />

@@ -12,7 +12,7 @@
 
 import { useSyncExternalStore } from 'react';
 
-/** @type {{ from: string, names: string[], index: number } | null} */
+/** @type {{ from: string, names: string[], index: number, menuOpen: boolean } | null} */
 let session = null;
 const listeners = new Set();
 const emit = () => {
@@ -29,9 +29,50 @@ export function beginDsPreview({ from, systems }) {
   const names = [...new Set((systems ?? []).filter((n) => typeof n === 'string' && n))];
   if (names.length < 2) return null;
   const at = Math.max(0, names.indexOf(from));
-  session = { from: names.includes(from) ? from : names[0], names, index: (at + 1) % names.length };
+  session = {
+    from: names.includes(from) ? from : names[0],
+    names,
+    index: (at + 1) % names.length,
+    menuOpen: true,
+  };
   emit();
   return getDsPreview();
+}
+
+/**
+ * The systems menu goes away (a click outside it, a click into the canvas iframe) but the preview stays: the
+ * banner is still up with "Switch…" and "esc to stop". Only esc, or a switch, ends the preview itself.
+ */
+export function hideDsPreviewMenu() {
+  if (!session || session.menuOpen === false) return false;
+  session = { ...session, menuOpen: false };
+  emit();
+  return true;
+}
+
+export function showDsPreviewMenu() {
+  if (session?.menuOpen !== false) return false;
+  session = { ...session, menuOpen: true };
+  emit();
+  return true;
+}
+
+/**
+ * "Preview in …" asked for from a system's row. The same row asking again is a toggle (13 · ds-many-switch):
+ * menu open → stop; menu hidden → bring it back; another row, or no preview yet → start from that row.
+ * @param {{ from: string, systems: string[] }} p
+ * @returns {'started' | 'stopped' | 'shown' | 'none'}
+ */
+export function requestPreviewMenu({ from, systems }) {
+  if (session && session.from === from) {
+    if (session.menuOpen !== false) {
+      stopDsPreview();
+      return 'stopped';
+    }
+    showDsPreviewMenu();
+    return 'shown';
+  }
+  return beginDsPreview({ from, systems }) ? 'started' : 'none';
 }
 
 /** Step to the next (+1) or previous (-1) system, wrapping. */
@@ -60,7 +101,7 @@ export function stopDsPreview() {
   return true;
 }
 
-/** @returns {{ from: string, names: string[], index: number, target: string } | null} */
+/** @returns {{ from: string, names: string[], index: number, menuOpen: boolean, target: string } | null} */
 export function getDsPreview() {
   return session ? { ...session, target: session.names[session.index] } : null;
 }
@@ -97,6 +138,11 @@ export const PREVIEW_WORDS = Object.freeze({
     n > 0 ? `${n} canvas${n === 1 ? '' : 'es'} shown in it · esc to stop` : 'esc to stop',
   action: 'Switch…',
   menuHead: 'Design systems',
+  // what the menu says beside a system. The panel's "2 in use" counts systems that ANY canvas uses; the menu is
+  // about the open canvas, so it says that, and names the default the way the panel's "Default" means it.
+  usedByCanvas: 'used by this canvas',
+  defaultForNew: 'default for new canvases',
+  previewing: 'previewing',
   // the menu's foot (13 · ds-many-switch): the way out to the Design system, and to making / linking another
   doors: Object.freeze([
     Object.freeze({ id: 'open', label: 'Open the Design system', key: '↵' }),
