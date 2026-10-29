@@ -327,8 +327,9 @@ describe('F6 — an arrow binds to the button, not the artboard', () => {
     const target = await centerOfPage('.pricing');
     const start = await c.center('note');
     await drawArrow(start, target);
+    // the arrow lands first; the stamp (a write to the TSX) and the bind that stores its id follow
     const board = await waitForBoard(server.root, (m) =>
-      [...m.keys()].some((k) => !before.has(k) && m.get(k).type === 'arrow')
+      [...m.keys()].some((k) => !before.has(k) && m.get(k).type === 'arrow' && m.get(k).endHost?.ref)
     );
     const a = [...board.values()].find((e) => !before.has(e.id) && e.type === 'arrow');
     assert.match(a.endHost.ref, /^el:desktop\/[a-z][a-z0-9-]*$/);
