@@ -1,4 +1,3 @@
-import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -474,6 +473,13 @@ describe('team-cell-missing (native-desktop)', () => {
       async () => (await letakTrash()).length === 3,
       120_000
     );
+    const acks = async () => {
+      const st = (await bobGet('/_sync-status')).body as {
+        accepted?: { pending?: number; ackMs?: { n?: number } };
+      };
+      return { n: st?.accepted?.ackMs?.n ?? 0, pending: st?.accepted?.pending ?? 0 };
+    };
+    const acksBefore = await acks();
     writeFileSync(
       join(c.designer, '.design', LETAK),
       LETAK_SOURCE.replace(/ {8}<DCArtboard[\s\S]*<\/DCArtboard>\n/, '')
@@ -481,7 +487,14 @@ describe('team-cell-missing (native-desktop)', () => {
     expect(ids(read(join(c.designer, '.design', LETAK)))).toEqual([]);
     // the hand edit is taken by the cell before anyone restores into it (a restore over a local edit the cell has not
     // taken yet would be held, not applied)
-    await browser.pause(3_000);
+    await eventually(
+      'the cell takes the hand edit',
+      async () => {
+        const a = await acks();
+        return a.n > acksBefore.n && a.pending === 0;
+      },
+      60_000
+    );
     await eventually('Saved', async () => (await statusWord())?.status === 'saved', 120_000);
 
     const card = await $(tid('all-trashed'));
@@ -497,45 +510,8 @@ describe('team-cell-missing (native-desktop)', () => {
     await browser.pause(1_500); // the outlines (canvas side) follow the card
     await capture('05-es-all-trashed');
 
-    const origin = (await browser.execute(() => location.origin)) as string;
     await restore.click();
-    // DIAGNOSIS (Restore hang): from OUTSIDE the page — does the studio finish the restores, and is the web content busy?
-    for (let i = 0; i < 6; i++) {
-      await new Promise((r) => setTimeout(r, 2_000));
-      const t = await fetch(`${origin}/_api/trash`, { signal: AbortSignal.timeout(5_000) })
-        .then((r) => r.json() as Promise<{ items?: Array<{ kind?: string; path?: string }> }>)
-        .then((j) => (j.items ?? []).filter((x) => x.kind === 'artboard' && x.path === LETAK).length)
-        .catch((e) => `ERR ${String(e)}`);
-      const cpu = execSync("ps -ax -o pcpu,command | grep -i 'WebContent\\|maude-server' | grep -v grep | cut -c1-110")
-        .toString()
-        .trim()
-        .replace(/\n/g, ' ¦ ');
-      console.log(
-        `[team-cell-missing] +${(i + 1) * 2}s trash=${t} file=${JSON.stringify(ids(read(join(c.designer, '.design', LETAK))))} cpu=${cpu}`
-      );
-    }
-    console.log(
-      `[team-cell-missing] after Restore: ${await browser.execute(() =>
-        Array.from(document.querySelectorAll('[data-testid^="notice-"]'))
-          .map((n) => (n.textContent ?? '').trim())
-          .join(' | ')
-      )} · trash=${JSON.stringify(await letakTrash())} · file=${JSON.stringify(ids(read(join(c.designer, '.design', LETAK))))}`
-    );
-    {
-      const items = (await bobGet('/_api/trash')).body?.items ?? [];
-      const first = items.find((i: { kind?: string }) => i.kind === 'artboard');
-      const t0 = Date.now();
-      const r = await fetch(`${origin}/_api/trash/restore`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id: first?.id }),
-        signal: AbortSignal.timeout(45_000),
-      })
-        .then(async (x) => `${x.status} ${(await x.text()).slice(0, 400)}`)
-        .catch((e) => `ERR ${String(e)}`);
-      console.log(`[team-cell-missing] direct restore ${first?.id}: ${r} after ${Date.now() - t0} ms`);
-    }
-    await capture('05-es-all-trashed-after-restore');
+
     await card.waitForExist({ reverse: true, timeout: 60_000 });
     await eventually(
       'the three artboards back in the designer’s copy',
