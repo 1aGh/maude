@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 
 import {
+  bashBackgrounds,
   bashMayWrite,
   classifyBash,
   designVerbOf,
@@ -692,4 +693,42 @@ test('F1(d) bindVars unbinds a name every assigning builtin can change', () => {
     assert.equal(lastTarget(src).literal, false, src);
   // a plain literal assignment still binds (the V2-8.16 behaviour)
   assert.equal(lastTarget('f=ui/C.tsx; echo PAYLOAD > "$f"').text, 'ui/C.tsx');
+});
+
+// p8-secfix-hook (V2-8.9 final delta F2) — a call that leaves a process running keeps its claim
+// window open until the turn ends; the call's return no longer bounds its writes.
+test('F2 bashBackgrounds — every way a shell call leaves a writer running', () => {
+  for (const cmd of [
+    'nohup python3 w.py &',
+    'python3 w.py &',
+    `(sleep 2; node -e 'require("fs").writeFileSync("x","")') &`,
+    '{ sleep 1; python3 w.py; } & echo started',
+    'while true; do python3 w.py; done &',
+    'python3 w.py & disown',
+    'setsid python3 w.py',
+    'sudo nohup python3 w.py',
+    'nice -n 5 nohup node w.js',
+    'echo $(python3 w.py &)',
+    'bash -c "python3 w.py &"',
+    "sh -c 'nohup node w.js'",
+    'tmux new -d python3 w.py',
+    'echo x | at now + 1 minute',
+    `python3 -c 'import subprocess; subprocess.Popen(["node", "w.js"])'`,
+    `node -e 'require("child_process").spawn("x", {detached: true}).unref()'`,
+    'echo "unterminated',
+  ])
+    assert.equal(bashBackgrounds(cmd), true, cmd);
+  for (const cmd of [
+    'python3 w.py',
+    'ls && pwd',
+    'cat x > ui/C.tsx',
+    'grep -n "a & b" ui/C.tsx',
+    'echo nohup',
+    'ls 2>&1 | head',
+    'cmd &> /tmp/log',
+    'bash -c "ls && pwd"',
+    `node -e 'require("child_process").spawnSync("x")'`,
+  ])
+    assert.equal(bashBackgrounds(cmd), false, cmd);
+  assert.equal(bashBackgrounds(undefined), false);
 });

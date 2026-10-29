@@ -184,6 +184,55 @@ describe('acp / any Bash call that may write opens a claim-only window', () => {
   });
 });
 
+// p8-secfix-hook (V2-8.9 final delta F2) — `nohup python3 w.py &` or Claude Code's
+// `run_in_background` completes at once while the process keeps writing. Its window stays open until
+// the turn ends, so those writes land in the run, not as the person's "changed outside the app".
+describe('acp / a call that outlives itself keeps its window until the turn ends', () => {
+  const windowsOf = (calls: Call[]) =>
+    calls.map((c) => (c[3] as { shell: { call: string; open: boolean } }).shell);
+  test('a background job, nohup / setsid / disown and run_in_background', () => {
+    for (const [id, rawInput] of [
+      ['g1', { command: 'nohup python3 w.py &' }],
+      ['g2', { command: `(sleep 2; node -e 'require("fs").writeFileSync("ui/C.tsx","")') &` }],
+      ['g3', { command: 'setsid python3 w.py' }],
+      ['g4', { command: 'python3 w.py & disown' }],
+      ['g5', { command: 'python3 w.py', run_in_background: true }],
+    ] as const) {
+      const calls: Call[] = [];
+      const t = createAgentActivityTracker(mkCtx(calls), ai, `c-${id}`);
+      t.beginTurn?.('cut it', `r_${id}`);
+      t.onUpdate({
+        sessionUpdate: 'tool_call',
+        toolCallId: id,
+        kind: 'execute',
+        status: 'in_progress',
+        rawInput,
+      } as unknown as SessionUpdate);
+      done(t, id);
+      // the call returned: its window is still open
+      expect(windowsOf(calls), id).toEqual([{ call: id, open: true }]);
+      t.endTurn('done');
+      expect(windowsOf(calls), id).toEqual([
+        { call: id, open: true },
+        { call: id, open: false }, // the turn ended
+      ]);
+    }
+  });
+  test('a call that waits for its process still shuts at its return', () => {
+    const calls: Call[] = [];
+    const t = createAgentActivityTracker(mkCtx(calls), ai, 'c-fg');
+    t.beginTurn?.('cut it', 'r_fg');
+    shell(t, 'python3 w.py && echo done', 'f1');
+    done(t, 'f1');
+    expect(windowsOf(calls)).toEqual([
+      { call: 'f1', open: true },
+      { call: 'f1', open: false },
+    ]);
+    t.endTurn('done');
+    expect(calls.length).toBe(2);
+  });
+});
+
 describe('acp / runsDesignWriteVerb', () => {
   test('write verbs, in a pipeline or after a cd', () => {
     expect(runsDesignWriteVerb('maude design reel-place recap --next')).toBe(true);

@@ -1870,6 +1870,55 @@ describe('design-system history is never written by hand (S10.3b)', () => {
   });
 });
 
+// p8-secfix-hook (V2-8.9 final delta F2) — `nohup python3 w.py &` / `run_in_background` returns at
+// once; the process writes later. Post-bash ran before the write, so it touched nothing; the mark
+// stays until the turn ends and Stop binds (and checks) what the process wrote.
+describe('p8-secfix-hook F2 — a background call binds what its process writes after it returns', () => {
+  let project;
+  beforeAll(() => {
+    project = makeProject('maude-hook-bg-');
+  });
+  afterAll(() => rmSync(project, { recursive: true, force: true }));
+  const runIn = (s) => join(project, '.design', '_runs', s);
+
+  test('nohup … & and run_in_background: Stop checks the file the process wrote later', async () => {
+    const cases = [
+      ['bg1', bash(project, 'bg1', 't1', 'nohup python3 w.py &')],
+      [
+        'bg2',
+        {
+          ...bash(project, 'bg2', 't2', 'python3 w.py'),
+          tool_input: { command: 'python3 w.py', run_in_background: true },
+        },
+      ],
+    ];
+    for (const [s, input] of cases) {
+      writeFileSync(canvasPath(project), CANVAS);
+      expect(await hook('pre-bash', input)).toMatchObject({ status: 0, stdout: '' });
+      expect(await hook('post-bash', input)).toMatchObject({ status: 0, stdout: '' });
+      expect(existsSync(join(runIn(s), 'touched.json'))).toBe(false); // nothing written yet
+      expect(existsSync(join(runIn(s), 'bash', `${input.tool_use_id}.json`))).toBe(true);
+      // the background process writes after the call returned: a duplicate artboard id
+      await Bun.sleep(10);
+      writeFileSync(canvasPath(project), CANVAS.replace('id="pricing"', 'id="hero"'));
+      const r = await hook('stop', { session_id: s, cwd: project, stop_hook_active: false });
+      expect(r.json?.decision).toBe('block');
+      expect(r.json.reason).toContain('[artboard-duplicate]');
+      const touched = JSON.parse(readFileSync(join(runIn(s), 'touched.json'), 'utf8'));
+      expect(touched['ui/C.tsx'].via).toBe('bash');
+    }
+  });
+
+  test('a call that waits for its process: post-bash binds and drops its mark', async () => {
+    writeFileSync(canvasPath(project), CANVAS);
+    const input = bash(project, 'fg1', 't3', 'python3 w.py');
+    await hook('pre-bash', input);
+    expect(existsSync(join(runIn('fg1'), 'bash', 't3.json'))).toBe(true);
+    await hook('post-bash', input);
+    expect(existsSync(join(runIn('fg1'), 'bash', 't3.json'))).toBe(false);
+  });
+});
+
 // Michal 2026-10-29 (kg maude/v2-michal-gate-blocks-only-introduced-findings, V2-8.16 e4/e5): the
 // post-edit gate blocks only what the edit INTRODUCED. A finding the file already had before the
 // edit (the marketing21 fixture's `DISCIPLINY.map(d => <DCArtboard id={`disc-${d.id}`}>)`) goes to

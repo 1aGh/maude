@@ -491,6 +491,15 @@ function commandsOf(tokens) {
   };
   for (let k = 0; k < tokens.length; k++) {
     const tk = tokens[k];
+    if (tk.t === 'op' && tk.op === '&') {
+      // p8-secfix-hook F2 — `a &`, `(a; b) &`, `while …; done &`: a job that outlives the call.
+      // The flag rides the last command the `&` ends (a `}` / `done` / `)` is not one of them).
+      end();
+      const last = out[out.length - 1];
+      if (last) last.bg = true;
+      else out.push({ assigns: [], words: [], redirs: [], pipeIn: false, bg: true });
+      continue;
+    }
     if (tk.t === 'op') {
       // `a | b`: b reads a's stdout (pipeIn), which is how `maude … | tee <path>` is seen
       end(tk.op === '|' || tk.op === '|&');
@@ -883,6 +892,85 @@ export function bashMayWrite(command, verbs = null) {
     if (cmd.words.length !== e.args.length + 1) return true; // a wrapper (`env`, `sudo`) runs it
     if (e.name === 'find' && e.args.some((a) => !a.literal || FIND_WRITES.test(a.text)))
       return true;
+  }
+  return false;
+}
+
+/** Commands whose job is to leave a process running after they return. */
+const BG_HEADS = new Set([
+  'nohup',
+  'disown',
+  'setsid',
+  'coproc',
+  'daemonize',
+  'screen',
+  'tmux',
+  'at',
+  'batch',
+]);
+const SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh']);
+/** An interpreter script that starts a process it does not wait for (visible text only). */
+const SCRIPT_DETACHES =
+  /\b(?:fork|Popen|spawn|detached|unref|setsid|setpgid|start_new_session|daemon\w*|nohup|disown)\b/;
+
+/** The names a command runs as, wrappers first: `sudo nice -n 5 nohup x` → sudo, nice, nohup, x. */
+function headNames(words) {
+  const out = [];
+  let k = 0;
+  while (k < words.length && words[k].literal) {
+    const n = nameOf(words[k].text);
+    out.push(n);
+    if (!WRAPPERS.has(n)) break;
+    k++;
+    const takesArg = OPERAND_FLAGS[n];
+    while (
+      k < words.length &&
+      words[k].literal &&
+      (/^-/.test(words[k].text) || /^[A-Za-z_]\w*=/.test(words[k].text))
+    ) {
+      if (takesArg?.has(words[k].text)) k++;
+      k++;
+    }
+  }
+  return out;
+}
+
+/**
+ * p8-secfix-hook (V2-8.9 final delta F2) — may `command` leave a process writing after the call
+ * returns? A `&` job, `nohup` / `setsid` / `disown` / `coproc` / `screen` / `tmux` / `at`, a
+ * `sh -c` script that does, or an interpreter script whose visible text forks or detaches. An
+ * unparseable command may (fail closed). The caller keeps the call's claim window open until the
+ * turn ends instead of the call's return + settle. A script FILE (`python3 w.py`) is not read —
+ * the named residual (binding by what changed, not by time, is follow-up F3).
+ *
+ * @param {unknown} command
+ * @returns {boolean}
+ */
+export function bashBackgrounds(command, depth = 0) {
+  if (typeof command !== 'string' || !command.trim()) return false;
+  const cmds = parseBash(command);
+  if (!cmds) return true;
+  for (const cmd of cmds) {
+    if (cmd.bg) return true;
+    const names = headNames(cmd.words);
+    if (names.some((n) => BG_HEADS.has(n))) return true;
+    const e = effective(cmd.words);
+    if (!e) continue;
+    if (SHELLS.has(e.name)) {
+      const k = e.args.findIndex((a) => a.literal && /^-[A-Za-z]*c[A-Za-z]*$/.test(a.text));
+      const script = k === -1 ? null : e.args[k + 1];
+      if (script && !script.literal) return true;
+      if (script && depth < 4 && bashBackgrounds(script.text, depth + 1)) return true;
+      // `bash <<EOF … EOF`: the script is stdin
+      const doc = k === -1 ? cmd.redirs.find((r) => r.op === '<<' || r.op === '<<-') : null;
+      if (doc?.body && depth < 4 && bashBackgrounds(doc.body, depth + 1)) return true;
+      continue;
+    }
+    const lang = Object.hasOwn(INTERPRETERS, e.name) ? e.name : null;
+    if (lang) {
+      const text = scriptText(cmd, e.args, INTERPRETERS[lang], lang);
+      if (text && SCRIPT_DETACHES.test(text)) return true;
+    }
   }
   return false;
 }
