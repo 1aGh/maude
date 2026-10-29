@@ -368,6 +368,7 @@ describe('A1 hold — a person’s save inside an interpreter call’s window wa
     const r = await rig();
     const { end } = await pythonTurn(r);
     await r.save(HOME, 'footer', 'style.color=red');
+    expect(r.read(HOME)).not.toContain(RED); // held while the call runs
     end('failed');
     await sleep(SHELL_SETTLE_MS + 300);
     expect(r.read(HOME)).toContain(RED);
@@ -377,6 +378,7 @@ describe('A1 hold — a person’s save inside an interpreter call’s window wa
     const r = await rig();
     const { t } = await pythonTurn(r);
     await r.save(HOME, 'footer', 'style.color=red');
+    expect(r.read(HOME)).not.toContain(RED); // held while the call runs
     t.endTurn('failed');
     await sleep(SHELL_SETTLE_MS + 300);
     expect(r.read(HOME)).toContain(RED);
@@ -393,6 +395,7 @@ describe('A1 hold — a person’s save inside an interpreter call’s window wa
       files: [HOME],
     });
     await r.save(HOME, 'footer', 'style.color=red');
+    expect(r.read(HOME)).not.toContain(RED); // held while the call runs
     await post('/_api/agent/run/end', { session: 't1', outcome: 'failed' });
     await sleep(SHELL_SETTLE_MS + 300);
     expect(r.read(HOME)).toContain(RED);
