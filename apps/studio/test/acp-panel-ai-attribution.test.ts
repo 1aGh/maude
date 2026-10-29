@@ -80,12 +80,19 @@ const ai: AiActivity = {
 };
 const upd = (u: Record<string, unknown>) => u as unknown as SessionUpdate;
 
-/** One Edit call as the adapter streams it: announce (no input) → input + path → completed (no path). */
+/**
+ * One Edit call as the adapter streams it: announce (no input) → input + path → completed (no path).
+ * The input is the edit the write makes (`<h1>from</h1>` → `<h1>to</h1>`): since p8-a1-claims round 2
+ * the tracker claims the bytes the input replays to, so a write that is not the input's lands as the
+ * person's — as it would for a real call.
+ */
 function edit(
   t: ReturnType<typeof createAgentActivityTracker>,
   id: string,
   rel: string,
-  write: () => void
+  from: string,
+  to: string,
+  designRoot: string
 ) {
   t.onUpdate(
     upd({
@@ -103,10 +110,15 @@ function edit(
       toolCallId: id,
       kind: 'edit',
       locations: [{ path: rel }],
-      rawInput: { file_path: rel, old_string: 'x', new_string: 'y', replace_all: false },
+      rawInput: {
+        file_path: rel,
+        old_string: `<h1>${from}</h1>`,
+        new_string: `<h1>${to}</h1>`,
+        replace_all: false,
+      },
     })
   );
-  write();
+  writeFileSync(path.join(designRoot, rel.slice('.design/'.length)), canvas(to));
   t.onUpdate(upd({ sessionUpdate: 'tool_call_update', toolCallId: id, status: 'completed' }));
 }
 
@@ -116,12 +128,8 @@ test('two chats edit two canvases at once: each run lands as ONE ai version, nev
   const t2 = createAgentActivityTracker(ctx, ai, 'c2');
   t1.beginTurn?.('Rename the a heading', 'r_attr1');
   t2.beginTurn?.('Rename the b heading', 'r_attr2');
-  edit(t1, 'tc1', '.design/ui/a.tsx', () =>
-    writeFileSync(path.join(designRoot, 'ui', 'a.tsx'), canvas('A by c1'))
-  );
-  edit(t2, 'tc2', '.design/ui/b.tsx', () =>
-    writeFileSync(path.join(designRoot, 'ui', 'b.tsx'), canvas('B by c2'))
-  );
+  edit(t1, 'tc1', '.design/ui/a.tsx', 'a', 'A by c1', designRoot);
+  edit(t2, 'tc2', '.design/ui/b.tsx', 'b', 'B by c2', designRoot);
   h.observe('ui/a.tsx');
   h.observe('ui/b.tsx');
   await h.flush();
