@@ -3,7 +3,12 @@
 
 import { describe, expect, test } from 'bun:test';
 import { importAsset, importKindOf, uploadAsset } from '../asset-upload.ts';
-import { ARRIVAL_LINES, importLine, removedClause } from '../client/v2/assets/import-lines.js';
+import {
+  ARRIVAL_LINES,
+  addingLine,
+  importLine,
+  removedClause,
+} from '../client/v2/assets/import-lines.js';
 
 describe('S8.22 import lines', () => {
   test('a second copy, a .psd, a HEIC and a cleaned logo each get the canvas line', () => {
@@ -74,6 +79,38 @@ describe('S8.22 import lines', () => {
       'Saved a copy from the link — the page can change, your copy won’t.'
     );
     expect(ARRIVAL_LINES.addedBy('Tereza')).toBe('Added by Tereza');
+  });
+});
+
+// p8-fix-e (F16, 12 · ia-edges A) — "Preparing <name> — keeps working in the background. About 4 min." had no caller:
+// a 500 MB clip showed the bare "Adding… 38%". `addingLine` is what the Assets panel's busy line now says.
+describe('F16 · A — a huge file says it is preparing, with the time left', () => {
+  const MB = 1024 * 1024;
+  test('a large file names itself and the minutes left, from the pace so far', () => {
+    // 38 % in 2 min 27 s → about 4 min left
+    const line = addingLine({
+      progress: 0.38,
+      name: 'stadion-dron-4K.mov',
+      bytes: 512 * MB,
+      elapsedMs: 147_000,
+    });
+    expect(line).toBe(
+      'Preparing stadion-dron-4K.mov — keeps working in the background. About 4 min. 38 %'
+    );
+  });
+  test('under a minute left, and before any pace is known', () => {
+    expect(
+      addingLine({ progress: 0.95, name: 'big.mov', bytes: 300 * MB, elapsedMs: 60_000 })
+    ).toBe('Preparing big.mov — keeps working in the background. About a minute. 95 %');
+    expect(addingLine({ progress: 0, name: 'big.mov', bytes: 300 * MB, elapsedMs: 0 })).toBe(
+      'Preparing big.mov — keeps working in the background. 0 %'
+    );
+  });
+  test('a small file keeps the short line; no progress yet keeps "Adding…"', () => {
+    expect(addingLine({ progress: 0.5, name: 'IMG_2231.jpg', bytes: 3 * MB, elapsedMs: 400 })).toBe(
+      'Adding… 50%'
+    );
+    expect(addingLine(null)).toBe('Adding…');
   });
 });
 

@@ -133,3 +133,28 @@ export const ARRIVAL_LINES = Object.freeze({
   fromLink: () => 'Saved a copy from the link — the page can change, your copy won’t.',
   addedBy: (who) => `Added by ${who}`,
 });
+
+/** From this size a file is "huge" (12 · ia-edges A: a 500 MB 4K clip): it says it is preparing, not just adding. */
+export const LARGE_FILE_BYTES = 100 * 1024 * 1024;
+
+/** "4 min" / "a minute" from the pace so far — null until there is a pace to go on. */
+function timeLeft(progress, elapsedMs) {
+  if (!(progress > 0 && progress < 1) || !(elapsedMs > 0)) return null;
+  const minutes = Math.round((elapsedMs * (1 - progress)) / progress / 60_000);
+  return minutes <= 1 ? 'a minute' : `${minutes} min`;
+}
+
+/**
+ * The Assets panel's line while files are going in (p8-fix-e, F16 · A). A huge file gets the board's
+ * "Preparing <name> — keeps working in the background. About 4 min." with its percent; anything else keeps the
+ * short "Adding… 50%".
+ * @param {{ progress: number, name?: string, bytes?: number, elapsedMs?: number } | null} upload  the largest file in flight
+ */
+export function addingLine(upload) {
+  if (!upload || typeof upload.progress !== 'number') return 'Adding…';
+  const pct = Math.round(upload.progress * 100);
+  if (upload.name && (upload.bytes ?? 0) >= LARGE_FILE_BYTES) {
+    return `${ARRIVAL_LINES.preparing(upload.name, timeLeft(upload.progress, upload.elapsedMs))} ${pct} %`;
+  }
+  return `Adding… ${pct}%`;
+}
