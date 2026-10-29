@@ -138,6 +138,32 @@ export function noteHubFormat(
   return true;
 }
 
+/**
+ * A hub-supplied format as it may be WRITTEN into the versioned config.json
+ * (p8-secfix-studio, V2-8.9 F5/D4): at most SUPPORTED_FORMAT. The hub's value
+ * reaches this build over the unauthenticated `/health`, so a hostile hub (or a
+ * plain-http MITM) can say anything; persisted unclamped, it would leave the
+ * project "newer than this build" after the person left that hub, and in git.
+ * The in-memory mirror keeps the hub's own value (an honest newer hub still
+ * gates the project view only while linked); only what is persisted is capped.
+ * A build never writes a format it cannot itself open.
+ */
+export function persistableFormat(v: unknown): number {
+  return Math.min(asFormat(v), SUPPORTED_FORMAT);
+}
+
+/**
+ * The format detach/unlink keeps in config.json once the link is gone: the
+ * hub's value, clamped by `persistableFormat`, RAISE ONLY — never below what
+ * the config already says (a person's own higher value stays). The CLI copy is
+ * `hubFormatToCarry` (cli/lib/design-link.mjs), pinned to this by
+ * test/p8-secfix-format-clamp.test.ts + test/detach-keeps-format.test.ts.
+ */
+export function formatToKeep(ctx: FormatCtx): number {
+  const fromConfig = asFormat(ctx.cfg.formatVersion);
+  return Math.max(fromConfig, persistableFormat(projectFormat(ctx).value));
+}
+
 /** The project's format, and which authority set it. */
 export function projectFormat(
   ctx: FormatCtx,
