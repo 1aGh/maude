@@ -28,6 +28,7 @@ import { after, before, describe, test } from 'node:test';
 import {
   makeProject,
   openCanvas,
+  peerOps,
   readBoard,
   sleep,
   startServer,
@@ -180,6 +181,12 @@ describe('F1–F2 — Desktop moves, its members and the bound arrow follow', ()
       );
       assert.equal(loose, '', 'the loose note does not ride');
       const tag = c.frame.locator('[data-testid="annot-cross-tag"]');
+      if (!(await tag.count())) {
+        const box = async (q) => c.frame.locator(q).first().boundingBox().catch(() => null);
+        assert.fail(
+          `no cross tag mid-drag: arw=${JSON.stringify(disk().get('arw'))} desktop=${JSON.stringify(await box('[data-dc-screen="desktop"]'))} mobile=${JSON.stringify(await box('[data-dc-screen="mobile"]'))} note=${JSON.stringify(await c.pageBox('tereza'))} ride=${(await c.frame.evaluate(() => document.querySelector('[data-testid="annot-ride"]')?.outerHTML.slice(0, 700)))}`
+        );
+      }
       assert.match((await tag.first().textContent()) ?? '', /the straight line would cross Mobile/);
       const pts = await c.frame.evaluate(
         () =>
@@ -326,18 +333,12 @@ describe('F6 — an arrow binds to the button, not the artboard', () => {
 
   test('an unnamed element is stamped first and the bind stores the id it was given', async () => {
     const before = new Set(disk().keys());
-    // The Pricing link sits partly under the "sun" sticker; a board item under the end wins the bind (S4.11), so drop
-    // on a part of the link that nothing on the board covers.
-    const pb = await c.frame.locator('.pricing').first().boundingBox();
-    const sb = await c.pageBox('sun');
-    const inSun = (x, y) => x >= sb.x && x <= sb.x + sb.width && y >= sb.y && y <= sb.y + sb.height;
-    let target = null;
-    for (const fy of [0.5, 0.75, 0.9, 0.97])
-      for (const fx of [0.9, 0.5, 0.1]) {
-        const p = [pb.x + pb.width * fx, pb.y + pb.height * fy];
-        if (!target && !inSun(p[0], p[1])) target = p;
-      }
-    assert.ok(target, 'a part of the Pricing link is clear of the board');
+    // The Pricing link sits under the "sun" sticker, and a board item under the end wins the bind (S4.11): a person
+    // would move the sticker off the link first, so a peer moves it, and the arrow then meets the bare link.
+    await peerOps(server, [{ op: 'patch', id: 'sun', set: { x: 1300 }, expect: { x: 400 } }]);
+    await waitForBoard(server.root, (m) => m.get('sun')?.x === 1300);
+    await sleep(600);
+    const target = await centerOfPage('.pricing');
     const start = await c.center('note');
     await drawArrow(start, target);
     // the arrow lands first; the stamp (a write to the TSX) and the bind that stores its id follow
