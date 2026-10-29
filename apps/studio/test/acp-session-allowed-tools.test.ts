@@ -83,7 +83,8 @@ describe('newSessionParams — allowedTools carrier shape (DDR-184)', () => {
 /** Claude Code's `Bash(<prefix>:*)` match: the command is the prefix, or starts with it + a space. */
 function bashRuleMatches(rule: string, cmd: string): boolean {
   const m = /^Bash\((.*):\*\)$/.exec(rule);
-  if (!m) return rule === 'Bash' || rule === 'Bash(*)';
+  // an exact rule (`Bash(maude --help)`) matches that one command only
+  if (!m) return rule === 'Bash' || rule === 'Bash(*)' || rule === `Bash(${cmd})`;
   const prefix = m[1] as string;
   return cmd === prefix || cmd.startsWith(`${prefix} `);
 }
@@ -99,6 +100,9 @@ const TOP_LEVEL_READ_RULES = [
   // lead answer (a), decision:maude/v2-2.4b-held-and-prompting-verbs
   'Bash(maude help:*)',
   'Bash(maude preflight:*)',
+  // V2-8.16: the help FLAG forms, exact (no `:*`) — that one command line and nothing else
+  'Bash(maude --help)',
+  'Bash(maude design --help)',
 ];
 
 // Prompt tier (external / shared / destructive) and human tier, contract V2-1.11 §5.3: each one
@@ -140,6 +144,12 @@ const NOT_AUTO = [
   'maude design runs cancel r_abcdef01',
   'maude design runs',
   'ls .design && maude design runs list',
+  // V2-8.16: the help flag forms are exact rules — a prompt verb's `--help` still prompts, and
+  // anything after the flag is not the help form
+  'maude design generate --help',
+  'maude design curl-local --help',
+  'maude --help design',
+  'maude design --help && maude design curl-local http://127.0.0.1:4399/_api/sync/trash',
 ];
 
 const STILL_AUTO = [
@@ -168,6 +178,10 @@ const STILL_AUTO = [
   // in NOT_AUTO above
   'maude design transcribe-local assets/abcd1234.mp4',
   'maude design transcribe-local assets/abcd1234.mp4 --speech-only --json',
+  // V2-8.16 live journeys: the read-only help flag forms (exact rules) and an auto verb's own `--help`
+  'maude --help',
+  'maude design --help',
+  'maude design screenshot --help',
 ];
 
 describe('MAUDE_DEFAULT_ALLOWED_TOOLS — source-of-truth guard (DDR-184 / DDR-062)', () => {

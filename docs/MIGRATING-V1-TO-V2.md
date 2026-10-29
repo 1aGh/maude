@@ -34,7 +34,25 @@ A Maude 2 project carries `"formatVersion": 2` in `.design/config.json`. A proje
 
 ### Updating in the app
 
-Open the project, then choose **Update project** in the view-only line. The dialog asks *Update "<project>" for Maude 2?* and says what it means: *People still on Maude 1 can look at it but can't change it until they update. Nothing in the project is lost.* When it finishes, a toast says *Updated for Maude 2. People on Maude 1 can look but not edit.*
+Open the project, then choose **Update project** in the view-only line. The dialog asks *Update "<project>" for Maude 2?* and says what it means: *People still on Maude 1 can look at it but can't change it until they update. Nothing in the project is lost.* For a project that is local, or shared but already saving with accepted revisions, the toast when it finishes says *Updated for Maude 2. People on Maude 1 can look but not edit.* A shared project that still saves the old way also switches how it saves in the same step; see the next section for its words.
+
+### How a shared project saves
+
+A project linked to a team server either saves the old way or with **accepted revisions**: each change counts as saved once the team server confirms it, and Undo takes back only your own. **Update project** moves a shared project to accepted revisions too. Only the owner can, and nothing in the project is lost.
+
+- **A Maude 1 project that still saves the old way.** The same Update does both steps. The dialog has a second paragraph: *It also starts saving with accepted revisions: each change counts as saved once the team server confirms it. Anyone with the project open switches over by themselves.* The toast says *Updated for Maude 2 and saving with accepted revisions. People on Maude 1 can look but not edit.*
+- **A Maude 2 project that still saves the old way.** It is not view only, so the line is quieter and never asks by itself: *This project still saves the old way.* with **Update project**. The dialog asks *Update how "<project>" saves?* and says: *Each change counts as saved once the team server confirms it, and Undo takes back only your own. Anyone with the project open switches over by themselves, and nothing in it is lost. People on Maude 1 older than 1.3 can look at it but can't save changes.* The toast says *Updated. The project now saves with accepted revisions.*
+
+Other toasts and lines:
+
+| When | What Maude says |
+| --- | --- |
+| The team server is still bringing changes in after the switch | *Updated. The team server is still bringing changes in — nothing is lost.* |
+| The format moved but the switch did not happen | *Updated for Maude 2, but it still saves the old way. Nothing is lost — Update project again to finish.* |
+| The switch did not happen on a Maude 2 project | The dialog says *The project still saves the old way. Nothing in it changed — Update project again to switch.* |
+| You own the project and opened it in a cloud tab | *This project still saves the old way. Switch it in the dashboard, under Saving.* with **Open dashboard**. A cloud tab cannot run the switch itself. |
+
+Anyone who is not the owner sees no line about saving.
 
 Maude 2 never updates a project by itself: opening a Maude 1 project only asks, once. A project Maude 2 creates is a Maude 2 project from the start, and so is a brand-new team project that a Maude 2 app starts on a Maude 2 team server.
 

@@ -9,6 +9,16 @@ Maude 2 has one menu, one search, one Share cluster and one toolbar per mode. No
 A project saved by Maude 2 carries `formatVersion: 2`; Maude 1.x opens it read-only with *Update Maude to edit*. `maude migrate v2` upgrades a Maude 1 project's files, with a dry run first and a way back.
 </Callout>
 
+## Updating a project
+
+Maude 2 opens a Maude 1 project for viewing: *View only — this project still uses Maude 1.* Choose **Update project** to edit it. For a local project, the toast says *Updated for Maude 2. People on Maude 1 can look but not edit.*
+
+A shared project can still save the old way. Then **Update project** also switches it to **accepted revisions**: each change counts as saved once the team server confirms it, and Undo takes back only your own. Only the owner can switch it, and nothing in the project is lost.
+
+- On a Maude 1 project, the same Update does both steps. The dialog adds *It also starts saving with accepted revisions*, and the toast says *Updated for Maude 2 and saving with accepted revisions.*
+- On a Maude 2 project, a quiet line says *This project still saves the old way.* with **Update project**. The dialog asks *Update how "&lt;project&gt;" saves?*, and the toast says *Updated. The project now saves with accepted revisions.*
+- If the team server is still bringing changes in, the toast says *Updated. The team server is still bringing changes in — nothing is lost.*
+- In a cloud tab, the owner sees *Switch it in the dashboard, under Saving.* with **Open dashboard**.
 ## Where it went
 
 | In Maude 1 | In Maude 2 |

@@ -14,7 +14,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { MAUDE_DEFAULT_ALLOWED_TOOLS } from '../acp/bridge.ts';
-import { autoAllowRules, MAUDE_VERBS, verbTier } from '../actions/verbs.ts';
+import { autoAllowRules, HELP_ALLOW_RULES, MAUDE_VERBS, verbTier } from '../actions/verbs.ts';
 
 const ROOT = join(import.meta.dir, '..', '..', '..');
 
@@ -84,7 +84,10 @@ describe('maude verb tiers — the generated allow list', () => {
     const fromManifest = m.verbs
       .filter((v) => v.tier === 'auto')
       .map((v) => `Bash(maude ${v.verb}:*)`);
-    expect(MAUDE_DEFAULT_ALLOWED_TOOLS.filter((t) => t.startsWith('Bash'))).toEqual(fromManifest);
+    expect(MAUDE_DEFAULT_ALLOWED_TOOLS.filter((t) => t.startsWith('Bash'))).toEqual([
+      ...fromManifest,
+      ...HELP_ALLOW_RULES,
+    ]);
   });
 
   test('auto iff effect none/project and not held; prompt for the rest; human stays human', () => {
@@ -112,7 +115,7 @@ describe('maude verb tiers — the generated allow list', () => {
 
   test('no auto rule is a raw string prefix of a non-auto verb (export → export-cloud)', () => {
     // Belt and braces in case the CLI's prefix match ever ignores the word boundary.
-    const rules = autoAllowRules().map((r) => r.slice('Bash('.length, -':*)'.length));
+    const rules = autoAllowRules().map((r) => r.replace(/^Bash\(/, '').replace(/(:\*)?\)$/, ''));
     for (const v of MAUDE_VERBS.filter((x) => verbTier(x) !== 'auto')) {
       const cmd = `maude ${v.scope === 'design' ? 'design ' : ''}${v.verb}`;
       expect({ cmd, hit: rules.find((p) => cmd.startsWith(p)) }).toEqual({ cmd, hit: undefined });
@@ -150,5 +153,42 @@ describe('maude verb tiers — the generated allow list', () => {
     for (const v of ['ds-upgrade analyse', 'ds-upgrade plan', 'ds-upgrade validate'])
       expect(tier('design', v)).toBe('auto');
     expect(tier('design', 'ds-upgrade')).toBe('prompt');
+  });
+});
+
+// V2-8.16 live journeys at the freeze: `Bash(maude design help:*)` was allowed but `maude design --help` was
+// denied, twice, and the terminal agent concluded every `maude` command needed approval. The flag forms of help
+// are read-only, so they ride with the verbs — as EXACT rules (no `:*`): nothing but the help output gets through.
+describe('maude verb tiers — the help flag forms', () => {
+  const HELP = ['Bash(maude --help)', 'Bash(maude design --help)'];
+
+  test('the generated allow list carries the two exact help rules, after the verb rules', () => {
+    const rules = autoAllowRules();
+    expect(rules.slice(-HELP.length)).toEqual(HELP);
+    expect(MAUDE_DEFAULT_ALLOWED_TOOLS.filter((t) => HELP.includes(t))).toEqual(HELP);
+  });
+
+  test('every rule that is not a verb rule is exact: no wildcard, no prefix', () => {
+    const verbRules = new Set(
+      MAUDE_VERBS.filter((v) => verbTier(v) === 'auto').map(
+        (v) => `Bash(maude ${v.scope === 'design' ? 'design ' : ''}${v.verb}:*)`
+      )
+    );
+    const other = autoAllowRules().filter((r) => !verbRules.has(r));
+    expect(other).toEqual(HELP);
+    for (const r of other) expect(r).not.toMatch(/\*/);
+  });
+
+  test('`<verb> --help` rides on an auto verb’s own rule and never on a prompt / human verb', () => {
+    const rules = autoAllowRules();
+    expect(rules).toContain('Bash(maude design screenshot:*)');
+    expect(rules).toContain('Bash(maude help:*)');
+    expect(rules).toContain('Bash(maude design help:*)');
+    for (const v of ['generate', 'curl-local', 'export', 'link'])
+      expect(
+        rules.some(
+          (r) => r === `Bash(maude design ${v}:*)` || r.startsWith(`Bash(maude design ${v} `)
+        )
+      ).toBe(false);
   });
 });

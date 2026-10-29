@@ -77,3 +77,21 @@ test('the dev sync rigs stamp the format on every studio project they build', ()
   expect(bare).toEqual([]);
   expect(readFileSync(join(dev, 'v2-config.mjs'), 'utf8')).toContain('formatVersion');
 });
+
+// The local cell (scripts/dev/local-cell.mjs) builds TWO studio-served projects: the cloud side its hub's studio child
+// serves (no linkedHub — the hub owns the checkout) and the desktop side `pnpm dev:desktop` opens. Both are opened
+// by a v2 studio, so both go through `v2Config`; a bare config turned seven V2-8.4 steps red (view only, writes refused).
+test('the local cell stamps the format on both projects it builds', () => {
+  const dev = join(HERE, '..', '..', '..', 'scripts', 'dev');
+  const src = readFileSync(join(dev, 'local-cell.mjs'), 'utf8');
+  const writes = [...src.matchAll(/writeFileSync\(\s*join\([^)]*'config\.json'\),/g)];
+  expect(writes.length).toBe(2);
+  const bare: string[] = [];
+  for (const m of writes) {
+    const rest = src.slice((m.index ?? 0) + m[0].length);
+    const body = rest.slice(0, rest.indexOf(');'));
+    if (!/v2Config\(/.test(body)) bare.push(body.slice(0, 70));
+  }
+  expect(bare).toEqual([]);
+  expect(src).toMatch(/import \{ v2Config \} from '\.\/v2-config\.mjs';/);
+});

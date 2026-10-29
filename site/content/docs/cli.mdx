@@ -99,7 +99,7 @@ maude design serve [--port N] [--root <path>]
 
 `maude studio` is a top-level alias for `maude design serve` — the verb matches the studio's home under `apps/studio/`. Both are equivalent, and both also match invoking `claude-design-server` directly (the second bin shipped by `@1agh/maude`). All remaining args are forwarded to the server.
 
-- `--port`. Listen on a specific port (default `4399`; falls back to a random free port if taken).
+- `--port`. Listen on a specific port (also `$PORT`). Without it the server takes `4399`, walks up to `4408` when that is busy, and stops with a message naming the range when all ten are taken. An explicit port is never walked: if it is taken, the server stops with an error.
 - `--root`. Serve a different repo. By default uses `$CLAUDE_PROJECT_DIR`, then `process.cwd()`.
 
 The server **fails loud** if launched from a directory without a `.design/` folder. That's deliberate. It stops you from accidentally serving the wrong project.

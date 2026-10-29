@@ -8,7 +8,7 @@ Inside Maude Desktop the AI chat panel loads this plugin from the app bundle, so
 
 Claude works on a project's files, and runs a `maude` command for the few things a file edit cannot do. There is no separate protocol to learn.
 
-**Edit files.** A canvas is a `.tsx` under `.design/`; its layout, notes and artboard data sit in the sibling `.meta.json`; annotations are `*.annotations.json`; a video cut is `*.edl.json`. Use `Edit` on an existing file, never a whole-file `Write`. Every write under `.design/` is checked (`maude design check <file> --strict`) and the file is restored when the check fails, so read the format's skill first.
+**Edit files.** A canvas is a `.tsx` under `.design/`; its layout, notes and artboard data sit in the sibling `.meta.json`; annotations are `*.annotations.json`; a video cut is `*.edl.json`. Use `Edit` on an existing file, never a whole-file `Write`. Every write under `.design/` is checked (`maude design check <file> --strict`) and the file is restored when the check fails, so read the format's skill first. Only findings the edit introduced block it; findings the file already had before the edit do not, and they reach the agent as context to fix.
 
 **Run verbs for the rest.** Rendering and export, generation, sync, Version history, the trash, opening something in the window, and checks are `maude design <verb>`. `maude design help` lists every verb with its permission tier:
 
