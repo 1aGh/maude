@@ -7568,13 +7568,15 @@
     "hook": "share-cluster-<action>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "The one action beside a failed status; `<action>` ∈ retry, show-in-finder. Retry runs the Sync panel's Resync.",
+    "meaning": "The one action beside a failed status; `<action>` ∈ retry, show-in-finder, compare. Retry runs the Sync panel's Resync; Compare (Not saved while a held source conflict waits) runs `sync.compare` — Diagnostics › Sync details at that conflict, `diag-sync-compare-lines-<slug>` open.",
     "producer": {
       "file": "apps/studio/client/v2/shell/share-cluster.jsx",
       "symbol": "ShareCluster"
     },
     "region": "other",
-    "consumers": [],
+    "consumers": [
+      "test:v2-held-conflict-status"
+    ],
     "v2": "new"
   },
   {

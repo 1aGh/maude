@@ -11,15 +11,21 @@ export const OPEN_DIAGNOSTICS_EVENT = 'maude:open-diagnostics';
 export const VIEWS = Object.freeze(['logs', 'server', 'ai', 'sync']);
 
 let pending = null;
+let seq = 0;
 
-/** Ask the host to show the sheet at `view`. `recheck` re-probes AI setup on arrival. */
+const SAFE_SLUG = /^[A-Za-z0-9_.-]{1,200}$/;
+
+/** Ask the host to show the sheet at `view`. `recheck` re-probes AI setup on arrival. `conflict` (Sync only)
+ *  is a held source conflict's canvas slug: Sync details opens that conflict's Compare (p8-held-conflict-status). */
 export function openDiagnostics(
   view = 'logs',
-  { recheck = false } = {},
+  { recheck = false, conflict = null } = {},
   target = globalThis.window
 ) {
   const v = VIEWS.includes(view) ? view : 'logs';
-  pending = { view: v, recheck };
+  const c =
+    v === 'sync' && typeof conflict === 'string' && SAFE_SLUG.test(conflict) ? conflict : null;
+  pending = { view: v, recheck, conflict: c, seq: ++seq };
   target?.dispatchEvent?.(new CustomEvent(OPEN_DIAGNOSTICS_EVENT, { detail: pending }));
 }
 

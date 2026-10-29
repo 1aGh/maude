@@ -32,6 +32,10 @@ export const SYNC_ACTIONS: ActionDef[] = [
   pick('sync.keep-mine', 'Keep mine'),
   pick('sync.use-theirs', 'Use theirs'),
   pick('sync.keep-both', 'Keep both', 'duplicate'),
+  // p8-held-conflict-status — the Not saved status's Compare while a held source conflict waits (and its
+  // one-time toast's): Diagnostics › Sync details at that conflict, both versions side by side. It only reads
+  // (`GET /_api/project/conflict`), so every role keeps it; hidden from ⌘K — it needs the conflict it opens.
+  { id: 'sync.compare', label: 'Compare', kind: 'command', exec: 'shell', search: ROW },
   // the unfinished AI edit held on this Mac: `POST /_api/project/ai-action { choice }`
   pick('sync.publish-ai-edit', 'Publish'),
   pick('sync.discard-ai-edit', 'Discard'),

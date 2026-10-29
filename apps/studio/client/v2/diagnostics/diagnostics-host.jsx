@@ -34,6 +34,8 @@ export default function DiagnosticsHost({ toast }) {
   } = useShellStore();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState('logs');
+  // p8-held-conflict-status — the held conflict whose Compare to open (`openDiagnostics('sync', { conflict })`)
+  const [focus, setFocus] = useState(null);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const { report, loading, refresh } = useReadiness(open);
@@ -44,6 +46,7 @@ export default function DiagnosticsHost({ toast }) {
       const req = takeDiagnosticsRequest();
       if (!req) return;
       setView(req.view);
+      setFocus(req.conflict ? { slug: req.conflict, seq: req.seq } : null);
       setOpen(true);
       if (req.recheck) Promise.resolve().then(() => refresh?.());
     };
@@ -186,6 +189,7 @@ export default function DiagnosticsHost({ toast }) {
         onGetLatest: gitGetLatest,
         resync,
         onCopy,
+        focus,
       }}
     />
   );

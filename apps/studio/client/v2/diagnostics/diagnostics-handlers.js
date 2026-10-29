@@ -73,6 +73,9 @@ export function createDiagnosticsHandlers(d, io = {}) {
 
   return {
     'diag.sync': () => open('sync'),
+    // p8-held-conflict-status — the Not saved status's Compare (and its toast's): Sync details at that
+    // held conflict, its two versions side by side
+    'sync.compare': (p) => open('sync', { conflict: typeof p?.slug === 'string' ? p.slug : null }),
     'diag.server': () => open('server'),
     'diag.ai': () => open('ai'),
     'diag.logs': () => open('logs'),

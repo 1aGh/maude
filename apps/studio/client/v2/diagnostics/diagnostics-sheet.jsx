@@ -423,6 +423,8 @@ function SyncView({ sync }) {
         cloud={sync.cloud}
         native={sync.native ?? isNativeApp()}
         names={sync.names}
+        focusConflict={sync.focus?.slug ?? null}
+        focusSeq={sync.focus?.seq ?? 0}
         onSignInAgain={(url) => setSignInAt(url)}
       />
       {signInAt !== null ? (

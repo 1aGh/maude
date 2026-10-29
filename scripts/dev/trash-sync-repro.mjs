@@ -37,6 +37,9 @@ import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { startLocalHub } from '../../apps/desktop/e2e/fixtures/local-hub.mjs';
+import { heldConflicts } from '../../apps/studio/client/v2/diagnostics/sync-details/sync-details-model.js';
+import { saveStatus } from '../../apps/studio/client/v2/shell/save-status.js';
+import { syncPresentation } from '../../apps/studio/sync/presentation.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const argv = process.argv.slice(2);
@@ -457,6 +460,32 @@ async function raceRun(n) {
     aliceOp: a.status,
     bobOp: b.status,
   };
+  // p8-held-conflict-status — the refused Mac's real /_sync-status through the Share cluster's own status
+  // machine: a held conflict must read Not saved · Compare, never Saved. --status-out <file> keeps that
+  // payload (tokens / scratch paths scrubbed) for test/fixtures/held-conflict-sync-status.json.
+  for (const [who, st] of [
+    ['alice', sa],
+    ['bob', sb],
+  ]) {
+    const held = heldConflicts(st).map((c) => c.slug);
+    if (!held.length) continue;
+    const word = saveStatus({
+      linked: true,
+      online: true,
+      phase: syncPresentation(st)?.phase ?? null,
+      pending: Number(st?.queuedOps) || 0,
+      held,
+    });
+    final[`${who}Status`] = `${word.word} · ${word.actions.map((x) => x.label).join(' · ')}`;
+    const out = arg('status-out', '');
+    if (out) {
+      const scrub = JSON.stringify(st, null, 2)
+        .replaceAll(scratch, '<scratch>')
+        .replace(/http:\/\/127\.0\.0\.1:\d+/g, 'http://127.0.0.1:<port>')
+        .replace(/"(token|key|secret)[^"]*":\s*"[^"]*"/gi, '"$1":"<scrubbed>"');
+      writeFileSync(out, `${scrub}\n`);
+    }
+  }
   if (!converged && argv.includes('--dump')) {
     console.log('alice /_sync-status', JSON.stringify(await syncStatus(alice)).slice(0, 3000));
     console.log('bob /_sync-status', JSON.stringify(await syncStatus(bob)).slice(0, 3000));

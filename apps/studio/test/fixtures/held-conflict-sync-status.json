@@ -1,0 +1,166 @@
+{
+  "state": "online",
+  "queuedOps": 0,
+  "lastSyncAt": 1793303159882,
+  "offlineSince": null,
+  "flash": null,
+  "updatedAt": 1793303233378,
+  "startedAt": 1793302813339,
+  "docs": {
+    "synced": 5,
+    "pending": 0,
+    "rejected": 0
+  },
+  "rejectedSlugs": [],
+  "items": [
+    {
+      "slug": "ui-race1",
+      "state": "connected"
+    },
+    {
+      "slug": "ui-race2",
+      "state": "connected"
+    },
+    {
+      "slug": "ui-race3",
+      "state": "connected"
+    },
+    {
+      "slug": "ui-race4",
+      "state": "connected"
+    },
+    {
+      "slug": "ui-welcome",
+      "state": "connected"
+    }
+  ],
+  "pulled": {
+    "names": [
+      "ui-welcome",
+      "ui-race1",
+      "ui-race2",
+      "ui-race3",
+      "ui-race4"
+    ],
+    "count": 5
+  },
+  "connectionUpdatedAt": 1793303159882,
+  "url": "http://127.0.0.1:<port>",
+  "canvases": 1,
+  "conflicts": [
+    {
+      "slug": "ui-race1",
+      "kind": "body-rejected",
+      "reason": "local-edit",
+      "snapshotFailed": false,
+      "at": 1793302837395
+    },
+    {
+      "slug": "ui-race1",
+      "kind": "body-rejected",
+      "reason": "local-edit",
+      "snapshotFailed": false,
+      "at": 1793302841780
+    },
+    {
+      "slug": "ui-race2",
+      "kind": "body-rejected",
+      "reason": "local-edit",
+      "snapshotFailed": false,
+      "at": 1793302945979
+    },
+    {
+      "slug": "ui-race2",
+      "kind": "body-rejected",
+      "reason": "local-edit",
+      "snapshotFailed": false,
+      "at": 1793302958723
+    },
+    {
+      "slug": "ui-race3",
+      "kind": "body-rejected",
+      "reason": "local-edit",
+      "snapshotFailed": false,
+      "at": 1793303054761
+    },
+    {
+      "slug": "ui-race3",
+      "kind": "body-rejected",
+      "reason": "local-edit",
+      "snapshotFailed": false,
+      "at": 1793303057341
+    },
+    {
+      "slug": "ui-race4",
+      "kind": "body-rejected",
+      "reason": "local-edit",
+      "snapshotFailed": false,
+      "at": 1793303161003
+    }
+  ],
+  "sharedDoc": true,
+  "files": {
+    "synced": 0,
+    "pulled": 0,
+    "conflicts": 0,
+    "pushed": 0,
+    "progress": {
+      "phase": "converged",
+      "tracked": 0,
+      "delivered": 0,
+      "remaining": 0,
+      "bytesRemaining": 0,
+      "blocked": [],
+      "etaMs": null,
+      "startedAt": null
+    },
+    "delivery": {}
+  },
+  "accepted": {
+    "pending": 0,
+    "oldestPendingAt": null,
+    "ackMs": {
+      "last": 2257,
+      "p95": 2263,
+      "n": 4
+    },
+    "rejected": 8,
+    "credentialRefused": false
+  },
+  "coldOpen": {
+    "canvasesMs": 17,
+    "filesMs": 321
+  },
+  "notices": [
+    {
+      "id": "shared-doc",
+      "severity": "warn",
+      "text": "shared-doc is ON for http://127.0.0.1:<port> — your live editing buffer for each canvas is now the same object that syncs to the hub, not a copy reconciled through disk (DDR-064). Link only hubs you operate or trust.",
+      "at": 1793302813338
+    },
+    {
+      "id": "source-conflict-ui-race1",
+      "severity": "warn",
+      "text": "Source sync blocked for ui-race1. The local file was kept because a local edit overlaps an incoming change. Recovery copies are in _history/ui-race1/sync-recovery/.",
+      "at": 1793302837396
+    },
+    {
+      "id": "source-conflict-ui-race2",
+      "severity": "warn",
+      "text": "Source sync blocked for ui-race2. The local file was kept because a local edit overlaps an incoming change. Recovery copies are in _history/ui-race2/sync-recovery/.",
+      "at": 1793302945979
+    },
+    {
+      "id": "source-conflict-ui-race3",
+      "severity": "warn",
+      "text": "Source sync blocked for ui-race3. The local file was kept because a local edit overlaps an incoming change. Recovery copies are in _history/ui-race3/sync-recovery/.",
+      "at": 1793303054762
+    },
+    {
+      "id": "source-conflict-ui-race4",
+      "severity": "warn",
+      "text": "Source sync blocked for ui-race4. The local file was kept because a local edit overlaps an incoming change. Recovery copies are in _history/ui-race4/sync-recovery/.",
+      "at": 1793303161003
+    }
+  ]
+}
