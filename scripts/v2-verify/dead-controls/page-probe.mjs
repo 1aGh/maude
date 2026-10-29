@@ -132,7 +132,7 @@ export const PAGE_PROBE = String.raw`(() => {
   let st = null;
   let mo = null;
   function start() {
-    st = { triggers: triggerText(), fields: fieldValues(), clips: clips.length, muts: 0, self: 0, aria: [], url: location.href, popups: popups(), region: regionOf(document.activeElement), opens: opens.length, checked: target && 'checked' in target ? target.checked : null, value: target && 'value' in target ? target.value : null };
+    st = { announced: 0, triggers: triggerText(), fields: fieldValues(), clips: clips.length, muts: 0, self: 0, aria: [], url: location.href, popups: popups(), region: regionOf(document.activeElement), opens: opens.length, checked: target && 'checked' in target ? target.checked : null, value: target && 'value' in target ? target.value : null };
     mo = new MutationObserver((list) => {
       for (const m of list) {
         if (m.type === 'attributes' && m.attributeName === 'data-crawl-target') continue;
@@ -141,6 +141,8 @@ export const PAGE_PROBE = String.raw`(() => {
           continue;
         }
         if (inTooltip(m.target) || [...(m.addedNodes || [])].some(inTooltip) || [...(m.removedNodes || [])].some((x) => x.nodeType === 1 && x.matches?.('[role=tooltip],[data-tooltip],.tooltip'))) continue;
+        // a live region (re)inserted is an announcement, even when it says the same line as before
+        for (const n of m.addedNodes || []) if (n.nodeType === 1 && (n.matches?.('[role=status],[role=alert]') || n.querySelector?.('[role=status],[role=alert]'))) st.announced++;
         const onSelf = target && (m.target === target || target.contains(m.target));
         if (onSelf && m.type === 'attributes' && /^(class|style|data-focus|data-hover|data-state)/.test(m.attributeName || '')) { st.self++; continue; }
         st.muts++;
@@ -154,6 +156,7 @@ export const PAGE_PROBE = String.raw`(() => {
     mo.disconnect();
     const out = {
       triggerChanged: triggerText() !== st.triggers,
+      announced: st.announced,
       muts: st.muts,
       self: st.self,
       aria: st.aria.slice(0, 6),

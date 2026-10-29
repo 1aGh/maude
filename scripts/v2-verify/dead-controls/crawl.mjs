@@ -607,6 +607,7 @@ export class Crawler {
       raw.clips.push(...(v.clips ?? []));
       if (v.checkedChanged || v.valueChanged || v.fieldsChanged) raw.value = true;
       if (v.triggerChanged) raw.label = true;
+      raw.announced = (raw.announced ?? 0) + (v.announced ?? 0);
       if (v.urlChanged && s.frame === this.page.mainFrame()) raw.url = true;
       if (v.focusMoved && (s.frame === f || !c)) raw.focus = v.focusRegion;
     }
@@ -622,6 +623,7 @@ export class Crawler {
     if (raw.popupsDelta > 0) kinds.push('popup');
     if (raw.opens.length) kinds.push(`window.open(${raw.opens[0].slice(0, 60)})`);
     if (raw.value) kinds.push('value');
+    if (raw.announced > (sig?.announced ?? 0)) kinds.push('announce');
     // a radio pick that relabels its menu's trigger (only a pick can: Esc never relabels it)
     if (raw.label && /^(menuitemradio|option)$/.test(c?.role ?? '')) kinds.push('label');
     if (raw.clips.length) kinds.push(`clipboard(${raw.clips[0]})`);
