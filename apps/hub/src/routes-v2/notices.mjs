@@ -30,6 +30,7 @@ export const ACCESS_REASONS = Object.freeze(['removed', 'link-off', 'expired']);
 export const NOTICE_ROLES = Object.freeze(['owner', 'member', 'viewer', 'observer']);
 /** C0 / C1 controls, zero-width, line / paragraph separators, bidi, BOM — never in a name. */
 const NAME_CONTROL_RE =
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: the point is to strip control characters from a name
   /[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2066-\u2069\ufeff]/g;
 /** Who narrowed, as one short line of text ('' = say nobody). */
 export function noticeName(v) {

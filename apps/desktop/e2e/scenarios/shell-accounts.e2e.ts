@@ -12,7 +12,11 @@ import { pinCurrentWindow } from '../helpers/windows';
  * two-profile bookkeeping in Rust are `project-tabs-identity` and the cargo tests; signing out is NOT pressed here.
  */
 const tid = (s: string) => `[data-testid="${s}"]`;
-const OTHERS = ['Studio site', 'Portfolio 2026', ...Array.from({ length: 11 }, (_, i) => `Side project ${i + 1}`)];
+const OTHERS = [
+  'Studio site',
+  'Portfolio 2026',
+  ...Array.from({ length: 11 }, (_, i) => `Side project ${i + 1}`),
+];
 
 describe('shell-accounts (11 pn-accounts)', () => {
   let me: { id: string; label: string } = { id: 'default', label: 'default' };
@@ -34,12 +38,19 @@ describe('shell-accounts (11 pn-accounts)', () => {
 
   it('with two accounts on this Mac the chip sits by the faces and the card says whose project this is', async () => {
     const seam = (await browser.executeAsync(
-      (mine: { id: string; label: string }, email: string, others: string[], done: (v: string) => void) => {
+      (
+        mine: { id: string; label: string },
+        email: string,
+        others: string[],
+        done: (v: string) => void
+      ) => {
         try {
           const w = window as unknown as {
             __e2eRealTauri?: Record<string, unknown>;
             __e2eRealFetch?: typeof fetch;
-            __TAURI__: { core: { invoke: (c: string, a?: unknown, o?: unknown) => Promise<unknown> } };
+            __TAURI__: {
+              core: { invoke: (c: string, a?: unknown, o?: unknown) => Promise<unknown> };
+            };
           };
           w.__e2eRealTauri ??= w.__TAURI__;
           const realTauri = w.__e2eRealTauri as unknown as typeof w.__TAURI__;
@@ -52,7 +63,12 @@ describe('shell-accounts (11 pn-accounts)', () => {
                 cmd === 'accounts_list'
                   ? Promise.resolve([
                       { id: mine.id, label: mine.label, email, projects: ['this project'] },
-                      { id: 'e2e-personal', label: 'Personal', email: 'you@gmail.com', projects: others },
+                      {
+                        id: 'e2e-personal',
+                        label: 'Personal',
+                        email: 'you@gmail.com',
+                        projects: others,
+                      },
                     ])
                   : realInvoke(cmd, args, opts),
             },
@@ -87,7 +103,7 @@ describe('shell-accounts (11 pn-accounts)', () => {
     await capture('account chip');
     await chip.click();
     await $(tid('account-card')).waitForExist({ timeout: 6_000 });
-    const t = async (id: string) => ((await $(tid(id))).getText() as Promise<string>);
+    const t = async (id: string) => (await $(tid(id))).getText() as Promise<string>;
     const current = await t('account-card-current');
     expect(current).toContain(`${me.label} · ${EMAIL}`);
     expect(current).toMatch(/ uses this account$/);
@@ -115,7 +131,9 @@ describe('shell-accounts (11 pn-accounts)', () => {
     await browser.execute(() => {
       document
         .querySelector('[data-testid="account-card"]')
-        ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        ?.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+        );
     });
     await browser.waitUntil(async () => !(await $(tid('account-card')).isExisting()), {
       timeout: 4_000,

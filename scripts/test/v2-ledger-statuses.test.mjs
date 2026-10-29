@@ -13,13 +13,21 @@ const ledger = (rows) => ({ canvases: { 'c.tsx': { sha256: 'h' } }, rows });
 test('soak and not-a-state with a note close a row of any kind', () => {
   const l = ledger([
     row({ status: 'soak', note: 'needs two real Macs on one cell' }),
-    row({ id: 'task:V2-8.7', kind: 'task', status: 'not-a-state', note: 'the board draws a state the hub never sends' }),
+    row({
+      id: 'task:V2-8.7',
+      kind: 'task',
+      status: 'not-a-state',
+      note: 'the board draws a state the hub never sends',
+    }),
   ]);
   assert.deepEqual(checkComplete(l), []);
 });
 
 test('soak and not-a-state without a note stay incomplete', () => {
-  const l = ledger([row({ status: 'soak' }), row({ id: 'artboard:05/es-y', status: 'not-a-state', note: '  ' })]);
+  const l = ledger([
+    row({ status: 'soak' }),
+    row({ id: 'artboard:05/es-y', status: 'not-a-state', note: '  ' }),
+  ]);
   const errors = checkComplete(l);
   assert.equal(errors.length, 2);
   for (const e of errors) assert.match(e, /needs a note/);
@@ -40,7 +48,8 @@ test('the rc-soak checklist lists only soak rows, in ledger order, with their no
 
 test('PR.md carries the checklist between its markers and drift is detected', () => {
   const l = ledger([row({ status: 'soak', note: 'n1' })]);
-  const pr = '# PR\n\n## rc soak\n\n<!-- v2-ledger:soak:start -->\nstale\n<!-- v2-ledger:soak:end -->\n\ntail\n';
+  const pr =
+    '# PR\n\n## rc soak\n\n<!-- v2-ledger:soak:start -->\nstale\n<!-- v2-ledger:soak:end -->\n\ntail\n';
   assert.notEqual(prSoakDrift(pr, l), null);
   const fixed = withSoakBlock(pr, l);
   assert.equal(prSoakDrift(fixed, l), null);

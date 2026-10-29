@@ -11,8 +11,8 @@
 //     the real registry.
 // Only the model process (`claude -p`, run.mjs) gets the person's real HOME — it needs the login.
 
-import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -38,7 +38,10 @@ export { CLI };
  * the `render-non-blank` "navigation failed" in the whole v2-8.16 run. A short per-trial dir under $TMPDIR fixes it.
  */
 export function socketDirFor(trialDir) {
-  const dir = join(tmpdir(), `mab-${createHash('sha1').update(trialDir).digest('hex').slice(0, 8)}`);
+  const dir = join(
+    tmpdir(),
+    `mab-${createHash('sha1').update(trialDir).digest('hex').slice(0, 8)}`
+  );
   mkdirSync(dir, { recursive: true });
   return dir;
 }

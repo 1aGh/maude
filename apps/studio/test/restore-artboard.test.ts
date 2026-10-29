@@ -61,7 +61,10 @@ const rangeOf = (src: string, id: string): string => {
 // artboard — a canvas an AI run or a hand edit emptied. The splice found its place only beside a neighbour that is
 // still there, so on that canvas every restore was refused (`invalid-result`) and the card's one button did nothing.
 describe('restoring into a canvas with no artboard left', () => {
-  const board = (inner: string, section: boolean) => `import { DCArtboard, DCSection, DesignCanvas } from '@maude/canvas-lib';
+  const board = (
+    inner: string,
+    section: boolean
+  ) => `import { DCArtboard, DCSection, DesignCanvas } from '@maude/canvas-lib';
 
 export default function Board() {
   return (

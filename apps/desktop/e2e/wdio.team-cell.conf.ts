@@ -80,7 +80,8 @@ function writeProject(root: string, hub: string): void {
     join(root, '.design', 'config.json'),
     JSON.stringify({
       name: 'Team cell',
-      designRoot: '.design', formatVersion: 2,
+      designRoot: '.design',
+      formatVersion: 2,
       canvasGroups: [{ label: 'UI', path: 'ui' }],
       linkedHub: { url: hub, linkedAt: Date.now() },
     })
@@ -132,7 +133,8 @@ async function setUp(): Promise<string> {
     join(cellRepo, '.design', 'config.json'),
     JSON.stringify({
       name: 'Team cell',
-      designRoot: '.design', formatVersion: 2,
+      designRoot: '.design',
+      formatVersion: 2,
       canvasGroups: [{ label: 'UI', path: 'ui' }],
     })
   );

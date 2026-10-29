@@ -1,31 +1,31 @@
 ---
 title: /design:trash
-description: "See what is in the Trash and restore a canvas or artboard from it."
+description: "See what is in the Trash, move a canvas to it, and restore a canvas or artboard from it."
 ---
 
 | Property | Value |
 | -------- | ----- |
 | **Command** | `/design:trash` |
 | **Category** | `daily` (daily) |
-| **Argument hint** | `[list \| restore <id \| canvas path>]` |
+| **Argument hint** | `[list \| move <canvas> \| restore <id \| canvas>]` |
 | **Source** | [`plugins/design/commands/trash.md`](https://github.com/1aGh/maude/blob/main/plugins/design/commands/trash.md) |
 
 ## Description
 
-See what is in the Trash and restore a canvas or artboard from it.
+See what is in the Trash, move a canvas to it, and restore a canvas or artboard from it.
 
 ## Invocation
 
 **Claude Code**
 
 ```text
-/design:trash [list | restore <id | canvas path>]
+/design:trash [list | move <canvas> | restore <id | canvas>]
 ```
 
 **Codex**
 
 ```text
-$design:source-command-trash [list | restore <id | canvas path>]
+$design:source-command-trash [list | move <canvas> | restore <id | canvas>]
 ```
 
 Use the same arguments and flags. See [native Codex setup](/docs/codex) for

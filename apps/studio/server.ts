@@ -52,7 +52,7 @@ import { installLogRing } from './debug-bundle.ts';
 import { initDiagnostics, registerStatus, stopDiagnostics } from './diagnostics/store.ts';
 import { parseEmbedOrigins } from './embed-origins.ts';
 import { createExportJobQueue } from './exporters/jobs.ts';
-import { formatGate, FORMAT_GATE_OPTS } from './format.ts';
+import { FORMAT_GATE_OPTS, formatGate } from './format.ts';
 import { createFsWatch } from './fs-watch.ts';
 import { createGenerationJobQueue } from './generation/jobs.ts';
 import { createGitWatch } from './git/watch.ts';

@@ -36,7 +36,10 @@ export function headlessBrowser(realEnv = process.env) {
     [join(REPO_ROOT, 'apps', 'studio', 'bin', 'ensure-browser.sh'), '--quiet', '--no-download'],
     { env: realEnv, encoding: 'utf8', timeout: 30_000 }
   );
-  const path = String(r.stdout ?? '').trim().split('\n').pop();
+  const path = String(r.stdout ?? '')
+    .trim()
+    .split('\n')
+    .pop();
   headless = r.status === 0 && path && existsSync(path) ? path : null;
   return headless;
 }

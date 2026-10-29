@@ -34,7 +34,7 @@ const FIXTURE = join(HERE, '../fixtures/project/.design/ui/VideoClipInspect.tsx'
 const fixtures = createFixtureGuard('presenter-view', [FIXTURE]);
 
 const tid = (id: string) => `[data-testid="${id}"]`;
-const text = async (id: string) => ((await $(tid(id))).getText() as Promise<string>);
+const text = async (id: string) => (await $(tid(id))).getText() as Promise<string>;
 const exists = (id: string) => $(tid(id)).isExisting();
 
 async function chord(key: string, code: string, mods: Partial<KeyboardEventInit> = {}) {
@@ -63,7 +63,12 @@ const landsOn = (mode: string) =>
   });
 
 type Display = { id: string; name: string; primary: boolean; current: boolean };
-const SECOND: Display = { id: 'e2e-second', name: 'E2E Second Display', primary: false, current: false };
+const SECOND: Display = {
+  id: 'e2e-second',
+  name: 'E2E Second Display',
+  primary: false,
+  current: false,
+};
 
 describe('presenter-view (04 md-presenter, md-edge-offline)', () => {
   let realDisplays: Display[] = [];
@@ -95,32 +100,31 @@ describe('presenter-view (04 md-presenter, md-edge-offline)', () => {
     await $(tid('mode-present-menu')).click();
     await $(tid('mode-present-list')).waitForExist({ timeout: 4000 });
     if (realDisplays.length < 2) {
-      expect(await $(tid('mode-present-presenter-view')).getAttribute('aria-disabled')).toBe('true');
+      expect(await $(tid('mode-present-presenter-view')).getAttribute('aria-disabled')).toBe(
+        'true'
+      );
       expect(await text('mode-present-presenter-view')).toContain('Needs a second display');
     }
     await capture('presenter row, one display');
     await chord('Escape', 'Escape');
     // the guard, on the real command: this window's own display is refused with the guard's own words …
     const refuse = (displayId: string) =>
-      browser.executeAsync(
-        (id: string, done: (v: string) => void) => {
-          const w = window as unknown as {
-            __TAURI__: { core: { invoke: (c: string, a: unknown) => Promise<unknown> } };
-          };
-          w.__TAURI__.core
-            .invoke('present_audience_open', {
-              displayId: id,
-              canvas: 'ui/VideoClipInspect.tsx',
-              sid: 'abcdefgh1234',
-              lock: 1,
-            })
-            .then(
-              () => done('OPENED'),
-              (e: unknown) => done(String(e))
-            );
-        },
-        displayId
-      ) as Promise<string>;
+      browser.executeAsync((id: string, done: (v: string) => void) => {
+        const w = window as unknown as {
+          __TAURI__: { core: { invoke: (c: string, a: unknown) => Promise<unknown> } };
+        };
+        w.__TAURI__.core
+          .invoke('present_audience_open', {
+            displayId: id,
+            canvas: 'ui/VideoClipInspect.tsx',
+            sid: 'abcdefgh1234',
+            lock: 1,
+          })
+          .then(
+            () => done('OPENED'),
+            (e: unknown) => done(String(e))
+          );
+      }, displayId) as Promise<string>;
     expect(await refuse((mine as Display).id)).toBe(
       'Pick another display — this one shows your presenter view.'
     );
@@ -201,8 +205,13 @@ describe('presenter-view (04 md-presenter, md-edge-offline)', () => {
     await $(tid('mode-present-menu')).click();
     await $(tid('mode-present-list')).waitForExist({ timeout: 4000 });
     await browser.waitUntil(
-      async () => (await $(tid('mode-present-presenter-view')).getAttribute('aria-disabled')) !== 'true',
-      { timeout: 6000, interval: 150, timeoutMsg: 'the presenter row stayed greyed with a second display reported' }
+      async () =>
+        (await $(tid('mode-present-presenter-view')).getAttribute('aria-disabled')) !== 'true',
+      {
+        timeout: 6000,
+        interval: 150,
+        timeoutMsg: 'the presenter row stayed greyed with a second display reported',
+      }
     );
     expect(await text('mode-present-presenter-view')).toContain(SECOND.name);
     await capture('presenter row, second display');
@@ -222,9 +231,14 @@ describe('presenter-view (04 md-presenter, md-edge-offline)', () => {
     await browser.waitUntil(
       async () =>
         (await browser.execute(
-          () => (window as unknown as { __e2eAudience: { open: unknown[] } }).__e2eAudience.open.length
+          () =>
+            (window as unknown as { __e2eAudience: { open: unknown[] } }).__e2eAudience.open.length
         )) > 0,
-      { timeout: 10_000, interval: 200, timeoutMsg: 'the presenter view never asked for the audience screen' }
+      {
+        timeout: 10_000,
+        interval: 200,
+        timeoutMsg: 'the presenter view never asked for the audience screen',
+      }
     );
     const asked = (await browser.execute(
       () => (window as unknown as { __e2eAudience: { open: unknown[] } }).__e2eAudience.open[0]

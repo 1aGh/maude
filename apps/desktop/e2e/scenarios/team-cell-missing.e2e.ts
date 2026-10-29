@@ -5,10 +5,10 @@ import { deflateSync } from 'node:zlib';
 import { $, browser, expect } from '@wdio/globals';
 
 import { type LocalHub, startLocalHub } from '../fixtures/local-hub.mjs';
-import { capture, startReport } from '../helpers/evidence';
-import { waitForSidecar } from '../helpers/sidecar';
 import { waitForCanvasOpened } from '../helpers/canvas-frame';
+import { capture, startReport } from '../helpers/evidence';
 import { pointerClick } from '../helpers/pointer';
+import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 import { pinCurrentWindow } from '../helpers/windows';
 
@@ -271,7 +271,9 @@ describe('team-cell-missing (native-desktop)', () => {
   before(async function () {
     if (!CELL) this.skip();
     c = CELL as Cell;
-    startReport('team-cell-missing (native-desktop) — the boards that need a second person or a cell that is away');
+    startReport(
+      'team-cell-missing (native-desktop) — the boards that need a second person or a cell that is away'
+    );
     await browser.setTimeout({ script: 60_000 });
     await pinCurrentWindow().catch((error: unknown) =>
       console.warn(`[team-cell-missing] window pin failed: ${String(error)}`)
@@ -400,7 +402,9 @@ describe('team-cell-missing (native-desktop)', () => {
       dt.items.add(new File([arr], 'huddle-offline.png', { type: 'image/png' }));
       const el = document.querySelector('[data-testid="assets-panel"]') as HTMLElement;
       for (const type of ['dragenter', 'dragover', 'drop'])
-        el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt }));
+        el.dispatchEvent(
+          new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt })
+        );
     }, b64);
 
     let said = '';
@@ -428,7 +432,8 @@ describe('team-cell-missing (native-desktop)', () => {
     await startCell(c);
     await eventually(
       'the photo at the cell',
-      () => findFile(c.cellRepo, `${sha8}.png`) !== null || findFile(c.hubDir, `${sha8}.png`) !== null,
+      () =>
+        findFile(c.cellRepo, `${sha8}.png`) !== null || findFile(c.hubDir, `${sha8}.png`) !== null,
       240_000
     );
     await eventually('Saved', async () => (await statusWord())?.status === 'saved', 120_000);
@@ -525,7 +530,9 @@ describe('team-cell-missing (native-desktop)', () => {
         params: { artboards: trashA },
       }),
     });
-    console.log(`[team-cell-missing] alice trashes A-C offline: ${aliceOp.status} ${(await aliceOp.text()).slice(0, 200)}`);
+    console.log(
+      `[team-cell-missing] alice trashes A-C offline: ${aliceOp.status} ${(await aliceOp.text()).slice(0, 200)}`
+    );
     expect(aliceOp.status).toBe(200);
     process.kill(c.teammatePid, 'SIGSTOP');
     const bobOp = await bobPost('/_api/edit-op', {
@@ -543,7 +550,9 @@ describe('team-cell-missing (native-desktop)', () => {
       params: { artboards: trashA },
     });
     expect(third.status).toBe(400);
-    expect(String(third.body?.message ?? third.body)).toContain('A canvas keeps at least one artboard.');
+    expect(String(third.body?.message ?? third.body)).toContain(
+      'A canvas keeps at least one artboard.'
+    );
 
     // ── the cell is back; the two saves meet ──
     await startCell(c);
@@ -559,7 +568,9 @@ describe('team-cell-missing (native-desktop)', () => {
       designer: ids(read(join(c.designer, '.design', RACE))),
       teammate: ids(read(join(c.teammate, '.design', RACE))),
     };
-    console.log(`[team-cell-missing] race outcome: designer=${JSON.stringify(n.designer)} teammate=${JSON.stringify(n.teammate)}`);
+    console.log(
+      `[team-cell-missing] race outcome: designer=${JSON.stringify(n.designer)} teammate=${JSON.stringify(n.teammate)}`
+    );
     for (const side of [n.designer, n.teammate]) {
       expect(side.length).toBeGreaterThan(0);
       expect(side.length).toBeLessThan(4);

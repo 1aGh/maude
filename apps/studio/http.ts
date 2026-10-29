@@ -143,12 +143,12 @@ import { createFootageStore, FOOTAGE_MAX_BYTES } from './footage-store.ts';
 import {
   asFormat,
   canvasFormatLine,
+  FORMAT_GATE_OPTS,
   formatConfigFields,
   formatGate,
   formatGateAllowsWrite,
   formatRefusalResponse,
   projectFormat,
-  FORMAT_GATE_OPTS,
 } from './format.ts';
 import {
   type AudioMatch,
@@ -233,8 +233,8 @@ import type { InspectRegistry } from './inspect.ts';
 import { canvasSlug, writeLocator } from './locator.ts';
 import { prepareManagedProject } from './managed-projects.ts';
 import { materializeMissing } from './materialize-client.ts';
-import { createOutbox, type GateFacts, type IntentRecord } from './outbox/index.ts';
 import { createHubReachability } from './outbox/hub-reachability.ts';
+import { createOutbox, type GateFacts, type IntentRecord } from './outbox/index.ts';
 import { exportCloudSender } from './outbox/senders/export-cloud.ts';
 import { isUnderOrEqual, resolveUrlPathUnder } from './path-containment.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';

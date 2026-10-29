@@ -86,12 +86,7 @@ const BOARD: Record<string, [string, string][]> = {
 };
 
 const norm = (s: string) =>
-  s
-    .replace(/[’‘]/g, "'")
-    .replace(/\s+/g, ' ')
-    .replace(/…/g, '...')
-    .trim()
-    .toLowerCase();
+  s.replace(/[’‘]/g, "'").replace(/\s+/g, ' ').replace(/…/g, '...').trim().toLowerCase();
 
 /** The rows the open menu draws right now: the words, then the key chip (the two are glued in `getText`). */
 async function rows(): Promise<Row[]> {
@@ -100,13 +95,15 @@ async function rows(): Promise<Row[]> {
       (el.textContent ?? '').replace(/\s+/g, ' ').trim()
     )
   )) as string[];
-  return texts
-    .filter(Boolean)
-    // keys start with a modifier glyph, or are F1 / ? (a label never ends in either)
-    .map((t) => {
-      const m = /^(.*?)((?:[⌘⇧⌥⌃]+\S*)|F\d{1,2}|\?)?$/.exec(t) as RegExpExecArray;
-      return { label: (m[1] ?? t).trim(), keys: m[2] ?? '' };
-    });
+  return (
+    texts
+      .filter(Boolean)
+      // keys start with a modifier glyph, or are F1 / ? (a label never ends in either)
+      .map((t) => {
+        const m = /^(.*?)((?:[⌘⇧⌥⌃]+\S*)|F\d{1,2}|\?)?$/.exec(t) as RegExpExecArray;
+        return { label: (m[1] ?? t).trim(), keys: m[2] ?? '' };
+      })
+  );
 }
 
 /** Every board row is on the live list, in the board's order, with its keys. */
@@ -137,7 +134,10 @@ async function openMenu() {
 async function closeMenu() {
   await browser.keys('Escape');
   await browser
-    .waitUntil(async () => !(await $(tid('project-menu')).isDisplayed()), { timeout: 4_000, interval: 100 })
+    .waitUntil(async () => !(await $(tid('project-menu')).isDisplayed()), {
+      timeout: 4_000,
+      interval: 100,
+    })
     .catch(() => undefined);
 }
 
@@ -176,7 +176,10 @@ describe('shell-menus (06 ad-menus)', () => {
       menus: { title: string; items: { kind: string; id?: string; label?: string }[] }[];
     };
     const state = (await menuState()) as unknown as {
-      bar: { title: string; items: { id?: string; text?: string; enabled?: boolean; predefined?: string }[] }[];
+      bar: {
+        title: string;
+        items: { id?: string; text?: string; enabled?: boolean; predefined?: string }[];
+      }[];
     };
     expect(Array.isArray(state.bar)).toBe(true);
     const live = state.bar.map((m) => m.title);
@@ -193,7 +196,9 @@ describe('shell-menus (06 ad-menus)', () => {
       if (m.title === 'Maude')
         expect(bar.items.find((it) => it.id === 'quit')?.text).toBe('Quit Maude');
       // the rows with an id are exactly the generated ones: same ids, same order, same words
-      expect(liveItems.map((it) => [it.id, it.text])).toEqual(wantItems.map((it) => [it.id, it.label]));
+      expect(liveItems.map((it) => [it.id, it.text])).toEqual(
+        wantItems.map((it) => [it.id, it.label])
+      );
     }
     // File is the registry's File: New Canvas, New Project…, Open Project…, Show Home, Close Tab
     const file = state.bar.find((m) => m.title === 'File')?.items.filter((it) => it.id) ?? [];

@@ -28,7 +28,10 @@ const tid = (s: string) => `[data-testid="${s}"]`;
 const prefsPath = () => process.env.MAUDE_UI_PREFS_PATH as string;
 const folds = (): Record<string, boolean> => {
   try {
-    return (JSON.parse(readFileSync(prefsPath(), 'utf8')) as { fold?: Record<string, boolean> }).fold ?? {};
+    return (
+      (JSON.parse(readFileSync(prefsPath(), 'utf8')) as { fold?: Record<string, boolean> }).fold ??
+      {}
+    );
   } catch {
     return {};
   }
@@ -67,10 +70,13 @@ describe('remember-folds (06 ad-edge-remember)', () => {
     expect(await canvasesAdvanced()).toBe('false');
     expect(folds()[FOLD]).not.toBe(true);
     await $(tid('canvases-advanced')).click();
-    await browser.waitUntil(async () => (await $(tid('canvases-advanced')).getAttribute('aria-expanded')) === 'true', {
-      timeout: 6_000,
-      interval: 150,
-    });
+    await browser.waitUntil(
+      async () => (await $(tid('canvases-advanced')).getAttribute('aria-expanded')) === 'true',
+      {
+        timeout: 6_000,
+        interval: 150,
+      }
+    );
     expect(await $(tid('canvases-advanced-fold')).getAttribute('data-open')).toBe('true');
     await browser.waitUntil(() => folds()[FOLD] === true, {
       timeout: 8_000,

@@ -60,14 +60,16 @@ async function drawn(): Promise<{
   const back = await browser.getWindowHandle().catch(() => null);
   await browser.switchToWindow('strip');
   const out = await browser.execute(() => {
-    const tabs = Array.from(document.querySelectorAll('#tabs [role="tab"][data-label]')).map((el) => ({
-      label: el.getAttribute('data-label') ?? '',
-      name: (el.querySelector('.name')?.textContent ?? '').trim(),
-      selected: el.getAttribute('aria-selected') === 'true',
-      square: !!el.querySelector('[data-testid="tab-square"]'),
-      closeable: !!el.querySelector('.close'),
-      resting: !!el.querySelector('[data-testid="tab-rest"]'),
-    }));
+    const tabs = Array.from(document.querySelectorAll('#tabs [role="tab"][data-label]')).map(
+      (el) => ({
+        label: el.getAttribute('data-label') ?? '',
+        name: (el.querySelector('.name')?.textContent ?? '').trim(),
+        selected: el.getAttribute('aria-selected') === 'true',
+        square: !!el.querySelector('[data-testid="tab-square"]'),
+        closeable: !!el.querySelector('.close'),
+        resting: !!el.querySelector('[data-testid="tab-rest"]'),
+      })
+    );
     const home = document.querySelector('[data-testid="tab-home"]');
     const more = document.getElementById('more') as HTMLElement | null;
     return {
@@ -164,7 +166,9 @@ describe('shell-strip (11 pn-tab-a, pn-tab-menu, pn-windows, pn-tab-a20)', () =>
   it('pn-tab-a20: twenty tabs — a square and a short name each, "N more" holds the rest, the active tab stays in the row', async () => {
     // open the rest from Home: a project tab we hold may rest (cap 2) and then is not showing its project
     await browser.switchToWindow('home');
-    const roots = Array.from({ length: 19 }, (_, i) => makeProject(`proj${String(i + 1).padStart(2, '0')}`));
+    const roots = Array.from({ length: 19 }, (_, i) =>
+      makeProject(`proj${String(i + 1).padStart(2, '0')}`)
+    );
     let last = '';
     for (const root of roots) {
       const o = await openTab(root);
@@ -187,7 +191,9 @@ describe('shell-strip (11 pn-tab-a, pn-tab-menu, pn-windows, pn-tab-a20)', () =>
       { timeout: 15_000, interval: 250, timeoutMsg: '"N more" never showed at twenty tabs' }
     );
     const row = (d as Awaited<ReturnType<typeof drawn>>).tabs;
-    const hidden = Number(/^(\d+) more$/.exec((d as Awaited<ReturnType<typeof drawn>>).more.text)?.[1] ?? Number.NaN);
+    const hidden = Number(
+      /^(\d+) more$/.exec((d as Awaited<ReturnType<typeof drawn>>).more.text)?.[1] ?? Number.NaN
+    );
     expect(row.length + hidden).toBe(20);
     expect(hidden).toBeGreaterThan(0);
     for (const t of row) {
@@ -199,11 +205,14 @@ describe('shell-strip (11 pn-tab-a, pn-tab-menu, pn-windows, pn-tab-a20)', () =>
     // "N more" lists exactly the rest, and picking one opens it
     await browser.switchToWindow('strip');
     await $('#more').click();
-    await browser.waitUntil(async () => (await $$('[data-testid^="tab-overview-row-"]')).length === hidden, {
-      timeout: 8_000,
-      interval: 150,
-      timeoutMsg: `the "${hidden} more" list is not ${hidden} rows`,
-    });
+    await browser.waitUntil(
+      async () => (await $$('[data-testid^="tab-overview-row-"]')).length === hidden,
+      {
+        timeout: 8_000,
+        interval: 150,
+        timeoutMsg: `the "${hidden} more" list is not ${hidden} rows`,
+      }
+    );
     await capture('pn-tab-a20 more list');
     const pick = await $$('[data-testid^="tab-overview-row-"]')[0];
     const pickLabel = (await pick.getAttribute('data-testid')).replace('tab-overview-row-', '');
@@ -211,7 +220,9 @@ describe('shell-strip (11 pn-tab-a, pn-tab-menu, pn-windows, pn-tab-a20)', () =>
     await browser.execute((label: string) => {
       document
         .querySelector(`[data-testid="tab-overview-row-${label}"]`)
-        ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true, cancelable: true }));
+        ?.dispatchEvent(
+          new MouseEvent('mousedown', { button: 0, bubbles: true, cancelable: true })
+        );
     }, pickLabel);
     await browser.waitUntil(async () => (await strip()).active === pickLabel, {
       timeout: 15_000,

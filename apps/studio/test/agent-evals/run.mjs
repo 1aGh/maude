@@ -21,7 +21,15 @@
 // Outputs go to --out (default $TMPDIR/maude-agent-evals/<date>/ — never inside the repo, never committed).
 
 import { spawn, spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -586,7 +594,8 @@ const commands = {
       const [id, topo] = d.split('.');
       if (opt('only', '') && !opt('only', '').split(',').includes(d)) continue;
       // keep the grade the trial was first given, once, so a before/after is always possible
-      if (!existsSync(join(p, 'grade.pre-fix.json'))) copyFileSync(join(p, 'grade.json'), join(p, 'grade.pre-fix.json'));
+      if (!existsSync(join(p, 'grade.pre-fix.json')))
+        copyFileSync(join(p, 'grade.json'), join(p, 'grade.pre-fix.json'));
       const prev = JSON.parse(readSafe(join(p, 'grade.json')));
       const rejudge =
         flag('rejudge') ||

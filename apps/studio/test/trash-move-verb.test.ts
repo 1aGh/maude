@@ -8,9 +8,8 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Subprocess } from 'bun';
-
-import { GRADERS, observe } from './agent-journeys/graders.mjs';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
+import { GRADERS, observe } from './agent-journeys/graders.mjs';
 
 const CLI = path.join(import.meta.dir, '..', '..', '..', 'cli', 'bin', 'maude.mjs');
 
@@ -125,7 +124,10 @@ describe('maude design trash move → Version history → trash restore, on a re
     // a `@manifest delete` effect for the canvas, live again, not listed.
     await killProc(proc as Subprocess);
     proc = null;
-    const graded = GRADERS.trash({ path: 'ui/Greeting.tsx', state: 'restored' }, observe({ project: root }));
+    const graded = GRADERS.trash(
+      { path: 'ui/Greeting.tsx', state: 'restored' },
+      observe({ project: root })
+    );
     expect(graded).toEqual({ pass: true, why: '' });
   }, 90_000);
 });

@@ -342,11 +342,14 @@ function emptyCanvasPlace(
   };
   const candidates: Array<{ tag: string; from: number }> = [];
   if (idOfSection) {
-    const m = new RegExp(`<DCSection\\b[^>]*?\\bid=["']${idOfSection.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["'][^>]*?(?<!/)>`).exec(now);
+    const m = new RegExp(
+      `<DCSection\\b[^>]*?\\bid=["']${idOfSection.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["'][^>]*?(?<!/)>`
+    ).exec(now);
     if (m) candidates.push({ tag: 'DCSection', from: m.index + m[0].length });
   }
   const anySection = /<DCSection\b[^>]*?(?<!\/)>/.exec(now);
-  if (anySection) candidates.push({ tag: 'DCSection', from: anySection.index + anySection[0].length });
+  if (anySection)
+    candidates.push({ tag: 'DCSection', from: anySection.index + anySection[0].length });
   const canvas = /<DesignCanvas\b[^>]*?(?<!\/)>/.exec(now);
   if (canvas) candidates.push({ tag: 'DesignCanvas', from: canvas.index + canvas[0].length });
   for (const { tag, from } of candidates) {

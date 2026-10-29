@@ -76,7 +76,10 @@ export function cssReaches(before, after, canvasSrc, canvas, artboard) {
     else added.push(line);
   }
   if (i < old.length) return true; // an old line changed or went away
-  const text = added.join('\n').replace(/\/\*[\s\S]*?\*\//g, '').trim();
+  const text = added
+    .join('\n')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .trim();
   if (!text) return false;
   if (!/^(?:[^{}]+\{[^{}]*\}\s*)+$/.test(text)) return true; // not whole flat rules
   const scan = scanCanvas(canvas, canvasSrc);

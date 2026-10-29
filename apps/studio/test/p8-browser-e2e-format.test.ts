@@ -70,7 +70,8 @@ test('the dev sync rigs stamp the format on every studio project they build', ()
     for (const m of src.matchAll(/writeFileSync\(\s*join\([^)]*'config\.json'\),/g)) {
       const rest = src.slice((m.index ?? 0) + m[0].length);
       const body = rest.slice(0, rest.indexOf(');'));
-      if (/linkedHub/.test(body) && !/v2Config\(/.test(body)) bare.push(`${f}: ${body.slice(0, 70)}`);
+      if (/linkedHub/.test(body) && !/v2Config\(/.test(body))
+        bare.push(`${f}: ${body.slice(0, 70)}`);
     }
   }
   expect(bare).toEqual([]);

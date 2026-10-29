@@ -390,12 +390,18 @@ export async function runSmoke({ out, log = console.log } = {}) {
   expect(
     'a stylesheet addition for a class the busy artboard does not render does not reach it',
     cssBefore != null &&
-      cssReaches(cssBefore, `${cssBefore}\n.ob-smoke-only { color: red; }\n`, onbSrc, ONB, 'hub') ===
-        false
+      cssReaches(
+        cssBefore,
+        `${cssBefore}\n.ob-smoke-only { color: red; }\n`,
+        onbSrc,
+        ONB,
+        'hub'
+      ) === false
   );
   expect(
     '…an addition on a class the artboard renders, or a changed old line, does',
-    cssReaches(cssBefore, `${cssBefore}\n.ob-head { color: red; }\n`, onbSrc, ONB, 'hub') === true &&
+    cssReaches(cssBefore, `${cssBefore}\n.ob-head { color: red; }\n`, onbSrc, ONB, 'hub') ===
+      true &&
       cssReaches(
         cssBefore,
         cssBefore.replace('letter-spacing', 'letter-spacing-x'),

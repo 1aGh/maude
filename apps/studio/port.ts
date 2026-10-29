@@ -43,7 +43,8 @@ export function resolvePort(
   const fromEnv = env.PORT ?? env.MDCC_DEV_PORT;
   if (fromEnv) return { port: Number(fromEnv), explicit: true };
   const base = Number(env.MAUDE_PORT_BASE);
-  if (Number.isInteger(base) && base > 0 && base < 65536 - PORT_LADDER) return { port: base, explicit: false };
+  if (Number.isInteger(base) && base > 0 && base < 65536 - PORT_LADDER)
+    return { port: base, explicit: false };
   if (isE2eEnv(env)) return { port: E2E_PORT_BASE, explicit: false };
   if (env[APP_SIDECAR_ENV] === '1') return { port: APP_PORT_BASE, explicit: false };
   return { port: CLI_DEFAULT_PORT, explicit: false };

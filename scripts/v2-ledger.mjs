@@ -356,7 +356,9 @@ function main(argv) {
   }
   if (cmd === 'pr-soak') {
     writeFileSync(PR_MD, withSoakBlock(readFileSync(PR_MD, 'utf8'), ledger));
-    console.log(`${ledger.rows.filter((r) => r.status === 'soak').length} soak rows → ${relative(ROOT, PR_MD)}`);
+    console.log(
+      `${ledger.rows.filter((r) => r.status === 'soak').length} soak rows → ${relative(ROOT, PR_MD)}`
+    );
     return 0;
   }
   if (cmd === 'set') {

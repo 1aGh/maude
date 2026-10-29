@@ -23,7 +23,11 @@ process.env.MAUDE_E2E_SHELL_LOG ??= resolve(
 );
 
 const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '');
-process.env.MAUDE_E2E_RUN_DIR = resolve(HERE, '../../../.ai/device/scenario-runs/shell-strip', stamp);
+process.env.MAUDE_E2E_RUN_DIR = resolve(
+  HERE,
+  '../../../.ai/device/scenario-runs/shell-strip',
+  stamp
+);
 
 export const config: WebdriverIO.Config = {
   ...base,

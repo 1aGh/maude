@@ -171,7 +171,8 @@ async function setUp(): Promise<string> {
     join(teammate, '.design', 'config.json'),
     JSON.stringify({
       name: 'Team project',
-      designRoot: '.design', formatVersion: 2,
+      designRoot: '.design',
+      formatVersion: 2,
       canvasGroups: [
         { label: 'UI', path: 'ui' },
         { label: 'Screens', path: 'screens' },

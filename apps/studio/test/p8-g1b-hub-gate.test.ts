@@ -11,8 +11,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { createAskQueue } from '../acp/ask-queue.ts';
-import { createOutbox, type GateFacts } from '../outbox/index.ts';
 import { createHubReachability } from '../outbox/hub-reachability.ts';
+import { createOutbox, type GateFacts } from '../outbox/index.ts';
 
 const dirs: string[] = [];
 afterEach(() => {
@@ -91,10 +91,16 @@ describe('the hub gate (V2-1.14 §5.4)', () => {
 
   test('http.ts wires it: the gate facts and the ask queue read the hub reachability', () => {
     const src = readFileSync(join(import.meta.dir, '..', 'http.ts'), 'utf8');
-    const gates = src.slice(src.indexOf('const outboxGates = ()'), src.indexOf('const outboxGates = ()') + 400);
+    const gates = src.slice(
+      src.indexOf('const outboxGates = ()'),
+      src.indexOf('const outboxGates = ()') + 400
+    );
     expect(gates).toContain('hubReachable: hubReach.reachable()');
     expect(gates).not.toContain('hubReachable: true');
-    const ask = src.slice(src.indexOf('const askQueue = createAskQueue({'), src.indexOf('const askQueue = createAskQueue({') + 300);
+    const ask = src.slice(
+      src.indexOf('const askQueue = createAskQueue({'),
+      src.indexOf('const askQueue = createAskQueue({') + 300
+    );
     expect(ask).toContain('project: () => hubReach.project()');
     expect(src).toContain("ctx.bus.on('sync:status', (p: unknown) => hubReach.note(p))");
   });

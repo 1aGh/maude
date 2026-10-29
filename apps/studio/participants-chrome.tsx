@@ -341,7 +341,10 @@ export function isHostedByShell(): boolean {
 export function peersPayload(
   list: readonly (Pick<ForeignAwareness, 'clientID' | 'name'> &
     Partial<
-      Pick<ForeignAwareness, 'artboard' | 'idleSince' | 'surface' | 'inComments' | 'summon' | 'role'>
+      Pick<
+        ForeignAwareness,
+        'artboard' | 'idleSince' | 'surface' | 'inComments' | 'summon' | 'role'
+      >
     >)[],
   followTarget: number | null = null
 ): Array<{

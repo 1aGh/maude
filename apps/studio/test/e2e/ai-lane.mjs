@@ -74,7 +74,6 @@ async function freePort() {
 /** What a window looks like to the shell when it runs inside the desktop app: the pieces the AI panel asks for. */
 const TAURI_STUB = `window.__TAURI__ = { core: { invoke: async (cmd, args) => { (window.__invokes = window.__invokes || []).push([cmd, args]); return null; } }, event: { listen: async () => () => {} } };`;
 
-
 /** One landing artboard's source (Desktop 1440 - Tablet 834 - Mobile 390), the way the first-draft order writes it. */
 export function landingBoard(id, { dark = false, footer = false } = {}) {
   const [label, w, h, fs] = {
@@ -134,7 +133,10 @@ export async function startAiLane({ files = {}, name = 'Studio site', prefs = {}
   mkdirSync(gates, { recursive: true });
   mkdirSync(join(home, 'xdg', 'maude'), { recursive: true });
   mkdirSync(bin, { recursive: true });
-  writeFileSync(join(project, '.design', 'config.json'), JSON.stringify({ name, formatVersion: 2 }));
+  writeFileSync(
+    join(project, '.design', 'config.json'),
+    JSON.stringify({ name, formatVersion: 2 })
+  );
   for (const [rel, text] of Object.entries(files)) {
     mkdirSync(dirname(join(project, rel)), { recursive: true });
     writeFileSync(join(project, rel), text);
@@ -171,10 +173,14 @@ export async function startAiLane({ files = {}, name = 'Studio site', prefs = {}
     HOOK_AGENT_GATES: gates,
     ...(process.env.MAUDE_E2E_ENV_JSON ? JSON.parse(process.env.MAUDE_E2E_ENV_JSON) : {}),
   };
-  const proc = spawn('bun', ['run', join(STUDIO_DIR, 'server.ts'), '--root', project, '--port', String(port)], {
-    env,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  const proc = spawn(
+    'bun',
+    ['run', join(STUDIO_DIR, 'server.ts'), '--root', project, '--port', String(port)],
+    {
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }
+  );
   let log = '';
   proc.stdout.on('data', (d) => (log += d));
   proc.stderr.on('data', (d) => (log += d));
@@ -262,8 +268,7 @@ async function openStudio(lane, rel, { w = 1600, h = 1000, theme = 'dark', ls = 
       await until(
         async () =>
           (await ui.inFrame(() => document.querySelectorAll('[data-dc-screen]').length)) >=
-          minArtboards &&
-          (await ui.inFrame(() => !!document.querySelector('.dc-world'))),
+            minArtboards && (await ui.inFrame(() => !!document.querySelector('.dc-world'))),
         'the canvas to mount',
         40_000
       );
@@ -290,7 +295,11 @@ async function openStudio(lane, rel, { w = 1600, h = 1000, theme = 'dark', ls = 
         if (!best) return null;
         const pt = best.p.getPointAtLength(best.len / 2);
         const m = best.p.getScreenCTM();
-        return { x: m.a * pt.x + m.c * pt.y + m.e, y: m.b * pt.x + m.d * pt.y + m.f, len: best.len };
+        return {
+          x: m.a * pt.x + m.c * pt.y + m.e,
+          y: m.b * pt.x + m.d * pt.y + m.f,
+          len: best.len,
+        };
       }, selector);
       if (!local) return null;
       const fb = await tid('canvas-frame').boundingBox();
@@ -298,14 +307,20 @@ async function openStudio(lane, rel, { w = 1600, h = 1000, theme = 'dark', ls = 
     },
     artboards: async () =>
       (await ui.inFrame(() =>
-        [...document.querySelectorAll('[data-dc-screen]')].map((e) => e.getAttribute('data-dc-screen'))
+        [...document.querySelectorAll('[data-dc-screen]')].map((e) =>
+          e.getAttribute('data-dc-screen')
+        )
       )) ?? [],
     /** Open the AI panel (the spark in the corner) if its composer is not on screen. */
     async openAi() {
       if (!(await tid('chat-composer').locator(':visible').count())) {
         await tid('panel-icon-assistant').click();
       }
-      await until(() => tid('chat-composer').locator(':visible').count(), 'the AI composer', 15_000);
+      await until(
+        () => tid('chat-composer').locator(':visible').count(),
+        'the AI composer',
+        15_000
+      );
     },
     /** Type into the real composer and send. */
     async ask(text) {

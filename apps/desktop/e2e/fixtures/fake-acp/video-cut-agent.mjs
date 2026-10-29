@@ -48,8 +48,10 @@ function attached(text) {
   const out = [];
   for (const raw of text.slice(at).split('\n').slice(1)) {
     const m = /^- footage “([^”]*)”(?: \([^)]*\))?: (.+)$/.exec(raw.trimEnd());
-    const tail = m && /assets[\\/]([0-9a-f]{8,}[A-Za-z0-9_-]*\.[A-Za-z0-9]{1,5})$/.exec(m[2].trim());
-    if (tail) out.push({ asset: `assets/${tail[1]}`, name: m[1].replace(/\.[A-Za-z0-9]{1,5}$/, '') });
+    const tail =
+      m && /assets[\\/]([0-9a-f]{8,}[A-Za-z0-9_-]*\.[A-Za-z0-9]{1,5})$/.exec(m[2].trim());
+    if (tail)
+      out.push({ asset: `assets/${tail[1]}`, name: m[1].replace(/\.[A-Za-z0-9]{1,5}$/, '') });
   }
   return out;
 }
@@ -58,7 +60,14 @@ const DESIGN = () => join(process.cwd(), '.design');
 
 /** One clip's analysis: usable moments (the best is AI's pick), or none usable (the reason is the note). */
 function analysis(clip, i, total) {
-  const base = { version: 1, asset: clip.asset, durationSec: 6, width: 128, height: 72, keyframes: 6 };
+  const base = {
+    version: 1,
+    asset: clip.asset,
+    durationSec: 6,
+    width: 128,
+    height: 72,
+    keyframes: 6,
+  };
   if (i >= total - 3) {
     const why = i === total - 1 ? 'shaky' : 'too dark';
     return {
@@ -141,13 +150,25 @@ async function cut(ctx) {
   await say(ctx, 'Placing the shots on the beat. ');
   for (let k = 0; k < beats.length; k++) {
     if (stopped) return { stopReason: 'cancelled' };
-    const placed = await bash(ctx, 'maude design reel-place recap --next --canvas ui/VideoAiCut.tsx#recap', () =>
-      // the same command the AI runs: the `maude` the app puts on the session's PATH (its own bundled runtime)
-      spawnSync(
-        'maude',
-        ['design', 'reel-place', 'recap', '--next', '--canvas', 'ui/VideoAiCut.tsx#recap', '--root', process.cwd()],
-        { encoding: 'utf8', env: { ...process.env, NO_OPEN: '1' } }
-      )
+    const placed = await bash(
+      ctx,
+      'maude design reel-place recap --next --canvas ui/VideoAiCut.tsx#recap',
+      () =>
+        // the same command the AI runs: the `maude` the app puts on the session's PATH (its own bundled runtime)
+        spawnSync(
+          'maude',
+          [
+            'design',
+            'reel-place',
+            'recap',
+            '--next',
+            '--canvas',
+            'ui/VideoAiCut.tsx#recap',
+            '--root',
+            process.cwd(),
+          ],
+          { encoding: 'utf8', env: { ...process.env, NO_OPEN: '1' } }
+        )
     );
     // a refusal of the verb is the first thing to read when no shot lands: keep what it said
     appendFileSync(

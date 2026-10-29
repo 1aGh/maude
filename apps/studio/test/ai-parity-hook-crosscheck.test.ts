@@ -39,7 +39,8 @@ function impliedCommand(how: string): string | null {
   const first = how.split(/;| — |\. Over HTTP/)[0] as string;
   // inside a file: an element / artboard / JSX edit is the Edit tool's, never a file op
   // (`<designRoot>` / `<slug>` are placeholders, not tags)
-  if (/JSX|element|DCArtboard|<(?:div|svg|img|path|p|h\d|Sequence|Video|Audio)\b/.test(first)) return null;
+  if (/JSX|element|DCArtboard|<(?:div|svg|img|path|p|h\d|Sequence|Video|Audio)\b/.test(first))
+    return null;
   const asset = /\bassets\/</.test(first);
   if (!asset && !/\.tsx\b/.test(first)) return null;
   const src = asset ? '.design/assets/a.png' : '.design/ui/a.tsx';
@@ -93,13 +94,18 @@ describe('a taught agent path is one the design hook allows', () => {
       .map((r) => r.id);
     expect(got).toEqual([]);
     // … and the detector still sees the old wording
-    expect(handMade('Write a new .tsx under the design root with a DCArtboard per screen')).toBe(true);
+    expect(handMade('Write a new .tsx under the design root with a DCArtboard per screen')).toBe(
+      true
+    );
   });
 
   test('the new-canvas actions name the app’s create route', () => {
     for (const id of ['canvas.new', 'canvas.new-brief', 'canvas.new-video', 'home.ask']) {
       const how = rows.find((r) => r.id === id)?.agent?.how ?? '';
-      expect({ id, route: how.includes('/_api/canvas --method POST') }).toEqual({ id, route: true });
+      expect({ id, route: how.includes('/_api/canvas --method POST') }).toEqual({
+        id,
+        route: true,
+      });
     }
   });
 

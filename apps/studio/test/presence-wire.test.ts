@@ -6,6 +6,8 @@ import { describe, expect, test } from 'bun:test';
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protocols/awareness';
 import * as Y from 'yjs';
 import { DGN_TABLE } from '../bridge/dgn-protocol.ts';
+import { roleOfPeer } from '../client/v2/presence/use-presence-host.js';
+import { facesOf } from '../client/v2/shell/save-status.js';
 import { stripUnheldFields } from '../collab/awareness-bridge.ts';
 import {
   collapseFaces,
@@ -15,8 +17,6 @@ import {
   pickSummon,
   syncFollow,
 } from '../presence/model.ts';
-import { roleOfPeer } from '../client/v2/presence/use-presence-host.js';
-import { facesOf } from '../client/v2/shell/save-status.js';
 import { readForeignPeers } from '../use-collab.tsx';
 
 const NOW = 1_800_000_000_000;
@@ -169,7 +169,9 @@ describe('P8 G2 (b) — the role word comes from the room’s stamp', () => {
       applyAwarenessUpdate(me, encodeAwarenessUpdate(her, [her.clientID]), 'room');
       const p = readForeignPeers(me).find((x) => x.clientID === her.clientID);
       expect(p?.role).toBe(role);
-      expect(menuSubline(p as never, { roleOf: roleOfPeer, now: NOW })).toBe(`On this canvas · ${word}`);
+      expect(menuSubline(p as never, { roleOf: roleOfPeer, now: NOW })).toBe(
+        `On this canvas · ${word}`
+      );
     }
     // the shell's faces keep it (facesOf rebuilt every peer from an allowlist that dropped it)
     const [, f, g] = facesOf({
@@ -181,7 +183,9 @@ describe('P8 G2 (b) — the role word comes from the room’s stamp', () => {
       max: 40,
     });
     expect([f?.role, g?.role]).toEqual(['member', null]);
-    expect(menuSubline(f as never, { roleOf: roleOfPeer, now: NOW })).toBe('On this canvas · Can edit');
+    expect(menuSubline(f as never, { roleOf: roleOfPeer, now: NOW })).toBe(
+      'On this canvas · Can edit'
+    );
     const odd = person('Jonas', { role: 'admin' });
     applyAwarenessUpdate(me, encodeAwarenessUpdate(odd, [odd.clientID]), 'room');
     const j = readForeignPeers(me).find((x) => x.clientID === odd.clientID);

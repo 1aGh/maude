@@ -70,7 +70,10 @@ const META = {
 function makeKampan() {
   const root = mkdtempSync(join(tmpdir(), 'maude-presence-e2e-'));
   mkdirSync(join(root, '.design', 'ui'), { recursive: true });
-  writeFileSync(join(root, '.design', 'config.json'), JSON.stringify(e2eProjectConfig('presence-e2e')));
+  writeFileSync(
+    join(root, '.design', 'config.json'),
+    JSON.stringify(e2eProjectConfig('presence-e2e'))
+  );
   writeFileSync(join(root, '.design', FILE), CANVAS);
   writeFileSync(join(root, '.design', 'ui', 'Combine-kampan.meta.json'), JSON.stringify(META));
   return root;
@@ -275,15 +278,25 @@ describe('presence — people on one canvas (10 · co-presence … co-twelve)', 
     const fs = await faces(you);
     assert.equal(fs.length, 3, `three faces, got ${JSON.stringify(fs)}`);
     for (const f of fs) {
-      assert.match(f.tone, /^var\(--object-(sky|green|yellow|lilac|grey)\)$/, `${f.label}: ${f.tone}`);
+      assert.match(
+        f.tone,
+        /^var\(--object-(sky|green|yellow|lilac|grey)\)$/,
+        `${f.label}: ${f.tone}`
+      );
       assert.doesNotMatch(f.tone, /coral/);
     }
     // the face carries where the person is (the aria label is the list line)
     // (this lane is the browser surface, so each line also says "· in a browser")
-    await waitFor(async () => (await faceOf(you, 'Tereza')).label.includes('plakát'), 'Tereza on A4');
+    await waitFor(
+      async () => (await faceOf(you, 'Tereza')).label.includes('plakát'),
+      'Tereza on A4'
+    );
     const t = await faceOf(you, 'Tereza');
     assert.equal(t.label, `Tereza Nováková — A4 · plakát${IN_BROWSER}`);
-    assert.equal((await faceOf(you, 'Jonas')).label, `Jonas Berg — Web · STAŇ SE GATOREM${IN_BROWSER}`);
+    assert.equal(
+      (await faceOf(you, 'Jonas')).label,
+      `Jonas Berg — Web · STAŇ SE GATOREM${IN_BROWSER}`
+    );
     assert.equal((await faceOf(you, 'Petra')).label, `Petra Malá — Story 9:16${IN_BROWSER}`);
     // a tone is the person's, not the window's: Jonas's screen paints Tereza the same
     assert.equal((await faceOf(jonas, 'Tereza')).tone, t.tone);
@@ -493,8 +506,8 @@ describe('presence — twelve people on one canvas (10 · co-twelve)', () => {
     const more = you.page.locator('[data-testid="share-cluster-faces-more"]');
     await waitFor(async () => (await more.textContent()) === '+8', '+8').catch(async (e) => {
       const seen = await you.page.evaluate(() =>
-        [...document.querySelectorAll('[data-testid^="share-cluster-face"]')].map((el) =>
-          `${el.textContent}:${el.getAttribute('aria-label') ?? ''}`
+        [...document.querySelectorAll('[data-testid^="share-cluster-face"]')].map(
+          (el) => `${el.textContent}:${el.getAttribute('aria-label') ?? ''}`
         )
       );
       // who each person's canvas hears (cursors) — a person who never arrived is missing here
@@ -552,6 +565,12 @@ describe('presence — twelve people on one canvas (10 · co-twelve)', () => {
       const c = await cursors(you);
       return c.filter((x) => x.idle).length === 3 ? c : null;
     }, 'three idle cursors');
-    assert.deepEqual(cs.filter((c) => c.idle).map((c) => c.label).sort(), ['E', 'H', 'R']);
+    assert.deepEqual(
+      cs
+        .filter((c) => c.idle)
+        .map((c) => c.label)
+        .sort(),
+      ['E', 'H', 'R']
+    );
   });
 });

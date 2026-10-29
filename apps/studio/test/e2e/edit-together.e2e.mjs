@@ -50,7 +50,10 @@ export default function Homepage() {
 function makeHome() {
   const root = mkdtempSync(join(tmpdir(), 'maude-edit-together-e2e-'));
   mkdirSync(join(root, '.design', 'ui'), { recursive: true });
-  writeFileSync(join(root, '.design', 'config.json'), JSON.stringify(e2eProjectConfig('edit-together')));
+  writeFileSync(
+    join(root, '.design', 'config.json'),
+    JSON.stringify(e2eProjectConfig('edit-together'))
+  );
   writeFileSync(join(root, '.design', FILE), CANVAS);
   writeFileSync(
     join(root, '.design', 'ui', 'Homepage.meta.json'),
@@ -109,9 +112,12 @@ async function selectButton(w) {
   });
   await w.page.mouse.click(fb.x + r.x, fb.y + r.y);
   const picked = async () =>
-    (await w.page.locator('[data-testid="inspector-crumbs"]').textContent().catch(() => ''))?.includes(
-      'See pricing'
-    );
+    (
+      await w.page
+        .locator('[data-testid="inspector-crumbs"]')
+        .textContent()
+        .catch(() => '')
+    )?.includes('See pricing');
   if (!(await waitFor(picked, 'selected', 3_000).catch(() => false))) {
     // a click lands on the artboard first; the second goes in
     await w.page.mouse.dblclick(fb.x + r.x, fb.y + r.y);

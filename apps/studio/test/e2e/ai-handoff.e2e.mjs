@@ -37,7 +37,10 @@ describe('09 ex-handoff-ready - Ready means one thing to copy; Advanced shows th
     lane.script([
       { op: 'tool', id: 'h1', title: 'Hand off Landing to the web', kind: 'execute' },
       { op: 'gate', name: 'handoff' },
-      { op: 'maude', args: ['design', 'handoff', join(lane.project, LANDING), join(lane.project, '.design')] },
+      {
+        op: 'maude',
+        args: ['design', 'handoff', join(lane.project, LANDING), join(lane.project, '.design')],
+      },
       { op: 'done', id: 'h1' },
       { op: 'say', text: 'Done - Landing is ready for developers.' },
     ]);
@@ -55,7 +58,9 @@ describe('09 ex-handoff-ready - Ready means one thing to copy; Advanced shows th
     assert.equal(await ui.tid('handoff-ready').first().getAttribute('data-kind'), 'web');
     assert.match(await ui.tid('handoff-ready-copy').first().innerText(), /^Copy command/);
     assert.equal(
-      await ui.page.locator('[data-testid="handoff-ready"] .k-mono, [data-testid="handoff-ready"] pre').count(),
+      await ui.page
+        .locator('[data-testid="handoff-ready"] .k-mono, [data-testid="handoff-ready"] pre')
+        .count(),
       0,
       'no file path or mono text before Advanced is opened'
     );
@@ -68,7 +73,10 @@ describe('09 ex-handoff-ready - Ready means one thing to copy; Advanced shows th
     assert.match(adv, /This Mac only|Any machine/);
     assert.match(adv, /\/design:handoff/);
     assert.match(adv, /maude design handoff/);
-    assert.ok(lane.read('.design/ui/Landing.registry.json').includes('"name"'), 'the registry item is on disk');
+    assert.ok(
+      lane.read('.design/ui/Landing.registry.json').includes('"name"'),
+      'the registry item is on disk'
+    );
     await ui.shot('09-ex-handoff-ready.advanced');
   });
 });

@@ -36,7 +36,10 @@ describe('resolvePort — the app range', () => {
   });
 
   test('$MAUDE_PORT_BASE still moves the ladder (the journeys / evals harness)', () => {
-    expect(resolvePort(ARGV, { ...APP, MAUDE_PORT_BASE: '48399' })).toEqual({ port: 48399, explicit: false });
+    expect(resolvePort(ARGV, { ...APP, MAUDE_PORT_BASE: '48399' })).toEqual({
+      port: 48399,
+      explicit: false,
+    });
   });
 
   test('an explicit port still wins', () => {
@@ -93,7 +96,9 @@ describe('the four ladders never overlap', () => {
         expect(`${a}/${b} ${overlap ? 'overlap' : 'disjoint'}`).toBe(`${a}/${b} disjoint`);
       }
     // A tab past RUNNING_CAP rests, so at most RUNNING_CAP app servers hold a port at once.
-    const cap = Number(/const RUNNING_CAP: usize = (\d+);/.exec(read('apps/desktop/src-tauri/src/sidecar.rs'))?.[1]);
+    const cap = Number(
+      /const RUNNING_CAP: usize = (\d+);/.exec(read('apps/desktop/src-tauri/src/sidecar.rs'))?.[1]
+    );
     expect(cap).toBeGreaterThan(0);
     expect(cap).toBeLessThanOrEqual(PORT_LADDER);
   });

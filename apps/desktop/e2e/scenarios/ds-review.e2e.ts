@@ -578,11 +578,13 @@ part('4')(
       const frameState = (await browser.execute(() => {
         const f = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
         const d = f.contentDocument as Document;
-        const outlines = Array.from(d.querySelectorAll('[data-testid^="ds-outline-"]')).map((e) => ({
-          id: e.getAttribute('data-testid') ?? '',
-          state: e.getAttribute('data-ds-state') ?? '',
-          text: (e.textContent ?? '').replace(/\s+/g, ' ').trim(),
-        }));
+        const outlines = Array.from(d.querySelectorAll('[data-testid^="ds-outline-"]')).map(
+          (e) => ({
+            id: e.getAttribute('data-testid') ?? '',
+            state: e.getAttribute('data-ds-state') ?? '',
+            text: (e.textContent ?? '').replace(/\s+/g, ' ').trim(),
+          })
+        );
         const sections = Array.from(d.querySelectorAll('[data-testid^="ds-section-"]')).map(
           (e) => e.getAttribute('data-testid') ?? ''
         );

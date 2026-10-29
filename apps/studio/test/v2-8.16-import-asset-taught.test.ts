@@ -36,7 +36,9 @@ describe('V2-8.16 — bringing a file into the project is taught as `maude desig
   });
 
   test('the generated skill lists the row, and its description names the import', () => {
-    expect(SKILL).toMatch(/\| Add files… \| `assets\.add` \| `maude design import-asset[^`]*` \| auto \|/);
+    expect(SKILL).toMatch(
+      /\| Add files… \| `assets\.add` \| `maude design import-asset[^`]*` \| auto \|/
+    );
     const description = /^description: "(.*)"$/m.exec(SKILL)?.[1] ?? '';
     expect(description).toContain(VERB);
   });

@@ -1554,7 +1554,10 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         continue;
       else if (r.localHash && r.localHash !== r.syncedHash) {
         // a code module this machine may not upload is dropped every pass, never "on its way"
-        if (!uploadsCode && classifyProjectFile(rel, { canvasGroups: opts.canvasGroups }) === 'code-module')
+        if (
+          !uploadsCode &&
+          classifyProjectFile(rel, { canvasGroups: opts.canvasGroups }) === 'code-module'
+        )
           continue;
         n += 1;
       }

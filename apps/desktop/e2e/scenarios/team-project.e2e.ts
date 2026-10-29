@@ -2,7 +2,8 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, $$, browser, expect } from '@wdio/globals';
-
+import { type LocalHub, startLocalHub } from '../fixtures/local-hub.mjs';
+import { openAssistant } from '../helpers/assistant';
 import {
   closeDiagnostics,
   closeHistory,
@@ -12,8 +13,6 @@ import {
   syncStatusText,
   toggleTheme,
 } from '../helpers/chrome';
-import { type LocalHub, startLocalHub } from '../fixtures/local-hub.mjs';
-import { openAssistant } from '../helpers/assistant';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';

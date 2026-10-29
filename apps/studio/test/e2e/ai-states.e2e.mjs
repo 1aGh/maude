@@ -73,7 +73,10 @@ describe('01 cf-ai-drafting - AI drafts on a new canvas, in the open', () => {
       { op: 'gate', name: 'mobile' },
       { op: 'insert', path: LANDING, before: SECTION_END, text: landingBoard('mobile') },
       { op: 'done', id: 't1' },
-      { op: 'say', text: 'Done - Desktop, Tablet and Mobile are on the canvas. Pick one to refine.' },
+      {
+        op: 'say',
+        text: 'Done - Desktop, Tablet and Mobile are on the canvas. Pick one to refine.',
+      },
     ]);
     await ui.ask('Draw a calm landing page for my studio');
     // the working line names the ask in the present tense, says the step under it, and has Stop
@@ -338,10 +341,15 @@ describe('03 ai-queue-rule - one AI at a time per artboard, everything else side
     // one agent writes at a time: each scripted edit is a read-then-write of the same file, so two released in the
     // same instant can drop one of them (the fixture's race, not the studio's) - the last one waits for the first
     lane.gate('c');
-    await until(() => /data-edited="c"/.test(lane.read(LANDING)), 'the second Tablet change', 30_000);
+    await until(
+      () => /data-edited="c"/.test(lane.read(LANDING)),
+      'the second Tablet change',
+      30_000
+    );
     lane.gate('a');
     await until(
-      () => /data-edited="c"/.test(lane.read(LANDING)) && /data-edited="a"/.test(lane.read(LANDING)),
+      () =>
+        /data-edited="c"/.test(lane.read(LANDING)) && /data-edited="a"/.test(lane.read(LANDING)),
       'both changes kept (a line keeps both changes)',
       30_000
     );
@@ -444,8 +452,19 @@ describe('06 ad-ai - a finished run, under › Advanced', () => {
       const t = await fold.innerText();
       return /Context used/.test(t) && /38/.test(t) ? t : null;
     }, 'Context used to read 38 %');
-    for (const word of ['Model', 'Effort', 'Fast mode', 'Ask before', 'Context used', '5-hour', 'Session'])
-      assert.ok(text.includes(word), `Advanced names "${word}" (got: ${JSON.stringify(text.slice(0, 400))})`);
+    for (const word of [
+      'Model',
+      'Effort',
+      'Fast mode',
+      'Ask before',
+      'Context used',
+      '5-hour',
+      'Session',
+    ])
+      assert.ok(
+        text.includes(word),
+        `Advanced names "${word}" (got: ${JSON.stringify(text.slice(0, 400))})`
+      );
     assert.match(await ui.tid('ai-adv-context-pct').first().innerText(), /38/);
     const session = (await ui.tid('ai-adv-session').first().innerText()).trim();
     assert.ok(
@@ -536,7 +555,10 @@ describe('14 ed-edge-ai + ed-edge-ask - AI works in place on a selection', () =>
     await cmdSlash();
     await until(() => ui.tid('ask-selection-chip').count(), 'the ask bubble with its scope chip');
     assert.match(await ui.tid('ask-selection-chip').first().innerText(), /3 elements/);
-    await ui.tid('ask-selection-input').first().fill('Add a “Read more →” link to each card, same place in all three.');
+    await ui
+      .tid('ask-selection-input')
+      .first()
+      .fill('Add a “Read more →” link to each card, same place in all three.');
     await ui.page.keyboard.press('Enter');
     await until(() => ui.tid('ask-selection-asked').count(), 'the asked bubble');
     assert.equal(
@@ -548,7 +570,9 @@ describe('14 ed-edge-ai + ed-edge-ask - AI works in place on a selection', () =>
       () =>
         ui.inFrame(() => {
           const els = [...document.querySelectorAll('[data-testid="edit-ai-scope"]')];
-          return els.length ? { n: els.length, text: els.map((e) => e.textContent).join('|') } : null;
+          return els.length
+            ? { n: els.length, text: els.map((e) => e.textContent).join('|') }
+            : null;
         }),
       'the scope outline'
     );
@@ -561,18 +585,31 @@ describe('14 ed-edge-ai + ed-edge-ask - AI works in place on a selection', () =>
     );
     await ui.shot('14-ed-edge-ask.working');
     lane.gate('cards');
-    await until(() => /Small apps - Read more/.test(lane.read(HOME_FILE)), 'the three cards to change', 30_000);
+    await until(
+      () => /Small apps - Read more/.test(lane.read(HOME_FILE)),
+      'the three cards to change',
+      30_000
+    );
     await until(() => ui.tid('ai-result').count(), 'the result card', 30_000);
     // one step: ⌘Z on the canvas puts every card back (the AI panel is folded: the bubble's hint is the promise)
     // a real ⌘Z through the browser: whichever document holds focus (the canvas frame after the clicks above), the
     // shell owns undo and the canvas forwards the key to it
-    const stack = () => fetch(`http://localhost:${lane.port}/_api/project/undo-stack`).then((r) => r.text()).catch((e) => String(e));
+    const stack = () =>
+      fetch(`http://localhost:${lane.port}/_api/project/undo-stack`)
+        .then((r) => r.text())
+        .catch((e) => String(e));
     const before = await stack();
     await ui.page.keyboard.press('Meta+KeyZ');
     try {
-      await until(() => lane.read(HOME_FILE) === original, 'one ⌘Z to take back all three cards', 12_000);
+      await until(
+        () => lane.read(HOME_FILE) === original,
+        'one ⌘Z to take back all three cards',
+        12_000
+      );
     } catch (err) {
-      throw new Error(`${err.message}\nundo stack before: ${before.slice(0, 700)}\nafter: ${(await stack()).slice(0, 700)}`);
+      throw new Error(
+        `${err.message}\nundo stack before: ${before.slice(0, 700)}\nafter: ${(await stack()).slice(0, 700)}`
+      );
     }
     await ui.shot('14-ed-edge-ask.undone');
   });
@@ -581,9 +618,19 @@ describe('14 ed-edge-ai + ed-edge-ask - AI works in place on a selection', () =>
     // asked in the chat, on the page: the AI then holds what its edits touch - the footer and nothing else
     lane.script([
       tool('f1', 'Links done - newsletter field next', HOME_FILE),
-      { op: 'subst', path: HOME_FILE, from: 'Studio site - Brno', to: 'Studio site - Brno - Links' },
+      {
+        op: 'subst',
+        path: HOME_FILE,
+        from: 'Studio site - Brno',
+        to: 'Studio site - Brno - Links',
+      },
       { op: 'gate', name: 'footer' },
-      { op: 'subst', path: HOME_FILE, from: 'Studio site - Brno - Links', to: 'Studio site - Brno - Links - Newsletter' },
+      {
+        op: 'subst',
+        path: HOME_FILE,
+        from: 'Studio site - Brno - Links',
+        to: 'Studio site - Brno - Links - Newsletter',
+      },
       { op: 'done', id: 'f1', path: HOME_FILE },
       { op: 'say', text: 'Done - the footer has links and a newsletter field.' },
     ]);
@@ -594,7 +641,11 @@ describe('14 ed-edge-ai + ed-edge-ask - AI works in place on a selection', () =>
         ui.inFrame(() => {
           const els = [...document.querySelectorAll('[data-testid="edit-ai-hold"]')];
           return els.length
-            ? { n: els.length, text: els.map((e) => e.textContent).join('|'), held: els.map((e) => e.getAttribute('data-element')) }
+            ? {
+                n: els.length,
+                text: els.map((e) => e.textContent).join('|'),
+                held: els.map((e) => e.getAttribute('data-element')),
+              }
             : null;
         }),
       'the hold ring on the footer'
@@ -606,13 +657,23 @@ describe('14 ed-edge-ai + ed-edge-ask - AI works in place on a selection', () =>
     assert.ok(await ui.tid('ai-stop').count(), 'Stop is in the AI chat');
     // the canvas hot-reloads once the first edit lands and a remount drops whatever the page was showing: let it
     // settle, then the ring must be back before the click (a tip put up mid-reload would vanish with it)
-    await until(() => ui.inFrame(() => /Brno - Links/.test(document.body.innerText)), 'the first footer edit on the canvas');
+    await until(
+      () => ui.inFrame(() => /Brno - Links/.test(document.body.innerText)),
+      'the first footer edit on the canvas'
+    );
     await sleep(3000);
-    await until(() => ui.inFrame(() => document.querySelectorAll('[data-testid="edit-ai-hold"]').length === 1), 'the hold again after the reload');
+    await until(
+      () =>
+        ui.inFrame(() => document.querySelectorAll('[data-testid="edit-ai-hold"]').length === 1),
+      'the hold again after the reload'
+    );
     // a click on the held footer says it is AI's until it is done
     await click('home-footer');
     const tip = await until(
-      () => ui.inFrame(() => document.querySelector('[data-testid="edit-ai-hold-tip"]')?.textContent ?? null),
+      () =>
+        ui.inFrame(
+          () => document.querySelector('[data-testid="edit-ai-hold-tip"]')?.textContent ?? null
+        ),
       'the tip by the pointer'
     );
     assert.match(tip, /^Footer is AI's until it's done/);
@@ -626,7 +687,10 @@ describe('14 ed-edge-ai + ed-edge-ask - AI works in place on a selection', () =>
     await until(() => ui.tid('ai-result').count(), 'the result card', 30_000);
     // the hold goes with the run (the shell relays it on its next read of the registry, a beat after the card)
     await until(
-      async () => (await ui.inFrame(() => document.querySelectorAll('[data-testid="edit-ai-hold"]').length)) === 0,
+      async () =>
+        (await ui.inFrame(
+          () => document.querySelectorAll('[data-testid="edit-ai-hold"]').length
+        )) === 0,
       'the hold to go with the run',
       8000
     );

@@ -67,8 +67,8 @@ async function hooked(ctx, path, next, part = null) {
     tool_input: part
       ? { file_path: p, old_string: part.old, new_string: part.new, replace_all: false }
       : old
-      ? { file_path: p, old_string: old, new_string: next, replace_all: false }
-      : { file_path: p, content: next },
+        ? { file_path: p, old_string: old, new_string: next, replace_all: false }
+        : { file_path: p, content: next },
   };
   const pre = await runHook({ event: 'pre-edit', stdinText: hookIn(ctx, input) });
   if (pre && /"deny"|"block"/.test(pre)) return pre;
@@ -219,7 +219,10 @@ async function runSteps(ctx, steps, s) {
 
 const state = (id) => {
   let s = sessions.get(id);
-  if (!s) sessions.set(id, (s = { cancelled: false }));
+  if (!s) {
+    s = { cancelled: false };
+    sessions.set(id, s);
+  }
   return s;
 };
 

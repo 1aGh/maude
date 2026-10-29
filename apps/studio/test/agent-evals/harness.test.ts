@@ -61,8 +61,15 @@ test('every eval fixture is a project this build may edit (formatVersion 2, no f
       if (!buildFixture(name, dest)) continue;
       built += 1;
       const cfg = JSON.parse(readFileSync(join(dest, '.design', 'config.json'), 'utf8'));
-      const gate = formatGate({ cfg, paths: { designRoot: join(dest, '.design') } }, FORMAT_GATE_OPTS);
-      expect({ name, formatVersion: cfg.formatVersion, gate }).toEqual({ name, formatVersion: 2, gate: null });
+      const gate = formatGate(
+        { cfg, paths: { designRoot: join(dest, '.design') } },
+        FORMAT_GATE_OPTS
+      );
+      expect({ name, formatVersion: cfg.formatVersion, gate }).toEqual({
+        name,
+        formatVersion: 2,
+        gate: null,
+      });
     }
     expect(built).toBeGreaterThan(0);
   } finally {
@@ -86,7 +93,7 @@ test('a trial env keeps the agent-browser socket path under the 103-byte unix li
 });
 
 test.skipIf(!Bun.which('agent-browser'))(
-  'render grader: under the trial\'s throwaway HOME a fixture artboard still captures non-blank',
+  "render grader: under the trial's throwaway HOME a fixture artboard still captures non-blank",
   async () => {
     const root = mkdtempSync(join(tmpdir(), 'agent-evals-render-'));
     const project = join(root, 'project');
@@ -109,7 +116,9 @@ test.skipIf(!Bun.which('agent-browser'))(
         env: trial.env,
       });
       expect(r.error).toBeUndefined();
-      expect(r.shots.map((s: any) => ({ err: s.err, path: !!s.path, blank: s.stats?.blank }))).toEqual([
+      expect(
+        r.shots.map((s: any) => ({ err: s.err, path: !!s.path, blank: s.stats?.blank }))
+      ).toEqual([
         { err: '', path: true, blank: false },
         { err: '', path: true, blank: false },
       ]);

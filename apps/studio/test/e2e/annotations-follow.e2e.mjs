@@ -182,9 +182,14 @@ describe('F1–F2 — Desktop moves, its members and the bound arrow follow', ()
       assert.equal(loose, '', 'the loose note does not ride');
       const tag = c.frame.locator('[data-testid="annot-cross-tag"]');
       if (!(await tag.count())) {
-        const box = async (q) => c.frame.locator(q).first().boundingBox().catch(() => null);
+        const box = async (q) =>
+          c.frame
+            .locator(q)
+            .first()
+            .boundingBox()
+            .catch(() => null);
         assert.fail(
-          `no cross tag mid-drag: arw=${JSON.stringify(disk().get('arw'))} desktop=${JSON.stringify(await box('[data-dc-screen="desktop"]'))} mobile=${JSON.stringify(await box('[data-dc-screen="mobile"]'))} note=${JSON.stringify(await c.pageBox('tereza'))} ride=${(await c.frame.evaluate(() => document.querySelector('[data-testid="annot-ride"]')?.outerHTML.slice(0, 700)))}`
+          `no cross tag mid-drag: arw=${JSON.stringify(disk().get('arw'))} desktop=${JSON.stringify(await box('[data-dc-screen="desktop"]'))} mobile=${JSON.stringify(await box('[data-dc-screen="mobile"]'))} note=${JSON.stringify(await c.pageBox('tereza'))} ride=${await c.frame.evaluate(() => document.querySelector('[data-testid="annot-ride"]')?.outerHTML.slice(0, 700))}`
         );
       }
       assert.match((await tag.first().textContent()) ?? '', /the straight line would cross Mobile/);

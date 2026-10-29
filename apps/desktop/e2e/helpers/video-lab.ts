@@ -75,7 +75,18 @@ export function makeTone(dir: string, name: string, sec = 4): string {
   const out = join(dir, name);
   const r = spawnSync(
     'ffmpeg',
-    ['-y', '-v', 'error', '-f', 'lavfi', '-i', `sine=frequency=330:duration=${sec}`, '-c:a', 'libmp3lame', out],
+    [
+      '-y',
+      '-v',
+      'error',
+      '-f',
+      'lavfi',
+      '-i',
+      `sine=frequency=330:duration=${sec}`,
+      '-c:a',
+      'libmp3lame',
+      out,
+    ],
     { encoding: 'utf8' }
   );
   if (r.status !== 0) throw new Error(`ffmpeg could not make ${name}: ${r.stderr}`);
@@ -127,7 +138,9 @@ export async function dropOnWindow(keys: string[]): Promise<void> {
     const dt = new DataTransfer();
     for (const k of ks) dt.items.add(w.__e2eFiles[k]);
     const at = document.querySelector('[data-testid="timeline-artboard-drop"]') as HTMLElement;
-    at.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }));
+    at.dispatchEvent(
+      new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt })
+    );
     at.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
   }, keys);
 }

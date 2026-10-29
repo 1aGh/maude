@@ -94,7 +94,10 @@ describe('screenshot.sh on one shared session', () => {
           const code = await proc.exited;
           const err = await new Response(proc.stderr).text();
           const ok = code === 0 && existsSync(out) && statSync(out).size > 100;
-          if (!ok) failures.push(`capture ${i}: exit ${code} — ${err.split('\n').filter(Boolean).pop() ?? ''}`);
+          if (!ok)
+            failures.push(
+              `capture ${i}: exit ${code} — ${err.split('\n').filter(Boolean).pop() ?? ''}`
+            );
         }
       } finally {
         server.stop(true);

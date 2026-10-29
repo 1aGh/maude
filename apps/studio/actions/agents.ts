@@ -217,11 +217,15 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   },
   'canvas.rename': {
     effect: 'project',
-    agent: cli(`maude design curl-local http://127.0.0.1:<port>/_api/fs-move --method POST --header "Content-Type: application/json" --data '{"file":"<canvas path>","toName":"<new name>"}'`),
+    agent: cli(
+      `maude design curl-local http://127.0.0.1:<port>/_api/fs-move --method POST --header "Content-Type: application/json" --data '{"file":"<canvas path>","toName":"<new name>"}'`
+    ),
   },
   'canvas.move': {
     effect: 'project',
-    agent: cli(`maude design curl-local http://127.0.0.1:<port>/_api/fs-move --method POST --header "Content-Type: application/json" --data '{"file":"<canvas path>","toDir":"<folder>"}'`),
+    agent: cli(
+      `maude design curl-local http://127.0.0.1:<port>/_api/fs-move --method POST --header "Content-Type: application/json" --data '{"file":"<canvas path>","toDir":"<folder>"}'`
+    ),
   },
   // S11.7 — the code view and the broken-canvas card. The agent reads the same two routes through verbs
   // (S11.6): `canvas-source` is the code (or one artboard's lines), `canvas-errors` the structured errors.
@@ -253,7 +257,9 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'canvas.copy-file-path': { effect: 'none', agent: cli('maude design index') },
   'canvas.rename-file': {
     effect: 'project',
-    agent: cli(`maude design curl-local http://127.0.0.1:<port>/_api/fs-move --method POST --header "Content-Type: application/json" --data '{"file":"<canvas path>","toName":"<new name>"}'`),
+    agent: cli(
+      `maude design curl-local http://127.0.0.1:<port>/_api/fs-move --method POST --header "Content-Type: application/json" --data '{"file":"<canvas path>","toName":"<new name>"}'`
+    ),
   },
   'canvas.copy-link': {
     effect: 'none',
