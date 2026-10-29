@@ -168,6 +168,8 @@ const touchesEntry = (a, entries) => (a.effects ?? []).some((e) => e.entry && en
 const ids = (src) => [...String(src ?? '').matchAll(/data-cd-id="([^"]+)"/g)].map((m) => m[1]);
 const re = (s) => (s instanceof RegExp ? s : new RegExp(s, 'i'));
 const ok = (pass, why = '') => ({ pass: !!pass, why: pass ? '' : why });
+/** Drop the whitespace right after a `>` and right before a `<` (JSX/HTML element text written over lines). */
+const tagTight = (s) => String(s).replace(/>\s+/g, '>').replace(/\s+</g, '<');
 
 function artboardSlice(rel, src, artboard) {
   if (src === null) return null;
@@ -273,12 +275,18 @@ export const GRADERS = {
     );
   },
 
-  /** The file's text matches every `has` and none of `lacks` (regexes). */
+  /**
+   * The file's text matches every `has` and none of `lacks` (regexes). Whitespace next to a tag's `>` / `<` is
+   * layout, not content: a needle matches the text as written OR both with that whitespace dropped, so
+   * `>All saved<` finds `<h3>\n    All saved\n  </h3>` (V2-8.16). A missing or changed word still fails.
+   */
   text({ path, has = [], lacks = [] }, o) {
     const t = o.text(path);
     if (t === null) return ok(false, `${path} is missing`);
-    const miss = has.filter((h) => !re(h).test(t));
-    const extra = lacks.filter((h) => re(h).test(t));
+    const tight = tagTight(t);
+    const hit = (h) => re(h).test(t) || re(typeof h === 'string' ? tagTight(h) : h).test(tight);
+    const miss = has.filter((h) => !hit(h));
+    const extra = lacks.filter(hit);
     return ok(
       !miss.length && !extra.length,
       [...miss.map((m) => `no /${m}/`), ...extra.map((m) => `still /${m}/`)].join('; ')
