@@ -406,6 +406,7 @@ async function bootServer() {
       XDG_CONFIG_HOME: join(home, '.config'),
       // S5.1b — the local kernel's machine stamp stays in the throwaway HOME, never the person's.
       MAUDE_MACHINE_FILE: join(home, '.config', 'maude', 'machine.json'),
+      MAUDE_INDEX_DIR: join(home, '.maude-index'), // P8: never the person's ~/.maude/index (Home lists every project indexed there)
       NO_OPEN: '1',
       MAUDE_PORT_BASE: process.env.MAUDE_PORT_BASE ?? '48399', // never the person's 4399–4408 (port.ts)
       MAUDE_NO_AUTOBUILD: '1',

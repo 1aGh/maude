@@ -12,6 +12,8 @@ import { fileURLToPath } from 'node:url';
 
 import {
   collectImports,
+  renderShimGaps,
+  serverRenderShims,
   standaloneHelperNpmDeps,
 } from '../../apps/desktop/scripts/helper-deps.mjs';
 
@@ -69,4 +71,42 @@ test('the root package.json ships every standalone helper npm dep (npm channel)'
     [],
     'add these to the root package.json dependencies (same range as apps/studio/package.json)'
   );
+});
+
+// P8 (2026-10-29): the server spawns render shims itself (`exportShimPath('<name>')` — exports,
+// the thumbnail renderer). Like a helper, each must be staged with its npm closure, or covers and
+// exports die only in the packaged app. `check-bundle-completeness` asserts it from this scrape.
+const STUDIO = fileURLToPath(new URL('../../apps/studio', import.meta.url));
+
+test('every render shim the server spawns is found by the scrape, the thumbnail renderer included', () => {
+  const shims = serverRenderShims(STUDIO);
+  assert.ok(shims.includes('_thumbs-playwright.mjs'), shims.join(', '));
+  assert.ok(shims.includes('_png-playwright.mjs'), shims.join(', '));
+  assert.deepEqual(renderShimGaps(STUDIO), []);
+});
+
+test('a render shim that is not staged, or lacks a dep, is a gap', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'maude-shim-gaps-'));
+  try {
+    mkdirSync(join(dir, 'thumbs'));
+    mkdirSync(join(dir, 'bin'));
+    writeFileSync(
+      join(dir, 'thumbs', 'service.ts'),
+      "Bun.spawn([rt, exportShimPath('_thumbs-playwright.mjs')]);\n" +
+        "// exportShimPath('_gone.mjs') in a comment is not a spawn\n"
+    );
+    assert.deepEqual(serverRenderShims(dir), ['_thumbs-playwright.mjs']);
+    assert.deepEqual(renderShimGaps(dir), [{ shim: '_thumbs-playwright.mjs', missing: ['file'] }]);
+    writeFileSync(
+      join(dir, 'bin', '_thumbs-playwright.mjs'),
+      "import { chromium } from 'playwright';\n"
+    );
+    assert.deepEqual(renderShimGaps(dir), [
+      { shim: '_thumbs-playwright.mjs', missing: ['playwright'] },
+    ]);
+    mkdirSync(join(dir, 'node_modules', 'playwright'), { recursive: true });
+    assert.deepEqual(renderShimGaps(dir), []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

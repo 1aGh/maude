@@ -44,6 +44,9 @@ import { SCENARIOS } from './sync-e2e/scenarios.mjs';
 import { v2Config } from './v2-config.mjs';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+// P8: the studios index into a scratch dir, never the person's ~/.maude/index (Home lists it)
+const INDEX_DIR =
+  process.env.MAUDE_INDEX_DIR || join(tmpdir(), `maude-sync-e2e-index-${process.pid}`);
 
 const argv = process.argv.slice(2);
 const has = (n) => argv.includes(`--${n}`);
@@ -237,6 +240,7 @@ async function startPeer(peerRepo, hubsConfig) {
         // gate-b-sec4: the harness is the app that made this link (sync/link-consent.ts)
         MAUDE_APP_BOUND_HUB: linkedHubOf(peerRepo),
         MAUDE_PROJECT_ROOT: peerRepo,
+        MAUDE_INDEX_DIR: INDEX_DIR,
         MAUDE_NO_AUTOBUILD: '1',
       },
     }
@@ -495,6 +499,7 @@ async function coldStart(ctx, cellRoot) {
         ...process.env,
         HUBS_CONFIG_PATH: join(cellRoot, 'hubs.json'),
         MAUDE_PROJECT_ROOT: freshRoot,
+        MAUDE_INDEX_DIR: INDEX_DIR,
         MAUDE_NO_AUTOBUILD: '1',
       },
     }

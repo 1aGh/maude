@@ -101,8 +101,15 @@ function checkPlans(j, project) {
     why.push(
       'terminal: allow list ≠ the chat’s (read boundary + defaults) + the journey allow rules'
     );
-  if (t.env.NO_OPEN !== '1' || t.env.MAUDE_NO_AUTOBUILD !== '1' || !t.env.MAUDE_MACHINE_FILE)
-    why.push('terminal: env lacks NO_OPEN / MAUDE_NO_AUTOBUILD / MAUDE_MACHINE_FILE');
+  if (
+    t.env.NO_OPEN !== '1' ||
+    t.env.MAUDE_NO_AUTOBUILD !== '1' ||
+    !t.env.MAUDE_MACHINE_FILE ||
+    !t.env.MAUDE_INDEX_DIR
+  )
+    why.push(
+      'terminal: env lacks NO_OPEN / MAUDE_NO_AUTOBUILD / MAUDE_MACHINE_FILE / MAUDE_INDEX_DIR'
+    );
   if ('ANTHROPIC_API_KEY' in t.env) why.push('terminal: ANTHROPIC_API_KEY reaches the agent');
   if (!a.plugins.some((p) => p.path === join(REPO, 'plugins', 'design')))
     why.push('acp: the design plugin is not injected');
@@ -224,6 +231,7 @@ async function live() {
         MAUDE_FORCE_SOURCE: '1',
         MAUDE_PORT_BASE: env.MAUDE_PORT_BASE,
         MAUDE_MACHINE_FILE: env.MAUDE_MACHINE_FILE,
+        MAUDE_INDEX_DIR: env.MAUDE_INDEX_DIR,
       });
       let turns = [];
       let infra = null;

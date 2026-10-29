@@ -50,6 +50,21 @@ fn page_check_allowed(last: Option<Instant>, now: Instant) -> bool {
     last.is_none_or(|t| now.saturating_duration_since(t) >= PAGE_CHECK_COOLDOWN)
 }
 
+/// Whether the SILENT checks (the background loop and the focus check) are off: a debug build,
+/// or a local test build compiled with `MAUDE_NO_AUTO_UPDATE=1` in the environment
+/// (`MAUDE_NO_AUTO_UPDATE=1 pnpm tauri build`). Without it a locally built freeze `.app` that
+/// carries an older version than the stable release silently became that release within ~20 min
+/// (2026-10-29: the v2 freeze build turned into the signed 1.10.0 and was tested as v2). The
+/// explicit "Check for Updates…" menu and Settings check stay, as in debug. Release CI never sets
+/// it (scripts/test/updater-no-auto-update.test.mjs). Pure; `auto_update_off` feeds it.
+fn auto_update_disabled(debug: bool, no_auto_update: Option<&str>) -> bool {
+    debug || no_auto_update.is_some_and(|v| !v.is_empty() && v != "0")
+}
+
+fn auto_update_off() -> bool {
+    auto_update_disabled(cfg!(debug_assertions), option_env!("MAUDE_NO_AUTO_UPDATE"))
+}
+
 /// Payload for the `update-ready` event the client banner listens for.
 #[derive(Clone, Serialize)]
 struct UpdateReady {
@@ -64,8 +79,9 @@ pub fn spawn_update_loop(handle: AppHandle) {
     // changes get dogfooded, and the silent loop was replacing the dev app
     // with the released version MID-TEST (2026-07-30). The explicit
     // "Check for Updates…" menu path stays available in debug.
-    if cfg!(debug_assertions) {
-        eprintln!("[maude] debug build — background auto-update disabled");
+    // A local test build (MAUDE_NO_AUTO_UPDATE=1 at build time) is the same case.
+    if auto_update_off() {
+        eprintln!("[maude] debug or local test build — background auto-update disabled");
         return;
     }
     tauri::async_runtime::spawn(async move {
@@ -81,8 +97,8 @@ pub fn spawn_update_loop(handle: AppHandle) {
 /// One-shot check (used on window focus). Safe to call concurrently with the loop —
 /// the updater plugin no-ops a second in-flight check.
 pub fn check_now(handle: AppHandle) {
-    if cfg!(debug_assertions) {
-        return; // silent focus-check — same dev-build guard as the loop
+    if auto_update_off() {
+        return; // silent focus-check — same guard as the loop (debug / local test build)
     }
     tauri::async_runtime::spawn(async move {
         check_and_apply(&handle, false).await;
@@ -252,8 +268,37 @@ pub fn restart_to_update(app: AppHandle, webview: tauri::Webview) -> Result<(), 
 
 #[cfg(test)]
 mod tests {
-    use super::{page_check_allowed, up_to_date_message, up_to_date_title, PAGE_CHECK_COOLDOWN};
+    use super::{
+        auto_update_disabled, page_check_allowed, up_to_date_message, up_to_date_title,
+        PAGE_CHECK_COOLDOWN,
+    };
     use std::time::{Duration, Instant};
+
+    #[test]
+    fn a_local_test_build_turns_off_the_silent_update_but_a_release_does_not() {
+        // a release build with no switch: the loop and the focus check run
+        assert!(!auto_update_disabled(false, None));
+        // a debug build never auto-updates
+        assert!(auto_update_disabled(true, None));
+        // MAUDE_NO_AUTO_UPDATE=1 at build time: a local release build keeps its own bytes
+        assert!(auto_update_disabled(false, Some("1")));
+        // empty or "0" is not a request
+        assert!(!auto_update_disabled(false, Some("")));
+        assert!(!auto_update_disabled(false, Some("0")));
+    }
+
+    #[test]
+    fn the_loop_and_the_focus_check_both_honour_the_switch_and_the_menu_check_does_not() {
+        let src = include_str!("updater.rs");
+        let body = |name: &str| {
+            let i = src.find(name).unwrap();
+            &src[i..i + src[i..].find("\n}\n").unwrap()]
+        };
+        assert!(body("pub fn spawn_update_loop(").contains("if auto_update_off()"));
+        assert!(body("pub fn check_now(").contains("if auto_update_off()"));
+        assert!(!body("pub fn check_now_interactive(").contains("auto_update_off"));
+        assert!(src.contains("option_env!(\"MAUDE_NO_AUTO_UPDATE\")"));
+    }
 
     #[test]
     fn a_page_check_runs_first_time_and_again_only_after_the_cooldown() {

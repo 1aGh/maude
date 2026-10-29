@@ -551,6 +551,7 @@ export async function standUp(opts = {}) {
         ...process.env,
         HOME: home,
         XDG_CONFIG_HOME: join(root, 'config'),
+        MAUDE_INDEX_DIR: join(root, 'index'), // P8: never the person's ~/.maude/index (Home lists every project indexed there)
         // p8-e2e-fix-r12: the spread env carries the test-lane wrapper's prefs path, which wins over XDG
         MAUDE_UI_PREFS_PATH: join(root, 'config', 'maude', 'prefs.json'),
         ...stubClaudeEnv(home),
@@ -659,6 +660,7 @@ export async function standUp(opts = {}) {
         // the stub `claude` first on PATH.
         HOME: home,
         XDG_CONFIG_HOME: join(root, 'config'),
+        MAUDE_INDEX_DIR: join(root, 'index'), // P8: never the person's ~/.maude/index (Home lists every project indexed there)
         ...stub,
         MAUDE_WORKSPACE_MODE: '1',
         MAUDE_REPO_DIR: repo,

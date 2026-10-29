@@ -29,7 +29,12 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import { stubClaudeEnv } from '../../../scripts/lib/stub-claude.mjs';
-import { classifyHelpers, collectImports } from './helper-deps.mjs';
+import {
+  classifyHelpers,
+  collectImports,
+  renderShimGaps,
+  serverRenderShims,
+} from './helper-deps.mjs';
 
 const RED = '\x1b[31m';
 const GRN = '\x1b[32m';
@@ -204,6 +209,24 @@ if (!helpers.length) {
     ok(`all ${standalone.length} standalone helpers have complete dep closures`);
 }
 
+// === Check 3b — the render shims the SERVER spawns (exports, thumbnails) =======
+// `exportShimPath('<name>')` in the staged server source: not `maude design` helpers, so
+// check 3 never sees them. Missing → exports fail and Home covers stay grey, only in the .app.
+console.log('\n[3b] server render shims (exports, thumbnail renderer)');
+{
+  const shims = serverRenderShims(studio);
+  if (!shims.length) fail('no server render shims found', `no exportShimPath('…') under ${studio}`);
+  for (const g of renderShimGaps(studio))
+    fail(
+      `render shim ${g.shim} incomplete`,
+      g.missing[0] === 'file'
+        ? `${join(binDir, g.shim)} not staged`
+        : `missing staged deps: ${g.missing.join(', ')}`
+    );
+  if (shims.length && !renderShimGaps(studio).length)
+    ok(`all ${shims.length} server render shims staged with their deps`, shims.join(', '));
+}
+
 // === Check 4 — optional stripped-PATH smoke against the real binary (G1–G4) ===
 if (doSmoke) {
   console.log('\n[4] stripped-PATH smoke (no node/bun/claude on PATH — fresh-machine sim)');
@@ -310,6 +333,7 @@ function reelPlaceSmoke(binary, strippedPath) {
         env: {
           PATH: strippedPath,
           HOME: process.env.HOME || '/tmp',
+          MAUDE_INDEX_DIR: join(root, '.maude-index'), // P8: never the person's ~/.maude/index (Home lists every project indexed there)
           NO_OPEN: '1',
           MAUDE_NO_AUTOBUILD: '1',
           NAPI_RS_NATIVE_LIBRARY_PATH: '/$bunfs/root/parser.darwin-arm64-smoke.node',

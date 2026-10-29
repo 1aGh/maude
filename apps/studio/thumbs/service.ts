@@ -5,6 +5,11 @@
 // reason. One renderer shim per project server (`bin/_thumbs-playwright.mjs`), started on the
 // first job; the queue pauses while an export job runs.
 //
+// At boot (P8, 2026-10-29) the project server queues a background cover for every canvas whose
+// cover is missing or stale (`bootCovers`). The Home server has no renderer, so without it a
+// project opened before v2 kept grey covers on Home until someone opened its Canvases panel. A
+// project whose covers are all fresh queues nothing and never starts the renderer.
+//
 // Security (§5.8 R1–R7; tests in test/thumbs-*.test.ts):
 //   R1 renders only land on the read-only capture origin: the shim is handed a main-origin shell
 //      URL built like every export's (`canvasShellUrl`), follows the 307, and asserts the final
@@ -107,8 +112,12 @@ export interface ThumbService {
   assetTile(rel: string, size: ThumbSize): Promise<ThumbResult>;
   /** POST /_api/thumbs/want — raise these keys to `visible` (unknown keys are ignored) */
   want(keys: string[]): void;
-  /** queue every canvas's cover in the background (Home / ⌘K call this; nothing does at boot) */
+  /** queue every canvas's cover in the background (the Canvases panel asks for it) */
   startBackground(): Promise<void>;
+  /** boot: queue, at background priority, a cover for exactly the canvases whose cover is missing
+   *  or stale (`cover == null || cover.ofSrc !== srcHash`, or its picture is gone). Waits up to
+   *  `waitMs` (default 60 s) for the capture origin; resolves with the number of covers queued. */
+  bootCovers(opts?: { delayMs?: number; waitMs?: number }): Promise<number>;
   /** R6: is this key one the snapshot (a cover) or a caller's request references? */
   serves(key: string): boolean;
   read(key: string): Uint8Array | null;
@@ -160,6 +169,9 @@ const FIRST_SCREEN = 12;
 const MAX_FAILURES = 3;
 const MAX_REFERENCED = 20_000;
 const NO_BROWSER_EXIT = 3;
+
+/** how long after boot the cover pass waits (the opening project's first paint goes first) */
+export const BOOT_COVERS_DELAY_MS = 10_000;
 
 const live = new Set<ThumbService>();
 /** server.ts shutdown: kill every renderer (they also exit when their stdin closes). */
@@ -789,6 +801,42 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
           })
         )
       );
+    },
+
+    async bootCovers(opts = {}) {
+      if (!enabled || stopped) return 0;
+      const sleep = (ms: number) =>
+        new Promise<void>((r) => {
+          const t = setTimeout(r, ms);
+          (t as { unref?: () => void }).unref?.();
+        });
+      if (opts.delayMs) await sleep(opts.delayMs);
+      // the capture listener starts after the http layer: wait for it (no origin = nothing renders, R1)
+      const deadline = now() + (opts.waitMs ?? 60_000);
+      while (!stopped && (!o.captureOrigin() || !o.serverOrigin()) && now() < deadline)
+        await sleep(500);
+      if (stopped || engineMissing || !o.captureOrigin() || !o.serverOrigin()) return 0;
+      const recent = readRecent(o.designRoot);
+      const stale = o.index
+        .snapshot()
+        .canvases.filter(
+          (c) => !c.cover || c.cover.ofSrc !== c.srcHash || !hasThumb(o.pid, c.cover.key)
+        )
+        .sort((a, b) => (recent.get(b.rel) ?? 0) - (recent.get(a.rel) ?? 0));
+      let queued = 0;
+      for (const row of stale) {
+        const r = await svc.thumb({
+          canvas: row.rel,
+          artboard: null,
+          size: 'card',
+          priority: 'background',
+        });
+        if (r.status === 'pending') queued++;
+        // the picture for today's inputs is already on disk (a snapshot that lost its cover): name it
+        else if (r.status === 'ready')
+          o.index.setCover(row.rel, { key: r.key, w: r.w, h: r.h, ofSrc: row.srcHash });
+      }
+      return queued;
     },
 
     serves(key) {

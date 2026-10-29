@@ -335,6 +335,7 @@ async function bootLane(n: number, root: string, gen = 0): Promise<Lane> {
       XDG_CONFIG_HOME: join(home, '.config'),
       // S5.1b — the local kernel's machine stamp stays in the throwaway HOME, never the person's.
       MAUDE_MACHINE_FILE: join(home, '.config', 'maude', 'machine.json'),
+      MAUDE_INDEX_DIR: join(home, '.maude-index'), // P8: never the person's ~/.maude/index (Home lists every project indexed there)
       NO_OPEN: '1',
       MAUDE_NO_AUTOBUILD: '1',
       MAUDE_SYNC_IN_CI: '1',

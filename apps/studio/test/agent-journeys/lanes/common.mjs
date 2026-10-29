@@ -48,8 +48,14 @@ export const DENY_CODES = [
 ];
 const DENY_RE = new RegExp(`\\b(${DENY_CODES.join('|')}):`);
 
-/** The env every process the harness starts gets: no browser pop-up, no autobuild, a throwaway machine file. */
+/** The env every process the harness starts gets: no browser pop-up, no autobuild, a throwaway machine
+ *  file and a throwaway machine index (P8: studios booted without MAUDE_INDEX_DIR filled the person's
+ *  ~/.maude/index/v1 — Home listed every journey/eval scratch project). */
 export function harnessEnv(base = process.env, machineFile = null) {
+  const machine =
+    machineFile ??
+    base.MAUDE_MACHINE_FILE ??
+    join(mkdtempSync(join(tmpdir(), 'maude-journey-machine-')), 'machine.json');
   return {
     ...base,
     NO_OPEN: '1',
@@ -57,10 +63,8 @@ export function harnessEnv(base = process.env, machineFile = null) {
     MAUDE_FORCE_SOURCE: '1',
     // the harness's studios stay out of the person's 4399–4408 (port.ts); 48399–48408 is clear of e2e's 47399+
     MAUDE_PORT_BASE: base.MAUDE_PORT_BASE ?? '48399',
-    MAUDE_MACHINE_FILE:
-      machineFile ??
-      base.MAUDE_MACHINE_FILE ??
-      join(mkdtempSync(join(tmpdir(), 'maude-journey-machine-')), 'machine.json'),
+    MAUDE_MACHINE_FILE: machine,
+    MAUDE_INDEX_DIR: base.MAUDE_INDEX_DIR || join(dirname(machine), 'index'),
   };
 }
 

@@ -405,6 +405,7 @@ function isolatedHome(name) {
   return {
     HOME: home,
     XDG_CONFIG_HOME: join(home, '.config'),
+    MAUDE_INDEX_DIR: join(home, 'index'), // P8: never the person's ~/.maude/index (Home lists every project indexed there)
     XDG_CACHE_HOME: join(home, '.cache'),
     CLAUDE_CONFIG_DIR: join(home, '.claude'),
     MAUDE_CLOUD_CONFIG: join(home, 'cloud.json'),

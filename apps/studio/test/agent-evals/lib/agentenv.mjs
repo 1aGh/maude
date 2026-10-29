@@ -45,6 +45,8 @@ export function agentEnv(base, trialDir) {
     CLAUDE_CODE_DISABLE_CRON: '1',
     XDG_CONFIG_HOME: join(trialDir, 'home', '.config'),
     MAUDE_MACHINE_FILE: join(trialDir, 'home', 'machine.json'),
+    // a studio the agent's verbs start indexes into the trial, never ~/.maude/index (P8)
+    MAUDE_INDEX_DIR: join(trialDir, 'home', 'index'),
   });
   return env;
 }
