@@ -564,7 +564,14 @@ describe('team-cell-missing (native-desktop)', () => {
       expect(side.length).toBeGreaterThan(0);
       expect(side.length).toBeLessThan(4);
     }
-    expect(await (await $(tid('all-trashed'))).isExisting()).toBe(false);
+    // the RACE canvas, opened, shows no all-trashed card (the window still holds LetakA6 from the card test, which is
+    // deliberately left empty — its card is not this canvas's)
+    const raceRow = await canvasRow('canvas-row-ui-race');
+    await raceRow.waitForDisplayed({ timeout: 60_000 });
+    await raceRow.click();
+    await (await $(tid('canvas-frame'))).waitForExist({ timeout: 60_000 });
+    // LetakA6's card goes with the switch; a card that stays is the race canvas's own (a failure)
+    await (await $(tid('all-trashed'))).waitForExist({ reverse: true, timeout: 20_000 });
     await capture('05-race-second-save-held');
   });
 });
