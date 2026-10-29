@@ -253,8 +253,13 @@ export async function openCanvas(server, { clearTop = 0 } = {}) {
   // `clearTop` px of extra room above the board: an element's bar floats above it, and at Fit's own margin a bar
   // for the top row slides under the Preview bar island. Scenarios that click those bars ask for the room.
   if (clearTop > 0) {
-    await page.mouse.move(frameBox.x + frameBox.width / 2, frameBox.y + frameBox.height - 60);
-    await page.mouse.wheel(0, -clearTop);
+    // (a Hand drag on empty canvas pans in Preview; the wheel is the page's, not the canvas's, over a shell island)
+    const x0 = frameBox.x + frameBox.width / 2;
+    const y0 = frameBox.y + frameBox.height - 200 - clearTop;
+    await page.mouse.move(x0, y0);
+    await page.mouse.down();
+    await page.mouse.move(x0, y0 + clearTop, { steps: 8 });
+    await page.mouse.up();
     await page.waitForTimeout(400);
   }
   // A person's mouse always hovers before it presses: the layer resolves what is under the pointer on the move, and

@@ -332,6 +332,12 @@ describe('F6 — an arrow binds to the button, not the artboard', () => {
       [...m.keys()].some((k) => !before.has(k) && m.get(k).type === 'arrow' && m.get(k).endHost?.ref)
     );
     const a = [...board.values()].find((e) => !before.has(e.id) && e.type === 'arrow');
+    if (!a?.endHost) {
+      const toasts = await c.page.evaluate(() =>
+        [...document.querySelectorAll('[role="status"],[role="alert"],[data-testid*="toast"],[data-testid="callouts"]')].map((n) => n.textContent)
+      );
+      assert.fail(`no bind on the arrow: ${JSON.stringify(a)}\ntsx: ${readFileSync(canvasPath(), 'utf8').match(/.*pricing.*/)?.[0]}\ntoasts: ${JSON.stringify(toasts)}\nserver: ${server.log().slice(-700)}`);
+    }
     assert.match(a.endHost.ref, /^el:desktop\/[a-z][a-z0-9-]*$/);
     assert.doesNotMatch(a.endHost.ref, /\/[0-9a-f]{8}$/, 'never a computed id');
     const id = a.endHost.ref.split('/')[1];
