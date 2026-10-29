@@ -89,11 +89,20 @@ export const PAGE_PROBE = String.raw`(() => {
   // "Own area" of the clicked control: the region (dialog, menu, panel, test-id'd block …) it sits in — or, for a
   // control with none, its own container. An announcement counts for a control only inside that area: a "Saved"
   // status ticking in the corner while a dead button is clicked is not that button's doing.
-  const ownAreaOf = (el) => {
-    if (!el) return null;
+  const areaOf = (el) => {
     const r = regionEl(el.parentElement);
     if (r !== document.body) return r;
     return el.parentElement && el.parentElement !== document.body ? el.parentElement : el;
+  };
+  // A control inside a popup (a menu row, a listbox option) acts on the surface its popup came from: the
+  // trigger's area is the row's too (Attach › Paste a screenshot answers in the composer's notice line, not in the menu).
+  const ownAreasOf = (el) => {
+    if (!el) return [];
+    const areas = [areaOf(el)];
+    const popup = el.closest('[role=menu],[role=listbox],[role=dialog]');
+    const trigger = popup && popup.id ? document.querySelector('[aria-controls~="' + CSS.escape(popup.id) + '"]') : null;
+    if (trigger) areas.push(areaOf(trigger));
+    return areas;
   };
 
   function enumerate() {
@@ -159,7 +168,7 @@ export const PAGE_PROBE = String.raw`(() => {
   let st = null;
   let mo = null;
   function start() {
-    st = { area: ownAreaOf(target), announced: 0, triggers: triggerText(), fields: fieldValues(), clips: clips.length, muts: 0, self: 0, aria: [], url: location.href, popups: popups(), region: regionOf(document.activeElement), opens: opens.length, checked: target && 'checked' in target ? target.checked : null, value: target && 'value' in target ? target.value : null };
+    st = { areas: ownAreasOf(target), announced: 0, triggers: triggerText(), fields: fieldValues(), clips: clips.length, muts: 0, self: 0, aria: [], url: location.href, popups: popups(), region: regionOf(document.activeElement), opens: opens.length, checked: target && 'checked' in target ? target.checked : null, value: target && 'value' in target ? target.value : null };
     mo = new MutationObserver((list) => {
       for (const m of list) {
         if (m.type === 'attributes' && m.attributeName === 'data-crawl-target') continue;
@@ -171,8 +180,7 @@ export const PAGE_PROBE = String.raw`(() => {
         // a live region (re)inserted or changed INSIDE the clicked control's own area is an announcement, even when
         // it says the same line as before; one anywhere else is somebody else's
         for (const live of liveOfMutation(m)) {
-          const a = st.area;
-          if (a && (a.contains(live) || live.contains(a) || (target && target.contains(live)))) { st.announced++; break; }
+          if ((target && target.contains(live)) || st.areas.some((a) => a.contains(live) || live.contains(a))) { st.announced++; break; }
         }
         const onSelf = target && (m.target === target || target.contains(m.target));
         if (onSelf && m.type === 'attributes' && /^(class|style|data-focus|data-hover|data-state)/.test(m.attributeName || '')) { st.self++; continue; }
