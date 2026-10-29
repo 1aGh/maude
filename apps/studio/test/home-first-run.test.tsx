@@ -485,8 +485,9 @@ describe('Just a local project', () => {
     expect($('home-create-location')).toBeNull();
     click('home-create-advanced');
     expect($('home-create-location')?.textContent).toBe('~/Maude/Untitled project');
-    // "Choose another folder…" needs the native picker; resting until it exists
-    expect(($('home-create-choose-folder') as HTMLButtonElement).disabled).toBe(true);
+    // p8-dead-reasons: "Choose another folder…" needs a native picker Home does not have yet — it is not drawn
+    // until `onChooseFolder` exists (a resting button that never works is a dead control)
+    expect($('home-create-choose-folder')).toBeNull();
   });
 
   test('a name → create-local → the project opens in its own tab', async () => {
