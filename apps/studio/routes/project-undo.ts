@@ -111,6 +111,12 @@ export interface ProjectUndoRuntime {
     repoRel: string
   ): Array<{ transactionId: string; label: string; madeAt: number; undoes?: string }> | null;
   /**
+   * p8-undo-collab-refuse (Michal option b2) — would this undo drop text a collaborator changed in
+   * the meantime (annotations/text-steps.ts)? True → 409 `undo-conflict`, nothing applied; the
+   * shell marks the entry stale and says so. A home without it (a hub link) undoes as before.
+   */
+  textUndoConflict?(target: UndoTarget, redo?: boolean): Promise<boolean>;
+  /**
    * S5.15 (U22) — can this home undo several actions as ONE (`actionIds`)? The local home always
    * can; a hub link asks its bootstrap (`capabilities.undoTargets`); null = not known yet.
    */
@@ -429,6 +435,19 @@ export function createProjectUndoRoutes(deps: ProjectUndoDeps): RouteSpec[] {
         if (multi0 && runtime?.chatUndoReady?.() === false) {
           // U22 — the probe already says this team server cannot: refused before the kernel.
           return json(409, { ok: false, reason: 'needs-hub-update', line: NEEDS_HUB_UPDATE });
+        }
+        if (
+          !parsed.redo &&
+          runtime?.acceptedUndo &&
+          (await runtime.textUndoConflict?.(parsed.target, false).catch(() => false))
+        ) {
+          // Their text stays: the same answer the kernel gives for a change it cannot take back.
+          return json(409, {
+            ok: false,
+            status: 'rejected',
+            code: 'undo-conflict',
+            reason: 'undo-conflict',
+          });
         }
         const r = runtime?.acceptedUndo
           ? await runtime.acceptedUndo(parsed.target, parsed.redo, { via })

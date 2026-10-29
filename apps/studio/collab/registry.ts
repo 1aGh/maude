@@ -14,6 +14,7 @@ import { type ApplyResult, applyOps, type Op } from '../annotations/ops.ts';
 import '../annotations/ops-merge.ts';
 import { readReplica, validActionId, writeReplica } from '../annotations/replica.ts';
 import { parseBoard, serializeBoard } from '../annotations/schema.ts';
+import { createTextContest } from '../annotations/text-steps.ts';
 import type { BoardGuard } from '../annotations/vote-guard.ts';
 import { applyCommentsToDoc, stampAnnotationsEdit } from '../sync/codec.ts';
 import { MAX_ANNOTATIONS_BYTES } from '../sync/limits.ts';
@@ -79,6 +80,12 @@ export interface Registry {
    * one) is live — the file is the truth then.
    */
   readRoomBoard(slug: string): string | null;
+  /**
+   * p8-undo-collab-refuse — the ids whose text a batch merged 3-way since the room last projected
+   * its board (a collaborator changed that text during the step: its ⌘Z is refused,
+   * annotations/text-steps.ts). Taken by the projection that carries those batches; clears.
+   */
+  takeTextContest(slug: string): string[];
   /**
    * Phase 30 — project agent editing-presence onto a slug's room awareness so
    * it crosses the hub (the loopback `ai-activity` bus event does not). `null`
@@ -166,6 +173,7 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
   // flag-ON sync runtime ever adds to this; flag-OFF leaves it empty so `drop`
   // is unchanged.
   const pinned = new Set<string>();
+  const textContest = createTextContest();
 
   function wireBridge(slug: string, room: Room): void {
     if (bridges.has(slug)) return;
@@ -262,6 +270,7 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
     if (!r.touched.size) return r;
     const next = [...r.state.values()];
     if (serializeBoard(next).length > MAX_ANNOTATIONS_BYTES) return 'too-large';
+    textContest.record(slug, before, ops);
     // One transaction with the lane's newest-wins stamp, so peers get ONE
     // update and the room's persistence projects it to disk.
     room.doc.transact(() => {
@@ -332,6 +341,7 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
     syncRoomFromAnnotations,
     applyOpsToRoom,
     readRoomBoard,
+    takeTextContest: (slug) => textContest.take(slug),
     setAgentEditing,
     attachHubAwareness,
     pin,
