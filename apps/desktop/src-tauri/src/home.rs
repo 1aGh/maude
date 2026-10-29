@@ -26,7 +26,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -426,6 +426,69 @@ fn on_bound(app: &AppHandle, pid: u32, port: u16, url: String) {
     }
     crate::app_state::set_home_port(app, port);
     navigate_home(app);
+    start_index_gc(app);
+}
+
+// ── Index GC (V2-1.17 §5.6, p8-port-gc) ──────────────────────────────────────
+
+/// `POST /_home/internal/index-gc {pids, roots}` (bearer): the Home server deletes `<index>/projects/<pid>/` for a
+/// pid not in this registry that was not opened for 30 days or whose root is gone (home/index-gc.ts). The pid list
+/// comes from the app registry alone — never from a page.
+pub const INDEX_GC_ROUTE: &str = "/_home/internal/index-gc";
+const INDEX_GC_EVERY: Duration = Duration::from_secs(24 * 60 * 60);
+static INDEX_GC_DAILY: AtomicBool = AtomicBool::new(false);
+
+/// Pure: the GC body — every registered pid (registry keys + the MRU) and every registered root.
+pub fn index_gc_body(st: &AppState) -> Value {
+    let mut pids: Vec<&str> = st.projects.keys().map(String::as_str).collect();
+    for p in &st.recent {
+        if !pids.contains(&p.as_str()) {
+            pids.push(p.as_str());
+        }
+    }
+    let roots: Vec<&str> = st.projects.values().map(|e| e.root.as_str()).collect();
+    json!({ "pids": pids, "roots": roots })
+}
+
+/// At every Home boot (`on_bound`), and once a day for the life of the app.
+fn start_index_gc(app: &AppHandle) {
+    let now = app.clone();
+    tauri::async_runtime::spawn(async move { run_index_gc(&now).await });
+    if !INDEX_GC_DAILY.swap(true, Ordering::SeqCst) {
+        let app = app.clone();
+        tauri::async_runtime::spawn(async move {
+            loop {
+                tokio::time::sleep(INDEX_GC_EVERY).await;
+                run_index_gc(&app).await;
+            }
+        });
+    }
+}
+
+async fn run_index_gc(app: &AppHandle) {
+    let Some((base, token)) = endpoint(app) else {
+        return; // Home is (re)starting — its next boot runs the GC
+    };
+    let body = index_gc_body(&crate::app_state::load(app));
+    let Ok(client) = internal_client() else { return };
+    let sent = client
+        .post(format!("{base}{INDEX_GC_ROUTE}"))
+        .header(HOME_HEADER, "1")
+        .bearer_auth(token)
+        .json(&body)
+        .send()
+        .await
+        .and_then(|r| r.error_for_status());
+    match sent {
+        Ok(r) => match r.json::<Value>().await {
+            Ok(v) => log_line(&format!(
+                "[maude] index GC: removed {} of {} project snapshots",
+                v["removed"], v["total"]
+            )),
+            Err(_) => log_line("[maude] index GC ran"),
+        },
+        Err(e) => log_line(&format!("[maude] index GC failed: {e}")),
+    }
 }
 
 /// The runtime capability for the Home window at the Home origin — the exact
@@ -1415,6 +1478,29 @@ pub async fn relink_project(
 
 #[cfg(test)]
 mod tests {
+    // p8-port-gc — the GC gets the WHOLE registry (every pid, every root) from Rust, at Home boot.
+    #[test]
+    fn index_gc_sends_every_registered_pid_and_root_at_home_boot() {
+        let mut st = AppState::default();
+        let a = st.upsert("/x/gc-a", 1);
+        let b = st.upsert("/x/gc-b", 2);
+        st.recent = vec![b.clone(), "l00000000000000ff".to_string()];
+        let body = super::index_gc_body(&st);
+        let pids: Vec<&str> = body["pids"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+        assert!(pids.contains(&a.as_str()) && pids.contains(&b.as_str()));
+        assert!(pids.contains(&"l00000000000000ff"), "an MRU pid counts as registered");
+        assert_eq!(pids.len(), 3, "no duplicates");
+        let roots = body["roots"].as_array().unwrap();
+        assert!(roots.iter().any(|r| r == "/x/gc-a") && roots.iter().any(|r| r == "/x/gc-b"));
+
+        let src = include_str!("home.rs");
+        let bound = &src[src.find("fn on_bound(").unwrap()..];
+        let bound = &bound[..bound.find("\n}\n").unwrap()];
+        assert!(bound.contains("start_index_gc(app)"), "Home boot runs the GC");
+        let route = include_str!("../../../studio/home/routes.ts");
+        assert!(route.contains(&format!("post('{}', 'internal'", super::INDEX_GC_ROUTE)), "a bearer-only row");
+    }
+
     use super::*;
     use std::cell::RefCell;
 

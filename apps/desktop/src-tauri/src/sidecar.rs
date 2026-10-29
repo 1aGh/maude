@@ -320,6 +320,15 @@ fn resolve_login_path() -> Option<String> {
 /// The Home server (home.rs) is not marked: it binds any free port and the app remembers it (`home_port`).
 pub(crate) const APP_SIDECAR_ENV: &str = "MAUDE_SHELL_SIDECAR";
 
+/// p8-port-gc — the port this project's server bound last time (app-state.json `projects.<pid>.port`), tried first by
+/// port.ts `portCandidates` (`PREFERRED_PORT_ENV`), so a rested tab's wake, a relaunch and a crash respawn keep their
+/// origin — per-origin web storage and the crash-recovery reload both rely on it. Taken → the server walks the rest of
+/// its ladder and `spawn_record_port` records the new port. In the MAUDE_SHELL_* namespace the agent never inherits.
+pub(crate) const PREFERRED_PORT_ENV: &str = "MAUDE_SHELL_PORT";
+
+/// How long a spawn's port recorder waits for the server to write its info file (250 ms ticks, 30 s).
+const RECORD_PORT_TICKS: u32 = 120;
+
 /// p8-e2e-isolation-r13 — true when any `MAUDE_E2E_*` variable is set non-empty: this app was launched by a desktop
 /// e2e lane (wdio.conf.ts), never by a person. Mirrors `isE2eEnv` in apps/studio/acp/probe.ts.
 pub(crate) fn is_e2e_env<I>(vars: I) -> bool
@@ -441,6 +450,10 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
         .env("NO_OPEN", "1")
         // p8-app-port-range — the app's own port ladder, 46399–46408 (port.ts).
         .env(APP_SIDECAR_ENV, "1");
+    // p8-port-gc — ask for the port this project had last time first (rest-wake, relaunch, respawn).
+    if let Some(port) = crate::app_state::preferred_port(app, &project_root) {
+        command = command.env(PREFERRED_PORT_ENV, port.to_string());
+    }
 
     // DDR-128 — a `.app` launched from Finder/Dock inherits the truncated launchd
     // PATH (`/usr/bin:/bin:…`), NOT the user's shell PATH. The sidecar would then
@@ -596,6 +609,8 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
     // this token. No probe ⇒ no env: the server then has no shell route (404) and
     // every probe of it reads "no status".
     let shell = mint_shell_probe(app, &project_root);
+    // p8-port-gc — the port is recorded from THIS spawn's app-owned info file, never from `_server.json`.
+    let record_from = shell.as_ref().map(|p| p.info_file.clone());
     if let Some(p) = &shell {
         command = command
             .env("MAUDE_SHELL_INFO_FILE", p.info_file.to_string_lossy().to_string())
@@ -696,6 +711,9 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
     if let Some(old) = displaced {
         eprintln!("[maude] replacing a live sidecar for {project_root} — terminating the old one");
         terminate(old);
+    }
+    if let Some(info_file) = record_from {
+        spawn_record_port(app, project_root.clone(), info_file);
     }
 
     let app = app.clone();
@@ -1158,6 +1176,32 @@ pub(crate) fn read_shell_origin(info_file: &Path) -> Option<String> {
     Some(parsed.origin().ascii_serialization())
 }
 
+/// p8-port-gc — the port the loopback address in an info file names (the port the server actually bound), or
+/// `None` — the same DDR-109 loopback gate as `read_shell_origin`.
+pub(crate) fn read_shell_port(info_file: &Path) -> Option<u16> {
+    read_shell_origin(info_file)?
+        .parse::<tauri::Url>()
+        .ok()?
+        .port_or_known_default()
+        .filter(|p| *p != 0)
+}
+
+/// p8-port-gc — once this spawn's server has written its address, record its port for `root` (app_state
+/// `record_port`). Polls only this spawn's own info file: a respawn retires it (the file goes) and records through
+/// its own recorder, so an old address is never written over a new one.
+fn spawn_record_port(app: &AppHandle, root: String, info_file: PathBuf) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        for _ in 0..RECORD_PORT_TICKS {
+            if let Some(port) = read_shell_port(&info_file) {
+                crate::app_state::record_port(&app, &root, port);
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
+    });
+}
+
 /// The canvas origin the same app-owned info file names (N-M2), loopback only.
 pub(crate) fn read_shell_canvas_origin(info_file: &Path) -> Option<String> {
     #[derive(serde::Deserialize)]
@@ -1599,6 +1643,42 @@ mod tests {
             "port.ts reads a different marker"
         );
         assert!(port_ts.contains("export const APP_PORT_BASE = 46399;"));
+    }
+
+    // p8-port-gc — the spawn asks for the recorded port under the name port.ts reads, and records the bound port
+    // from this spawn's own info file (never `_server.json`).
+    #[test]
+    fn project_spawn_asks_for_its_recorded_port_and_records_the_bound_one() {
+        let src = include_str!("sidecar.rs");
+        let spawn = &src[src.find("pub fn spawn_for(").unwrap()..];
+        let spawn = &spawn[..spawn.find("\n}\n").unwrap()];
+        assert!(spawn.contains("crate::app_state::preferred_port(app, &project_root)"));
+        assert!(spawn.contains(".env(PREFERRED_PORT_ENV, port.to_string())"));
+        assert!(spawn.contains("spawn_record_port(app, project_root.clone(), info_file)"));
+        let port_ts = include_str!("../../../studio/port.ts");
+        assert!(
+            port_ts.contains(&format!("export const PREFERRED_PORT_ENV = '{}';", super::PREFERRED_PORT_ENV)),
+            "port.ts reads a different name"
+        );
+    }
+
+    #[test]
+    fn the_recorded_port_comes_from_the_info_file_and_only_a_loopback_one() {
+        let dir = std::env::temp_dir().join(format!("maude-port-info-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let f = dir.join("info.json");
+        let read = |body: &str| {
+            std::fs::write(&f, body).unwrap();
+            super::read_shell_port(&f)
+        };
+        assert_eq!(read(r#"{"port":46403}"#), Some(46403));
+        assert_eq!(read(r#"{"url":"http://127.0.0.1:46405/","port":46405}"#), Some(46405));
+        assert_eq!(read(r#"{"url":"http://evil.example:46405/"}"#), None, "never a non-loopback address");
+        assert_eq!(read(r#"{"port":0}"#), None);
+        assert_eq!(read("not json"), None);
+        std::fs::remove_file(&f).unwrap();
+        assert_eq!(super::read_shell_port(&f), None, "no file yet → nothing to record");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     // p8-e2e-isolation-r13 — the V2-8.3 record: the lane's stub-first PATH was replaced by the person's login-shell

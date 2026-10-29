@@ -44,6 +44,7 @@ import type { HomeCloud } from './cloud.ts';
 import { createLocalProject } from './create-local.ts';
 import { createHomeGithub, type HomeGithub } from './github.ts';
 import { createHomeHub, type HomeHub } from './hub.ts';
+import { indexGcRequest } from './index-gc.ts';
 import { readHomeIndex, resolveProject, searchHome, thumbSource } from './index-reader.ts';
 import { createHomeInvite, type HomeInvite } from './invite.ts';
 import { isPid } from './pid.ts';
@@ -467,6 +468,9 @@ export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
     post('/_home/whats-new', 'home', (b) => whatsNew.post(b)),
     // S6.10 — Rust's github_clone: the folder it claimed + the profile's token, bearer only
     post('/_home/internal/github/clone', 'internal', (b) => github.clone(b)),
+    // p8-port-gc — V2-1.17 §5.6 index GC: Rust sends every registered pid + root (at Home boot and daily);
+    // a page never names the registry
+    post('/_home/internal/index-gc', 'internal', (b) => indexGcRequest(b)),
     {
       method: 'GET',
       path: '/_home/internal/search',

@@ -71,6 +71,8 @@ describe('Home route guards (§5.8 item 1)', () => {
       '/_home/whats-new',
       // S6.10 — Rust's GitHub clone (bearer only)
       '/_home/internal/github/clone',
+      // p8-port-gc — the index GC, with the registry Rust sends (bearer only)
+      '/_home/internal/index-gc',
     ])
       expect([p, paths.has(p)]).toEqual([p, true]);
   });
@@ -282,7 +284,11 @@ describe('internal routes (§5.8 item 2)', () => {
       );
       // S6.10: the clone row got in and then refused this body (no owner/repo/folder) — its own
       // validation, past the guard (home-github-clone.test.ts drives it with a real body)
-      const want = s.path === '/_home/internal/github/clone' ? 400 : 200;
+      // p8-port-gc: the index-gc row refuses a body without a pid list — it never reads "no pids" as "none registered"
+      const want =
+        s.path === '/_home/internal/github/clone' || s.path === '/_home/internal/index-gc'
+          ? 400
+          : 200;
       expect([s.path, r.status]).toEqual([s.path, want]);
     }
   });
