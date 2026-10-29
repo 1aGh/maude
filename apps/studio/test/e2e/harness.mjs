@@ -251,14 +251,24 @@ export async function openCanvas(server) {
   // A person's mouse always hovers before it presses: the layer resolves what is under the pointer on the move, and
   // a press with no move before it (Playwright's mouse.click/dblclick jump straight to down) picks nothing. Every
   // scenario clicks through page.mouse, so give them the hover a real pointer has.
-  for (const k of ['click', 'dblclick']) {
-    const press = page.mouse[k].bind(page.mouse);
-    page.mouse[k] = async (x, y, opts) => {
-      await page.mouse.move(x, y);
-      await page.waitForTimeout(80);
-      return press(x, y, opts);
-    };
-  }
+  const click1 = page.mouse.click.bind(page.mouse);
+  page.mouse.click = async (x, y, opts) => {
+    await page.mouse.move(x, y);
+    await page.waitForTimeout(80);
+    return click1(x, y, opts);
+  };
+  // A person's double click has a beat between its two presses (the first selects, React renders, the second
+  // edits); Playwright's dblclick sends both in the same millisecond. Same two presses, a human beat apart.
+  page.mouse.dblclick = async (x, y, opts = {}) => {
+    await page.mouse.move(x, y);
+    await page.waitForTimeout(80);
+    const button = opts.button ?? 'left';
+    await page.mouse.down({ button, clickCount: 1 });
+    await page.mouse.up({ button, clickCount: 1 });
+    await page.waitForTimeout(90);
+    await page.mouse.down({ button, clickCount: 2 });
+    await page.mouse.up({ button, clickCount: 2 });
+  };
   // Esc runs a ladder (tool, then Hand, then out of Preview into Edit, S4.8), and every scenario resets with a few
   // Escapes. They want the layer, so when the mode was left, put it back the way a click on the palette does (a DOM
   // click: it must not take the keyboard focus off the canvas).
@@ -267,6 +277,7 @@ export async function openCanvas(server) {
   page.keyboard.press = async (key, opts) => {
     await pressKey(key, opts);
     if (key !== 'Escape' || !want.mode) return;
+    await page.waitForTimeout(120); // the shell leaves Preview a beat after the key
     const left = await page.evaluate((m) => {
       const b = document.querySelector(`[data-testid="palette-mode-${m}"]`);
       if (!b || b.getAttribute('aria-pressed') === 'true') return false;
