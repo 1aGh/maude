@@ -123,8 +123,9 @@
       // case before any canvas module loads. NOT bulletproof — a nested
       // same-origin (about:blank) frame can re-acquire them — so WebRTC exfil
       // stays a DOCUMENTED residual of opt-in linked mode (see the linked-mode
-      // README banner). `webrtc 'block'` stays in the CSP for when browsers
-      // enforce it. The canvas runtime itself uses zero WebRTC.
+      // README banner). This lockout IS the WebRTC control: the CSP `webrtc`
+      // directive was dropped (enforced by neither Chromium nor WKWebView).
+      // The canvas runtime itself uses zero WebRTC.
       for (var __k of ['RTCPeerConnection', 'webkitRTCPeerConnection', 'RTCDataChannel']) {
         try {
           Object.defineProperty(window, __k, { value: undefined, configurable: false, writable: false });

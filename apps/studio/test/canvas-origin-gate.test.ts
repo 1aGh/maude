@@ -397,7 +397,7 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
       // DDR-148 — media-src must be present so a video-comp's <Video>/<Audio>
       // isn't blocked by default-src 'none' (black video / silent audio).
       expect(csp).toContain("media-src 'self'");
-      expect(csp).toContain("webrtc 'block'");
+      expect(csp).not.toContain('webrtc'); // dropped: enforced nowhere we ship (p8-leftovers-canvas-csp)
       expect(csp).toContain('frame-ancestors');
       expect(csp).toContain(`http://localhost:${port}`);
 

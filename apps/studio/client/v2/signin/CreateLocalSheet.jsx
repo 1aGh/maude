@@ -11,6 +11,7 @@
 import { useState } from 'react';
 
 import { HIcon } from '../../home/home-icons.jsx';
+import { reasonProps } from '../access/disabled-reason.js';
 import { useModalFocus } from '../shell/modal-focus.js';
 
 /** The folder name `create-local` will use for a name (home/create-local.ts `projectFolderName`, shown only). */
@@ -29,9 +30,17 @@ export function folderNameFor(name) {
 
 /**
  * @param {{ value: {name: string, busy: boolean}, onChange: (v: {name: string, busy: boolean}) => void,
- *           onSubmit: () => void, onCancel: () => void, onChooseFolder?: (() => void) | null }} props
+ *           onSubmit: () => void, onCancel: () => void, onChooseFolder?: (() => void) | null, native?: boolean }} props
+ *   `native: false` — Home opened in a browser: creating needs the app, so "Create project" rests and says why.
  */
-export function CreateLocalSheet({ value, onChange, onSubmit, onCancel, onChooseFolder = null }) {
+export function CreateLocalSheet({
+  value,
+  onChange,
+  onSubmit,
+  onCancel,
+  onChooseFolder = null,
+  native = true,
+}) {
   const [adv, setAdv] = useState(false);
   const trap = useModalFocus({ onClose: onCancel });
   return (
@@ -49,7 +58,7 @@ export function CreateLocalSheet({ value, onChange, onSubmit, onCancel, onChoose
         data-testid="home-create-dialog"
         onSubmit={(e) => {
           e.preventDefault();
-          onSubmit();
+          if (native) onSubmit();
         }}
       >
         <h2>Create a local project</h2>
@@ -115,7 +124,8 @@ export function CreateLocalSheet({ value, onChange, onSubmit, onCancel, onChoose
             type="submit"
             className="btn btn--primary"
             data-testid="home-create-submit"
-            disabled={value.busy}
+            disabled={value.busy || !native}
+            {...reasonProps(!native, 'homeBrowser')}
           >
             {value.busy ? 'Creating…' : 'Create project'}
           </button>

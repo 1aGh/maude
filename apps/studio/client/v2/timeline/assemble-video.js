@@ -5,7 +5,8 @@
 // should hear about is a toast through the injected `toast` (the shell's `shellToast`) — never `window.alert`, which
 // froze the window behind a native dialog (p8-sweep-leftovers item 7).
 
-export const NO_CLIPS_WORDS = 'Drop video/audio clips on the canvas first, then assemble them into a video.';
+export const NO_CLIPS_WORDS =
+  'Drop video/audio clips on the canvas first, then assemble them into a video.';
 
 /** The media chips of an annotation sidecar, in document order. */
 export function clipsFromAnnotations(svg) {
@@ -15,7 +16,10 @@ export function clipsFromAnnotations(svg) {
   for (const g of doc.querySelectorAll('[data-tool="mediaref"]')) {
     const src = g.getAttribute('data-src');
     if (!src) continue;
-    clips.push({ src, mediaKind: g.getAttribute('data-media-kind') === 'audio' ? 'audio' : 'video' });
+    clips.push({
+      src,
+      mediaKind: g.getAttribute('data-media-kind') === 'audio' ? 'audio' : 'video',
+    });
   }
   return clips;
 }
@@ -25,7 +29,14 @@ export function clipsFromAnnotations(svg) {
  *   loadTree: () => Promise<unknown>, openTab: (file: string) => void, fetchImpl?: typeof fetch }} deps
  * @returns {Promise<'no-clips' | 'failed' | 'opened'>}
  */
-export async function assembleVideoFlow({ activePath, name, toast, loadTree, openTab, fetchImpl = globalThis.fetch }) {
+export async function assembleVideoFlow({
+  activePath,
+  name,
+  toast,
+  loadTree,
+  openTab,
+  fetchImpl = globalThis.fetch,
+}) {
   try {
     const ar = await fetchImpl(`/_api/annotations?file=${encodeURIComponent(activePath)}`);
     const clips = clipsFromAnnotations(ar.ok ? await ar.text() : '');

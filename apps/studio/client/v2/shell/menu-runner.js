@@ -17,6 +17,7 @@ import { runActionMessage } from '../../actions/shell-key-handlers.js';
 import { startFirstDraft } from '../create/first-draft.js';
 import { voteStore } from '../annotations/vote-store.js';
 import { notePasteIntent } from '../../clipboard-relay.ts';
+import { readPasteData } from './paste-forward.js';
 import { createBlankCanvas, openBriefBoardComposer } from '../create/new-canvas.js';
 import { createAdvancedHandlers } from '../ai/advanced-handlers.js';
 import { aiPanelWantsFocus, requestFocusAI } from '../ai/panel-focus.js';
@@ -327,6 +328,9 @@ export function createMenuHandlers(d) {
       d.toggleRightPanel('assets');
     },
     'assets.describe-stop': () => runAssetsAction('assets.describe-stop'),
+    // p8-sweep-leftovers — the Generate ask's "Video or sound…" (Advanced) opens the full Generate dialog
+    // (provider · model · aspect). The palette's v1 row ran it; the menu runner had no handler, so the button was dead.
+    'ai.generate': () => d.setGenerateOpen?.(true),
     'image.next-take': () => void runTakeStepNow('next'),
     'image.prev-take': () => void runTakeStepNow('prev'),
     'view.layers-panel': () => d.onToggleLayersMode(),
@@ -659,11 +663,26 @@ export const menuRunner = (() => {
  *  chrome, so its own focus is not the target). Text field → WebKit's own command; the canvas
  *  iframe → the canvas lane (annotation cut / copy / paste). Best effort, like the canvas
  *  context menu's Paste (the clipboard may be blocked). */
-export function cutCopyPaste(kind, target, { postToActiveCanvas, doc = document } = {}) {
+export function cutCopyPaste(
+  kind,
+  target,
+  { postToActiveCanvas, doc = document, readClipboard = readPasteData } = {}
+) {
   const el = target?.isConnected ? target : null;
   if (el?.tagName === 'IFRAME') {
-    // V2-8.9 attacker L2 — Edit › Paste / the shell's ⌘V into the canvas: the person's paste
-    if (kind === 'paste') notePasteIntent();
+    if (kind === 'paste') {
+      // p8-sweep-leftovers — the frame may not read the clipboard (iframe `allow="clipboard-write"` only,
+      // DDR-054): the shell reads it on this pick and forwards it; the frame replays it as its ⌘V paste.
+      return Promise.resolve(readClipboard()).then(
+        (data) => {
+          if (!data) return;
+          // V2-8.9 attacker L2 — the person's paste, noted when it reaches the frame (the read may wait)
+          notePasteIntent();
+          postToActiveCanvas?.({ dgn: 'paste-data', ...data });
+        },
+        () => {}
+      );
+    }
     postToActiveCanvas?.(runActionMessage(`edit.${kind}`));
     return;
   }

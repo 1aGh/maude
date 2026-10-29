@@ -33,6 +33,7 @@ import {
   type ToolId,
 } from './canvas-modes.ts';
 import { clampInsets, type Insets } from './occlusion.ts';
+import { parsePasteData } from './paste-data.ts';
 
 export const DGN_V = 2;
 type Id = string;
@@ -646,6 +647,9 @@ export interface ShellToCanvas {
   // the shell runs a canvas action (V2-1.3 / V2-2.4 — supersedes undo/redo/zoom/selection-clear/
   // annotation-select-all)
   'run-action': { v: 1; id: string; params?: Record<string, unknown> };
+  // p8-sweep-leftovers — Menu › Edit › Paste: what the SHELL read from the clipboard (the frame may not read
+  // it, DDR-054); the frame replays it as its ⌘V paste. Bounded + typed in bridge/paste-data.ts.
+  'paste-data': { v: 1; text?: string; html?: string; image?: Blob };
   // dead send (no canvas handler) — keep declared, retire in V2-8.0
   'git-lifecycle': { payload: GitLifecycleEvent };
 
@@ -2360,6 +2364,15 @@ const s2c: S2C = {
     status: 'live',
     owner: 'actions/registry (V2-1.3)',
     parse: p({ v: lit(1), id: str, params: opt(jsonObj) }),
+  },
+  'paste-data': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'bridge/paste-data (p8-sweep-leftovers)',
+    parse: (raw) => {
+      const d = parsePasteData(raw);
+      return d ? { ...d } : null;
+    },
   },
   'git-lifecycle': {
     gate: 'parent',

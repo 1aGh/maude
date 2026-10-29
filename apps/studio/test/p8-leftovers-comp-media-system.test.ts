@@ -17,7 +17,9 @@ describe('comp-media store and the Design system tab', () => {
       asked.push(url);
       return new Response('bad canvas', { status: 400 });
     };
-    const got = await compMediaStore.load(SYSTEM_TAB, 'landscape-16-9-10', { fetchImpl: fetchImpl as any });
+    const got = await compMediaStore.load(SYSTEM_TAB, 'landscape-16-9-10', {
+      fetchImpl: fetchImpl as any,
+    });
     expect(got).toBeNull();
     expect(asked).toEqual([]);
     expect(compMediaStore.status(SYSTEM_TAB, 'landscape-16-9-10')).toBeNull();

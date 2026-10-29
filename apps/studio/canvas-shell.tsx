@@ -35,7 +35,6 @@ import {
   useRef,
   useState,
 } from 'react';
-
 import { AnnotationsLayer } from './annotations-layer.tsx';
 import { ArtboardRingsLayer } from './artboard-activity-overlay.tsx';
 import { AiCopyLinks } from './artboard-ai-copies.tsx';
@@ -46,6 +45,7 @@ import { canvasMayHandle } from './bridge/dgn-protocol.ts';
 import { escClearsSelection, runEscRung } from './bridge/esc-ladder.ts';
 import { modeShows } from './bridge/mode-shows.ts';
 import { type Insets, revealViewBox } from './bridge/occlusion.ts';
+import { dispatchPasteData, parsePasteData } from './bridge/paste-data.ts';
 import { HUD_TOKENS_CSS } from './canvas-hud-tokens.gen.ts';
 import {
   type ArtboardRect,
@@ -2889,6 +2889,14 @@ function CanvasRouter({
         selSet.clear();
         annotSel.clear();
         setHoverEl(null);
+        return;
+      }
+      // p8-sweep-leftovers — Menu › Edit › Paste: the shell read the clipboard (this frame may not) and
+      // forwards it; replayed as a paste event so ⌘V's own listeners handle it. Only from the shell itself.
+      if (m.dgn === 'paste-data') {
+        if (e.source !== window.parent) return;
+        const data = parsePasteData(m);
+        if (data) dispatchPasteData(data, document);
         return;
       }
       // V2-1.3 §5.7 — the shell runs one of this listener's canvas actions:
