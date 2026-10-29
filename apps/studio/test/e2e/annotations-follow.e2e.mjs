@@ -331,10 +331,13 @@ describe('F6 — an arrow binds to the button, not the artboard', () => {
     const pb = await c.frame.locator('.pricing').first().boundingBox();
     const sb = await c.pageBox('sun');
     const inSun = (x, y) => x >= sb.x && x <= sb.x + sb.width && y >= sb.y && y <= sb.y + sb.height;
-    const y = pb.y + pb.height / 2;
-    const x = [0.9, 0.75, 0.5, 0.25, 0.1].map((f) => pb.x + pb.width * f).find((px) => !inSun(px, y));
-    assert.ok(x !== undefined, 'a part of the Pricing link is clear of the board');
-    const target = [x, y];
+    let target = null;
+    for (const fy of [0.5, 0.75, 0.9, 0.97])
+      for (const fx of [0.9, 0.5, 0.1]) {
+        const p = [pb.x + pb.width * fx, pb.y + pb.height * fy];
+        if (!target && !inSun(p[0], p[1])) target = p;
+      }
+    assert.ok(target, 'a part of the Pricing link is clear of the board');
     const start = await c.center('note');
     await drawArrow(start, target);
     // the arrow lands first; the stamp (a write to the TSX) and the bind that stores its id follow
