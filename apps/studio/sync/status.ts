@@ -40,7 +40,7 @@ export interface SyncConflict {
    *  overwrite was refused (local kept). Surfaces the degraded `_history/` write. */
   snapshotFailed?: boolean;
   /** #121 — source refused before materializing or importing. */
-  reason?: 'invalid-source' | 'local-edit' | 'history-failed' | 'merge-budget' | 'offline-overlap';
+  reason?: 'invalid-source' | 'local-edit' | 'history-failed' | 'merge-budget';
 }
 
 export interface SyncStatusPayload extends SyncStatusSnapshot {

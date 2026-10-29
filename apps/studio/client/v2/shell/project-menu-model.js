@@ -170,8 +170,11 @@ export function menuCtx({
   observer = false,
   // S3.8 — the network is up (`navigator.onLine`). Default true: a caller that never asks keeps today's rows.
   online = true,
+  // p8-v1-drop — a design system here is below Conformant (client/v2/ds/upgrade-offers.js)
+  dsUpgradeOffered = false,
 } = {}) {
   const facts = new Set();
+  if (dsUpgradeOffered) facts.add('dsUpgradeOffered');
   if (native) facts.add('native');
   // S3.7b — a desktop project linked to a cloud hub (Copy presentation link is enabled there).
   if (linkedHub) facts.add('linkedHub');

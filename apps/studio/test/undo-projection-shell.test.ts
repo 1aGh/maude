@@ -363,21 +363,17 @@ describe('S2.20 ⌘Z projection — the U-keys S2 owns', () => {
     expect([a.undid, b.undid]).toEqual(['e2', 'e1']);
   });
 
-  test('a project off the op log answers legacy: the canvas stack runs (the dgn lane), the store sends nothing', async () => {
+  test('a project off the op log answers legacy: nothing runs (p8-v1-drop: no canvas stack), the store sends nothing', async () => {
     const { home, store } = setup({ legacy: true });
-    let fellBack = 0;
-    const r = await runUndoKey(REPO, false, () => fellBack++, store);
+    const r = await runUndoKey(REPO, false, store);
     expect(r.handled).toBe(false);
-    expect(fellBack).toBe(1);
     expect(store.mode(REPO)).toBe('legacy');
     expect(home.posts).toEqual([]);
   });
 
-  test('op-log mode never falls back to the canvas stack — even with nothing to undo', async () => {
+  test('op-log mode with nothing to undo answers empty', async () => {
     const { store } = setup();
-    let fellBack = 0;
-    const r = await runUndoKey(REPO, false, () => fellBack++, store);
+    const r = await runUndoKey(REPO, false, store);
     expect(r).toMatchObject({ handled: true, reason: 'empty' });
-    expect(fellBack).toBe(0);
   });
 });

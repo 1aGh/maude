@@ -107,9 +107,20 @@ export const DS_ACTIONS: ActionDef[] = [
   },
   row('ds.handoff-tokens', 'Hand off tokens'),
   // S10.15a — Bring it up to the schema (13 · ds-multi-schema): the amber dot / a switch to or from a level-11
-  // system opens the sheet (S10.15b); its primary button applies a proven stage as one action. A system's own
-  // row, never ⌘K. Can edit on the whole project.
-  row('ds.upgrade', 'Bring it up to the schema'),
+  // system opens the sheet (S10.15b); its primary button applies a proven stage as one action. Can edit on the
+  // whole project. p8-v1-drop: an offer that is always reachable — the system's own row (⋯, the amber dot) AND
+  // ⌘K, while a system is below Conformant (`dsUpgradeOffered`; with no system named it opens the first one).
+  // Closing the sheet never hides it.
+  {
+    id: 'ds.upgrade',
+    label: 'Bring it up to the schema',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit', facts: ['dsUpgradeOffered'] },
+    search: {
+      keywords: ['design system', 'schema', 'upgrade', 'bring up', 'conformant', 'tokens'],
+    },
+  },
   // S10.18c — a team library (13 · ds-many-library, ds-many-linked): link one (the link dialog), take its update (the
   // review "Update from <system>? N changes", then this project's own), unlink it (the copy becomes an own system).
   // Update and Unlink act on the system the card names, so neither is a ⌘K row. Link has no system in hand yet and

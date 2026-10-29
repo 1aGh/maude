@@ -9,7 +9,9 @@
 // the way out of the gate — and it is still refused for a role-read-only
 // session (a viewer cannot update a project).
 
+import { cloudUrl } from '../cloud/endpoints.ts';
 import { scrub } from '../debug-bundle.ts';
+import { type AutoConvertPolicy, autoConvertPolicy } from '../format.ts';
 import {
   applyMigration,
   capReport,
@@ -17,6 +19,8 @@ import {
   type MigrateOptions,
   planMigration,
 } from '../migrate/engine.ts';
+import { resolveMaudeVersion } from '../whats-new.ts';
+import { isWorkspaceMode } from '../workspace-mode.ts';
 import type { RouteSpec } from './table.ts';
 
 export interface ProjectFormatDeps {
@@ -28,6 +32,13 @@ export interface ProjectFormatDeps {
   formatView: (req: Request) => unknown;
   /** after an apply: reload config + emit `config-updated` so shells refetch */
   onMigrated?: () => void;
+  /**
+   * p8-v1-drop — may the shell convert this project UNASKED (format.ts `autoConvertPolicy`)? Default:
+   * this build's version, workspace mode and the linked hub against the configured cloud address. A
+   * Maude Cloud project during the rc answers `{allowed:false}`: the shell converts nothing by itself,
+   * and an apply needs `confirmCloud: true` (the warning dialog's own button).
+   */
+  autoConvert?: (linkedHub: string | null) => AutoConvertPolicy;
   /** seams for tests */
   engine?: Partial<Pick<MigrateOptions, 'hubClient' | 'dsEmitter' | 'now' | 'liveStudio'>>;
 }
@@ -42,7 +53,17 @@ export function statusForExit(code: number): number {
   return 500;
 }
 
+export function defaultAutoConvert(linkedHub: string | null): AutoConvertPolicy {
+  return autoConvertPolicy({
+    version: resolveMaudeVersion(),
+    workspaceMode: isWorkspaceMode(),
+    hubUrl: linkedHub,
+    cloudUrl: cloudUrl(),
+  });
+}
+
 export function createProjectFormatRoutes(deps: ProjectFormatDeps): RouteSpec[] {
+  const policyOf = deps.autoConvert ?? defaultAutoConvert;
   return [
     {
       method: 'GET',
@@ -59,7 +80,12 @@ export function createProjectFormatRoutes(deps: ProjectFormatDeps): RouteSpec[] 
       // does not — `readOnly: 'refused'` keeps viewers out.
       readOnly: 'refused',
       async handle(req) {
-        let body: { direction?: unknown; apply?: unknown; strip?: unknown };
+        let body: {
+          direction?: unknown;
+          apply?: unknown;
+          strip?: unknown;
+          confirmCloud?: unknown;
+        };
         try {
           body = (await req.json()) as typeof body;
         } catch {
@@ -90,12 +116,22 @@ export function createProjectFormatRoutes(deps: ProjectFormatDeps): RouteSpec[] 
         };
         try {
           const dry = await planMigration(opts);
+          const autoConvert = policyOf(dry.project.linked?.hub ?? null);
+          // A Maude Cloud project during the rc converts only when the owner said so, past the
+          // warning (p8-v1-drop): the shell's automatic apply never sends `confirmCloud`.
+          if (
+            body.apply === true &&
+            direction === 'forward' &&
+            !autoConvert.allowed &&
+            body.confirmCloud !== true
+          )
+            return json(409, { ...capReport(dry), autoConvert, error: 'confirm-cloud' });
           const report =
             body.apply === true && dry.exitCode === EXIT.done
               ? await applyMigration(opts, dry)
               : dry;
           if (!report.dryRun && report.exitCode === EXIT.done) deps.onMigrated?.();
-          return json(statusForExit(report.exitCode), capReport(report));
+          return json(statusForExit(report.exitCode), { ...capReport(report), autoConvert });
         } catch (err) {
           // The detail (paths, engine internals) goes to the server log, scrubbed — never the reply.
           console.error(

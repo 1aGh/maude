@@ -240,13 +240,11 @@ describe('Task 1 — the workspace-mode guard opens only for loopback + commit-d
     );
   });
 
-  test('refuses when shared-doc is explicitly off — pairing IS the single-doc model', () => {
-    // Increment 7 flipped the default ON, so an UNSET flag now pairs; only the
-    // explicit opt-out (the rollback flip) refuses.
+  test('p8-v1-drop: MAUDE_SHARED_DOC has no opt-out any more — pairing ignores it', () => {
+    // The single shared doc is the only model; `MAUDE_SHARED_DOC=0` (the old rollback) is gone, so it
+    // neither refuses pairing nor turns anything off (was: refused 'shared-doc-off').
     expect(resolveCellPairing(pairingEnv({ MAUDE_SHARED_DOC: undefined })).pairing).not.toBeNull();
-    expect(resolveCellPairing(pairingEnv({ MAUDE_SHARED_DOC: '0' })).refusal).toBe(
-      'shared-doc-off'
-    );
+    expect(resolveCellPairing(pairingEnv({ MAUDE_SHARED_DOC: '0' })).pairing).not.toBeNull();
   });
 
   test('refuses when the token is missing', () => {

@@ -17,7 +17,6 @@ import type { MenuItem, MenuSection } from '../context-menu.tsx';
 import type { EditOpResult } from '../edit-ops/types.ts';
 import { artboardMenuSections } from '../editing/artboard-menu.tsx';
 import { clipActionForEdit, isClipMarker, runClipAction } from '../editing/clipboard.ts';
-import { EDIT_OP_KIND } from '../editing/edit-op.ts';
 import { objectMenuSections } from '../editing/object-menu.tsx';
 import type { CommandRecord } from '../undo-stack.ts';
 
@@ -62,18 +61,13 @@ const handle = {
 };
 
 describe('runClipAction — one edit-op, one undo step', () => {
-  test('paste asks `canvas.paste` on the edit-op path and pushes ONE edit-op undo record', async () => {
+  test('paste asks `canvas.paste` on the edit-op path; the canvas pushes no record (p8-v1-drop: the op log holds it)', async () => {
     const f = fakeDeps(ok({ created: [{ artboard: 'desktop', element: 'brand-systems' }] }));
     await runClipAction('canvas.paste', { objects: [obj], artboards: [] }, f.deps);
     expect(f.asks).toEqual([
       { op: 'canvas.paste', targets: [obj], params: { artboard: 'desktop' } },
     ]);
-    expect(f.records).toHaveLength(1);
-    expect(f.records[0]).toMatchObject({
-      kind: EDIT_OP_KIND,
-      label: 'Paste',
-      payload: { writeId: 'w_0123456789abcdef' },
-    });
+    expect(f.records).toEqual([]);
     expect(f.selected).toHaveLength(1);
   });
 
@@ -83,10 +77,10 @@ describe('runClipAction — one edit-op, one undo step', () => {
     expect(f.asks[0]?.params).not.toHaveProperty('clip');
   });
 
-  test('cut is one undo step; copy is none and leaves the marker', async () => {
+  test('cut and copy push no canvas record; copy leaves the marker', async () => {
     const cut = fakeDeps(ok({ detail: { clip: handle } }));
     await runClipAction('object.cut', { objects: [obj], artboards: [] }, cut.deps);
-    expect(cut.records.map((r) => r.label)).toEqual(['Cut']);
+    expect(cut.records).toEqual([]);
     const copy = fakeDeps(ok({ writeId: '', detail: { clip: handle } }));
     await runClipAction('object.copy', { objects: [obj], artboards: [] }, copy.deps);
     expect(copy.records).toEqual([]);

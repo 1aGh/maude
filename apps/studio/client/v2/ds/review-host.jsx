@@ -307,7 +307,16 @@ export function DsReviewHost({
         frameFor={frameFor}
         fetchImpl={fetchImpl}
       />
-      <DsConvertHost toast={toast} fetchImpl={fetchImpl} />
+      {/* p8-v1-drop — folder → canvas runs by itself once the project is editable here (format 2, not view only) */}
+      <DsConvertHost
+        toast={toast}
+        fetchImpl={fetchImpl}
+        auto={
+          cfg && !cfg.readOnly && !cfg.formatGate
+            ? { project: `${cfg.designRel ?? ''}:${cfg.name ?? ''}` }
+            : null
+        }
+      />
       <DsAdvancedHost
         cfg={cfg}
         activePath={activePath}

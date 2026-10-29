@@ -2567,14 +2567,14 @@ interface StudioLike {
  * Open the local home for a studio and feed it the watcher. A project with no
  * hub — not a cloud workspace, no `linkedHub` — answers history / undo /
  * restore from its own store; a linked project is exactly as before.
- * `MAUDE_LOCAL_STORE=0` turns it off.
+ * There is no opt-out: `MAUDE_LOCAL_STORE=0` (the legacy canvas stack's way back) went with p8-v1-drop.
  */
 export function attachLocalHome<S extends SupervisorLike>(
   ctx: StudioLike,
   supervisor: S,
   env: NodeJS.ProcessEnv = process.env
 ): { control: S; home(): LocalHome | null; close(): void } {
-  const enabled = env.MAUDE_LOCAL_STORE !== '0' && env.MAUDE_WORKSPACE_MODE !== '1';
+  const enabled = env.MAUDE_WORKSPACE_MODE !== '1';
   const isLocal = () => enabled && !ctx.cfg.linkedHub;
   let home: LocalHome | null = null;
   let failed = false;

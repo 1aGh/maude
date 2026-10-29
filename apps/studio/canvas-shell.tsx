@@ -90,7 +90,6 @@ import { useArtboardActions } from './editing/artboard-actions.ts';
 import { type ArtboardMenuDeps, artboardMenuSections } from './editing/artboard-menu.tsx';
 import { useClipboard } from './editing/clipboard-actions.ts';
 import { drawToolOfAction } from './editing/draw-geometry.ts';
-import { editOpRecord, editOpRecordFromShell } from './editing/edit-op.ts';
 import { EditingLayer } from './editing/index.tsx';
 import { useObjectOps } from './editing/object-actions.ts';
 import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.tsx';
@@ -98,7 +97,6 @@ import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.t
 import { liftCard, panelMotion, reorderSlot, takeOver } from './editing/reorder-slot.tsx';
 import { isLockedDom, lockedClickSelection, stepOut } from './editing/selection.tsx';
 import { commitTextInPlace, textOpDeps } from './editing/text-actions.ts';
-import { forwardUndoKey } from './editing/undo-mode.ts';
 import { EqualSpacingHandles } from './equal-spacing-handles.tsx';
 import {
   crossedDragThreshold,
@@ -121,7 +119,6 @@ import { installEmbedEscapeRelay, isEmbedCanvas, isReadOnlyCanvas } from './read
 import { mountCaret, placeCaretAt } from './text-caret.ts';
 import { ToolPalette } from './tool-palette.tsx';
 import { setShellPanelOpen } from './toolbars/shell-panels.ts';
-import { UndoHud } from './undo-hud.tsx';
 import {
   AnnotationSelectionProvider,
   useAnnotationSelection,
@@ -2660,12 +2657,15 @@ function CanvasRouter({
   const undoStackRef = useRef(undoStack);
   undoStackRef.current = undoStack;
   // S2.20b — ⌘Z / ⇧⌘Z from this canvas (its keys, or the shell's `run-action edit.undo`): after the
-  // shell's pending writes settle, the op log's projection runs it (`undo-key` to the shell) or, on a
-  // legacy project, the canvas stack does.
+  // shell's pending writes settle, the op log's projection runs it — `undo-key` to the shell. The canvas
+  // keeps no stack of its own (p8-v1-drop deleted the legacy one and its undo-mode state message).
   const canvasUndoKey = (redo: boolean) =>
     void afterShellRecords().then(() => {
-      if (forwardUndoKey(redo)) return;
-      void (redo ? undoStackRef.current.redo() : undoStackRef.current.undo());
+      try {
+        window.parent.postMessage({ dgn: 'undo-key', redo }, '*');
+      } catch {
+        /* detached */
+      }
     });
   // Selection readback can refresh while the user is typing (e.g. the shell's
   // post-HMR halo restore). Keep the editor's lifetime tied to its host, not
@@ -3220,21 +3220,10 @@ function CanvasRouter({
         if (e.source !== window.parent) return;
         const p = (m as { payload?: Partial<EditSourcePayload> & { seq?: number; label?: string } })
           .payload;
-        // S2.2b / S2.10b — a landed edit-op the SHELL made (the inspector's Element id rename, ⌫ Move
-        // to trash on an artboard): Cmd+Z posts `revert {writeId}`, which restores the source and the
-        // moved references together. An op-log write posts none — it undoes through the op log.
-        if (p && (p as { op?: string }).op === 'edit-op') {
-          const q = p as { writeId?: unknown; label?: unknown };
-          if (typeof q.writeId === 'string' && /^w_[0-9a-f]{16}$/.test(q.writeId)) {
-            // null on the op log: the rename is a kernel action there, ⌘Z is the shell's projection
-            const rec = editOpRecord(
-              q.writeId,
-              typeof q.label === 'string' ? q.label.slice(0, 80) : 'Edit'
-            );
-            if (rec) undoStack.record(rec);
-          }
-          return;
-        }
+        // S2.2b / S2.10b / S7.6 — a landed edit-op the SHELL made (the inspector's Element id rename,
+        // ⌫ Move to trash, a Timeline clip verb) is a kernel action: it undoes through the op log, so
+        // the canvas records nothing (the legacy `revert {writeId}` record went with p8-v1-drop).
+        if (p && (p as { op?: string }).op === 'edit-op') return;
         // Phase 12.1 — a landed reorder (drag / keyboard move). The shell POSTed
         // /_api/reorder already; record so Cmd+Z reverts via the server's log.
         if (p && (p as { op?: string }).op === 'reorder') {
@@ -3246,13 +3235,6 @@ function CanvasRouter({
               )
             );
           }
-          return;
-        }
-        // S7.6 — a shell-side edit-op (a Timeline clip verb) landed: record its `revert {writeId}`
-        // here so ⌘Z — timeline focused or not — undoes it from this one stack.
-        const shellEditOp = editOpRecordFromShell(p);
-        if (shellEditOp) {
-          undoStack.record(shellEditOp);
           return;
         }
         if (
@@ -3852,7 +3834,6 @@ function CanvasRouter({
       {/* S2.7 — align / distribute for objects AND artboards is editing/align-bar.tsx (mounted by EditingLayer); the v1 MultiArtboardToolbar is deleted (S2.9) */}
       <SnapGuideOverlay />
       <PhotoPreviewBridge />
-      <UndoHud />
       {/* DDR-247 — an embed inside another app shows the design, not who
           else is in the room: collaborator cursors and the avatar stack are
           studio chrome. */}

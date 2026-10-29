@@ -16,7 +16,7 @@ import {
 } from '../client/v2/timeline/clip-verb.js';
 import { applyFitTotalToContent, applyInsertClipAt, applySeriesMove } from '../clip-ops.ts';
 import { EDIT_OPS } from '../edit-ops/dispatch.ts';
-import { createEditOpCommand, editOpRecordFromShell } from '../editing/edit-op.ts';
+import { editOpRecord } from '../editing/edit-op.ts';
 import { createEditRoutes } from '../routes/edit.ts';
 
 const SRC = [
@@ -167,7 +167,7 @@ describe('every gesture is one clip op and one undo step', () => {
   });
 
   for (const g of GESTURES) {
-    test(`${g.name}: one write, one record; ⌘Z restores the bytes, ⇧⌘Z writes it again`, async () => {
+    test(`${g.name}: one write, one record-edit (the op log undoes it, p8-v1-drop)`, async () => {
       const s = studio();
       const recorded: unknown[] = [];
       const j = await runClipVerb({
@@ -188,18 +188,10 @@ describe('every gesture is one clip op and one undo step', () => {
       expect(s.bodies[0].op).toBe(`clip.${g.verb}`);
       expect(s.read()).toBe(g.want);
 
+      // one record-edit for the one gesture; the canvas keeps no stack (p8-v1-drop: ⌘Z is the op log)
       expect(recorded).toHaveLength(1);
-      const record = editOpRecordFromShell(recorded[0]);
-      expect(record).not.toBeNull();
-      const cmd = createEditOpCommand(
-        record?.payload as { writeId: string },
-        record?.label as string,
-        s.win
-      );
-      await cmd.undo();
-      expect(s.read()).toBe(SRC);
-      await cmd.do();
-      expect(s.read()).toBe(g.want);
+      expect(recorded[0]).toMatchObject({ op: 'edit-op' });
+      expect(editOpRecord((recorded[0] as { writeId: string }).writeId, 'x')).toBeNull();
     });
   }
 

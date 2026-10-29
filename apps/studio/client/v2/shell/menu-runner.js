@@ -13,6 +13,7 @@
 
 import { TEMPLATES } from '../../../annotations/templates.ts';
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
+import { upgradeOffers } from '../ds/upgrade-offers.js';
 import { runActionMessage } from '../../actions/shell-key-handlers.js';
 import { startFirstDraft } from '../create/first-draft.js';
 import { voteStore } from '../annotations/vote-store.js';
@@ -275,12 +276,10 @@ export function createMenuHandlers(d) {
     'canvas.close': () => d.onCloseCanvas(),
     'account.switch': () => d.onSwitchAccount(),
     // ── Edit ── (select / properties ride the canvas lane; artboards the shell's)
-    // S2.20 — Undo / Redo run the ⌘Z projection over the op log; a project not on it falls back to
-    // the canvas stack (the run-action lane, V2-1.2 feed). Undo history… opens the popover.
-    'edit.undo': () =>
-      runUndoKey(d.activePath, false, () => d.postToActiveCanvas(runActionMessage('edit.undo'))),
-    'edit.redo': () =>
-      runUndoKey(d.activePath, true, () => d.postToActiveCanvas(runActionMessage('edit.redo'))),
+    // S2.20 — Undo / Redo run the ⌘Z projection over the op log (since p8-v1-drop the canvas keeps no
+    // stack to fall back to). Undo history… opens the popover.
+    'edit.undo': () => runUndoKey(d.activePath, false),
+    'edit.redo': () => runUndoKey(d.activePath, true),
     'edit.undo-history': () => {
       if (d.activePath) undoHistoryOpen.open();
     },
@@ -389,7 +388,8 @@ export function createMenuHandlers(d) {
     'ds.switch': (p) => requestDsSwitch({ from: p?.from, to: p?.to, scope: p?.scope }),
     'ds.preview': (p) => requestDsPreview({ from: p?.from }),
     // S10.15b — the amber dot / the row's menu: "Bring <system> up to the schema?" (the AI does it, the person applies)
-    'ds.upgrade': (p) => requestDsUpgrade({ ds: String(p?.ds ?? '') }),
+    // p8-v1-drop — from ⌘K no system is named: the first one the Canvases panel offers (upgrade-offers.js)
+    'ds.upgrade': (p) => requestDsUpgrade({ ds: String(p?.ds ?? upgradeOffers()[0] ?? '') }),
     // S10.18c — a team library: the link dialog, "Update from <system>? N changes", "Unlink <system>?" (library-host.jsx)
     'ds.library-link': () => requestDsLibrary({ kind: 'link' }),
     'ds.library-update': (p) => requestDsLibrary({ kind: 'update', ds: p?.ds }),
