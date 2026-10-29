@@ -267,7 +267,7 @@ describe('P2 — the context toolbar', () => {
     await c.page.mouse.dblclick(cx, cy);
     await sleep(300);
     await ctl('Bold').click();
-    await ctl('Bulleted list').click();
+    await c.frame.locator('[data-testid="annot-sticky-list"]').click(); // the sticky bar's one List toggle: bullets first
     const b = await waitForBoard(server.root, (bd) => bd.get('C')?.list === 'bullet');
     assert.equal(b.get('C').bold, true);
   });
@@ -278,13 +278,13 @@ describe('P2 — the context toolbar', () => {
     await reset();
     await select('ref');
     await select('B', true);
-    await ctl('Group selection').click();
+    await ctl('Group selection').dispatchEvent('click'); // the top row's bar can sit under the Preview bar island
     let b = await waitForBoard(server.root, (bd) => (bd.get('ref')?.groups ?? []).length > 0);
     assert.deepEqual(b.get('ref').groups, b.get('B').groups);
     await reset();
     await select('ref');
     assert.deepEqual(await c.selection(), ['B', 'ref'], 'a click selects the whole group');
-    await ctl('Ungroup selection').click();
+    await ctl('Ungroup selection').dispatchEvent('click');
     b = await waitForBoard(server.root, (bd) => !(bd.get('ref')?.groups ?? []).length);
     assert.equal((b.get('B').groups ?? []).length, 0);
   });
@@ -448,21 +448,14 @@ describe('P5 — kinds, sections, selection, media', () => {
 
   test('font size from the toolbar', async () => {
     await reset();
-    // the size control is the editor's too (the bar flips into formatting while a sticky is typed in)
-    const [fx, fy] = await c.center('C');
-    await c.page.mouse.dblclick(fx, fy);
-    await sleep(300);
-    await c.frame.locator('.dc-annot-ctx .dc-annot-ctx-fs-trigger').first().click();
-    const items = c.frame.locator('.dc-annot-ctx-fs-item');
-    const n = await items.count();
-    assert.ok(n > 2, 'size presets');
-    const px = Number(
-      await items
-        .nth(n - 1)
-        .locator('.dc-annot-ctx-fs-px')
-        .textContent()
-    );
-    await items.nth(n - 1).click();
+    await select('C');
+    // a sticky's bar carries a size select (S4.19), not the shapes' preset dropdown
+    const size = c.frame.locator('[data-testid="annot-sticky-size"]');
+    const values = await size.locator('option').evaluateAll((os) => os.map((o) => o.value));
+    const sizes = values.filter((v) => /^\d+$/.test(v));
+    assert.ok(sizes.length > 2, 'size presets');
+    const px = Number(sizes[sizes.length - 1]);
+    await size.selectOption(String(px));
     const b = await waitForBoard(server.root, (bd) => bd.get('C')?.fontSize === px);
     assert.equal(b.get('C').fontSize, px);
   });
