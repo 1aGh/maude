@@ -1869,3 +1869,170 @@ describe('design-system history is never written by hand (S10.3b)', () => {
     ).toMatchObject({ status: 0, stdout: '' });
   });
 });
+
+// Michal 2026-10-29 (kg maude/v2-michal-gate-blocks-only-introduced-findings, V2-8.16 e4/e5): the
+// post-edit gate blocks only what the edit INTRODUCED. A finding the file already had before the
+// edit (the marketing21 fixture's `DISCIPLINY.map(d => <DCArtboard id={`disc-${d.id}`}>)`) goes to
+// the agent as additionalContext; the edit is kept. Run on both check paths: the local verb (no
+// studio) and the studio's warm validator (`POST /_api/agent/check`).
+const MAPPED = `import { DCArtboard, DesignCanvas } from '@maude/canvas-lib';
+const ITEMS = [{ id: 'a' }, { id: 'b' }];
+export default function M() {
+  return (
+    <DesignCanvas>
+      <DCArtboard id="hero" width={800} height={600}><h1>Hi</h1></DCArtboard>
+      <DCArtboard id="pricing" width={800} height={600}><p>x</p></DCArtboard>
+      {ITEMS.map((d) => (
+        <DCArtboard
+          key={d.id}
+          id={\`item-\${d.id}\`}
+          width={800}
+          height={600}
+        >
+          <p>{d.id}</p>
+        </DCArtboard>
+      ))}
+    </DesignCanvas>
+  );
+}
+`;
+const MAP_BLOCK = MAPPED.slice(
+  MAPPED.indexOf('      {ITEMS.map'),
+  MAPPED.indexOf('    </DesignCanvas>')
+);
+
+for (const lane of ['no studio (local check)', 'with a studio (warm validator)']) {
+  describe(`post-edit blocks only findings the edit introduced — ${lane}`, () => {
+    let project;
+    let server;
+    const mPath = () => join(project, '.design', 'ui', 'M.tsx');
+    const editM = (session, id, old, neu) => ({
+      ...edit(project, session, id, old, neu),
+      tool_input: { file_path: mPath(), old_string: old, new_string: neu },
+    });
+    /** pre-edit → the tool writes its change → post-edit; returns the post-edit result. */
+    async function run(session, id, old, neu) {
+      writeFileSync(mPath(), MAPPED);
+      const e = editM(session, id, old, neu);
+      expect(await hook('pre-edit', e)).toMatchObject({ status: 0, stdout: '' });
+      writeFileSync(mPath(), MAPPED.replace(old, neu));
+      return hook('post-edit', e);
+    }
+    beforeAll(() => {
+      project = makeProject('maude-hook-introduced-');
+      writeFileSync(mPath(), MAPPED);
+      if (lane.startsWith('no studio')) return;
+      const { exact } = mountRoutes(
+        agentRouteSpecs({
+          repoRoot: project,
+          designRel: '.design',
+          shells: () => 1,
+          emit: () => {},
+          bracket: { begin: () => {}, touch: () => {}, end: () => {} },
+        })
+      );
+      server = Bun.serve({
+        port: 0,
+        fetch(req) {
+          const url = new URL(req.url);
+          if (url.pathname === '/_health')
+            return Response.json({
+              app: 'design',
+              rootId: rootIdentity(project),
+              manifestVersion: 'bbbbbbbbbbbb',
+              version: '2.4.0',
+            });
+          const h = exact[url.pathname];
+          return h ? h(req) : new Response('not found', { status: 404 });
+        },
+      });
+      writeFileSync(
+        join(project, '.design', '_server.json'),
+        JSON.stringify({
+          pid: process.pid,
+          port: server.port,
+          url: `http://127.0.0.1:${server.port}`,
+        })
+      );
+    });
+    afterAll(() => {
+      server?.stop(true);
+      rmSync(project, { recursive: true, force: true });
+    });
+
+    test('(a) a one-line edit elsewhere in a mapped-id canvas: no block, the finding as context', async () => {
+      const r = await run('iz', 'a1', '<h1>Hi</h1>', '<h1>Hello</h1>');
+      expect(r.status).toBe(0);
+      expect(r.json?.decision).toBeUndefined();
+      const ctx = contextOf(r);
+      expect(ctx).toContain('[artboard-id-expression]');
+      expect(ctx).toContain('already in the file before this edit');
+      expect(ctx).toContain('do not block');
+      expect(readFileSync(mPath(), 'utf8')).toContain('<h1>Hello</h1>'); // kept, not restored
+      expect(r.ms).toBeLessThan(1500);
+    });
+
+    test('(b) an edit that introduces a new error: blocked and restored; the old one named briefly', async () => {
+      const r = await run('iz', 'b1', 'id="pricing"', 'id="hero"');
+      expect(r.json.decision).toBe('block');
+      expect(r.json.reason).toContain('[artboard-duplicate]');
+      expect(r.json.reason).toContain('restored to before this edit');
+      expect(r.json.reason).toContain('already in the file before this edit');
+      expect(r.json.reason).not.toMatch(/^error \[artboard-id-expression\]/m);
+      expect(readFileSync(mPath(), 'utf8')).toBe(MAPPED);
+    });
+
+    test('(c) an edit that adds a second mapped id: blocked and restored', async () => {
+      const other = MAP_BLOCK.replace('item-', 'more-');
+      const r = await run('iz', 'c1', '    </DesignCanvas>', `${other}    </DesignCanvas>`);
+      expect(r.json.decision).toBe('block');
+      expect(r.json.reason).toMatch(/^error \[artboard-id-expression\]/m);
+      expect(readFileSync(mPath(), 'utf8')).toBe(MAPPED);
+      // the same map pasted twice is still one more than before: blocked
+      const twice = await run('iz', 'c2', '    </DesignCanvas>', `${MAP_BLOCK}    </DesignCanvas>`);
+      expect(twice.json.decision).toBe('block');
+      expect(readFileSync(mPath(), 'utf8')).toBe(MAPPED);
+    });
+
+    test('(c2) swapping the pre-existing map for a different one is not laundered', async () => {
+      const r = await run('iz', 'c3', MAP_BLOCK, MAP_BLOCK.replace('item-', 'swap-'));
+      expect(r.json.decision).toBe('block');
+      expect(r.json.reason).toMatch(/^error \[artboard-id-expression\]/m);
+      expect(readFileSync(mPath(), 'utf8')).toBe(MAPPED);
+    });
+
+    test('(d) a new file with an error: blocked, and the file is removed', async () => {
+      const dir = join(project, '.design', 'ui', 'project', 'components');
+      const abs = join(dir, 'Card.tsx');
+      const w = {
+        session_id: 'iz',
+        tool_use_id: 'd1',
+        cwd: project,
+        tool_name: 'Write',
+        tool_input: { file_path: abs, content: MAPPED },
+      };
+      expect(await hook('pre-edit', w)).toMatchObject({ status: 0, stdout: '' });
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(abs, MAPPED);
+      const r = await hook('post-edit', w);
+      expect(r.json.decision).toBe('block');
+      expect(r.json.reason).toMatch(/^error \[artboard-id-expression\]/m);
+      expect(r.json.reason).not.toContain('already in the file before this edit');
+      expect(existsSync(abs)).toBe(false);
+    });
+
+    test('Stop holds the run to the same rule: a finding the run base already had does not block', async () => {
+      // (a)'s edit was kept (one session: one run, so no artboard is busy); the file still carries only the pre-existing mapped id
+      writeFileSync(mPath(), MAPPED.replace('<h1>Hi</h1>', '<h1>Hello</h1>'));
+      // the run touched it, so Stop checks it against the run's base (the file as first seen)
+      const touched = JSON.parse(
+        readFileSync(join(project, '.design', '_runs', 'iz', 'touched.json'), 'utf8')
+      );
+      expect(Object.keys(touched)).toContain('ui/M.tsx');
+      const r = await hook('stop', { session_id: 'iz', cwd: project, stop_hook_active: false });
+      expect(r.status).toBe(0);
+      expect(r.json?.reason ?? '').not.toContain('artboard-id-expression');
+      expect(r.json?.reason ?? '').not.toContain("don't pass the check");
+    });
+  });
+}
