@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { isNativeApp, restartToUpdate } from '../github.js';
 import { useShellStore } from '../stores/shell-store.jsx';
 import { StIcon } from './icons.jsx';
-import { isOlderGate } from '../v2/shell/format-update.js';
+import { isOlderGate, isSaveModeOffer } from '../v2/shell/format-update.js';
 import { OlderFormatCallout } from '../v2/shell/format-update.jsx';
 
 /**
@@ -64,8 +64,9 @@ export function FormatGateBanner() {
     updateReady,
     askedForUpdate,
   });
-  // An OLDER project (format 1 in v2) is the v2 side: view only + Update project (Michal 2A).
-  if (isOlderGate(cfg)) return <OlderFormatCallout />;
+  // An OLDER project (format 1 in v2) is the v2 side: view only + Update project (Michal 2A); a linked
+  // project that still saves the old way gets the same Update, quieter (p8-update-to-accepted).
+  if (isOlderGate(cfg) || isSaveModeOffer(cfg)) return <OlderFormatCallout />;
   if (!state) return null;
   const onAction = () => {
     if (state.action === 'restart') {
