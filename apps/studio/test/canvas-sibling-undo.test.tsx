@@ -173,14 +173,11 @@ describe('canvas-shell honours shell→canvas lanes only from window.parent (V2-
       lastTick: 0,
     };
     // p8-v1-drop: the canvas keeps no stack of its own — ⌘Z is the shell's projection, so the parent's
-    // run-action becomes `undo-key {redo}` to the shell (was: the canvas stack undid / redid).
-    const posted: Array<{ dgn?: string; redo?: boolean }> = [];
-    const parent = window.parent as unknown as { postMessage: (m: unknown, o?: string) => void };
-    const realPost = parent.postMessage;
-    parent.postMessage = (m: unknown) => {
-      posted.push(m as { dgn?: string; redo?: boolean });
-    };
-    await withShell(async () => {
+    // run-action becomes `undo-key {redo}` to the shell (was: the canvas stack undid / redid). It goes once
+    // the shell's pending records settle (`afterShellRecords`, which times out here: nobody answers).
+    const undoKeys = (messages: Array<Record<string, unknown>>) =>
+      messages.filter((m) => m?.dgn === 'undo-key').map((m) => ({ dgn: m.dgn, redo: m.redo }));
+    await withShell(async (messages) => {
       // A sibling: the retired v1 lanes and the run-action lane reach nothing.
       await send(sibling, { dgn: 'undo' });
       await send(sibling, { dgn: 'redo' });
@@ -189,19 +186,20 @@ describe('canvas-shell honours shell→canvas lanes only from window.parent (V2-
       await send(null, { dgn: 'run-action', v: 1, id: 'edit.undo' });
       // The retired lane from the parent: no handler is left for it either.
       await send(window.parent, { dgn: 'undo' });
+      await new Promise((r) => setTimeout(r, 3300));
       expect(calls).toEqual([]);
-      expect(posted.filter((m) => m?.dgn === 'undo-key')).toEqual([]);
+      expect(undoKeys(messages)).toEqual([]);
       // The shell itself, on the run-action lane: handed back as undo-key, never the in-canvas stack.
       await send(window.parent, { dgn: 'run-action', v: 1, id: 'edit.undo' });
       await send(window.parent, { dgn: 'run-action', v: 1, id: 'edit.redo' });
+      await new Promise((r) => setTimeout(r, 3300));
       expect(calls).toEqual([]);
-      expect(posted.filter((m) => m?.dgn === 'undo-key')).toEqual([
+      expect(undoKeys(messages)).toEqual([
         { dgn: 'undo-key', redo: false },
         { dgn: 'undo-key', redo: true },
       ]);
     }, stack);
-    parent.postMessage = realPost;
-  });
+  }, 15_000);
 });
 
 describe('comment-mount honours tool-set only from window.parent (V2-2.8 S1)', () => {

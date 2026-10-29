@@ -111,8 +111,8 @@ describe('format-update (p8-v1-drop: a format-1 project converts by itself on op
         ),
       { timeout: 30_000, interval: 200, timeoutMsg: 'no "Updated for Maude 2" notice' }
     );
-    // the opt-in dialog is gone (p8-v1-drop)
-    expect(await $(tid('format-update-dialog')).isExisting()).toBe(false);
+    // the opt-in dialog is gone (p8-v1-drop): the only dialog left is the cloud warning, never shown here
+    expect(await $(tid('format-cloud-dialog')).isExisting()).toBe(false);
     await capture('fu-1 updated by itself on open');
   });
 
