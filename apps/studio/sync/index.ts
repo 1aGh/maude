@@ -676,6 +676,8 @@ export interface SyncRuntime {
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean }> | null;
   /** True while the linked project is in accepted-revisions mode. */
   acceptedMode?(): boolean;
+  /** p8-fix-a F19 — false until the hub (or a remembered answer for this hub) has said how the project saves. */
+  acceptedModeKnown?(): boolean;
   /**
    * Issue #133 — may the comment ledger record `slug`'s current comments as
    * synced? Only when the hub is known to hold them: accepted mode (the doc IS
@@ -1350,6 +1352,7 @@ export function createSyncRuntime(
       else noticesBeforeStore.push(notice);
     }
   };
+  let saveModeAnnounced = false;
   const acceptedLink: AcceptedLink | null = useSharedDoc
     ? createAcceptedLink({
         hubUrl: linkedHub.url,
@@ -1380,6 +1383,12 @@ export function createSyncRuntime(
               : undefined
           );
           noteProjectConfig(b.projectConfig);
+          // p8-fix-a F19 — `/_config.saveMode` was `pending` until this first answer: tell the shells
+          // to read it again (once; later mode changes already reach them through the migrator).
+          if (!saveModeAnnounced) {
+            saveModeAnnounced = true;
+            ctx.bus.emit('config-updated');
+          }
           if (!outboundPaused()) void projectConfigPusher?.push();
           // F3 S17 — a save made as the socket died is held (the connection
           // was not writable). After the reconnect the handshake re-admits the
@@ -6135,6 +6144,7 @@ export function createSyncRuntime(
     },
     proposeFolder,
     acceptedMode: acceptedOn,
+    acceptedModeKnown: () => (acceptedLink ? acceptedLink.mode !== 'unknown' : true),
     commentsConfirmedOnHub: (slug) => {
       // The canvas must be live on the hub right now: a provider that has
       // synced. In accepted mode its doc is the accepted replica (local writes

@@ -9,6 +9,8 @@
 // PURE except `showRoleDenial`, which posts to the shell's notification stack.
 
 import { shellToast } from '../../shell/util.js';
+import { normalizeOpenPath } from '../../share-link.js';
+import { editsInAppOnly, WORDS } from '../access/access-client.js';
 import { askToEdit } from './ask-to-edit.js';
 
 /** The shell's general role line (a mode request with no tool to name). */
@@ -42,12 +44,25 @@ export function denialLine(req) {
 }
 
 /**
- * Says the line with **Ask to edit** beside it.
+ * p8-fix-a F2 — can this person edit `activePath` by role yet only VIEW it in this frame (a cloud canvas-only
+ * session, `editsInAppOnly`)? The same condition the Viewing note uses (`share-cluster-host.jsx`).
+ */
+export function appOnlyFor(cfg, activePath) {
+  return !!activePath && editsInAppOnly(cfg, normalizeOpenPath(activePath, cfg?.designRel));
+}
+
+/**
+ * Says the line with **Ask to edit** beside it — or, when the person can already edit in the desktop app
+ * (`appOnly`), says so and offers nothing to ask for.
  * @param req {{ tool?: string, panel?: string }} what the person pressed
- * @param deps {{ toast?: Function, run?: (id: string) => void }} seams for a test
+ * @param deps {{ toast?: Function, run?: (id: string) => void, appOnly?: boolean }} seams for a test
  */
 export function showRoleDenial(req, deps = {}) {
   const toast = deps.toast ?? shellToast;
+  if (deps.appOnly) {
+    toast(WORDS.appOnlyLine, false);
+    return;
+  }
   const run =
     deps.run ??
     ((id) => import('./menu-runner.js').then((m) => m.menuRunner.run(id)).catch(() => false));

@@ -30,7 +30,7 @@ import {
   placePanel,
   toShellRect,
 } from './tool-panels.js';
-import { showRoleDenial } from './role-denial.js';
+import { appOnlyFor, showRoleDenial } from './role-denial.js';
 
 /**
  * @param deps.canvasOrigin () => string — the canvas origin messages must come from
@@ -146,7 +146,11 @@ export function useToolPanels({
       frameOf: (p) => live.current.iframesRef.current?.get(p),
       viewport: () => ({ w: window.innerWidth, h: window.innerHeight }),
       canEdit: () => live.current.canEdit !== false,
-      deny: (panel) => showRoleDenial({ panel }),
+      deny: (panel) =>
+        showRoleDenial(
+          { panel },
+          { appOnly: appOnlyFor(live.current.cfg, live.current.activePath) }
+        ),
       openStickers: (req) => live.current.openStickers(req),
       closeStickers: () => live.current.closeStickers?.(),
       openTemplates: (req) => live.current.openTemplates?.(req),

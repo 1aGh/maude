@@ -40,7 +40,7 @@ import {
   shellEscDecision,
 } from './canvas-mode.js';
 import { SEED_LADDER_MS } from './occlusion-insets.js';
-import { ROLE_DENIAL, showRoleDenial } from './role-denial.js';
+import { appOnlyFor, ROLE_DENIAL, showRoleDenial } from './role-denial.js';
 import { insetsLane } from './use-occluded-insets.js';
 import { panelLayout, usePanelLayout } from './use-panel-layout.js';
 
@@ -329,7 +329,7 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
         });
         if (!d) return;
         if (d.kind === 'deny') {
-          if (d.reason === 'role') showRoleDenial(m);
+          if (d.reason === 'role') showRoleDenial(m, { appOnly: appOnlyFor(L.cfg, L.activePath) });
           return;
         }
         if (d.kind === 'exit-viewing') {

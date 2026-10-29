@@ -32,6 +32,7 @@ import {
   kindPatch,
   twoWayPatch,
 } from './annotations/ui/arrow-kinds.ts';
+import { barTopFor } from './annotations/ui/bar-place.ts';
 import { type FormatKey, formatCommands, formatState } from './annotations/ui/editor-channel.ts';
 import { LOCKED_LINE } from './annotations/ui/locked.tsx';
 import { SECTION_TONES } from './annotations/ui/section-fold.ts';
@@ -53,6 +54,7 @@ import {
   type TextAlign,
   useStrokesStore,
 } from './annotations-layer.tsx';
+import { canvasInsets } from './bridge/canvas-mode-store.ts';
 import {
   IconAlignCenter,
   IconAlignLeft,
@@ -635,8 +637,8 @@ export function AnnotationContextToolbar({
       // (halo pad + connection dots at ~16 px + the corner rotate zones)
       // instead of sitting glued to the bbox and covering the top dot.
       const margin = 28;
-      let top = u.y - tbH - margin;
-      if (top < 8) top = u.y + u.h + margin;
+      // p8-fix-a F21 — headroom counts the shell's top island (Preview bar), not only the iframe's edge
+      const top = barTopFor(u, tbH, margin, canvasInsets().top);
       let left = u.x + (u.w - tbW) / 2;
       const winW = typeof window !== 'undefined' ? window.innerWidth : tbW + 16;
       if (left < 8) left = 8;
