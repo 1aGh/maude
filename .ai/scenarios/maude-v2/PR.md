@@ -98,9 +98,12 @@ app is verified in the shells it ships in (desktop, browser, cloud tab, viewer).
 - V2-8.0 cleanup: old token layers deleted, `.st-*` and `--u-*` migrated, dead modules 0. CSS went from 742 KB to 638 KB (you accepted that bar).
 - V2-8.6 nothing-deleted: 100 %.
 - V2-8.7 a11y: axe 0 serious or critical in both themes, and a keyboard-only create flow. Return now enters text and frames.
-- V2-8.8 WebKit pan/zoom: v2 p95 about 50 ms against 93–110 ms on v1.9.1.
-- V2-8.9 security: two review rounds plus a final pair, all findings fixed red-first. Read access is scoped to the project plus the folders you said yes to.
-- V2-8.16 AI parity: 509 of 509 actions have a file path, a CLI verb or a human-only reason; agent journeys pass their dry runs.
+- V2-8.8 WebKit pan/zoom: v2 p95 about 50 ms against 93–110 ms on v1.9.1. Chromium was re-measured at the freeze and passes in both lanes; v2 renders 168 artboards per gesture where pre-v2 renders 966.
+- V2-8.9 security: two review rounds, a final pair, and a delta pair over every fix since. All findings were fixed red-first, with 0 blockers. Read access is scoped to the project plus the folders you said yes to.
+- V2-8.16 AI parity: 509 of 509 actions have a file path, a CLI verb or a human-only reason. The 30-task eval scored 24/30 pass^3 with no product-caused fail. That was after the post-edit gate learned to block only what an edit introduced. The live agent journeys S1–S11 at the freeze scored 19/22. Every journey is green in at least one lane, and the three fails are agent-caused.
+- Undo with collaborators: ⌘Z on a text a collaborator changed meanwhile is refused with a notice, and their text stays. In a hub-linked project it is refused only on a real 3-way collision.
+- Update project now also moves a legacy shared project to accepted revisions, as its last step.
+- The desktop app's project servers use their own port range, 46399–46408.
 - V2-8.17 (#121): offline edits that overlap in a shared doc now show a notice with both versions. The losing side is kept in `_history/<slug>/sync-recovery`. Merged.
 - The e2e harness got many rounds of work: one app per spec, throwaway config home, window kept on top, no GitHub in the lifecycle lane.
 
@@ -121,34 +124,47 @@ app is verified in the shells it ships in (desktop, browser, cloud tab, viewer).
 - **Live AI runs:** yes to the agent journeys S1–S11 and the 30-task eval (topology A only), on your Claude account.
 - **#121:** detect on reconnect, show both versions, no silent character-by-character merge (2026-10-26).
 - **Cloud canvas-only Can edit:** keep browser Viewing for now (2026-10-27, option a). See follow-ups.
-- **Real push** to `iagh66/maude-git-smoke`: once, confirmed by you in chat. Not yet run.
+- **Real push and real PRs** to `iagh66/maude-git-smoke`: allowed by you. The lifecycle ran green twice
+  (`V2-8.16-real-push`, `V2-8.16-real-pr`).
+- **Docker self-host gate (V2-8.18, 2026-10-28):** a real hub image plus a cell image, built and run locally, never pushed.
+- **Ledger closing statuses (2026-10-29):** besides `verified`, a row can close as `soak` (checked on the rc soak) or
+  `not-a-state`. Both require a written note.
+- **Post-edit gate (2026-10-29, a):** it blocks only the findings an edit introduced. Pre-existing ones go to the agent as
+  context.
+- **Undo against a collaborator (2026-10-29, b2):** refuse with a notice, and keep their text. Merging the text is a
+  follow-up. In a hub-linked project, refuse only on a 3-way collision.
+- **Legacy undo:** not fixed. Instead, Update project offers the move to accepted revisions. `--reverse` does not revert
+  the mode. A browser on a cell switches through the cloud dashboard.
+- **Desktop ports (2026-10-29, A):** the app has its own range, 46399–46408. A port is kept across a restart, and a
+  one-time reset of web storage is accepted.
 
 ## Verification
 
-Phase 8 gates, from `node scripts/v2-gates.mjs` (the script reads recorded evidence). **The evidence is recorded at
-the final HEAD of this branch; the table is filled in at that point.** Cells marked `TBD` are not failures. They are
-waiting for that record.
+Phase 8 gates, from `node scripts/v2-gates.mjs`. The script reads recorded evidence, and a record goes stale as soon as
+any file outside `.ai/` changes. **Every record is at the freeze: product tree `a686e71c7`.** Only `.ai/` changed after
+it: evidence, ledger and these notes. 12 of 15 gates are green. The 3 red ones wait for you.
 
-| Gate | What | Status | Last known |
+| Gate | What | Status | Evidence |
 | --- | --- | --- | --- |
-| V2-8.0 | Cleanup (old layers, dead code, CSS bar) | PASS (live check) | 638 KB vs 742 KB start of phase |
-| V2-8.1 | Quality gates (format, lint, typecheck, tests, build, parity, tarball, tokens, site, import coherence) | TBD | one load-sensitive sync test failed on this Mac; green on the mini |
-| V2-8.2 | Rust (`cargo test`, clippy) | TBD | recorded PASS earlier; product files changed since |
-| V2-8.3 | Desktop e2e, 3 consecutive runs | TBD | many rounds of spec and harness fixes; final 3x run pending |
-| V2-8.4 | Cross-shell scenarios | TBD | 0 blockers in the run |
-| V2-8.5 | Design fidelity (15 canvases, critics) | TBD | all reachable ids verified at last checkpoint |
+| V2-8.0 | Cleanup (old layers, dead code, CSS bar) | PASS (live check) | 638 KB vs 742 KB at the start of the phase |
+| V2-8.1 | Quality gates (format, lint, typecheck, tests, build, parity, tarball, tokens, site, import coherence) | PASS | recorded on this Mac |
+| V2-8.2 | Rust (`cargo test`, clippy `-D warnings`) | PASS | recorded |
+| V2-8.3 | Desktop e2e, every lane, 3 consecutive runs (debug build) | PASS | 12:45–14:18; prefs file untouched, screen never locked |
+| V2-8.4 | Cross-shell scenarios (browser, cloud owner, cloud viewer) | PASS | 18/18, 0 blockers; the rig's project stamped to formatVersion 2 for the run (harness fix in follow-ups) |
+| V2-8.5 | Design fidelity | PASS | artboard rows: 342 verified, 14 soak, 4 not-a-state, 0 open |
 | V2-8.6 | Nothing-deleted audit | PASS (live check) | 100 % |
-| V2-8.7 | A11y (axe, keyboard-only, VoiceOver) | TBD | needs your VoiceOver pass |
-| V2-8.8 | Pan/zoom perf (Chromium + WebKit) | TBD | WebKit passes in both orders |
-| V2-8.9 | Security (final pair) | TBD | final pair 0 blockers, lows listed below |
-| V2-8.10 | Packaged app | TBD | needs the clean-user smoke |
-| V2-8.14 | Perf beyond pan/zoom | TBD | five budgets open, see below |
-| V2-8.15 | Docs for people and agents | TBD | `docs/MIGRATING-V1-TO-V2.md` exists |
-| V2-8.16 | AI parity | TBD | coverage 100 %; live runs pending |
-| V2-8.17 | Offline overlap on reconnect (#121) | TBD | merged; covered by the final security pair |
-| V2-8.11 | Branch build and PR | TBD | this PR |
+| V2-8.7 | A11y (axe, keyboard-only, VoiceOver) | **needs you** | axe 0 serious/critical, keyboard-only flow; VoiceOver pass open |
+| V2-8.8 | Pan/zoom perf (Chromium + WebKit) | PASS | Chromium re-measured at the freeze; WebKit both orders (render path unchanged since) |
+| V2-8.9 | Security | PASS | final pair, delta pair and recheck, 0 blockers |
+| V2-8.10 | Packaged app | **needs you** | `.app` 1.9.1 built at the freeze: `check-bundle-completeness --smoke` ✓, `check-client-boots` ✓, no WebDriver code; clean-user smoke open |
+| V2-8.14 | Perf beyond pan/zoom | **needs you** | five budgets over, see below: accept or hold |
+| V2-8.15 | Docs for people and agents | PASS | gens in sync, drift tests 12/12; 3 small gaps in follow-ups |
+| V2-8.16 | AI parity | PASS | 509/509; eval 24/30 pass^3; live journeys 19/22 |
+| V2-8.17 | Offline overlap on reconnect (#121) | verified | merged with tests, reviewed in the final security pair |
+| V2-8.18 | Self-hosted hub + cell images (Docker) | PASS | recorded |
+| V2-8.11 | Branch build and PR | this PR | |
 | V2-8.12 | After the merge: rc | after merge | see below |
-| V2-8.13 | Close-out | after merge | see below |
+| V2-8.13 | Close-out | after merge | `v2-done.sh` turns green once 8.7, 8.10, 8.14 and this PR are closed |
 
 ## Before you merge: what needs you
 
@@ -156,8 +172,9 @@ waiting for that record.
    listen once to the strings from board 14 (for example "Services, frame, 3 items, in a row, 4 of 6. Press Return
    to go inside") and to the live region on the status words.
 2. **Clean-macOS-user smoke of the packaged app (V2-8.10).** Install the `.app` on a fresh macOS user with no node,
-   bun or claude. Open a project, open Home, make a canvas. The scripted gates (`check-bundle-completeness --smoke`,
-   `check-client-boots`) cover everything except a real clean user.
+   bun or claude: `apps/desktop/src-tauri/target/release/bundle/macos/Maude.app` or the `.dmg` next to it, both built at
+   the freeze. Open a project, open Home, make a canvas. The scripted gates (`check-bundle-completeness --smoke`,
+   `check-client-boots`) are green and cover everything except a real clean user.
 3. **The desktop port question (asked 2026-10-27):**
    > The desktop app starts a project's server without a port, so it takes 4399, the default of
    > `maude design serve`. When a person's own server was briefly down, an e2e sidecar took 4399. The e2e has been
@@ -177,12 +194,15 @@ waiting for that record.
    - Annotation LOD with 64 boards and a 1,500-element board: p95 83–100 ms against about 67 ms on v1. Not React renders.
 
    Decide: accept for v2.0 and list as follow-ups, or hold the merge for a perf round.
-5. **Real push to `iagh66/maude-git-smoke`:** you said yes in chat. The run does it once, after the V2-8.3 record.
+5. **Real push to `iagh66/maude-git-smoke`:** done, green twice. The signed-in PR path through the app (Add to main →
+   a real PR, DDR-162) needs a GitHub sign-in in the app and was not run. Say if you want it on the rc soak.
 6. **The homepage showreel `site/public/demo.mp4`** still likely shows v1 chrome. Re-record, drop or keep?
 7. **The site copy describes v2.** It goes to `main` with this PR. Is that OK, or should it wait for the v2.0 release?
 8. **`~/.config/maude/prefs.json`** was rewritten by a test run several times. You said you don't mind. The
    source is still being hunted. Please check that your folds and theme look right.
-9. **`maude design ds convert`** on the in-repo design systems (your yes from 2026-10-22). I could not confirm from the log that it ran; check the final record.
+9. **`maude design ds convert`** on the in-repo design systems (your yes from 2026-10-22): done in p8-ds (`479207219`).
+   Both `maude` and `maude-v2` are Design system canvases, and the dry run was clean.
+10. **The merge.** It's yours.
 
 ## Known follow-ups after the merge
 
@@ -206,6 +226,24 @@ waiting for that record.
 - **Legacy sync gaps after V2-8.17:** sibling `.css` text, the `MAUDE_SHARED_DOC=0` lane, and a 1.x peer taken second.
 - **Cloud lane media uploads** to the local hub fail intermittently. Worth a look.
 - **Case-variant credential Read** against Claude Code's matcher, and a **WKWebView DNS-prefetch check**. Both need a real Mac.
+- **Found at the freeze and held back to keep the records fresh** (any change outside `.ai/` would make them stale):
+  - The V2-8.4 rig's `scripts/dev/local-cell.mjs` writes a format-1 project. Wrap it in `v2Config(...)` and rerun
+    the desktop lanes whose fixtures use it.
+  - Docs gaps: MIGRATING lacks the save-mode line from Update project. `site/content/docs/cli.mdx:102` claims a
+    random port fallback (the real behaviour is to walk 4399–4408, then stop). One sentence on the post-edit gate's
+    "only what the edit introduced" rule.
+  - Allow the read-only help forms (`maude --help`, `maude design --help`) in the auto tier. In the live journeys,
+    their denial made a terminal agent give up on allowed verbs.
+  - The journey text grader should tolerate whitespace inside an element.
+- **Smaller residuals from the 10-28/29 rounds:**
+  - Interpreter writes are attributed by call window (A1 narrower, not closed).
+  - Base hashes kept outside the design root.
+  - Transport abort and byte cap on the hub undo check.
+  - Dry-run cost.
+  - A port kept across rest/relaunch (`ProjectEntry.port`).
+  - The hub multi-target undo.
+  - Conflict visibility in the trash race.
+- The full list, with file and line references, is in `.ai/scenarios/maude-v2/lead/pr-followups.md` on this branch.
 
 ## The rc-soak checklist
 
