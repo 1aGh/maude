@@ -89,22 +89,22 @@
       "why": "success"
     },
     "render-non-blank": {
-      "pass": false,
-      "why": "onboarding-feedback: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/GitPanel.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/GitPanel.tsx — no screenshot written"
+      "pass": true,
+      "why": ""
     },
     "judge": {
       "pass": true,
-      "why": "pass (4): The diff adds an \"Onboarding feedback\" artboard with a 10-row checklist built from the 40 Onboarding stickies. It uses the canvas's dark maude tokens and the existing Check component, and the five existing artboards are untouched. The board data confirms each topic has exactly 4 stickies, so \"most mentioned first\" is a genuine tie. The artboard says so and breaks ties by number of people, which is honest. Minor gaps: the final message doesn't mention the tie, and I didn't see a screenshot.",
+      "why": "pass (4): The new \"Onboarding feedback\" artboard has all 10 topics as a numbered checklist in the dark maude style, using the DS tokens and the Check component. The 40 Onboarding stickies do tie at 4 per topic (10 topics × 4), so there is no true \"most mentioned\" order. The artboard says so and breaks ties by the number of distinct people, which is a disclosed choice. The diff only adds code and a new section, so the five existing artboards are untouched. The screenshot shows a board overlay (\"Pricing 0\") over the artboard, but that is board chrome, not the artboard.",
       "unknown": false
     }
   },
   "invPass": true,
-  "qualPass": false,
+  "qualPass": true,
   "judge": {
     "verdict": "pass",
     "score": 4,
-    "why": "The diff adds an \"Onboarding feedback\" artboard with a 10-row checklist built from the 40 Onboarding stickies. It uses the canvas's dark maude tokens and the existing Check component, and the five existing artboards are untouched. The board data confirms each topic has exactly 4 stickies, so \"most mentioned first\" is a genuine tie. The artboard says so and breaks ties by number of people, which is honest. Minor gaps: the final message doesn't mention the tie, and I didn't see a screenshot.",
-    "costUsd": 0.06970860000000001,
+    "why": "The new \"Onboarding feedback\" artboard has all 10 topics as a numbered checklist in the dark maude style, using the DS tokens and the Check component. The 40 Onboarding stickies do tie at 4 per topic (10 topics × 4), so there is no true \"most mentioned\" order. The artboard says so and breaks ties by the number of distinct people, which is a disclosed choice. The diff only adds code and a new section, so the five existing artboards are untouched. The screenshot shows a board overlay (\"Pricing 0\") over the artboard, but that is board chrome, not the artboard.",
+    "costUsd": 0.1526925,
     "model": "sonnet"
   },
   "render": {
@@ -114,8 +114,8 @@
       {
         "canvas": "ui/GitPanel.tsx",
         "artboard": "onboarding-feedback",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       }
     ]
   },

@@ -89,22 +89,22 @@
       "why": "success"
     },
     "render-non-blank": {
-      "pass": false,
-      "why": "loading: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/GitPanel.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/GitPanel.tsx — no screenshot written; error: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/GitPanel.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/GitPanel.tsx — no screenshot written; offline: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/GitPanel.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/GitPanel.tsx — no screenshot written; changes: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/GitPanel.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/GitPanel.tsx — no screenshot written"
+      "pass": true,
+      "why": ""
     },
     "judge": {
       "pass": true,
-      "why": "pass (4): F Loading, G Error and H Offline are added through the existing ShellFrame, Board and PanelHead, at the same 940×880 size as artboards D and E. Their copy uses the panel's vocabulary (Save version, Publish, Get latest, History). The changes to existing code are optional props, so A–E should render as before. I couldn't look at any screenshots, and the assistant admitted it only checked them at a tiny scale, so visual quality is unverified.",
+      "why": "pass (4): The diff adds three artboards (F Loading, G Error, H Offline) using the existing ShellFrame and PanelHead and the same 940×880 size as the other narrow artboards. The copy uses Save version, Publish, Get latest and View History, and artboards A–E are untouched apart from a subtitle count and optional props. The screenshots are tiny, so visual quality can't be confirmed, and the panel notes weren't saved. Overall it looks like a reasonable pass.",
       "unknown": false
     }
   },
   "invPass": false,
-  "qualPass": false,
+  "qualPass": true,
   "judge": {
     "verdict": "pass",
     "score": 4,
-    "why": "F Loading, G Error and H Offline are added through the existing ShellFrame, Board and PanelHead, at the same 940×880 size as artboards D and E. Their copy uses the panel's vocabulary (Save version, Publish, Get latest, History). The changes to existing code are optional props, so A–E should render as before. I couldn't look at any screenshots, and the assistant admitted it only checked them at a tiny scale, so visual quality is unverified.",
-    "costUsd": 0.0492955,
+    "why": "The diff adds three artboards (F Loading, G Error, H Offline) using the existing ShellFrame and PanelHead and the same 940×880 size as the other narrow artboards. The copy uses Save version, Publish, Get latest and View History, and artboards A–E are untouched apart from a subtitle count and optional props. The screenshots are tiny, so visual quality can't be confirmed, and the panel notes weren't saved. Overall it looks like a reasonable pass.",
+    "costUsd": 0.053462300000000004,
     "model": "sonnet"
   },
   "render": {
@@ -114,26 +114,26 @@
       {
         "canvas": "ui/GitPanel.tsx",
         "artboard": "loading",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       },
       {
         "canvas": "ui/GitPanel.tsx",
         "artboard": "error",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       },
       {
         "canvas": "ui/GitPanel.tsx",
         "artboard": "offline",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       },
       {
         "canvas": "ui/GitPanel.tsx",
         "artboard": "changes",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       }
     ]
   },

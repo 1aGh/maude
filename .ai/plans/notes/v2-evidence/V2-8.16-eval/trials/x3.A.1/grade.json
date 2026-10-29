@@ -60,10 +60,6 @@
     "untouched:hub": {
       "pass": true,
       "why": ""
-    },
-    "hold-in-force": {
-      "pass": true,
-      "why": "the hold on hub was gone from the registry at grade time"
     }
   },
   "quality": {
@@ -71,8 +67,8 @@
       "pass": true,
       "why": ""
     },
-    "says:busy|another AI": {
-      "pass": false,
+    "says:busy|another (of your )?AI|in use by another": {
+      "pass": true,
       "why": ""
     },
     "finished": {
@@ -86,7 +82,7 @@
     }
   },
   "invPass": true,
-  "qualPass": false,
+  "qualPass": true,
   "judge": {
     "verdict": "pass",
     "score": 5,

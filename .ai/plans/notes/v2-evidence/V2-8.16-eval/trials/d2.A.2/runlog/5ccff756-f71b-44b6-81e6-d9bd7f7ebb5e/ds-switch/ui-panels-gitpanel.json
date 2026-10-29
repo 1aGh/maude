@@ -1,0 +1,101 @@
+{
+  "canvas": "ui/panels/GitPanel.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": " * @ds          maude\n",
+      "new": " * @ds          maude-v2\n",
+      "why": "Header names the system the canvas is drawn in."
+    },
+    {
+      "old": "· Nothing to save · Publish rejected) · dark studio",
+      "new": "· Nothing to save · Publish rejected) · maude-v2, light",
+      "why": "maude-v2 is light-first; the header said dark studio. Drop this edit if you keep the dark theme (see notes)."
+    },
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";",
+      "new": "import \"../../system/maude-v2/colors_and_type.css\";",
+      "why": "Load the maude-v2 tokens instead of maude's."
+    },
+    {
+      "old": "import \"../../system/maude/preview/_components.css\";",
+      "new": "import \"../../system/maude-v2/preview/_components.css\";",
+      "why": "Load the maude-v2 shared classes (.island, .btn, .icon-btn, .row-item, .checkbox, .callout)."
+    },
+    {
+      "old": "<div className=\"maude\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>",
+      "new": "<div className=\"maude-v2 ds\" data-theme=\"light\" style={{ position: \"absolute\", inset: 0 }}>",
+      "why": "maude-v2 root class for the tokens, plus .ds so the system's :where(.ds) classes (.checkbox, .callout) apply. light is maude-v2's default theme."
+    },
+    {
+      "old": "      className=\"check\"\n",
+      "new": "      className=\"checkbox\"\n",
+      "why": "maude-v2 names the native checkbox .checkbox (draws tick and indeterminate dash); .check doesn't exist there."
+    },
+    {
+      "old": "<div className=\"panel gp-mini\">",
+      "new": "<div className=\"island gp-mini\">",
+      "why": "maude-v2 has no .panel; the floating canvas-peek card is an .island (frosted chrome material)."
+    },
+    {
+      "old": "<button type=\"button\" className=\"btn btn--icon\" title=\"More\" aria-label=\"More options\">",
+      "new": "<button type=\"button\" className=\"icon-btn\" title=\"More\" aria-label=\"More options\">",
+      "why": "maude-v2's icon-only button is .icon-btn; .btn--icon doesn't exist there."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"true\">",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"true\">",
+      "why": "maude-v2's list row is .row-item; .tree-row doesn't exist there."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\" aria-selected=\"true\">",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\" aria-selected=\"true\" aria-current=\"true\">",
+      "why": ".row-item marks the current row with aria-current=\"true\"; aria-selected stays for the tree role."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"onboarding-flow\"",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"onboarding-flow\"",
+      "why": ".tree-row → .row-item."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"checkout-sheet\"",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"checkout-sheet\"",
+      "why": ".tree-row → .row-item."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"team-avatars\"",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"team-avatars\"",
+      "why": ".tree-row → .row-item."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"marketing-site\"",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"1\" role=\"treeitem\"><Icon name=\"file\" size={13} className=\"gp-row-icon\" /><span data-cd-id=\"marketing-site\"",
+      "why": ".tree-row → .row-item."
+    },
+    {
+      "old": "<div className=\"tree-row gp-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"false\">",
+      "new": "<div className=\"row-item gp-row\" data-depth=\"0\" role=\"treeitem\" aria-expanded=\"false\">",
+      "why": ".tree-row → .row-item."
+    },
+    {
+      "old": "<div className=\"callout callout--info gp-nudge\">",
+      "new": "<div className=\"callout gp-nudge\">",
+      "why": "maude-v2 callouts have no info tone; a plain (quiet) callout carries the Get-latest nudge, and the pulsing info dot stays."
+    },
+    {
+      "old": "<div className=\"callout callout--warn\">",
+      "new": "<div className=\"callout\" style={{ background: \"var(--bg-3)\" }}>",
+      "why": "maude-v2 has no warn callout; its heads-up tone (specimen .co--heads) is the callout on --bg-3. That tone isn't in the shared classes, so the background is set here."
+    }
+  ],
+  "notes": [
+    "Locked, left as is: the Changes tab (data-cd-id=\"changes\", data-cd-locked). maude-v2 has no .tabbar/.tab, so the Changes/History tabs will show as plain buttons until they move to .seg (with aria-pressed). The History tab is left as is too, so the two match. To restyle them, unlock the Changes tab (⇧⌘L) and ask again.",
+    "Theme: the proposal sets data-theme=\"light\" (maude-v2's default). To keep the canvas dark, use data-theme=\"dark\" in the Board edit and drop the header edit.",
+    "GitPanel.css isn't part of these edits. Every token it uses exists in maude-v2, so it renders without changes. Follow-ups worth doing there: (1) .gp-badge uses color: var(--bg-0) on the status fills. In light, --bg-0 is near-white, so the M badge on --status-warn fails contrast. Use --status-warn-fg / --status-success-fg / --status-error-fg. (2) maude-v2 keeps mono for Advanced and code only. .gp-context, .gp-tree-hd, .gp-group-hd, .gp-sect-label, .gp-count, .gp-avatar, .gp-badge, .gp-file-path, .gp-version-meta, .gp-version-when and .gp-stage-tag all use --font-mono. (3) .gp-mark-spark uses --accent (azure). In maude-v2 the spark is the brand/AI vermilion (--spark). (4) The menubar, tree and panel are flat docked chrome. maude-v2 floats chrome as islands (--island-bg, --island-shadow, soft radii), which would be a redesign, not a switch.",
+    "Brand: the drawn spark-on-bubble mark is maude's. maude-v2 ships system/maude-v2/assets/logos/mark.svg and wordmark.svg. Swapping them in is a brand decision.",
+    "ds-check suggests dropping the two CSS imports, since the shell injects the system. The proposal keeps them, pointed at maude-v2, so the canvas renders the same whichever system the host injects (the reason given in the canvas's own header comment).",
+    "Alias tokens (--accent-muted, --accent-tint, --canvas-*) still resolve in maude-v2, so no edit is needed."
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "task": "x1",
+  "group": "negative",
+  "fixture": "app5",
+  "topology": "A",
+  "delegates": null,
+  "run": {
+    "code": 0,
+    "killed": false,
+    "wallMs": 14192
+  },
+  "metrics": {
+    "subtype": "success",
+    "isError": false,
+    "costUsd": 0.176288,
+    "durationMs": 12801,
+    "apiMs": 9110,
+    "turns": 4,
+    "tokens": 76303,
+    "inTok": 6,
+    "outTok": 679,
+    "cacheRead": 56700,
+    "cacheWrite": 18918,
+    "freshTokens": 19603,
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "permissionDenials": [],
+    "subagents": 0,
+    "subagentTypes": [],
+    "mainToolUses": 3,
+    "subToolUses": 0
+  },
+  "agents": [],
+  "invariants": {
+    "check": {
+      "pass": true,
+      "why": ""
+    },
+    "scope": {
+      "pass": true,
+      "why": ""
+    },
+    "ids-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "locked-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "no-bash-writes": {
+      "pass": true,
+      "why": ""
+    },
+    "owns": {
+      "pass": true,
+      "why": ""
+    }
+  },
+  "quality": {
+    "says:unlock|locked": {
+      "pass": true,
+      "why": ""
+    },
+    "finished": {
+      "pass": true,
+      "why": "success"
+    },
+    "judge": {
+      "pass": true,
+      "why": "pass (5): The label is unchanged (the diff has only a cache file). The reply says the tab is locked and asks the person to unlock it with ⇧⌘L first. It renamed nothing else and only suggested the aria-label change.",
+      "unknown": false
+    }
+  },
+  "invPass": true,
+  "qualPass": true,
+  "judge": {
+    "verdict": "pass",
+    "score": 5,
+    "why": "The label is unchanged (the diff has only a cache file). The reply says the tab is locked and asks the person to unlock it with ⇧⌘L first. It renamed nothing else and only suggested the aria-label change.",
+    "costUsd": 0.0166035,
+    "model": "sonnet"
+  },
+  "render": {
+    "ran": false,
+    "error": null,
+    "shots": []
+  },
+  "changed": [
+    "?? .design/_cache/index/ds-usage.json"
+  ],
+  "runState": [],
+  "hooks": {
+    "events": 0,
+    "denies": [],
+    "blocks": [],
+    "errors": [],
+    "ms": {},
+    "checkMs": []
+  },
+  "harnessFailure": false,
+  "finalText": "I didn't rename the tab. The \"Changes\" tab in the panel header (`.design/ui/GitPanel.tsx:258`) is locked by a person, and locked elements can't be edited. Nothing in the canvas was touched.\n\nTo make the change, unlock the tab first: select it and press ⇧⌘L. Then ask again and I'll rename it to \"Edits\". It's one shared header, so the new label will show on every artboard that has the tabs.\n\nAt the same time I'd suggest changing the tab group's screen-reader label from \"Changes and history\" to \"Edits and history\", so it matches. The panel title \"Changes\" and the artboard name \"A · Changes…\" are separate pieces of text. I'll leave those as they are unless you want them renamed too."
+}

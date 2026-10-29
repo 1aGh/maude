@@ -89,22 +89,22 @@
       "why": "success"
     },
     "render-non-blank": {
-      "pass": false,
-      "why": "fb-event-cover: capture failed ✗ navigation failed: http://localhost:48399/_canvas-shell.html?canvas=ui/2026/combine/Combine-kampan.tsx | ✗ could not load http://localhost:48399/_canvas-shell.html?canvas=ui/2026/combine/Combine-kampan.tsx — no screenshot written"
+      "pass": true,
+      "why": ""
     },
     "judge": {
       "pass": true,
-      "why": "pass (3): The FB event cover headline went from 112 to 140 px (about 25% larger), and the block moved up 30 px to keep clear of the bottom band. The other artboards' rendering is unchanged: the slide ids in the hand-written version match the original `disc-${d.id}` ids. Two weaknesses: the assistant rewrote the disc-slide `.map` into seven hand-written artboards, which nobody asked for, and fit inside the mobile safe zone was never verified.",
+      "why": "pass (3): The FB cover headline went from 112px to 140px (a 25% increase), with the block moved up 30px. The 6-letter words should fit the roughly 1240px text column, and the tiny screenshot shows no overflow. The run also rewrote the discipline-slide .map into 7 hand-written artboards, which nobody asked for, but it renders the same. Other artboards are visually unchanged. Fit against the bottom band and safe zone is only weakly verified.",
       "unknown": false
     }
   },
   "invPass": false,
-  "qualPass": false,
+  "qualPass": true,
   "judge": {
     "verdict": "pass",
     "score": 3,
-    "why": "The FB event cover headline went from 112 to 140 px (about 25% larger), and the block moved up 30 px to keep clear of the bottom band. The other artboards' rendering is unchanged: the slide ids in the hand-written version match the original `disc-${d.id}` ids. Two weaknesses: the assistant rewrote the disc-slide `.map` into seven hand-written artboards, which nobody asked for, and fit inside the mobile safe zone was never verified.",
-    "costUsd": 0.033980500000000004,
+    "why": "The FB cover headline went from 112px to 140px (a 25% increase), with the block moved up 30px. The 6-letter words should fit the roughly 1240px text column, and the tiny screenshot shows no overflow. The run also rewrote the discipline-slide .map into 7 hand-written artboards, which nobody asked for, but it renders the same. Other artboards are visually unchanged. Fit against the bottom band and safe zone is only weakly verified.",
+    "costUsd": 0.03823,
     "model": "sonnet"
   },
   "render": {
@@ -114,8 +114,8 @@
       {
         "canvas": "ui/2026/combine/Combine-kampan.tsx",
         "artboard": "fb-event-cover",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       }
     ]
   },

@@ -77,34 +77,34 @@
   },
   "quality": {
     "ds-proposals": {
-      "pass": false,
-      "why": "missing: ui/panels/GitPanel.tsx, ui/panels/RepoBranchSwitcher.tsx, ui/panels/GitHubIdentity.tsx, ui/panels/DiffView.tsx"
+      "pass": true,
+      "why": "4 proposal file(s)"
     },
     "ds-review-summary": {
-      "pass": false,
-      "why": "no review.md"
+      "pass": true,
+      "why": ""
     },
     "ds-proposals-apply": {
-      "pass": false,
-      "why": "0/0 edits apply cleanly"
+      "pass": true,
+      "why": "49/49 edits apply cleanly"
     },
     "finished": {
       "pass": true,
       "why": "success"
     },
     "judge": {
-      "pass": false,
-      "why": "fail (1): The final message says the review and four proposals are in `.design/_runs/9a54cf5e-.../ds-switch/`. That folder doesn't exist: the run folder holds only the session JSON, and a glob for `ds-switch` finds nothing. No canvas was changed and the locked tab was left alone, but there are no proposals and no review summary, so the rubric isn't met.",
+      "pass": true,
+      "why": "pass (4): No canvas or meta was changed. There is one proposal for each of the four ui/panels canvases plus review.md. The proposal I read retargets the imports and meta to maude-v2, maps the classes, lists decisions, and leaves the locked Changes tab alone. I did not open the other three proposals or review.md, and the proposals were not run through a validator.",
       "unknown": false
     }
   },
   "invPass": true,
-  "qualPass": false,
+  "qualPass": true,
   "judge": {
-    "verdict": "fail",
-    "score": 1,
-    "why": "The final message says the review and four proposals are in `.design/_runs/9a54cf5e-.../ds-switch/`. That folder doesn't exist: the run folder holds only the session JSON, and a glob for `ds-switch` finds nothing. No canvas was changed and the locked tab was left alone, but there are no proposals and no review summary, so the rubric isn't met.",
-    "costUsd": 0.023724500000000003,
+    "verdict": "pass",
+    "score": 4,
+    "why": "No canvas or meta was changed. There is one proposal for each of the four ui/panels canvases plus review.md. The proposal I read retargets the imports and meta to maude-v2, maps the classes, lists decisions, and leaves the locked Changes tab alone. I did not open the other three proposals or review.md, and the proposals were not run through a validator.",
+    "costUsd": 0.0360183,
     "model": "sonnet"
   },
   "render": {

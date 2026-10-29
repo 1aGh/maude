@@ -2,7 +2,7 @@
   "cwd": "/var/folders/t_/kf80xz3j79sfmkrq4snj2qk00000gn/T/maude-agent-evals/v2-8.16/trials/e5.A.1/project",
   "args": [
     "-p",
-    "Add a small 'Partneři akce' line above the sponsor logos on the IG event square post of the Combine campaign canvas.",
+    "Add a small 'Partneři akce' line just above the green bottom bar on the IG event square post of the Combine campaign canvas.",
     "--model",
     "claude-opus-5-5",
     "--effort",

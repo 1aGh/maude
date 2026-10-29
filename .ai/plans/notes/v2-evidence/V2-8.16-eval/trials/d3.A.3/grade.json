@@ -1,0 +1,117 @@
+{
+  "task": "d3",
+  "group": "ds",
+  "fixture": "multids",
+  "topology": "A",
+  "delegates": null,
+  "run": {
+    "code": 0,
+    "killed": false,
+    "wallMs": 79678
+  },
+  "metrics": {
+    "subtype": "success",
+    "isError": false,
+    "costUsd": 0.5514818,
+    "durationMs": 78099,
+    "apiMs": 74247,
+    "turns": 27,
+    "tokens": 472444,
+    "inTok": 24,
+    "outTok": 5451,
+    "cacheRead": 422229,
+    "cacheWrite": 44740,
+    "freshTokens": 50215,
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "permissionDenials": [
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"cd \\\"$PWD\\\"; ls .design .design/system; maude design ds status 2>&1 | head -50; maude design ds usage 2>&1 | head -60\",\"description\":\"List design files and design system usage\"}"
+      },
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"cd .design/system; for d in maude maude-v2; do grep -oE '^\\\\s*--[a-zA-Z0-9_-]+' $d/colors_and_type.css | tr -d ' ' | sort -u > /private/tmp/claude-501/-private-var-folders-t--kf80xz3j79sfm"
+      }
+    ],
+    "subagents": 0,
+    "subagentTypes": [],
+    "mainToolUses": 26,
+    "subToolUses": 0
+  },
+  "agents": [],
+  "invariants": {
+    "check": {
+      "pass": true,
+      "why": ""
+    },
+    "scope": {
+      "pass": true,
+      "why": ""
+    },
+    "ids-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "locked-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "no-bash-writes": {
+      "pass": true,
+      "why": ""
+    },
+    "owns": {
+      "pass": true,
+      "why": ""
+    }
+  },
+  "quality": {
+    "finished": {
+      "pass": true,
+      "why": "success"
+    },
+    "judge": {
+      "pass": true,
+      "why": "pass (4): It lists the four ui/panels canvases as maude and 00 Index as already maude-v2. It names the hard-coded CSS imports, the maude wrapper class, maude-only callout and danger styles, and token renames. Nothing was changed apart from a cache file in an already-untracked folder. It never mentions the dark vs light default, only a general look change from the azure accent.",
+      "unknown": false
+    }
+  },
+  "invPass": true,
+  "qualPass": true,
+  "judge": {
+    "verdict": "pass",
+    "score": 4,
+    "why": "It lists the four ui/panels canvases as maude and 00 Index as already maude-v2. It names the hard-coded CSS imports, the maude wrapper class, maude-only callout and danger styles, and token renames. Nothing was changed apart from a cache file in an already-untracked folder. It never mentions the dark vs light default, only a general look change from the azure accent.",
+    "costUsd": 0.0250535,
+    "model": "sonnet"
+  },
+  "render": {
+    "ran": false,
+    "error": null,
+    "shots": []
+  },
+  "changed": [
+    "?? .design/_cache/index/ds-usage.json"
+  ],
+  "runState": [
+    {
+      "session": "2f43b814-d593-4007-bc6e-3428309b9440",
+      "touched": {},
+      "stopBlocks": 0,
+      "shots": 0,
+      "bases": 4
+    }
+  ],
+  "hooks": {
+    "events": 0,
+    "denies": [],
+    "blocks": [],
+    "errors": [],
+    "ms": {},
+    "checkMs": []
+  },
+  "harnessFailure": false,
+  "finalText": "Four canvases use the **maude** design system, all in `ui/panels/`: **GitPanel**, **DiffView**, **GitHubIdentity** and **RepoBranchSwitcher**. The only other canvas, `ui/v2/00 Index`, is already on maude-v2.\n\nA dry run of the switch says all four can move: nothing pins them to maude, and both systems pass the same checks. These are the things that would need attention:\n\n**1. Coloured callouts and the danger button would lose their styling.** This is the main issue. maude-v2 has a plain `.callout` but no info, success, warn or error colours, and no danger button style. These canvases use them:\n- **GitPanel:** the info callout for the \"Get latest\" nudge (lines 320 and 322) and the warn callout for \"Publish didn't go through\" (line 364).\n- **GitHubIdentity:** the red Sign out button (line 249) and the edge-states column, which uses all four callout colours (lines 262–294).\n- **DiffView:** one info callout (line 187).\n\nSomeone has to decide whether to add these styles to maude-v2 or restyle those elements on the canvases.\n\n**2. The canvases still load maude's files and wrapper class directly.** Each canvas imports `system/maude/colors_and_type.css` and `system/maude/preview/_components.css`, and wraps its content in a `maude` class. maude-v2 only styles content inside a `.ds` wrapper, so the wrapper has to change too, or even the plain callout won't pick up v2's look. RepoBranchSwitcher has six of these wrappers; the others have one each. The checker can fix the imports and wrappers automatically.\n\n**3. Old token names need renaming.** All four use `--accent-muted`, `--accent-tint` and `--canvas-bg/dot/grid`, and RepoBranchSwitcher also uses `--presence-agent`. maude-v2 still accepts them as aliases, so nothing breaks right away, but the checker suggests changing them to `--accent-soft`, `--selection` and the `--x-*` names.\n\n**4. The look will change.** maude-v2 has an azure accent and about 240 tokens against maude's 153, so all four will look different after the switch. They're all marked handed-off, so whoever took them over should know.\n\n**5. Smaller things:**\n- Each canvas has about 20–35 warnings for hard-coded font sizes, font weights, spacing and inline SVG icons. They're warnings only and don't block the switch.\n- GitPanel has one element locked by a person: the \"Changes\" tab (line 258). The switch shouldn't need to touch it, but if it does, someone has to unlock it first.\n- Both systems have an out-of-date `tokens.json`, so it's worth regenerating those before the move.\n\nI didn't change any files or write a switch proposal. Two commands I tried were denied automatically because no one could approve them: a status check and a script to list every token. I got the same information through other checks."
+}

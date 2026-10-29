@@ -89,22 +89,22 @@
       "why": "success"
     },
     "render-non-blank": {
-      "pass": false,
-      "why": "oznameni-1x1: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/2026/combine/Combine-oznameni.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/2026/combine/Combine-oznameni.tsx — no screenshot written; oznameni-4x5: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/2026/combine/Combine-oznameni.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/2026/combine/Combine-oznameni.tsx — no screenshot written; oznameni-9x16: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/2026/combine/Combine-oznameni.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/2026/combine/Combine-oznameni.tsx — no screenshot written; oznameni-16x9: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/2026/combine/Combine-oznameni.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/2026/combine/Combine-oznameni.tsx — no screenshot written"
+      "pass": true,
+      "why": ""
     },
     "judge": {
       "pass": true,
-      "why": "pass (4): The new canvas in ui/2026/combine/ has four artboards (1:1, 4:5, 9:16 and 1920×1080 16:9). They use Alligators green and yellow, the STOPKY NELŽOU claim, camo, a ghost A and the scute divider. All of them carry the same Czech copy, the 7. 10. 2026 date, 18:00–21:00 and Atletický stadion CESA. All imports resolve to real exports, but I could not check the rendering. The set has no photos, and the story has a dashed \"vlož IG odkazový sticker\" placeholder box that will show on the artboard.",
+      "why": "pass (4): The canvas has four artboards in 1:1, 4:5, 9:16 and 16:9. They share one campaign look: green and yellow, outlined display type, the logo, a grass edge, and Czech copy with the correct date, time and venue. Small flaws: the 1:1 and 4:5 artboards say \"Stadion CESA\" rather than \"Atletický stadion CESA\", and the 9:16 story has a dashed \"slot pro sticker\" placeholder that looks unfinished. The shots are tiny and the story's top and bottom UI bars are overlays, so this is judged as a pass with minor reservations.",
       "unknown": false
     }
   },
   "invPass": true,
-  "qualPass": false,
+  "qualPass": true,
   "judge": {
     "verdict": "pass",
     "score": 4,
-    "why": "The new canvas in ui/2026/combine/ has four artboards (1:1, 4:5, 9:16 and 1920×1080 16:9). They use Alligators green and yellow, the STOPKY NELŽOU claim, camo, a ghost A and the scute divider. All of them carry the same Czech copy, the 7. 10. 2026 date, 18:00–21:00 and Atletický stadion CESA. All imports resolve to real exports, but I could not check the rendering. The set has no photos, and the story has a dashed \"vlož IG odkazový sticker\" placeholder box that will show on the artboard.",
-    "costUsd": 0.0755363,
+    "why": "The canvas has four artboards in 1:1, 4:5, 9:16 and 16:9. They share one campaign look: green and yellow, outlined display type, the logo, a grass edge, and Czech copy with the correct date, time and venue. Small flaws: the 1:1 and 4:5 artboards say \"Stadion CESA\" rather than \"Atletický stadion CESA\", and the 9:16 story has a dashed \"slot pro sticker\" placeholder that looks unfinished. The shots are tiny and the story's top and bottom UI bars are overlays, so this is judged as a pass with minor reservations.",
+    "costUsd": 0.0312503,
     "model": "sonnet"
   },
   "render": {
@@ -114,26 +114,26 @@
       {
         "canvas": "ui/2026/combine/Combine-oznameni.tsx",
         "artboard": "oznameni-1x1",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       },
       {
         "canvas": "ui/2026/combine/Combine-oznameni.tsx",
         "artboard": "oznameni-4x5",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       },
       {
         "canvas": "ui/2026/combine/Combine-oznameni.tsx",
         "artboard": "oznameni-9x16",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       },
       {
         "canvas": "ui/2026/combine/Combine-oznameni.tsx",
         "artboard": "oznameni-16x9",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       }
     ]
   },

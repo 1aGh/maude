@@ -1,0 +1,36 @@
+{
+  "canvas": "ui/panels/DiffView.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": " * @ds          maude\n",
+      "new": " * @ds          maude-v2\n",
+      "why": "Header names the system the canvas uses."
+    },
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";",
+      "new": "import \"../../system/maude-v2/colors_and_type.css\";",
+      "why": "Tokens come from maude-v2. Every token this canvas and DiffView.css use exists in maude-v2 under the same name (--dv-split is local)."
+    },
+    {
+      "old": "import \"../../system/maude/preview/_components.css\";",
+      "new": "import \"../../system/maude-v2/preview/_components.css\";",
+      "why": "Shared component classes come from maude-v2."
+    },
+    {
+      "old": "return <div className=\"maude\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "new": "return <div className=\"maude-v2 ds\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "why": "maude-v2 scopes its tokens to .maude-v2[data-theme] (the .maude scope would no longer match), and its core components (callout, card, dialog, checkbox) only apply under :where(.ds)."
+    }
+  ],
+  "notes": [
+    "To apply by hand: the three Close buttons (artboards compare, overlay, conflict) use className=\"btn btn--icon dv-close\". maude-v2 has no btn--icon; its icon button is .icon-btn. The line is identical three times, so it is not listed as a single-match edit: replace 'btn btn--icon dv-close' with 'icon-btn dv-close' in all three.",
+    "Decision: .panel (3 uses, panel dv-sheet) has no maude-v2 rule; closest is .island (ext.Island). The local dv-sheet styling keeps the sheet visible.",
+    "Decision: callout--info has no tone in maude-v2 (Callout variants are all null). Base .callout applies under .ds; the info tint is lost unless DiffView.css adds it.",
+    "Line heights change from fixed px to ratios (DiffView.css uses --lh-* twice): text runs slightly tighter.",
+    "maude-v2's :root default is light; this canvas sets data-theme=\"dark\" explicitly, so it stays dark.",
+    "Comments only: DiffView.css lines 3 and 210 still mention system/maude. The design is 'handed-off' (handoffCommit 97859dc); DiffView.registry.json describes the maude build until the handoff is redone."
+  ]
+}

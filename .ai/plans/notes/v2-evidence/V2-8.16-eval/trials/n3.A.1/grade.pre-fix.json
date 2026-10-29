@@ -1,0 +1,213 @@
+{
+  "task": "n3",
+  "group": "new",
+  "fixture": "multids",
+  "topology": "A",
+  "delegates": "artboard-drafter",
+  "run": {
+    "code": 0,
+    "killed": false,
+    "wallMs": 458826
+  },
+  "metrics": {
+    "subtype": "success",
+    "isError": false,
+    "costUsd": 3.800177600000001,
+    "durationMs": 456597,
+    "apiMs": 419015,
+    "turns": 81,
+    "tokens": 8088439,
+    "inTok": 120,
+    "outTok": 41234,
+    "cacheRead": 7872008,
+    "cacheWrite": 175077,
+    "freshTokens": 216431,
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "permissionDenials": [
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"cd \\\"$PWD\\\"; ls -la .design .design/ui .design/ui/v2 2>&1; ls .design/system; cat .design/_server.json; maude design runs list 2>&1 | head\",\"description\":\"Inspect design workspace and syst"
+      },
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"grep -n -o '.\\\\{0,600\\\\}_api/canvas[^-/a-z].\\\\{0,900\\\\}' /Users/iagh/git/personal/maude/plugins/design/skills/design/_guide-08-command-routing.md\",\"description\":\"Show how the canvas-create"
+      },
+      {
+        "tool": "Bash",
+        "input": "{\"command\":\"maude design check \\\".design/ui/v2/Mobile onboarding.tsx\\\" --strict 2>&1 | tail -15; S=/private/tmp/claude-501/-private-var-folders-t--kf80xz3j79sfmkrq4snj2qk00000gn-T-maude-agent-evals-v2"
+      }
+    ],
+    "subagents": 0,
+    "subagentTypes": [],
+    "mainToolUses": 79,
+    "subToolUses": 0
+  },
+  "agents": [],
+  "invariants": {
+    "check": {
+      "pass": true,
+      "why": ""
+    },
+    "scope": {
+      "pass": true,
+      "why": ""
+    },
+    "ids-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "locked-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "no-bash-writes": {
+      "pass": true,
+      "why": ""
+    },
+    "owns": {
+      "pass": true,
+      "why": ""
+    }
+  },
+  "quality": {
+    "new-canvas": {
+      "pass": true,
+      "why": "ui/v2/Mobile onboarding.tsx: 6 artboards"
+    },
+    "new-canvas-meta": {
+      "pass": true,
+      "why": "ui/v2/Mobile onboarding.meta.json"
+    },
+    "finished": {
+      "pass": true,
+      "why": "success"
+    },
+    "render-non-blank": {
+      "pass": false,
+      "why": "mo-welcome: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx — no screenshot written; mo-sign-in: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx — no screenshot written; mo-projects: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx — no screenshot written; mo-notifications: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx — no screenshot written; mo-ask-ai: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx — no screenshot written; mo-done: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx — no screenshot written"
+    },
+    "judge": {
+      "pass": true,
+      "why": "pass (4): The canvas has six 390×844 artboards, ordered 1–6. They share one Phone layout with a step-progress bar, with real copy and no lorem ipsum, and each screen has content. It uses the maude-v2 kit and tokens. Light-theme rendering was not visually verified and no screenshots were available to me, and the file's header comment still describes a blank canvas.",
+      "unknown": false
+    }
+  },
+  "invPass": true,
+  "qualPass": false,
+  "judge": {
+    "verdict": "pass",
+    "score": 4,
+    "why": "The canvas has six 390×844 artboards, ordered 1–6. They share one Phone layout with a step-progress bar, with real copy and no lorem ipsum, and each screen has content. It uses the maude-v2 kit and tokens. Light-theme rendering was not visually verified and no screenshots were available to me, and the file's header comment still describes a blank canvas.",
+    "costUsd": 0.0533514,
+    "model": "sonnet"
+  },
+  "render": {
+    "ran": true,
+    "error": null,
+    "shots": [
+      {
+        "canvas": "ui/v2/Mobile onboarding.tsx",
+        "artboard": "mo-welcome",
+        "blank": null,
+        "exit": 3
+      },
+      {
+        "canvas": "ui/v2/Mobile onboarding.tsx",
+        "artboard": "mo-sign-in",
+        "blank": null,
+        "exit": 3
+      },
+      {
+        "canvas": "ui/v2/Mobile onboarding.tsx",
+        "artboard": "mo-projects",
+        "blank": null,
+        "exit": 3
+      },
+      {
+        "canvas": "ui/v2/Mobile onboarding.tsx",
+        "artboard": "mo-notifications",
+        "blank": null,
+        "exit": 3
+      },
+      {
+        "canvas": "ui/v2/Mobile onboarding.tsx",
+        "artboard": "mo-ask-ai",
+        "blank": null,
+        "exit": 3
+      },
+      {
+        "canvas": "ui/v2/Mobile onboarding.tsx",
+        "artboard": "mo-done",
+        "blank": null,
+        "exit": 3
+      }
+    ]
+  },
+  "changed": [
+    "?? .design/_cache/index/ds-usage.json",
+    "?? .design/ui/v2/Mobile onboarding.css",
+    "?? .design/ui/v2/Mobile onboarding.meta.json",
+    "?? .design/ui/v2/Mobile onboarding.tsx"
+  ],
+  "runState": [
+    {
+      "session": "e4af7244-6cb6-43ba-b4d2-7c42a6f18d4b",
+      "touched": {
+        "ui/Mobile onboarding.meta.json": {
+          "at": 1793184971612,
+          "by": "main",
+          "via": "bash",
+          "artboards": null
+        },
+        "ui/Mobile onboarding.tsx": {
+          "at": 1793184971612,
+          "by": "main",
+          "via": "bash",
+          "artboards": null
+        },
+        "ui/v2/Mobile onboarding.css": {
+          "at": 1793185324933,
+          "by": "main",
+          "via": "tool",
+          "artboards": []
+        },
+        "ui/v2/Mobile onboarding.tsx": {
+          "at": 1793185327088,
+          "by": "main",
+          "via": "tool",
+          "artboards": [
+            "mo-welcome",
+            "mo-sign-in",
+            "mo-projects",
+            "mo-notifications",
+            "mo-ask-ai",
+            "mo-done"
+          ]
+        },
+        "ui/v2/Mobile onboarding.meta.json": {
+          "at": 1793185153595,
+          "by": "main",
+          "via": "tool",
+          "artboards": []
+        }
+      },
+      "stopBlocks": 0,
+      "shots": 32,
+      "bases": 3
+    }
+  ],
+  "hooks": {
+    "events": 1,
+    "denies": [],
+    "blocks": [
+      "posttooluse:0 [meta-unknown-field] ui/v2/Mobile onboarding.meta.json › \""
+    ],
+    "errors": [],
+    "ms": {},
+    "checkMs": []
+  },
+  "harnessFailure": false,
+  "finalText": "I've made the new canvas **ui/v2/Mobile onboarding.tsx** in maude-v2: six 390 × 844 artboards for a \"Maude for iPhone\" onboarding. The strict check passes, and a full-canvas screenshot shows all six screens rendering completely.\n\nYou didn't say what the app was, so I assumed it's for looking at work, answering comments and asking AI, while making things stays on the Mac.\n\n| # | Artboard | What it shows |\n|---|---|---|\n| 1 | Welcome | A small canvas with artboards, a sticky note, Tereza's comment and the AI cursor, then \"Your canvases, wherever you are.\" One Continue button. |\n| 2 | Sign in | Sign in with your cloud.maude.sh account: Apple, Google or an emailed link. One line on the 14-day free trial. |\n| 3 | Pick projects | Choose which projects open first on Home (two are picked), plus a switch to keep them on the phone for offline use (about 240 MB). Can be skipped. |\n| 4 | Notifications | Two sample notifications (a mention, and AI finishing), three switches, and Allow notifications or Not now. |\n| 5 | Ask AI | AI changing an Instagram post from one sentence. \"Connect your Claude account\" is azure with the spark as its icon, and one line says AI uses your own Claude account. Can be left for later. |\n| 6 | You're in | Opens on Tereza's mention and its canvas, then recent canvases. Open the comment, or Go to Home. |\n\n- **Layout and words:** the screens follow the system's rules: headings in SF Pro Rounded, azure for actions, vermilion only for AI, colours from the system's tokens, and no exclamation marks.\n- **Files:** the six screens are in the `.tsx` and the styles are in a new `ui/v2/Mobile onboarding.css`. The canvas reuses the shared `_kit.tsx` and doesn't change it. Each artboard has a short note in the `.meta.json`.\n\nThings you should know:\n- **How it got into `ui/v2`:** the studio's create only accepts the top-level `ui` and `system` folders. I created the canvas in `ui` and moved it into `ui/v2` with the studio's own move. Nothing was left behind in `ui`.\n- **The artboards aren't locked to 844 px tall.** Locked artboards cut off their bottom edge, a known problem listed in `00 Index`, so I left that setting off. They are exactly 390 × 844 now, but they would grow if content were added.\n- **Screenshots come out in the dark theme**, even when I asked for light. `00 Index` does the same, so it's the screenshot setup rather than this canvas. I couldn't check the light theme by eye.\n- **Two check suggestions I didn't follow:**\n  - It suggested removing the two design-system CSS imports because the studio would add them. Without them the screens came out unstyled, so I kept them, as `00 Index` does.\n  - It flagged the hand-drawn status bar icons and AI cursor, and a few pixel spacings that aren't tokens. I left those as they are.\n- **Not done:** I skipped the optional critic review to stay within budget. I also couldn't open the canvas for you because no Maude window was showing this project.\n\nThe six screenshots are in `/private/tmp/claude-5"
+}

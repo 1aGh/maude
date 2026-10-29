@@ -81,34 +81,34 @@
   },
   "quality": {
     "ds-proposals": {
-      "pass": false,
-      "why": "missing: ui/panels/GitPanel.tsx"
+      "pass": true,
+      "why": "1 proposal file(s)"
     },
     "ds-review-summary": {
-      "pass": false,
-      "why": "no review.md"
+      "pass": true,
+      "why": ""
     },
     "ds-proposals-apply": {
-      "pass": false,
-      "why": "0/0 edits apply cleanly"
+      "pass": true,
+      "why": "15/15 edits apply cleanly"
     },
     "finished": {
       "pass": true,
       "why": "success"
     },
     "judge": {
-      "pass": false,
-      "why": "unknown (3): The canvas is unchanged and the message describes a rubric-conforming proposal. The message says the Changes tab is left alone and lists decisions. But the cited proposal and review files (ds-switch/ui-panels-gitpanel.json, review.md) don't exist anywhere under .design/, so I can't verify them.",
-      "unknown": true
+      "pass": true,
+      "why": "pass (4): No canvas or meta was changed (the diff shows only a cache file). There is one proposal for GitPanel with imports, meta, the class mapping (.check, .btn--icon, .panel, .tree-row), and a decisions list, plus a short review.md. The locked Changes tab is left untouched and flagged as a decision. A minor point: the proposal also edits the History tab's neighbours' header comments, and the JSON check was never run.",
+      "unknown": false
     }
   },
   "invPass": true,
-  "qualPass": false,
+  "qualPass": true,
   "judge": {
-    "verdict": "unknown",
-    "score": 3,
-    "why": "The canvas is unchanged and the message describes a rubric-conforming proposal. The message says the Changes tab is left alone and lists decisions. But the cited proposal and review files (ds-switch/ui-panels-gitpanel.json, review.md) don't exist anywhere under .design/, so I can't verify them.",
-    "costUsd": 0.0297622,
+    "verdict": "pass",
+    "score": 4,
+    "why": "No canvas or meta was changed (the diff shows only a cache file). There is one proposal for GitPanel with imports, meta, the class mapping (.check, .btn--icon, .panel, .tree-row), and a decisions list, plus a short review.md. The locked Changes tab is left untouched and flagged as a decision. A minor point: the proposal also edits the History tab's neighbours' header comments, and the JSON check was never run.",
+    "costUsd": 0.042219099999999996,
     "model": "sonnet"
   },
   "render": {

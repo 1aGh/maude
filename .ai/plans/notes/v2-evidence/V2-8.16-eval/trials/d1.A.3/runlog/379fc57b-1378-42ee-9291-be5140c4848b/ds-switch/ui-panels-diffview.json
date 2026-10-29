@@ -1,0 +1,25 @@
+{
+  "canvas": "ui/panels/DiffView.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";\nimport \"../../system/maude/preview/_components.css\";",
+      "new": "import \"../../system/maude-v2/colors_and_type.css\";\nimport \"../../system/maude/preview/_components.css\";\nimport \"../../system/maude-v2/preview/_components.css\";",
+      "why": "Tokens come from maude-v2. The v2 component sheet loads last, so the shared controls take the v2 look. The old sheet stays only as a bridge for .panel, .btn--icon and .callout, which v2 doesn't have."
+    },
+    {
+      "old": " * @ds          maude\n",
+      "new": " * @ds          maude-v2\n",
+      "why": "The canvas header names its design system. It should match the meta."
+    }
+  ],
+  "notes": [
+    "Every var(--…) token in this canvas also exists in maude-v2, so no token is renamed.",
+    "Classes that v2 doesn't have, used here: .panel (lines 89, 136, 177), .btn--icon (100, 146, 183), .callout/.callout--info (187).",
+    "The theme stays forced to dark (line 244).",
+    "The before/after thumbnails ring changes with --status-warn and --status-success. maude-v2 keeps those names, but its hues differ, so check them in the screenshot after you apply.",
+    "The prose in the header comment (line 11) and the comment in the sibling DiffView.css still name the maude DS. Both are text only."
+  ]
+}

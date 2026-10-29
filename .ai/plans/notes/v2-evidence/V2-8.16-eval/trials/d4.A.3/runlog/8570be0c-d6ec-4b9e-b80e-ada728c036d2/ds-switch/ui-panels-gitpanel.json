@@ -1,0 +1,31 @@
+{
+  "canvas": "ui/panels/GitPanel.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": " * @ds          maude\n * @platform    desktop",
+      "new": " * @ds          maude-v2\n * @platform    desktop",
+      "why": "Header names the system the canvas follows."
+    },
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";\nimport \"../../system/maude/preview/_components.css\";\n",
+      "new": "",
+      "why": "S5: the canvas pins maude's own CSS. The shell injects the system named in .meta.json, so the import goes."
+    },
+    {
+      "old": "  return <div className=\"maude\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "new": "  return <div className=\"ds\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "why": "S6: the `.maude` wrapper only matches the old system. `.ds` matches whichever system the canvas follows (maude-v2 scopes its tokens to `.ds[data-theme]`)."
+    }
+  ],
+  "notes": [
+    "The theme stays dark (data-theme=\"dark\"). maude-v2 defaults to light; switching these artboards to light is a decision for you.",
+    "The `Mark` component (line 54–64) draws maude's spark-on-bubble inline (S7). maude-v2 ships its own mark in system/maude-v2/assets/logos/mark.svg. Not changed: choose whether to adopt it.",
+    "The data-cd-locked Changes tab (line 258) is not touched.",
+    "GitPanel.css still uses --canvas-bg/-dot/-grid, --accent-tint and --accent-muted. maude-v2 keeps them as aliases (→ --x-canvas-*, --selection, --accent-soft), so nothing breaks. Renaming them is an optional cleanup (GitPanel.css lines 23–25, 162, 206, 208, 239, 280).",
+    "The mock file path \"system/maude/preview/components-cards.tsx\" (line 170) is sample copy, so it is left as it is.",
+    "S3/S4 literal font-weight/px warnings are the same under both systems and are left as they are."
+  ]
+}

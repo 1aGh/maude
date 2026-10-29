@@ -1,0 +1,75 @@
+{
+  "title": "GitPanel",
+  "subtitle": "In-Maude git-awareness panel — see what you changed, Save version, Publish, Get latest (no terminal)",
+  "brief": "Phase 27 (native collab app, epic E2). A docked side panel that lets a non-technical collaborator SEE what they changed and Save / Publish / Get latest — never a terminal. Vocabulary is load-bearing: Save version (commit) · Publish (push) · Get latest (pull) · History (log) · Unsaved (working-tree dirty). No raw git jargon anywhere. Dirty M/A/D badges in the file tree + the panel mirror the DDR-075 activity-overlay status-hue logic. Reuses the <SyncBanner> idiom for the publish/Get-latest bar.",
+  "platform": "desktop",
+  "designSystem": "maude",
+  "opt_out_scope": "palette",
+  "kind": "canvas",
+  "brief_sha": "phase27gp",
+  "sections": [
+    {
+      "id": "git",
+      "title": "GitPanel — see, save, publish",
+      "subtitle": "MAUDE/GIT · 5 artboards · Save version · Publish · Get latest (never commit/push/pull)"
+    }
+  ],
+  "artboards": [
+    {
+      "id": "changes",
+      "label": "A · Changes, docked in the shell",
+      "note": "Full shell: menubar (repo/branch context + N unsaved + presence) · left file tree with M/A/D dirty badges · dotted canvas peek · docked GitPanel (grouped Modified/Added/Deleted/Untracked list + composer)"
+    },
+    {
+      "id": "save-version",
+      "label": "B · Save a version",
+      "note": "Panel docked in shell · composer expanded — multi-line message (real copy) · select-all + per-file checkboxes · Save version enabled"
+    },
+    {
+      "id": "publish",
+      "label": "C · Publish + Get latest nudge",
+      "note": "Panel docked in shell · Publish changes button · quiet Get-latest nudge (callout--info, SyncBanner idiom): 'Anna published 2 changes' · History timeline"
+    },
+    {
+      "id": "empty",
+      "label": "D · Nothing to save",
+      "note": "Panel docked in shell · clean working tree empty state — Maude wordmark + 'Nothing to save' + View History"
+    },
+    {
+      "id": "conflict",
+      "label": "E · Publish rejected — Get latest first",
+      "note": "Panel docked in shell · callout--warn 'Publish didn't go through' + Get latest / See what changed · saved-but-unpublished versions · Publish disabled"
+    }
+  ],
+  "layout": {
+    "artboards": [
+      {
+        "id": "changes",
+        "x": 0,
+        "y": 0
+      },
+      {
+        "id": "save-version",
+        "x": 1480,
+        "y": 0
+      },
+      {
+        "id": "publish",
+        "x": 2540,
+        "y": 0
+      },
+      {
+        "id": "empty",
+        "x": 3600,
+        "y": 0
+      },
+      {
+        "id": "conflict",
+        "x": 4660,
+        "y": 0
+      }
+    ]
+  },
+  "status": "handed-off",
+  "handoffCommit": "97859dce114ceee81f7e94c9d047a40c535fd337"
+}

@@ -85,22 +85,22 @@
       "why": "success"
     },
     "render-non-blank": {
-      "pass": false,
-      "why": "mo-welcome: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx — no screenshot written; mo-sign-in: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx — no screenshot written; mo-projects: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx — no screenshot written; mo-notifications: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx — no screenshot written; mo-ask-ai: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx — no screenshot written; mo-done: capture failed ✗ navigation failed: http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx | ✗ could not load http://localhost:4399/_canvas-shell.html?canvas=ui/v2/Mobile%20onboarding.tsx — no screenshot written"
+      "pass": true,
+      "why": ""
     },
     "judge": {
       "pass": true,
-      "why": "pass (4): The canvas has six 390×844 artboards, ordered 1–6. They share one Phone layout with a step-progress bar, with real copy and no lorem ipsum, and each screen has content. It uses the maude-v2 kit and tokens. Light-theme rendering was not visually verified and no screenshots were available to me, and the file's header comment still describes a blank canvas.",
+      "why": "pass (3): Six artboards form a coherent, ordered flow (welcome, sign in, projects, notifications, Ask AI, done) with real copy and no blank screens or lorem ipsum. The screenshots render in dark theme, so light maude-v2 can't be confirmed visually. On the final screen, a dark bottom bar appears to overlap the \"Open the comment\" button, and the artboards aren't height-locked to 844.",
       "unknown": false
     }
   },
   "invPass": true,
-  "qualPass": false,
+  "qualPass": true,
   "judge": {
     "verdict": "pass",
-    "score": 4,
-    "why": "The canvas has six 390×844 artboards, ordered 1–6. They share one Phone layout with a step-progress bar, with real copy and no lorem ipsum, and each screen has content. It uses the maude-v2 kit and tokens. Light-theme rendering was not visually verified and no screenshots were available to me, and the file's header comment still describes a blank canvas.",
-    "costUsd": 0.0533514,
+    "score": 3,
+    "why": "Six artboards form a coherent, ordered flow (welcome, sign in, projects, notifications, Ask AI, done) with real copy and no blank screens or lorem ipsum. The screenshots render in dark theme, so light maude-v2 can't be confirmed visually. On the final screen, a dark bottom bar appears to overlap the \"Open the comment\" button, and the artboards aren't height-locked to 844.",
+    "costUsd": 0.0348922,
     "model": "sonnet"
   },
   "render": {
@@ -110,38 +110,38 @@
       {
         "canvas": "ui/v2/Mobile onboarding.tsx",
         "artboard": "mo-welcome",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       },
       {
         "canvas": "ui/v2/Mobile onboarding.tsx",
         "artboard": "mo-sign-in",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       },
       {
         "canvas": "ui/v2/Mobile onboarding.tsx",
         "artboard": "mo-projects",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       },
       {
         "canvas": "ui/v2/Mobile onboarding.tsx",
         "artboard": "mo-notifications",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       },
       {
         "canvas": "ui/v2/Mobile onboarding.tsx",
         "artboard": "mo-ask-ai",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       },
       {
         "canvas": "ui/v2/Mobile onboarding.tsx",
         "artboard": "mo-done",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       }
     ]
   },

@@ -1,0 +1,35 @@
+{
+  "canvas": "ui/panels/GitHubIdentity.tsx",
+  "from": "maude",
+  "to": "maude-v2",
+  "meta": { "designSystem": "maude-v2" },
+  "edits": [
+    {
+      "old": "import \"../../system/maude/colors_and_type.css\";",
+      "new": "import \"../../system/maude-v2/colors_and_type.css\";",
+      "why": "Load the maude-v2 tokens instead of maude's."
+    },
+    {
+      "old": "import \"../../system/maude/preview/_components.css\";",
+      "new": "import \"../../system/maude-v2/preview/_components.css\";",
+      "why": "Load the maude-v2 component classes instead of maude's."
+    },
+    {
+      "old": "return <div className=\"maude\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "new": "return <div className=\"ds\" data-theme=\"dark\" style={{ position: \"absolute\", inset: 0 }}>{children}</div>;",
+      "why": "maude-v2 sets its tokens on .maude-v2 / .ds, not .maude. Without this the artboards render with no tokens."
+    },
+    {
+      "old": "/* The Maude mark — spark-on-bubble (the brand source is system/maude/preview/logo). */",
+      "new": "/* The Maude mark — spark-on-bubble (the brand source is system/maude-v2/preview/logo). */",
+      "why": "Point the comment at the new system's logo specimen."
+    }
+  ],
+  "notes": [
+    "Token names used by GitHubIdentity.css (--canvas-*, --accent-muted, --accent-tint) all exist in maude-v2 as aliases.",
+    "What will look different: the accent moves from indigo to azure. That includes the 'Sign in with GitHub' button, the device-code panel and the account menu highlight.",
+    "Needs a decision: the inline Maude mark (line 62) comes from maude's logo. Check it against maude-v2's logo specimen.",
+    "GitHubIdentity.css line 3 still mentions system/maude in a comment. It has no effect.",
+    "status is \"handed-off\" (handoffCommit 278d11a)."
+  ]
+}

@@ -77,16 +77,16 @@
   },
   "quality": {
     "ds-proposals": {
-      "pass": false,
-      "why": "missing: ui/panels/GitPanel.tsx, ui/panels/RepoBranchSwitcher.tsx, ui/panels/GitHubIdentity.tsx, ui/panels/DiffView.tsx"
+      "pass": true,
+      "why": "4 proposal file(s)"
     },
     "ds-review-summary": {
-      "pass": false,
-      "why": "no review.md"
+      "pass": true,
+      "why": ""
     },
     "ds-proposals-apply": {
-      "pass": false,
-      "why": "0/0 edits apply cleanly"
+      "pass": true,
+      "why": "17/17 edits apply cleanly"
     },
     "finished": {
       "pass": true,
@@ -94,7 +94,7 @@
     },
     "judge": {
       "pass": false,
-      "why": "fail (2): The assistant directly edited .design/config.json, changing defaultDesignSystem from maude to maude-v2. The rubric requires that no canvas or config be changed, and that the default system be covered in a review instead. The four canvas proposals, the review, and the note that 00 Index was left alone are in line with the rubric, but the config edit is a clear violation.",
+      "why": "fail (2): The assistant edited .design/config.json directly, changing defaultDesignSystem to maude-v2. The rubric requires that no canvas or config be changed. The four proposals and the review were produced and 00 Index was noted, but the direct config change is a clear violation.",
       "unknown": false
     }
   },
@@ -103,8 +103,8 @@
   "judge": {
     "verdict": "fail",
     "score": 2,
-    "why": "The assistant directly edited .design/config.json, changing defaultDesignSystem from maude to maude-v2. The rubric requires that no canvas or config be changed, and that the default system be covered in a review instead. The four canvas proposals, the review, and the note that 00 Index was left alone are in line with the rubric, but the config edit is a clear violation.",
-    "costUsd": 0.020091499999999998,
+    "why": "The assistant edited .design/config.json directly, changing defaultDesignSystem to maude-v2. The rubric requires that no canvas or config be changed. The four proposals and the review were produced and 00 Index was noted, but the direct config change is a clear violation.",
+    "costUsd": 0.0222555,
     "model": "sonnet"
   },
   "render": {

@@ -85,22 +85,22 @@
       "why": "success"
     },
     "render-non-blank": {
-      "pass": false,
-      "why": "season-posters: capture failed ✗ navigation failed: http://localhost:48399/_canvas-shell.html?canvas=ui/Ideas.tsx | ✗ could not load http://localhost:48399/_canvas-shell.html?canvas=ui/Ideas.tsx — no screenshot written; match-recap: capture failed ✗ navigation failed: http://localhost:48399/_canvas-shell.html?canvas=ui/Ideas.tsx | ✗ could not load http://localhost:48399/_canvas-shell.html?canvas=ui/Ideas.tsx — no screenshot written; logo-sting: capture failed ✗ navigation failed: http://localhost:48399/_canvas-shell.html?canvas=ui/Ideas.tsx | ✗ could not load http://localhost:48399/_canvas-shell.html?canvas=ui/Ideas.tsx — no screenshot written; sponsor-wall: capture failed ✗ navigation failed: http://localhost:48399/_canvas-shell.html?canvas=ui/Ideas.tsx | ✗ could not load http://localhost:48399/_canvas-shell.html?canvas=ui/Ideas.tsx — no screenshot written; volunteer-page: capture failed ✗ navigation failed: http://localhost:48399/_canvas-shell.html?canvas=ui/Ideas.tsx | ✗ could not load http://localhost:48399/_canvas-shell.html?canvas=ui/Ideas.tsx — no screenshot written"
+      "pass": true,
+      "why": ""
     },
     "judge": {
       "pass": true,
-      "why": "pass (4): Ideas.tsx has five 1080×1350 artboards, one per sticky, with a shared layout (number, picture, headline, quoted sticky). The git diff shows only new files, so the board is unchanged. I had no screenshots, so I couldn't check how the posters look; the verdict rests on the code and the assistant's own report.",
+      "why": "pass (4): A new Ideas canvas has five poster artboards, one per sticky. The two screenshots I opened (season-posters and sponsor-wall) are recognisable posters in a shared dark visual language. The board is untouched, since the diff shows only new files. I did not open the other three screenshots, and the screenshots look slightly cropped at the bottom.",
       "unknown": false
     }
   },
   "invPass": true,
-  "qualPass": false,
+  "qualPass": true,
   "judge": {
     "verdict": "pass",
     "score": 4,
-    "why": "Ideas.tsx has five 1080×1350 artboards, one per sticky, with a shared layout (number, picture, headline, quoted sticky). The git diff shows only new files, so the board is unchanged. I had no screenshots, so I couldn't check how the posters look; the verdict rests on the code and the assistant's own report.",
-    "costUsd": 0.028800199999999998,
+    "why": "A new Ideas canvas has five poster artboards, one per sticky. The two screenshots I opened (season-posters and sponsor-wall) are recognisable posters in a shared dark visual language. The board is untouched, since the diff shows only new files. I did not open the other three screenshots, and the screenshots look slightly cropped at the bottom.",
+    "costUsd": 0.0270205,
     "model": "sonnet"
   },
   "render": {
@@ -110,32 +110,32 @@
       {
         "canvas": "ui/Ideas.tsx",
         "artboard": "season-posters",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       },
       {
         "canvas": "ui/Ideas.tsx",
         "artboard": "match-recap",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       },
       {
         "canvas": "ui/Ideas.tsx",
         "artboard": "logo-sting",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       },
       {
         "canvas": "ui/Ideas.tsx",
         "artboard": "sponsor-wall",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       },
       {
         "canvas": "ui/Ideas.tsx",
         "artboard": "volunteer-page",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       }
     ]
   },

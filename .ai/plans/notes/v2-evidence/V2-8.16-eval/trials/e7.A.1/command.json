@@ -2,7 +2,7 @@
   "cwd": "/var/folders/t_/kf80xz3j79sfmkrq4snj2qk00000gn/T/maude-agent-evals/v2-8.16/trials/e7.A.1/project",
   "args": [
     "-p",
-    "Shorten the video's cold open — the first shot — to 2 seconds.",
+    "Shorten the video's cold open — the first shot — to 1 second.",
     "--model",
     "claude-opus-5-5",
     "--effort",

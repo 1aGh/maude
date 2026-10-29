@@ -1,0 +1,129 @@
+{
+  "task": "e7",
+  "group": "edit",
+  "fixture": "video",
+  "topology": "A",
+  "delegates": null,
+  "run": {
+    "code": 0,
+    "killed": false,
+    "wallMs": 107380
+  },
+  "metrics": {
+    "subtype": "success",
+    "isError": false,
+    "costUsd": 0.6371288,
+    "durationMs": 106181,
+    "apiMs": 100647,
+    "turns": 24,
+    "tokens": 372933,
+    "inTok": 16,
+    "outTok": 8814,
+    "cacheRead": 314364,
+    "cacheWrite": 49739,
+    "freshTokens": 58569,
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "permissionDenials": [],
+    "subagents": 0,
+    "subagentTypes": [],
+    "mainToolUses": 23,
+    "subToolUses": 0
+  },
+  "agents": [],
+  "invariants": {
+    "check": {
+      "pass": true,
+      "why": ""
+    },
+    "scope": {
+      "pass": true,
+      "why": ""
+    },
+    "ids-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "locked-kept": {
+      "pass": true,
+      "why": ""
+    },
+    "no-bash-writes": {
+      "pass": true,
+      "why": ""
+    },
+    "owns": {
+      "pass": true,
+      "why": ""
+    }
+  },
+  "quality": {
+    "changed:ui/Alligators Cinematic Cut.tsx": {
+      "pass": true,
+      "why": ""
+    },
+    "finished": {
+      "pass": true,
+      "why": "success"
+    },
+    "judge": {
+      "pass": true,
+      "why": "pass (4): The cold-open Sequence is now 30 frames. Every later clip and effect is shifted back by 24 frames, so the spine runs 0→690 with no gaps or overlaps. TOTAL is updated and drives the composition duration. The assistant also retimed the opening title and changed the \"~24s\" labels to \"~23s\". Both are small side edits that follow from the change, but they go slightly beyond the literal request.",
+      "unknown": false
+    }
+  },
+  "invPass": true,
+  "qualPass": true,
+  "judge": {
+    "verdict": "pass",
+    "score": 4,
+    "why": "The cold-open Sequence is now 30 frames. Every later clip and effect is shifted back by 24 frames, so the spine runs 0→690 with no gaps or overlaps. TOTAL is updated and drives the composition duration. The assistant also retimed the opening title and changed the \"~24s\" labels to \"~23s\". Both are small side edits that follow from the change, but they go slightly beyond the literal request.",
+    "costUsd": 0.044763,
+    "model": "sonnet"
+  },
+  "render": {
+    "ran": false,
+    "error": null,
+    "shots": []
+  },
+  "changed": [
+    "M .design/ui/Alligators Cinematic Cut.meta.json",
+    "M .design/ui/Alligators Cinematic Cut.tsx",
+    "?? .design/_cache/index/ds-usage.json"
+  ],
+  "runState": [
+    {
+      "session": "c53ef40c-27b4-42c2-b75c-7a181450bdb4",
+      "touched": {
+        "ui/Alligators Cinematic Cut.tsx": {
+          "at": 1793247824877,
+          "by": "main",
+          "via": "tool",
+          "artboards": [
+            "cinematic"
+          ]
+        },
+        "ui/Alligators Cinematic Cut.meta.json": {
+          "at": 1793247838624,
+          "by": "main",
+          "via": "tool",
+          "artboards": []
+        }
+      },
+      "stopBlocks": 0,
+      "shots": 1,
+      "bases": 2
+    }
+  ],
+  "hooks": {
+    "events": 0,
+    "denies": [],
+    "blocks": [],
+    "errors": [],
+    "ms": {},
+    "checkMs": []
+  },
+  "harnessFailure": false,
+  "finalText": "I cut the first shot from 1.8s to 1s (30 frames). Everything after it now starts 0.8s earlier, so the video runs about 23s instead of 23.8s. The file check passed.\n\n- **Rest of the video:** I moved all later shots and effects back by the same amount, so they keep their timing against each other.\n- **Opening title:** \"ALLIGATORS BRNO\" used to fade in late and run past the first shot. With only 1 second, I made it start right away and end at the white flash on the first hit. Otherwise it would have covered most of the hit.\n- **Length labels:** I changed the \"~24s\" labels in the canvas notes and its description to \"~23s\".\n\nI didn't touch the separate edit plan file (`Alligators Cinematic Cut.edl.json`). It describes a different, 24-shot version of the reel, not this cut.\n\nThe screenshot only shows the paused first frame, which is the player on black, so it doesn't show the new timing. Press play to see the shorter opening."
+}

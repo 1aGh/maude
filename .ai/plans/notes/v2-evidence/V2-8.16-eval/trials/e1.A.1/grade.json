@@ -77,22 +77,22 @@
       "why": "success"
     },
     "render-non-blank": {
-      "pass": false,
-      "why": "empty: capture failed ✗ navigation failed: http://localhost:48399/_canvas-shell.html?canvas=ui/GitPanel.tsx | ✗ could not load http://localhost:48399/_canvas-shell.html?canvas=ui/GitPanel.tsx — no screenshot written; changes: capture failed ✗ navigation failed: http://localhost:48399/_canvas-shell.html?canvas=ui/GitPanel.tsx | ✗ could not load http://localhost:48399/_canvas-shell.html?canvas=ui/GitPanel.tsx — no screenshot written"
+      "pass": true,
+      "why": ""
     },
     "judge": {
       "pass": true,
-      "why": "pass (4): The edits are scoped to `.gp-empty` classes, which are used only by EmptyPanel. They shrink the Maude mark (40→20) and the tick circle (52→32). They also add spacing around the illustration, heading, text and button, and widen the side padding. The other artboards are untouched. I saw no screenshots, and the assistant said it couldn't confirm the tick is still visible at 32px, so the visual result is unverified.",
+      "why": "pass (4): The diff halves the Maude mark (40→20) and shrinks the tick circle (52→32). It also adds padding and 24px gaps between the groups. The changes sit in `.gp-empty*` selectors and in `EmptyPanel`, so the other artboards should be unchanged. The screenshot is tiny, but it shows a smaller mark, a visible green tick and more air.",
       "unknown": false
     }
   },
   "invPass": true,
-  "qualPass": false,
+  "qualPass": true,
   "judge": {
     "verdict": "pass",
     "score": 4,
-    "why": "The edits are scoped to `.gp-empty` classes, which are used only by EmptyPanel. They shrink the Maude mark (40→20) and the tick circle (52→32). They also add spacing around the illustration, heading, text and button, and widen the side padding. The other artboards are untouched. I saw no screenshots, and the assistant said it couldn't confirm the tick is still visible at 32px, so the visual result is unverified.",
-    "costUsd": 0.028749700000000003,
+    "why": "The diff halves the Maude mark (40→20) and shrinks the tick circle (52→32). It also adds padding and 24px gaps between the groups. The changes sit in `.gp-empty*` selectors and in `EmptyPanel`, so the other artboards should be unchanged. The screenshot is tiny, but it shows a smaller mark, a visible green tick and more air.",
+    "costUsd": 0.0268585,
     "model": "sonnet"
   },
   "render": {
@@ -102,14 +102,14 @@
       {
         "canvas": "ui/GitPanel.tsx",
         "artboard": "empty",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       },
       {
         "canvas": "ui/GitPanel.tsx",
         "artboard": "changes",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       }
     ]
   },

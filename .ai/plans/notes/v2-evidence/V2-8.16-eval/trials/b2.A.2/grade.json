@@ -89,22 +89,22 @@
       "why": "success"
     },
     "render-non-blank": {
-      "pass": false,
-      "why": "onboarding-feedback: capture failed ✗ navigation failed: http://localhost:48399/_canvas-shell.html?canvas=ui/GitPanel.tsx | ✗ could not load http://localhost:48399/_canvas-shell.html?canvas=ui/GitPanel.tsx — no screenshot written"
+      "pass": true,
+      "why": ""
     },
     "judge": {
       "pass": true,
-      "why": "pass (4): The new \"onboarding-feedback\" artboard covers all 10 topics from the Onboarding section. I checked the annotations file: the section has 40 stickies, 4 per topic, and the loose stickies outside it were correctly left out. Because every topic has 4 mentions, the order is a tie, which the artboard says openly and breaks by number of people. It uses the maude tokens and Check component, and the five existing artboards' code is untouched (only additive CSS). I couldn't see screenshots, so the visual match is taken from the code.",
+      "why": "pass (3): The new \"Onboarding feedback\" artboard is in the dark maude style. It has a checklist of all 10 topics plus the praise item, and it notes the Done-section conflict on the sign-in loop. The diff only adds a new artboard, so the five existing ones are unchanged. The ordering is weak: the assistant says every topic has 4 mentions and ranks by number of people, which I did not check against the board. The screenshot is too small to confirm fine detail.",
       "unknown": false
     }
   },
   "invPass": true,
-  "qualPass": false,
+  "qualPass": true,
   "judge": {
     "verdict": "pass",
-    "score": 4,
-    "why": "The new \"onboarding-feedback\" artboard covers all 10 topics from the Onboarding section. I checked the annotations file: the section has 40 stickies, 4 per topic, and the loose stickies outside it were correctly left out. Because every topic has 4 mentions, the order is a tie, which the artboard says openly and breaks by number of people. It uses the maude tokens and Check component, and the five existing artboards' code is untouched (only additive CSS). I couldn't see screenshots, so the visual match is taken from the code.",
-    "costUsd": 0.08099590000000001,
+    "score": 3,
+    "why": "The new \"Onboarding feedback\" artboard is in the dark maude style. It has a checklist of all 10 topics plus the praise item, and it notes the Done-section conflict on the sign-in loop. The diff only adds a new artboard, so the five existing ones are unchanged. The ordering is weak: the assistant says every topic has 4 mentions and ranks by number of people, which I did not check against the board. The screenshot is too small to confirm fine detail.",
+    "costUsd": 0.042289900000000005,
     "model": "sonnet"
   },
   "render": {
@@ -114,8 +114,8 @@
       {
         "canvas": "ui/GitPanel.tsx",
         "artboard": "onboarding-feedback",
-        "blank": null,
-        "exit": 3
+        "blank": false,
+        "exit": 0
       }
     ]
   },
