@@ -30,3 +30,14 @@ checkout plus whatever other sessions hold.
 2. Is the undo-merge bug (annotations-ui R7) fixed before the PR or listed as a follow-up?
 3. Then, after the reset: freeze → chain4 (8.1, 8.3 ×3, 8.18, 8.2) → re-attests → ledger closure + pr-soak → .app
    → PR.
+
+## Update ~06:00: Michal's a + b2 done (weekly 81 %)
+- **p8-gate-introduced merged (f2db67394, grader a299a00bd).** The post-edit and Stop gates block only on findings the
+  edit introduced; pre-existing findings go to the agent as additionalContext. The eval was rerun for e4 and e5:
+  3/3 each. e4's scope now includes its safe-zone check artboard. **The final eval is 24/30 pass^3, with no
+  product-caused FAIL.**
+- **p8-undo-collab-refuse merged (6e87df463).** On the local runtime, ⌘Z on a text a collaborator changed meanwhile
+  gets 409 undo-conflict; the existing stale notice shows and their text stays. annotations-ui R7 is a real test
+  again, and annotations-ui ran 40/40 twice. The hub-linked runtime does not refuse yet (pr-followups).
+- Next, after the reset (Fri 09:00): run `e2e:team-cell-missing` once alone on a fresh debug build → freeze →
+  chain4 → re-attests → ledger + pr-soak → .app → PR.
