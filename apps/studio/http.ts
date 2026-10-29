@@ -683,6 +683,14 @@ function safePathUnderRoot(reqUrl: string, repoRoot: string): string | null {
 
 // `dist/` lives next to server.ts when running source-mode (bun run server.ts)
 // and inside the standalone binary's embedded FS in --compile mode.
+/** `/_config.saveMode` (p8-update-to-accepted): the live sync's DDR-241 mode, null in solo. */
+export function saveModeOf(
+  runtime: { acceptedMode?(): boolean } | null | undefined
+): 'accepted' | 'legacy' | null {
+  if (!runtime?.acceptedMode) return null;
+  return runtime.acceptedMode() ? 'accepted' : 'legacy';
+}
+
 const DIST_DIR = join(HERE, 'dist');
 // Templates stayed under the design *plugin* (plugins/design/templates) when the
 // dev-server moved to apps/studio (DDR-095) — both ship in the npm tarball, so
@@ -2672,6 +2680,10 @@ export function createHttp(
       formatVersion: projectFormat(ctx).value,
       formatGate: gateNow(),
       readOnlyReason: roleReadOnly(req) ? 'role' : gateNow() ? 'format' : null,
+      // p8-update-to-accepted — how this project saves (DDR-241) as its sync last heard from the
+      // hub: 'accepted' | 'legacy'; null when nothing syncs (solo). A hint for the Update project
+      // offer only — the migrator's dry run asks the hub itself before anything is offered.
+      saveMode: saveModeOf(ctx.syncControl?.current?.()),
       // S9.22b — may this session comment (reply, resolve) on the project? The SERVER's answer from
       // the session's access, never the client's: Can comment and up. A canvas-only session answers
       // like a missing one (project-level `comment` needs a project role); the op door still judges

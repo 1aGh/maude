@@ -535,6 +535,9 @@ export function useShellCore({}) {
           formatVersion: data.formatVersion ?? 1,
           formatGate: data.formatGate ?? null,
           readOnlyReason: data.readOnlyReason ?? null,
+          // p8-update-to-accepted — 'accepted' | 'legacy' | null (solo): a linked project that
+          // still saves the old way offers Update project to its owner (format-update.js).
+          saveMode: data.saveMode ?? null,
           // S9.22b — the server says this session may comment (Can comment and up) even when it is
           // read-only; canvasUrl() then adds `cm=1` beside `ro=1`, and the Comments panel keeps
           // Resolve / Reopen. Absent (an older server) = no.

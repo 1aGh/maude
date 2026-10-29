@@ -6,18 +6,26 @@
 // only ASKS (once per project per app session), and Cancel leaves the callout with the button.
 // The owner of a project on a 1.x hub gets the team-server line and how to update the server; once the hub
 // is v2 the same callout turns into Update project by itself (re-checked on focus / online / a timer).
+// p8-update-to-accepted: the same callout, dialog and route also switch a linked project that still saves
+// the old way to accepted revisions — in one Update with the format, or on its own (quieter: a format-2
+// project is not view only, so it is never asked on opening). A cloud tab points the owner to the
+// dashboard instead (format-update.js saveModeState).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { shellToast } from '../../shell/util.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import {
-  applyFailureLine,
+  applyOutcome,
   isOlderGate,
+  isSaveModeOffer,
   OLDER_COPY,
   olderGateState,
   RECHECK_KINDS,
+  SAVE_COPY,
+  saveModeState,
   teamServerCommand,
+  updateDialogCopy,
 } from './format-update.js';
 
 const RECHECK_MS = 60_000;
@@ -88,6 +96,9 @@ export function OlderFormatCallout() {
     shellCore: { cfg, project },
   } = useShellStore();
   const older = isOlderGate(cfg);
+  // the second trigger: a format-2 linked project that still saves the old way (a cloud tab needs no probe)
+  const saveOffer = !older && isSaveModeOffer(cfg);
+  const probes = older || (saveOffer && !cfg?.cloud);
   const [plan, setPlan] = useState(undefined);
   const [dialog, setDialog] = useState(null); // 'update' | 'team-server' | null
   const [busy, setBusy] = useState(false);
@@ -105,17 +116,18 @@ export function OlderFormatCallout() {
     }
   }, []);
 
-  // Probe (a dry run — reads only) whenever the project is older; forget it once it is not.
+  // Probe (a dry run — reads only) whenever the project is older or still saves the old way; forget it
+  // once neither holds.
   useEffect(() => {
-    if (!older) {
+    if (!probes) {
       setPlan(undefined);
       setDialog(null);
       return;
     }
     void probe();
-  }, [older, cfg?.formatVersion, cfg?.formatGate?.source, probe]);
+  }, [probes, cfg?.formatVersion, cfg?.formatGate?.source, cfg?.saveMode, probe]);
 
-  const state = olderGateState({ cfg, plan });
+  const state = older ? olderGateState({ cfg, plan }) : saveModeState({ cfg, plan });
 
   // The team server may come back, or be updated: re-check on its own while it is the reason.
   useEffect(() => {
@@ -133,7 +145,7 @@ export function OlderFormatCallout() {
 
   // Opening an older project ASKS once (V2-1.12 §5.9) — it never updates by itself.
   useEffect(() => {
-    if (state?.action !== 'update' || dialog || alreadyAsked(cfg)) return;
+    if (!older || state?.action !== 'update' || dialog || alreadyAsked(cfg)) return;
     markAsked(cfg);
     returnFocus.current = document.activeElement;
     setDialog('update');
@@ -165,16 +177,20 @@ export function OlderFormatCallout() {
     setError('');
     try {
       const { status, report } = await migrate({ apply: true });
-      if (status === 200 && report && report.dryRun === false && report.exitCode === 0) {
+      const out = status === 200 ? applyOutcome(report) : applyOutcome(null);
+      if (out.done) {
         setBusy(false);
         setDialog(null);
-        shellToast(OLDER_COPY.toastUpdated, true);
-        return; // the server emits config-updated; /_config follows and this callout goes away
+        shellToast(out.toast, true);
+        // the server emits config-updated; /_config follows. Ask again too: a switch that did not
+        // happen after the format moved keeps the (quiet) offer, one that did clears it.
+        void probe();
+        return;
       }
-      setError(applyFailureLine(report));
+      setError(out.error);
       void probe();
     } catch {
-      setError(applyFailureLine(null));
+      setError(applyOutcome(null).error);
     }
     setBusy(false);
   };
@@ -190,6 +206,8 @@ export function OlderFormatCallout() {
 
   if (!state) return null;
   const name = cfg?.cloud?.projectName || cfg?.name || project || 'this project';
+  const quiet = state.kind === 'save-mode' || state.kind === 'save-mode-cloud';
+  const words = updateDialogCopy({ older, plan, name });
   return (
     <>
       <div
@@ -200,17 +218,27 @@ export function OlderFormatCallout() {
         data-kind={state.kind}
       >
         <span className="sh-callout-ic" aria-hidden="true">
-          <StIcon name="problem" size={16} />
+          <StIcon name={quiet ? 'clock' : 'problem'} size={16} />
         </span>
         <span className="sh-callout-t">{state.line}</span>
         {state.action === 'update' && (
           <button
             type="button"
-            className="btn btn--primary btn--sm"
+            className={quiet ? 'btn btn--sm' : 'btn btn--primary btn--sm'}
             data-testid="format-older-update"
             onClick={() => open('update')}
           >
             {OLDER_COPY.olderStatusAction}
+          </button>
+        )}
+        {state.action === 'dashboard' && (
+          <button
+            type="button"
+            className="btn btn--sm"
+            data-testid="format-save-mode-dashboard"
+            onClick={() => window.open(state.href, '_blank', 'noopener,noreferrer')}
+          >
+            {SAVE_COPY.cloudAction}
           </button>
         )}
         {state.action === 'team-server' && (
@@ -229,12 +257,16 @@ export function OlderFormatCallout() {
           testid="format-update-dialog"
           titleId="fu-update-title"
           bodyId="fu-update-body"
-          title={OLDER_COPY.dialogTitle(name)}
+          title={words.title}
           onEscape={close}
         >
-          <p id="fu-update-body" className="fu-body">
-            {OLDER_COPY.dialogBody}
-          </p>
+          <div id="fu-update-body">
+            {words.body.map((line) => (
+              <p key={line} className="fu-body">
+                {line}
+              </p>
+            ))}
+          </div>
           {error && (
             <p className="fu-error" role="alert" data-testid="format-update-error">
               {error}
@@ -258,7 +290,7 @@ export function OlderFormatCallout() {
               disabled={busy}
               onClick={apply}
             >
-              {busy ? 'Updating…' : OLDER_COPY.dialogAction}
+              {busy ? 'Updating…' : words.action}
             </button>
           </div>
         </Dialog>

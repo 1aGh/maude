@@ -86,7 +86,22 @@ export function humanReport(r: MigrateReport): string {
   const verb = r.direction === 'forward' ? 'Update for Maude 2' : 'Back to Maude 1';
   out.push(`${verb}${r.dryRun ? ' — dry run, nothing written' : ''}`);
   out.push(`  project format ${r.project.formatBefore} → ${r.project.formatAfter}`);
+  // p8-update-to-accepted — how the linked project saves, and whether this run moves it.
+  const linked = r.project.linked;
+  if (linked?.mode) {
+    const moves = linked.modeSwitched
+      ? ' → accepted revisions'
+      : linked.modeDue
+        ? r.dryRun
+          ? ' → accepted revisions (with --apply)'
+          : ' (not switched)'
+        : '';
+    out.push(
+      `  saving ${linked.mode === 'legacy' ? 'the old way' : 'with accepted revisions'}${moves}`
+    );
+  }
   for (const ref of r.refusals) out.push(`  refused: ${ref.reason}`);
+  for (const note of r.notes ?? []) out.push(`  ${note}`);
   for (const s of r.steps) {
     const n = s.filesTotal ?? s.files.length;
     out.push(`  ${s.id.padEnd(20)} ${s.status}${n ? ` · ${n} file${n === 1 ? '' : 's'}` : ''}`);

@@ -14787,6 +14787,21 @@
     "v2": "new"
   },
   {
+    "hook": "format-save-mode-dashboard",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A cloud tab of a project that still saves the old way: the owner's Open dashboard on the quiet callout (`format-older-callout` data-kind `save-mode-cloud`) — the switch to accepted revisions runs from the dashboard's Saving page, not the studio.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/format-update.jsx",
+      "symbol": "OlderFormatCallout"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/format-update-save-mode-model.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "callout-<kind>",
     "kind": "testid",
     "pattern": true,
