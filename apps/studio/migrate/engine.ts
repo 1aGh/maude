@@ -54,6 +54,8 @@ export const EXIT = { done: 0, atTarget: 10, refused: 11, error: 1, usage: 2 } a
 export type LinkRefusalCode =
   | 'no-sign-in'
   | 'offline'
+  /** the hub turned this Mac's credential down (401/403) — sign in again (p8-update-fails-loud) */
+  | 'token-rejected'
   | 'hub-too-old'
   | 'not-owner'
   | SaveModeBlocker;
@@ -139,6 +141,9 @@ export interface MigrateReport {
       modeBlocker?: SaveModeBlocker;
       /** apply: the hub took the switch */
       modeSwitched?: boolean;
+      /** apply: why the switch did not happen after the format moved — `token-rejected`, `offline`,
+       *  or the hub's own code (p8-update-fails-loud: the app says which, with the action that helps) */
+      modeError?: string;
       /** apply: switched, and the hub is still importing the documents (T30) */
       modeImporting?: boolean;
     };
@@ -425,10 +430,19 @@ async function plan(opts: MigrateOptions, dryRun: boolean): Promise<Plan> {
     if (projectRoleForAccount(role) !== 'owner')
       return refuse("only the project's owner can update it for Maude 2", '', 'not-owner');
     out.hub = { client, ...(typeof health.epoch === 'number' ? { epoch: health.epoch } : {}) };
-    report.project.linked = {
-      ...report.project.linked,
-      ...(await planSaveMode(client, health, opts.direction)),
-    };
+    const saveMode = await planSaveMode(client, health, opts.direction);
+    // `/health` is unauthenticated; the mode read is the first call that carries the credential.
+    // A hub that turns it down would refuse the format flip too — say so BEFORE anything is
+    // touched, with the code the app turns into "Sign in again" (p8-update-fails-loud).
+    if (saveMode === 'token-rejected') {
+      report.project.formatBefore = report.project.formatAfter = Math.max(local, hubFormat ?? 1);
+      return refuse(
+        "the team server turned down this Mac's sign-in — sign in again to update the project",
+        '',
+        'token-rejected'
+      );
+    }
+    report.project.linked = { ...report.project.linked, ...saveMode };
   }
   const before = Math.max(local, hubFormat ?? 1);
   report.project.formatBefore = before;
@@ -595,6 +609,16 @@ async function plan(opts: MigrateOptions, dryRun: boolean): Promise<Plan> {
 
 type LinkedReport = NonNullable<MigrateReport['project']['linked']>;
 
+/** 401/403 from an authenticated hub route: the credential, not the hub, is the problem. */
+const isAuthRefusal = (status: number) => status === 401 || status === 403;
+
+/** A hub refusal → the code the app words (token-rejected · offline · the hub's own code). */
+function hubFailureCode(r: { status: number; code?: string }): string {
+  if (isAuthRefusal(r.status)) return 'token-rejected';
+  if (r.status === 0) return 'offline';
+  return r.code ?? String(r.status);
+}
+
 /**
  * Read the hub's save mode; forward on a `legacy` project, mark the switch due — or name what
  * blocks it, from `/health` (`coordinator.durable`) and the hub's own dry run (its `blockers`).
@@ -604,8 +628,9 @@ async function planSaveMode(
   client: HubFormatClient,
   health: HubHealth,
   direction: MigrateOptions['direction']
-): Promise<Partial<LinkedReport>> {
+): Promise<Partial<LinkedReport> | 'token-rejected'> {
   const m = await client.mode();
+  if (!m.ok && isAuthRefusal(m.status)) return 'token-rejected';
   if (!m.ok) return { mode: null, modeSwitched: false };
   const base = { mode: m.mode, modeSwitched: false } as const;
   // `--reverse` keeps accepted revisions (Michal): the mode is reported, never planned.
@@ -635,6 +660,7 @@ async function switchSaveMode(
   for (let attempt = 0; attempt < 2; attempt++) {
     const m = await client.mode();
     if (!m.ok) {
+      linked.modeError = hubFailureCode(m);
       notes.push(SAVE_MODE_NOTE.failed(m.code ?? String(m.status)));
       return;
     }
@@ -660,6 +686,7 @@ async function switchSaveMode(
       return;
     }
     if (r.code === 'epoch-stale' && attempt === 0) continue;
+    linked.modeError = hubFailureCode(r);
     notes.push(SAVE_MODE_NOTE.failed(r.code ?? String(r.status)));
     return;
   }
@@ -765,9 +792,13 @@ export async function applyMigration(
     ) {
       const r = await p.hub.client.setFormat(TARGET_FORMAT, p.hub.epoch);
       if (!r.ok) {
+        const code = hubFailureCode(r);
         report.refusals.push({
           path: '',
           reason: `the team server refused the update (${r.code ?? r.status})`,
+          ...(code === 'token-rejected' || code === 'offline'
+            ? { code: code as LinkRefusalCode }
+            : {}),
         });
         report.totals.refused += 1;
         report.exitCode = EXIT.refused;
