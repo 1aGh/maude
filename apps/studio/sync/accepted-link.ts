@@ -551,11 +551,17 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     kind: string,
     operations: Operation[],
     waitMs: number,
-    origin?: { trashed?: Array<{ artboard: string; label?: string }> }
+    origin?: { trashed?: Array<{ artboard: string; label?: string }> },
+    tx?: { transactionId?: string; dependsOn?: string[] }
   ): Promise<StructuralOutcome> {
-    const answer = propose({ kind, label, operations, ...(origin ? { origin } : {}) }).then(
-      outcome
-    );
+    const answer = propose({
+      kind,
+      label,
+      operations,
+      ...(origin ? { origin } : {}),
+      ...(tx?.transactionId ? { transactionId: tx.transactionId } : {}),
+      ...(tx?.dependsOn?.length ? { dependsOn: tx.dependsOn } : {}),
+    }).then(outcome);
     if (!Number.isFinite(waitMs)) return answer;
     return Promise.race([
       answer,
@@ -586,6 +592,9 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       writeId?: string;
       /** S2.10b — an artboard-trash action names what it removed (S1-trash.md §2) */
       origin?: { trashed?: Array<{ artboard: string; label?: string }> };
+      /** p8-fix-c2 — the id (and dependency) a projection assigned (`DocProjection.proposeVia`) */
+      transactionId?: string;
+      dependsOn?: string[];
     }
   ): Promise<StructuralOutcome> {
     return structural(
@@ -600,7 +609,8 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
         ...(action.writeId ? { writeId: action.writeId } : {}),
       })),
       Number.POSITIVE_INFINITY,
-      action.origin?.trashed?.length ? { trashed: action.origin.trashed } : undefined
+      action.origin?.trashed?.length ? { trashed: action.origin.trashed } : undefined,
+      { transactionId: action.transactionId, dependsOn: action.dependsOn }
     );
   }
 
@@ -703,6 +713,8 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
         writeId?: string;
         /** S2.10b — an artboard-trash action names what it removed (S1-trash.md §2) */
         origin?: { trashed?: Array<{ artboard: string; label?: string }> };
+        transactionId?: string;
+        dependsOn?: string[];
       }
     ): Promise<StructuralOutcome> {
       return docsEdit(
