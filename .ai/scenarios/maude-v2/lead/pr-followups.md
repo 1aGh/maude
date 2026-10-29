@@ -91,7 +91,20 @@ Not built, either because no CONTRACT line names them or because the weekly budg
     - **Possible studio-only fix (v1-compatible, no hub release):** add `textUndoConflict` to the hub-linked runtime
       (`sync/index.ts` ~6246). It should refuse only when the 3-way merge would fail. It needs the hub's *accepted*
       content per action, which is not verified yet.
-    - **Not traced:** projects still in legacy (non-accepted) mode use the canvas strict-inverse stack.
+    - **Legacy (non-accepted) mode, traced by a scout 2026-10-29 (read, not run).** This mode is still live for a
+      desktop on a project with a committed `linkedHub` and for a browser on an existing cloud project, until the
+      owner switches (`cells/wrangler.toml:152`). ⌘Z stays on the canvas stack.
+      - **Text-session commit (the usual sticky/label edit).** The inverse is a non-strict `set text=before, expect=my
+        final` (`annotations-layer.tsx:1601-1612`), and the server merges it 3-way (`mergeSource`). The peer's text
+        survives when the edits don't overlap and is **silently lost when they overlap**. This holds in both
+        timings, so it is the same gap as accepted mode (ii).
+      - **Any other commit touching a text slot** (paste, AI/programmatic). The inverse is strict (`ops.ts:154,338`).
+        A mismatch is skipped as `stale`, so the peer's text is kept. But it is **silent**: only a console.warn
+        (`annotations-layer.tsx:1508`), and `use-undo-stack` has no stale notice.
+      - **Possible fix.** (1) Make the session inverse refuse on collision, ~20-40 lines. (2) Surface `rejected/stale`
+        to the undo stack and the existing notice, ~40-80 lines. Unverified: `sync/source-merge.ts` returning
+        `ok:false` on overlap, and whether legacy hub ops go through the studio's `api.ts` or the hub's own merge
+        mirror.
   - Merge text on undo (option 1).
   - The same refusal on the legacy canvas stack (`annotations-layer.tsx` `commitStrokes`).
   - Group draft writes into the commit step on the op log. Today each draft write is its own ⌘Z step.
