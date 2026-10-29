@@ -92,7 +92,7 @@ test('run-action select.all / copy-properties / paste-properties replay the chor
     expect(pressed).toEqual([]);
     for (const id of ids) await send(window.parent, { dgn: 'run-action', v: 1, id });
     expect(pressed).toEqual(['⌘a', '⌥⌘c', '⌥⌘v']);
-    await send(window.parent, { dgn: 'run-action', v: 1, id: 'object.remove' });
+    await send(window.parent, { dgn: 'run-action', v: 1, id: 'object.enter' });
     expect(pressed.length).toBe(3);
   } finally {
     document.removeEventListener('keydown', onKey);
