@@ -91,7 +91,7 @@ export function killSidecar(projectRoot = process.env.MAUDE_PROJECT_ROOT ?? ''):
  * — i.e. the supervisor's respawn has completed and published itself.
  *
  * Identity is the pid, not the port: the main listener walks a deterministic
- * ladder from 4399 and usually reclaims the very same port, so a port compare
+ * ladder (the app's 46399…, an e2e lane's 47399… — port.ts) and usually reclaims the very same port, so a port compare
  * would report "no respawn yet" forever.
  */
 export async function waitForRespawn(previous: ServerInfo, timeout = 120_000): Promise<ServerInfo> {

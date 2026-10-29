@@ -313,6 +313,13 @@ fn resolve_login_path() -> Option<String> {
     None
 }
 
+/// p8-app-port-range (decision maude/v2-michal-desktop-own-port-range) — set to "1" on every project-server spawn, so
+/// `resolvePort` (apps/studio/port.ts `APP_SIDECAR_ENV`) starts the server's ladder at 46399, never the CLI's 4399 a
+/// person's own `maude design serve` uses. An e2e lane's `MAUDE_E2E_*` marker wins over it there (47399). A crashed
+/// server's respawn walks the same ladder, so it finds its predecessor's port free again ("same URL, same port").
+/// The Home server (home.rs) is not marked: it binds any free port and the app remembers it (`home_port`).
+pub(crate) const APP_SIDECAR_ENV: &str = "MAUDE_SHELL_SIDECAR";
+
 /// p8-e2e-isolation-r13 — true when any `MAUDE_E2E_*` variable is set non-empty: this app was launched by a desktop
 /// e2e lane (wdio.conf.ts), never by a person. Mirrors `isE2eEnv` in apps/studio/acp/probe.ts.
 pub(crate) fn is_e2e_env<I>(vars: I) -> bool
@@ -431,7 +438,9 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
         .args(["--root", project_root.as_str()])
         // The webview IS the UI — suppress the dev-server's default
         // open-the-browser-on-boot behavior (server.ts honors NO_OPEN).
-        .env("NO_OPEN", "1");
+        .env("NO_OPEN", "1")
+        // p8-app-port-range — the app's own port ladder, 46399–46408 (port.ts).
+        .env(APP_SIDECAR_ENV, "1");
 
     // DDR-128 — a `.app` launched from Finder/Dock inherits the truncated launchd
     // PATH (`/usr/bin:/bin:…`), NOT the user's shell PATH. The sidecar would then
@@ -1575,6 +1584,23 @@ pub fn kill_server(app: &AppHandle) {
 
 #[cfg(test)]
 mod tests {
+    // p8-app-port-range — a project server the app starts carries the marker port.ts maps to 46399–46408; Home does
+    // not (it keeps its own remembered port), and the name is the one the server reads.
+    #[test]
+    fn project_spawn_carries_the_app_port_range_marker_and_home_does_not() {
+        let src = include_str!("sidecar.rs");
+        let spawn = &src[src.find("pub fn spawn_for(").unwrap()..];
+        let spawn = &spawn[..spawn.find("\n}\n").unwrap()];
+        assert!(spawn.contains(".env(APP_SIDECAR_ENV, \"1\")"), "spawn_for must mark an app sidecar");
+        assert!(!include_str!("home.rs").contains("APP_SIDECAR_ENV"), "Home is not a project server");
+        let port_ts = include_str!("../../../studio/port.ts");
+        assert!(
+            port_ts.contains(&format!("export const APP_SIDECAR_ENV = '{}';", super::APP_SIDECAR_ENV)),
+            "port.ts reads a different marker"
+        );
+        assert!(port_ts.contains("export const APP_PORT_BASE = 46399;"));
+    }
+
     // p8-e2e-isolation-r13 — the V2-8.3 record: the lane's stub-first PATH was replaced by the person's login-shell
     // PATH, and the sidecar's ACP adapter found the real ~/.local/bin/claude on it.
     #[test]
