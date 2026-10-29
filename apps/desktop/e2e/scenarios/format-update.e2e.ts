@@ -1,11 +1,4 @@
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  writeFileSync,
-} from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { $, browser, expect } from '@wdio/globals';
@@ -14,13 +7,13 @@ import { waitForSidecar } from '../helpers/sidecar';
 import { closeTab, focusTab, openTab, pinCurrentWindow, waitWindow } from '../helpers/windows';
 
 /**
- * Michal 2A (2026-10-28) — v2 opens a format-1 project VIEW ONLY until it is updated, and offers ONE button
- * (decision maude/v2-michal-1a-2a-format-gate-one-button-migrate). A person's own LOCAL format-1 project:
+ * p8-v1-drop (decision maude/v2-michal-drop-v1-auto-convert) — v2 converts a person's own LOCAL format-1
+ * project BY ITSELF when it opens it; there is no opt-in dialog any more (Michal 2A's "Update project"
+ * confirm is gone):
  *
- *   open    → the confirm asks once: Update "Old project" for Maude 2? (it never updates by itself)
- *   Cancel  → the callout "View only — this project still uses Maude 1." + Update project; writes are refused
- *   Update project → confirm → the toast, the callout goes, the project edits; the engine backed it up to
- *             `_history/_migrate/v2-<stamp>/` first and stamped `formatVersion: 2`
+ *   open → the notice "Updated for Maude 2. It now saves with accepted revisions. A copy of the old files
+ *          is in Version history, on this Mac only."; the callout goes, the project edits; the engine
+ *          backed it up to `_history/_migrate/v2-<stamp>/` first and stamped `formatVersion: 2`
  */
 const tid = (s: string) => `[data-testid="${s}"]`;
 const NAME = 'Old project';
@@ -68,7 +61,7 @@ async function probe(): Promise<{ cfg: Record<string, unknown>; write: number }>
   }) as Promise<{ cfg: Record<string, unknown>; write: number }>;
 }
 
-describe('format-update (Michal 2A: a format-1 project is view only + Update project)', () => {
+describe('format-update (p8-v1-drop: a format-1 project converts by itself on open)', () => {
   let home = '';
   let tab = '';
   let root = '';
@@ -84,8 +77,7 @@ describe('format-update (Michal 2A: a format-1 project is view only + Update pro
     await waitWindow(tab);
     await focusTab(tab);
     await waitForSidecar();
-    // The precondition, stated: the tab serves THIS format-1 project (gated) before any test looks for the
-    // dialog. A pass-1 run (2026-10-28, loaded machine) timed out on the dialog twice with no trace of what the
+    // The precondition, stated: the tab serves THIS project before any test looks for the notice. A pass-1 run (2026-10-28, loaded machine) timed out on the dialog twice with no trace of what the
     // tab had served; this turns that into a failure that names it (and gives a slow first load room).
     let seen: unknown = null;
     await browser.waitUntil(
@@ -95,12 +87,12 @@ describe('format-update (Michal 2A: a format-1 project is view only + Update pro
           return { name: c.name, formatVersion: c.formatVersion, formatGate: c.formatGate };
         });
         const c = seen as { name?: string; formatGate?: unknown };
-        return c.name === NAME && !!c.formatGate;
+        return c.name === NAME;
       },
       {
         timeout: 60_000,
         interval: 500,
-        timeoutMsg: `the tab never served the format-1 project as gated: ${JSON.stringify(seen)}`,
+        timeoutMsg: `the tab never served the format-1 project: ${JSON.stringify(seen)}`,
       }
     );
   });
@@ -109,51 +101,22 @@ describe('format-update (Michal 2A: a format-1 project is view only + Update pro
     if (tab) await closeTab(tab, home).catch(() => undefined);
   });
 
-  it('opening asks once — the confirm, with the contract words; nothing is updated yet', async () => {
-    const dialog = await $(tid('format-update-dialog'));
-    await dialog.waitForDisplayed({ timeout: 30_000 });
-    expect(await dialog.$('h2').getText()).toBe(`Update "${NAME}" for Maude 2?`);
-    expect(await dialog.getText()).toContain(
-      "People still on Maude 1 can look at it but can't change it until they update. Nothing in the project is lost."
-    );
-    expect(await $(tid('format-update-confirm')).getText()).toBe('Update project');
-    expect(await $(tid('format-update-cancel')).getText()).toBe('Cancel');
-    await capture('fu-1 the confirm on opening');
-    // only asking: the file is still format 1 and no backup exists
-    expect(
-      JSON.parse(readFileSync(join(root, '.design', 'config.json'), 'utf8')).formatVersion
-    ).toBe(undefined);
-    expect(existsSync(join(root, '.design', '_history', '_migrate'))).toBe(false);
-  });
-
-  it('Cancel → view only: the callout line + Update project, and a write is refused', async () => {
-    await $(tid('format-update-cancel')).click();
-    await $(tid('format-update-dialog')).waitForDisplayed({ reverse: true, timeout: 5_000 });
-    const callout = await $(tid('format-older-callout'));
-    await callout.waitForDisplayed({ timeout: 10_000 });
-    expect(await callout.getAttribute('data-kind')).toBe('owner');
-    expect(await callout.getText()).toContain('View only — this project still uses Maude 1.');
-    expect(await $(tid('format-older-update')).getText()).toBe('Update project');
-    const { cfg, write } = await probe();
-    expect(cfg).toMatchObject({ formatVersion: 1, readOnly: true, readOnlyReason: 'format' });
-    expect(write).toBe(403);
-    await capture('fu-2 view only after Cancel');
-  });
-
-  it('Update project → confirm → editable, backed up first, formatVersion 2', async () => {
-    await $(tid('format-older-update')).click();
-    await $(tid('format-update-dialog')).waitForDisplayed({ timeout: 5_000 });
-    await $(tid('format-update-confirm')).click();
+  it('opening converts it by itself — no dialog; the notice says what happened and where the copy is', async () => {
     await browser.waitUntil(
       () =>
         browser.execute(() =>
           document.body.innerText.includes(
-            'Updated for Maude 2. People on Maude 1 can look but not edit.'
+            'Updated for Maude 2. It now saves with accepted revisions. A copy of the old files is in Version history, on this Mac only.'
           )
         ),
-      { timeout: 20_000, interval: 200, timeoutMsg: 'no "Updated for Maude 2" toast' }
+      { timeout: 30_000, interval: 200, timeoutMsg: 'no "Updated for Maude 2" notice' }
     );
-    await capture('fu-3 updated toast');
+    // the opt-in dialog is gone (p8-v1-drop)
+    expect(await $(tid('format-update-dialog')).isExisting()).toBe(false);
+    await capture('fu-1 updated by itself on open');
+  });
+
+  it('editable, backed up first, formatVersion 2', async () => {
     await $(tid('format-older-callout')).waitForDisplayed({ reverse: true, timeout: 15_000 });
     const { cfg, write } = await probe();
     expect(cfg).toMatchObject({ formatVersion: 2, readOnly: false, formatGate: null });
@@ -163,6 +126,6 @@ describe('format-update (Michal 2A: a format-1 project is view only + Update pro
     ).toBe(2);
     const snaps = readdirSync(join(root, '.design', '_history', '_migrate'));
     expect(snaps.some((d) => /^v2-/.test(d))).toBe(true);
-    await capture('fu-4 editable after Update project');
+    await capture('fu-2 editable after the automatic update');
   });
 });

@@ -1,15 +1,15 @@
-// client/v2/shell/format-update.jsx — Michal 2A: the v2 side of the format gate. A format-1 project opens
-// view only; the person who may update it (local project, or the owner / hub admin of a linked one on a v2
-// hub) gets ONE button, Update project, and a confirm that says 1.x peers will only be able to look. The
-// click runs the existing engine through `POST /_api/project/migrate` (apply, from the Maude window) — it
-// snapshots to `_history/_migrate/v2-<stamp>/` first. Nothing here migrates on its own: opening the project
-// only ASKS (once per project per app session), and Cancel leaves the callout with the button.
-// The owner of a project on a 1.x hub gets the team-server line and how to update the server; once the hub
-// is v2 the same callout turns into Update project by itself (re-checked on focus / online / a timer).
-// p8-update-to-accepted: the same callout, dialog and route also switch a linked project that still saves
-// the old way to accepted revisions — in one Update with the format, or on its own (quieter: a format-2
-// project is not view only, so it is never asked on opening). A cloud tab points the owner to the
-// dashboard instead (format-update.js saveModeState).
+// client/v2/shell/format-update.jsx — p8-v1-drop (Michal, decision maude/v2-michal-drop-v1-auto-convert):
+// a format-1 project, or a linked one that still saves the old way, CONVERTS BY ITSELF when it opens. No
+// opt-in dialog any more. The shell runs the dry run (`POST /_api/project/migrate`, read only); when it
+// says this Mac may convert now (format-update.js `olderGateState` / `saveModeState` → kind 'ready'), it
+// applies at once through the same route — the engine snapshots to `_history/_migrate/v2-<stamp>/` first
+// — and says what happened in a notice. Anyone who cannot convert now (not the owner, signed out,
+// offline, an older team server, a team server not set up for accepted revisions) gets ONE line with its
+// action, and the conversion runs by itself once the reason clears (re-checked on focus / online / a
+// timer). A failed attempt is never retried on the same answer (`autoStep`): only after the conditions
+// change, at most AUTO_MAX times per app session; by hand it is "Retry update" (CONTRACT §4 [C20]).
+// A Maude Cloud project never converts by itself during the rc: its owner gets Update project, behind a
+// warning that the cloud tab stays view only until Maude Cloud runs Maude 2 (`confirmCloud`).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isNativeApp } from '../../github.js';
@@ -18,7 +18,9 @@ import { StIcon } from '../../shell/icons.jsx';
 import { shellToast } from '../../shell/util.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import {
+  AUTO_FRESH,
   applyResult,
+  autoStep,
   FAIL_COPY,
   failureActionLabel,
   isOlderGate,
@@ -29,7 +31,6 @@ import {
   SAVE_COPY,
   saveModeState,
   teamServerCommand,
-  updateDialogCopy,
 } from './format-update.js';
 
 const RECHECK_MS = 60_000;
@@ -56,22 +57,23 @@ async function migrate(body) {
   return { status: r.status, report: j };
 }
 
-/** Asked once per project per app session — a refusal of the dialog is respected until relaunch. */
-function askedKey(cfg) {
-  return `maude-format-asked:${cfg?.designRel ?? ''}:${cfg?.name ?? ''}`;
+/** The no-loop guard, per project per app session (sessionStorage: a reload does not loop either). */
+function guardKey(cfg) {
+  return `maude-format-auto:${cfg?.designRel ?? ''}:${cfg?.name ?? ''}`;
 }
-function alreadyAsked(cfg) {
+function readGuard(cfg) {
   try {
-    return sessionStorage.getItem(askedKey(cfg)) === '1';
+    const v = JSON.parse(sessionStorage.getItem(guardKey(cfg)) ?? 'null');
+    return v && typeof v.attempts === 'number' ? v : AUTO_FRESH;
   } catch {
-    return false;
+    return AUTO_FRESH;
   }
 }
-function markAsked(cfg) {
+function writeGuard(cfg, g) {
   try {
-    sessionStorage.setItem(askedKey(cfg), '1');
+    sessionStorage.setItem(guardKey(cfg), JSON.stringify(g));
   } catch {
-    /* private window: ask again next time */
+    /* private window: the in-memory guard still holds for this page */
   }
 }
 
@@ -111,17 +113,18 @@ export function OlderFormatCallout() {
   const saveOffer = !older && isSaveModeOffer(cfg);
   const probes = older || (saveOffer && !cfg?.cloud);
   const [plan, setPlan] = useState(undefined);
-  const [dialog, setDialog] = useState(null); // 'update' | 'team-server' | null
+  const [dialog, setDialog] = useState(null); // 'cloud' | 'team-server' | null
   const [busy, setBusy] = useState(false);
-  // p8-update-fails-loud: { kind, line, action, hub } — the worded state after an apply that did not
-  // go through, and its one action (failureActionLabel). Never a silent no-op.
+  // { kind, line, action, hub } — the worded state after an apply that did not go through, and its one
+  // action (failureActionLabel). Never a silent no-op.
   const [failure, setFailure] = useState(null);
   const [copied, setCopied] = useState(false);
   // the team server's sign-in (Sync details' own dialog), for the hub URL it holds; null = closed
   const [signInAt, setSignInAt] = useState(null);
+  const [guard, setGuard] = useState(() => readGuard(cfg));
   const confirmRef = useRef(null);
   const returnFocus = useRef(null);
-  // one request at a time: a second click in the same tick (before `busy` renders) sends nothing
+  // one request at a time: a second trigger in the same tick (before `busy` renders) sends nothing
   const inFlight = useRef(false);
 
   const probe = useCallback(async () => {
@@ -139,6 +142,7 @@ export function OlderFormatCallout() {
     if (!probes) {
       setPlan(undefined);
       setDialog(null);
+      setFailure(null);
       return;
     }
     void probe();
@@ -146,9 +150,61 @@ export function OlderFormatCallout() {
 
   const state = older ? olderGateState({ cfg, plan }) : saveModeState({ cfg, plan });
 
-  // The team server may come back, or be updated: re-check on its own while it is the reason.
+  const linkedHub = () => plan?.project?.linked?.hub ?? cfg?.linkedHub?.url ?? '';
+  const signIn = (hub) => setSignInAt(hub || linkedHub());
+
+  const apply = async ({ confirmCloud = false } = {}) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    setFailure(null);
+    let out;
+    try {
+      const { status, report } = await migrate({
+        apply: true,
+        ...(confirmCloud ? { confirmCloud: true } : {}),
+      });
+      out = applyResult({ status, report });
+    } catch {
+      out = applyResult({ thrown: true });
+    }
+    inFlight.current = false;
+    setBusy(false);
+    if (out.done) {
+      // the guard stays blocked: until `/_config` catches up the dry run may still read 'ready'
+      setDialog(null);
+      const action =
+        out.action === 'sign-in-again'
+          ? { label: FAIL_COPY.signInAgain, onClick: () => signIn(out.hub) }
+          : undefined;
+      shellToast(out.toast, true, action);
+      // the server emits config-updated; /_config follows. Probe again too: a switch that did not
+      // happen after the format moved becomes the save-mode trigger, one that did clears it.
+      void probe();
+      return;
+    }
+    setFailure(out);
+    void probe();
+  };
+
+  // The automatic conversion: once per change of conditions (autoStep), never in a loop. It runs on a
+  // new probe answer only — the guard, the failure and `apply` are read, never what re-runs it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new dry-run answer is the only trigger
   useEffect(() => {
-    if (!state || !RECHECK_KINDS.has(state.kind)) return;
+    const step = autoStep(guard, state, older ? 'format' : 'save');
+    if (step.guard !== guard) {
+      setGuard(step.guard);
+      writeGuard(cfg, step.guard);
+    }
+    // a different answer than the one the failure came from: the failure's words are stale
+    if (failure && state && state.kind !== 'ready' && state.kind !== 'checking') setFailure(null);
+    if (step.apply) void apply();
+  }, [state?.kind, plan]);
+
+  // The reason may clear on its own (the team server comes back, is updated, a sign-in): re-check.
+  const recheck = !!state && (RECHECK_KINDS.has(state.kind) || !!failure);
+  useEffect(() => {
+    if (!recheck) return;
     const again = () => void probe();
     const t = setInterval(again, RECHECK_MS);
     window.addEventListener('online', again);
@@ -158,15 +214,7 @@ export function OlderFormatCallout() {
       window.removeEventListener('online', again);
       window.removeEventListener('focus', again);
     };
-  }, [state?.kind, probe]);
-
-  // Opening an older project ASKS once (V2-1.12 §5.9) — it never updates by itself.
-  useEffect(() => {
-    if (!older || state?.action !== 'update' || dialog || alreadyAsked(cfg)) return;
-    markAsked(cfg);
-    returnFocus.current = document.activeElement;
-    setDialog('update');
-  }, [state?.action]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [recheck, probe]);
 
   useEffect(() => {
     if (dialog) confirmRef.current?.focus();
@@ -175,7 +223,6 @@ export function OlderFormatCallout() {
   const close = useCallback(() => {
     if (busy) return;
     setDialog(null);
-    setFailure(null);
     setCopied(false);
     const el = returnFocus.current;
     returnFocus.current = null;
@@ -184,49 +231,7 @@ export function OlderFormatCallout() {
 
   const open = (which) => {
     returnFocus.current = document.activeElement;
-    setFailure(null);
     setDialog(which);
-  };
-
-  const linkedHub = () => plan?.project?.linked?.hub ?? cfg?.linkedHub?.url ?? '';
-  const signIn = (hub) => setSignInAt(hub || linkedHub());
-
-  const apply = async () => {
-    if (inFlight.current) return;
-    inFlight.current = true;
-    setBusy(true);
-    setFailure(null);
-    let out;
-    try {
-      const { status, report } = await migrate({ apply: true });
-      out = applyResult({ status, report });
-    } catch {
-      out = applyResult({ thrown: true });
-    }
-    inFlight.current = false;
-    setBusy(false);
-    if (out.done) {
-      setDialog(null);
-      const action =
-        out.action === 'sign-in-again'
-          ? { label: FAIL_COPY.signInAgain, onClick: () => signIn(out.hub) }
-          : undefined;
-      shellToast(out.toast, true, action);
-      // the server emits config-updated; /_config follows. Ask again too: a switch that did not
-      // happen after the format moved keeps the (quiet) offer, one that did clears it.
-      void probe();
-      return;
-    }
-    setFailure(out);
-    void probe();
-  };
-
-  /** The dialog's primary button: Update project, or the one action the failure offers. */
-  const primary = () => {
-    const a = failure?.action;
-    if (!failure || a === 'retry') return void apply();
-    if (a === 'sign-in' || a === 'sign-in-again') return signIn(failure.hub);
-    if (a === 'team-server') open('team-server');
   };
 
   const copy = async () => {
@@ -239,13 +244,22 @@ export function OlderFormatCallout() {
   };
 
   if (!state) return null;
+  // What the callout says: the run in progress, else a failure (with its one action), else a 'ready'
+  // the guard holds back (tried already on this answer: Retry update by hand), else the state's line.
+  const cloudKind = state.kind === 'cloud';
+  let shown = state;
+  if (busy)
+    shown = { kind: 'updating', line: older ? OLDER_COPY.olderUpdating : SAVE_COPY.updating };
+  else if (failure && !cloudKind) shown = failure;
+  else if (state.kind === 'ready' && guard.blocked)
+    shown = {
+      kind: 'held',
+      line: older ? OLDER_COPY.olderStatus : SAVE_COPY.status,
+      action: 'retry',
+    };
+  const action = busy ? null : reachable(shown.action);
   const name = cfg?.cloud?.projectName || cfg?.name || project || 'this project';
-  const quiet =
-    state.kind === 'save-mode' ||
-    state.kind === 'save-mode-cloud' ||
-    state.kind === 'save-mode-sign-in';
-  const words = updateDialogCopy({ older, plan, name });
-  const primaryLabel = failure ? failureActionLabel(reachable(failure.action)) : words.action;
+  const quiet = !older;
   return (
     <>
       <div
@@ -253,44 +267,53 @@ export function OlderFormatCallout() {
         aria-live="polite"
         className="sh-callout sh-callout--info"
         data-testid="format-older-callout"
-        data-kind={state.kind}
+        data-kind={shown.kind}
       >
         <span className="sh-callout-ic" aria-hidden="true">
           <StIcon name={quiet ? 'clock' : 'problem'} size={16} />
         </span>
-        <span className="sh-callout-t">{state.line}</span>
-        {reachable(state.action) &&
-          (state.action === 'sign-in' || state.action === 'sign-in-again') && (
-            <button
-              type="button"
-              className="btn btn--sm"
-              data-testid="format-older-sign-in"
-              onClick={() => signIn(state.hub)}
-            >
-              {failureActionLabel(state.action)}
-            </button>
-          )}
-        {state.action === 'update' && (
+        <span className="sh-callout-t">{shown.line}</span>
+        {(action === 'sign-in' || action === 'sign-in-again') && (
           <button
             type="button"
-            className={quiet ? 'btn btn--sm' : 'btn btn--primary btn--sm'}
+            className="btn btn--sm"
+            data-testid="format-older-sign-in"
+            onClick={() => signIn(shown.hub)}
+          >
+            {failureActionLabel(action)}
+          </button>
+        )}
+        {action === 'retry' && (
+          <button
+            type="button"
+            className="btn btn--sm"
+            data-testid="format-older-retry"
+            onClick={() => void apply()}
+          >
+            {FAIL_COPY.retry}
+          </button>
+        )}
+        {action === 'update-cloud' && (
+          <button
+            type="button"
+            className="btn btn--sm"
             data-testid="format-older-update"
-            onClick={() => open('update')}
+            onClick={() => open('cloud')}
           >
             {OLDER_COPY.olderStatusAction}
           </button>
         )}
-        {state.action === 'dashboard' && (
+        {action === 'dashboard' && (
           <button
             type="button"
             className="btn btn--sm"
             data-testid="format-save-mode-dashboard"
-            onClick={() => window.open(state.href, '_blank', 'noopener,noreferrer')}
+            onClick={() => window.open(shown.href, '_blank', 'noopener,noreferrer')}
           >
             {SAVE_COPY.cloudAction}
           </button>
         )}
-        {state.action === 'team-server' && (
+        {action === 'team-server' && (
           <button
             type="button"
             className="btn btn--sm"
@@ -301,26 +324,22 @@ export function OlderFormatCallout() {
           </button>
         )}
       </div>
-      {dialog === 'update' && (
+      {dialog === 'cloud' && (
         <Dialog
-          testid="format-update-dialog"
-          titleId="fu-update-title"
-          bodyId="fu-update-body"
-          title={words.title}
+          testid="format-cloud-dialog"
+          titleId="fu-cloud-title"
+          bodyId="fu-cloud-body"
+          title={OLDER_COPY.cloudDialogTitle(name)}
           onEscape={close}
         >
-          <div id="fu-update-body">
-            {words.body.map((line) => (
-              <p key={line} className="fu-body">
-                {line}
-              </p>
-            ))}
-          </div>
+          <p id="fu-cloud-body" className="fu-body">
+            {OLDER_COPY.cloudDialogBody}
+          </p>
           {failure && (
             <p
               className="fu-error"
               role="alert"
-              data-testid="format-update-error"
+              data-testid="format-cloud-error"
               data-kind={failure.kind}
             >
               {failure.line}
@@ -330,26 +349,23 @@ export function OlderFormatCallout() {
             <button
               type="button"
               className="btn"
-              data-testid="format-update-cancel"
+              data-testid="format-cloud-cancel"
               disabled={busy}
               onClick={close}
             >
-              {failure && !primaryLabel ? FAIL_COPY.close : 'Cancel'}
+              Cancel
             </button>
-            {(busy || primaryLabel) && (
-              <button
-                ref={confirmRef}
-                type="button"
-                className="btn btn--primary"
-                data-testid="format-update-confirm"
-                data-action={failure?.action ?? 'update'}
-                disabled={busy}
-                aria-busy={busy ? 'true' : undefined}
-                onClick={primary}
-              >
-                {busy ? 'Updating…' : primaryLabel}
-              </button>
-            )}
+            <button
+              ref={confirmRef}
+              type="button"
+              className="btn btn--primary"
+              data-testid="format-cloud-confirm"
+              disabled={busy}
+              aria-busy={busy ? 'true' : undefined}
+              onClick={() => void apply({ confirmCloud: true })}
+            >
+              {busy ? 'Updating…' : OLDER_COPY.olderStatusAction}
+            </button>
           </div>
         </Dialog>
       )}
@@ -359,8 +375,7 @@ export function OlderFormatCallout() {
           initialServer={signInAt}
           onClose={() => {
             setSignInAt(null);
-            setFailure(null);
-            // signed in again (or not): ask the team server afresh
+            // signed in again (or not): ask the team server afresh — a new answer re-arms the guard
             void probe();
           }}
         />

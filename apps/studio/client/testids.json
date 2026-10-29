@@ -14614,15 +14614,16 @@
     "hook": "format-older-callout",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The v2 side of the format gate (Michal 2A): a format-1 project is view only. `data-kind` = `checking` / `owner` (View only — this project still uses Maude 1. + Update project) / `non-owner` (the owner hasn't updated it) / `hub-too-old` (the team server needs an update + How to update) / `offline` (updating needs the team server, this Mac is offline).",
+    "meaning": "The v2 side of the format gate: a format-1 project is view only until it converts — BY ITSELF on open since p8-v1-drop (no dialog). `data-kind` = `checking` / `ready` (this Mac may convert it now: Updating this project for Maude 2… — the shell applies unasked) / `updating` (the run in progress) / `held` (tried already on this answer: Retry update) / `non-owner` (Ask the owner) / `no-sign-in` + `token-rejected` (Sign in / Sign in again) / `hub-too-old` (How to update) / `offline` (waiting for the connection) / `server-setup` (the team server isn't set up for accepted revisions: store-not-durable, browser-not-paired) / `refused` (another refusal, worded) / `failed` + the apply failure kinds (unexpected, old-server, …) / `cloud` (a Maude Cloud project during the rc — never converted unasked; the owner's Update project) / `save-mode-cloud` (a cloud tab of a project that still saves the old way: Open dashboard). One action at most.",
     "producer": {
       "file": "apps/studio/client/v2/shell/format-update.jsx",
       "symbol": "OlderFormatCallout"
     },
     "region": "other",
     "consumers": [
+      "apps/desktop/e2e/format-update.e2e.ts",
       "apps/studio/test/format-update-model.test.ts",
-      "apps/desktop/e2e/format-update.e2e.ts"
+      "apps/studio/test/p8-v1-drop-auto-convert.test.tsx"
     ],
     "v2": "new"
   },
@@ -14630,15 +14631,90 @@
     "hook": "format-older-update",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The callout's Update project button — local project, or the owner / hub admin of a linked one on a v2 hub. Opens `format-update-dialog`.",
+    "meaning": "A Maude Cloud project during the rc (`data-kind` cloud): the owner's Update project. Opens `format-cloud-dialog` — never converted unasked (p8-v1-drop).",
     "producer": {
       "file": "apps/studio/client/v2/shell/format-update.jsx",
       "symbol": "OlderFormatCallout"
     },
     "region": "other",
     "consumers": [
-      "apps/studio/test/format-update-model.test.ts",
-      "apps/desktop/e2e/format-update.e2e.ts"
+      "apps/studio/test/p8-v1-drop-auto-convert.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "format-older-retry",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "p8-v1-drop: Retry update — an automatic conversion that did not go through (or one the guard holds back on the same answer) is retried only by hand (CONTRACT §4 [C20]).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/format-update.jsx",
+      "symbol": "OlderFormatCallout"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/p8-v1-drop-auto-convert.test.tsx",
+      "apps/studio/test/p8-update-fails-loud-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "format-cloud-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "p8-v1-drop: the warning before a Maude Cloud project is converted during the rc — Update \"<project>\" for Maude 2 now? · Maude Cloud doesn't run Maude 2 yet; until it does, the cloud tab is view only for everyone.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/format-update.jsx",
+      "symbol": "OlderFormatCallout"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/p8-v1-drop-auto-convert.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "format-cloud-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "p8-v1-drop: the warning's Update project — `POST /_api/project/migrate` apply with `confirmCloud: true` (the server refuses an automatic apply of a held cloud project without it).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/format-update.jsx",
+      "symbol": "OlderFormatCallout"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/p8-v1-drop-auto-convert.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "format-cloud-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "p8-v1-drop: the warning's Cancel — the project stays view only, with Update project in the callout.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/format-update.jsx",
+      "symbol": "OlderFormatCallout"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/p8-v1-drop-auto-convert.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "format-cloud-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "p8-v1-drop: the warning's line when the apply did not go through (the p8-update-fails-loud kinds).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/format-update.jsx",
+      "symbol": "OlderFormatCallout"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/p8-v1-drop-auto-convert.test.tsx"
     ],
     "v2": "new"
   },
@@ -14652,7 +14728,9 @@
       "symbol": "OlderFormatCallout"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/p8-update-fails-loud-dialog.test.tsx"],
+    "consumers": [
+      "apps/studio/test/p8-update-fails-loud-dialog.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -14660,70 +14738,6 @@
     "kind": "testid",
     "pattern": false,
     "meaning": "The callout's How to update button — the owner of a project on a 1.x team server. Opens `format-team-server-dialog`.",
-    "producer": {
-      "file": "apps/studio/client/v2/shell/format-update.jsx",
-      "symbol": "OlderFormatCallout"
-    },
-    "region": "other",
-    "consumers": [
-      "apps/studio/test/format-update-model.test.ts",
-      "apps/desktop/e2e/format-update.e2e.ts"
-    ],
-    "v2": "new"
-  },
-  {
-    "hook": "format-update-dialog",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The confirm: Update \"<project>\" for Maude 2? · People still on Maude 1 can look at it but can't change it until they update. Asked once on opening an older project (never updates by itself).",
-    "producer": {
-      "file": "apps/studio/client/v2/shell/format-update.jsx",
-      "symbol": "OlderFormatCallout"
-    },
-    "region": "other",
-    "consumers": [
-      "apps/studio/test/format-update-model.test.ts",
-      "apps/desktop/e2e/format-update.e2e.ts"
-    ],
-    "v2": "new"
-  },
-  {
-    "hook": "format-update-confirm",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The dialog's Update project: `POST /_api/project/migrate` apply (snapshots to `_history/_migrate/v2-<stamp>/` first), then the toast Updated for Maude 2.",
-    "producer": {
-      "file": "apps/studio/client/v2/shell/format-update.jsx",
-      "symbol": "OlderFormatCallout"
-    },
-    "region": "other",
-    "consumers": [
-      "apps/studio/test/format-update-model.test.ts",
-      "apps/desktop/e2e/format-update.e2e.ts"
-    ],
-    "v2": "new"
-  },
-  {
-    "hook": "format-update-cancel",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The dialog's Cancel: the project stays view only with the callout's Update project.",
-    "producer": {
-      "file": "apps/studio/client/v2/shell/format-update.jsx",
-      "symbol": "OlderFormatCallout"
-    },
-    "region": "other",
-    "consumers": [
-      "apps/studio/test/format-update-model.test.ts",
-      "apps/desktop/e2e/format-update.e2e.ts"
-    ],
-    "v2": "new"
-  },
-  {
-    "hook": "format-update-error",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The dialog's line when the apply was refused: The project was not updated — <why>. Nothing in it changed.",
     "producer": {
       "file": "apps/studio/client/v2/shell/format-update.jsx",
       "symbol": "OlderFormatCallout"

@@ -206,20 +206,12 @@ export function projectFormat(
 export interface FormatGateOptions {
   supported?: number;
   hubFormat?: number | null;
-  /**
-   * Gate only projects NEWER than this build (the 1.x direction), and leave
-   * older ones editable. The studio does NOT run with it any more: the
-   * contract's full behaviour (§4.1, Michal 2A 2026-10-28) — v2 opens a
-   * format-1 project view only until "Update project" — is `FORMAT_GATE_OPTS`.
-   */
-  newerOnly?: boolean;
 }
 
 export function formatGate(ctx: FormatCtx, opts: FormatGateOptions = {}): FormatGate | null {
   const supported = opts.supported ?? SUPPORTED_FORMAT;
   const p = projectFormat(ctx, { hubFormat: opts.hubFormat });
   if (p.value === supported) return null;
-  if (opts.newerOnly && p.value < supported) return null;
   return { projectFormat: p.value, supported, source: p.source };
 }
 
@@ -233,24 +225,31 @@ export const FORMAT_COPY = {
     "This project now uses Maude 2, which isn't out yet. It stays open here to look at.",
   newerCloudTab: "This project now uses Maude 2. It's open here to look at.",
   newerCanvas: 'This canvas uses Maude 2. Update Maude to see it.',
-  /** An older project in v2 — view only until it is updated. */
+  /** An older project in v2 — view only until it converts (by itself since p8-v1-drop). */
   olderStatus: 'View only — this project still uses Maude 1.',
   olderStatusAction: 'Update project',
-  olderNonOwner: "View only — the owner hasn't updated this project for Maude 2 yet.",
+  olderUpdating: 'Updating this project for Maude 2…',
+  olderNonOwner:
+    'View only — this project moves to Maude 2 once its owner opens it. Ask the owner.',
   olderHubTooOld:
     'View only — the team server needs an update before this project can move to Maude 2.',
   olderOwnerOffline:
-    'View only — updating the project needs the team server, and this Mac is offline.',
-  dialogTitle: (projectName: string) => `Update "${projectName}" for Maude 2?`,
-  dialogBody:
-    "People still on Maude 1 can look at it but can't change it until they update. Nothing in the project is lost.",
-  dialogAction: 'Update project',
-  toastUpdated: 'Updated for Maude 2. People on Maude 1 can look but not edit.',
+    'View only — waiting for the connection to the team server. The project moves to Maude 2 by itself once it is back.',
+  olderServerSetup:
+    "View only — the team server isn't set up to save accepted revisions yet. Once it is, the project moves to Maude 2 by itself.",
+  toastUpdated:
+    'Updated for Maude 2. It now saves with accepted revisions. A copy of the old files is in Version history, on this Mac only.',
+  /** A Maude Cloud project during the rc: never converted unasked (`autoConvertPolicy`). */
+  cloudStatus:
+    'View only — this Maude Cloud project still uses Maude 1. It moves to Maude 2 by itself once Maude Cloud runs Maude 2.',
+  cloudDialogTitle: (projectName: string) => `Update "${projectName}" for Maude 2 now?`,
+  cloudDialogBody:
+    "Maude Cloud doesn't run Maude 2 yet. Until it does, the project's cloud tab is view only for everyone. Nothing in the project is lost.",
   /** The owner on a 1.x hub (Michal 2A): the callout's one action opens how to update the server. */
   teamServerAction: 'How to update',
   teamServerTitle: 'Update the team server',
   teamServerBody:
-    'Whoever runs your team server updates it; the projects on it stay as they are. On the server, run the command below again — it keeps the settings and secrets and starts the new version on the same data. Maude Cloud team servers are already up to date. Once the server is updated, Update project appears here.',
+    'Whoever runs your team server updates it; the projects on it stay as they are. On the server, run the command below again — it keeps the settings and secrets and starts the new version on the same data. Maude Cloud team servers are already up to date. Once the server is updated, the project moves to Maude 2 by itself.',
   teamServerCopy: 'Copy command',
   teamServerClose: 'Close',
 } as const;
@@ -303,11 +302,53 @@ export function formatGateAllowsWrite(
 }
 
 /**
+ * p8-v1-drop (decision maude/v2-michal-drop-v1-auto-convert): may the shell convert this project to
+ * format 2 UNASKED? Yes, except a Maude Cloud project before the stable 2.0.0: cells run studio 1.x
+ * until a stable tag rolls the fleet (`apps/cells/wrangler.toml`), so a cloud project raised to format 2
+ * during the rc would be view only in the cloud tab for everyone. "Maude Cloud" = this studio IS a cell
+ * (workspace mode), or the linked hub is the cloud host or a cell under it. The owner may still convert
+ * one by hand, after a warning — the route asks for `confirmCloud` then.
+ */
+export type AutoConvertPolicy = { allowed: true } | { allowed: false; why: 'cloud-rc' };
+
+/** A stable (no pre-release) release at or above 2.0.0 — the one that rolls the cloud fleet. */
+export function isStableV2(version: string | null | undefined): boolean {
+  const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(String(version ?? '').trim());
+  return !!m && Number(m[1]) >= 2;
+}
+
+/** Is this hub address Maude Cloud's own (the cloud host, or a project cell under it)? */
+export function isCloudHubUrl(hubUrl: string | null | undefined, cloudUrl: string): boolean {
+  const host = (u: string | null | undefined) => {
+    try {
+      return new URL(String(u)).hostname.toLowerCase();
+    } catch {
+      return '';
+    }
+  };
+  const h = host(hubUrl);
+  const c = host(cloudUrl);
+  if (!h || !c) return false;
+  return h === c || h.endsWith(`.${c}`);
+}
+
+export function autoConvertPolicy(o: {
+  version: string;
+  workspaceMode: boolean;
+  hubUrl: string | null;
+  cloudUrl: string;
+}): AutoConvertPolicy {
+  const cloud = o.workspaceMode || isCloudHubUrl(o.hubUrl, o.cloudUrl);
+  if (cloud && !isStableV2(o.version)) return { allowed: false, why: 'cloud-rc' };
+  return { allowed: true };
+}
+
+/**
  * The gate options the studio runs with — the FULL gate (CONTRACT §4.1,
  * decision maude/v2-michal-1a-2a-format-gate-one-button-migrate): a project
  * edits only at exactly this build's format, so v2 opens a format-1 project
- * view only until its owner runs "Update project" (`POST /_api/project/migrate`,
- * the one write the gate lets through). Every project v2 creates is stamped
+ * view only until it converts — by itself on open since p8-v1-drop
+ * (`POST /_api/project/migrate`, the one write the gate lets through). Every project v2 creates is stamped
  * `formatVersion: SUPPORTED_FORMAT` (`NEW_PROJECT_FORMAT`). `http.ts`,
  * `server.ts` and the sync runtime all pass this one constant
  * (test/format-sync.test.ts pins it).

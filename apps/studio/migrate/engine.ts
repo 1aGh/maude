@@ -784,7 +784,20 @@ export async function applyMigration(
       return report;
     }
 
-    // I7 — forward: the hub flips BEFORE the first local write.
+    // I7 — forward: the hub flips BEFORE the first local write. `flipped` holds the epoch the
+    // flip answered with: a local failure below puts the hub back (p8-v1-drop), so a teammate
+    // never sees a format-2 project whose files on this Mac stayed format 1.
+    let flipped: { from: 1; epoch: number } | null = null;
+    const unflip = async () => {
+      if (!flipped || !p.hub) return;
+      const back = await p.hub.client.setFormat(flipped.from, flipped.epoch).catch(() => null);
+      if (back?.ok)
+        log(`[migrate] a local write failed — the team server is back at format ${flipped.from}`);
+      else
+        log(
+          '[migrate] a local write failed and the team server did not go back — run Update again to finish'
+        );
+    };
     if (
       opts.direction === 'forward' &&
       p.hub &&
@@ -807,14 +820,14 @@ export async function applyMigration(
         return report;
       }
       log(`[migrate] the team server now says format ${TARGET_FORMAT} (epoch ${r.epoch})`);
+      flipped = { from: 1, epoch: r.epoch };
     }
-
-    // The DDR-242 prerequisite (legacy boards) — its own originals-kept rules.
-    if (p.prerequisite && opts.direction === 'forward') migrateAnnotationsV2({ designRoot, log });
 
     // Stage, then apply all-or-nothing.
     const done: Op[] = [];
     try {
+      // The DDR-242 prerequisite (legacy boards) — its own originals-kept rules.
+      if (p.prerequisite && opts.direction === 'forward') migrateAnnotationsV2({ designRoot, log });
       const staged = new Map<string, string>();
       for (const op of p.ops) {
         if (op.kind !== 'write') continue;
@@ -863,6 +876,7 @@ export async function applyMigration(
       } catch {
         /* the snapshot copies are what matter */
       }
+      await unflip();
       throw err;
     }
 
