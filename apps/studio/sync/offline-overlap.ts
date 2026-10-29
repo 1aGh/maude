@@ -127,7 +127,11 @@ interface Episode {
   exposed: boolean;
 }
 
-export function createOverlapWatch(): OverlapWatch {
+/**
+ * `read` is the text this watch guards: the canvas body (default) or, for the
+ * sibling stylesheet (p8-fix-e, F8a), `cssFromDoc`. Same episode, same rule.
+ */
+export function createOverlapWatch(read: (doc: Y.Doc) => string = htmlFromDoc): OverlapWatch {
   let ep: Episode | null = null;
   /** Unknown until the provider says — assume up, so a drop ends what it can. */
   let online = true;
@@ -143,7 +147,7 @@ export function createOverlapWatch(): OverlapWatch {
     },
     beforeLocal(doc) {
       if (ep) return;
-      const baseText = htmlFromDoc(doc);
+      const baseText = read(doc);
       ep = {
         baseState: Y.encodeStateAsUpdate(doc),
         baseText,
@@ -191,7 +195,7 @@ export function createOverlapWatch(): OverlapWatch {
     },
     check() {
       if (!ep?.shadow) return null;
-      const theirs = htmlFromDoc(ep.shadow);
+      const theirs = read(ep.shadow);
       const { baseText: base, mine } = ep;
       if (theirs === base || theirs === mine || mine === base) return null;
       const merged = mergeSource(base, mine, theirs);
@@ -202,4 +206,22 @@ export function createOverlapWatch(): OverlapWatch {
       return { base, mine, theirs };
     },
   };
+}
+
+/**
+ * The notice the side taken second shows (sync/index.ts), for the body and —
+ * p8-fix-e (F8a) — the sibling stylesheet: what happened, which version is
+ * where, and the file that holds theirs.
+ */
+export function offlineOverlapNotice(
+  slug: string,
+  info: { file?: 'css'; snapshotFailed: boolean }
+): string {
+  const part = info.file === 'css' ? `the styles of ${slug}` : `the same part of ${slug}`;
+  const ext = info.file === 'css' ? 'css' : 'tsx';
+  return `You and a teammate both changed ${part} while apart. Your version is kept on this Mac; the project kept theirs. ${
+    info.snapshotFailed
+      ? 'Their version could not be saved; check disk space and history write access.'
+      : `Their version is in _history/${slug}/sync-recovery/incoming.${ext}.`
+  }`;
 }

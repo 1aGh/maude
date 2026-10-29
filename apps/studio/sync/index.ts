@@ -105,7 +105,7 @@ import type { RestoreOptions } from './local-kernel.ts';
 import { isLoopbackHost } from './loopback.ts';
 import { migrateFlatFallback } from './migrate-flat-fallback.ts';
 import { migrateSeed } from './migrate-seed.ts';
-import { syncUpdateFromMessage } from './offline-overlap.ts';
+import { offlineOverlapNotice, syncUpdateFromMessage } from './offline-overlap.ts';
 import { ORIGINS } from './origins.ts';
 import {
   fileLaneBusy,
@@ -4208,6 +4208,7 @@ export function createSyncRuntime(
       // swaps it under a live projection): nothing an earlier one sent will be
       // acknowledged on it, so the offline-overlap check treats it as a drop.
       projections.get(canvas.slug)?.noteConnection(false);
+      agents.get(canvas.slug)?.noteConnection(false); // F8b — the two-doc lane too
       // ANY change to a synced document is activity — a local edit unparks a
       // parked desktop, and a peer's edit arriving keeps a live collaboration
       // connected rather than parking under it.
@@ -4243,14 +4244,20 @@ export function createSyncRuntime(
         noteDetach(
           statusDetaches,
           canvas.slug,
-          provider.onRemoteUpdate((u) => projections.get(canvas.slug)?.noteRemoteUpdate(u))
+          provider.onRemoteUpdate((u) => {
+            projections.get(canvas.slug)?.noteRemoteUpdate(u);
+            agents.get(canvas.slug)?.noteRemoteUpdate(u); // F8b — MAUDE_SHARED_DOC=0
+          })
         );
       }
       if (provider.onConfirmed) {
         noteDetach(
           statusDetaches,
           canvas.slug,
-          provider.onConfirmed(() => projections.get(canvas.slug)?.noteConfirmed())
+          provider.onConfirmed(() => {
+            projections.get(canvas.slug)?.noteConfirmed();
+            agents.get(canvas.slug)?.noteConfirmed();
+          })
         );
       }
 
@@ -4266,6 +4273,7 @@ export function createSyncRuntime(
             // V2-8.9 M1 — a drop with an edit in flight ends the legacy
             // offline-overlap check (sync/offline-overlap.ts).
             projections.get(canvas.slug)?.noteConnection(s === 'connected');
+            agents.get(canvas.slug)?.noteConnection(s === 'connected');
             // COMING BACK IS THE MOMENT MOST LIKELY TO HAVE MISSED SOMETHING.
             //
             // A peer that was away for an hour has an hour of other people's
@@ -4458,7 +4466,7 @@ export function createSyncRuntime(
                     severity: 'warn',
                     text:
                       info.reason === 'offline-overlap'
-                        ? `You and a teammate both changed the same part of ${canvas.slug} while apart. Your version is kept on this Mac; the project kept theirs. ${info.snapshotFailed ? 'Their version could not be saved; check disk space and history write access.' : `Their version is in _history/${canvas.slug}/sync-recovery/incoming.tsx.`}`
+                        ? offlineOverlapNotice(canvas.slug, info)
                         : `Source sync blocked for ${canvas.slug}. The local file was kept because ${
                             info.reason === 'invalid-source'
                               ? 'the source has syntax errors or duplicate declarations'
@@ -4513,8 +4521,23 @@ export function createSyncRuntime(
                     return null; // best-effort — resolution proceeds without refs
                   }
                 },
-                onConflict: (info) => store.addConflict(info),
+                onConflict: (info) => {
+                  store.addConflict(info);
+                  // F8b — the legacy offline-overlap notice, as the projection lane shows it.
+                  if (info.reason === 'offline-overlap') {
+                    store.notice({
+                      id: `source-conflict-${canvas.slug}`,
+                      severity: 'warn',
+                      text: offlineOverlapNotice(canvas.slug, info),
+                    });
+                  }
+                },
                 formatFirstSight: firstSightFor(canvas.slug),
+                // F8b (p8-fix-e) — the legacy offline-overlap check on this lane too.
+                isRemoteOrigin: (origin: unknown) =>
+                  providers.get(canvas.slug)?.isRemoteOrigin?.(origin) === true,
+                historyDir: path.join(ctx.paths.historyDir, canvas.slug),
+                onRecovered: () => store.clearSourceConflict(canvas.slug),
               });
               agent.start();
               agents.set(canvas.slug, agent);
