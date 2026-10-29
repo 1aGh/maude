@@ -131,6 +131,18 @@ export function textMergeCollides(base: string, ours: string, theirs: string): b
   return !textMerge(base, ours, theirs).ok;
 }
 
+/**
+ * p8-fix-d F12 — what `mergeText(base, ours, theirs)` leaves (no budget): the merged text, or `ours`
+ * when the edits collide or no merge is registered (acceptance order, as the board applies it).
+ */
+export function textMergeResult(base: string, ours: string, theirs: string): string {
+  if (theirs === base) return ours;
+  if (ours === base) return theirs;
+  if (!textMerge) return ours;
+  const m = textMerge(base, ours, theirs);
+  return m.ok ? m.merged : ours;
+}
+
 /** Resolve one field's new value under the merge rule. */
 function mergeField(
   type: string,

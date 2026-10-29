@@ -13,17 +13,19 @@
  *             annotations effects (`history` rows carry `beforeHash`/`afterHash`) and their blobs.
  *             The current text is the hub's head of that lane — what the kernel's undo merges onto.
  *
- *             One target (⌘Z) only, like the local home's slot check: Undo history / Undo this
- *             chat names several steps of one batch, and the newer ones move the text the older
- *             ones are compared against. Anything unreadable answers "no conflict" (the kernel
- *             keeps its rule) — the route treats a thrown check the same way. So does every
+ *             Every target (p8-fix-d F12): Undo history / Undo this chat names several steps, and
+ *             the newer ones move the text the older ones are compared against — so the steps are
+ *             reverted in turn, newest first, onto the head (textRevertChainCollides). A collision
+ *             anywhere refuses the whole undo; it is never half applied. Anything unreadable
+ *             answers "no conflict" (the kernel keeps its rule) — the route treats a thrown check
+ *             the same way. So does every
  *             bound (one 2 s deadline, 64 effects, the board size limit — p8-secfix-studio I2/D5).
  */
 
 // server-only: registers the character merge the collision check runs (ops.ts takes it by injection)
 import '../annotations/ops-merge.ts';
 import { MAX_BOARD_BYTES } from '../annotations/constants.ts';
-import { textRevertCollides } from '../annotations/text-steps.ts';
+import { textRevertChainCollides } from '../annotations/text-steps.ts';
 import type { UndoTarget } from './undo-target.ts';
 
 /** One effect of an action as the hub's history records it. */
@@ -36,8 +38,10 @@ export interface HubEffect {
 
 /** What the check reads from the hub. Every read answers null when it cannot tell. */
 export interface HubTextUndoReads {
-  /** The action's effects, as the hub recorded them; null = not found. */
-  action(actionId: string): Promise<{ effects: HubEffect[] } | null>;
+  /** The action's effects and revision (the chain's order), as the hub recorded them; null = not found. */
+  action(actionId: string): Promise<{ effects: HubEffect[]; revision?: number } | null>;
+  /** p8-fix-d F12 — "Undo this chat": the ids the route will undo (the person's own `ai` runs). */
+  chat?(chatId: string): Promise<string[] | null>;
   /** A lane body by its hash; null = unavailable. */
   blob(hash: string): Promise<string | null>;
   /** The doc's annotations lane body at the hub head ('' = empty); null = unavailable. */
@@ -87,7 +91,6 @@ export async function hubTextUndoConflict(
   reads: HubTextUndoReads,
   limits: HubTextUndoLimits = {}
 ): Promise<boolean> {
-  if (!('actionId' in target)) return false;
   let expired = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<false>((resolve) => {
@@ -98,7 +101,7 @@ export async function hubTextUndoConflict(
   });
   try {
     return await Promise.race([
-      check(target.actionId, reads, {
+      check(target, reads, {
         maxEffects: limits.maxEffects ?? HUB_UNDO_MAX_EFFECTS,
         maxBodyBytes: limits.maxBodyBytes ?? HUB_UNDO_MAX_BODY_BYTES,
         expired: () => expired,
@@ -110,28 +113,66 @@ export async function hubTextUndoConflict(
   }
 }
 
-/** The check itself; stops issuing reads once the deadline has passed. */
+/** The ids a target names (a chat resolved through `reads.chat`); null = cannot tell. */
+async function targetIds(target: UndoTarget, reads: HubTextUndoReads): Promise<string[] | null> {
+  if ('actionId' in target) return [target.actionId];
+  if ('actionIds' in target) return target.actionIds;
+  const ids = reads.chat ? await reads.chat(target.chatId) : null;
+  return ids?.length ? ids : null;
+}
+
+/**
+ * The check itself; stops issuing reads once the deadline has passed. p8-fix-d F12: every target
+ * of the undo is judged, newest first, as the ONE action the kernel makes of them — per board the
+ * steps are reverted in turn onto the hub head (textRevertChainCollides), so any collision refuses
+ * the whole undo. A target, blob or head that cannot be read leaves that judgement to the kernel's
+ * rule (fail open, as before) — never a partial refusal.
+ */
 async function check(
-  actionId: string,
+  target: UndoTarget,
   reads: HubTextUndoReads,
   o: { maxEffects: number; maxBodyBytes: number; expired: () => boolean }
 ): Promise<boolean> {
-  const action = await reads.action(actionId);
-  if (!action || !Array.isArray(action.effects)) return false;
-  const heads = new Map<string, string | null>();
-  let examined = 0;
-  for (const e of action.effects) {
+  const ids = await targetIds(target, reads);
+  if (!ids) return false;
+  const actions: { effects: HubEffect[]; order: number }[] = [];
+  for (const [i, id] of ids.entries()) {
     if (o.expired()) return false;
-    if (e?.lane !== 'annotations' || !e.doc) continue;
-    if (++examined > o.maxEffects) return false;
-    const before = capped(await bodyOf(e.beforeHash, reads), o.maxBodyBytes);
-    if (before === null || o.expired()) continue;
-    const after = capped(await bodyOf(e.afterHash, reads), o.maxBodyBytes);
-    if (after === null || o.expired()) continue;
-    if (!heads.has(e.doc)) heads.set(e.doc, capped(await reads.head(e.doc), o.maxBodyBytes));
-    const now = heads.get(e.doc);
-    if (now === null || now === undefined || o.expired()) continue;
-    if (textRevertCollides(before, after, now)) return true;
+    const action = await reads.action(id);
+    // a target the hub does not show cannot be placed in the chain: the kernel's rule decides
+    if (!action || !Array.isArray(action.effects)) return false;
+    const order = typeof action.revision === 'number' ? action.revision : i;
+    actions.push({ effects: action.effects, order });
+  }
+  actions.sort((a, b) => b.order - a.order);
+  const chains = new Map<string, { before: string; after: string }[]>();
+  const blind = new Set<string>();
+  let examined = 0;
+  for (const a of actions) {
+    for (const e of [...a.effects].reverse()) {
+      if (o.expired()) return false;
+      if (e?.lane !== 'annotations' || !e.doc || blind.has(e.doc)) continue;
+      if (++examined > o.maxEffects) return false;
+      const before = capped(await bodyOf(e.beforeHash, reads), o.maxBodyBytes);
+      const after =
+        before === null || o.expired()
+          ? null
+          : capped(await bodyOf(e.afterHash, reads), o.maxBodyBytes);
+      if (before === null || after === null) {
+        blind.add(e.doc);
+        chains.delete(e.doc);
+        continue;
+      }
+      const chain = chains.get(e.doc) ?? [];
+      chain.push({ before, after });
+      chains.set(e.doc, chain);
+    }
+  }
+  for (const [doc, steps] of chains) {
+    if (o.expired()) return false;
+    const now = capped(await reads.head(doc), o.maxBodyBytes);
+    if (now === null || o.expired()) continue;
+    if (textRevertChainCollides(steps, now)) return true;
   }
   return false;
 }
