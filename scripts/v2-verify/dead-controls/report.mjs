@@ -10,7 +10,7 @@ const NOT_CLICKED = new Set([
 ]);
 
 /** An error that is an artefact of the rig, not of the product: the Tauri stub refusing a native call. */
-export const isRigError = (e) => /\((native stub|blocked external)\)/.test(e.kind);
+export const isRigError = (e) => /\((native stub|blocked external|cloud offline)\)/.test(e.kind);
 
 export function groupErrors(errors) {
   const map = new Map();
@@ -64,6 +64,10 @@ export function renderReport(all, { modes, minutes }) {
     'A control is judged once per mode, in the first state that shows it. Effect = any of: DOM change above the idle noise floor (`dom(n)`), aria state, URL, a new popup/menu/sheet/toast, new or removed controls, a studio request (`net`), a focus move to another region, `window.open`, a blocked external navigation, a native `invoke` (Tauri mode). None = **DEAD**. Repeated per-row controls are sampled (2 per family, 12 options per list).'
   );
   lines.push('');
+  lines.push(
+    'Home in the browser mode is a developer surface only (the app always opens Home in its own webview, with a native bridge); its rows are kept for completeness.'
+  );
+  lines.push('');
   lines.push('## Totals');
   lines.push('');
   lines.push(
@@ -87,6 +91,16 @@ export function renderReport(all, { modes, minutes }) {
       );
   }
   lines.push('');
+  const covered = all.results.filter((r) => r.effect === 'covered');
+  if (covered.length) {
+    lines.push(`## Covered — a click lands on an overlay (${covered.length})`);
+    lines.push('');
+    for (const r of covered)
+      lines.push(
+        `- ${r.mode} ${r.shell} · ${cell(r.surface)} · \`${cell(r.control)}\` — ${cell(r.note)}`
+      );
+    lines.push('');
+  }
   const errs = groupErrors(all.errors);
   lines.push(`## Errors (${errs.length} distinct)`);
   lines.push('');
@@ -108,7 +122,7 @@ export function renderReport(all, { modes, minutes }) {
   const rig = all.errors.filter(isRigError);
   if (rig.length) {
     lines.push(
-      `Rig-only (not counted): ${rig.length} errors — the Tauri stub refusing a native call, or the rig blocking a non-loopback request (web fonts). Native calls refused: ${[...new Set(rig.map((e) => e.text.match(/crawl-tauri-stub: ([\w:|.-]+)/)?.[1]).filter(Boolean))].slice(0, 12).join(', ') || 'none'}.`
+      `Rig-only (not counted): ${rig.length} errors — the Tauri stub refusing a native call, the rig blocking a non-loopback request (web fonts), or a cloud route refusing because the rig has no cloud. Native calls refused: ${[...new Set(rig.map((e) => e.text.match(/crawl-tauri-stub: ([\w:|.-]+)/)?.[1]).filter(Boolean))].slice(0, 12).join(', ') || 'none'}.`
     );
     lines.push('');
   }

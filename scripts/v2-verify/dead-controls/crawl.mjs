@@ -15,7 +15,7 @@ import { PAGE_PROBE } from './page-probe.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const DESTRUCTIVE =
-  /(delete|remove|trash|discard|sign out|log ?out|revoke|reset|erase|wipe|forget|leave|uninstall|disconnect|unlink|restore|revert|roll ?back|empty|clear|overwrite|replace|buy|purchase|upgrade|subscribe|billing|checkout|pay\b|quit|close project)/i;
+  /(delete|remove|trash|\bmove\b|discard|sign out|log ?out|revoke|reset|erase|wipe|forget|leave|uninstall|disconnect|unlink|restore|revert|roll ?back|empty|clear|overwrite|replace|buy|purchase|upgrade|subscribe|billing|checkout|pay\b|quit|close project)/i;
 // Controls that would end the crawl or reach real services; the first click is still judged when
 // it only opens a confirm (the matcher above), these are never clicked at all.
 const NEVER =
@@ -34,14 +34,18 @@ const isLoopback = (u) => {
 };
 
 export function tauriStub(homeSecret) {
+  // the webview label the real shell gives the page: \`home\`, or \`p-<pid>\` for a project tab
+  const label = homeSecret ? 'home' : 'p-crawl';
   return `(() => {
   const calls = (window.__crawlInvokes = []);
+  const invoke = (cmd, args) => {
+    calls.push(String(cmd));
+    if (cmd === 'home_session') return Promise.resolve({ secret: ${JSON.stringify(homeSecret ?? '')} });
+    return Promise.reject(new Error('crawl-tauri-stub: ' + cmd));
+  };
+  window.__TAURI_INTERNALS__ = { metadata: { currentWebview: { label: '${label}' }, currentWindow: { label: 'shell' } }, invoke, transformCallback: () => 0 };
   window.__TAURI__ = {
-    core: { invoke: (cmd, args) => {
-      calls.push(String(cmd));
-      if (cmd === 'home_session') return Promise.resolve({ secret: ${JSON.stringify(homeSecret ?? '')} });
-      return Promise.reject(new Error('crawl-tauri-stub: ' + cmd));
-    } },
+    core: { invoke },
     event: { listen: () => Promise.resolve(() => {}), emit: () => Promise.resolve() },
     window: {}, path: {}, app: {},
   };
@@ -109,6 +113,8 @@ export class Crawler {
 
   async open() {
     this.context = await this.browser.newContext({ viewport: { width: 1440, height: 900 } });
+    // a clipboard read would otherwise wait on a permission prompt headless Chromium never answers
+    await this.context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
     if (this.mode === 'tauri') await this.context.addInitScript(tauriStub(this.homeSecret));
     if (this.homeSecret)
       await this.context.addInitScript(
@@ -170,6 +176,9 @@ export class Crawler {
     if (/crawl-tauri-stub/.test(text)) kind = `${kind} (native stub)`;
     // the rig blocks every non-loopback request (web fonts …): its console line is the rig's, not the product's
     else if (/ERR_BLOCKED_BY_CLIENT/.test(text)) kind = `${kind} (blocked external)`;
+    // the rig's cloud is a dead loopback port and nobody is signed in: a cloud route answering 401/502 is the rig
+    else if (/\/_api\/cloud\//.test(text) && /(401|502|503|504)/.test(`${kind} ${text}`))
+      kind = `${kind} (cloud offline)`;
     this.errors.push({ surface: this.label, mode: this.mode, control: this.current, kind, text });
   }
 
@@ -440,6 +449,10 @@ export class Crawler {
       if (res.effect === 'DEAD' && c.current) {
         out.effect = 'current';
         out.note = 'already the selected/pressed choice — clicking it again is a no-op';
+      } else if (res.effect === 'DEAD' && raw.note.startsWith('pointer blocked')) {
+        // under an overlay (an armed tool's draw surface, a scrim): the person cannot reach it either —
+        // listed on its own, not as a dead control
+        out.effect = 'covered';
       }
       if (destructive && res.effect !== 'DEAD') {
         out.note = `destructive first click → ${res.effect}${raw.note ? `; ${raw.note}` : ''}`;
@@ -508,7 +521,17 @@ export class Crawler {
     const url0 = this.page.url();
     let note = '';
     if (action) await action();
-    else {
+    else if (c.tag === 'select') {
+      // a native <select> opens an OS popup the DOM never shows: pick another option instead
+      const loc = f.locator('[data-crawl-target]').first();
+      const next = await loc
+        .evaluate(
+          (el) => [...el.options].find((o) => !o.disabled && o.value !== el.value)?.value ?? null
+        )
+        .catch(() => null);
+      if (next === null) note = 'a select with one option';
+      else await loc.selectOption(next, { timeout: 2500 }).catch(() => {});
+    } else {
       try {
         await f.locator('[data-crawl-target]').first().click({ timeout: 2500 });
       } catch (e) {
@@ -564,7 +587,7 @@ export class Crawler {
       raw.popupsDelta += v.popupsDelta;
       raw.opens.push(...v.opens);
       raw.clips.push(...(v.clips ?? []));
-      if (v.checkedChanged || v.valueChanged) raw.value = true;
+      if (v.checkedChanged || v.valueChanged || v.fieldsChanged) raw.value = true;
       if (v.urlChanged && s.frame === this.page.mainFrame()) raw.url = true;
       if (v.focusMoved && (s.frame === f || !c)) raw.focus = v.focusRegion;
     }

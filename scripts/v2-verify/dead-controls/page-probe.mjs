@@ -121,13 +121,15 @@ export const PAGE_PROBE = String.raw`(() => {
     return true;
   }
 
-  const ARIA = ['aria-expanded', 'aria-pressed', 'aria-selected', 'aria-checked', 'aria-current'];
+  const ARIA = ['aria-expanded', 'aria-pressed', 'aria-selected', 'aria-checked', 'aria-current', 'open'];
+  // a field's value is a property, invisible to a MutationObserver: snapshot every field instead
+  const fieldValues = () => [...document.querySelectorAll('input,textarea,select')].map((e) => (e.type === 'checkbox' || e.type === 'radio' ? String(e.checked) : String(e.value ?? ''))).join('\u0001');
   const popups = () => document.querySelectorAll('[role=dialog],[role=alertdialog],[role=menu],[role=listbox],[role=status],[role=alert]').length;
   const inTooltip = (n) => { const e = n && (n.nodeType === 1 ? n : n.parentElement); return !!(e && e.closest && e.closest('[role=tooltip],[data-tooltip],.tooltip')); };
   let st = null;
   let mo = null;
   function start() {
-    st = { clips: clips.length, muts: 0, self: 0, aria: [], url: location.href, popups: popups(), region: regionOf(document.activeElement), opens: opens.length, checked: target && 'checked' in target ? target.checked : null, value: target && 'value' in target ? target.value : null };
+    st = { fields: fieldValues(), clips: clips.length, muts: 0, self: 0, aria: [], url: location.href, popups: popups(), region: regionOf(document.activeElement), opens: opens.length, checked: target && 'checked' in target ? target.checked : null, value: target && 'value' in target ? target.value : null };
     mo = new MutationObserver((list) => {
       for (const m of list) {
         if (m.type === 'attributes' && m.attributeName === 'data-crawl-target') continue;
@@ -158,6 +160,7 @@ export const PAGE_PROBE = String.raw`(() => {
       focusRegion: regionOf(document.activeElement),
       opens: opens.slice(st.opens),
       clips: clips.slice(st.clips),
+      fieldsChanged: fieldValues() !== st.fields,
       checkedChanged: target && 'checked' in target && st.checked !== null ? target.checked !== st.checked : false,
       valueChanged: target && 'value' in target && st.value !== null ? target.value !== st.value : false,
     };
