@@ -88,9 +88,12 @@ Not built, either because no CONTRACT line names them or because the weekly budg
     - **A peer edit that lands after my step: ⌘Z keeps their text when the edits don't overlap and silently drops it
       when they overlap.** `mergeLane('annotations')` always returns ok (`lanes.mjs:196`). `mergeText` lets "ours"
       win (`ops.ts:117`). The kernel never refuses.
-    - **Possible studio-only fix (v1-compatible, no hub release):** add `textUndoConflict` to the hub-linked runtime
-      (`sync/index.ts` ~6246). It should refuse only when the 3-way merge would fail. It needs the hub's *accepted*
-      content per action, which is not verified yet.
+    - **Fixed (p8-hub-undo-collision, merged b82b82f6c, Michal 2026-10-29).** The hub-linked runtime's
+      `textUndoConflict` refuses with 409 only when reverting would collide. Non-overlapping merges go through.
+      Accepted content comes from the hub history before/after hashes + blobs; the current text is the lane head.
+      Studio-only, 1.x hubs unchanged, fail-open. Browser-on-cell is covered once the cell image rolls on a stable
+      tag. Still open: multi-target undo (history / this chat) keeps the kernel's rule; the kernel-side refusal for
+      old desktops.
     - **Legacy (non-accepted) mode, traced by a scout 2026-10-29 (read, not run).** This mode is still live for a
       desktop on a project with a committed `linkedHub` and for a browser on an existing cloud project, until the
       owner switches (`cells/wrangler.toml:152`). ⌘Z stays on the canvas stack.
