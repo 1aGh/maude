@@ -6158,10 +6158,6 @@
       "kind": "command",
       "exec": "shell",
       "effect": "none",
-      "server": {
-        "route": "/_api/project/conflict",
-        "method": "GET"
-      },
       "agent": {
         "path": "cli",
         "verb": "maude design curl-local \"http://127.0.0.1:<port>/_api/project/conflict?file=<slug>\""

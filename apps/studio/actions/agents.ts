@@ -183,9 +183,9 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   },
   // p8-held-conflict-status — the two versions of a held source conflict (read only): this Mac's file and
   // the project's, kept in `_history/<slug>/sync-recovery/`. `maude design sync status` lists the slugs.
+  // No `server`: the action itself only opens a sheet; the read under it is Sync details' own GET.
   'sync.compare': {
     effect: 'none',
-    server: { route: '/_api/project/conflict', method: 'GET' },
     agent: cli(
       'maude design curl-local "http://127.0.0.1:<port>/_api/project/conflict?file=<slug>"'
     ),
