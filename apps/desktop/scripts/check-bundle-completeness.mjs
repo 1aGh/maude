@@ -278,6 +278,106 @@ if (doSmoke) {
     }
     reelPlaceSmoke(target.binary, strippedPath);
   }
+  const serverBin = target.macosDir ? join(target.macosDir, 'maude-server') : null;
+  if (serverBin && existsSync(serverBin)) await renderExportSmoke(serverBin);
+  else warn('smoke render export skipped', `no bundled maude-server at ${serverBin}`);
+}
+
+// p8-export-runtime — the render shims (every export, the thumbnail renderer) are spawned by the
+// SERVER, not by a `maude design` verb, so no `--help` probe above reaches them. With no node/bun
+// on PATH the server must run them with its own compiled binary under BUN_BE_BUN=1
+// (`resolveExportRuntime`, DDR-177); before that rung every export and every Home cover failed in
+// the .app only. Boot the bundled maude-server in the stripped PATH on a one-canvas throwaway
+// project and export one png. Headless Chromium needs no display; only a machine with no browser
+// at all for Playwright is a warning — a runtime failure, or any other refusal, is red.
+async function renderExportSmoke(serverBin) {
+  const strippedPath = '/usr/bin:/bin:/usr/sbin:/sbin';
+  const root = mkdtempSync(join(tmpdir(), 'maude-smoke-render-'));
+  const design = join(root, 'proj', '.design');
+  mkdirSync(join(design, 'ui'), { recursive: true });
+  writeFileSync(join(design, 'config.json'), '{"name":"smoke-render"}');
+  writeFileSync(
+    join(design, 'ui', 'a.tsx'),
+    [
+      "import { DCArtboard, DCSection, DesignCanvas } from '@maude/canvas-lib';",
+      'export default function C() {',
+      '  return (<DesignCanvas><DCSection id="s" title="S">',
+      '    <DCArtboard id="a" label="A" width={320} height={200}><div style={{ background: "#36a", width: "100%", height: "100%" }} /></DCArtboard>',
+      '  </DCSection></DesignCanvas>);',
+      '}',
+      '',
+    ].join('\n')
+  );
+  writeFileSync(
+    join(design, '_active.json'),
+    JSON.stringify({ active: '.design/ui/a.tsx', open_tabs: ['.design/ui/a.tsx'], selected: null })
+  );
+  const home = join(root, 'home');
+  const realHome = process.env.HOME || '/tmp';
+  const { spawn } = await import('node:child_process');
+  const log = [];
+  const server = spawn(serverBin, ['--root', join(root, 'proj')], {
+    env: {
+      HOME: home,
+      XDG_CONFIG_HOME: join(root, 'xdg'),
+      MAUDE_INDEX_DIR: join(root, 'idx'), // never the person's ~/.maude/index
+      MAUDE_LOG_DIR: join(root, 'logs'),
+      MAUDE_UI_PREFS_PATH: join(root, 'xdg', 'maude', 'prefs.json'),
+      MAUDE_MACHINE_FILE: join(root, 'xdg', 'maude', 'machine.json'),
+      MAUDE_DEV_SERVER_ROOT: studio,
+      MAUDE_PKG_ROOT: target.resources,
+      NO_OPEN: '1',
+      MAUDE_NO_AUTOBUILD: '1',
+      // read-only: the browsers Playwright already has, so a throwaway HOME still finds one
+      PLAYWRIGHT_BROWSERS_PATH:
+        process.env.PLAYWRIGHT_BROWSERS_PATH ||
+        join(realHome, 'Library', 'Caches', 'ms-playwright'),
+      ...stubClaudeEnv(home, strippedPath),
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  server.stdout.on('data', (d) => log.push(String(d)));
+  server.stderr.on('data', (d) => log.push(String(d)));
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  try {
+    let url = null;
+    for (let waited = 0; waited < 30_000 && !url && server.exitCode === null; waited += 400) {
+      await sleep(400);
+      try {
+        url = JSON.parse(readFileSync(join(design, '_server.json'), 'utf8')).url;
+      } catch {
+        /* not up yet / mid-write */
+      }
+    }
+    if (!url) {
+      fail(
+        'smoke render export',
+        `the bundled maude-server never came up — ${log.join('').slice(-200)}`
+      );
+      return;
+    }
+    const origin = new URL(url).origin;
+    const r = await fetch(`${origin}/_api/export`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin },
+      body: JSON.stringify({ format: 'png', scope: 'canvas-as-separate', options: {} }),
+      signal: AbortSignal.timeout(120_000),
+    });
+    const bytes = new Uint8Array(await r.arrayBuffer());
+    const isPng = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+    const text = r.ok ? '' : new TextDecoder().decode(bytes).slice(0, 240);
+    if (r.ok && isPng) ok('smoke render export (png, no node/bun)', `${bytes.length} B png`);
+    else if (/Executable doesn't exist|no Chromium|browser.*not (found|installed)/i.test(text))
+      warn('smoke render export', `no browser for Playwright on this machine — ${text}`);
+    else
+      fail('smoke render export (png, no node/bun)', `HTTP ${r.status} — ${text || 'not a png'}`);
+  } catch (e) {
+    fail('smoke render export (png, no node/bun)', e instanceof Error ? e.message : String(e));
+  } finally {
+    server.kill('SIGTERM');
+    await sleep(500);
+    rmSync(root, { recursive: true, force: true });
+  }
 }
 
 // p8-t-video-2 — `--help` stops before any import that loads a native module, so it never saw that a
