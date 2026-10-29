@@ -56,7 +56,11 @@ describe('Update project — the save mode', () => {
     const o = opts(p as Project, { hub: owner, hubClient: hub.client });
     const dry = await planMigration(o);
     expect(dry.exitCode).toBe(EXIT.done);
-    expect(dry.project.linked).toMatchObject({ mode: 'legacy', modeDue: true, modeSwitched: false });
+    expect(dry.project.linked).toMatchObject({
+      mode: 'legacy',
+      modeDue: true,
+      modeSwitched: false,
+    });
     expect(hub.calls.some((c) => c.op === 'setMode:dry')).toBe(true); // blockers surfaced up front
     expect(hub.state.mode).toBe('legacy'); // a dry run switches nothing
     const r = await applyMigration(o, dry);

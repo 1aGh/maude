@@ -70,7 +70,10 @@ describe('the save-mode trigger (format 2 + legacy)', () => {
   });
 
   test('a cloud tab: the owner is pointed to the dashboard, nobody else sees anything', () => {
-    const cloud = { ...fmt2Legacy, cloud: { dashboardUrl: 'https://cloud.example', role: 'owner' } };
+    const cloud = {
+      ...fmt2Legacy,
+      cloud: { dashboardUrl: 'https://cloud.example', role: 'owner' },
+    };
     expect(isSaveModeOffer(cloud)).toBe(true);
     expect(saveModeState({ cfg: cloud, plan: undefined })).toEqual({
       kind: 'save-mode-cloud',
@@ -79,10 +82,15 @@ describe('the save-mode trigger (format 2 + legacy)', () => {
       href: 'https://cloud.example',
     });
     expect(
-      saveModeState({ cfg: { ...cloud, cloud: { ...cloud.cloud, role: 'editor' } }, plan: undefined })
+      saveModeState({
+        cfg: { ...cloud, cloud: { ...cloud.cloud, role: 'editor' } },
+        plan: undefined,
+      })
     ).toBe(null);
     // a self-hosted workspace has no dashboard to send anyone to
-    expect(saveModeState({ cfg: { ...cloud, cloud: { role: 'owner' } }, plan: undefined })).toBe(null);
+    expect(saveModeState({ cfg: { ...cloud, cloud: { role: 'owner' } }, plan: undefined })).toBe(
+      null
+    );
   });
 
   test('the older-project callout is unchanged by the second trigger', () => {
@@ -108,7 +116,11 @@ describe('the dialog and the outcome', () => {
   });
 
   test('format 2 + legacy: the save-mode dialog, asked with the button’s verb', () => {
-    const d = updateDialogCopy({ older: false, plan: plan('owner', { modeDue: true }), name: 'Studio site' });
+    const d = updateDialogCopy({
+      older: false,
+      plan: plan('owner', { modeDue: true }),
+      name: 'Studio site',
+    });
     expect(d.title).toBe('Update how "Studio site" saves?');
     expect(d.title.startsWith(d.action.split(' ')[0])).toBe(true);
     expect(d.body).toEqual([SAVE_COPY.dialogBody]);

@@ -106,8 +106,7 @@ export const SAVE_COPY = {
   toastBoth:
     'Updated for Maude 2 and saving with accepted revisions. People on Maude 1 can look but not edit.',
   toastSwitched: 'Updated. The project now saves with accepted revisions.',
-  toastImporting:
-    'Updated. The team server is still bringing changes in — nothing is lost.',
+  toastImporting: 'Updated. The team server is still bringing changes in — nothing is lost.',
   toastFormatOnly:
     'Updated for Maude 2, but it still saves the old way. Nothing is lost — Update project again to finish.',
   switchFailed:
@@ -151,13 +150,17 @@ export function updateDialogCopy({ older, plan, name }) {
       action: OLDER_COPY.dialogAction,
     };
   }
-  return { title: SAVE_COPY.dialogTitle(name), body: [SAVE_COPY.dialogBody], action: SAVE_COPY.statusAction };
+  return {
+    title: SAVE_COPY.dialogTitle(name),
+    body: [SAVE_COPY.dialogBody],
+    action: SAVE_COPY.statusAction,
+  };
 }
 
 /** After an apply: { done, toast } — or { done: false, error } for the dialog. Honest about a switch
  *  that did not happen after the format moved (the engine reports it; the next Update finishes it). */
 export function applyOutcome(report) {
-  if (!report || report.dryRun !== false || report.exitCode !== 0) {
+  if (report?.dryRun !== false || report.exitCode !== 0) {
     return { done: false, error: applyFailureLine(report) };
   }
   const linked = report.project?.linked ?? null;

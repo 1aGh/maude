@@ -128,7 +128,12 @@ export function createHubFormatClient(
           (j?.mode === 'legacy' || j?.mode === 'transactions') &&
           typeof j.epoch === 'number'
         )
-          return { ok: true, mode: j.mode, epoch: j.epoch, importPending: j.importPending === true };
+          return {
+            ok: true,
+            mode: j.mode,
+            epoch: j.epoch,
+            importPending: j.importPending === true,
+          };
         return {
           ok: false,
           status: res.status,
