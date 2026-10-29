@@ -352,6 +352,7 @@ export function createDsSwitch(engine: DsEngine) {
       if (!meta) continue;
       meta.designSystem = r.to;
       delete meta.dsRev;
+      delete meta.dsKept; // a Keep (p8-dead-reasons) goes with the pin
       const pairs = r.pairing.canvases[row.path];
       if (pairs) meta.dsPairing = pairs;
       else delete meta.dsPairing;

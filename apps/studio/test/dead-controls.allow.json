@@ -175,9 +175,7 @@
     }
   },
   "registryAllow": {
-    "ds.draft": "agent-only: the AI writes a direction (`maude design ds draft`); ⌘K hides it (search.hidden) and no person control is drawn for it",
-    "history.object": "needs-design: no object menu / sticky menu row calls openHistory() (client/v2/history/object-filter.js); the filtered panel exists (S1.16) but has no entry point",
-    "ds.canvas-leave": "needs-design: “Keep this version” has no control — /_api/ds/canvas is only ever called with action 'update' (door-write.js); update-available.jsx draws no Keep row"
+    "ds.draft": "agent-only: the AI writes a direction (`maude design ds draft`); ⌘K hides it (search.hidden) and no person control is drawn for it"
   },
   "client": {
     "client/v2/import/brand-sheet.jsx · disabled-for-good · “Import”": "in-flight stand-in: drawn only on the Reading step, where each row says “Reading…”; replaced by Continue / the result when reading ends",

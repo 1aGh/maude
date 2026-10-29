@@ -7524,7 +7524,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         .filter((d) => readHead(path.join(paths.designRoot, d.path)).state === 'ok')
         .map((d) => d.name)
     );
-    const canvasRevs: Record<string, { system: string; dsRev: string }> = {};
+    const canvasRevs: Record<string, { system: string; dsRev: string; kept?: string }> = {};
     // DDR-174 (T15) — surface a canvas's `.meta.json` `kind` in the file tree
     // when it's a value the user should notice at a glance (today: only
     // `reconstructed-experimental`, so this map stays empty on every project
@@ -7641,7 +7641,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           // a canvas inside the system's own folder carries no sidecar read above
           meta ??= await loadCanvasMeta(fp);
           const dsRev = meta?.dsRev;
-          if (typeof dsRev === 'string' && dsRev) canvasRevs[fp] = { system: dsName, dsRev };
+          // p8-dead-reasons — `dsKept`: the head a person declined with "Keep this version" (the card stays away)
+          const kept = meta?.dsKept;
+          if (typeof dsRev === 'string' && dsRev)
+            canvasRevs[fp] = {
+              system: dsName,
+              dsRev,
+              ...(typeof kept === 'string' && kept ? { kept } : {}),
+            };
         }
       }
       // Strip down to `g.path` so per-DS folders (`project`, `beta`, …) show
@@ -7747,6 +7754,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           ? {
               canvasDsRevs: Object.fromEntries(
                 Object.entries(canvasRevs).map(([fp, r]) => [fp, r.dsRev])
+              ),
+              canvasDsKept: Object.fromEntries(
+                Object.entries(canvasRevs)
+                  .filter(([, r]) => r.kept)
+                  .map(([fp, r]) => [fp, r.kept as string])
               ),
               systemHeads: dsRender.systemHeads,
               dsConverted: dsRender.dsConverted,

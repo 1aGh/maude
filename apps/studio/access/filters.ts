@@ -647,6 +647,7 @@ interface IndexDataShape {
   canvasKinds: Record<string, string>;
   // S10.4 — present once a system is converted (api.ts buildIndexData)
   canvasDsRevs?: Record<string, string>;
+  canvasDsKept?: Record<string, string>;
   systemHeads?: Record<string, string | null>;
   dsConverted?: Record<string, boolean>;
   dsRevGaps?: Record<string, string | null>;
@@ -723,6 +724,7 @@ export function filterIndexData<T extends IndexDataShape>(
     out.dsConverted = byName(data.dsConverted);
     out.systemHeads = byName(data.systemHeads);
     out.canvasDsRevs = pick(data.canvasDsRevs ?? {});
+    out.canvasDsKept = pick(data.canvasDsKept ?? {});
     const referenced = new Set<string>(Object.values(out.canvasDsRevs));
     for (const h of Object.values(out.systemHeads)) if (h) referenced.add(h);
     out.dsRevGaps = Object.fromEntries(
