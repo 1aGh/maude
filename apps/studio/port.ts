@@ -49,3 +49,45 @@ export function resolvePort(
   if (env[APP_SIDECAR_ENV] === '1') return { port: APP_PORT_BASE, explicit: false };
   return { port: CLI_DEFAULT_PORT, explicit: false };
 }
+
+/**
+ * p8-port-gc — the port the desktop app recorded for this project the last time its server bound (app-state.json
+ * `projects.<pid>.port`, sidecar.rs). Tried first, so a rested tab that wakes, a relaunch and a crash respawn come
+ * back on the same origin — per-origin web storage and the crash-recovery reload both depend on it. Ignored unless
+ * it lies inside the resolved ladder; in the MAUDE_SHELL_* namespace, so scrubAgentEnv keeps it from the agent.
+ */
+export const PREFERRED_PORT_ENV = 'MAUDE_SHELL_PORT';
+
+/** The ports to try, in order: the explicit one alone, else the preferred port (if in the ladder), then the ladder. */
+export function portCandidates(
+  argv: string[] = process.argv,
+  env: Record<string, string | undefined> = process.env
+): number[] {
+  const { port, explicit } = resolvePort(argv, env);
+  if (explicit) return [port];
+  const ladder = Array.from({ length: PORT_LADDER }, (_, i) => port + i);
+  const raw = env[PREFERRED_PORT_ENV];
+  const preferred = raw && /^\d+$/.test(raw) ? Number(raw) : NaN;
+  if (!ladder.includes(preferred)) return ladder;
+  return [preferred, ...ladder.filter((p) => p !== preferred)];
+}
+
+/**
+ * Bind the first candidate that is free. EADDRINUSE moves on to the next; any other error is thrown at once.
+ * → `{ bound, port }`, or `{ bound: null, error }` (the last EADDRINUSE) when every candidate is taken.
+ */
+export function bindFirst<T>(
+  candidates: number[],
+  bind: (port: number) => T
+): { bound: T; port: number } | { bound: null; error: unknown } {
+  let error: unknown;
+  for (const port of candidates) {
+    try {
+      return { bound: bind(port), port };
+    } catch (e) {
+      if ((e as { code?: string } | null)?.code !== 'EADDRINUSE') throw e;
+      error = e;
+    }
+  }
+  return { bound: null, error };
+}

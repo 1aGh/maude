@@ -61,7 +61,7 @@ import { flushAllIndexes } from './index/service.ts';
 import { createInspectRegistry } from './inspect.ts';
 import { listenLoopback, V4_LOOPBACK } from './loopback-listen.ts';
 import { startHeapWatch } from './mem.ts';
-import { PORT_LADDER, resolvePort } from './port.ts';
+import { bindFirst, PORT_LADDER, portCandidates, resolvePort } from './port.ts';
 import { canvasOriginRoutes } from './routes/canvas-origin.ts';
 import { runStageHooks } from './routes/index.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
@@ -421,8 +421,10 @@ const fsWatch = createFsWatch(ctx);
 // Port: --port arg > $PORT > $MDCC_DEV_PORT > $MAUDE_PORT_BASE > 47399 (e2e) > 46399 (the desktop app) > 4399 — port.ts.
 // When the port wasn't explicitly chosen and the default is busy (another
 // project's dev-server is running on the same machine), walk PORT_LADDER ports before
-// giving up. Explicit ports stay fatal so users notice their own collisions.
+// giving up. Explicit ports stay fatal so users notice their own collisions. The desktop app's recorded port
+// ($MAUDE_SHELL_PORT, p8-port-gc) is tried first when it lies inside the ladder — port.ts portCandidates.
 const { port: BASE_PORT, explicit: PORT_EXPLICIT } = resolvePort();
+const PORT_CANDIDATES = portCandidates();
 
 type BunServer = ReturnType<typeof Bun.serve<WsData, never>>;
 
@@ -942,43 +944,25 @@ function startCanvasServer(
   });
 }
 
-function isAddrInUse(e: unknown): boolean {
-  if (!e || typeof e !== 'object') return false;
-  const err = e as { code?: string; errno?: number };
-  return err.code === 'EADDRINUSE';
-}
-
 let server: BunServer;
 {
-  const MAX_TRIES = PORT_EXPLICIT ? 1 : PORT_LADDER;
-  let lastErr: unknown;
-  let bound: BunServer | null = null;
-  for (let i = 0; i < MAX_TRIES; i++) {
-    const tryPort = BASE_PORT + i;
-    try {
-      bound = listenLoopback((h, p) => startServer(p, h), tryPort);
-      if (i > 0) {
-        console.log(`[port] ${BASE_PORT} busy, using ${tryPort} instead.`);
-      }
-      break;
-    } catch (e) {
-      lastErr = e;
-      if (!isAddrInUse(e)) throw e;
-    }
-  }
-  if (!bound) {
+  const r = bindFirst(PORT_CANDIDATES, (p) => listenLoopback((h, port) => startServer(port, h), p));
+  if (r.bound === null) {
     if (PORT_EXPLICIT) {
       console.error(
         `\n  Port ${BASE_PORT} is in use. Pick a different one with --port <N> or $PORT.\n`
       );
     } else {
       console.error(
-        `\n  Ports ${BASE_PORT}-${BASE_PORT + MAX_TRIES - 1} are all in use. Stop a running dev-server or pass --port <N>.\n`
+        `\n  Ports ${BASE_PORT}-${BASE_PORT + PORT_LADDER - 1} are all in use. Stop a running dev-server or pass --port <N>.\n`
       );
     }
-    throw lastErr;
+    throw r.error;
   }
-  server = bound;
+  if (r.port !== PORT_CANDIDATES[0]) {
+    console.log(`[port] ${PORT_CANDIDATES[0]} busy, using ${r.port} instead.`);
+  }
+  server = r.bound;
 }
 
 // T2 (9.1-A) — advertise the main origin so the canvas origin's CSP can

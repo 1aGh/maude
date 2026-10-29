@@ -406,6 +406,31 @@ impl AppState {
     }
 
     /// The binding for `root`; missing (or an id failing validation) ⇒ `default`.
+    /// p8-port-gc — the port `root`'s server bound last time (`ProjectEntry.port`), asked for first on the next
+    /// spawn: a rested tab's wake, a relaunch and a crash respawn come back on the same origin. The server ignores
+    /// a port outside its own ladder (port.ts `portCandidates`), so this needs no range check of its own.
+    pub fn preferred_port(&self, root: &str) -> Option<u16> {
+        self.projects
+            .get(&windows::pid_for_root(root))
+            .and_then(|e| e.port)
+            .filter(|p| *p != 0)
+    }
+
+    /// p8-port-gc — remember the port `root`'s server actually bound (read from its per-spawn shell info file,
+    /// never `_server.json`). True when the registry changed. A root that is not registered never gains an entry.
+    pub fn record_port(&mut self, root: &str, port: u16) -> bool {
+        if port == 0 {
+            return false;
+        }
+        match self.projects.get_mut(&windows::pid_for_root(root)) {
+            Some(e) if e.port != Some(port) => {
+                e.port = Some(port);
+                true
+            }
+            _ => false,
+        }
+    }
+
     pub fn profile_for(&self, root: &str) -> String {
         self.projects
             .get(&windows::pid_for_root(root))
@@ -674,6 +699,19 @@ pub fn relink_project(
 ) -> Result<String, String> {
     let root = new_root.to_string_lossy().to_string();
     update(app, |st, _| st.relink(old_pid, &root))
+}
+
+/// p8-port-gc — the port `root`'s next server asks for first (`AppState::preferred_port`).
+pub fn preferred_port(app: &tauri::AppHandle, root: &str) -> Option<u16> {
+    load(app).preferred_port(root)
+}
+
+/// p8-port-gc — record the port `root`'s server bound. Reads first, so an unchanged port is not a write.
+pub fn record_port(app: &tauri::AppHandle, root: &str, port: u16) {
+    if load(app).preferred_port(root) == Some(port) {
+        return;
+    }
+    update(app, |st, _| st.record_port(root, port));
 }
 
 /// The account profile bound to `root` (missing ⇒ `default`).
@@ -1220,5 +1258,38 @@ mod tests {
         // A signing in as X again lands back on its own profile.
         let back = github_sign_in(&mut st, &reg, a, "v238out-x");
         assert_eq!(back, SignedIn { profile: shared, rebound: false });
+    }
+
+    /// p8-port-gc — the port a project's server bound is recorded on spawn and asked for again on wake and
+    /// relaunch; a server that had to fall back records its new port.
+    #[test]
+    fn project_port_is_recorded_on_spawn_and_reused_on_wake_and_relaunch() {
+        let dir = tmp("port");
+        let file = dir.join("app-state.json");
+        let mut st = AppState::default();
+        st.upsert("/x/port-a", 1);
+        assert_eq!(st.preferred_port("/x/port-a"), None, "a new project has no port yet");
+
+        // spawn → the server bound 46402 → recorded
+        assert!(st.record_port("/x/port-a", 46402));
+        assert_eq!(st.preferred_port("/x/port-a"), Some(46402), "a wake asks for the same port");
+        assert!(!st.record_port("/x/port-a", 46402), "an unchanged port is not a write");
+
+        // relaunch → the same port comes back from disk
+        save_to(&file, &mut st);
+        assert_eq!(read_json(&file)["projects"][windows::pid_for_root("/x/port-a")]["port"], 46402);
+        let mut st = load_from(Some(&file), None, 2);
+        assert_eq!(st.preferred_port("/x/port-a"), Some(46402));
+
+        // the recorded port was taken → the server walked the ladder → the new port is recorded
+        assert!(st.record_port("/x/port-a", 46405));
+        assert_eq!(st.preferred_port("/x/port-a"), Some(46405));
+
+        // an unregistered root never gains an entry; 0 is never a port
+        assert!(!st.record_port("/x/never-opened", 46401));
+        assert!(!st.projects.contains_key(&windows::pid_for_root("/x/never-opened")));
+        assert!(!st.record_port("/x/port-a", 0));
+        assert_eq!(st.preferred_port("/x/port-a"), Some(46405));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
