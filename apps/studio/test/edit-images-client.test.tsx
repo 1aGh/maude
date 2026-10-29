@@ -175,14 +175,14 @@ describe('where a drop lands, and the ask it makes', () => {
   });
 });
 
-describe('runDrop — ONE drop is one ask, one undo record, the new picture selected', () => {
+describe('runDrop — ONE drop is one ask (no canvas record: ⌘Z is the shell history), the new picture selected', () => {
   const ask: EditOpAsk = {
     op: PLACE_ACTION,
     targets: [],
     params: { asset: 'assets/a.png', mode: 'loose', artboard: 'post' },
   };
 
-  test('applied: a record for the write, the created picture selected', async () => {
+  test('applied: one ask, no canvas record, the created picture selected', async () => {
     const recs: unknown[] = [];
     let selected: unknown = null;
     const r = await runDrop(ask, {
@@ -193,9 +193,8 @@ describe('runDrop — ONE drop is one ask, one undo record, the new picture sele
       },
     });
     expect(r.ok).toBe(true);
-    expect(recs).toEqual([
-      { kind: 'edit-op', label: 'Place picture', payload: { writeId: 'w_0123456789abcdef' } },
-    ]);
+    // p8-v1-drop: no canvas undo record — the write is a kernel action and ⌘Z is the shell history
+    expect(recs).toEqual([]);
     expect(selected).toEqual([{ artboard: 'post', element: 'img' }]);
   });
 
@@ -280,7 +279,7 @@ describe('crop mode', () => {
     expect(el.style.transform).toBe('scale(2)');
   });
 
-  test('↵ is ONE image.crop with the crop, one undo record; a refusal says why and records nothing', async () => {
+  test('↵ is ONE image.crop with the crop (no canvas record); a refusal says why and records nothing', async () => {
     const asked: EditOpAsk[] = [];
     const recs: unknown[] = [];
     const lines: string[] = [];
@@ -300,9 +299,8 @@ describe('crop mode', () => {
     expect(asked).toEqual([
       { op: CROP_ACTION, targets: [ref], params: { fit: 'crop', zoom: 1.28, x: 40, y: 30 } },
     ]);
-    expect(recs).toEqual([
-      { kind: 'edit-op', label: 'Crop picture', payload: { writeId: 'w_0123456789abcdef' } },
-    ]);
+    // p8-v1-drop: no canvas undo record — the write is a kernel action and ⌘Z is the shell history
+    expect(recs).toEqual([]);
     const refused = await runCrop(
       [ref],
       { fit: 'fit' },

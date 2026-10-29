@@ -548,7 +548,7 @@ describe('the drops that are not the v1 write', () => {
   };
   const rect = { left: 0, top: 0, width: 0, height: 0 };
 
-  test('⌥ at the drop: one reorder-to with copy, the neighbour as the second target, one revert record', async () => {
+  test('⌥ at the drop: one reorder-to with copy, the neighbour as the second target, no canvas record', async () => {
     const q = tree();
     const asks: unknown[] = [];
     const recs: unknown[] = [];
@@ -576,7 +576,8 @@ describe('the drops that are not the v1 write', () => {
         params: { position: 'before', copy: true },
       },
     ]);
-    expect(recs.length).toBe(1);
+    // p8-v1-drop: no canvas undo record — the write is a kernel action and ⌘Z is the shell history
+    expect(recs.length).toBe(0);
   });
 
   test('without ⌥ and inside the frame, the v1 drop carries on (takeOver returns false)', () => {
@@ -727,7 +728,7 @@ describe('the Position row’s pins arrive as run-action object.constrain (S2.11
     expect(isConstrainAction('object.constrain')).toBe(true);
     expect(isConstrainAction('object.rotate')).toBe(false);
   });
-  test('Right + Bottom with the measured geometry: ONE object.constrain, one undo record', async () => {
+  test('Right + Bottom with the measured geometry: ONE object.constrain, no canvas record', async () => {
     const asks: Array<{ op: string; targets: unknown[]; params: unknown }> = [];
     const recs: unknown[] = [];
     await runConstrainAction(
@@ -747,7 +748,8 @@ describe('the Position row’s pins arrive as run-action object.constrain (S2.11
         params: { h: 'right', v: 'bottom', geometry: GEO },
       },
     ]);
-    expect(recs.length).toBe(1);
+    // p8-v1-drop: no canvas undo record — the write is a kernel action and ⌘Z is the shell history
+    expect(recs.length).toBe(0);
   });
   test('no targets means the selection; a bad pin or an unmeasured object asks nothing and says so', async () => {
     const asks: unknown[] = [];
@@ -849,7 +851,8 @@ describe('← → in an auto layout', () => {
     expect(asks.map((a) => [a.op, a.targets])).toEqual([
       ['object.reorder-earlier', [{ artboard: 'desktop', element: 'product' }]],
     ]);
-    expect(recs.length).toBe(1);
+    // p8-v1-drop: no canvas undo record — the write is a kernel action and ⌘Z is the shell history
+    expect(recs.length).toBe(0);
   });
 
   test('with nothing selected the line says what to do', async () => {

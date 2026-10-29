@@ -96,7 +96,7 @@ describe('measuring what an instance renders to', () => {
 });
 
 describe('one action, one edit-op', () => {
-  test('swap and reset ask with the target and the params, and a legacy link gets one undo record', async () => {
+  test('swap and reset ask with the target and the params, one ask each, no canvas record', async () => {
     page('<button data-cd-id="cta">Go</button>');
     const h = harness();
     await runInstanceAction(
@@ -109,10 +109,12 @@ describe('one action, one edit-op', () => {
     expect(h.asks).toEqual([
       { op: 'component.swap-variant', targets: [REF], params: { variant: 'outline' } },
     ]);
-    expect(h.records).toHaveLength(1);
+    // p8-v1-drop: no canvas undo record — the write is a kernel action and ⌘Z is the shell history
+    expect(h.records).toHaveLength(0);
     await runInstanceAction('component.reset', [SEL], undefined, {}, h.deps);
     expect(h.asks[1]).toEqual({ op: 'component.reset', targets: [REF] });
-    expect(h.records).toHaveLength(2);
+    expect(h.asks).toHaveLength(2);
+    expect(h.records).toHaveLength(0);
   });
 
   test('Detach sends the measured subtree and how many nodes carry the id', async () => {

@@ -186,7 +186,7 @@ describe('runPlace — one placement, one undo step', () => {
     params: { component: 'Button', artboard: 'story' },
   };
 
-  test('one ask, one record, the new instance selected', async () => {
+  test('one ask, no canvas record, the new instance selected', async () => {
     const asked: EditOpAsk[] = [];
     const records: unknown[] = [];
     const selected: unknown[] = [];
@@ -199,9 +199,8 @@ describe('runPlace — one placement, one undo step', () => {
       select: (r) => selected.push(r),
     });
     expect(asked).toEqual([ask]);
-    expect(records).toEqual([
-      { kind: 'edit-op', label: 'Place Tlačítko · Plné', payload: { writeId: 'w_1' } },
-    ]);
+    // p8-v1-drop: no canvas undo record — the write is a kernel action and ⌘Z is the shell history
+    expect(records).toEqual([]);
     expect(selected).toEqual([[{ artboard: 'story', element: 'button' }]]);
   });
 

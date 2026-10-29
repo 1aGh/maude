@@ -70,7 +70,7 @@ describe('spaceTokenFor', () => {
 });
 
 describe('runSetGap', () => {
-  test('one ask for all the frames, with the token on a stop, and one revert record', async () => {
+  test('one ask for all the frames, with the token on a stop, and no canvas record', async () => {
     const q = tree();
     const sheet = document.createElement('style');
     sheet.textContent = ':root{--space-6:24px}';
@@ -94,7 +94,8 @@ describe('runSetGap', () => {
         params: { gap: { token: '--space-6' } },
       },
     ]);
-    expect(recs).toHaveLength(1);
+    // p8-v1-drop: no canvas undo record — the write is a kernel action and ⌘Z is the shell history
+    expect(recs).toHaveLength(0);
   });
 
   test('a number that is no stop goes as px', async () => {

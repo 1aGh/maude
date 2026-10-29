@@ -175,7 +175,7 @@ describe('the tie arcs under the caret', () => {
 });
 
 describe('commitTextInPlace — the typed copy is one edit-op', () => {
-  test('asks text.set with the copy, what it was and the language in force; records the undo', async () => {
+  test('asks text.set with the copy, what it was and the language in force; no canvas record', async () => {
     const q = tree('cs');
     const asked: Array<Record<string, unknown>> = [];
     const records: unknown[] = [];
@@ -197,7 +197,8 @@ describe('commitTextInPlace — the typed copy is one edit-op', () => {
         params: { text: 'Jdu do lesa', before: 'Jdu v lese', lang: 'cs' },
       },
     ]);
-    expect(records).toHaveLength(1);
+    // p8-v1-drop: no canvas undo record — the write is a kernel action and ⌘Z is the shell history
+    expect(records).toHaveLength(0);
   });
 
   test('a refusal says its own line and puts the old text back — and is handled, not retried', async () => {
@@ -373,7 +374,7 @@ describe('runTextAction', () => {
     expect(records).toEqual([]);
   });
 
-  test('an edit with no write behind it pushes one undo record; with a kernel action, none', async () => {
+  test('neither an edit with no kernel action nor one with it pushes a canvas record (p8-v1-drop)', async () => {
     const q = tree();
     void q;
     const records: unknown[] = [];
@@ -394,7 +395,8 @@ describe('runTextAction', () => {
         record: (x) => records.push(x),
       }
     );
-    expect(records).toHaveLength(1);
+    // p8-v1-drop: no canvas undo record — the write is a kernel action and ⌘Z is the shell history
+    expect(records).toHaveLength(0);
   });
 });
 

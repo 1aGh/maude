@@ -128,7 +128,7 @@ describe('runObjectOp', () => {
     expect(called).toBe(false);
   });
 
-  test('it asks for the registry op with the targets and params, and on a legacy link records ONE revert', async () => {
+  test('it asks ONE registry op with the targets and params, and records no canvas undo', async () => {
     const asked: unknown[] = [];
     const recorded: unknown[] = [];
     await runObjectOp(
@@ -138,7 +138,8 @@ describe('runObjectOp', () => {
       { locked: true }
     );
     expect(asked).toEqual([{ op: 'object.lock', targets: [ref], params: { locked: true } }]);
-    expect(recorded).toEqual([{ kind: 'edit-op', label: 'Lock', payload: { writeId: 'w_7' } }]);
+    // p8-v1-drop: no canvas undo record — the write is a kernel action and ⌘Z is the shell history
+    expect(recorded).toEqual([]);
   });
 
   test('a write the runtime already knows as an action is not pushed (S5 owns that undo)', async () => {
