@@ -7,8 +7,8 @@ kgai is schema-free; a "kind" is just a string. This glossary is the shared voca
 | Kind | Source | Notable edges |
 | --- | --- | --- |
 | `decision:<repo>/<slug>` | `/flow:record-ddr`, DDR-worthy writes, log verdicts | `SUPERSEDES`/`OVERRIDES`/`REFERENCES`/`EXTENDS` → decision; `DECIDED_IN` → plan; `IN_REPO`/`IN_DEPT` → scope (**both mandatory**) |
-| `plan:<repo>/<slug>` | `/flow:plan`, `/flow:setup-prd` | `path` prop → on-disk MD (prose stays on disk); `IN_REPO`/`IN_DEPT` → scope (**both mandatory**) |
-| `milestone:<repo>/<slug>` / `working-state:<repo>/<slug>` | `/flow:done`, `/flow:pause`, plan closes | `IN_REPO`/`IN_DEPT` → scope (**both mandatory**) |
+| `plan:<repo>/<slug>` | `/flow:plan`, `/flow:plan --prd` | `path` prop → on-disk MD (prose stays on disk); `IN_REPO`/`IN_DEPT` → scope (**both mandatory**) |
+| `milestone:<repo>/<slug>` / `working-state:<repo>/<slug>` | `/flow:done`, `/flow:run --pause`, plan closes | `IN_REPO`/`IN_DEPT` → scope (**both mandatory**) |
 | `repo:<name>` / `dept:<name>` | `config.scope` (every write) | scope anchors — **never namespaced** |
 | `ds:<name>` | `/design:setup-ds` LOCK gate | `direction:<ds>-locked` ← `research:<sha>` |
 | `canvas:<slug>` | `/design:new`, `.meta.json` | `RENDERS` → ds; `USES_BRAND` → brand |

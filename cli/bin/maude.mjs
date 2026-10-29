@@ -20,6 +20,7 @@ const COMMANDS = {
   'scenario-report': () => import('../commands/scenario-report.mjs'),
   doctor: () => import('../commands/doctor.mjs'),
   kg: () => import('../commands/kg.mjs'),
+  flow: () => import('../commands/flow.mjs'),
   help: () => import('../commands/help.mjs'),
   hub: () => import('../commands/hub.mjs'),
   harness: () => import('../commands/harness.mjs'),

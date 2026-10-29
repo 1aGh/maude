@@ -1,8 +1,8 @@
 {
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "flow",
-  "version": "1.9.1",
-  "description": "Generic agentic workflow loop for Claude Code — 29 slash commands across 9 categories. Daily verbs: /plan → /execute → /validate → /done, plus /status, /pause, /resume, /scenario, /quick, /release, /help. Grouped specializations: setup-* (onboard, prd, codebase-map, context), bug-* (rca, fix), record-* (ddr, retro, execution), maintain-* (clean, docs, ai-health, discover), validate-* (a11y, visual), review-code, release-changelog, utils-verify. Type /flow:help for the live index. Project-agnostic via `<project>` placeholder + per-repo `.ai/workflows.config.json`. Bundled subagents (a11y-auditor, design-system-guard, scenario-runner, test-coverage) and skills (workflow-state, ddr-keeper, scenario, agent-browser, agent-device, codebase-intelligence, a11y-checker, question-protocol, make-skill-template).",
+  "version": "1.10.0",
+  "description": "Generic agentic workflow loop for Claude Code and Codex — 10 commands: /flow:plan (--prd) → /flow:execute (--quick) → /flow:validate (--fast, --security, --a11y, --visual, --review, --scenario) → /flow:done, plus /flow:run (a plan as a goal, opt-in capped Stop hook), /flow:bug-rca, /flow:bug-fix, /flow:release (--changelog), /flow:record-ddr and /flow:init (--context, --map, --kgai). Role agents worker/spike/scout keep contexts small (skill context-budget). Project-agnostic via <project> placeholders + per-repo .ai/workflows.config.json.",
   "author": {
     "name": "1aGh"
   },

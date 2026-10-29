@@ -1,6 +1,0 @@
-interface:
-  display_name: "flow:record-retro"
-  short_description: "Compare implementation with its plan and record process…"
-  default_prompt: "Use $flow:source-command-record-retro with the task details I provide."
-policy:
-  allow_implicit_invocation: false

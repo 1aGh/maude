@@ -1,6 +1,6 @@
 ---
 title: Expo (React Native) recipe
-description: Drop-in setup for an Expo + React Native app. Native scenarios via flow:scenario, agent-device automation.
+description: Drop-in setup for an Expo + React Native app. Native scenarios via /flow:validate --scenario, agent-device automation.
 ---
 
 Drop-in setup for a native app. `design` is **optional** here. Its canvas-first loop targets web UI (TSX canvases in the browser). For Expo, design typically lives upstream in Figma. Flow's `agent-device` skill handles native verification.
@@ -62,7 +62,7 @@ For an Expo app you'll typically end up with:
 }
 ```
 
-`bundleIdPrefix` is required for native scenarios. `/flow:utils-verify` and `/flow:scenario` use it to launch builds on the simulator.
+`bundleIdPrefix` is required for native scenarios. `/flow:validate --fast` and `/flow:validate --scenario` use it to launch builds on the simulator.
 
 ## 3. Scenarios on a simulator
 
@@ -71,13 +71,13 @@ Scenarios are scripted user flows that run across your declared `platforms`. For
 Author a new scenario:
 
 ```text
-/flow:scenario new review-first-3-flashcards
+/flow:validate --scenario new review-first-3-flashcards
 ```
 
 Run it:
 
 ```text
-/flow:scenario review-first-3-flashcards
+/flow:validate --scenario review-first-3-flashcards
 ```
 
 Output: a markdown report under `.ai/scenarios/<name>/report.md` with per-step screenshots from each platform.
@@ -85,13 +85,13 @@ Output: a markdown report under `.ai/scenarios/<name>/report.md` with per-step s
 ## 4. Try the loop
 
 ```text
-/flow:setup-prd          # one-time. draft the PRD
+/flow:plan --prd          # one-time. draft the PRD
 /flow:plan "<feature>"   # per-feature. draft a phase plan
 /flow:execute            # implement it
 /flow:done               # validate, commit, PR, archive
 ```
 
-`/flow:utils-verify` (called inside `/flow:execute`'s Edit-Verify loop) will spawn an `agent-device` smoke against the current simulator for UI tasks, in addition to running your Jest tests.
+`/flow:validate --fast` (called inside `/flow:execute`'s Edit-Verify loop) will spawn an `agent-device` smoke against the current simulator for UI tasks, in addition to running your Jest tests.
 
 ## Gotchas
 

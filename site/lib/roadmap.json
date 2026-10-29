@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-08T00:00:00.000Z",
+  "generated": "2026-10-25T00:00:00.000Z",
   "currentPhase": null,
   "phases": [
     {
@@ -2364,6 +2364,17 @@
       "date": "2026-10-08",
       "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. The Rust shell is the centre of gravity here — read apps/desktop/src-tauri/src/sidecar...",
       "planPath": ".ai/plans/archive/feature-desktop-project-tabs-and-identity-profiles.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
+      "id": "feature-flow-refactor",
+      "title": "Feature: Flow plugin refactor — lean command set, economical runs, plans that run as goals",
+      "status": "done",
+      "shipTarget": null,
+      "date": "2026-10-25",
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming (DDR-004 group prefix, DDR-191 bare name:), the generated Codex mirrors and the project-agnostic <project>...",
+      "planPath": ".ai/plans/archive/feature-flow-refactor.md",
       "archived": true,
       "phaseKey": null
     },

@@ -7,7 +7,7 @@ description: "Execute an implementation plan and maintain verification and workf
 | -------- | ----- |
 | **Command** | `/flow:execute` |
 | **Category** | `daily` (daily) |
-| **Argument hint** | `[path-to-plan]` |
+| **Argument hint** | `[path-to-plan] \| --quick "<change>"` |
 | **Source** | [`plugins/flow/commands/execute.md`](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/execute.md) |
 
 ## Description
@@ -19,13 +19,13 @@ Execute an implementation plan and maintain verification and workflow checkpoint
 **Claude Code**
 
 ```text
-/flow:execute [path-to-plan]
+/flow:execute [path-to-plan] | --quick "<change>"
 ```
 
 **Codex**
 
 ```text
-$flow:source-command-execute [path-to-plan]
+$flow:source-command-execute [path-to-plan] | --quick "<change>"
 ```
 
 Use the same arguments and flags. See [native Codex setup](/docs/codex) for

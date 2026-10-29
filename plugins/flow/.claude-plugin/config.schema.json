@@ -50,7 +50,7 @@
         },
         "scenarioGuide": {
           "type": "string",
-          "description": "Repo-owned scenario-testing knowledge/deltas file that flow:scenario reads for overrides — device/platform lifecycle, selector conventions, infra-error classification, platform-specific gotchas. Mirrors `integrations.changelog.releaseGuide`'s generic-skill-plus-repo-knowledge-file shape, but optional: unlike the release guide, flow:scenario runs its documented defaults when this file is absent — no project is required to author one. Scaffolded by `maude init`. Default: `.ai/scenario-guide.md`.",
+          "description": "Repo-owned scenario-testing knowledge/deltas file that /flow:validate --scenario reads for overrides — device/platform lifecycle, selector conventions, infra-error classification, platform-specific gotchas. Mirrors `integrations.changelog.releaseGuide`'s generic-skill-plus-repo-knowledge-file shape, but optional: unlike the release guide, flow:scenario runs its documented defaults when this file is absent — no project is required to author one. Scaffolded by `maude init`. Default: `.ai/scenario-guide.md`.",
           "default": ".ai/scenario-guide.md"
         }
       }
@@ -77,12 +77,12 @@
     },
     "bundleIdPrefix": {
       "type": "string",
-      "description": "Native app bundle ID prefix (e.g. `com.acme.myapp`). Used by `/flow:utils-verify` and `/flow:scenario` when launching native builds. Omit for web-only projects."
+      "description": "Native app bundle ID prefix (e.g. `com.acme.myapp`). Used by `/flow:validate --fast` and `/flow:validate --scenario` when launching native builds. Omit for web-only projects."
     },
     "stack": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Auto-detected technology stack snapshot. Populated by /flow:init, refreshed by /flow:setup-codebase-map. Flow commands read this for routing decisions (e.g. which test runner to invoke, whether to gate on monorepo workspace builds). Use `unknown` when detection fails — never invent a value.",
+      "description": "Auto-detected technology stack snapshot. Populated by /flow:init, refreshed by /flow:init --map. Flow commands read this for routing decisions (e.g. which test runner to invoke, whether to gate on monorepo workspace builds). Use `unknown` when detection fails — never invent a value.",
       "properties": {
         "language": {
           "type": "string",
@@ -207,7 +207,7 @@
         },
         "densityMap": {
           "type": "object",
-          "description": "Maps each entry in `platforms` to a density preset (`command-center` | `sideline-tool` | `palm-friendly` | `cozy` | `compact` | custom). responsive-rules uses this to flag wrong density per platform.",
+          "description": "Maps each entry in `platforms` to a density preset (`command-center` | `sideline-tool` | `palm-friendly` | `cozy` | `compact` | custom). flow:ui-rules uses this to flag wrong density per platform.",
           "additionalProperties": { "type": "string" },
           "default": {}
         },
@@ -305,6 +305,162 @@
         }
       }
     },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Economy and unattended-run settings for /flow:execute and /flow:run (flow:context-budget skill). Every key is optional; an absent block keeps today's behaviour apart from the preset defaults the skill documents.",
+      "properties": {
+        "routing": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Which tier and effort each role agent runs on. Defaults: worker fast/high, spike deep/high, scout fast/medium, critic fast.",
+          "properties": {
+            "worker": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "flow:worker — implements one plan task.",
+              "properties": {
+                "tier": {
+                  "type": "string",
+                  "enum": ["fast", "deep", "inherit"],
+                  "description": "`fast` = the Sonnet-class model, `deep` = the Opus-class model, `inherit` = the lead's model. A tier, never a dated model id — the plugin maps it to the host alias."
+                },
+                "effort": {
+                  "type": "string",
+                  "enum": ["low", "medium", "high", "xhigh"]
+                }
+              }
+            },
+            "spike": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "flow:spike — resolves an open question.",
+              "properties": {
+                "tier": {
+                  "type": "string",
+                  "enum": ["fast", "deep", "inherit"],
+                  "description": "`fast` = the Sonnet-class model, `deep` = the Opus-class model, `inherit` = the lead's model. A tier, never a dated model id — the plugin maps it to the host alias."
+                },
+                "effort": {
+                  "type": "string",
+                  "enum": ["low", "medium", "high", "xhigh"]
+                }
+              }
+            },
+            "scout": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "flow:scout — read-only fact finding.",
+              "properties": {
+                "tier": {
+                  "type": "string",
+                  "enum": ["fast", "deep", "inherit"],
+                  "description": "`fast` = the Sonnet-class model, `deep` = the Opus-class model, `inherit` = the lead's model. A tier, never a dated model id — the plugin maps it to the host alias."
+                },
+                "effort": {
+                  "type": "string",
+                  "enum": ["low", "medium", "high", "xhigh"]
+                }
+              }
+            },
+            "critic": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Rubric reviewers (design critics, a11y-auditor, scenario-runner, design-system-guard). The security pair always inherits.",
+              "properties": {
+                "tier": {
+                  "type": "string",
+                  "enum": ["fast", "deep", "inherit"],
+                  "description": "`fast` = the Sonnet-class model, `deep` = the Opus-class model, `inherit` = the lead's model. A tier, never a dated model id — the plugin maps it to the host alias."
+                },
+                "effort": {
+                  "type": "string",
+                  "enum": ["low", "medium", "high", "xhigh"]
+                }
+              }
+            }
+          }
+        },
+        "riskClasses": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Globs or plan tags (e.g. `auth/**`, `migration`) that send a task's worker to the deep tier."
+        },
+        "budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Per-agent context budget. `preset` picks the defaults (see flow:context-budget); explicit keys override it.",
+          "properties": {
+            "preset": {
+              "type": "string",
+              "enum": ["small", "default", "monorepo"],
+              "default": "default"
+            },
+            "agentTurns": {
+              "type": "integer",
+              "minimum": 10
+            },
+            "agentContextK": {
+              "type": "integer",
+              "minimum": 50
+            },
+            "handbackLines": {
+              "type": "integer",
+              "minimum": 10
+            },
+            "leadCheckpointPct": {
+              "type": "integer",
+              "minimum": 20,
+              "maximum": 95
+            },
+            "maxRunTokens": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "/flow:run only: total read+write tokens after which the Stop hook checkpoints and lets the run stop. Absent = no ceiling."
+            }
+          }
+        },
+        "largeFileKB": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 64,
+          "description": "Files above this size are read by range, never whole."
+        },
+        "gates": {
+          "type": "string",
+          "enum": ["per-batch", "per-task"],
+          "default": "per-batch",
+          "description": "When /flow:execute runs the full `quality` gates: after each batch of related tasks (default) or after every task. Workers always run their focused tests."
+        },
+        "lane": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional wrapper that serialises test suites, invoked as `<lane> -- <command>` (e.g. a script that takes a machine-wide lock). Absent = suites run directly."
+        },
+        "hooks": {
+          "type": "boolean",
+          "default": false,
+          "description": "/flow:run hooks (SubagentStart rules, SubagentStop Decisions check, Stop gate). OFF by default; every hook is a no-op unless this is true AND /flow:run armed this session (record in ~/.claude/flow-runs/, outside the project). Kill switch for one shell: FLOW_RUN_HOOKS=0."
+        },
+        "maxStopBlocks": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 3,
+          "description": "/flow:run: identical red done-checks in a row after which the Stop hook writes the waiting file and lets the session stop."
+        },
+        "expiresHours": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 72,
+          "default": 24,
+          "description": "/flow:run: hours after arming when the run expires and every hook becomes a no-op (clamped to 1–72)."
+        }
+      }
+    },
     "knowledgeGraph": {
       "type": "object",
       "additionalProperties": false,
@@ -380,7 +536,7 @@
           "type": "string",
           "enum": ["low", "medium", "high", "critical"],
           "default": "medium",
-          "description": "Lowest severity that blocks /flow:validate step 6.5 and /flow:validate-security. Findings below this rate as warnings, not blockers."
+          "description": "Lowest severity that blocks /flow:validate step 6.5 and /flow:validate --security. Findings below this rate as warnings, not blockers."
         },
         "scope": {
           "type": "array",
@@ -466,7 +622,7 @@
     },
     "qualityScoped": {
       "type": "object",
-      "description": "Scoped (changed-files / changed-packages-only) gate variants for the IMPLEMENTATION inner loop (`/flow:utils-verify`, per-task `/flow:execute`, `/flow:bug-fix`). Same flat shape as `quality` — gate name → shell command string, keys mirror `quality` (conventionally `lint`, `format`, `typecheck`, `tests`). During implementation these run INSTEAD of the repo-wide `quality.*` commands; a missing key means the inner loop defers that gate to `/flow:validate` (it never falls back to the repo-wide command). `/flow:validate` and `/flow:done` ignore this block entirely — the full `quality.*` pipeline remains the single outer gate. Monorepo example: `\"lint\": \"turbo run lint --filter='[origin/main]'\"` — note changed-only `[base]`, NOT dependents-inclusive `...[base]`, which selects nearly the whole monorepo whenever a shared package is touched; dependent breakage is `/flow:validate`'s job.",
+      "description": "Scoped (changed-files / changed-packages-only) gate variants for the IMPLEMENTATION inner loop (`/flow:validate --fast`, per-task `/flow:execute`, `/flow:bug-fix`). Same flat shape as `quality` — gate name → shell command string, keys mirror `quality` (conventionally `lint`, `format`, `typecheck`, `tests`). During implementation these run INSTEAD of the repo-wide `quality.*` commands; a missing key means the inner loop defers that gate to `/flow:validate` (it never falls back to the repo-wide command). `/flow:validate` and `/flow:done` ignore this block entirely — the full `quality.*` pipeline remains the single outer gate. Monorepo example: `\"lint\": \"turbo run lint --filter='[origin/main]'\"` — note changed-only `[base]`, NOT dependents-inclusive `...[base]`, which selects nearly the whole monorepo whenever a shared package is touched; dependent breakage is `/flow:validate`'s job.",
       "additionalProperties": {
         "type": "string",
         "minLength": 1
@@ -480,7 +636,7 @@
         "tracker": {
           "type": "object",
           "additionalProperties": false,
-          "description": "Issue / task tracker. Used by /flow:done, /flow:bug-rca, /flow:bug-fix and /flow:status to optionally read, create or update tickets. `orbit` additionally routes /flow:plan (find or create the task), /flow:execute (working-state reports) and /flow:done (close-time artifact push, warn-only) through the `orbit-backend` skill.",
+          "description": "Issue / task tracker. Used by /flow:done, /flow:bug-rca, /flow:bug-fix and /flow:run --status to optionally read, create or update tickets. `orbit` additionally routes /flow:plan (find or create the task), /flow:execute (working-state reports) and /flow:done (close-time artifact push, warn-only) through the `orbit-backend` skill.",
           "properties": {
             "provider": {
               "type": "string",
@@ -586,7 +742,7 @@
         "changelog": {
           "type": "object",
           "additionalProperties": false,
-          "description": "Release-note / changelog tooling. Used by /flow:validate and /flow:done to remind (soft warning) about missing release notes, by /flow:release-changelog to author entries, and by /flow:release to walk the project-owned release runbook. Phase 3 implements the `changesets` provider; other enum values are accepted but treated as no-op until their providers land.",
+          "description": "Release-note / changelog tooling. Used by /flow:validate and /flow:done to remind (soft warning) about missing release notes, by /flow:release --changelog to author entries, and by /flow:release to walk the project-owned release runbook. Phase 3 implements the `changesets` provider; other enum values are accepted but treated as no-op until their providers land.",
           "properties": {
             "provider": {
               "type": "string",

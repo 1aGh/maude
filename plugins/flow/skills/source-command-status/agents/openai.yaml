@@ -1,6 +1,0 @@
-interface:
-  display_name: "flow:status"
-  short_description: "Summarize current workflow progress, blockers and the next…"
-  default_prompt: "Use $flow:source-command-status with the task details I provide."
-policy:
-  allow_implicit_invocation: false

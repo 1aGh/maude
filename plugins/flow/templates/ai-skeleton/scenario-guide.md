@@ -1,6 +1,6 @@
 # Scenario Guide — PROJECT_NAME
 
-> Read by `flow:scenario` (skill + `scenario-runner` agent) before running or authoring a scenario. This file documents ONLY where this project's scenario testing diverges from `flow:scenario`'s generic protocol — device/platform matrix, selector strategy, report shape, speed levers. An absent or empty file is valid: `flow:scenario` runs its documented defaults with no changes. Delete any section below that doesn't apply to this project; don't fill a section with a generic restatement of the default behavior.
+> Read by `/flow:validate --scenario` (skill + `scenario-runner` agent) before running or authoring a scenario. This file documents ONLY where this project's scenario testing diverges from `/flow:validate --scenario`'s generic protocol — device/platform matrix, selector strategy, report shape, speed levers. An absent or empty file is valid: `/flow:validate --scenario` runs its documented defaults with no changes. Delete any section below that doesn't apply to this project; don't fill a section with a generic restatement of the default behavior.
 
 ## Device / platform lifecycle
 
@@ -16,13 +16,13 @@ _Not yet documented — using the generic default (no project-specific reset ste
 
 ## Selector strategy overrides
 
-> `flow:scenario`'s default selector reach-order is: stable locator (testID / `data-testid`) → accessible name/text → vision-based check (advisory only, never gates a pass/fail). Document here only if this project's locator convention deviates — e.g. a different testID naming scheme, a platform where accessible-name lookup is unreliable, or an additional locator tier.
+> `/flow:validate --scenario`'s default selector reach-order is: stable locator (testID / `data-testid`) → accessible name/text → vision-based check (advisory only, never gates a pass/fail). Document here only if this project's locator convention deviates — e.g. a different testID naming scheme, a platform where accessible-name lookup is unreliable, or an additional locator tier.
 
 _Not yet documented — using the generic default._
 
 ## Infra-error classification overrides
 
-> `flow:scenario`'s default treats environment/flake failures (device boot timeout, network blip, stale simulator state) as distinct from real product regressions, so they don't count as blockers. If this project binds that convention to a specific exit code or detection rule, document it here.
+> `/flow:validate --scenario`'s default treats environment/flake failures (device boot timeout, network blip, stale simulator state) as distinct from real product regressions, so they don't count as blockers. If this project binds that convention to a specific exit code or detection rule, document it here.
 
 _Not yet documented — using the generic default._
 
@@ -34,6 +34,6 @@ _None recorded yet._
 
 ## Scenario-authoring notes
 
-> Anything specific to how new scenarios should be authored for this project beyond `flow:scenario`'s default collaborative loop (announce → act → screenshot → co-design asserts with the user → stop, one step at a time). E.g. project-specific `--save-script` conventions, or app areas that need special care when picking assertions.
+> Anything specific to how new scenarios should be authored for this project beyond `/flow:validate --scenario`'s default collaborative loop (announce → act → screenshot → co-design asserts with the user → stop, one step at a time). E.g. project-specific `--save-script` conventions, or app areas that need special care when picking assertions.
 
 _Not yet documented — using the generic default._

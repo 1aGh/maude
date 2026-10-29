@@ -260,7 +260,7 @@ function printNextSteps(name, claudeMdExists, kgAvailable = false, usedKg = fals
     );
   }
   process.stdout.write(`  4. Create .ai/${name}-prd.md with your product brief.\n`);
-  process.stdout.write('  5. /flow:status to see where you are; /flow:plan to start work.\n');
+  process.stdout.write('  5. /flow:run --status to see where you are; /flow:plan to start work.\n');
   printKgOffer(kgAvailable, usedKg);
 }
 

@@ -22,7 +22,7 @@ jq '.integrations.tracker.artifacts // {}' .ai/workflows.config.json
 **The gate before anything else:** `store: orbit` with the resolver reporting *inactive* (no orbit tools in this session) → fall back to the command's normal `.ai/` path, print
 
 ```
-[orbit] inactive — <kind> written to <path> instead of orbit (push it later with /flow:status)
+[orbit] inactive — <kind> written to <path> instead of orbit (push it later with /flow:run --status)
 ```
 
 and continue. An unreachable orbit never costs an artifact.
@@ -83,9 +83,9 @@ orbit_artifact_push {repo, taskKey: <KEY, omitted when unset>, kind, title, body
 | --- | --- |
 | `/flow:plan` | `plan` |
 | `/flow:bug-rca` | `rca` |
-| `/flow:record-execution` | `execution-report` |
-| `/flow:record-retro` | `retro` |
-| `/flow:review-code` | `review` |
+| `/flow:done (report step)` | `execution-report` |
+| `/flow:done (retro step)` | `retro` |
+| `/flow:validate --review` | `review` |
 
 `title` is the artifact's H1 without its prefix (`Feature: `, `RCA: `, `Code Review: `). Same rules as guide 03, and they are not negotiable here either: only these five kinds, never `.env*`, config, raw logs or command output; a body that looks like it carries a secret is **skipped with a warning, never redacted and pushed**; a body over 400 000 characters is skipped with a warning.
 
@@ -117,7 +117,7 @@ Only the five kinds. Everything else stays exactly where it is, whatever `store`
 
 ### 6. Reading one back
 
-A later command that needs an artifact this repo no longer keeps on disk — `/flow:execute` wanting its plan, `/flow:bug-fix` wanting the RCA, `/flow:status` reporting where things stand — pulls it:
+A later command that needs an artifact this repo no longer keeps on disk — `/flow:execute` wanting its plan, `/flow:bug-fix` wanting the RCA, `/flow:run --status` reporting where things stand — pulls it:
 
 ```
 orbit_artifact_pull {repo, taskKey, kind}   # latest version of each matching artifact

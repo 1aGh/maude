@@ -64,11 +64,11 @@ Override only if your project's canonical files differ from the defaults.
 { "platforms": ["web-desktop", "web-mobile", "ios-phone"] }
 ```
 
-Drives the `/flow:scenario` matrix and `responsive-rules` density mapping. Valid values: `web-desktop`, `web-mobile`, `ios-phone`, `ios-tablet`, `android-phone`, `android-tablet`, `macos`, `windows`, `linux`.
+Drives the `/flow:validate --scenario` matrix and `flow:ui-rules` density mapping. Valid values: `web-desktop`, `web-mobile`, `ios-phone`, `ios-tablet`, `android-phone`, `android-tablet`, `macos`, `windows`, `linux`.
 
 ### `stack`
 
-Auto-detected by `/flow:init` and refreshed by `/flow:setup-codebase-map`. Used for routing decisions. Which test runner, whether to gate on workspace builds.
+Auto-detected by `/flow:init` and refreshed by `/flow:init --map`. Used for routing decisions. Which test runner, whether to gate on workspace builds.
 
 ```json
 {
@@ -124,7 +124,7 @@ Integration boundaries the project crosses. The `debugging-rules` and `testing-r
 
 ### `motion`
 
-Hard ceilings in milliseconds. `motion-rules` enforces these.
+Hard ceilings in milliseconds. `flow:ui-rules` enforces these.
 
 ```json
 {
@@ -212,7 +212,7 @@ Lightweight pointers to external services. Generic commands read `provider` and 
 
 #### `integrations.changelog`
 
-The release-note tooling. Used by `/flow:validate` and `/flow:done` for soft warnings about missing release notes, by `/flow:release-changelog` to author entries, and by `/flow:release` to walk the project-owned release runbook.
+The release-note tooling. Used by `/flow:validate` and `/flow:done` for soft warnings about missing release notes, by `/flow:release --changelog` to author entries, and by `/flow:release` to walk the project-owned release runbook.
 
 Currently only the `changesets` provider has a full implementation; `git-cliff` / `conventional` / `custom` / `none` are accepted but treated as no-op until their providers land.
 

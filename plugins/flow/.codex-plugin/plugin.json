@@ -1,6 +1,6 @@
 {
   "name": "flow",
-  "version": "1.9.1",
+  "version": "1.10.0",
   "description": "Planning, implementation, validation and decision memory.",
   "author": {
     "name": "1aGh"
@@ -14,6 +14,8 @@
     "developerName": "1aGh",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],
-    "defaultPrompt": ["Use $flow:source-command-help to show the available workflows."]
+    "defaultPrompt": [
+      "Use $flow:source-command-plan to plan a feature, then $flow:source-command-execute."
+    ]
   }
 }

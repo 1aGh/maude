@@ -1,7 +1,8 @@
 ---
 name: scenario-runner
-description: Use when /flow:utils-verify, /flow:validate, or /flow:done need cross-platform UI verification of a feature. Orchestrates agent-browser (web variants) + agent-device (native iOS/Android) scenarios, captures screenshots per step, produces a markdown report with TL;DR, counter-delta parity, and per-step pivot table. Returns report path; does not edit code.
+description: Use when /flow:validate --fast, /flow:validate, or /flow:done need cross-platform UI verification of a feature. Orchestrates agent-browser (web variants) + agent-device (native iOS/Android) scenarios, captures screenshots per step, produces a markdown report with TL;DR, counter-delta parity, and per-step pivot table. Returns report path; does not edit code.
 tools: Bash, Read, Write, Glob
+model: sonnet
 ---
 
 Follow [host conventions](../HARNESS.md) for the active host; retain this role's restrictions.
@@ -85,7 +86,7 @@ Return this JSON-ish block:
 
 `infra_errors` exists so a caller can alert on it separately from silently folding it into `results` — a scenario guide (or a runner) that broadens what counts as "infra-error" softens the validation gate, and a rising `infra_errors` count across runs is the signal that's happening. It's never a blocker on its own, but callers may want to flag a step that flipped `fail` → `infra-error` between runs.
 
-Caller (`/flow:utils-verify` / `/validate` / `/done`) decides go/no-go based on `blockers` and `parity_ok`.
+Caller (`/flow:validate --fast` / `/validate` / `/done`) decides go/no-go based on `blockers` and `parity_ok`.
 
 ## Anti-patterns
 

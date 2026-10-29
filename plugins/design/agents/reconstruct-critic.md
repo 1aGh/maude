@@ -3,6 +3,7 @@ name: reconstruct-critic
 description: Bash-free reality-check comparator for `/design:import --reconstruct` (DDR-174). Reads the untrusted source image and the reconstruction screenshot and writes one strict `converged` verdict file. A separate agent from the Bash-capable design-critic on purpose. Spawned only by /design:import; never auto-delegated, never a general critic-panel member.
 tools: Read, Write, Glob, Grep
 permissionMode: default
+model: sonnet
 ---
 
 Follow [host conventions](../HARNESS.md) for the active host; retain this role's restrictions.

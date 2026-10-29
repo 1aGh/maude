@@ -11,10 +11,10 @@ It is **opt-out**: on by default, capability-gated, and additive. With nothing c
 
 | Loop stage | Shape | Commands | What's debated |
 | --- | --- | --- | --- |
-| **Start** | Divergent ("what's BEST") | `/flow:plan`, `/flow:setup-prd`, `/design:setup-ds` | competing approaches / product direction / aesthetic direction, drafted before anything is written |
-| **End** | Adversarial ("is it safe / done / good") | `/flow:validate-security`, `/design:critic`, `/design:new` | a seat whose win-condition is the artifact *failing*; conflicting blockers reconciled into one list |
+| **Start** | Divergent ("what's BEST") | `/flow:plan`, `/flow:plan --prd`, `/design:setup-ds` | competing approaches / product direction / aesthetic direction, drafted before anything is written |
+| **End** | Adversarial ("is it safe / done / good") | `/flow:validate --security`, `/design:critic`, `/design:new` | a seat whose win-condition is the artifact *failing*; conflicting blockers reconciled into one list |
 | **Research** | Hypothesis ("what's TRUE") | `/flow:bug-rca`, `ux-research` | candidate root causes compete on falsifiable evidence; the debate ends when evidence eliminates hypotheses, not when voices agree |
-| **Tripwire** | Escalate-only | `/flow:quick` | a cheap load-bearing check on changes that only *look* trivial |
+| **Tripwire** | Escalate-only | `/flow:execute --quick` | a cheap load-bearing check on changes that only *look* trivial |
 | Middle | — | `/flow:execute` | **solo** — carrying out a decision already made |
 
 ## Two tiers, auto-selected
@@ -88,7 +88,7 @@ A falsifiable rule keeps the roster honest: if two seats agree on the verdict mo
 
 ## Security posture
 
-The debate layer reads repo content (diffs, issues, prior decisions) into agent prompts and can spawn agents with shell and web tools — so it is itself a prompt-injection surface, and it's treated as one. Running the layer's own `/flow:validate-security` debate against it surfaced and closed two findings (recorded in DDR-130):
+The debate layer reads repo content (diffs, issues, prior decisions) into agent prompts and can spawn agents with shell and web tools — so it is itself a prompt-injection surface, and it's treated as one. Running the layer's own `/flow:validate --security` debate against it surfaced and closed two findings (recorded in DDR-130):
 
 - **No single seat colocates the trifecta.** A seat that ingests the untrusted diff/issue does not also hold a network-egress tool — the `flow:investigator` carries no web tools and runs shell as read-only local diagnostics only, so injected content can't be exfiltrated through it. Web fact-checking runs in a seat that never sees a code diff.
 - **The lead treats seat output as inert data.** A seat's recommendation is quoted into the plan or canvas, never executed or turned into a tool call — closing the confused-deputy where a laundered-injection string could otherwise steer the artifact.

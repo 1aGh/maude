@@ -7,7 +7,7 @@ description: "Create a feature implementation plan grounded in project requireme
 | -------- | ----- |
 | **Command** | `/flow:plan` |
 | **Category** | `daily` (daily) |
-| **Argument hint** | `feature description` |
+| **Argument hint** | `feature description \| --prd <output-filename>` |
 | **Source** | [`plugins/flow/commands/plan.md`](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/plan.md) |
 
 ## Description
@@ -19,13 +19,13 @@ Create a feature implementation plan grounded in project requirements and the de
 **Claude Code**
 
 ```text
-/flow:plan feature description
+/flow:plan feature description | --prd <output-filename>
 ```
 
 **Codex**
 
 ```text
-$flow:source-command-plan feature description
+$flow:source-command-plan feature description | --prd <output-filename>
 ```
 
 Use the same arguments and flags. See [native Codex setup](/docs/codex) for

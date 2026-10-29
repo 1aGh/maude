@@ -90,7 +90,7 @@ Following the "Testing Requirements" from RCA:
 
 ### 5. Verify (scoped — the fast inner loop)
 
-Run `/flow:utils-verify` — scoped gates (`qualityScoped.*`) + **affected tests only**, correctly filtered (see the `flow:quality-gates` skill §7 filter-sanity guard: if the runner reports the full suite despite your pattern, the filter was swallowed — use the runner's exec form). Run the RCA's "Testing Requirements" tests through the same scoped form.
+Run `/flow:validate --fast` — scoped gates (`qualityScoped.*`) + **affected tests only**, correctly filtered (see the `flow:quality-gates` skill §7 filter-sanity guard: if the runner reports the full suite despite your pattern, the filter was swallowed — use the runner's exec form). Run the RCA's "Testing Requirements" tests through the same scoped form.
 
 **Do NOT run the full `lint` / `typecheck` / `test` / `build` pipeline here.** Those repo-wide gates run exactly once, in `/flow:validate` (or via `/flow:done`), before merge — the fix loop stays fast so the user can try the fix immediately.
 

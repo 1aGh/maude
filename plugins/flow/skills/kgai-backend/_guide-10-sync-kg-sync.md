@@ -1,7 +1,7 @@
 ### SYNC — `kg sync`
 
 ```
-maude kg sync             # at /flow:done + /flow:pause (push) — deliberate, always attempted
+maude kg sync             # at /flow:done + /flow:run --pause (push) — deliberate, always attempted
 maude kg session-sync     # SessionStart hook (pull) — runs `kg sync --auto` under the hood
 ```
 

@@ -2,266 +2,198 @@
 name: validate
 category: daily
 type: command
-description: "Run project quality gates, tests, build and applicable cross-platform UI validation."
-keywords: [validate, full, pipeline, scenario, cross-platform, a11y, design-system]
+description: "Run quality gates and validation lanes: full pipeline, --fast, --security, --a11y, --visual, --review, --scenario."
+keywords: [validate, fast, security, a11y, visual, review, scenario, cross-platform, design-system]
+argument-hint: "[--fast | --security | --a11y | --visual | --review | --scenario [name|new <name>]] [--force]"
 ---
 
-# /validate — full pipeline
+# /flow:validate — gates and validation lanes
 
 Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
-**This is the main validation gate.** Run it before `/done`, before push, or when reviewing older code. The cross-platform scenario is the backbone — for any multi-platform project (mobile/tablet/web) parity is a core feature.
+One command, several lanes. Pick the lane from `$ARGUMENTS`; no lane flag = the full pipeline.
 
-## Process
+| Flag | Lane | When |
+| ---- | ---- | ---- |
+| (none) | Full pipeline (below) | Before `/flow:done`, before push, reviewing older code |
+| `--fast` | Scoped inner-loop check | After each task in `/flow:execute` |
+| `--security` | Defender + attacker review | Auth, input, deps, MCP, prompts, trust boundaries |
+| `--a11y` | WCAG 2.1 AA audit | UI changes |
+| `--visual` | Screenshot regression | UI changes |
+| `--review` | Review of uncommitted changes | Before commit |
+| `--scenario [name\|new <name>]` | Cross-platform scenario run / authoring | UI features |
 
-Run in this order. **Stop on first hard fail**, accumulate soft warnings.
+Gates come from `.ai/workflows.config.json` per the `flow:quality-gates` skill. A missing gate skips with a warning, never fabricated.
 
-### 0. Skip-if-clean (fast-path) — Phase C / DDR-061
+## Full pipeline (no flag)
 
-> The full pipeline is expensive (the cross-platform scenario alone is 2–3 min cold). Don't re-run it when the tree is byte-identical to the last **green** validate within the last 24 h. `--force` in `$ARGUMENTS` bypasses this gate.
+Order: config health → format/lint/typecheck → tests → build → custom gates → parallel lanes → drift checks → report. **Stop on first hard fail**, accumulate soft warnings.
+
+**Default lanes:** scenario-runner, a11y-auditor, design-system-guard and the security pair (`security-auditor` + `ethical-hacker`) all run in step 4 (design/a11y/scenario for UI work). Security is skipped when `skills.securityRules.enabled == false`, its AI/MCP lens when `security.includeAi == false`, and reused from cache when fresh. `--visual` and `--review` run only on request.
+
+### 0. Skip-if-clean (DDR-061)
+Don't re-run when the tree is byte-identical to the last **green** validate within 24 h. `--force` in `$ARGUMENTS` bypasses it.
 
 ```bash
 if ! grep -q -- '--force' <<< "$ARGUMENTS"; then
   BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "detached")
-  # Tree fingerprint = committed HEAD + uncommitted working-tree state. A
-  # HEAD-only `git diff <last-sha>..HEAD` would miss dirty edits; folding in
-  # `git status --porcelain` catches both new commits AND uncommitted changes.
   TREE_SHA=$(printf '%s\n%s' "$(git rev-parse HEAD 2>/dev/null)" "$(git status --porcelain 2>/dev/null)" | git hash-object --stdin | cut -c1-12)
-  LAST=$(maude cache get validate "$BRANCH" --ttl-ms 86400000 2>/dev/null)   # 24 h fresh window
-  if [ -n "$LAST" ] \
-     && [ "$(jq -r '.tree_sha' <<< "$LAST")" = "$TREE_SHA" ] \
-     && [ "$(jq -r '.result'   <<< "$LAST")" = "green" ]; then
-    echo "✓ Last validate passed GREEN at $(jq -r '.validatedAt' <<< "$LAST") on this exact tree ($TREE_SHA) — skipping."
-    echo "  Report: $(jq -r '.reportPath // "(none recorded)"' <<< "$LAST")"
-    echo "  Use --force to re-run."
+  LAST=$(maude cache get validate "$BRANCH" --ttl-ms 86400000 2>/dev/null)
+  if [ -n "$LAST" ] && [ "$(jq -r '.tree_sha' <<< "$LAST")" = "$TREE_SHA" ] && [ "$(jq -r '.result' <<< "$LAST")" = "green" ]; then
+    echo "✓ Last validate GREEN at $(jq -r '.validatedAt' <<< "$LAST") on this tree ($TREE_SHA) — skipping. Report: $(jq -r '.reportPath // "(none)"' <<< "$LAST"). Use --force to re-run."
     exit 0
   fi
 fi
 ```
 
-The `validate` cache layer is keyed on the **branch name** and auto-gitignored (the `.ai/cache/*` rule). It's written only on a green pipeline (Step 8b) — a failed validate writes nothing, so a red tree always re-validates.
+The fingerprint folds in `git status --porcelain` so dirty edits count. The cache is keyed on branch, auto-gitignored, and written only on green (step 8b).
 
 ### 0.5 Config health (blocker)
-
-> Reads the workspace's own config sanity before doing anything else. A schema error (e.g. an invalid `stack.tests` enum or a non-string `quality.<gate>`) silently degrades downstream skills, so it blocks here.
-
 ```bash
 maude doctor --json | jq -e '.summary.schemaErrors == 0' >/dev/null \
   || { echo "::error::config schema errors in .ai/workflows.config.json — run \`maude doctor --fix\`"; exit 1; }
 ```
+Stack drift and missing quality additions are warnings only (report in step 8). Never call `maude doctor --fix` from validate; print the command.
 
-Stack **drift** and missing **quality additions** are warning-only at this step (surface them in the Step 8 report; don't block — `/flow:validate` runs on feature branches and shouldn't force a config edit mid-feature). Never call `maude doctor --fix` from validate — print the fix command and let the user run it.
-
-### 1. Static analysis — `config.quality.{format,lint,typecheck}`
-
-> Reads gates from `.ai/workflows.config.json` → `quality` per the `flow:quality-gates` skill. Each gate is a blocker; a missing gate skips with a warning (never fabricated). `tests` and `build` run in Steps 2–3 below — preserving the overall fail-fast order format → lint → typecheck → tests → build.
-
-`typecheck` and `lint` are pure read-only scans with no dependency on each other.
-
-**In a single assistant message, run these two checks in parallel using two Bash tool calls:**
-
-- typecheck:
-  ```bash
-  CMD=$(jq -r '.quality.typecheck // empty' .ai/workflows.config.json)
-  if [[ -n "$CMD" ]]; then echo "→ typecheck: $CMD"; eval "$CMD" || { echo "::error::typecheck gate failed (\`$CMD\`)"; exit 1; }
-  else echo "⚠ quality.typecheck not declared — run \`maude doctor --fix\` (skipping)"; fi
-  ```
-- lint:
-  ```bash
-  CMD=$(jq -r '.quality.lint // empty' .ai/workflows.config.json)
-  if [[ -n "$CMD" ]]; then echo "→ lint: $CMD"; eval "$CMD" || { echo "::error::lint gate failed (\`$CMD\`) — try \`pnpm biome check --fix\` or \`maude doctor --fix\`"; exit 1; }
-  else echo "⚠ quality.lint not declared — run \`maude doctor --fix\` (skipping)"; fi
-  ```
-
-When both return, run `format` (must follow lint so we don't flag lint-suggested fixes):
+### 1. Static analysis — `quality.{format,lint,typecheck}`
+Run `typecheck` and `lint` in parallel (two Bash calls in one message); run `format` after they return (so lint-suggested fixes aren't flagged). Each gate:
 
 ```bash
-CMD=$(jq -r '.quality.format // empty' .ai/workflows.config.json)
-if [[ -n "$CMD" ]]; then echo "→ format: $CMD"; eval "$CMD" || { echo "::error::format gate failed (\`$CMD\`)"; exit 1; }
-else echo "⚠ quality.format not declared — run \`maude doctor --fix\` (skipping)"; fi
+CMD=$(jq -r '.quality.<gate> // empty' .ai/workflows.config.json)
+if [[ -n "$CMD" ]]; then echo "→ <gate>: $CMD"; eval "$CMD" || { echo "::error::<gate> gate failed (\`$CMD\`)"; exit 1; }
+else echo "⚠ quality.<gate> not declared — run \`maude doctor --fix\` (skipping)"; fi
 ```
 
-### 2. Tests — `config.quality.tests`
+### 2. Tests — `quality.tests` (same pattern)
+Full suite; report coverage but don't block on a threshold.
+
+**2a. Coverage trend (opt-in, non-blocking).** When `skills.coverageTrend.enabled` and the runner prints a coverage %: compare with `.ai/state/coverage-baseline.json` (`{coverage, recordedAt, branch}`). If the drop exceeds `skills.coverageTrend.warnThresholdPp` (default 1.0 pp) → warn in the report and point at the `flow:test-coverage` subagent. Never a blocker. No baseline → record silently and note `coverage baseline established`. Baseline refresh belongs to `/flow:done`.
+
+### 3. Build — `quality.build` (same pattern)
+Also report bundle-size delta when tooling exists (`size-limit`, `bundlewatch`).
+
+### 3.5 Custom gates
+Every `quality.*` key beyond `format|lint|typecheck|tests|build` runs here in declaration order (blocker): `for gate in $(jq -r '.quality | keys[]' …)`, skip the five conventional names, `eval` the rest. This mirrors a project's CI locally. The `qualityScoped` block is `--fast`'s and is ignored here.
+
+### 4. Parallel fan-out: cross-platform + a11y + design + security
+Resolve config **once** and pass values inline in each spawn prompt (subagents don't inherit this conversation):
 
 ```bash
-CMD=$(jq -r '.quality.tests // empty' .ai/workflows.config.json)
-if [[ -n "$CMD" ]]; then
-  echo "→ tests: $CMD"
-  eval "$CMD" || { echo "::error::tests gate failed (\`$CMD\`)"; exit 1; }
-else
-  echo "⚠ quality.tests not declared — run \`maude doctor --fix\` (skipping)"
-fi
+SEV_FLOOR=$(jq -r '.security.severityFloor // "medium"' .ai/workflows.config.json)
+INCLUDE_AI=$(jq -r '.security.includeAi // true' .ai/workflows.config.json)
+SEC_SCOPE=$(jq -rc '.security.scope // ["classic","ai"]' .ai/workflows.config.json)
+SEC_ENABLED=$(jq -r '.skills.securityRules.enabled // true' .ai/workflows.config.json)
 ```
 
-- Full suite (the `tests` gate command runs unit + integration).
-- Coverage report (just report, don't block on threshold).
+In a single message, spawn in parallel:
+- `scenario-runner` — per the `scenario` skill; picks scope from the diff, reads `.ai/scenarios/` + the active plan; returns `report_path, platforms_run, results, blockers, parity_ok, follow_ups`.
+- `a11y-auditor` — live axe-core scan over affected routes; pass `scenario_screenshot_dir` so it folds in scenario frames without blocking on the runner.
+- `design-system-guard` — token/component conformance, scenario screenshots as primary evidence.
+- `security-auditor` + `ethical-hacker` — pass `severityFloor`, `includeAi`, `scope` inline. Reuse a fresh review first (`maude cache get security "$(git rev-parse HEAD)" --ttl-ms 3600000`; same cache as `--security`): on a hit surface the cached verdict + path and skip the spawn.
 
-#### 2a. Coverage-trend warning (opt-in, non-blocking)
-
-> Soft gate. Reads `skills.coverageTrend` from `.ai/workflows.config.json`. Default `enabled: false` — skip silently.
-
-When `skills.coverageTrend.enabled` is `true` **and** the runner emits a parseable coverage summary:
-
-1. Extract the project-level line coverage as a percentage (parse from `vitest --coverage` / `jest --coverage` / `pytest --cov` / `go test -cover` output — the same line the report shows as `coverage: 78%`).
-2. Read `.ai/state/coverage-baseline.json` if it exists:
-   ```json
-   { "coverage": 78.4, "recordedAt": "2026-05-12", "branch": "main" }
-   ```
-3. Compute `delta = current - baseline.coverage` (negative = drop).
-4. **If `-delta > skills.coverageTrend.warnThresholdPp`** (default `1.0` pp) → emit warning in the Step 8 report:
-   ```
-   ⚠ coverage trend: 78.4% → 76.8% (Δ -1.6 pp, threshold 1.0 pp) — review changed files via the flow:test-coverage subagent (default diff scope)
-   ```
-   **Never** promote to a blocker — Step 2 is explicit that coverage doesn't block on threshold. If the team wants a hard gate, that requires its own DDR.
-5. **If no baseline exists** → record current as the baseline silently. No warning on the first run. Note in the report: `coverage baseline established (<value>%)`.
-
-Baseline refresh is handled by `/flow:done` (only on the `baselineBranch`, default `main`), not here — `/validate` runs on feature branches too and a feature-branch drop is exactly what the warning is for.
-
-### 3. Build — `config.quality.build`
-
-```bash
-CMD=$(jq -r '.quality.build // empty' .ai/workflows.config.json)
-if [[ -n "$CMD" ]]; then
-  echo "→ build: $CMD"
-  eval "$CMD" || { echo "::error::build gate failed (\`$CMD\`)"; exit 1; }
-else
-  echo "⚠ quality.build not declared — run \`maude doctor --fix\` (skipping)"
-fi
-```
-
-- Production build for each app/package from `.ai/context/codebase-map.md`.
-- Bundle size delta if tooling is available (`size-limit`, `bundlewatch`).
-
-### 3.5 Custom quality gates (project-specific CI mirror)
-
-> Any `config.quality.*` gate **beyond** the five conventional ones (`format`, `lint`, `typecheck`, `tests`, `build`) runs here, in declaration order. This is how a project mirrors its full CI surface locally (e.g. version-parity, tarball-shape, generated-content drift) so `/flow:validate` catches what CI would catch — before push. All blocker. The separate top-level `qualityScoped` block is the implementation inner loop's (`/flow:utils-verify`) — validate ignores it and never runs it.
-
-```bash
-for gate in $(jq -r '.quality | keys[]' .ai/workflows.config.json); do
-  case "$gate" in format|lint|typecheck|tests|build) continue;; esac
-  CMD=$(jq -r ".quality[\"$gate\"]" .ai/workflows.config.json)
-  echo "→ $gate: $CMD"
-  eval "$CMD" || { echo "::error::$gate gate failed (\`$CMD\`)"; exit 1; }
-done
-```
-
-### 4. Cross-platform + a11y + design + security (parallel fan-out)
-
-> Resolve config **once, here**, and pass the relevant values inline in each spawn prompt. Subagents inherit CLAUDE.md + MCP + skills but NOT this conversation, so handing them the resolved knobs saves each one a re-read of `.ai/workflows.config.json`.
-
-```bash
-SEV_FLOOR=$(jq -r '.security.severityFloor // "medium"'        .ai/workflows.config.json)
-INCLUDE_AI=$(jq -r '.security.includeAi // true'               .ai/workflows.config.json)
-SEC_SCOPE=$(jq -rc '.security.scope // ["classic","ai"]'       .ai/workflows.config.json)
-SEC_ENABLED=$(jq -r '.skills.securityRules.enabled // true'    .ai/workflows.config.json)
-```
-
-**In a single assistant message, spawn the following subagents using parallel Agent tool calls:**
-
-- `scenario-runner` — runs the cross-platform scenario per `.claude/skills/scenario/SKILL.md`. It picks scope (web-only / native-only / all 5 platforms) from the diff and reads `.ai/scenarios/` + the active plan. Returns JSON: `report_path`, `platforms_run`, `results`, `blockers`, `parity_ok`, `follow_ups`.
-- `a11y-auditor` — live axe-core scan via agent-browser over affected routes. **Pass inline:** `scenario_screenshot_dir: <the run dir scenario-runner writes to>` so it can Monitor that directory and fold per-step frames in as supplementary evidence as they land (Phase C / DDR-061). It runs concurrently with `scenario-runner` and **does not block on scenario completion** — step-4 wall-clock is ≈ `max(scenario-runner, a11y-auditor)`. Reports WCAG 2.1 AA blockers + warnings.
-- `design-system-guard` — token + component conformance against the project design system. Enforces: allowed effects (gradients/glass/blur), iconography family + stroke width, typography roles (UI typeface vs monospace for numbers/timecodes/IDs/CLI), single customizable color token, allowed palette, dark/light priority, mobile tap targets (44×44), prefers-reduced-motion fallback. **Uses scenario screenshots as primary evidence** (not just static grep).
-- `security-auditor` — defender pass (OWASP-class static + grep over changed files: injection, secrets, authN/Z, crypto, SSRF, XSS, deserialization, path traversal, supply chain, logging, error handling). **Pass inline in the spawn prompt:** `severityFloor: <SEV_FLOOR>`, `includeAi: <INCLUDE_AI>`, `scope: <SEC_SCOPE>` — do not re-read config.
-- `ethical-hacker` — adversarial review: chained exploits + AI/MCP attack surface (prompt injection in tool outputs, confused-deputy across MCP servers, the trifecta = private data + untrusted content + outbound exfil in one agent loop, tool-description injection in newly added MCP servers). **Pass inline:** the same three security knobs.
-
-Skip the `security-auditor` + `ethical-hacker` pair entirely when `SEC_ENABLED == false`; skip only the AI/MCP lens when `INCLUDE_AI == false` (the defender pass still runs). **Before spawning, reuse a fresh review via the shared `security/<head-sha>` cache** (Phase C / DDR-061): `maude cache get security "$(git rev-parse HEAD)" --ttl-ms 3600000` — a non-empty result is a fresh (≤ 1 h) hit. This is the same cache layer `/flow:validate-security` writes and `/flow:done` reads — one window, no per-command drift (exact recipe in `validate-security.md` pre-flight step 3). On reuse, surface the cached verdict + report path and skip the spawn; on miss, run the pair and let aggregation write the cache entry.
-
-**Wait for all five to complete before evaluating the exit gates in §5.**
-
-### 4.5 Record the security verdict in the graph (kgai — when active)
-
-This command spawns the security pair **itself** rather than delegating to `/flow:validate-security`, so the report it aggregates would otherwise never reach the graph — and `.ai/logs/**` is gitignored, so it would exist only here. After aggregation writes the merged report:
-
-```bash
-maude kg record-log --file ".ai/logs/security-reviews/<branch>-<ts>.md"
-```
-
-**Skip it on a cache hit.** When the `security/<head-sha>` reuse window above short-circuited the spawn, that report was already recorded by the run that produced it; recording again just appends a duplicate event for the same node. Record only when the pair actually ran. Silent no-op when the graph is inactive. Contract: **`flow:kgai-backend`**.
+Wait for all to return. **kgai:** when the security pair actually ran (not on a cache hit), record the merged report: `maude kg record-log --file ".ai/logs/security-reviews/<branch>-<ts>.md"` (silent no-op when the graph is inactive; contract `flow:kgai-backend`).
 
 ### 5. Exit gates
-
-Evaluate after all five subagents return. **Stop on first hard fail**, accumulate soft warnings.
-
-**Scenario:**
-- If the feature touches UI and **no scenario exists** → HARD FAIL: block until a scenario is written (`/scenario new <name>`).
-- `blockers > 0` → `/validate` fails. Fix, retry.
-- `parity_ok == false` → cross-platform divergence. Requires a DDR (why the divergence is intentional) **or** a parity fix.
-- `SKIPPED` platform only because of an unbooted sim → warning, not fail. But if the user should have run ios-phone and the sim wasn't booted, that's a soft fail.
-
-**A11y / design (UI projects):** WCAG 2.1 AA blockers and design-system violations are blockers (report file:line in §8).
-
-**Security:** aggregates to `.ai/logs/security-reviews/<branch>-<ts>.md`.
-- Any finding at severity ≥ `severityFloor` (default `medium`) → `/flow:validate` fails.
-- `ethical-hacker.exploit_chains > 0` is informational by itself, never a blocker — **but** a chain that combines a medium defender finding with a medium attacker finding promotes to high and counts as a blocker.
+- **Scenario:** UI feature with no scenario → HARD FAIL (`/flow:validate --scenario new <name>`); `blockers > 0` → fail; `parity_ok == false` → needs a DDR explaining the divergence or a parity fix; a platform skipped only for an unbooted sim → warning (soft fail if the user should have run it).
+- **A11y / design:** WCAG 2.1 AA blockers and design-system violations are blockers (file:line in the report).
+- **Security:** findings at severity ≥ `severityFloor` → fail. `exploit_chains > 0` is informational alone, but a chain combining a medium defender and a medium attacker finding promotes to high = blocker.
 
 ### 7. Doc / decision drift
+Active plan without `## Retro` after `/flow:done` → flag. DDR-worthy change (new library, top-level dir, schema) without a DDR → suggest `/flow:record-ddr`. Scenario report without identical counter-delta across platforms and no DDR → blocker.
 
-- Active plan without a `## Retro` section after `/done`? Flag.
-- DDR-worthy decision in the diff (new library, new top-level dir, schema change) without a DDR? Suggest `/flow:record-ddr`.
-- Scenario report without identical counter-delta across platforms and no DDR explaining why → blocker.
-
-### 7b. Changelog hygiene (**non-blocking**)
-
-> Soft gate. Emits a warning when a user-visible change ships without a release-note entry. **Never** promotes itself to a hard gate without a DDR — opt-in vs. opt-out is a per-team call, recorded in `integrations.changelog.provider`.
-
-Read provider from `.ai/workflows.config.json` → `integrations.changelog.provider` and dispatch:
-
-```
-IF provider === "changesets":
-  diff = git diff --name-only HEAD~1..HEAD -- .changeset/
-  IF no new .changeset/*.md added since HEAD~1:
-    EMIT warning: "⚠️  No changeset since HEAD~1 → run /flow:release-changelog or override"
-    MARK validate result as "passed with warnings" (not blocked)
-ELIF provider IN (git-cliff, conventional, custom):
-  EMIT note: "[validate] changelog: provider `<name>` not yet implemented — skipping (TODO)"
-ELSE (none):
-  skip silently
-```
-
-For multi-commit branches use `git merge-base main HEAD` as the diff base instead of `HEAD~1` so squash/rebase noise doesn't false-positive.
+**7b. Changelog hygiene (non-blocking).** Read `integrations.changelog.provider`: `changesets` → warn if no new `.changeset/*.md` since the merge-base with `main` (use `git merge-base main HEAD`, not `HEAD~1`) and mark "passed with warnings"; `git-cliff|conventional|custom` → note "not yet implemented"; `none` → silent.
 
 ### 8. Report
-
 ```
-## /validate — <YYYY-MM-DD HH:MM>
+## /flow:validate — <YYYY-MM-DD HH:MM>
 ✓ types | ✓ lint | ✓ format
-✓ tests: 142/142 (coverage: 78%)
-   → trend: 78.4% → 78.0% (Δ -0.4 pp, threshold 1.0 pp) — within tolerance
-   (omitted when skills.coverageTrend.enabled = false)
-✓ build: 3 apps OK (bundle delta: +2.1 KB on web)
-✓ scenario: <name> 5/5 PASS
-   → report: .ai/device/scenario-runs/<name>/2026-05-04-1830/report.md
-   → parity: ✓ identical counter-delta across all 5 platforms
-✓ a11y: 0 blockers, 2 warnings (file:line)
-✓ design system: 0 violations
-✓ DDR drift: 0 (all decisions recorded)
+✓ tests: 142/142 (coverage 78%; trend line only when coverageTrend enabled)
+✓ build: 3 apps OK (bundle delta +2.1 KB web)
+✓ scenario: <name> 5/5 PASS — report <path> — parity ✓
+✓ a11y: 0 blockers, 2 warnings | ✓ design system: 0 violations | ✓ security: <verdict> | ✓ DDR drift: 0
 ```
+Append a non-blocking config line from `maude doctor --json` (`driftCount`, `qualityAdditions`; suggest `maude doctor --fix` when > 0). All green → continue to `/flow:done`.
 
-Append a non-blocking config-health line (drift + missing quality gates from Step 0.5):
+**8b. Record green (DDR-061).** Only on GREEN (all hard gates pass, scenario `blockers == 0`, no security finding ≥ floor), write the step-0 `TREE_SHA` for the next run: `printf '{"tree_sha":"%s","result":"green","validatedAt":"%s","reportPath":"%s"}' "$TREE_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SCENARIO_REPORT_PATH:-}" | maude cache put validate "$BRANCH"`. A red result writes nothing.
 
-```bash
-maude doctor --json | jq -r '
-  "→ config: \(.summary.driftCount) stack drift(s), \(.summary.qualityAdditions) quality addition(s)"
-  + (if (.summary.driftCount + .summary.qualityAdditions) > 0 then " — run `maude doctor --fix`" else " (clean)" end)'
-```
+## `--fast` — inner-loop check
 
-If everything is green → safely continue to `/done`.
+Cheap by construction (15–60 s regardless of repo size): only scoped commands run; anything unscoped is **deferred**, never run repo-wide. Used by `/flow:execute` after each task (max 3 fix iterations). No repo-wide gates, parity, full suite or whole-project builds — those are the default pipeline.
 
-### 8b. Record the green result (Phase C / DDR-061)
+1. **Scope:** `git diff --name-only` and `git diff --name-only main...HEAD`. Classify: source → static + browser smoke (if UI); `.test.*` → affected tests; css → static + visual smoke; RN dirs → agent-device smoke; backend/config → static only.
+2. **Scoped gates + affected tests** (see `flow:quality-gates` § "Inner loop vs outer gate"). Changed filenames are UNTRUSTED — collect NUL-safe and `printf '%q'` each before any `eval`:
+   ```bash
+   CHANGED=""
+   while IFS= read -r -d '' f; do CHANGED+="$(printf '%q' "$f") "; done \
+     < <({ git diff -z --name-only --diff-filter=d; git diff -z --cached --name-only --diff-filter=d; } | sort -zu)
+   for gate in format lint typecheck; do
+     SCOPED=$(jq -r ".qualityScoped.$gate // empty" .ai/workflows.config.json)
+     if [[ -n "$SCOPED" ]]; then eval "$SCOPED" || { echo "::error::$gate scoped gate failed"; exit 1; }
+     elif [[ "$gate" != "typecheck" ]]; then
+       CMD=$(jq -r ".quality.$gate // empty" .ai/workflows.config.json)   # only if the tool accepts file args
+       if [[ -n "$CMD" && -n "$CHANGED" ]]; then eval "$CMD -- $CHANGED" || { echo "::error::$gate failed on changed files"; exit 1; }
+       else echo "→ $gate: no scoped gate — deferred to /flow:validate"; fi
+     else echo "→ typecheck: no qualityScoped.typecheck — deferred to /flow:validate"; fi   # tsc ignores file args
+   done
+   ```
+   - **Affected tests only**, never the full `quality.tests`. Apply the **filter-sanity guard** (`flow:quality-gates` §7): if the reported test-file count is near the full suite, the filter was swallowed — switch to the runner's exec form (`pnpm --filter X exec vitest run <pattern>`) for the rest of the session.
+   - In monorepos scope by changed packages (`[base]`), not changed-plus-dependents (`...[base]`).
+3. **UI smoke** — fire only the legs the diff triggers; run web and native in parallel when both apply.
+   - Web: `agent-browser open <local route>` → `snapshot -c` → `screenshot .ai/device/verify/<ts>-<task>.png`. Checks the page loads and key plan elements exist (not a scenario).
+   - Native: boot UDID via `xcrun simctl list devices booted -j`, `agent-device --platform ios open <bundle> --udid …`, `snapshot -i`, `screenshot`. Checks app starts, affected screen reachable, no red-screen.
+4. **Optional subagents** for UI tasks, in the same parallel batch: `a11y-auditor`, `design-system-guard`.
+5. **Report** deferred gates explicitly (`✓ lint (scoped) …`, `→ typecheck: deferred …`, `✓ tests: 5/5 (filter verified)`, smoke, warnings).
+6. **Config drift nudge** (soft): `maude doctor --json | jq -e '(.summary.driftCount + .summary.qualityAdditions) == 0' || echo "⚠ run maude doctor --fix when convenient"`. Gate failures block; this does not.
 
-When the pipeline finished **GREEN** (every hard gate passed, scenario `blockers == 0`, no security finding ≥ `severityFloor`), persist the result so a back-to-back `/flow:validate` on the same tree short-circuits at Step 0:
+## `--security` — security review
 
-```bash
-BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "detached")
-TREE_SHA=$(printf '%s\n%s' "$(git rev-parse HEAD 2>/dev/null)" "$(git status --porcelain 2>/dev/null)" | git hash-object --stdin | cut -c1-12)
-printf '{"tree_sha":"%s","result":"green","validatedAt":"%s","reportPath":"%s"}' \
-  "$TREE_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SCENARIO_REPORT_PATH:-}" \
-  | maude cache put validate "$BRANCH"
-```
+Defender (`security-auditor`, OWASP-class over changed files) and attacker (`ethical-hacker`, threat model, chained exploits, mandatory AI/MCP surface: prompt injection, tool poisoning, confused-deputy, the trifecta). Read-only; the attacker thinks on paper. Arguments: `[--since <ref>] [--include-ai | --no-ai]`.
 
-**Only write on GREEN.** A red/blocked result writes nothing — the next run must re-validate. (Use the same `TREE_SHA` fingerprint recipe as Step 0 so a true no-op re-run matches; if a gate mutated the tree, the fingerprint legitimately differs and the skip won't fire — correctness over hit-rate.)
+1. **Pre-flight.** Read `skills.securityRules.enabled` (false → exit with notice), `security.severityFloor` (default `medium`), `security.scope` (default `["classic","ai","supply-chain"]`), `security.includeAi` (false or `--no-ai` → AI/MCP section `N/A — disabled by config`). Diff scope: `BASE=$(git merge-base main HEAD || git merge-base origin/main HEAD || echo HEAD~1)`; `git diff --name-only "$BASE"...HEAD` plus uncommitted (honor `--since`). Empty diff → "No changes to review." and exit.
+2. **Reuse a fresh review** (the single `security/<head-sha>` cache shared with `/flow:done` and the full pipeline): `REUSE=$(maude cache get security "$(git rev-parse HEAD)" --ttl-ms 3600000)`. Non-empty → print `Reusing security review <reportPath>`, surface the verdict, skip spawning.
+3. **Adversarial debate (DDR-130, END bookend, opt-out).** Read `orchestration.*` (absent = `auto`). If `mode` is `auto`, `bookends.adversarial.enabled` is not `false` and native agent-teams (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`) is detected: load `flow:debate-protocol` and run the 2-seat **relay** debate (`ethical-hacker` = ATTACKER, `security-auditor` = DEFENDER): attacker proposes the chain → defender rebuts with the mitigating control → attacker rebuts whether the chain survives. Stakes-gate, blind opening and short-circuit apply (clean diff → today's verdict at ≈ one reduce-pass). Reconciled findings feed step 5. Never prompt the user, never hand-roll relay in markdown. Otherwise (`reduce` tier, `mode:off`, no capability, bookend disabled) run step 4 as-is — the default for users without the flag. Severity/scope/includeAi apply regardless of tier.
+4. **Run protocol.** Unless the debate handled it, spawn both in parallel (two Task calls, one message): `flow:security-auditor` ("audit the diff against `security-rules` §A; base, floor; write `.ai/logs/security-reviews/<branch>-<ts>-defender.md`; return JSON") and `flow:ethical-hacker` ("adversarial threat model; base, floor, includeAi, defender report path; write `…-attacker.md`; return JSON; mandatory AI/MCP section"). Both must finish even if one finds blockers — chains can promote a defender medium.
+5. **Aggregate** to `.ai/logs/security-reviews/<branch>-<YYYYMMDD-HHMM>.md`: TL;DR table (Defender / Attacker / Combined: blockers, warnings, headline), floor, AI/MCP lens on/off, chains count, then Defender findings, Attacker findings, Exploit chains (steps + promoted severity), AI/MCP surface, Combined gate decision (blockers ≥ floor, verdict PASS / PASS WITH WARNINGS / FAIL) and Next step. Then record the cache: `printf '{"reportPath":"%s","verdict":"%s","blockers":%s}' "$REPORT_PATH" "$VERDICT" "${BLOCKERS:-0}" | maude cache put security "$HEAD_SHA"`.
+6. **kgai.** `maude kg record-log --file ".ai/logs/security-reviews/<branch>-<YYYYMMDD-HHMM>.md"` — merged report only, not the per-agent drafts; silent no-op when inactive (`flow:kgai-backend`).
+7. **Gate.** `combined.blockers > 0 && severity >= severityFloor` → FAIL (print top finding, exit non-zero); chains informational unless they promote a defender-medium to high; warnings alone never block. On FAIL ask: "Found <N> blockers. Should I open the report and propose fixes?"
 
-## What /validate does NOT do
+## `--a11y` — accessibility audit
 
-- Commit / push / PR — that's `/done`.
-- Bug fix — if something fails, go out to `/execute` to fix, then retry `/validate`.
+Targeted WCAG 2.1 AA audit of changed or specified components; the `a11y-auditor` agent and `flow:ui-rules` skill (Accessibility) hold the checklist (semantics, ARIA, keyboard, contrast, images, forms) — apply them. Run the project's lint for `jsx-a11y/*` violations (detect the package manager from the lockfile), review each changed component, and use agent-browser axe-core where a live app is available. Save to `.ai/logs/a11y/<date>-audit.md`: components reviewed, findings by CRITICAL (blocks ship) / IMPORTANT / SUGGESTION, counts. Then `maude kg record-log --file ".ai/logs/a11y/<date>-audit.md"` (silent no-op when the graph is inactive). If issues: ask "Found X accessibility issues. Should I fix them?"
+
+## `--visual` — screenshot regression
+
+1. List the changed pages/components/states. 2. Start the dev server and wait until ready. 3. Capture each target at mobile 375×812, tablet 768×1024, desktop 1440×900 into `/tmp/ai-workflow-visual/` (not the project root). 4. Review: layout, readable text, design tokens, spacing, hover/focus/active states, overflow/artifacts, icons, animation. 5. If the project supports dark mode, re-capture key shots and check contrast.
+
+Save to `.ai/logs/visual/<date>-visual.md` (targets × viewport pass/fail table, issues with screenshot refs, verdict PASS / NEEDS FIXES), then `maude kg record-log --file …` (silent no-op when inactive). If issues: ask "Found X visual issues. Should I fix them?"
+
+## `--review` — review of uncommitted changes
+
+Self-review before commit. Principles: simplicity, readability, the best code is code you don't write.
+
+1. **Gather:** `git diff --stat`, `git diff --staged --stat`, `git diff --name-only HEAD`.
+2. **Review each file** for correctness (logic, edges, off-by-one, null handling, races), quality (naming, single responsibility, duplication, leftover commented-out code), tests (coverage, edge cases, independence), conventions (existing patterns, formatting, import order, file placement) and project instruction files (e.g. `instructions/*.instructions.md`).
+3. **Security.** Reuse a fresh `security/<head-sha>` report (or `.ai/logs/security-reviews/` file for this HEAD) when present; otherwise spawn `security-auditor` + `ethical-hacker` in parallel as in `--security`. Findings ≥ `security.severityFloor` gate the commit; below it → warnings. Manual cross-checks: no hardcoded secrets, input validation, no injection vectors, no silent failures.
+4. **Verify issues are real:** run the specific tests, confirm type errors, check security concerns in context.
+5. **Write** `.ai/logs/code-reviews/<branch-name>.md` (summary, files, findings CRITICAL / IMPORTANT / SUGGESTION with file:line, verdict PASS / PASS WITH SUGGESTIONS / NEEDS FIXES). **Artifact store:** `integrations.tracker.artifacts.store` decides placement — absent/`local` = that path; `orbit` = author it the same, `orbit_artifact_push` as kind `review` (with `local: scratch` the file is a spool deleted after the push); `both` = path and push. Warn-only: a failed push keeps the file and never blocks. Contract: `flow:orbit-backend`, [guide 06](../skills/orbit-backend/_guide-06-artifact-store.md).
+6. **Simplifier pass.** On PASS / PASS WITH SUGGESTIONS spawn `code-simplifier` ("refactor `git diff --name-only HEAD` for clarity; honor CLAUDE.md and project rule skills; preserve behavior; skip tests, scenarios and DDR-flagged perf hot paths"). Skip when NEEDS FIXES, diff < ~30 lines, or pure config/infra.
+7. **Recheck** after the simplifier: scoped lint/typecheck and the tests touching simplified files (as `--fast`). Anything broke → `git checkout -- <files>` to revert the simplifier, log under `## Simplifier outcome`, continue with pre-simplifier code. Clean → append `## Simplifier outcome` (files, lines +/-, note), re-read `git diff` for new findings, update the verdict.
+8. **kgai** — after the recheck so the verdict is final: `maude kg record-log --file ".ai/logs/code-reviews/<branch-name>.md"` and the security report if one was written. With `artifacts.store: orbit` point `--file` at the scratch file, pass `--kind code-review`, and run it **before** the push (guide 06 §2b). Silent no-op when inactive.
+9. **Close:** PASS → "Ready to commit?"; NEEDS FIXES → "Should I fix these issues?" and apply inline on yes.
+
+## `--scenario [name | new <name>]` — cross-platform UI flow runner
+
+Backbone of UI validation: every UI feature needs ≥ 1 scenario (5 platforms; web-only/native-only features use a subset). Wraps `agent-browser` + `agent-device`; protocol in the `scenario` skill, repo overrides in `paths.scenarioGuide` (default `.ai/scenario-guide.md`). Agent: `scenario-runner`. Empty argument → list `.ai/scenarios/` with last-run status.
+
+**Existing scenario `<name>`:**
+0. *Skip + scope (DDR-061, skill "Phase C speed levers").* `covers.json` present and covered files unchanged since the last green run (`scenario/<name>/<covers-sha>` cache) → reuse the cached report (`--force` re-runs). Diff touches only web pathspecs → run web variants only, native `skipped: web-only change`, don't boot sims.
+1. *Pre-flight:* `agent-browser --version`, `agent-device --version`; boot sims/AVDs in the background (`xcrun simctl boot`, AVD start; Monitor `simctl bootstatus` / `adb wait-for-device`) unless web-only; find UDIDs/serials. Platforms without a booted device are **skipped** with a `result.txt` reason, not a whole-run fail.
+2. *Run* per the skill: web variants (sequential among themselves), natives in parallel.
+3. *Report:* `maude scenario-report ".ai/device/scenario-runs/<name>/<YYYY-MM-DD-HHMM>"` writes the tables; author only the two `<!-- LLM-AUTHORED -->` sections ("What surprised us", "Recommended follow-ups") and delete the comments.
+4. Suggest: "Scenario `<name>` ran: X/Y pass. Report: `<path>`. Post to PR?"
+
+**`new <name>`:** create `.ai/scenarios/<name>/{runners/,README.md}` (README: user flow steps, persona from the PRD, PRD screen reference, fixtures, expected end state); pilot interactively (`agent-device --save-script` records native); save one bash runner per platform; smoke-run it and commit the runners on 5/5.
+
+Production-ready scenario: idempotent runners, testID/semantic selectors, identical counter-delta across platforms, missing testIDs become concrete follow-up tickets. `/flow:plan` acceptance criteria for UI tasks name a scenario; `/flow:done` requires a passing report (URL goes in the PR description).
+
+Validate never commits, pushes or fixes — that's `/flow:done` and `/flow:execute`.

@@ -13,104 +13,61 @@
 Rules:
 
 1. The `category:` frontmatter field must match one of the nine groups below.
-2. Non-daily filenames **must** start with the group name + dash (the bare verb `init` is the lone exception). The `name:` frontmatter field is the **bare** slug — `<filename-sans-md>` (e.g. `bug-fix`, `setup-prd`), with no `flow:` prefix. Claude Code namespaces it to `flow:bug-fix` / `flow:setup-prd` itself at registration (per [DDR-191](../../.ai/archive/decisions/DDR-191-revert-plugin-name-prefix-claude-code-now-namespaces.md) — superseding the older [DDR-006](../../.ai/archive/decisions/DDR-006-plugin-namespace-in-name-frontmatter.md), which had us prefix it by hand as a workaround for a since-fixed Claude Code bug; doing that today stutters the namespace twice in autocomplete).
+2. Non-daily filenames **must** start with the group name + dash (the bare verb `init` is the lone exception). The `name:` frontmatter field is the **bare** slug — `<filename-sans-md>` (e.g. `bug-fix`, `record-ddr`), with no `flow:` prefix. Claude Code namespaces it to `flow:bug-fix` / `flow:record-ddr` itself at registration (per [DDR-191](../../.ai/archive/decisions/DDR-191-revert-plugin-name-prefix-claude-code-now-namespaces.md) — superseding the older [DDR-006](../../.ai/archive/decisions/DDR-006-plugin-namespace-in-name-frontmatter.md), which had us prefix it by hand as a workaround for a since-fixed Claude Code bug; doing that today stutters the namespace twice in autocomplete).
 3. Slash-command namespacing via subdirectories is **not supported by Claude Code** ([issue #2422](https://github.com/anthropics/claude-code/issues/2422), [open feature request #44678](https://github.com/anthropics/claude-code/issues/44678)). Claude Code's own `flow:` namespacing (added at registration, not written in `name:`) is the working substitute — typing `/flow:bug-` then narrows autocomplete to `bug-rca` + `bug-fix`.
-4. Run `/flow:help` for the live, auto-generated grouped index.
+4. Claude Code's native `/help` lists every `/flow:*` command.
 
 ## Groups
 
+Since the flow refactor (v1.10) the plugin keeps **ten** commands. Everything else was folded into one of them as a flag or lane; the old names were removed in the same release (Michal's call — 30-day census: 0–2 uses each); the history below maps old to new.
+
 ### daily — every-cycle workflow
 
-Verb-as-complete-action. Terse names. Includes `validate` and `release` which also act as parent commands of specialized groups (`validate-*`, `release-*`).
-
-| Command | Description | Typical trigger |
-| ------- | ----------- | --------------- |
-| `/flow:plan` | Context-rich feature plan grounded in PRD + design system. | Starting a feature. |
-| `/flow:execute` | Execute an implementation plan. | After `/flow:plan` lands. |
-| `/flow:done` | Close out a feature — validate → commit → push → PR → retro → archive. | All tasks pass `/flow:utils-verify`. |
-| `/flow:validate` | Full validation pipeline (static + tests + build + scenario + a11y + design). | Before `/flow:done` or on demand. |
-| `/flow:status` | Unified situational awareness — where you are, what's next. | Resuming a session. |
-| `/flow:pause` | Snapshot state, write HANDOFF.md, ready for context switch. | Stepping away mid-task. |
-| `/flow:resume` | Resume a previously paused workflow. | Coming back from a pause. |
-| `/flow:scenario` | Cross-platform UI scenario across 5 platforms. | Manual smoke / validation. |
-| `/flow:quick` | Fast-path for trivial changes — skip plan cycle. | One-line hotfix, doc nudge. |
-| `/flow:release` | Walk the project's release runbook with explicit confirmation per step. | Cutting a release. |
-| `/flow:help` | Auto-generated grouped index (this catalog, live from frontmatter). | When you forget a command name. |
-
-> **Bookend debate layer (DDR-130) adds no new commands.** The opt-in multi-agent debate rides *inside* existing commands at the loop's bookends (`plan`/`setup-prd`/`validate-security`/`bug-rca`, design `setup-ds`/`critic`), gated by `orchestration.*` in `.ai/workflows.config.json`. The seats (`builder`, `shipper`, `breaker`, `user-advocate`, `investigator`) are agents, not commands — not catalogued here. See `plugins/flow/skills/debate-protocol/SKILL.md`.
-
-### utils — sub-commands
-
-Internal verbs called from inside other commands. Not primary user actions, but exposed as slash commands so they can be invoked standalone when debugging.
-
-| Command | Description | Typical trigger |
-| ------- | ----------- | --------------- |
-| `/flow:utils-verify` | Light per-file check during `/flow:execute`'s Edit-Verify Loop. | Inside `/flow:execute`. |
+| Command | Description | Absorbed |
+| ------- | ----------- | -------- |
+| `/flow:plan` | Context-rich feature plan; `--prd` writes a PRD with phase plans. Debate bookend (DDR-130). | setup-prd |
+| `/flow:execute` | Execute a plan, handing each task to a fresh `flow:worker`; `--quick` for one small change without a plan. | quick |
+| `/flow:validate` | Full gate pipeline; lanes `--fast`, `--security` (adversarial bookend), `--a11y`, `--visual`, `--review`, `--scenario`. | utils-verify, validate-*, review-code, scenario |
+| `/flow:done` | Validate → decisions → review → commit → PR → report and retro → archive. | record-execution, record-retro |
+| `/flow:release` | Walk the release runbook with a confirmation per step; `--changelog` authors the entry. | release-changelog |
+| `/flow:run` | Run a plan unattended as a goal (opt-in, capped Stop gate); `--status`, `--pause`, `--resume`, `--stop`. | pause, resume, status |
 
 ### setup — one-shot bootstrapping
 
-Operations that run once per project (or once per major restructure).
-
-| Command | Description | Typical trigger |
-| ------- | ----------- | --------------- |
-| `/flow:init` | Scaffold `.ai/`, auto-detect stack, populate `workflows.config.json`, defer to `/init` for CLAUDE.md. | First-time setup in a repo. |
-| `/flow:setup-prd` | Draft a PRD + auto-generated phase plans + execution README. | Starting a multi-phase initiative. |
-| `/flow:setup-codebase-map` | Snapshot the architecture into `.ai/context/` for cross-session reuse. | After a big refactor, or when context drifts. |
-| `/flow:setup-context` | Prime the agent with the codebase map + CLAUDE.md. | Beginning of a session. |
-
-### validate — specialized validators
-
-Called by the `/flow:validate` parent or directly when you want only one check.
-
-| Command | Description | Typical trigger |
-| ------- | ----------- | --------------- |
-| `/flow:validate-a11y` | Accessibility audit (WCAG 2.1 AA). | Touching UI or forms. |
-| `/flow:validate-visual` | Visual regression check with screenshots. | Touching layout/tokens. |
-| `/flow:validate-security` | OWASP-class + adversarial review of the diff. Spawns `security-auditor` + `ethical-hacker`. | Touching auth, payments, untrusted input, dependencies, or MCP/model surface. |
+| Command | Description | Absorbed |
+| ------- | ----------- | -------- |
+| `/flow:init` | Scaffold `.ai/`, detect the stack, check dependencies; `--context`, `--map`, `--kgai` as idempotent steps. | setup-context, setup-codebase-map, migrate-kgai |
 
 ### bug — incident workflow
 
-| Command | Description | Typical trigger |
-| ------- | ----------- | --------------- |
-| `/flow:bug-rca` | Analyze and document root cause for a ticket (provider per `integrations.tracker`). | Opening a bug. |
-| `/flow:bug-fix` | Implement the fix from the RCA document. | After RCA. |
+| Command | Description |
+| ------- | ----------- |
+| `/flow:bug-rca` | Investigate a ticket and document its root cause with evidence. |
+| `/flow:bug-fix` | Implement and verify the fix an RCA specifies. |
 
 ### record — knowledge capture
 
-Append-only artifacts that future sessions read.
+| Command | Description | Absorbed |
+| ------- | ----------- | -------- |
+| `/flow:record-ddr` | Record an architectural or product decision (kgai graph when active). | ddr-keeper skill |
 
-| Command | Description | Typical trigger |
-| ------- | ----------- | --------------- |
-| `/flow:record-ddr` | Record a Design Decision Record. (DDR is an established acronym — accepted "Record Design Decision Record" stutter; see footnote.) | Non-trivial architecture or library choice. |
-| `/flow:record-retro` | Implementation-vs-plan retrospective. | After `/flow:done`. |
-| `/flow:record-execution` | Generate an implementation report for system review. | Ad-hoc reflection. |
+> **Bookend debate layer (DDR-130) adds no commands.** It rides inside `plan` (and `--prd`), `validate --security` and `bug-rca`. The seats (`builder`, `shipper`, `breaker`, `user-advocate`, `investigator`) are agents. The role agents `worker`, `spike` and `scout` (skill `flow:context-budget`) do the work inside `execute` and `run`.
 
-### maintain — hygiene
+## Refactor history (v1.10 — the old names were removed in the same release)
 
-Cleanup, freshness, infrastructure health.
-
-| Command | Description | Typical trigger |
-| ------- | ----------- | --------------- |
-| `/flow:maintain-clean` | Clean stale artifacts, logs, temp files. | Periodic housekeeping. |
-| `/flow:maintain-docs` | Documentation freshness check — scan for stale references. | After big renames. |
-| `/flow:maintain-ai-health` | Diagnose health of the AI infrastructure (commands, skills, agents, state). | Suspected `.ai/` drift. |
-| `/flow:maintain-discover` | Search AI capabilities by natural-language task description. | "What command should I use for X?" |
-
-### review — pre-commit / pre-PR
-
-| Command | Description | Typical trigger |
-| ------- | ----------- | --------------- |
-| `/flow:review-code` | Pre-commit self-review of uncommitted changes. | Before `/flow:done`. |
-
-### release — release-time
-
-Sibling of daily `/flow:release` (the runbook walker).
-
-| Command | Description | Typical trigger |
-| ------- | ----------- | --------------- |
-| `/flow:release-changelog` | Author a changelog entry using the configured provider (changesets, git-cliff, …). | During a release. |
-
----
+| Old | New |
+| --- | --- |
+| `/flow:setup-prd` | `/flow:plan --prd` |
+| `/flow:quick` | `/flow:execute --quick` |
+| `/flow:utils-verify` | `/flow:validate --fast` |
+| `/flow:validate-security` · `-a11y` · `-visual` | `/flow:validate --security` · `--a11y` · `--visual` |
+| `/flow:review-code` · `/flow:scenario` | `/flow:validate --review` · `--scenario` |
+| `/flow:record-execution` · `/flow:record-retro` | `/flow:done` (report and retro steps) |
+| `/flow:release-changelog` | `/flow:release --changelog` |
+| `/flow:setup-context` · `/flow:setup-codebase-map` · `/flow:migrate-kgai` | `/flow:init --context` · `--map` · `--kgai` |
+| `/flow:pause` · `/flow:resume` · `/flow:status` | `/flow:run --pause` · `--resume` · `--status` |
+| `/flow:help` | Claude Code's native `/help` |
+| `/flow:maintain-ai-health` · `-clean` · `-discover` · `-docs` | retired — `maude doctor`, or ask directly |
 
 ## Rename history (Phase 13)
 
