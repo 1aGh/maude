@@ -18,7 +18,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { exportShimPath, resolveExportRuntime } from '../exporters/_runtime.ts';
+import { type ExportRuntime, exportShimPath, resolveExportRuntime } from '../exporters/_runtime.ts';
 
 import { type ChromiumDecoder, DecodeError, MAX_DECODE_SEC } from './decode.ts';
 
@@ -44,7 +44,7 @@ export async function decodeWithChromium(
   const maxSeconds = opts.maxSeconds ?? 1800;
   const timeoutMs = opts.timeoutMs ?? 120_000;
 
-  let runtime: string;
+  let runtime: ExportRuntime;
   try {
     runtime = resolveExportRuntime();
   } catch (e) {
@@ -87,14 +87,16 @@ export const chromiumDecoder: ChromiumDecoder = (file, sampleRate, o = {}) =>
   decodeWithChromium(file, { sampleRate, maxSeconds: o.maxSeconds ?? MAX_DECODE_SEC + 1 });
 
 function run(
-  cmd: string,
+  runtime: ExportRuntime,
   args: string[],
   timeoutMs: number
 ): Promise<{ code: number; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, {
+    // runtime.env, never a fresh process.env copy: it carries BUN_BE_BUN on the
+    // compiled-self rung (DDR-177).
+    const child = spawn(runtime.cmd, args, {
       stdio: ['ignore', 'ignore', 'pipe'],
-      env: { ...process.env, NO_OPEN: '1' },
+      env: { ...runtime.env, NO_OPEN: '1' },
     });
     let stderr = '';
     child.stderr.on('data', (d: Buffer) => {

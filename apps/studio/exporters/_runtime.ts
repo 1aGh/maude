@@ -19,7 +19,7 @@
 
 import path from 'node:path';
 
-import { DEV_SERVER_ROOT } from '../paths.ts';
+import { DEV_SERVER_ROOT, IS_COMPILED_BINARY } from '../paths.ts';
 
 /**
  * Real-disk dir holding the render shims (`<DEV_SERVER_ROOT>/bin`).
@@ -37,35 +37,61 @@ export function exportShimPath(basename: string): string {
   return path.join(EXPORT_SHIM_DIR, basename);
 }
 
+/** A runtime for the render shims: the command AND the full child env it must run with. */
+export interface ExportRuntime {
+  /** Executable to spawn — the shim path follows it in the argv. */
+  cmd: string;
+  /**
+   * The COMPLETE env for the child (a copy of `process.env`, plus `BUN_BE_BUN=1` on the
+   * compiled-self rung). Spawn sites pass it as-is — never their own `{ ...process.env }` — so
+   * no site can pick the runtime and forget the env it needs.
+   */
+  env: Record<string, string | undefined>;
+}
+
+export interface ResolveExportRuntimeOptions {
+  /** Is this process a `bun --compile` standalone? Default `IS_COMPILED_BINARY` (paths.ts). */
+  compiled?: boolean;
+  /** This process's own binary. Default `process.execPath`. */
+  execPath?: string;
+}
+
 /**
- * Resolve a JS runtime able to execute the external `.mjs` render shims.
+ * Resolve a JS runtime able to execute the external `.mjs` render shims (exports, the
+ * thumbnail renderer, the WebAudio decoder).
  *
- * Ladder (mirrors `acp/probe.ts` resolveAgentRuntime): explicit override → a
- * real `node` on PATH → a standalone `bun` on PATH. The compiled maude binary
- * (`process.execPath`) is deliberately NOT a fallback — a `bun --compile`
- * standalone ignores a script argument and re-runs its own embedded entrypoint,
- * so it can't run a shim. When nothing resolves (a packaged desktop app whose
- * sidecar has no node/bun on PATH) we throw an ACTIONABLE error instead of the
- * cryptic `posix_spawn 'node'` ENOENT the hardcoded `'node'` produced.
+ * Ladder (mirrors `acp/probe.ts` resolveAgentRuntime): explicit `MAUDE_EXPORT_RUNTIME`
+ * override → a real `node` on PATH → a standalone `bun` on PATH → OUR OWN compiled binary
+ * (`process.execPath`) with `BUN_BE_BUN=1`, only when this process IS a `bun --compile`
+ * standalone. That last rung is DDR-177: the packaged app must render on a Mac with no
+ * node/bun (p8-export-runtime — before it, every export and every thumbnail failed there).
+ * A compiled Bun binary ignores a script argument and re-runs its own embedded server
+ * unless `BUN_BE_BUN=1` is in its env, which is why the env travels with the command.
+ * In a source checkout with neither on PATH we throw an ACTIONABLE error instead of the
+ * cryptic `posix_spawn 'node'` ENOENT the old hardcoded `'node'` produced.
  */
-export function resolveExportRuntime(): string {
+export function resolveExportRuntime(opts: ResolveExportRuntimeOptions = {}): ExportRuntime {
+  const compiled = opts.compiled ?? IS_COMPILED_BINARY;
+  const execPath = opts.execPath ?? process.execPath;
   // Look up against the LIVE process PATH (the desktop sidecar sets it via env at
   // spawn — DDR-128), not Bun's startup env snapshot, so a corrected PATH is
   // honored and the lookup is deterministic/testable.
   const pathEnv = process.env.PATH;
-  const runtime =
+  // EXPLICIT, not inherited: Bun.spawn without `env` hands the child the env the process
+  // STARTED with, so a variable set at runtime never arrives (see spawnShim).
+  // Only the compiled-self rung may run as bun; an inherited flag must not reach node/bun.
+  const { BUN_BE_BUN: _inherited, ...env }: Record<string, string | undefined> = process.env;
+  const onPath =
     process.env.MAUDE_EXPORT_RUNTIME ||
     Bun.which('node', { PATH: pathEnv }) ||
     Bun.which('bun', { PATH: pathEnv });
-  if (!runtime) {
-    throw new Error(
-      'render export needs a JS runtime (node or bun) on PATH, but this build has none. ' +
-        'Run the export from the browser dev-server (`maude design serve`), install Node, ' +
-        'or set MAUDE_EXPORT_RUNTIME to a node/bun binary. ' +
-        '(Native desktop render-export backend is pending — see RCA issue-desktop-export-failures.)'
-    );
-  }
-  return runtime;
+  if (onPath) return { cmd: onPath, env };
+  if (compiled && execPath) return { cmd: execPath, env: { ...env, BUN_BE_BUN: '1' } };
+  throw new Error(
+    'render export needs a JS runtime (node or bun) on PATH, and this is not the packaged app ' +
+      '(whose own binary would run the render). Install Node or Bun, or set ' +
+      'MAUDE_EXPORT_RUNTIME to a node/bun binary.'
+  );
 }
 
 export interface SpawnShimOptions {
@@ -98,7 +124,7 @@ const TIMING_LINE = /^MAUDE_TIMING (.+)$/;
 
 /**
  * Spawn a render shim (`bin/_{png,pdf,svg,html,pptx,video}-playwright.mjs`)
- * via a resolved node/bun runtime, reading stdout INCREMENTALLY (not
+ * via the resolved runtime (node/bun, or the compiled sidecar itself), reading stdout INCREMENTALLY (not
  * buffered via `new Response(proc.stdout).text()`) so a `MAUDE_PROGRESS`
  * line written mid-render reaches `onProgress` as soon as it's flushed,
  * instead of only after the whole process exits. Non-progress lines
@@ -108,15 +134,17 @@ const TIMING_LINE = /^MAUDE_TIMING (.+)$/;
  * block did, so adapters keep their existing `if (code !== 0) throw …`.
  */
 export async function spawnShim(args: string[], opts: SpawnShimOptions): Promise<SpawnShimResult> {
-  const proc = Bun.spawn([resolveExportRuntime(), ...args], {
+  const runtime = resolveExportRuntime();
+  const proc = Bun.spawn([runtime.cmd, ...args], {
     cwd: opts.cwd,
     // EXPLICIT, not inherited. Bun.spawn without `env` hands the child the
     // environment the process STARTED with — a variable set at runtime never
     // arrives (Bun 1.3.3, measured). The render worker sets
     // MAUDE_RENDER_SKIP_WHOLE_COMP=1 at startup exactly that way, so every
     // cloud mp4 still burned the 90 s renderMediaOnWeb timeout before falling
-    // to frame-step (2026-10-02).
-    env: { ...process.env },
+    // to frame-step (2026-10-02). `runtime.env` is that copy of process.env
+    // (+ BUN_BE_BUN on the compiled-self rung, DDR-177).
+    env: runtime.env,
     stdout: 'pipe',
     stderr: 'pipe',
     signal: opts.signal,
