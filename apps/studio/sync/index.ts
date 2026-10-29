@@ -97,6 +97,7 @@ import {
 import { createFsReader, type FsReader } from './fs-mirror.ts';
 import { canvasLanes, namedField, type RowNamed } from './history-fields.ts';
 import { type HubDocRow, hubHolds, indexHubDocs } from './hub-listing.ts';
+import { hubTextUndoConflict } from './hub-text-undo.ts';
 import { accessFor, getHubRecord } from './hubs-config.ts';
 import { loadJournal, type SyncJournal } from './journal.ts';
 import { hasAnnotationsV2, hasLedger, hubHealth } from './journal-client.ts';
@@ -773,6 +774,12 @@ export interface SyncRuntime {
     undoes?: string | string[];
     skipped?: Array<{ doc?: string; lane?: string; reason: string; conflictWith?: string }>;
   } | null>;
+  /**
+   * p8-hub-undo-collision — would ⌘Z of this text step collide with a collaborator's text (the
+   * 3-way merge of the undo onto the hub head overlaps)? True → the route answers `undo-conflict`
+   * before the kernel. Redo is never checked (as on the local home).
+   */
+  textUndoConflict?(target: string | UndoTarget, redo?: boolean): Promise<boolean>;
   /**
    * S1.7b — the shared Trash of a linked project (history/trash.ts
    * `TrashRuntime`). Null while the project is legacy or its hub does not
@@ -6270,6 +6277,20 @@ export function createSyncRuntime(
         return acceptedLink.undo({ actionIds: ids.actionIds }, false, label);
       }
       return acceptedLink.undo(target, redo, label);
+    },
+    textUndoConflict: async (raw, redo = false) => {
+      if (redo || !acceptedOn() || !acceptedLink) return false;
+      const link = acceptedLink;
+      return hubTextUndoConflict(asTarget(raw), {
+        action: async (actionId) => {
+          const you = link.manifest?.you?.actor ?? null;
+          // the ⌘Z target is one of this person's newest actions (the stack reads ≤ 200 rows)
+          const { history } = await link.history({ limit: 200, ...(you ? { actor: you } : {}) });
+          return history.find((a) => a.actionId === actionId) ?? null;
+        },
+        blob: (hash) => link.blob(hash),
+        head: (doc) => link.laneHead(doc, 'annotations'),
+      });
     },
     acceptedTrash: async () => {
       if (!acceptedOn() || !acceptedLink) return null;

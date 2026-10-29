@@ -120,6 +120,17 @@ function mergeText(base: unknown, ours: unknown, theirs: unknown, budget: MergeB
   return m.ok ? m.merged : ours;
 }
 
+/**
+ * p8-hub-undo-collision — would `mergeText(base, ours, theirs)` fall back to "ours wins" because
+ * the two edits touch (overlapping hunks)? `null` when it cannot tell: no merge is registered
+ * (a canvas-iframe graph), so a caller fails open. Same rule as `mergeText`, no budget.
+ */
+export function textMergeCollides(base: string, ours: string, theirs: string): boolean | null {
+  if (theirs === base || ours === base || ours === theirs) return false;
+  if (!textMerge) return null;
+  return !textMerge(base, ours, theirs).ok;
+}
+
 /** Resolve one field's new value under the merge rule. */
 function mergeField(
   type: string,

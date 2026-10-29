@@ -21,7 +21,7 @@
  *             React-free and server-safe (no `diff`).
  */
 
-import type { Op } from './ops.ts';
+import { type Op, textMergeCollides } from './ops.ts';
 import { parseBoard } from './schema.ts';
 import type { AnnotationElement } from './types.ts';
 import { type SlotKind, slotKindOf, slotText } from './ui/text-session.ts';
@@ -54,6 +54,30 @@ export function changedTextSlots(
   for (const [id, s] of after) if (before.get(id) !== s) out.set(id, s);
   for (const id of before.keys()) if (!after.has(id)) out.set(id, null);
   return out;
+}
+
+/**
+ * p8-hub-undo-collision (kg maude/v2-michal-hub-undo-refuses-on-text-collision) — would reverting a
+ * step (its board before → after, as the hub ACCEPTED it) onto the board as it is now collide with
+ * somebody's text? Per text slot the step changed, the 3-way merge the kernel's undo runs:
+ * base = what the step left, ours = what it replaced ('' for an element the step created — undo
+ * removes it, text and all), theirs = the slot now. Overlapping hunks → true. A slot that is gone
+ * now, or that the step removed, loses nobody's text; a merge that cannot be judged does not refuse.
+ */
+export function textRevertCollides(
+  stepBefore: string | null | undefined,
+  stepAfter: string,
+  current: string | null | undefined
+): boolean {
+  const before = boardTextSlots(stepBefore);
+  const now = boardTextSlots(current);
+  for (const [id, left] of changedTextSlots(stepBefore, stepAfter)) {
+    if (left === null) continue;
+    const cur = now.get(id);
+    if (cur === undefined) continue;
+    if (textMergeCollides(left, before.get(id) ?? '', cur) === true) return true;
+  }
+  return false;
 }
 
 function expectedSlot(kind: SlotKind, expect: Record<string, unknown>): string | undefined {

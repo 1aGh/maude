@@ -725,6 +725,22 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       if (q.actor) params.actor = q.actor;
       return client.read('history', params) as Promise<{ history: HistoryAction[] }>;
     },
+    /**
+     * p8-hub-undo-collision — a lane body the hub holds, by hash (null: not served / unreachable).
+     * The blob read is gated by the hub exactly like the history rows that name the hash.
+     */
+    async blob(hash: string): Promise<string | null> {
+      if (!/^[0-9a-f]{64}$/.test(hash)) return null;
+      const b = (await client.read(`blobs/${hash}`, {})) as { body?: unknown };
+      return typeof b?.body === 'string' ? b.body : null;
+    },
+    /** p8-hub-undo-collision — a doc's lane at the hub's newest revision (what an undo merges onto). */
+    async laneHead(doc: string, lane: LaneProposal['lane']): Promise<string | null> {
+      const r = (await client.read('lane', { doc, lane, rev: Number.MAX_SAFE_INTEGER })) as {
+        body?: unknown;
+      };
+      return typeof r?.body === 'string' ? r.body : null;
+    },
     /** A canvas lane as it stood at `revision`. */
     laneAt(slug: string, lane: LaneProposal['lane'], revision: number) {
       return client.read('lane', { doc: opts.docNameFor(slug), lane, rev: revision }) as Promise<{
@@ -920,6 +936,8 @@ export interface HistoryAction {
     op: string;
     beforePath: string | null;
     afterPath: string | null;
+    /** The lane body's hash before the effect (p8-hub-undo-collision reads it; an older hub may omit it). */
+    beforeHash?: string | null;
     /** The lane body's hash after the effect (an `@aside` effect: the kept-aside body). */
     afterHash?: string | null;
   }[];
