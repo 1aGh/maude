@@ -316,7 +316,7 @@ describe('crop mode', () => {
     );
     expect(refused.ok).toBe(false);
     expect(lines).toEqual(['That picture is locked; unlock it first.']);
-    expect(recs.length).toBe(1);
+    expect(recs.length).toBe(0); // a refusal records nothing either
   });
 });
 
