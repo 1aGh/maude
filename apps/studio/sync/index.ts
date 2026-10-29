@@ -6159,7 +6159,30 @@ export function createSyncRuntime(
         if (content === null || baseContent === null) return null;
         out.push({ lane: l.lane, content, baseContent });
       }
-      return acceptedLink.lanesEdit(slug, out, o).then((r) => ({
+      // p8-fix-c2 #2 — THE SOURCE LANE BELONGS TO ITS PROJECTION, even inside a larger action.
+      // Sent straight to the link, the projection knew nothing of it: the route's own write of
+      // those bytes (`source-written`) was proposed AGAIN as a file edit, and when the hub refused
+      // an action the route had long answered "queued" (an offline trash, somebody else's edit
+      // first) nobody heard — the held conflict appeared only because the duplicate was refused
+      // too. Through `proposeVia` the action goes out ONCE, under the projection's transaction id;
+      // its file write is an echo of a pending value; and its answer settles there like any of
+      // the projection's own: refused → held, both versions kept, whenever that answer comes.
+      const html = out.find((l) => l.lane === 'html');
+      const projection = html ? projections.get(slug) : undefined;
+      const link = acceptedLink;
+      const send = (tx?: { transactionId: string; dependsOn?: string[] }) =>
+        link.lanesEdit(slug, out, {
+          ...o,
+          ...(tx?.transactionId ? { transactionId: tx.transactionId } : {}),
+          // A dependency an AI run still holds is not on the hub yet; the action never waited
+          // behind a run before, and does not start here.
+          ...(tx?.dependsOn?.length && !link.stage.holdsDependency(tx.dependsOn)
+            ? { dependsOn: tx.dependsOn }
+            : {}),
+        });
+      const answer =
+        (html && projection?.proposeVia('html', html.content, html.baseContent, send)) || send();
+      return answer.then((r) => ({
         status: r.status,
         ...(r.code ? { code: r.code } : {}),
         ...(r.actionId ? { actionId: r.actionId } : {}),

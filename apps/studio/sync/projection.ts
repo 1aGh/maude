@@ -241,6 +241,12 @@ export interface LaneProposal {
   undoes?: string;
 }
 
+/** p8-fix-c2 — sends one lane proposal under the id (and dependency) the projection assigned. */
+export type ProposeVia = (tx: {
+  transactionId: string;
+  dependsOn?: string[];
+}) => Promise<ProposalOutcome>;
+
 export interface AcceptedLaneLink {
   /** Is the project in accepted-revisions mode right now? */
   on(): boolean;
@@ -301,6 +307,21 @@ export interface DocProjection {
    * Resolves with the inverse's outcome; null when the projection is not in accepted mode.
    */
   proposeInverse(value: string, undoes: string): Promise<ProposalOutcome> | null;
+  /**
+   * p8-fix-c2 #2 — a lane value the caller sends ITSELF, inside a larger action (an edit-op's
+   * `lanes.edit`: the source, its layout and its board as one action). The projection owns it as it
+   * owns its own proposals: the lane is pending under `value` (so the caller's own file write is
+   * an echo, never proposed a second time), a later edit depends on it, and its answer settles
+   * here — accepted, the next base; refused, the held conflict with both versions kept, however
+   * long after the caller stopped waiting (a queued offline action the hub later refuses).
+   * `via` sends the action under the transaction id (and dependency) the projection hands it.
+   */
+  proposeVia(
+    lane: ProposalLane,
+    value: string,
+    baseContent: string,
+    via: ProposeVia
+  ): Promise<ProposalOutcome> | null;
   /**
    * S10.3b — the value a proposal of `lane` made now is derived from: the newest unanswered
    * proposal's value, else what disk and the accepted replica last agreed on. A caller that
@@ -970,7 +991,8 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     stageable = false,
     op?: SourceOp,
     replays = 0,
-    undoes?: string
+    undoes?: string,
+    via?: ProposeVia
   ): Promise<ProposalOutcome> {
     const link = opts.accepted as AcceptedLaneLink;
     const prior = pending.get(lane);
@@ -1066,36 +1088,37 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       scheduleFlush();
       return outcome;
     };
-    return link
-      .propose({
-        lane,
-        content: value,
-        baseContent,
-        transactionId,
-        ...(prior ? { dependsOn: [prior.lastTx] } : {}),
-        ...(writeId ? { writeId } : {}),
-        ...(stageable ? { stageable: true } : {}),
-        ...(undoes ? { undoes } : {}),
-      })
-      .then(settle, (err: unknown) => {
-        const code = (err as { code?: unknown })?.code;
-        if (code === 'stopped') {
-          // The runtime is going away with this proposal unanswered. It is
-          // still in the durable outbox and the next runtime resends it — so
-          // it is neither a failure nor a rejection, and nothing is reported.
-          const p = pending.get(lane);
-          if (p) {
-            p.count -= 1;
-            if (p.count <= 0) pending.delete(lane);
-          }
-          return { status: 'rejected', code: 'stopped' } as ProposalOutcome;
-        }
-        console.error(`[projection/${slug}] proposing ${lane} failed:`, err);
-        return settle({
-          status: 'rejected',
-          code: typeof code === 'string' ? code : 'client-error',
+    const sent = via
+      ? via({ transactionId, ...(prior ? { dependsOn: [prior.lastTx] } : {}) })
+      : link.propose({
+          lane,
+          content: value,
+          baseContent,
+          transactionId,
+          ...(prior ? { dependsOn: [prior.lastTx] } : {}),
+          ...(writeId ? { writeId } : {}),
+          ...(stageable ? { stageable: true } : {}),
+          ...(undoes ? { undoes } : {}),
         });
+    return sent.then(settle, (err: unknown) => {
+      const code = (err as { code?: unknown })?.code;
+      if (code === 'stopped') {
+        // The runtime is going away with this proposal unanswered. It is
+        // still in the durable outbox and the next runtime resends it — so
+        // it is neither a failure nor a rejection, and nothing is reported.
+        const p = pending.get(lane);
+        if (p) {
+          p.count -= 1;
+          if (p.count <= 0) pending.delete(lane);
+        }
+        return { status: 'rejected', code: 'stopped' } as ProposalOutcome;
+      }
+      console.error(`[projection/${slug}] proposing ${lane} failed:`, err);
+      return settle({
+        status: 'rejected',
+        code: typeof code === 'string' ? code : 'client-error',
       });
+    });
   }
 
   function untilLaneHash(lane: ProposalLane, head: string, ms = 3_000): Promise<void> {
@@ -1161,6 +1184,9 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     const inFlight = pending.get(lane);
     // The watcher redelivering what we already proposed is not a new edit.
     if (inFlight?.lastValue === value) return false;
+    // Nor is our own ACCEPTED value whose publication has not reached this replica yet (an
+    // edit-op's action, answered before the route wrote its bytes — p8-fix-c2 #2).
+    if (lane === 'html' && !inFlight && acceptedOwn === value && !held.has('html')) return false;
     const current = readLaneFromDoc(doc, lane);
     if (value === current) {
       if (inFlight) return false;
@@ -1496,6 +1522,22 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       }
       const base = o?.baseContent ?? (inFlight ? inFlight.lastValue : agreedValue(lane));
       return submit(lane, value, base, value, o?.writeId, o?.stageable === true);
+    },
+    proposeVia(lane, value, baseContent, via) {
+      if (!acceptedOn() || stopped) return null;
+      if (lane === 'html') observedBody = value;
+      return submit(
+        lane,
+        value,
+        baseContent,
+        value,
+        undefined,
+        false,
+        undefined,
+        0,
+        undefined,
+        via
+      );
     },
     proposeInverse(value, undoes) {
       if (!acceptedOn() || stopped) return null;
