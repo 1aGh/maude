@@ -58,7 +58,9 @@ const GENERATION_KEY_CUSTODY_RE = /^MAUDE_GEN_KEY/i;
  *   • `MAUDE_TOKEN_*` — the GitHub token bridge's loopback endpoint + access key (sidecar.rs).
  *     Only the dev-server's github/token.ts talks to the bridge; an agent holding the key could
  *     ask it for the profile's GitHub OAuth token.
- *   • `MAUDE_SHELL_*` — the shell probe token + its info-file path (V2-3.4, V2-1.1 decision 8).
+ *   • `MAUDE_SHELL_*` — the shell probe token + its info-file path (V2-3.4, V2-1.1 decision 8),
+ *     and `MAUDE_SHELL_SIDECAR` (not a secret: the app-port-range marker, port.ts — an agent's own
+ *     `maude design serve` must stay off the app's 46399–46408).
  *   • `MAUDE_HOME_*` — the Home server's internal bearer, its page secret (V2-3.6 H1) and its
  *     state dir. A project server never receives them; scrubbed anyway, so no spawn path can
  *     hand them on.
