@@ -133,9 +133,12 @@ describe('S8.22 decompression bombs: the pixel budget refuses before anything de
     const good = join(tmp(), 'ok.png');
     writeFileSync(good, pngDeclaring(4, 4));
     const sipsPath = fakeSips(`cp "${good}" "$6"`);
-    expect(await reasonOf(convertWithSips(bomb, { platform: 'darwin', sipsPath }))).toBe(
-      'too-many-pixels'
-    );
+    // …inside a sandbox that would run it (`sandbox-exec -p <profile> cmd…` → cmd…): off a Mac there is
+    // no /usr/bin/sandbox-exec, and the converter must not stop at "not-on-mac" before the budget word
+    const sandboxPath = fakeSips('shift 2; exec "$@"');
+    expect(
+      await reasonOf(convertWithSips(bomb, { platform: 'darwin', sipsPath, sandboxPath }))
+    ).toBe('too-many-pixels');
   });
 
   test('HEIC declaring 50000 × 50000 (ispe) is refused; one with no declared size is refused', async () => {
