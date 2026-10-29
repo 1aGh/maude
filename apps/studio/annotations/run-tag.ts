@@ -90,7 +90,7 @@ export interface RunStageRuntime {
   beginAiAction?(
     key: string,
     label: string,
-    meta?: { runId?: string; chatId?: string; actor?: string }
+    meta?: { runId?: string; chatId?: string; actor?: string; claimOnly?: boolean }
   ): void;
   claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
   proposeLane?(
@@ -135,6 +135,8 @@ export function stageRunAnnotations(
     runtime.beginAiAction?.(`run:${w.runId}`, w.label, {
       runId: w.runId,
       ...(w.chatId ? { chatId: w.chatId } : {}),
+      // p8-a1-claims — claim-only: the run takes what was claimed for it, never a person's save
+      claimOnly: true,
     });
   }
   runtime.claimAiWrite?.(w.runId, w.canvasRel, hashBytes(value));

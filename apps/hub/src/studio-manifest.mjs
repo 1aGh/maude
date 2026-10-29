@@ -499,6 +499,7 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/agent/check': REFUSED,
   '/_api/agent/edit/touched': REFUSED,
   '/_api/agent/run/end': REFUSED,
+  '/_api/agent/write/claim': REFUSED,
   '/_api/design/init': REFUSED,
   // Resync + the sweep cancel (v0.60.0) restart the SYNC RUNTIME of whatever
   // process serves this project. On a laptop that is the person's own studio

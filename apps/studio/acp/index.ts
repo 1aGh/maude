@@ -465,6 +465,9 @@ export function createAgentActivityTracker(
       // or after the verb's calls is never folded into the AI run or its Undo.
       // V2-8.16 S7 — not only a verb: every call that is not provably a read gets that window (a python
       // heredoc cut the shot and nothing attributed it). See design-write-verb.ts `shellOpensWindow`.
+      // p8-a1-claims (Michal 2026-10-29) — and no longer a verb at all: a `maude design` verb claims its
+      // own bytes before they land (ai/write-claim.ts), so a call whose only writers are verbs opens
+      // NOTHING. The window is the named fallback for what cannot claim (python, node -e, sed -i, bash -c).
       const id = u.toolCallId;
       if (!id) return;
       const command = (u.rawInput as { command?: unknown } | null | undefined)?.command;

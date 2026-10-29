@@ -79,8 +79,11 @@ const done = (t: ReturnType<typeof createAgentActivityTracker>, id: string) =>
     status: 'completed',
   } as unknown as SessionUpdate);
 
-describe('acp / a shell write verb opens the run stage', () => {
-  test('`maude design reel-place …` begins the stage under the run id, one window per call; the registry ends it', () => {
+// p8-a1-claims (Michal 2026-10-29) — a verb claims its own writes (ai/write-claim.ts), so a verb call no longer
+// opens a window: a person's outside save during it is never folded into the run. Only a call that may write
+// WITHOUT claiming (the S7 interpreter fallback below) keeps the per-call window.
+describe('acp / a shell write verb opens no window — it claims its own writes', () => {
+  test('`maude design reel-place …` opens nothing: its writes are claimed by bytes, not by time', () => {
     const calls: Call[] = [];
     const t = createAgentActivityTracker(mkCtx(calls), ai, 'c3');
     t.beginTurn?.('make a recap', 'r_cut');
@@ -88,33 +91,31 @@ describe('acp / a shell write verb opens the run stage', () => {
     done(t, 'b1');
     shell(t, 'cd /tmp && maude design reel-place recap --next --canvas ui/V.tsx#recap', 'b2');
     done(t, 'b2');
+    shell(t, 'maude design export ui/V.tsx --png', 'b3');
+    done(t, 'b3');
     t.endTurn('done');
-    const meta = (call: string, open: boolean) => ({
-      runId: 'r_cut',
-      chatId: 'c3',
-      shell: { call, open },
-    });
-    expect(calls).toEqual([
-      ['begin', 'acp:c3', 'make a recap', meta('b1', true)],
-      ['begin', 'acp:c3', 'make a recap', meta('b1', false)],
-      ['begin', 'acp:c3', 'make a recap', meta('b2', true)],
-      ['begin', 'acp:c3', 'make a recap', meta('b2', false)],
-    ]); // no `end`: the registry ends a registry run
+    expect(calls).toEqual([]); // no window, no `end`: the registry ends a registry run
   });
 
-  test('A1 — a call that waits on a card is shut until a grant; a denied one stays shut', () => {
+  test('A1 — an interpreter call that waits on a card is shut until a grant; a denied one stays shut', () => {
     const calls: Call[] = [];
     const t = createAgentActivityTracker(mkCtx(calls), ai, 'c5');
-    t.beginTurn?.('export it', 'r_card');
-    shell(t, 'maude design export ui/V.tsx --png', 'b1');
+    t.beginTurn?.('cut it', 'r_card');
+    shell(t, 'python3 cut.py ui/V.tsx', 'b1');
     t.onPermission?.('b1');
     t.onPermission?.('b1', { granted: true });
     done(t, 'b1');
-    shell(t, 'maude design export ui/W.tsx --png', 'b2');
+    shell(t, 'python3 cut.py ui/W.tsx', 'b2');
     t.onPermission?.('b2');
     t.onPermission?.('b2', { granted: false });
     done(t, 'b2');
     t.endTurn('done');
+    const meta = (call: string, open: boolean) => ({
+      runId: 'r_card',
+      chatId: 'c5',
+      shell: { call, open },
+    });
+    expect(calls[0]).toEqual(['begin', 'acp:c5', 'cut it', meta('b1', true)]);
     const windows = calls.map((c) => (c[3] as { shell: { call: string; open: boolean } }).shell);
     expect(windows).toEqual([
       { call: 'b1', open: true },
@@ -126,7 +127,7 @@ describe('acp / a shell write verb opens the run stage', () => {
     ]);
   });
 
-  test('A1 — the window opens for every way of running the verb, never for text that names it', () => {
+  test('A1 — text that names a verb opens nothing; `bash -c` can run anything, so it keeps the fallback', () => {
     const calls: Call[] = [];
     const t = createAgentActivityTracker(mkCtx(calls), ai, 'c6');
     t.beginTurn?.('x', 'r_x');

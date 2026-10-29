@@ -2108,7 +2108,9 @@ export function applyFitTotalToContent(
 /** Run a pure source-op on disk (atomic write + cross-process lock). */
 export async function applyOnDisk<T extends { source: string }>(
   canvasAbsPath: string,
-  fn: (source: string) => T
+  fn: (source: string) => T,
+  /** p8-a1-claims — runs with the new bytes before they are written (a verb claims them for its run) */
+  o: { beforeWrite?: (next: string) => Promise<unknown> } = {}
 ): Promise<T> {
   return withLock(canvasAbsPath, async () => {
     const file = Bun.file(canvasAbsPath);
@@ -2121,6 +2123,7 @@ export async function applyOnDisk<T extends { source: string }>(
     const source = await file.text();
     const next = fn(source);
     if (next.source === source) return next;
+    await o.beforeWrite?.(next.source);
     const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
     await Bun.write(tmp, next.source);
     const { rename } = await import('node:fs/promises');

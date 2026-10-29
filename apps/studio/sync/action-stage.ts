@@ -99,6 +99,11 @@ export interface RunStage {
   claimOnly?: boolean;
   shellCalls?: Set<string>;
   shellClosedAt?: number;
+  /**
+   * p8-a1-claims (F17) — canvases this run DELETED (a claimed `maude design trash move`): doc id → the
+   * canvas path. Published as `doc.delete` in the run's one action, so its undo brings the canvas back.
+   */
+  deletes?: Map<string, { slug: string; generation?: number }>;
 }
 
 /** What the run list / held card reads (no bytes). */
@@ -204,7 +209,10 @@ export function createActionStage(opts: ActionStageOptions) {
   /** begin key → runId (a v1 caller names its participant, not a run). */
   const keyRun = new Map<string, string>();
   /** runId → `${slug}|${hash}` claims and the slugs it claimed. */
-  const claims = new Map<string, { hashes: Set<string>; slugs: Set<string> }>();
+  const claims = new Map<
+    string,
+    { hashes: Set<string>; slugs: Set<string>; deletes?: Set<string> }
+  >();
   const dependents: Dependent[] = [];
   /** A staged transaction id → the run transaction that carried it. */
   const alias = new Map<string, string>();
@@ -215,6 +223,7 @@ export function createActionStage(opts: ActionStageOptions) {
   function runSummary(r: RunStage): RunStageSummary {
     const canvases = new Set<string>();
     for (const l of r.lanes.values()) canvases.add(l.slug);
+    for (const d of r.deletes?.values() ?? []) canvases.add(d.slug);
     return {
       runId: r.runId,
       ...(r.chatId ? { chatId: r.chatId } : {}),
@@ -245,7 +254,7 @@ export function createActionStage(opts: ActionStageOptions) {
 
   function persist(): void {
     try {
-      const keep = [...runs.values()].filter((r) => r.lanes.size > 0);
+      const keep = [...runs.values()].filter((r) => r.lanes.size > 0 || !!r.deletes?.size);
       if (keep.length === 0) {
         rmSync(file, { force: true });
         return;
@@ -271,6 +280,15 @@ export function createActionStage(opts: ActionStageOptions) {
             writes: l.writes,
             ...(l.create ? { create: l.create } : {}),
           })),
+          ...(r.deletes?.size
+            ? {
+                deletes: [...r.deletes].map(([doc, d]) => ({
+                  doc,
+                  slug: d.slug,
+                  ...(d.generation !== undefined ? { generation: d.generation } : {}),
+                })),
+              }
+            : {}),
         })),
       };
       writeFileSync(`${file}.tmp`, JSON.stringify(body));
@@ -312,7 +330,16 @@ export function createActionStage(opts: ActionStageOptions) {
               ...(typeof l.create === 'string' && l.create ? { create: l.create } : {}),
             });
           }
-          if (lanes.size === 0) continue;
+          const deletes = new Map<string, { slug: string; generation?: number }>();
+          for (const d of Array.isArray(raw.deletes)
+            ? (raw.deletes as Record<string, unknown>[])
+            : [])
+            if (typeof d?.doc === 'string' && typeof d.slug === 'string')
+              deletes.set(d.doc, {
+                slug: d.slug,
+                ...(typeof d.generation === 'number' ? { generation: d.generation } : {}),
+              });
+          if (lanes.size === 0 && deletes.size === 0) continue;
           const chatId = originId(raw.chatId);
           stages.push({
             runId,
@@ -327,6 +354,7 @@ export function createActionStage(opts: ActionStageOptions) {
               raw.touched && typeof raw.touched === 'object'
                 ? (raw.touched as Record<string, string[]>)
                 : {},
+            ...(deletes.size ? { deletes } : {}),
           });
         }
       } else {
@@ -389,6 +417,12 @@ export function createActionStage(opts: ActionStageOptions) {
       actor?: string;
       /** A1 — a shell verb call opening (`open`) or closing its window; absent = an edit tool. */
       shell?: { call: string; open: boolean };
+      /**
+       * p8-a1-claims — begun by a CLAIM (ai/write-claim.ts): the run takes only what was claimed for
+       * it, never an unclaimed write (a fresh run is claim-only with no window); an existing run's
+       * scoping is left as it is.
+       */
+      claimOnly?: boolean;
     } = {}
   ): void {
     const runId = originId(meta.runId) ?? key;
@@ -400,7 +434,7 @@ export function createActionStage(opts: ActionStageOptions) {
         delete existing.endedAt;
         changed();
       }
-      shellWindow(existing, meta.shell);
+      if (!meta.claimOnly) shellWindow(existing, meta.shell);
       return;
     }
     const chatId = originId(meta.chatId);
@@ -413,10 +447,10 @@ export function createActionStage(opts: ActionStageOptions) {
       since: now(),
       lanes: new Map(),
       touched: {},
-      ...(meta.shell ? { claimOnly: true, shellCalls: new Set<string>() } : {}),
+      ...(meta.shell || meta.claimOnly ? { claimOnly: true, shellCalls: new Set<string>() } : {}),
     };
     runs.set(runId, fresh);
-    shellWindow(fresh, meta.shell);
+    if (!meta.claimOnly) shellWindow(fresh, meta.shell);
     changed();
   }
 
@@ -459,6 +493,52 @@ export function createActionStage(opts: ActionStageOptions) {
     if (!r || !artboards.length) return;
     r.touched[canvas] = [...new Set([...(r.touched[canvas] ?? []), ...artboards])].sort();
     changed();
+  }
+
+  /**
+   * p8-a1-claims (F17) — a tool of run `keyOrRun` is about to delete canvas `slug` (the studio's
+   * `DELETE /_api/canvas` named the run). The kernel's delete of it then joins the run (`stagesDelete`).
+   */
+  function claimDelete(keyOrRun: string, slug: string): void {
+    const r = runOf(keyOrRun);
+    if (!r) return;
+    let c = claims.get(r.runId);
+    if (!c) {
+      c = { hashes: new Set(), slugs: new Set() };
+      claims.set(r.runId, c);
+    }
+    c.deletes ??= new Set();
+    c.deletes.add(slug);
+  }
+
+  /**
+   * The canvas `slug` (doc `doc`) left the disk: when an OPEN run claimed that delete, it is staged in
+   * that run (published as `doc.delete` with the run's other changes) and true is returned — the caller
+   * proposes nothing. An unclaimed delete is the person's (false). The run's staged lanes of the doc
+   * go with it: a canvas the run made and then trashed is no change at all.
+   */
+  function stagesDelete(slug: string, doc: string, generation?: number): boolean {
+    const r = [...runs.values()].find(
+      (x) => x.state === 'open' && claims.get(x.runId)?.deletes?.has(slug)
+    );
+    if (!r) return false;
+    claims.get(r.runId)?.deletes?.delete(slug);
+    let created = false;
+    for (const [k, l] of r.lanes) {
+      if (l.doc !== doc) continue;
+      if (l.create) created = true;
+      for (const fn of l.resolvers) fn({ status: 'rejected', code: 'deleted' });
+      r.lanes.delete(k);
+    }
+    if (!created) {
+      r.deletes ??= new Map();
+      r.deletes.set(doc, {
+        slug,
+        ...(generation !== undefined ? { generation } : {}),
+      });
+    }
+    changed();
+    return true;
   }
 
   const coversSlug = (r: RunStage, slug: string) =>
@@ -681,7 +761,8 @@ export function createActionStage(opts: ActionStageOptions) {
     o: { partial?: boolean; fence?: RunFence } = {}
   ): Promise<ProposalResult | null> {
     const staged = [...r.lanes.values()].filter((l) => l.mine !== l.base || l.writes > 0);
-    if (staged.length === 0) {
+    const deletes = [...(r.deletes ?? new Map<string, { slug: string; generation?: number }>())];
+    if (staged.length === 0 && deletes.length === 0) {
       forget(r);
       changed();
       releaseDependents();
@@ -716,6 +797,12 @@ export function createActionStage(opts: ActionStageOptions) {
           baseContent: l.base,
           ...(l.writeId ? { writeId: l.writeId } : {}),
         })),
+      // F17 — the canvases the run trashed, after its edits (an edit to a doc it deleted was dropped)
+      ...deletes.map(([doc, d]) => ({
+        op: 'doc.delete',
+        doc,
+        ...(d.generation !== undefined ? { generation: d.generation } : {}),
+      })),
     ];
     const madeAt = r.endedAt ?? now();
     const label = `${r.label}${o.partial ? STOPPED : ''}`;
@@ -752,7 +839,7 @@ export function createActionStage(opts: ActionStageOptions) {
     }
     for (const l of staged) for (const fn of l.resolvers) fn(laneOutcome(res, l));
     log.log(
-      `[sync/ai] ${label}: ${staged.length} change(s) ${res.status === 'accepted' ? 'published as one action' : `refused (${res.code ?? 'rejected'})`}.`
+      `[sync/ai] ${label}: ${staged.length + deletes.length} change(s) ${res.status === 'accepted' ? 'published as one action' : `refused (${res.code ?? 'rejected'})`}.`
     );
     return res;
   }
@@ -831,6 +918,8 @@ export function createActionStage(opts: ActionStageOptions) {
     restore,
     begin,
     claim,
+    claimDelete,
+    stagesDelete,
     touch,
     end,
     publish,

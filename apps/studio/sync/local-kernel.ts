@@ -49,6 +49,7 @@ import { MIGRATION_ACTOR } from '../../hub/src/project-transactions/baseline.mjs
 import { createKernel, EMPTY_HASH, PROTOCOL } from '../../hub/src/project-transactions/kernel.mjs';
 import { laneHash, mergeLane } from '../../hub/src/project-transactions/lanes.mjs';
 import { createStoreCore } from '../../hub/src/project-transactions/store-core.mjs';
+import { claimWrite, currentWriteClaim, recordClaim } from '../ai/write-claim.ts';
 import { serializeBoard } from '../annotations/schema.ts';
 import {
   boardTextSlots,
@@ -557,9 +558,13 @@ export interface LocalRuntime {
       actor?: string;
       /** V2-8.9 round B A1 — a shell verb call's window (sync/action-stage.ts `claimOnly`). */
       shell?: { call: string; open: boolean };
+      /** p8-a1-claims — begun by a claim: takes only claimed writes (sync/action-stage.ts). */
+      claimOnly?: boolean;
     }
   ): void;
   claimAiWrite(key: string, repoRel: string, hash?: string | null): void;
+  /** p8-a1-claims (F17) — run `key` is about to delete canvas `repoRel`: the delete joins the run. */
+  claimAiDelete(key: string, repoRel: string): void;
   /**
    * S2.20b (U20) — server.ts calls this right after the studio wrote a canvas's layout
    * (`onMetaChanged`) or its board (`onAnnotationsChanged`). A layout the local home only NOTES —
@@ -1140,6 +1145,10 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       for (const lane of LOCAL_LANES) seen.delete(`${rel}|${lane}`);
       if (!live) return null;
       const st = (await store.heads([live]))[live];
+      // p8-a1-claims (F17) — a delete an AI run claimed (`maude design trash move` → the studio's
+      // `DELETE /_api/canvas` named the run) is that run's: staged, published with its other changes.
+      if (action.kind === OUTSIDE_KIND && stage.stagesDelete(rel, live, st?.generation))
+        return null;
       return submit(
         [{ op: 'doc.delete', doc: live, generation: st?.generation }],
         { ...action, label: action.label ?? NAME(rel) },
@@ -2259,6 +2268,11 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       const canvas = rel ? canvasOfRel(rel) : null;
       if (canvas) stage.claim(key, canvas, hash ?? null);
     },
+    claimAiDelete(key, repoRel) {
+      const rel = designRelOf(repoRel, designRel) ?? String(repoRel).replace(/^\/+/, '');
+      const canvas = rel ? canvasOfRel(rel) : null;
+      if (canvas) stage.claimDelete(key, canvas);
+    },
     async endAiAction(key, outcome) {
       if (!kernel) return null;
       // The watcher delivers the run's last tool write a beat after the tool returns.
@@ -2471,11 +2485,27 @@ export function attachLocalHome<S extends SupervisorLike>(
   ctx.bus.on('fs:any', (rel: string) => {
     if (isLocal()) get()?.observe(rel);
   });
+  /**
+   * p8-a1-claims — inside an AI verb's route request (ai/write-claim.ts `withWriteClaim`), a studio
+   * source write is that run's: claimed by its bytes before the watcher reads them, never noted as the
+   * person's edit. True when it claimed.
+   */
+  const claimForRoute = (rel: string, content: string): boolean => {
+    const run = currentWriteClaim();
+    const home = run ? get() : null;
+    if (!run || !home) return false;
+    const posix = rel.replace(/\\/g, '/').replace(/^\/+/, '');
+    claimWrite(home.runtime, run, `${ctx.paths.designRel}/${posix}`, content);
+    recordClaim(run.chatId, posix);
+    return true;
+  };
   // S5.5b — the studio's own write (api.ts, after it landed): the person's edit, by content.
   ctx.bus.on(
     'source-written',
     (p: { rel?: unknown; content?: unknown; label?: unknown; base?: unknown } | null) => {
       if (!isLocal() || typeof p?.rel !== 'string' || typeof p.content !== 'string') return;
+      // p8-a1-claims — a route an AI verb called (X-Maude-Chat): the bytes are that run's, not the person's
+      if (claimForRoute(p.rel, p.content)) return;
       // S2.24 G3: a studio write may say what it was; one line, bounded, so a planted label cannot flood a row
       const said = typeof p.label === 'string' ? p.label.trim().slice(0, 120) : '';
       // p8-e2e-fix-r12: the bytes the write replaced, when the writer knows them (routes/edit.ts)
@@ -2495,6 +2525,7 @@ export function attachLocalHome<S extends SupervisorLike>(
     'source-writing',
     (p: { rel?: unknown; content?: unknown; label?: unknown; base?: unknown } | null) => {
       if (!isLocal() || typeof p?.rel !== 'string' || typeof p.content !== 'string') return;
+      if (claimForRoute(p.rel, p.content)) return;
       const said = typeof p.label === 'string' ? p.label.trim().slice(0, 120) : '';
       get()?.noteWritten(p.rel, p.content, said || undefined, {
         early: true,

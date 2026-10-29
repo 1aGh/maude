@@ -739,6 +739,22 @@ function manifestVerbs(ctx) {
 }
 
 /**
+ * p8-a1-claims — the same table with every `design` verb read as writing nothing unclaimed: each one
+ * claims its own canvas writes before they land (apps/studio/ai/write-claim.ts). What is left writing
+ * is the part of a call that cannot claim (the S7 interpreter fallback: python, node -e, sed -i …).
+ */
+function claimingVerbs(ctx) {
+  const verbs = manifestVerbs(ctx);
+  return verbs
+    ? verbs.map((v) =>
+        typeof v?.verb === 'string' && v.verb.startsWith('design ') && !v.unclaimed
+          ? { ...v, effect: 'none' }
+          : v
+      )
+    : null;
+}
+
+/**
  * The `maude design` verbs in `command` that write (effect other than `none`). An unknown table
  * counts every design verb as a writer: binding finds nothing when nothing changed.
  */
@@ -1367,9 +1383,11 @@ function preBash(ctx, input) {
     input.tool_input?.run_in_background === true || bashBackgrounds(command, { unparsed: false })
       ? { bg: true, by: input.agent_type ?? 'main' }
       : {};
+  // p8-a1-claims — `interp`: something in the call writes without claiming (no table: assume so)
+  const interp = !claimingVerbs(ctx) || bashMayWrite(command, claimingVerbs(ctx));
   writeAt(
     join(ctx.run, 'bash', `${toolUseId}.json`),
-    JSON.stringify({ at: Date.now(), snaps, ...bg })
+    JSON.stringify({ at: Date.now(), snaps, ...bg, ...(interp ? { interp: true } : {}) })
   );
   return null;
 }
@@ -1463,7 +1481,14 @@ async function bindBashWrites(ctx, toolUseId, mark, by, since) {
     await postStudio(
       studio,
       '/_api/agent/edit/touched',
-      { ...runKey(ctx), toolUseId, via: 'bash', since: mark.at },
+      {
+        ...runKey(ctx),
+        toolUseId,
+        via: 'bash',
+        since: mark.at,
+        // p8-a1-claims — only claiming verbs wrote: the studio binds what they claimed, nothing else
+        ...(mark.interp ? {} : { claimedOnly: true }),
+      },
       { timeoutMs: 900 }
     );
 }
@@ -1520,7 +1545,13 @@ async function drainBackground(ctx, studio) {
     await postStudio(
       studio,
       '/_api/agent/edit/touched',
-      { ...runKey(ctx), toolUseId: oldest.toolUseId, via: 'bash', since: oldest.m.at },
+      {
+        ...runKey(ctx),
+        toolUseId: oldest.toolUseId,
+        via: 'bash',
+        since: oldest.m.at,
+        ...(marks.every((x) => !x.m.interp) ? { claimedOnly: true } : {}),
+      },
       { timeoutMs: 900 }
     );
   }

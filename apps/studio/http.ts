@@ -1,4 +1,5 @@
 import { claimCreatedCanvas, runForCreate } from './ai/create-claim.ts';
+import { claimWritesForChat, routeWriteClaim, withWriteClaim } from './ai/write-claim.ts';
 import { MAX_ELEMENTS } from './annotations/constants.ts';
 import { parseOps as parseAnnotationOps } from './annotations/ops.ts';
 import { runTagGate, runTagRefusalResponse } from './annotations/run-tag.ts';
@@ -600,6 +601,28 @@ export function guardTableRoute(spec: RouteSpec): RouteSpec {
         );
       return spec.handle(req, params);
     },
+  };
+}
+
+/**
+ * p8-a1-claims — a main-only table route that writes answers inside its run's write claim when the
+ * request names an AI chat (`X-Maude-Chat`, `_studio-verb.mjs` / `curl-local`): what it writes then
+ * joins that chat's LIVE run by its bytes (ai/write-claim.ts), with no time window. A canvas-origin
+ * spec is never wrapped (the untrusted canvas frame can set any header on its own origin), nor a read;
+ * the claim needs the same two gates `guardTableRoute` applies, checked again here.
+ */
+export function claimingTableRoute(
+  spec: RouteSpec,
+  runs: Parameters<typeof routeWriteClaim>[1]
+): RouteSpec {
+  if (spec.origin === 'canvas' || spec.method === 'GET') return spec;
+  return {
+    ...spec,
+    handle: (req, params) =>
+      withWriteClaim(
+        sameOriginWrite(req) && isTrustedRequestHost(req) ? routeWriteClaim(req, runs) : null,
+        () => spec.handle(req, params)
+      ),
   };
 }
 
@@ -2272,6 +2295,9 @@ export function createHttp(
       // §5.4 `read-only`: the agent routes are non-browser, so only the format gate applies here
       // (a hub role is a browser-session property).
       readOnly: () => gateNow() !== null,
+      // p8-a1-claims — POST /_api/agent/write/claim: a disk-writing verb's bytes, claimed for its chat's live run
+      claimWrites: (chat, writes) =>
+        claimWritesForChat(runs, ctx.syncControl?.current?.(), ctx.paths.designRel, chat, writes),
       // the run bracket onto today's T16 project action + the ai-activity banner, keyed like the
       // Maude chat's (acp/index.ts keyFor): `${designRel}/${designRoot-relative canvas}`.
       // A Maude chat run (actor maude-chat, MAUDE_AGENT_ACTOR from acp/bridge.ts) is bracketed by
@@ -2549,7 +2575,8 @@ export function createHttp(
     // S11.14 — GET /_api/connections/hub (routes/connections.ts): main origin only, the hub credential.
     connections: { designRoot: ctx.paths.designRoot },
   }).map(guardTableRoute);
-  const laneRoutes = mountRoutes(tableSpecs);
+  // p8-a1-claims — outside the gates: a write that names an AI chat answers inside its run's claim
+  const laneRoutes = mountRoutes(tableSpecs.map((s) => claimingTableRoute(s, runs)));
   // V2-2.17 — the project index (contract V2-1.17): built now, updated per fs event, persisted
   // in the machine cache (~/.maude/index/v1, outside the project). Cells write none.
   const projectIndex = createIndexService({
@@ -3864,6 +3891,22 @@ export function createHttp(
       }
       if (req.method === 'DELETE') {
         const file = new URL(req.url).searchParams.get('file');
+        // p8-a1-claims (F17) — `maude design trash move` names its chat (X-Maude-Chat): the delete is that
+        // chat's live run's, claimed BEFORE the file leaves, so the run publishes it and its undo restores it.
+        const mine = runForCreate(req, runs);
+        if (mine && typeof file === 'string' && /\.tsx$/i.test(file)) {
+          const rel = file.replace(/^\/+/, '');
+          const repoRel = rel.startsWith(`${ctx.paths.designRel}/`)
+            ? rel
+            : `${ctx.paths.designRel}/${rel}`;
+          const control = ctx.syncControl?.current?.();
+          control?.beginAiAction?.(`run:${mine.runId}`, mine.label, {
+            runId: mine.runId,
+            chatId: mine.chatId,
+            claimOnly: true,
+          });
+          control?.claimAiDelete?.(mine.runId, repoRel);
+        }
         const result = await api.deleteCanvas({ file });
         if (!result.ok) {
           return Response.json(
