@@ -79,8 +79,18 @@ Not built, either because no CONTRACT line names them or because the weekly budg
   click-through goes on the soak list. Also: in the race case the cell sometimes leaves the two Macs apart (bob 3,
   alice 1, no conflict shown, still apart after 240 s). The spec pins only "never zero artboards". The silent
   divergence needs its own look.
-- (p8-browser-e2e-format, merged d1602ee99) **Undo drops a collaborator's concurrent text edit (product, open — Michal
-  to decide before or after the PR).** I type into a sticky while a peer prefixes it ("Peer: …"). The commit keeps
+- (p8-undo-collab-refuse, merged 6e87df463) Michal's b2 is built for the local runtime. ⌘Z on an annotation text a
+  collaborator changed meanwhile is refused with a 409 `undo-conflict`, using the existing "Can't undo … someone else
+  changed it since" notice, and their text stays (R7 is a real test again). Still open:
+  - **The hub-linked runtime has no `textUndoConflict` yet** (`sync/index.ts`), so a hub project undoes as before.
+    It needs its own room contest and ledger.
+  - Merge text on undo (option 1).
+  - The same refusal on the legacy canvas stack (`annotations-layer.tsx` `commitStrokes`).
+  - Group draft writes into the commit step on the op log. Today each draft write is its own ⌘Z step.
+  - Edits with no live room (`api.applyAnnotationOps`) record no contest.
+  - The ledger is lost on restart, which is the same lifetime the ⌘Z stack has.
+- (p8-browser-e2e-format, merged d1602ee99; closed for local projects by p8-undo-collab-refuse above) Undo drops a
+  collaborator's concurrent text edit. I type into a sticky while a peer prefixes it ("Peer: …"). The commit keeps
   both texts, but ⌘Z restores the field's whole earlier value, and the peer's prefix is lost. `ops.ts` registers no
   `setTextMerge` in the canvas iframe, so undo's inverse takes the unmerged path. Fixing it needs a design call: undo
   either merges text the way the commit does, or refuses with "a collaborator changed this". The test is `todo` in
