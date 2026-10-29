@@ -162,17 +162,41 @@ export async function run(o: MigrateOptions): Promise<MigrateReport> {
 
 /** A scripted hub for the linked-project cases. */
 export function fakeHub(
-  init: { formatVersion: number | null; capabilities?: string[]; reachable?: boolean } = {
+  init: {
+    formatVersion: number | null;
+    capabilities?: string[];
+    reachable?: boolean;
+    /** the DDR-241 save mode; `transactions` keeps the format-only tests about the format */
+    mode?: 'legacy' | 'transactions';
+    /** `/health` coordinator.durable */
+    durable?: boolean;
+    /** the hub's dry-run blockers (`browser-not-paired`) */
+    blockers?: string[];
+  } = {
     formatVersion: 1,
   }
 ) {
-  const calls: Array<{ op: 'health' | 'setFormat'; formatVersion?: number; at: number }> = [];
+  const calls: Array<{
+    op: 'health' | 'setFormat' | 'mode' | 'setMode' | 'setMode:dry';
+    formatVersion?: number;
+    expectEpoch?: number;
+    at: number;
+  }> = [];
   const state = {
     formatVersion: init.formatVersion,
     epoch: 4,
     reachable: init.reachable ?? true,
     refuse: null as null | { status: number; code: string },
     onSet: null as null | ((v: number) => void),
+    mode: (init.mode ?? 'transactions') as 'legacy' | 'transactions',
+    durable: init.durable ?? true,
+    blockers: init.blockers ?? ([] as string[]),
+    /** the switch's own refusal (403 forbidden, 409 browser-not-paired, 503 …) */
+    refuseMode: null as null | { status: number; code: string },
+    /** the switch landed but its import is still running (T30 importResuming) */
+    importLate: false,
+    importPending: false,
+    onSetMode: null as null | (() => void),
   };
   let tick = 0;
   const client: HubFormatClient = {
@@ -184,6 +208,7 @@ export function fakeHub(
         formatVersion: state.formatVersion,
         capabilities: init.capabilities ?? ['ledger', 'annotations-v2', 'format-v2'],
         epoch: state.epoch,
+        coordinator: { mode: state.mode, durable: state.durable, ready: true },
       };
     },
     async setFormat(v) {
@@ -193,6 +218,41 @@ export function fakeHub(
       if (state.formatVersion !== v) state.epoch += 1;
       state.formatVersion = v;
       return { ok: true, epoch: state.epoch };
+    },
+    async mode() {
+      calls.push({ op: 'mode', at: ++tick });
+      if (!state.reachable) return { ok: false, status: 0, code: 'unreachable' };
+      return { ok: true, mode: state.mode, epoch: state.epoch, importPending: state.importPending };
+    },
+    async setMode(mode, expectEpoch, o = {}) {
+      calls.push({ op: o.dryRun ? 'setMode:dry' : 'setMode', expectEpoch, at: ++tick });
+      if (o.dryRun) {
+        return {
+          ok: true,
+          dryRun: true,
+          mode: state.mode,
+          epoch: state.epoch,
+          blockers: state.blockers,
+          importPending: false,
+          skipped: 0,
+        };
+      }
+      state.onSetMode?.();
+      if (state.refuseMode) return { ok: false, ...state.refuseMode };
+      // the hub's own rule (store-core.mjs setMode): a stale epoch is a 409, never applied
+      if (expectEpoch !== state.epoch) return { ok: false, status: 409, code: 'epoch-stale' };
+      state.epoch += 1;
+      state.mode = mode;
+      state.importPending = state.importLate;
+      return {
+        ok: true,
+        dryRun: false,
+        mode,
+        epoch: state.epoch,
+        blockers: [],
+        importPending: state.importLate,
+        skipped: 0,
+      };
     },
   };
   return { client, calls, state };

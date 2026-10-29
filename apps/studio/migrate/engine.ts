@@ -11,6 +11,13 @@
 // first local write; reverse unflips it AFTER the last. Removals go to
 // `_trash/migrate-v2/` (I8).
 //
+// Save mode (p8-update-to-accepted, Michal: decision
+// `maude/v2-michal-update-project-switches-legacy-to-accepted`): forward, a LINKED
+// project whose hub still saves the old way (DDR-241 `legacy`) is also switched to
+// accepted revisions — the same run, owner only. The switch goes LAST: after the
+// format flip and after the last local write, on the epoch read again from the hub
+// (the flip advanced it). A reverse run never touches the mode.
+//
 // Reused in-process by the studio route `POST /_api/project/migrate`
 // (routes/project-format.ts) — with `viaStudio: true`, which is the only way
 // past the "a studio has this project open" refusal.
@@ -32,7 +39,7 @@ import { readHeadLines } from '../acp/transcript-io.ts';
 import { migrateAnnotationsV2 } from '../annotations/migrate-boot.ts';
 import { asFormat } from '../format.ts';
 import { type DsTokensEmitter, defaultDsEmitter } from './ds-registry.ts';
-import { createHubFormatClient, type HubFormatClient } from './hub.ts';
+import { createHubFormatClient, type HubFormatClient, type HubHealth } from './hub.ts';
 import { type MigrationStep, STEPS, type StepCtx, type StepResult, sha256 } from './steps.ts';
 
 export const TARGET_FORMAT = 2;
@@ -44,7 +51,29 @@ export const FILE_LIST_CAP = 500;
 export const EXIT = { done: 0, atTarget: 10, refused: 11, error: 1, usage: 2 } as const;
 
 /** Why a LINKED project cannot be updated from this Mac now — the app's banner line per code. */
-export type LinkRefusalCode = 'no-sign-in' | 'offline' | 'hub-too-old' | 'not-owner';
+export type LinkRefusalCode =
+  | 'no-sign-in'
+  | 'offline'
+  | 'hub-too-old'
+  | 'not-owner'
+  | SaveModeBlocker;
+
+/** Why the hub cannot switch the save mode now (`hub-integration.mjs` setMode / its dry run). */
+export type SaveModeBlocker =
+  | 'store-not-durable'
+  | 'browser-not-paired'
+  | 'mode-forbidden'
+  | 'mode-unavailable';
+
+/** The run-level line for a blocked or failed switch (the CLI prints it; the app has its own copy). */
+export const SAVE_MODE_NOTE = {
+  failed: (why: string) =>
+    `format updated, still saving the old way (${why}) — run Update again to switch to accepted revisions`,
+  blocked: (why: SaveModeBlocker) =>
+    `the team server cannot switch to accepted revisions yet (${why}) — the project keeps saving the old way`,
+  importing:
+    'switched to accepted revisions — the team server is still bringing changes in; nothing is lost',
+} as const;
 
 export interface MigrateOptions {
   repoRoot: string;
@@ -102,6 +131,16 @@ export interface MigrateReport {
       role: string;
       hubFormat: number | null;
       capabilities: string[];
+      /** the DDR-241 save mode the hub reported (null: it did not say — no switch is offered) */
+      mode?: 'legacy' | 'transactions' | null;
+      /** forward: this run also switches the project to accepted revisions */
+      modeDue?: boolean;
+      /** why the switch cannot run now (the format update still can) */
+      modeBlocker?: SaveModeBlocker;
+      /** apply: the hub took the switch */
+      modeSwitched?: boolean;
+      /** apply: switched, and the hub is still importing the documents (T30) */
+      modeImporting?: boolean;
     };
   };
   steps: StepReport[];
@@ -325,7 +364,8 @@ async function plan(opts: MigrateOptions, dryRun: boolean): Promise<Plan> {
     report.exitCode =
       report.totals.refused > 0
         ? EXIT.refused
-        : report.steps.every((s) => s.status === 'noop' || s.status === 'skip')
+        : report.steps.every((s) => s.status === 'noop' || s.status === 'skip') &&
+            report.project.linked?.modeDue !== true
           ? EXIT.atTarget
           : EXIT.done;
     report.durationMs = Math.round(performance.now() - t0);
@@ -385,6 +425,10 @@ async function plan(opts: MigrateOptions, dryRun: boolean): Promise<Plan> {
     if (projectRoleForAccount(role) !== 'owner')
       return refuse("only the project's owner can update it for Maude 2", '', 'not-owner');
     out.hub = { client, ...(typeof health.epoch === 'number' ? { epoch: health.epoch } : {}) };
+    report.project.linked = {
+      ...report.project.linked,
+      ...(await planSaveMode(client, health, opts.direction)),
+    };
   }
   const before = Math.max(local, hubFormat ?? 1);
   report.project.formatBefore = before;
@@ -538,7 +582,87 @@ async function plan(opts: MigrateOptions, dryRun: boolean): Promise<Plan> {
   }
   const refused = report.steps.some((s) => s.status === 'refused');
   if (!refused) report.project.formatAfter = opts.direction === 'forward' ? TARGET_FORMAT : 1;
+  // A blocked switch: refused when it was the only thing left to do (a format-2 project that
+  // still saves the old way); otherwise the format update goes ahead and the report says so.
+  const blocker = report.project.linked?.modeBlocker;
+  if (blocker) {
+    const formatWork = report.steps.some((s) => s.status !== 'noop' && s.status !== 'skip');
+    if (!formatWork) return refuse(SAVE_MODE_NOTE.blocked(blocker), '', blocker);
+    report.notes = [...(report.notes ?? []), SAVE_MODE_NOTE.blocked(blocker)];
+  }
   return finish();
+}
+
+type LinkedReport = NonNullable<MigrateReport['project']['linked']>;
+
+/**
+ * Read the hub's save mode; forward on a `legacy` project, mark the switch due — or name what
+ * blocks it, from `/health` (`coordinator.durable`) and the hub's own dry run (its `blockers`).
+ * A hub that does not answer the mode route runs no coordinator: no switch is offered.
+ */
+async function planSaveMode(
+  client: HubFormatClient,
+  health: HubHealth,
+  direction: MigrateOptions['direction']
+): Promise<Partial<LinkedReport>> {
+  const m = await client.mode();
+  if (!m.ok) return { mode: null, modeSwitched: false };
+  const base = { mode: m.mode, modeSwitched: false } as const;
+  // `--reverse` keeps accepted revisions (Michal): the mode is reported, never planned.
+  if (direction !== 'forward' || m.mode !== 'legacy') return base;
+  if (health.coordinator && !health.coordinator.durable)
+    return { ...base, modeBlocker: 'store-not-durable' };
+  const dry = await client.setMode('transactions', m.epoch, { dryRun: true });
+  if (!dry.ok)
+    return { ...base, modeBlocker: dry.status === 403 ? 'mode-forbidden' : 'mode-unavailable' };
+  if (dry.blockers.includes('browser-not-paired'))
+    return { ...base, modeBlocker: 'browser-not-paired' };
+  return { ...base, modeDue: true };
+}
+
+/**
+ * The switch itself — after every local write. The epoch is read AGAIN here: the format flip
+ * advanced it, and the hub refuses a stale one (409 `epoch-stale`); a stale answer is re-read
+ * once (another writer moved it in between). Never throws: the format update already landed,
+ * so a failure is a note that says so, and the next Update finds the mode still `legacy`.
+ */
+async function switchSaveMode(
+  client: HubFormatClient,
+  linked: LinkedReport,
+  notes: string[],
+  log: (line: string) => void
+): Promise<void> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const m = await client.mode();
+    if (!m.ok) {
+      notes.push(SAVE_MODE_NOTE.failed(m.code ?? String(m.status)));
+      return;
+    }
+    if (m.mode === 'transactions') {
+      // switched already — by another owner, or a switch whose answer we did not get
+      linked.modeSwitched = true;
+      if (m.importPending) {
+        linked.modeImporting = true;
+        notes.push(SAVE_MODE_NOTE.importing);
+      }
+      return;
+    }
+    const r = await client.setMode('transactions', m.epoch);
+    if (r.ok) {
+      linked.modeSwitched = true;
+      log(`[migrate] the team server now saves with accepted revisions (epoch ${r.epoch})`);
+      if (r.importPending) {
+        // T30: the switch is persisted and peers are fenced; the import resumes on the hub
+        // until it lands. Switched — not a failure.
+        linked.modeImporting = true;
+        notes.push(SAVE_MODE_NOTE.importing);
+      }
+      return;
+    }
+    if (r.code === 'epoch-stale' && attempt === 0) continue;
+    notes.push(SAVE_MODE_NOTE.failed(r.code ?? String(r.status)));
+    return;
+  }
 }
 
 /** The printed report: file lists capped at FILE_LIST_CAP per step, with the
@@ -722,6 +846,14 @@ export async function applyMigration(
         writeFileSync(path.join(snapAbs, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
         return report;
       }
+    }
+    // The save mode — LAST (forward only): after the hub flip and after every local write, so a
+    // local failure above (rolled back, thrown) never leaves a project switched but not updated.
+    const linked = report.project.linked;
+    if (opts.direction === 'forward' && p.hub && linked?.modeDue) {
+      const notes = report.notes ?? [];
+      await switchSaveMode(p.hub.client, linked, notes, log);
+      if (notes.length) report.notes = notes;
     }
     report.durationMs = Math.round(performance.now() - t0);
     writeFileSync(path.join(snapAbs, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
