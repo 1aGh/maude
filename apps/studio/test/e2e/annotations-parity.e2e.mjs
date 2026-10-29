@@ -65,7 +65,7 @@ let server;
 let c;
 before(async () => {
   server = await startServer(await makeProjectFor(PARITY_BOARD));
-  c = await openCanvas(server);
+  c = await openCanvas(server, { clearTop: 120 });
 });
 after(async () => {
   await c?.close();
@@ -262,7 +262,10 @@ describe('P2 — the context toolbar', () => {
 
   test('bold and a bulleted list on a sticky', async () => {
     await reset();
-    await select('C');
+    // the formatting controls belong to the open editor: the bar flips into formatting while a sticky is typed in
+    const [cx, cy] = await c.center('C');
+    await c.page.mouse.dblclick(cx, cy);
+    await sleep(300);
     await ctl('Bold').click();
     await ctl('Bulleted list').click();
     const b = await waitForBoard(server.root, (bd) => bd.get('C')?.list === 'bullet');
@@ -445,7 +448,10 @@ describe('P5 — kinds, sections, selection, media', () => {
 
   test('font size from the toolbar', async () => {
     await reset();
-    await select('C');
+    // the size control is the editor's too (the bar flips into formatting while a sticky is typed in)
+    const [fx, fy] = await c.center('C');
+    await c.page.mouse.dblclick(fx, fy);
+    await sleep(300);
     await c.frame.locator('.dc-annot-ctx .dc-annot-ctx-fs-trigger').first().click();
     const items = c.frame.locator('.dc-annot-ctx-fs-item');
     const n = await items.count();

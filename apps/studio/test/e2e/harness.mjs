@@ -172,7 +172,7 @@ export async function waitForBoard(root, pred, ms = 8000) {
   return b;
 }
 
-export async function openCanvas(server) {
+export async function openCanvas(server, { clearTop = 0 } = {}) {
   const dbg = (m) => process.env.E2E_DEBUG && console.error(`[e2e] ${m}`);
   dbg('launch');
   const browser = await chromium.launch({ headless: process.env.E2E_HEADED !== '1' });
@@ -250,6 +250,13 @@ export async function openCanvas(server) {
   // Fit everything into view: a double-click on empty canvas is the shell's fit().
   await page.mouse.dblclick(frameBox.x + 12, frameBox.y + frameBox.height - 12);
   await page.waitForTimeout(700);
+  // `clearTop` px of extra room above the board: an element's bar floats above it, and at Fit's own margin a bar
+  // for the top row slides under the Preview bar island. Scenarios that click those bars ask for the room.
+  if (clearTop > 0) {
+    await page.mouse.move(frameBox.x + frameBox.width / 2, frameBox.y + frameBox.height - 60);
+    await page.mouse.wheel(0, -clearTop);
+    await page.waitForTimeout(400);
+  }
   // A person's mouse always hovers before it presses: the layer resolves what is under the pointer on the move, and
   // a press with no move before it (Playwright's mouse.click/dblclick jump straight to down) picks nothing. Every
   // scenario clicks through page.mouse, so give them the hover a real pointer has.

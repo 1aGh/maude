@@ -98,7 +98,7 @@ let c;
 
 before(async () => {
   server = await startServer(makeProject({ board: BOARD }));
-  c = await openCanvas(server);
+  c = await openCanvas(server, { clearTop: 120 }); // room for a top section's bar under the Preview bar
 });
 after(async () => {
   await c?.close();
@@ -170,7 +170,7 @@ describe('T3 — Fold', () => {
   test('hides the members from the drawing, keeps them in the file, and Unfold brings them back', async () => {
     const chip = c.frame.locator('.dc-annot-scene [data-id="sec"] [data-section-chip]').first();
     await chip.click();
-    await byTestId('annot-ctx-fold').dispatchEvent('click'); // its bar sits under the shell's preview bar here
+    await byTestId('annot-ctx-fold').click();
     await waitForBoard(server.root, (m) => m.get('sec')?.folded === true);
     assert.equal(await el('in1').count(), 0, 'not drawn');
     assert.ok(disk().get('in1'), 'still in the file');
@@ -179,7 +179,7 @@ describe('T3 — Fold', () => {
       /2 stickies/
     );
     await chip.click();
-    await byTestId('annot-ctx-fold').dispatchEvent('click'); // its bar sits under the shell's preview bar here
+    await byTestId('annot-ctx-fold').click();
     await waitForBoard(server.root, (m) => !m.get('sec')?.folded);
     assert.equal(await el('in1').count(), 1, 'drawn again');
   });
