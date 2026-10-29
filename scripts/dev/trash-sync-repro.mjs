@@ -316,9 +316,22 @@ await until(
   () => read(join(firstTo.root, '.design', 'ui', 'welcome.tsx')) !== null,
   180_000
 );
-console.log(
-  `[rig] ${firstBy.name}’s first canvas reached ${firstTo.name} in ${((Date.now() - firstAt) / 1000).toFixed(1)}s`
-);
+const firstReachedS = Number(((Date.now() - firstAt) / 1000).toFixed(1));
+console.log(`[rig] ${firstBy.name}’s first canvas reached ${firstTo.name} in ${firstReachedS}s`);
+/** What `--scenario first` asserts: it IS the boot above, so its verdict is read from the boot. */
+const firstVerdict = () => {
+  // the arrival must be the empty copy's hub poll (p8-fix-c2 #1), not a process restart or a seed
+  const viaPoll = /first canvas arrived from the hub/.test(firstTo.log());
+  const bootedEmpty = [alice, bob].every((p) => /0 syncable canvases/.test(p.log()));
+  return {
+    ok: viaPoll && bootedEmpty,
+    firstBy: firstBy.name,
+    firstTo: firstTo.name,
+    reachedInS: firstReachedS,
+    viaPoll,
+    bootedEmpty,
+  };
+};
 const peers = { alice, bob };
 const disk = (p, rel) => read(join(p.root, '.design', rel));
 const syncStatus = async (p) => (await p.call('GET', '/_sync-status')).body;
@@ -505,7 +518,7 @@ try {
     // a run that cannot reach its next step is a FAIL of that run, not the end of the series (each run
     // works on its own fresh canvas) — so the rate is honest
     const r = await (SCENARIO === 'first'
-      ? Promise.resolve({ ok: true, firstBy: firstBy.name, firstTo: firstTo.name })
+      ? Promise.resolve(firstVerdict())
       : SCENARIO === 'race'
         ? raceRun(n)
         : restoreRun(n)
@@ -514,8 +527,20 @@ try {
       error: String(e?.message ?? e),
     }));
     if (r.ok) pass++;
+    else if (argv.includes('--dump') || SCENARIO === 'restore') {
+      // the sync lines of both studios, so a failed run says why without --keep + a shell on the box
+      const pick = (log) =>
+        log
+          .split('\n')
+          .filter((l) => /\[(sync|projection)|refus|blocked|conflict|held/i.test(l))
+          .slice(-40)
+          .join('\n');
+      console.log(
+        `--- bob (sync lines) ---\n${pick(bob.log())}\n--- alice (sync lines) ---\n${pick(alice.log())}`
+      );
+    }
     console.log(
-      `[${SCENARIO} ${n}/${RUNS}] ${r.ok ? 'PASS' : 'FAIL'} ${((Date.now() - t0) / 1000).toFixed(1)}s ${JSON.stringify(r)}`
+      `[${SCENARIO} ${n}/${RUNS}] ${r.ok ? 'PASS' : 'FAIL'} ${SCENARIO === 'first' ? `${firstReachedS}s (the boot)` : `${((Date.now() - t0) / 1000).toFixed(1)}s`} ${JSON.stringify(r)}`
     );
   }
 } catch (e) {
