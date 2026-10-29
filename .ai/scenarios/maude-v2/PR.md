@@ -214,6 +214,7 @@ the reason. `node scripts/v2-ledger.mjs pr-soak` writes this list, and `check` f
 Rows closed as `not-a-state` (the board draws a state the product never reaches) stay in the ledger with their note.
 
 <!-- v2-ledger:soak:start -->
+- [ ] `V2-8.12` — Owner-triggered after the merge, outside this run: Michal cuts 2.0.0-rc.1 through the prerelease channel (scripts/bump-version.sh 2.0.0-rc.1; npm next, prerelease GitHub release, fleet untouched), soaks it, and promotes to 2.0.0 as a separate release.
 - [ ] `02/ob-sig-draw` — The signature draw motion itself is not asserted anywhere. The same ai-states test that drives ob-first-draw checks the order paper → picture → words and one undo, but not the motion itself. The rc soak watches a first AI draw on a fresh canvas and checks the motion reads as the board draws it.
 - [ ] `02/ob-invite-landed` — Landing on the comment from an invite needs the managed copy to open through a cloud cell, which no local rig stands up. invite-landing.e2e.ts covers the dead-invite and signed-out states and the landing toast is unit-pinned (p8-g1a-invite-landing-toast.test.ts). The rc soak opens a real invite to a comment through the cloud.
 - [ ] `03/ai-needs-away` — The OS notification banner and the real Dock tile are not driven. ai-quit.e2e.ts "1 · ai-needs-away" asserts the "?" in the background tab and the Dock badge NUMBER through the e2e_dock_badge hook (3/3), and the in-app half is in ai-states; the banner macOS draws and the Dock tile on a real desktop are checked on the rc soak.

@@ -1,0 +1,18 @@
+{
+  "gate": "V2-8.16",
+  "pass": true,
+  "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
+  "reportHashes": {
+    ".ai/plans/notes/v2-evidence/V2-8.16-ai-parity.md": "64cab38feb81bec24406c06978950b233d7f38c28826e9acde4b0f502e35ef87",
+    ".ai/plans/notes/v2-evidence/V2-8.16-eval/VERDICT.md": "25133277e12164baefc57105fd18d4817d8e6f9cccc2f5aa5f3b8c243d2c14d5",
+    ".ai/plans/notes/v2-evidence/V2-8.16-journeys/2026-10-29-freeze/VERDICT.md": "144b141e412d4aaa9024c73cf61a8c99a99b3a826332626fb7e5f6173b118b0c"
+  },
+  "head": "5acbe9e86a28f32778f4350a333d6c0f65bc7a08",
+  "ts": "2026-10-29T14:24:39.808Z",
+  "reports": [
+    ".ai/plans/notes/v2-evidence/V2-8.16-ai-parity.md",
+    ".ai/plans/notes/v2-evidence/V2-8.16-eval/VERDICT.md",
+    ".ai/plans/notes/v2-evidence/V2-8.16-journeys/2026-10-29-freeze/VERDICT.md"
+  ],
+  "note": "coverage 509/509; 30-task eval 24/30 pass^3, no product-caused FAIL; live journeys S1–S11 x2 lanes at the freeze 19/22, every journey green in >=1 lane, the 3 fails agent-caused"
+}

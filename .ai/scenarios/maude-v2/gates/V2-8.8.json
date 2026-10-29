@@ -3,12 +3,12 @@
   "pass": true,
   "qualityHash": "ca053cd5bbc8fa64231dfde679d7b0108280b8f384c154322c75c50c872e7071",
   "reportHashes": {
-    ".ai/plans/notes/v2-evidence/V2-8.8-perf.md": "eee34620511d659eb16c1f6cfadfcdfc4cc23dd0e466c22e934da6495f041c17"
+    ".ai/plans/notes/v2-evidence/V2-8.8-perf.md": "e452b057ba3920ba5b7acf1d75f75891a3e0f9fd95cd6507bf2c02c53a1e2fe9"
   },
-  "head": "2740ab2d81072e3d48fa5f1a76b43633d7f6c6f5",
-  "ts": "2026-10-28T09:44:41.591Z",
+  "head": "5acbe9e86a28f32778f4350a333d6c0f65bc7a08",
+  "ts": "2026-10-29T14:24:39.649Z",
   "reports": [
     ".ai/plans/notes/v2-evidence/V2-8.8-perf.md"
   ],
-  "note": "Chromium + WebKit A/B pass both orders (measured 85db1ff86); render path unchanged since (docs, e2e, stats only)"
+  "note": "Chromium re-measured at the freeze (studio + bare PASS, p8-perf/tip); WebKit carried from 85db1ff86 (both orders PASS) — per-frame render path unchanged since but one closest() per pointerdown"
 }
