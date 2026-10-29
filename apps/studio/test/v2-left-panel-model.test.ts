@@ -248,6 +248,12 @@ describe('the pinned system rows (S10.13)', () => {
     });
   });
 
+  test('P8: the default row’s tooltip spells "Default" out — the same words the Preview in … menu uses', () => {
+    const rows = rowsOf();
+    expect(rows[0].tip).toBe('Default for new canvases · 87 canvases');
+    expect(rows[1].tip).toBe(rows[1].sub);
+  });
+
   test('the default moves with the config; an unknown default falls back to the first system', () => {
     expect(rowsOf({ defaultDs: 'combine-2026' }).map((r) => r.isDefault)).toEqual([
       false,

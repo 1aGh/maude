@@ -34151,7 +34151,7 @@
     "hook": "ds-preview-menu",
     "kind": "testid",
     "pattern": false,
-    "meaning": "S10.14: The systems menu (`role=listbox`): ↑↓ step, ↵ opens the switch review, esc stops.",
+    "meaning": "S10.14: The systems menu (`role=listbox`): ↑↓ step, ↵ opens the switch review, esc stops. A click elsewhere in the shell, or into the canvas, closes just the menu (the banner stays); P8: gone while `menuOpen` is false.",
     "producer": {
       "file": "apps/studio/client/v2/ds/preview-bar.jsx",
       "symbol": "DsPreviewBar"

@@ -6,6 +6,10 @@
 //                    Alligators brand system   Default · 87 canvases
 //                    Combine 2026              6 canvases · 2026/combine
 //                    Alligators 2023           Draft · no canvas uses it
+//   the two words, everywhere (the panel and the Preview in … menu say them alike):
+//     "in use"    a system that at least one canvas uses — the header counts them
+//     "Default"   the system NEW canvases start in (the tooltip and the menu spell it out: "default for new canvases");
+//                 the menu's "used by this canvas" is a different thing — the open canvas's own system
 //   amber dot      a system made before the schema (level 11), or one missing more than the functional roles
 //   no system      "Make a design system" (while the person can edit)
 
@@ -110,6 +114,8 @@ export function decorateRows(rows, groups, info) {
       ...(total > 1 ? { label: name } : {}),
       systemLabel: name,
       sub,
+      // the tooltip says what "Default" means (the Preview in … menu says the same: "default for new canvases")
+      tip: isDefault && sub ? sub.replace(/^Default/, 'Default for new canvases') : sub,
       ...(subLines ? { subLines } : {}),
       count: files.length,
       isDefault,
