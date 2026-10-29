@@ -186,9 +186,16 @@ describe('shell-strip (11 pn-tab-a, pn-tab-menu, pn-windows, pn-tab-a20)', () =>
     const d = await browser.waitUntil(
       async () => {
         const x = await drawn();
-        return x.more.hidden ? false : x;
+        // the row's selection follows the focus a frame later: wait for both, so a snapshot taken between the two
+        // draws never reads as "the active tab left the row" (V2-8.3 run 2, 2026-10-29)
+        return x.more.hidden || !x.tabs.some((t) => t.label === last && t.selected) ? false : x;
       },
-      { timeout: 15_000, interval: 250, timeoutMsg: '"N more" never showed at twenty tabs' }
+      {
+        timeout: 15_000,
+        interval: 250,
+        timeoutMsg:
+          '"N more" never showed at twenty tabs, or the active tab never stayed in the row',
+      }
     );
     const row = (d as Awaited<ReturnType<typeof drawn>>).tabs;
     const hidden = Number(
@@ -214,8 +221,19 @@ describe('shell-strip (11 pn-tab-a, pn-tab-menu, pn-windows, pn-tab-a20)', () =>
       }
     );
     await capture('pn-tab-a20 more list');
-    const pick = await $$('[data-testid^="tab-overview-row-"]')[0];
-    const pickLabel = (await pick.getAttribute('data-testid')).replace('tab-overview-row-', '');
+    // read the first row's label in one script: the strip redraws the list on every update Rust sends, so a held
+    // element handle can go stale between finding it and reading it (the vendored driver reports that as an opaque
+    // "JavaScript exception", V2-8.3 2026-10-29)
+    const pickLabel = String(
+      await browser.execute(
+        () =>
+          document
+            .querySelector('[data-testid^="tab-overview-row-"]')
+            ?.getAttribute('data-testid')
+            ?.replace('tab-overview-row-', '') ?? ''
+      )
+    );
+    expect(pickLabel).not.toBe('');
     // a row takes the person on mousedown (strip.js `rowEl`); the driver's click is a bare `click`, so send the press
     await browser.execute((label: string) => {
       document
