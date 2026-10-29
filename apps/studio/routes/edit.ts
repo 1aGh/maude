@@ -257,6 +257,9 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
       landed = !(await hold.put(abs(rel), after, announce ? { onLanded: announce } : {})).held;
     } catch (e) {
       deps.emit('activity:unsuppress', rel);
+      // F5: the bytes never landed — take the early note back, or a later outside write of the
+      // same bytes within WRITE_NOTE_MS would be recorded as the person's edit
+      if (announce) deps.emit('source-write-failed', { rel, content: after });
       throw e;
     }
     try {
@@ -395,9 +398,12 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
     const prev = chains.get(key) ?? Promise.resolve();
     const next = prev.catch(() => {}).then(run);
     chains.set(key, next);
-    void next.finally(() => {
-      if (chains.get(key) === next) chains.delete(key);
-    });
+    // the caller gets the write's error; this bookkeeping branch must not leave it unhandled (F5)
+    next
+      .finally(() => {
+        if (chains.get(key) === next) chains.delete(key);
+      })
+      .catch(() => {});
     return next;
   };
 

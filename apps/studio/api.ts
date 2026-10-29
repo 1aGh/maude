@@ -118,6 +118,7 @@ import {
   retimeSequence,
   retimeSequenceByClip,
   editText as runEditText,
+  sayingCanvasWrites,
   setArtboardGuides,
   setArtboardHug,
   setArtboardKind,
@@ -1466,6 +1467,39 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
    */
   function noteSourceWritten(rel: string, after: string, label: string): void {
     ctx.bus.emit('source-written', { rel, content: after, label });
+  }
+
+  /**
+   * F4 — `fn`'s canvas writes said BEFORE their bytes land (`source-writing`, the local home's early note),
+   * like routes/edit.ts: the watcher, or a ⌘Z's undo-stack read, arriving between the bytes and
+   * `source-written` (one file read later) then finds the person's edit, never an `outside` change. A
+   * write that throws takes its note back (`source-write-failed`, F5).
+   */
+  function sayingWrites<T>(
+    base: string,
+    label: string | undefined,
+    fn: () => Promise<T>
+  ): Promise<T> {
+    let replaced = base;
+    return sayingCanvasWrites(
+      {
+        writing: (abs, content) => {
+          ctx.bus.emit('source-writing', {
+            rel: path.relative(paths.designRoot, abs),
+            content,
+            base: replaced,
+            ...(label ? { label } : {}),
+          });
+          replaced = content;
+        },
+        failed: (abs, content) =>
+          ctx.bus.emit('source-write-failed', {
+            rel: path.relative(paths.designRoot, abs),
+            content,
+          }),
+      },
+      fn
+    );
   }
 
   // ── Structural-write throttle + source-size ceiling (G3 security, DDR-152) ──
@@ -5612,7 +5646,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         const op = describeSourceOp(abs, before, describe);
         if (op) ctx.bus.emit('source-op', { rel, op });
       }
-      const res = await run();
+      const res = await sayingWrites(before, label, run);
       const previous =
         res.previous?.kind === 'absent'
           ? { previous: null }
@@ -6201,7 +6235,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         id,
         ...(idIndex !== undefined ? { occurrence: idIndex } : {}),
       });
-      const res = await deleteElement(r.abs, id, idIndex);
+      const res = await sayingWrites(before, 'Deleted an object', () =>
+        deleteElement(r.abs, id, idIndex)
+      );
       const after = await Bun.file(r.abs).text();
       if (after === before) {
         ctx.bus.emit('activity:unsuppress', rel);
@@ -6279,18 +6315,23 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         ctx.bus.emit('activity:unsuppress', rel);
         return { ok: false, status: 413, error: 'canvas source too large to grow' };
       }
-      const res = hasArtboardId
-        ? await insertElementIntoArtboard(
-            r.abs,
-            artboardId,
-            position as 'inside-start' | 'inside-end',
-            kind as InsertKind,
-            { src }
-          )
-        : await insertElement(r.abs, refId, position as MovePosition, kind as InsertKind, {
-            src,
-            occurrence: refIndex,
-          });
+      const res = await sayingWrites(
+        before,
+        kind === 'text' ? 'Added text' : kind === 'image' ? 'Added a picture' : 'Added a box',
+        () =>
+          hasArtboardId
+            ? insertElementIntoArtboard(
+                r.abs,
+                artboardId,
+                position as 'inside-start' | 'inside-end',
+                kind as InsertKind,
+                { src }
+              )
+            : insertElement(r.abs, refId, position as MovePosition, kind as InsertKind, {
+                src,
+                occurrence: refIndex,
+              })
+      );
       const after = await Bun.file(r.abs).text();
       if (after === before) {
         ctx.bus.emit('activity:unsuppress', rel);
@@ -7114,7 +7155,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         id,
         ...(idIndex !== undefined ? { occurrence: idIndex } : {}),
       });
-      const res = await duplicateElement(r.abs, id, idIndex);
+      const res = await sayingWrites(before, 'Duplicated an object', () =>
+        duplicateElement(r.abs, id, idIndex)
+      );
       const after = await Bun.file(r.abs).text();
       if (after === before) {
         ctx.bus.emit('activity:unsuppress', rel);

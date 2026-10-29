@@ -27,6 +27,7 @@
 // (matches the locator.ts pattern). Two parallel edits against different
 // canvases run in parallel.
 
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { existsSync, realpathSync } from 'node:fs';
 import { mkdir, open, stat, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -325,7 +326,29 @@ async function readCanvasSource(file: { text(): Promise<string> }, abs: string):
  * disk the bytes wait in the studio's hold and land once there is room (S11.17).
  */
 async function writeCanvasSource(abs: string, source: string): Promise<void> {
-  await sourceHold().put(abs, source);
+  const say = writeSaying.getStore();
+  say?.writing(abs, source);
+  try {
+    await sourceHold().put(abs, source);
+  } catch (e) {
+    say?.failed(abs, source);
+    throw e;
+  }
+}
+
+/** F4 — what a caller is told about each canvas write it makes: before the bytes land, and if they never do. */
+export interface CanvasWriteSaying {
+  writing(abs: string, source: string): void;
+  failed(abs: string, source: string): void;
+}
+const writeSaying = new AsyncLocalStorage<CanvasWriteSaying>();
+
+/**
+ * F4 — run `fn` with every canvas write it makes said to `say` BEFORE the bytes land (api.ts's legacy
+ * write path says `source-writing` this way, like routes/edit.ts), and taken back when the write throws.
+ */
+export function sayingCanvasWrites<T>(say: CanvasWriteSaying, fn: () => Promise<T>): Promise<T> {
+  return writeSaying.run(say, fn);
 }
 
 /**
