@@ -16,6 +16,7 @@
 // Call site: `migrateAtBoot()` before the first read of a v2 home. app.jsx is the lead's — patch request.
 
 import { KEY_CLASS, LEGACY_VERSION_KEY } from '../../../ui-prefs-migrate.ts';
+import { shellModeHint } from '../../home/shell-mode.js';
 import { migrateLocalPrefs } from '../../prefs-migrate.js';
 
 /** The 1.x "seen" flags and the v2 `seen` id each one is re-keyed to. */
@@ -79,6 +80,9 @@ export function legacyHomes() {
  * with the marker in place returns `already` without a single request.
  */
 export function migrateAtBoot(opts = {}) {
+  // The Home window has no project preferences (its server serves no /_api/ui-prefs): it runs before
+  // the shell mode is known, so the window label decides (P8 sweep — every Home boot logged a 404).
+  if (shellModeHint(opts.win) === 'home') return Promise.resolve({ status: 'skipped' });
   return migrateLocalPrefs(opts);
 }
 

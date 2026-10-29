@@ -148,7 +148,10 @@ export const managedProjectOpen = (p) =>
     canvasGroups: p.canvasGroups || [],
   });
 /** The team projects this computer keeps a copy of, most recent first. */
-export const managedProjectsList = () => invoke('managed_projects_list');
+// Outside the app there are no managed copies — and invoke() throws synchronously there, which a
+// caller's `.catch()` never sees (the P8 sweep: Settings › Add a team server… crashed the browser shell).
+export const managedProjectsList = () =>
+  isNativeApp() ? invoke('managed_projects_list') : Promise.resolve([]);
 
 /**
  * Prepare, then open. Resolves `{ ok: true, path }` once the switch has started
