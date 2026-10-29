@@ -154,3 +154,58 @@ export function standaloneHelperNpmDeps(binDir) {
   }
   return [...deps].sort();
 }
+
+const SHIM_RE = /exportShimPath\(\s*['"]([^'"\s]+)['"]\s*\)/g;
+const SKIP_DIRS = new Set(['node_modules', 'test', 'dist', 'client', '.git']);
+
+/**
+ * Every render shim the SERVER spawns itself — `exportShimPath('<basename>')` in
+ * `apps/studio/**.ts` (the exporters, the thumbnail renderer `_thumbs-playwright.mjs`).
+ * They are not `maude design` helpers, so `classifyHelpers` never sees them; a shim
+ * that is not staged in `<studio>/bin` (or lacks its npm closure) fails only in the
+ * packaged app — exports error, Home covers stay grey. `studioDir` = `<studio>`.
+ */
+export function serverRenderShims(studioDir) {
+  const found = new Set();
+  const walk = (dir) => {
+    let names = [];
+    try {
+      names = readdirSync(dir);
+    } catch {
+      return;
+    }
+    for (const n of names) {
+      if (SKIP_DIRS.has(n)) continue;
+      const abs = join(dir, n);
+      let st;
+      try {
+        st = statSync(abs);
+      } catch {
+        continue;
+      }
+      if (st.isDirectory()) walk(abs);
+      else if (/\.tsx?$/.test(n) && !/\.test\.tsx?$/.test(n))
+        for (const m of stripComments(readFileSync(abs, 'utf8')).matchAll(SHIM_RE)) found.add(m[1]);
+    }
+  };
+  walk(studioDir);
+  return [...found].sort();
+}
+
+/** The server's render shims that are not staged (`missing: ['file']`) or whose npm
+ *  closure is not under `<studio>/node_modules` (`missing: [<pkg>…]`). Empty = complete. */
+export function renderShimGaps(studioDir) {
+  const gaps = [];
+  for (const shim of serverRenderShims(studioDir)) {
+    const entry = join(studioDir, 'bin', shim);
+    if (!existsSync(entry)) {
+      gaps.push({ shim, missing: ['file'] });
+      continue;
+    }
+    const missing = collectImports(entry).filter(
+      (d) => !existsSync(join(studioDir, 'node_modules', d))
+    );
+    if (missing.length) gaps.push({ shim, missing });
+  }
+  return gaps;
+}

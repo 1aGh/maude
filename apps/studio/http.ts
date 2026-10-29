@@ -290,7 +290,7 @@ import { isFirstAnchorMode, readSyncSettings, writeSyncSettings } from './sync/s
 import { listTrash, pruneTrash, restoreFromTrash } from './sync/trash.ts';
 import { signInToWorkspace, workspaceDisclosure } from './sync/workspace-signin.ts';
 import { thumbNotFound, thumbResponse, wantResponse } from './thumbs/routes.ts';
-import { createThumbService } from './thumbs/service.ts';
+import { BOOT_COVERS_DELAY_MS, createThumbService } from './thumbs/service.ts';
 import { normalizeTreeState } from './tree-state.ts';
 import { readUiPrefs, validateUiPrefsPatch, writeUiPrefs } from './ui-prefs.ts';
 import { loadWhatsNew, resolveMaudeVersion } from './whats-new.ts';
@@ -2579,7 +2579,7 @@ export function createHttp(
   });
   // V2-2.17 — the thumbnail service (contract V2-1.17 §5.8): renders only on the read-only capture
   // origin (R1), pictures in the machine cache next to the index, served below on the main origin
-  // only (R4). Cells render nothing (R7). Nothing renders until a consumer asks (Home / ⌘K).
+  // only (R4). Cells render nothing (R7). At boot only the missing/stale covers render (below).
   const thumbs = createThumbService({
     pid: pidOf(ctx.paths.repoRoot),
     designRoot: ctx.paths.designRoot,
@@ -2637,6 +2637,12 @@ export function createHttp(
     },
     onReady: (key) => ctx.bus.emit('thumb-ready', { key }),
   });
+  // P8 — the index is built: queue background covers for the canvases whose cover is missing or
+  // stale (Home has no renderer, so a project opened before v2 kept grey covers). Nothing to do =
+  // no renderer started. After the first paint has settled; the bun test preload opts out
+  // (MAUDE_NO_BOOT_COVERS=1) so a test server does not start a Chromium of its own.
+  if (process.env.MAUDE_NO_BOOT_COVERS !== '1')
+    void thumbs.bootCovers({ delayMs: BOOT_COVERS_DELAY_MS }).catch(() => {});
   // S8.20 — search in pictures (describe/, contract V2-1.17 §5.9): opt-in per person on this Mac, never in a cell (A5).
   // The picture that goes is the Assets tile the renderer made; the describer is S12.13's asset-describer agent (describe/claude.ts via envDescriber; the stub under MAUDE_DESCRIBE_STUB=1).
   describeSvc = isWorkspaceMode()

@@ -21,6 +21,10 @@ process.env.MAUDE_CLOUD_CONFIG ??= join(root, 'config', 'maude', 'cloud.json');
 // S5.1b — the local kernel's machine stamp (~/.config/maude/machine.json), written on any unlinked
 // project's boot. XDG covers it too; pinned in case a test clears XDG for one server.
 process.env.MAUDE_MACHINE_FILE ??= join(root, 'config', 'maude', 'machine.json');
+// P8 — a booted studio queues its missing covers 10 s after boot (http.ts `bootCovers`): a test
+// server must not start a Chromium of its own next to the test's. test/p8-thumbs-boot-covers.test.ts
+// pins the pass itself; a test that wants it from a real server sets MAUDE_NO_BOOT_COVERS=0.
+process.env.MAUDE_NO_BOOT_COVERS ??= '1';
 
 // Never the person's real `claude`, and through it the real keychain. A studio boots an ACP
 // readiness probe (`claude auth status`); under a test's throwaway HOME the real CLI finds no
