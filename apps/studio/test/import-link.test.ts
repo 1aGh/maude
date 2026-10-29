@@ -259,6 +259,7 @@ describe('redirects and DNS rebinding', () => {
     expect(r.ok).toBe(true);
     expect(one.hops).toEqual([{ host: 'rebind.example', ip: PUBLIC, path: '/a.png' }]);
     // a redirect back to the same name re-resolves — and now it is private: refused, not fetched
+    n = 0;
     const two = wire((hop) =>
       hop.url.pathname === '/start'
         ? { status: 307, location: '/a.png', contentLength: null, body: null }

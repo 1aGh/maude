@@ -132,13 +132,22 @@ describe('the Assets tab', () => {
     await act(async () => button.click());
     const input = host.querySelector('[data-testid="assets-link-input"]') as HTMLInputElement;
     expect(input).not.toBeNull();
+    // React's own handlers (happy-dom does not drive React's input tracking from a synthetic event)
+    const props = (el: HTMLElement) =>
+      (el as unknown as Record<string, Record<string, (e: unknown) => void>>)[
+        Object.getOwnPropertyNames(el).find((k) => k.startsWith('__reactProps')) as string
+      ] as Record<string, (e: unknown) => void>;
     await act(async () => {
       const set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
       set?.call(input, 'https://alligators.cz/foto/combine-2025-12.jpg');
-      input.dispatchEvent(new window.Event('input', { bubbles: true }));
+      props(input).onChange?.({ target: input, currentTarget: input });
     });
     await act(async () => {
-      input.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      props(host.querySelector('[data-testid="assets-link-input"]') as HTMLElement).onKeyDown?.({
+        key: 'Enter',
+        preventDefault() {},
+        stopPropagation() {},
+      });
     });
     await tick();
     expect(posted).toEqual([{ url: 'https://alligators.cz/foto/combine-2025-12.jpg' }]);

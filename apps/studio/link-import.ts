@@ -348,7 +348,16 @@ export async function importFromLink(
         await res.body.cancel().catch(() => undefined);
         throw new LinkRefusal('too-large', 'past the size cap');
       }
-      return await land(res.body, res.contentLength, asked, limits, deps, () => timedOut, expire);
+      return await land(
+        res.body,
+        res.contentLength,
+        asked,
+        limits,
+        deps,
+        () => timedOut,
+        expire,
+        whole.signal
+      );
     }
   } catch (e) {
     if (e instanceof LinkRefusal)
@@ -371,10 +380,14 @@ export async function importFromLink(
 async function readIdle(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   idleMs: number,
-  onIdle: () => void
+  onIdle: () => void,
+  deadline: AbortSignal
 ): Promise<Awaited<ReturnType<ReadableStreamDefaultReader<Uint8Array>['read']>>> {
   let t: ReturnType<typeof setTimeout> | undefined;
+  let onAbort: (() => void) | undefined;
   try {
+    // a slow drip under the idle timeout still ends at the whole-import deadline
+    if (deadline.aborted) throw new LinkRefusal('timeout', 'took too long');
     return await Promise.race([
       reader.read(),
       new Promise<never>((_, reject) => {
@@ -382,10 +395,13 @@ async function readIdle(
           onIdle();
           reject(new LinkRefusal('timeout', 'the site stopped sending'));
         }, idleMs);
+        onAbort = () => reject(new LinkRefusal('timeout', 'took too long'));
+        deadline.addEventListener('abort', onAbort, { once: true });
       }),
     ]);
   } finally {
     clearTimeout(t);
+    if (onAbort) deadline.removeEventListener('abort', onAbort);
   }
 }
 
@@ -396,7 +412,8 @@ async function land(
   limits: LinkLimits,
   deps: LinkImportDeps,
   isTimedOut: () => boolean,
-  expire: () => void
+  expire: () => void,
+  deadline: AbortSignal
 ): Promise<LinkImportResult> {
   const reader = body.getReader();
   const cancel = () => reader.cancel().catch(() => undefined);
@@ -405,7 +422,7 @@ async function land(
   let headLen = 0;
   let ended = false;
   while (headLen < SNIFF_BYTES) {
-    const { done, value } = await readIdle(reader, limits.idleMs, expire);
+    const { done, value } = await readIdle(reader, limits.idleMs, expire, deadline);
     if (done) {
       ended = true;
       break;
@@ -444,7 +461,7 @@ async function land(
     },
     async pull(c) {
       try {
-        const { done, value } = await readIdle(reader, limits.idleMs, expire);
+        const { done, value } = await readIdle(reader, limits.idleMs, expire, deadline);
         if (done) return c.close();
         if (!value?.length) return;
         total += value.length;

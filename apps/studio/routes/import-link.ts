@@ -85,7 +85,7 @@ export function createImportLinkRoutes(deps: ImportLinkRouteDeps): RouteSpec[] {
   return [
     {
       method: 'POST',
-      path: IMPORT_LINK_PATH,
+      path: '/_api/import-link',
       origin: 'main',
       readOnly: 'refused',
       handle: async (req) => {
