@@ -16,7 +16,7 @@ import * as Y from 'yjs';
 
 import type { AccessClaim } from '../access/scope.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
-import { encodeSyncUpdate, MESSAGE_SYNC } from '../collab/protocol.ts';
+import { encodeEpochClaim, encodeSyncUpdate, MESSAGE_SYNC } from '../collab/protocol.ts';
 import {
   A_REL,
   type AclCell,
@@ -74,6 +74,8 @@ async function openSocket(url: string, headers: Record<string, string>): Promise
     ws.addEventListener('error', done(false));
     ws.addEventListener('close', done(false));
   });
+  // p8-collab-epoch — a current client claims first ('' = a doc that never synced).
+  if (ok && url.includes('/_ws/collab/')) ws.send(encodeEpochClaim(''));
   return ok ? { ws, frames, texts } : null;
 }
 
