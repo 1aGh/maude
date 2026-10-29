@@ -179,3 +179,17 @@ Not built, either because no CONTRACT line names them or because the weekly budg
 - **E2E coverage.** The end-to-end run covered a project already at format 2 that still saved the old way, on a
   loopback hub. The format-1 + legacy order is unit-tested only. The browser click-through was not driven.
 
+
+## From p8-app-port-range (merged b4c5bf13c)
+- A project server keeps its port across a crash respawn by walking the 46399 ladder again. The port is not
+  stored, so a project that rests and then wakes, or comes back after a relaunch, can land on another port. Its
+  per-port localStorage then starts empty. `ProjectEntry.port` (`app_state.rs:69`) exists but nothing sets it.
+  Storing the bound port there and passing `--port` on wake and relaunch would keep it. Michal to decide.
+
+## From the V2-8.9 final delta pair (2026-10-29), not fixed before the freeze
+- **F3 / D3: AI attribution goes by time, not by what the call names.** S7 opens a claim-only window for every Bash
+  call that may write, so a person's outside save during a long `pnpm test` folds into the AI run and its Undo.
+  This is the round B A1 class, now wider. The fix is to bind files by a pre/post hash diff, or by the paths the
+  command names.
+- **D7: every Update dry run asks the hub's save-mode preview**, which imports every document. Cache it per epoch,
+  or skip it unless the call applies the update or comes from the same origin.
