@@ -39,6 +39,7 @@ import {
 } from '../history/restore-artboard-action.ts';
 import { type ObjectKey, parseObjectKey, restoreObject } from '../history/restore-object.ts';
 import { formatTime } from '../history/titles.ts';
+import { displayNameOf } from '../history/trash.ts';
 import {
   collectNames,
   type GitEntry,
@@ -166,6 +167,10 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
   const designRel = deps.designRel.replace(/^\/+|\/+$/g, '');
   const repoRelOf = (canvas: string) => (designRel ? `${designRel}/${canvas}` : canvas);
   const clock = deps.now ?? Date.now;
+  // p8-fix-d F20 — a person's name for a row: the studio's lookup, else what the actor id says
+  // (an e-mail's words, as the Trash names people — history/trash.ts), never an e-mail itself.
+  const actorName =
+    deps.actorName ?? ((actor: string): string | undefined => displayNameOf(actor) ?? undefined);
 
   /**
    * The canvas a request names, judged for `cap`. A canvas-only session is refused a canvas it
@@ -267,7 +272,7 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
     if (!rt) return undefined;
     const [row, names] = await Promise.all([
       rowAt(rt, t.repoRel, rev).catch(() => null),
-      collectNames(rt, t.repoRel, t.canvas, deps.actorName).catch(() => []),
+      collectNames(rt, t.repoRel, t.canvas, actorName).catch(() => []),
     ]);
     const named = names.find((n) => n.rev === rev)?.name;
     if (named) return `Restored “${named}”`;
@@ -446,6 +451,11 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
             })
             .filter((r) => r.canvases.length > 0);
         }
+        // p8-fix-d F20 — the person by name, as Version history names them (additive: `actor` stays).
+        history = history.map((r) => {
+          const name = r.mine ? undefined : actorName(r.actor);
+          return name ? { ...r, actorName: name } : r;
+        });
         // S5.15 (U22) — whether "Undo this chat" can run here (an old team server cannot).
         const chatUndo = chatUndoState(rt as never);
         return json(200, { ok: true, history, ...(chatUndo ? { chatUndo } : {}) });
@@ -534,7 +544,7 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
           filter,
           scope,
           cache: deps.cache?.() ?? null,
-          actorName: deps.actorName,
+          actorName: actorName,
           ...(deps.gitHistory
             ? {
                 gitHistory: (n: number) =>
@@ -623,7 +633,7 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
           canvas: t.canvas,
           key,
           cache: deps.cache?.() ?? null,
-          actorName: deps.actorName,
+          actorName: actorName,
         });
         if (!r.ok) return json(r.reason === 'not-found' ? 404 : 200, r);
         return json(200, r);
