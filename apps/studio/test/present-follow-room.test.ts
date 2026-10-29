@@ -20,7 +20,12 @@ import * as syncProtocol from 'y-protocols/sync';
 import * as Y from 'yjs';
 
 import { canvasSlugFromRel } from '../canvas-slug.ts';
-import { encodeSyncUpdate, MESSAGE_AWARENESS, MESSAGE_SYNC } from '../collab/protocol.ts';
+import {
+  encodeEpochClaim,
+  encodeSyncUpdate,
+  MESSAGE_AWARENESS,
+  MESSAGE_SYNC,
+} from '../collab/protocol.ts';
 import { createRoom, type RoomCallbacks, type RoomConn } from '../collab/room.ts';
 import { stripToWatching } from '../present/relay-strip.ts';
 import {
@@ -234,6 +239,8 @@ async function openBin(url: string, headers: Record<string, string>): Promise<Bi
     ws.addEventListener('error', done(false));
     ws.addEventListener('close', done(false));
   });
+  // p8-collab-epoch — a current client claims first ('' = a doc that never synced).
+  if (ok && url.includes('/_ws/collab/')) ws.send(encodeEpochClaim(''));
   return ok ? { ws, frames } : null;
 }
 

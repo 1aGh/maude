@@ -8,10 +8,12 @@ import { layersSlot } from '../v2/inspector/layers-slot.jsx';
 import { notify, notifyCanvasText } from '../../notifications.tsx';
 import { isNativeApp } from '../github.js';
 import {
+  annotationScopeOf,
   noteAnnotationSelection,
   turnIntoComment,
   undoConversion,
 } from '../v2/annotations/annotation-asks.js';
+import { objectHistoryTarget } from '../v2/history/object-history-ask.js';
 import { browseFirstRunHint, layersTreeSig, shellToast } from '../shell/util.js';
 // S7.21 — the toast after the inspector's "Add a width" (08 ak-web-widths) and the video artboard's length
 import { settleDuplicateAtWidth } from '../v2/create/duplicate-done.js';
@@ -589,7 +591,12 @@ export function useCanvasBridge({
           canvas: activePath,
         });
         const sig = layersTreeSig(m.tree);
-        lastLayersTreeRef.current = { tree: m.tree, sig, artboardId: m.artboardId ?? null };
+        lastLayersTreeRef.current = {
+          tree: m.tree,
+          sig,
+          artboardId: m.artboardId ?? null,
+          canvas: activePath,
+        };
         // fresh tree (correct ids) landed — drags OK again
         layersBusyRef.current = false;
         if (layersBusyTimerRef.current) {
@@ -894,7 +901,8 @@ export function useCanvasBridge({
         m.dgn === 'annotation-toast' ||
         m.dgn === 'annotation-selection' ||
         m.dgn === 'annotation-ask-ai' ||
-        m.dgn === 'view-only-gesture'
+        m.dgn === 'view-only-gesture' ||
+        m.dgn === 'object-history'
       ) {
         // S4.12 — the annotation layer asks (annotations/ui/shell-asks.ts). Only the active canvas is heard,
         // and only once the dgn table's parser has cleaned the payload (sec-a M3): a raw `e.data` field
@@ -938,6 +946,18 @@ export function useCanvasBridge({
           // The chat opens; the scope chip that reads `noteAnnotationSelection` is S4.15's.
           if (isNativeApp()) openRightPanel('assistant');
           else notify({ title: 'AI chat is in the Maude desktop app.' });
+        } else if (msg.dgn === 'object-history') {
+          // p8-dead-reasons — the object / sticky menu's "Version history of this object". No path from the frame:
+          // the object must be one this frame showed (its selection, layers tree, annotation selection), then the
+          // registry action `history.object` opens the filtered panel.
+          const s = lastLocalSelectRef.current;
+          const target = objectHistoryTarget(msg, {
+            activePath: file,
+            selection: s ? { file: s.file, sel: s.sel } : null,
+            layers: lastLayersTreeRef.current,
+            annotations: annotationScopeOf(file),
+          });
+          if (target) menuRunner.run('history.object', target);
         } else if (msg.dgn === 'view-only-gesture') {
           // S9.21b — the access host's tip; its words are the shell's (the canvas sent none). Round 7: the
           // pointer's position in the frame, moved by the frame's own corner into the shell's coordinates.

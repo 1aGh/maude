@@ -26,6 +26,7 @@ import {
   guideFacts,
   printExactFacts,
 } from './artboard-print-model.js';
+import { reasonProps } from '../../access/disabled-reason.js';
 
 const H = ({ children, aside }) => (
   <p className="insp-adv-h insp-sub">
@@ -187,6 +188,7 @@ export function PrintLookAndLayout({ el, ctx }) {
           className="btn btn--ghost btn--sm"
           data-testid="insp-pr-layout-convert-btn"
           disabled={ctx?.canEdit === false}
+          {...reasonProps(ctx?.canEdit === false, 'viewer')}
           onClick={() =>
             (ctx?.runAction ?? ((id) => menuRunner.run(id)))('layout.convert-to-absolute')
           }

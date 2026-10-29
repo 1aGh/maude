@@ -14,6 +14,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useLinkDialogFocus } from '../v2/share/link-dialog.js';
+import { reasonProps } from '../v2/access/disabled-reason.js';
 
 /** Line diff by longest common subsequence — bounded, for a canvas source. */
 export function lineDiff(a, b, max = 2000) {
@@ -217,6 +218,7 @@ export default function SourceConflictPanel({ slug, onClose }) {
             type="button"
             className="btn btn--primary"
             disabled={!sides || !!busy}
+            {...reasonProps(!sides && !!error, error)}
             onClick={() => choose('mine')}
             data-testid="source-conflict-keep-mine"
           >
@@ -226,6 +228,7 @@ export default function SourceConflictPanel({ slug, onClose }) {
             type="button"
             className="btn"
             disabled={!sides || !!busy}
+            {...reasonProps(!sides && !!error, error)}
             onClick={() => choose('theirs')}
             data-testid="source-conflict-use-theirs"
           >

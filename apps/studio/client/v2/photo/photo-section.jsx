@@ -443,6 +443,8 @@ export function PhotoSection({
   const light = sliderOf(edit, 'light');
   const colour = sliderOf(edit, 'colour');
   const cut = edit.backgroundRemoved?.maskAsset ? cutOutOn(edit) : null;
+  // the every-use read is in flight until it answers (the scope line above says what it knows so far)
+  const usesLoading = !everyUse;
   const more = everyUse
     ? everyUse.uses.filter((u) => !sameCanvas(u.canvas, canvas, designRel)).length
     : 0;
@@ -580,7 +582,7 @@ export function PhotoSection({
           type="button"
           className="sh-btn ph-wide"
           data-testid="photo-every-use-open"
-          disabled={!everyUse}
+          disabled={usesLoading}
           onClick={() => setSheet(true)}
         >
           {PHOTO_WORDS.everyUse}

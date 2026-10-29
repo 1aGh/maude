@@ -7,6 +7,7 @@
 //   Frame selection ⌥⌘G · Remove frame ⇧⌘G (greyed when it does not apply)
 //   Bring to front ⌘] · Bring forward ] · Send backward [ · Send to back ⌘[
 //   Lock ⇧⌘L (Unlock) · Hide (Show)
+//   Version history of this object (one object)
 //   Advanced ▸  Add comment · Inspect · Select layer ▸ · Insert ▸ · Replace image… · Edit Photo… ·
 //               Convert children to absolute position · Copy CSS · Copy data-cd-id ·
 //               Export selection… · Deselect
@@ -29,6 +30,8 @@ export interface ObjectMenuDeps {
   selectMatching(target: ContextTarget): void;
   /** V2-clipboard-objects — Cut / Copy / Paste on the objects `target` names (absent: no rows). */
   clip?(action: ClipAction, target: ContextTarget): void;
+  /** p8-dead-reasons — "Version history of this object": asks the shell (`dgn:'object-history'`, `history.object`). */
+  history?(target: ContextTarget): void;
 }
 
 /** v1 ids that move into the v2 main list (relabelled); everything else goes under Advanced ▸. */
@@ -180,6 +183,17 @@ export function objectMenuSections(v1: MenuSection[], deps: ObjectMenuDeps): Men
       }),
       row('show', 'Show', 'object.hide', undefined, { hidden: (t) => !state(t).hidden }),
     ],
+    // `history.object` (V2-1.9 §5.9): one object's versions — a read, for every role that sees the canvas
+    deps.history
+      ? [
+          {
+            id: 'history-object',
+            label: 'Version history of this object',
+            hidden: (t: ContextTarget) => deps.elementsFor(t).length !== 1,
+            onSelect: (t: ContextTarget) => deps.history?.(t),
+          },
+        ]
+      : [],
     [
       {
         id: 'advanced',

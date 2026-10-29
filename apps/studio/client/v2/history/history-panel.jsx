@@ -44,6 +44,7 @@ import {
 } from './use-versions.js';
 import { HistoryGlyph } from './view-bar.jsx';
 import { Empty } from '../empty/index.js';
+import { reasonProps } from '../access/disabled-reason.js';
 
 function Picture({ row }) {
   const p = row.picture;
@@ -473,6 +474,7 @@ export function VersionHistoryPanel({
                 className="btn btn--ghost btn--sm"
                 data-testid="vh-name"
                 disabled={!now.nameButton.enabled}
+                {...reasonProps(!now.nameButton.enabled, now.status)}
                 onClick={() => setNaming(true)}
               >
                 {now.nameButton.label}

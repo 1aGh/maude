@@ -45,7 +45,6 @@ import { AdvancedSheets } from '../v2/onboarding/AdvancedSheets.jsx';
 import { CreateLocalSheet } from '../v2/signin/CreateLocalSheet.jsx';
 import { SignInCard, SignInQuiet } from '../v2/signin/SignInCard.jsx';
 import { SignInToast } from '../v2/signin/SignInToast.jsx';
-import { ADVANCED_ROWS } from '../v2/signin/advanced-rows.js';
 import { cardMode, isFirstRun, signedInToast } from '../v2/signin/signin-model.js';
 import { useCloudSignIn } from '../v2/signin/use-signin.js';
 import { useWhatsNewLine } from '../v2/signin/use-whats-new-line.js';
@@ -77,10 +76,10 @@ import {
 } from './home-model.js';
 import { pickStarters } from './home-starters.js';
 import { ProjectsEmpty, SharedWithYou } from './Shelves.jsx';
+import { reasonProps } from '../v2/access/disabled-reason.js';
 
 // ── theme: the Home window follows the Mac's appearance (light is the v2 default) ──────────────
 // S6.9 — every row of the Advanced options flyout now opens its sheet
-const ADVANCED_IDS = ADVANCED_ROWS.map((r) => r.id);
 
 function systemTheme() {
   try {
@@ -911,7 +910,6 @@ export function HomeApp() {
                   onShowCode={signin.showCode}
                   advancedOpen={advancedOpen}
                   onToggleAdvanced={() => setAdvancedOpen((o) => !o)}
-                  advancedAvailable={ADVANCED_IDS}
                   onAdvanced={openSheet}
                 />
               ) : null}
@@ -1389,6 +1387,7 @@ function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenClou
                 data-testid={`home-cloud-open-${r.projectId}`}
                 onClick={() => onOpenCloud(r)}
                 disabled={!canOpen}
+                {...reasonProps(!canOpen, 'homeBrowser')}
                 aria-label={`Open ${r.name}`}
               >
                 Open
@@ -1409,6 +1408,7 @@ function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenClou
                     data-testid={`home-relink-${r.pid}`}
                     onClick={() => onRelink(r.pid)}
                     disabled={!canOpen}
+                    {...reasonProps(!canOpen, 'homeBrowser')}
                   >
                     Find the folder…
                   </button>
@@ -1421,6 +1421,7 @@ function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenClou
                   data-place={r.place}
                   onClick={() => onOpen(r.pid)}
                   disabled={!canOpen}
+                  {...reasonProps(!canOpen, 'homeBrowser')}
                 >
                   <Thumb src={r.cover} className="home-prow-thumb" />
                   <span className="home-prow-t">

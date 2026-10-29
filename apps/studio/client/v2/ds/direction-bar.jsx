@@ -15,6 +15,7 @@ import { registerKind, singleOf } from '../inspector/kinds/index.js';
 import { Quiet } from '../inspector/sections/row.jsx';
 import { mixDirections, useDirection } from './make-write.js';
 import { systemOfCanvas, useDsBoard } from './use-ds-model.js';
+import { reasonProps } from '../access/disabled-reason.js';
 
 export const DIRECTION_WORDS = Object.freeze({
   use: (x) => `Use ${x}`,
@@ -166,6 +167,7 @@ export function DirectionPanel({ id, ds, model, editable = true, onUse, onMix, o
               type="button"
               className="btn btn--primary btn--sm"
               disabled={!editable || busy}
+              {...reasonProps(!editable, 'viewer')}
               data-testid="ds-dir-use"
               onClick={go}
             >

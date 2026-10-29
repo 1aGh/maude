@@ -963,6 +963,7 @@ export function createDsLibrary(engine: DsEngine, opts: LibraryOptions = {}) {
       const meta = readJsonObj(path.join(designRoot, metaRelOf(r.path))) ?? {};
       if (r.ticked && typeof meta.dsRev === 'string') {
         delete meta.dsRev;
+        delete meta.dsKept; // a Keep (p8-dead-reasons) goes with the pin
         metas.push({ rel: metaRelOf(r.path), text: metaText(meta) });
         const src = readText(path.join(designRoot, r.path));
         STRIP_HEAD_PIN.lastIndex = 0;

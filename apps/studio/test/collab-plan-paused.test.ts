@@ -20,7 +20,12 @@ import * as Y from 'yjs';
 
 import { lanesClosedFromProxy } from '../access/request.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
-import { encodeSyncUpdate, MESSAGE_AWARENESS, MESSAGE_SYNC } from '../collab/protocol.ts';
+import {
+  encodeEpochClaim,
+  encodeSyncUpdate,
+  MESSAGE_AWARENESS,
+  MESSAGE_SYNC,
+} from '../collab/protocol.ts';
 import { createRoom, type RoomCallbacks, type RoomConn } from '../collab/room.ts';
 import {
   A_REL,
@@ -148,6 +153,8 @@ async function openSocket(url: string, headers: Record<string, string>): Promise
     ws.addEventListener('error', done(false));
     ws.addEventListener('close', done(false));
   });
+  // p8-collab-epoch — a current client claims first ('' = a doc that never synced).
+  if (ok) ws.send(encodeEpochClaim(''));
   return ok ? { ws, frames, texts } : null;
 }
 

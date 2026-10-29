@@ -16,6 +16,7 @@ import { initialsOf, Kbd, StIcon } from '../../shell/icons.jsx';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { useUndoModeLane } from './use-undo-mode-lane.js';
 import { undoProjection, useUndoProjection } from './use-undo-projection.jsx';
+import { reasonProps } from '../access/disabled-reason.js';
 
 /** One open flag for the shell (the menu row opens it; Esc / outside / a click closes it). */
 function createOpenFlag() {
@@ -144,6 +145,7 @@ export function UndoHistory(p) {
             data-state={row.covered ? 'undone' : row.state}
             data-top={row.top ? 'true' : undefined}
             aria-disabled={off ? 'true' : undefined}
+            {...reasonProps(off, row.state === 'stale' && !row.covered ? 'stale' : 'undone')}
             tabIndex={i === cur ? 0 : -1}
             onFocus={() => {
               setCur(i);

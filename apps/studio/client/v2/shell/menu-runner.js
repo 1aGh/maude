@@ -73,6 +73,7 @@ import { addCaptionsFromSpeech, transcriptUi } from '../transcript/captions-api.
 import { formatsUi } from '../inspector/formats-ui.js';
 import { otherTakesUi } from '../timeline/other-takes.jsx';
 import { reframeUi } from '../timeline/reframe-island.jsx';
+import { openHistory } from '../history/object-filter.js';
 
 /** Edit ▸ Advanced ▸ New artboard → the preset `onInsertArtboard` takes. */
 export const ARTBOARD_PRESET = {
@@ -428,11 +429,12 @@ export function createMenuHandlers(d) {
     // S10.21b — a left-out canvas's Update (its row menu), a token's Restore and Clear out (the Trash): one writer each
     // (door-write.js), the one the rows call
     ...Object.fromEntries(
-      ['ds.canvas-update', 'ds.restore-token', 'ds.clear-token'].map((id) => [
+      ['ds.canvas-update', 'ds.canvas-leave', 'ds.restore-token', 'ds.clear-token'].map((id) => [
         id,
         async (p) => {
           const r = await runDsDoorAction(id, p);
-          d.toast?.(r.message, r.ok);
+          // Keep says nothing on success: the update card going away is the answer
+          if (r.message) d.toast?.(r.message, r.ok);
         },
       ])
     ),
@@ -542,6 +544,9 @@ export function createMenuHandlers(d) {
     ...createAdvancedHandlers(d),
     // ── top level ──
     'history.open': () => d.toggleRightPanel('changes'),
+    // p8-dead-reasons — "Version history of this object": the object / sticky menu row (the bridge checked the
+    // target against what the frame showed, object-history-ask.js) or ⌘K with nothing (the whole panel)
+    'history.object': (target) => openHistory(target ?? null, { path: d.activePath ?? null }),
     'share.open': () => d.onShare(),
     // S9.19 — the owner's rows live in the Share sheet: each opens it on Invite
     'share.invite': () => d.onShare(),

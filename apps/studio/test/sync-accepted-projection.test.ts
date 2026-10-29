@@ -409,6 +409,31 @@ describe('projection in accepted-revisions mode', () => {
     expect(r.disk()).toBe(src('Peer title', 'green'));
   });
 
+  // F14 (p8-fix-c) — an artboard trash on a cell-linked copy is an API write the hub had already
+  // published when its bytes reached the watcher. Its announced base outlived it, so the next HAND
+  // edit (an AI run, an editor) was proposed from the version before the trash, refused as a
+  // base conflict ("local-edit") and held — and a Restore from the Trash then never reached this disk.
+  test('an API write the hub already published hands its base back: the next hand edit is based on it', async () => {
+    const r = rig(src('A'));
+    r.projection.noteLocalWrite();
+    writeFileSync(r.paths.html, src('B'));
+    r.publish(src('B')); // the route's own action, accepted and published before the watcher event
+    r.projection.applyFromFs({
+      path: r.paths.html,
+      bytes: enc(src('B')),
+      hash: hashBytes(src('B')),
+    });
+    expect(r.sent).toHaveLength(0); // the project holds these bytes already: nothing to propose
+    expect(r.edit(src('C'))).toBe(true);
+    expect(r.sent.at(-1)?.p.baseContent).toBe(src('B'));
+    expect(r.sent.at(-1)?.p.stageable).toBe(true); // a tool's write, not the UI's
+    r.publish(src('C'));
+    r.sent.at(-1)?.answer({ status: 'accepted' });
+    await r.settle();
+    expect(r.conflicts).toHaveLength(0);
+    expect(r.disk()).toBe(src('C'));
+  });
+
   test('file events before the cold start decided are proposed once it has', () => {
     const paths = {
       html: join(dir, 'ui', 'late.tsx'),

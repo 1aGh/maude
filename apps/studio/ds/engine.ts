@@ -980,6 +980,7 @@ export function createDsEngine(opts: EngineOptions) {
       const meta = readJsonObj(metaAbs) ?? {};
       if (r.ticked && typeof meta.dsRev === 'string') {
         delete meta.dsRev;
+        delete meta.dsKept; // a Keep (p8-dead-reasons) goes with the pin
         files.push({ rel: metaRelOf(r.path), text: metaText(meta) });
         const src = readText(path.join(designRoot, r.path));
         if (src !== null && STRIP_HEAD_PIN.test(src))
@@ -1408,8 +1409,10 @@ export function createDsEngine(opts: EngineOptions) {
       const rel = canvasRel.replace(/^\/+/, '');
       const meta = readJsonObj(path.join(designRoot, metaRelOf(rel))) ?? {};
       const files: { rel: string; text: string }[] = [];
-      if (typeof meta.dsRev === 'string') {
+      // p8-dead-reasons — the update a person declined with Keep goes with the pin it was about
+      if (typeof meta.dsRev === 'string' || meta.dsKept !== undefined) {
         delete meta.dsRev;
+        delete meta.dsKept;
         files.push({ rel: metaRelOf(rel), text: metaText(meta) });
       }
       const src = readText(path.join(designRoot, rel));
@@ -1431,6 +1434,19 @@ export function createDsEngine(opts: EngineOptions) {
       const meta = readJsonObj(path.join(designRoot, metaRelOf(rel))) ?? {};
       if (meta.dsRev === h.doc.head)
         return { action: 'canvas-leave', rev: h.doc.head, actionId: null };
+      // p8-dead-reasons — "Keep this version" on a canvas already left out: it STAYS on its version (dsRev is
+      // not moved to head) and remembers the head it declined (`dsKept`, versioned, so peers see it), so the
+      // update card stays away until the system moves on again; Update (canvasUpdate) still works and clears both
+      if (typeof meta.dsRev === 'string' && meta.dsRev) {
+        if (meta.dsKept === h.doc.head)
+          return { action: 'canvas-leave', rev: meta.dsRev as string, actionId: null };
+        setOwn(meta, 'dsKept', h.doc.head);
+        const keptId = await propose(
+          [{ rel: metaRelOf(rel), text: metaText(meta) }],
+          'Keep this version of the design system'
+        );
+        return { action: 'canvas-leave', rev: meta.dsRev as string, actionId: keptId };
+      }
       setOwn(meta, 'dsRev', h.doc.head);
       const actionId = await propose(
         [{ rel: metaRelOf(rel), text: metaText(meta) }],

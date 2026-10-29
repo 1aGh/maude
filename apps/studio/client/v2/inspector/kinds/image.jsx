@@ -18,6 +18,7 @@ import { NumberField } from '../../../inspector-controls.jsx';
 import { StIcon } from '../../../shell/icons.jsx';
 import { registerSlot } from '../slots.js';
 import { Quiet, Row } from '../sections/row.jsx';
+import { editReason, reasonProps } from '../../access/disabled-reason.js';
 
 export const FITS = Object.freeze([
   { value: 'fill', label: 'Fill' },
@@ -153,6 +154,7 @@ function ImageBody({ el, ctx }) {
           className="sh-btn"
           data-testid="insp-image-replace"
           disabled={!editable || !ctx?.onReplaceMedia}
+          {...reasonProps(!editable, editReason(ctx))}
           onClick={() => ctx?.onReplaceMedia?.(el)}
         >
           Replace…
@@ -214,6 +216,7 @@ function AdjustBody({ el, ctx }) {
           className="sh-btn"
           data-testid="insp-image-adjust"
           disabled={!editable}
+          {...reasonProps(!editable, editReason(ctx))}
           onClick={() => ctx?.onOpenPhoto?.('adjust')}
         >
           Adjust…
@@ -225,6 +228,7 @@ function AdjustBody({ el, ctx }) {
           className="sh-btn"
           data-testid="insp-image-remove-bg"
           disabled={!editable}
+          {...reasonProps(!editable, editReason(ctx))}
           onClick={() => ctx?.onOpenPhoto?.('remove-background')}
         >
           <StIcon name="sparkle" size={12} /> Remove background

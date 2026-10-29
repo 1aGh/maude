@@ -1,6 +1,7 @@
 // client/v2/ds/door-write.js — S10.21b: the client writers of three engine doors that had none (S10.21 audit):
 //
 //   ds.canvas-update   a left-out canvas's row menu › Update      POST /_api/ds/canvas { canvas, action: 'update' }
+//   ds.canvas-leave    the update card's Keep this version          POST /_api/ds/canvas { canvas, action: 'leave' }
 //   ds.restore-token   Trash › a token's Restore                    POST /_api/ds/restore { ds, css }
 //   ds.clear-token     Trash › Clear out… (owner) — each token      POST /_api/ds/clear { ds, css }
 //
@@ -86,6 +87,16 @@ export async function canvasUpdateNow({ canvas }, fetchImpl = globalThis.fetch) 
     : { ok: false, code: r.code, message: doorWords(r.code) };
 }
 
+/**
+ * p8-dead-reasons — "Keep this version": the canvas stays on the version it shows; the engine remembers the head it
+ * declined (`dsKept`) so the update card stays away until the system moves on. Update stays in the canvas's menu.
+ * The card going away is the answer: no sentence on success (it is one kernel action, so it undoes).
+ */
+export async function canvasLeaveNow({ canvas }, fetchImpl = globalThis.fetch) {
+  const r = await post(fetchImpl, '/_api/ds/canvas', { canvas, action: 'leave' });
+  return r.ok ? { ok: true, message: '' } : { ok: false, code: r.code, message: doorWords(r.code) };
+}
+
 /** Restore a token from the Trash: a publish that puts its previous values back. */
 export async function restoreTokenNow({ ds, css, label }, fetchImpl = globalThis.fetch) {
   const r = await post(fetchImpl, '/_api/ds/restore', { ds, css });
@@ -104,14 +115,16 @@ export async function clearTokenNow({ ds, css, label }, fetchImpl = globalThis.f
 
 const CSS_RE = /^--[A-Za-z0-9_-]{1,128}$/;
 
-/** Registry `ds.canvas-update` / `ds.restore-token` / `ds.clear-token` (menu-runner): the write, a sentence back. */
+/** Registry `ds.canvas-update` / `ds.canvas-leave` / `ds.restore-token` / `ds.clear-token` (menu-runner): the write, a sentence back. */
 export async function runDsDoorAction(id, p, fetchImpl = globalThis.fetch) {
   const canvas = typeof p?.canvas === 'string' ? p.canvas : '';
   const ds = typeof p?.ds === 'string' ? p.ds : '';
   const css = typeof p?.css === 'string' ? p.css : '';
-  if (id === 'ds.canvas-update') {
+  if (id === 'ds.canvas-update' || id === 'ds.canvas-leave') {
     if (!/\.tsx$/i.test(canvas)) return { ok: false, message: DOOR_WORDS.failed };
-    return canvasUpdateNow({ canvas }, fetchImpl);
+    return id === 'ds.canvas-update'
+      ? canvasUpdateNow({ canvas }, fetchImpl)
+      : canvasLeaveNow({ canvas }, fetchImpl);
   }
   if (!ds || !CSS_RE.test(css)) return { ok: false, message: DOOR_WORDS.failed };
   const label = typeof p?.label === 'string' ? p.label : '';

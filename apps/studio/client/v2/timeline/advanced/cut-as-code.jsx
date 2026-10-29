@@ -10,6 +10,7 @@ import { requestViewCode } from '../../code/code-bus.js';
 import { fetchCanvasSource } from '../../code/use-canvas-source.js';
 import { componentWindow } from '../../../../video/keyframes.ts';
 import { ADV_WORDS, edlEntry, edlSlug, edlText } from './model.js';
+import { reasonProps } from '../../access/disabled-reason.js';
 
 const MAX_CODE_LINES = 18;
 const SEG = [
@@ -114,6 +115,7 @@ export function CutAsCode({ canvas, seq, fps, canRead, fetchImpl, open = request
           type="button"
           className="tla-link"
           disabled={!canvas || !canRead}
+          {...reasonProps(!canvas || !canRead, !canvas ? 'noCanvas' : ADV_WORDS.readOnlyCode)}
           data-testid="timeline-open-in-code"
           onClick={() => open({ canvas })}
         >

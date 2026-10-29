@@ -8,6 +8,7 @@ import { useState } from 'react';
 
 import { AdvModal, AdvSheet } from './AdvSheet.jsx';
 import { FOLDER_WORDS as W } from './onboarding-model.js';
+import { reasonProps } from '../access/disabled-reason.js';
 
 /**
  * @param {{ tab?: 'folder'|'github', busy?: boolean, error?: string|null,
@@ -51,6 +52,7 @@ export function FolderGithubSheet({
             className="ob-seg-b"
             aria-pressed={isGithub}
             aria-disabled={github ? undefined : 'true'}
+            {...reasonProps(!github, 'homeBrowser')}
             data-testid="onb-folder-tab-github"
             onClick={() => github && setOn('github')}
           >

@@ -5,8 +5,8 @@
 // (`home-create-*`) keep their names.
 //
 // "Choose another folder…" needs a native folder picker that only Rust can open (and `create-local` taking
-// the chosen base): until that command exists the button is shown resting, not hidden (a hidden control
-// would hide that the choice exists), and `onChooseFolder` turns it on.
+// the chosen base). Until that command exists the button is not drawn (p8-dead-reasons: a button that never
+// works is a dead control); `onChooseFolder` draws it.
 
 import { useState } from 'react';
 
@@ -92,17 +92,18 @@ export function CreateLocalSheet({ value, onChange, onSubmit, onCancel, onChoose
                   ~/Maude/{folderNameFor(value.name)}
                 </span>
               </span>
-              <span className="si-loc-acts">
-                <button
-                  type="button"
-                  className="btn btn--sm"
-                  data-testid="home-create-choose-folder"
-                  disabled={!onChooseFolder}
-                  onClick={onChooseFolder ?? undefined}
-                >
-                  Choose another folder…
-                </button>
-              </span>
+              {onChooseFolder ? (
+                <span className="si-loc-acts">
+                  <button
+                    type="button"
+                    className="btn btn--sm"
+                    data-testid="home-create-choose-folder"
+                    onClick={onChooseFolder}
+                  >
+                    Choose another folder…
+                  </button>
+                </span>
+              ) : null}
             </div>
           ) : null}
         </div>

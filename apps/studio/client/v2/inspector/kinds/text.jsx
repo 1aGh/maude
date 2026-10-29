@@ -34,6 +34,7 @@ import { Quiet, Row, worldSize } from '../sections/row.jsx';
 import { registerSlot } from '../slots.js';
 import { useDismiss, useDsFamilies } from '../token-chip.jsx';
 import { isAllText } from './multi.jsx';
+import { editReason, reasonProps } from '../../access/disabled-reason.js';
 
 const listOf = (selection) => (Array.isArray(selection) ? selection : selection ? [selection] : []);
 const refOf = (el) => (Array.isArray(el?.refs) ? el.refs[0] : null);
@@ -145,6 +146,7 @@ function StyleBody({ el, selection, kind, ctx }) {
             aria-haspopup="menu"
             aria-expanded={open}
             disabled={!editable || (roles.length === 0 && !name)}
+            {...reasonProps(!editable, editReason(ctx))}
             onClick={() => setOpen((o) => !o)}
           >
             <span className="insp-style-ic" aria-hidden="true">
@@ -196,6 +198,7 @@ function StyleBody({ el, selection, kind, ctx }) {
             className="insp-line-act"
             data-testid="insp-style-reset"
             disabled={!editable}
+            {...reasonProps(!editable, editReason(ctx))}
             onClick={() => ask(ctx, 'text.reset-style', targets)}
           >
             Reset
@@ -230,6 +233,7 @@ function StyleBody({ el, selection, kind, ctx }) {
             className="insp-line-act"
             data-testid="insp-style-use"
             disabled={!editable || roles.length === 0}
+            {...reasonProps(!editable, editReason(ctx))}
             onClick={() => setOpen(true)}
           >
             Use a style

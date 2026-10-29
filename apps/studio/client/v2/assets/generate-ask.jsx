@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { placeAsset } from './place-asset.js';
 import { primeTakes } from './takes.js';
+import { reasonProps } from '../access/disabled-reason.js';
 
 const NUMBER = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'];
 export const COUNTS = Object.freeze([1, 2, 3, 4]);
@@ -363,6 +364,7 @@ export function GenerateAsk({
           className="btn btn--primary btn--sm"
           data-testid="generate-ask-go"
           disabled={!quote || !prompt.trim() || making > 0}
+          {...reasonProps(!quote && !!err, err)}
           onClick={() => void generate()}
         >
           {ASK_WORDS.generate}

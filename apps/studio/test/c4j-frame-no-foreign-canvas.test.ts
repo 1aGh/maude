@@ -16,7 +16,7 @@ import type { Subprocess } from 'bun';
 import * as Y from 'yjs';
 
 import type { AccessClaim } from '../access/scope.ts';
-import { encodeSyncUpdate, MESSAGE_SYNC } from '../collab/protocol.ts';
+import { encodeEpochClaim, encodeSyncUpdate, MESSAGE_SYNC } from '../collab/protocol.ts';
 import { asUser, frameCap, get, withFc } from './_acl-cell.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
@@ -80,7 +80,11 @@ async function collabWriteReaches(b: Booted, who: Record<string, string>, canvas
     new Promise<WebSocket>((resolve, reject) => {
       const ws = new WebSocket(url, { headers: who } as unknown as string[]);
       ws.binaryType = 'arraybuffer';
-      ws.onopen = () => resolve(ws);
+      ws.onopen = () => {
+        // p8-collab-epoch — a current client claims first ('' = a doc that never synced).
+        ws.send(encodeEpochClaim(''));
+        resolve(ws);
+      };
       ws.onerror = () => reject(new Error(`ws ${url}`));
     });
   const peer = await open(`${b.base.replace('http', 'ws')}/_ws/collab/${slug}`);
