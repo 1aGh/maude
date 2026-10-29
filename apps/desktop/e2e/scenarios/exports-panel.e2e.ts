@@ -101,7 +101,8 @@ describe('exports-panel (native-desktop)', () => {
     expect(savePath).not.toBe('');
     // the run dir is shared by every run of a record (V2-8.3 runs each lane 3×): a run starts with an empty save folder,
     // or run 2 finds run 1's "Panel Hero.png" and the next name is "(3)" (only ever the run dir's own `saved/`)
-    if (basename(dirname(savePath)) === 'saved') rmSync(dirname(savePath), { recursive: true, force: true });
+    if (basename(dirname(savePath)) === 'saved')
+      rmSync(dirname(savePath), { recursive: true, force: true });
     mkdirSync(dirname(savePath), { recursive: true });
     await waitForSidecar();
     const row = await canvasRow('canvas-row-ui-export');
