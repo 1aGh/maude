@@ -32,6 +32,7 @@ import {
 } from '../agent-runs.ts';
 import type { RunRecord } from '../ai/run-lifecycle.ts';
 import type { RunRegistry } from '../ai/runs.ts';
+import { saveHold } from '../ai/save-hold.ts';
 import { claimedSince } from '../ai/write-claim.ts';
 import { artboardIdsOfSource, checkFile, checkIntroduced, type Finding } from '../check/index.ts';
 import { checkIds, walkIdElements } from '../element-ids.ts';
@@ -636,6 +637,11 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
     for (const rel of designWritesSince(designRoot, since)) {
       if (mine && !mine.has(rel)) continue;
       if (named && !named.has(rel) && !(mine && mine.has(rel))) continue;
+      // p8-a1-save-hold — the person's held save landed these bytes during the call: theirs, not the run's
+      if (!mine?.has(rel)) {
+        const text = readDesignFile(deps, rel);
+        if (text !== null && saveHold().landedByPerson(path.join(designRoot, rel), text)) continue;
+      }
       let artboards: string[] = [];
       let elements: Array<{ artboard: string; element: string }> = [];
       if (CANVAS_RE.test(rel)) {
@@ -931,6 +937,14 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
       }
       const self = runs.get(session, chat);
       if (!self) return json(200, { window: false });
+      // p8-a1-save-hold — while it is open a person's save to these files waits (ai/save-hold.ts);
+      // the run's end closes what the call never did (a killed call sends no PostToolUse)
+      saveHold().window(
+        toolUseId,
+        b.open,
+        files.map((f) => path.join(deps.repoRoot, deps.designRel, f)),
+        `run:${self.run}`
+      );
       deps.bracket?.window?.(self, toolUseId, b.open, files);
       return json(200, { window: true });
     }),
@@ -971,6 +985,7 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
       if (!RUN_OUTCOMES.includes(b.outcome as RunOutcome))
         return bad(`outcome is ${RUN_OUTCOMES.join(' | ')}`);
       const r = runs.end(session, b.outcome as RunOutcome, chat);
+      if (r) saveHold().closeOwner(`run:${r.run}`);
       // undoStep / version (V2-1.5) land with the run model; an unknown session is a no-op
       return json(200, r ? { run: r.run, state: r.state } : {});
     }),

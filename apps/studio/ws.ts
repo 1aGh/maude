@@ -387,6 +387,20 @@ export function createWs(
   // S5.3 — the AI run registry changed (V2-1.15 §5.4): `{type:'ai:runs', seq}` only — the shell
   // re-reads `GET /_api/ai/runs`. Shell (inspector) sockets only, never the canvas origin.
   ctx.bus.on('ai:runs', (e: { seq: number }) => broadcast({ type: 'ai:runs', seq: e.seq }));
+  // p8-a1-save-hold — a person's save waits behind an AI call / landed (ai/save-hold.ts): the shell's
+  // notice. Shell (inspector) sockets only, never the canvas origin; a path + a state + the words
+  // (class `canvas`: a canvas-only session hears only its own canvases' — access/filters.ts).
+  ctx.bus.on(
+    'save-hold',
+    (n: { file?: unknown; state?: unknown; warning?: unknown; text?: unknown }) =>
+      broadcast({
+        type: 'save-hold',
+        file: n?.file,
+        state: n?.state,
+        ...(n?.warning ? { warning: n.warning } : {}),
+        text: n?.text,
+      })
+  );
   // S5.5 — an accepted action (V2-1.5 §5.3 `project:action`): the shell's ⌘Z projection and
   // Made by AI read it. Shell (inspector) sockets only, never the canvas origin.
   ctx.bus.on('project:action', (action: unknown) => broadcast({ type: 'project:action', action }));

@@ -72,6 +72,18 @@
         ]
       }
     ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PKG=\"${CLAUDE_PLUGIN_ROOT}/../..\"; if [ -f \"$PKG/cli/bin/maude.mjs\" ] && command -v node >/dev/null 2>&1; then node \"$PKG/cli/bin/maude.mjs\" design hook post-bash; elif command -v maude >/dev/null 2>&1; then maude design hook post-bash; fi; exit 0",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

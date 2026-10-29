@@ -30,6 +30,7 @@ import path from 'node:path';
 import { frameSubjectOf } from '../access/frame.ts';
 import type { Access } from '../access/scope.ts';
 import type { RunRegistry } from '../ai/runs.ts';
+import { saveHold, withSaveRequest } from '../ai/save-hold.ts';
 import { artboardMembers } from '../annotations/artboard-members.ts';
 import { canonicalAnnotations } from '../annotations/board-text.ts';
 import { type Op as AnnotationOp, applyOps } from '../annotations/ops.ts';
@@ -219,6 +220,9 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
   const hold = deps.hold ?? sourceHold();
   /** The canvas source as this lane sees it: the held bytes while the disk is full (S11.17), else disk. */
   const readSource = (rel: string): string | null => {
+    // p8-a1-save-hold — a person's save held behind an AI interpreter call is what the file WILL hold
+    const waiting = saveHold().read(abs(rel));
+    if (waiting !== undefined) return waiting;
     const held = hold.read(abs(rel));
     if (held !== undefined) return typeof held === 'string' ? held : new TextDecoder().decode(held);
     try {
@@ -241,8 +245,18 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
     after: string,
     label: string,
     announce?: () => void,
-    rowLine?: string
+    rowLine?: string,
+    /** p8-a1-save-hold — false: an action the home records itself (`land`), never held */
+    mayHold = true
   ): Promise<boolean> => {
+    // p8-a1-save-hold — a person's save to a file a running interpreter call names waits until the
+    // call is done (+ settle) and lands as theirs (ai/save-hold.ts); nothing is said now
+    if (mayHold && saveHold().holds(abs(rel))) {
+      saveHold().hold(abs(rel), after, { base: before, label: rowLine ?? label });
+      return false;
+    }
+    // written straight through: what is held for the file is in `after` already (it was read through)
+    if (!mayHold) saveHold().drop(abs(rel));
     deps.emit('activity:suppress', rel);
     if (announce)
       // p8-e2e-fix-r12: with the bytes it replaces, so the local home can chain two writes said before one read
@@ -373,7 +387,8 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
       // watcher event — without it, the next accepted change (this action's ⌘Z) never reached
       // this Mac's disk. Held by a full disk (S11.17): said when the bytes land.
       const written = () => deps.emit('source-written', { rel: p.rel, content: p.after });
-      if (await writeSource(p.rel, p.before, p.after, p.reason, written)) written();
+      if (await writeSource(p.rel, p.before, p.after, p.reason, written, undefined, false))
+        written();
       return answer.queued
         ? { ok: true, actionId: null, queued: true }
         : { ok: true, actionId: answer.actionId ?? null };
@@ -381,7 +396,7 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
     // The local home records what the disk became; the watcher's echo then finds it recorded.
     await writeMeta(true);
     await writeBoard(true);
-    await writeSource(p.rel, p.before, p.after, p.reason);
+    await writeSource(p.rel, p.before, p.after, p.reason, undefined, undefined, false);
     const answer = await rt.proposeLanes(slug, lanes, o);
     // Written either way: an unrecorded write is an ordinary write with its legacy revert record.
     return { ok: true, actionId: answer?.status === 'accepted' ? (answer.actionId ?? null) : null };
@@ -527,7 +542,8 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
         } catch {
           return json(400, { ok: false, code: 'invalid', message: 'The edit is not readable.' });
         }
-        const result = await run(body, clipScopeOf(req));
+        // p8-a1-save-hold — the studio page's save (a browser write) may wait behind an AI call
+        const result = await withSaveRequest(req, () => run(body, clipScopeOf(req)));
         return json(statusOf(result), result);
       },
     },
@@ -553,7 +569,7 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
           const verb = (body as { verb?: unknown } | null)?.verb;
           return json(400, { ok: false, error: `unknown clip verb "${String(verb ?? '')}"` });
         }
-        const r = await run(mapped);
+        const r = await withSaveRequest(req, () => run(mapped));
         if (!r.ok) return json(statusOf(r), { ok: false, code: r.code, error: r.message });
         return json(200, {
           ok: true,
