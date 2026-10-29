@@ -67,8 +67,9 @@ test('the dev sync rigs stamp the format on every studio project they build', ()
   const bare: string[] = [];
   for (const f of ['sync-e2e.mjs', 't32-scale.mjs']) {
     const src = readFileSync(join(dev, f), 'utf8');
-    for (const part of src.split(/'config\.json'\),/).slice(1)) {
-      const body = part.slice(0, part.indexOf(');'));
+    for (const m of src.matchAll(/writeFileSync\(\s*join\([^)]*'config\.json'\),/g)) {
+      const rest = src.slice((m.index ?? 0) + m[0].length);
+      const body = rest.slice(0, rest.indexOf(');'));
       if (/linkedHub/.test(body) && !/v2Config\(/.test(body)) bare.push(`${f}: ${body.slice(0, 70)}`);
     }
   }
