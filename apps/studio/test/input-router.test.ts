@@ -12,7 +12,9 @@ import {
   isArtboardDragChrome,
   isDesignSurface,
   isEditableTarget,
+  isOpenTextEditor,
   isOverlayTarget,
+  pressStartsPan,
   type Tool,
   yieldsClickToArtboardChrome,
   yieldsToArtboardDrag,
@@ -758,6 +760,19 @@ describe('input-router / dragPansCanvas — Preview Hand (Q3)', () => {
       expect(dragPansCanvas(t, false)).toBe(false);
       expect(dragPansCanvas(t, true)).toBe(false);
     }
+  });
+  // A press inside an open text editor is text editing (caret, word select): Preview's Hand must not start a pan
+  // there, because the pan takes the pointer (setPointerCapture) and the editor then never sees its mouseup, click or
+  // dblclick — the dblclick lands on the canvas and fit() throws the view away (annotations-ui R2b).
+  test('pressStartsPan: the Hand does not pan from inside an open text editor', () => {
+    const el = (sel: string) => ({ closest: (q: string) => (q.includes(sel) ? {} : null) });
+    const editor = el('[data-annot-editor]') as unknown as EventTarget;
+    const bare = el('nothing') as unknown as EventTarget;
+    expect(pressStartsPan('browse', bare)).toBe(true);
+    expect(pressStartsPan('browse', editor)).toBe(false);
+    expect(pressStartsPan('hand', editor)).toBe(true); // the dedicated Hand pans anywhere
+    expect(isOpenTextEditor(editor)).toBe(true);
+    expect(isOpenTextEditor(null)).toBe(false);
   });
   test('isDesignSurface: inside an artboard body, not its label strip or the bare canvas', () => {
     const el = (hit: boolean) => ({

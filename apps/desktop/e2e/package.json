@@ -38,6 +38,7 @@
     "e2e:share-roles": "node ./run-share-roles.mjs",
     "e2e:share-roles:wdio": "wdio run ./wdio.share-roles.conf.ts",
     "e2e:share-roles:test": "node --test --test-force-exit ./share-roles/stand-up.test.mjs",
+    "e2e:share-roles:surfaces": "node --test --test-force-exit ./share-roles/role-surfaces.test.mjs",
     "e2e:onboarding": "wdio run ./wdio.onboarding.conf.ts",
     "e2e:acp-cold-start": "wdio run ./wdio.acp-cold-start.conf.ts",
     "e2e:acp-fake": "wdio run ./wdio.acp-fake.conf.ts",

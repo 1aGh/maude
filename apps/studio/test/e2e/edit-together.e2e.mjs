@@ -20,7 +20,7 @@ import { after, before, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
-import { sleep, startServer } from './harness.mjs';
+import { e2eProjectConfig, sleep, startServer } from './harness.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FILE = 'ui/Homepage.tsx';
@@ -50,7 +50,7 @@ export default function Homepage() {
 function makeHome() {
   const root = mkdtempSync(join(tmpdir(), 'maude-edit-together-e2e-'));
   mkdirSync(join(root, '.design', 'ui'), { recursive: true });
-  writeFileSync(join(root, '.design', 'config.json'), JSON.stringify({ name: 'edit-together' }));
+  writeFileSync(join(root, '.design', 'config.json'), JSON.stringify(e2eProjectConfig('edit-together')));
   writeFileSync(join(root, '.design', FILE), CANVAS);
   writeFileSync(
     join(root, '.design', 'ui', 'Homepage.meta.json'),

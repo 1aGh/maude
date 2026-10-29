@@ -653,6 +653,21 @@ export function dragPansCanvas(tool: Tool, onDesign: boolean): boolean {
   return tool === 'hand' || tool === 'inspect' || (tool === 'browse' && !onDesign);
 }
 
+/** Is the target inside an open annotation text editor (a sticky, shape label or text being typed in)? */
+export function isOpenTextEditor(t: EventTarget | null): boolean {
+  if (!t || typeof (t as Element).closest !== 'function') return false;
+  return !!(t as Element).closest('[data-annot-editor]');
+}
+
+/**
+ * Does a bare left-button press at `t` start a canvas pan with `tool`? `dragPansCanvas`, except that a press inside
+ * an open text editor is the editor's: the pan captures the pointer, and the editor would never see the click or the
+ * double-click that selects a word (the dblclick then fired on the canvas and fit() threw the view away).
+ */
+export function pressStartsPan(tool: Tool, t: EventTarget | null): boolean {
+  return dragPansCanvas(tool, isDesignSurface(t) || isOpenTextEditor(t));
+}
+
 /**
  * Should the router's pointerdown/mousedown handler skip
  * `stopImmediatePropagation` so the event still reaches use-artboard-drag.tsx?

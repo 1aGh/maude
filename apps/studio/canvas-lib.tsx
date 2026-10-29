@@ -127,7 +127,7 @@ import { AssetPlaceholderLayer } from './asset-placeholder.tsx';
 import { modeShows } from './bridge/mode-shows.ts';
 import { DsIcon } from './canvas-ds-icons.tsx';
 import { CanvasShell } from './canvas-shell.tsx';
-import { dragPansCanvas, isDesignSurface } from './input-router.tsx';
+import { pressStartsPan } from './input-router.tsx';
 import { summaryWords } from './kinds/warnings.ts';
 import { presentHidesCss, usePresentStage } from './present/present-stage.tsx';
 import { usePreviewCamera, usePreviewing } from './preview/preview-camera.tsx';
@@ -2370,7 +2370,7 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
   toolRef.current = toolModeCtx?.tool ?? 'move';
   // S3.9 — Hand pans anywhere; Preview's Hand (`browse`) pans only off the design (V2-1.2 Q3).
   const isPanDragActive = useCallback(
-    (e: PointerEvent) => dragPansCanvas(toolRef.current, isDesignSurface(e.target)),
+    (e: PointerEvent) => pressStartsPan(toolRef.current, e.target),
     []
   );
   // S3.9 — a web artboard scrolls inside itself in Preview; any other wheel pans as before.

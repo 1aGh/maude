@@ -137,7 +137,8 @@ describe('T3 — a stamp stays armed; one per person per kind per spot', () => {
     await c.page.mouse.move(at.x + 200, at.y + 120);
     await sleep(100);
     await click(at.x + 200, at.y + 120);
-    await click(at.x + 205, at.y + 124);
+    // the same spot: a stamp's spot is the 40 px world cell under it, so a 5 px nudge can cross a cell line
+    await click(at.x + 200, at.y + 120);
     let stamps = (await until((els) => els.some((e) => e.type === 'stamp'))).filter(
       (e) => e.type === 'stamp'
     );

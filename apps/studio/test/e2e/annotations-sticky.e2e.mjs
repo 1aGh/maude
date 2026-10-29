@@ -98,7 +98,7 @@ let c;
 
 before(async () => {
   server = await startServer(makeProject({ board: BOARD }));
-  c = await openCanvas(server);
+  c = await openCanvas(server, { clearTop: 120 }); // room for a top section's bar under the Preview bar
 });
 after(async () => {
   await c?.close();
@@ -108,6 +108,11 @@ after(async () => {
 const disk = () => readBoard(server.root);
 const el = (id) => c.frame.locator(`.dc-annot-scene [data-id="${id}"]`).first();
 const byTestId = (id) => c.frame.locator(`[data-testid="${id}"]`).first();
+// The board ends every selection bar in a "…" (S4.19, canvas 15): Resolve / Reopen live in that menu.
+const pickMore = async (id) => {
+  await byTestId('annot-ctx-more').click();
+  await byTestId(id).click();
+};
 
 async function select(id) {
   const b = await c.pageBox(id);
@@ -138,7 +143,7 @@ describe('T2 — Resolve strikes through in place', () => {
   test('Resolve writes who and when; the sticky stays where it was', async () => {
     await select('sa');
     const before = disk().get('sa');
-    await byTestId('annot-ctx-resolve').click();
+    await pickMore('annot-ctx-resolve');
     const board = await waitForBoard(server.root, (m) => !!m.get('sa')?.resolved);
     assert.match(board.get('sa').resolved.at, /^\d{4}-\d{2}-\d{2}T/);
     assert.deepEqual([board.get('sa').x, board.get('sa').y], [before.x, before.y]);
@@ -150,12 +155,13 @@ describe('T2 — Resolve strikes through in place', () => {
   });
   test('Reopen takes the stamp away', async () => {
     await select('sa');
+    await byTestId('annot-ctx-more').click();
     assert.equal((await byTestId('annot-ctx-resolve').textContent())?.trim(), 'Reopen');
     await byTestId('annot-ctx-resolve').click();
     await waitForBoard(server.root, (m) => !m.get('sa')?.resolved);
     assert.equal(await el('sa').locator('[data-resolved]').count(), 0);
     // resolve it again for T5
-    await byTestId('annot-ctx-resolve').click();
+    await pickMore('annot-ctx-resolve');
     await waitForBoard(server.root, (m) => !!m.get('sa')?.resolved);
   });
 });
@@ -213,7 +219,18 @@ describe('T5 — ⌘K: Move resolved stickies to the trash', () => {
     );
     const board = await waitForBoard(server.root, (m) => !m.has('sa'));
     assert.ok(board.has('sc'), 'open stickies stay');
-    await c.page.getByText('1 sticky moved to the trash').first().waitFor({ timeout: 8000 });
+    await c.page
+      .getByText('1 sticky moved to the trash')
+      .first()
+      .waitFor({ timeout: 8000 })
+      .catch(async (e) => {
+        const seen = await c.page.evaluate(() =>
+          [
+            ...document.querySelectorAll('[role="status"],[role="alert"],[data-testid*="toast"]'),
+          ].map((n) => n.textContent)
+        );
+        throw new Error(`${e.message}\ntoasts: ${JSON.stringify(seen)}`);
+      });
     await c.page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
     await waitForBoard(server.root, (m) => m.has('sa'));
   });

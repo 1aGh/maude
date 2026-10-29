@@ -28,6 +28,7 @@ import { after, before, describe, test } from 'node:test';
 import {
   makeProject,
   openCanvas,
+  peerOps,
   readBoard,
   sleep,
   startServer,
@@ -160,12 +161,16 @@ async function dragDesktop(dx, dy, mid) {
 }
 
 describe('F1–F2 — Desktop moves, its members and the bound arrow follow', () => {
+  // moving an artboard is Edit's gesture (the layer is quiet there and rides along)
+  before(() => c.setMode('edit'));
   test('live: members on screen, the arrow goes around Mobile, the loose note stays', async () => {
     await reset();
     const noteBefore = await c.pageBox('note');
     const was = desktopAt();
-    // Zoomed out the world is smaller than the page: drag far enough to clear Mobile.
-    await dragDesktop(900, -500, async () => {
+    // Drag in WORLD units, so the zoom Fit chose does not matter: Desktop's left edge goes from 100 to 1350, clear of
+    // Mobile (1000..1195, 300..722), so Tereza's straight line (from her sticky at y~435) would cross Mobile.
+    const zoom = noteBefore.width / 220; // the note is 220 wide in world units
+    await dragDesktop(1250 * zoom, -500 * zoom, async () => {
       assert.equal(await c.frame.locator('[data-testid="annot-ride"]').count(), 1, 'live overlay');
       const tr = await c.frame.evaluate(
         () => document.querySelector('.dc-annot-scene [data-id="sun"]')?.style.translate ?? ''
@@ -176,6 +181,12 @@ describe('F1–F2 — Desktop moves, its members and the bound arrow follow', ()
       );
       assert.equal(loose, '', 'the loose note does not ride');
       const tag = c.frame.locator('[data-testid="annot-cross-tag"]');
+      if (!(await tag.count())) {
+        const box = async (q) => c.frame.locator(q).first().boundingBox().catch(() => null);
+        assert.fail(
+          `no cross tag mid-drag: arw=${JSON.stringify(disk().get('arw'))} desktop=${JSON.stringify(await box('[data-dc-screen="desktop"]'))} mobile=${JSON.stringify(await box('[data-dc-screen="mobile"]'))} note=${JSON.stringify(await c.pageBox('tereza'))} ride=${(await c.frame.evaluate(() => document.querySelector('[data-testid="annot-ride"]')?.outerHTML.slice(0, 700)))}`
+        );
+      }
       assert.match((await tag.first().textContent()) ?? '', /the straight line would cross Mobile/);
       const pts = await c.frame.evaluate(
         () =>
@@ -220,6 +231,8 @@ describe('F3 — one ⌘Z restores the artboard and its members', () => {
 });
 
 describe('F4 — membership you can see', () => {
+  // selecting an annotation is Preview's gesture (S4.9)
+  before(() => c.setMode('preview'));
   test('selecting a member outlines its artboard: "On Desktop · moves with it"', async () => {
     await reset();
     const [x, y] = await c.center('sun');
@@ -264,6 +277,22 @@ const centerOfPage = async (sel) => {
   return [b.x + b.width / 2, b.y + b.height / 2];
 };
 
+/**
+ * A page point ON an arrow's stroke (its midpoint by length). A new arrow is Curved (S4.11), so the centre of its
+ * path's box is not on the line: a click or double-click there lands on empty canvas.
+ */
+async function strokeMid(sel) {
+  const p = await c.frame.evaluate((q) => {
+    const path = document.querySelector(q);
+    if (!path) return null;
+    const m = path.getScreenCTM();
+    const pt = path.getPointAtLength(path.getTotalLength() / 2);
+    return { x: m.a * pt.x + m.c * pt.y + m.e, y: m.b * pt.x + m.d * pt.y + m.f };
+  }, sel);
+  assert.ok(p, `${sel} on screen`);
+  return c.toPage(p.x, p.y);
+}
+
 async function drawArrow(from, to, mid) {
   await reset();
   await c.page.keyboard.press('a'); // Arrow
@@ -304,13 +333,33 @@ describe('F6 — an arrow binds to the button, not the artboard', () => {
 
   test('an unnamed element is stamped first and the bind stores the id it was given', async () => {
     const before = new Set(disk().keys());
+    // The Pricing link sits under the "sun" sticker, and a board item under the end wins the bind (S4.11): a person
+    // would move the sticker off the link first, so a peer moves it, and the arrow then meets the bare link.
+    await peerOps(server, [{ op: 'patch', id: 'sun', set: { x: 1300 }, expect: { x: 400 } }]);
+    await waitForBoard(server.root, (m) => m.get('sun')?.x === 1300);
+    await sleep(600);
     const target = await centerOfPage('.pricing');
     const start = await c.center('note');
     await drawArrow(start, target);
+    // the arrow lands first; the stamp (a write to the TSX) and the bind that stores its id follow
     const board = await waitForBoard(server.root, (m) =>
-      [...m.keys()].some((k) => !before.has(k) && m.get(k).type === 'arrow')
+      [...m.keys()].some(
+        (k) => !before.has(k) && m.get(k).type === 'arrow' && m.get(k).endHost?.ref
+      )
     );
     const a = [...board.values()].find((e) => !before.has(e.id) && e.type === 'arrow');
+    if (!a?.endHost) {
+      const toasts = await c.page.evaluate(() =>
+        [
+          ...document.querySelectorAll(
+            '[role="status"],[role="alert"],[data-testid*="toast"],[data-testid="callouts"]'
+          ),
+        ].map((n) => n.textContent)
+      );
+      assert.fail(
+        `no bind on the arrow: ${JSON.stringify(a)}\ntsx: ${readFileSync(canvasPath(), 'utf8').match(/.*pricing.*/)?.[0]}\ntoasts: ${JSON.stringify(toasts)}\nserver: ${server.log().slice(-700)}`
+      );
+    }
     assert.match(a.endHost.ref, /^el:desktop\/[a-z][a-z0-9-]*$/);
     assert.doesNotMatch(a.endHost.ref, /\/[0-9a-f]{8}$/, 'never a computed id');
     const id = a.endHost.ref.split('/')[1];
@@ -336,7 +385,7 @@ describe('F7 — double-click an arrow writes on it', () => {
     await reset();
     const arrow = [...disk().values()].find((e) => e.type === 'arrow' && e.id !== 'arw');
     assert.ok(arrow, 'an arrow from F6');
-    const [x, y] = await centerOfPage(`[data-id="${arrow.id}"] path`);
+    const [x, y] = await strokeMid(`.dc-annot-scene [data-id="${arrow.id}"] path`);
     await c.page.mouse.dblclick(x, y);
     const input = c.frame.locator('[data-testid="annot-arrow-label-input"]');
     assert.equal(await input.count(), 1);
@@ -356,7 +405,7 @@ describe('F8 — rewritten stays bound; gone is dangling; restore re-attaches', 
     await sleep(2500);
     await reset();
     const arrow = [...disk().values()].find((e) => e.endHost?.ref === 'el:desktop/see-the-work');
-    const [x, y] = await centerOfPage(`[data-id="${arrow.id}"] path`);
+    const [x, y] = await strokeMid(`.dc-annot-scene [data-id="${arrow.id}"] path`);
     await c.click(x, y);
     await sleep(400);
     assert.match(
@@ -371,7 +420,7 @@ describe('F8 — rewritten stays bound; gone is dangling; restore re-attaches', 
     await sleep(2500);
     const arrow = [...disk().values()].find((e) => e.endHost?.ref === 'el:desktop/see-the-work');
     assert.ok(arrow, 'the bind is still on the board');
-    const [x, y] = await centerOfPage(`[data-id="${arrow.id}"] path`);
+    const [x, y] = await strokeMid(`.dc-annot-scene [data-id="${arrow.id}"] path`);
     await c.click(x, y);
     await sleep(400);
     assert.ok((await c.frame.locator('[data-testid="annot-dangling-mark"]').count()) >= 1);
