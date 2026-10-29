@@ -103,3 +103,16 @@ for Michal. The ledger / Progress log: the new done lines and the gate records a
   3. Import from a link (+ security pair).
   4. The Google key sheet.
   5. Figma not_found + the hub-without-checkout message.
+
+## Update ~21:00
+- A1 part 2 merged in lead-merge-main, NOT pushed; checks in b43dxb845 (tsc 0, gens ok; key suites waiting in the
+  lane). After green: ff feat + push, remove worktree a6c2d80c….
+- p8-port-gc done (worktree agent-a08b077538c5a4b5e, 90e6976f5 + f5c35414f), waiting to merge after A1. kg on
+  merge: record-bound-port, index-gc-registry-from-rust.
+- Running (6): v1-drop-desktop pt2, sweep-leftovers, fix-c2, held-conflict-status, selfhost-convert, hub-drafts.
+- **New, before the freeze — Michal's A1 ruling (c) "hold the save"** (kg maude/v2-michal-a1-hold-save-during-interpreter):
+  a person's save to a file a running interpreter call names is held until the call ends (+1 s) and lands as the
+  PERSON's write; notice "AI is changing this file… your change saves when it's done"; repeated saves merge into
+  the last; cap ~10 s → saves as the person with a warning, never dropped; tab/app close finishes the save;
+  fail-first: attribution, merge, cap, interpreter crash/kill. Opus builder `p8-a1-save-hold`, off feat after the
+  A1 push, at the first free slot (before import-from-link).
