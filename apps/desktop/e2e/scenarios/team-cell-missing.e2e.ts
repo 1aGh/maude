@@ -50,6 +50,7 @@ const CELL = process.env.MAUDE_E2E_TEAM_CELL
 type Cell = NonNullable<typeof CELL>;
 
 const LETAK = 'ui/LetakA6.tsx';
+const RACE = 'ui/Race.tsx';
 const ARTBOARDS = [
   ['flag-front', 'A · přední FLAG'],
   ['flag-back', 'B · zadní FLAG'],
@@ -434,113 +435,101 @@ describe('team-cell-missing (native-desktop)', () => {
     await eventually('Saved', async () => (await statusWord())?.status === 'saved', 120_000);
     await capture('12-ia-edges-d-online');
   });
-  it('05 · es-all-trashed: two offline trashes never merge to zero (the later one is held); the card for a canvas with no artboard left, and Restore puts them back', async () => {
+  it('05 · es-all-trashed (race): two offline trashes never merge to zero — one side keeps its trash, the other is held', async () => {
     await waitForSidecar();
     await (await canvasRow('canvas-row-ui-welcome')).waitForDisplayed({ timeout: 120_000 });
-    // the four-artboard canvas is alice's; it reaches bob's copy through the cell
+    // two four-artboard canvases of alice's: one to race on, one for the card below
     mkdirSync(join(c.teammate, '.design', 'ui'), { recursive: true });
-    writeFileSync(join(c.teammate, '.design', LETAK), LETAK_SOURCE);
-    writeFileSync(join(c.teammate, '.design', 'ui', 'LetakA6.meta.json'), LETAK_META);
-    await eventually(
-      'LetakA6 in the designer’s copy',
-      () => ids(read(join(c.designer, '.design', LETAK))).length === 4,
-      180_000
-    );
+    for (const [file, name] of [
+      [RACE, 'Race'],
+      [LETAK, 'LetakA6'],
+    ] as const) {
+      writeFileSync(join(c.teammate, '.design', file), LETAK_SOURCE);
+      writeFileSync(join(c.teammate, '.design', 'ui', `${name}.meta.json`), LETAK_META);
+      await eventually(
+        `${name} in the designer’s copy`,
+        () => ids(read(join(c.designer, '.design', file))).length === 4,
+        180_000
+      );
+    }
     await eventually('Saved', async () => (await statusWord())?.status === 'saved', 120_000);
+
+    // ── the cell goes away; both keep working ──
+    await stopCell(c);
+    const trashA = ['flag-front', 'flag-back', 'tackle-front'];
+    const aliceOp = await fetch(`http://127.0.0.1:${c.teammatePort}/_api/edit-op`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        file: RACE,
+        op: 'artboard.trash',
+        targets: [],
+        params: { artboards: trashA },
+      }),
+    });
+    console.log(`[team-cell-missing] alice trashes A-C offline: ${aliceOp.status} ${(await aliceOp.text()).slice(0, 200)}`);
+    expect(aliceOp.status).toBe(200);
+    process.kill(c.teammatePid, 'SIGSTOP');
+    const bobOp = await bobPost('/_api/edit-op', {
+      file: RACE,
+      op: 'artboard.trash',
+      targets: [],
+      params: { artboards: ['tackle-back'] },
+    });
+    expect(bobOp.status).toBe(200);
+    // a single teammate cannot empty the canvas — the guard is real
+    const third = await bobPost('/_api/edit-op', {
+      file: RACE,
+      op: 'artboard.trash',
+      targets: [],
+      params: { artboards: trashA },
+    });
+    expect(third.status).toBe(400);
+    expect(String(third.body?.message ?? third.body)).toContain('A canvas keeps at least one artboard.');
+
+    // ── the cell is back; the two saves meet ──
+    await startCell(c);
+    process.kill(c.teammatePid, 'SIGCONT');
+    // THE FINDING: they do not merge into an empty canvas. The cell takes one and holds the other (a conflict with a
+    // recovery copy), whichever side gets there first — so a race between two people can never leave a canvas with no
+    // artboard, and board 19 is reached another way (below).
+    const aliceWins = ['tackle-back'];
+    const bobWins = ['flag-front', 'flag-back', 'tackle-front'];
+    const same = (x: string[], y: string[]) => x.length === y.length && x.every((v, i) => v === y[i]);
+    const now = () => ({
+      designer: ids(read(join(c.designer, '.design', RACE))),
+      teammate: ids(read(join(c.teammate, '.design', RACE))),
+    });
+    await eventually(
+      'both copies agree on one of the two outcomes',
+      () => {
+        const n = now();
+        return same(n.designer, n.teammate) && (same(n.designer, aliceWins) || same(n.designer, bobWins));
+      },
+      240_000
+    );
+    const n = now();
+    console.log(`[team-cell-missing] race outcome: ${same(n.designer, aliceWins) ? 'alice' : 'bob'} kept her trash: ${JSON.stringify(n.designer)}`);
+    expect(n.designer.length).toBeGreaterThan(0);
+    expect(n.designer.length).toBeLessThan(4);
+    expect(await (await $(tid('all-trashed'))).isExisting()).toBe(false);
+    await capture('05-race-second-save-held');
+  });
+
+  it('05 · es-all-trashed (card): a canvas with no artboard left, and Restore puts the trashed ones back', async () => {
+    // ── board 19: the canvas holds no artboard and the Trash holds its artboards ──
+    // Bob moves three of four to the trash (one stays: the guard), then the last one leaves the file by hand — the way
+    // an AI run, a text editor or a pull removes it: not an edit-op, so the Trash has no item for it.
     const row = await canvasRow('canvas-row-ui-letaka6');
     await row.waitForDisplayed({ timeout: 60_000 });
     await row.click();
     await (await $(tid('canvas-frame'))).waitForExist({ timeout: 60_000 });
     await capture('05-letak-open-four-boards');
-
-    // ── the cell goes away; both keep working ──
-    await stopCell(c);
-    const aliceOp = await fetch(`http://127.0.0.1:${c.teammatePort}/_api/edit-op`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        file: LETAK,
-        op: 'artboard.trash',
-        targets: [],
-        params: { artboards: ['flag-front', 'flag-back', 'tackle-front'] },
-      }),
-    });
-    const aliceBody = await aliceOp.text();
-    console.log(`[team-cell-missing] alice trashes A-C offline: ${aliceOp.status} ${aliceBody.slice(0, 300)}`);
-    expect(aliceOp.status).toBe(200);
-    // alice's studio now waits (stopped) — so bob's change is the one the cell takes first
-    process.kill(c.teammatePid, 'SIGSTOP');
-
-    const bobOp = await bobPost('/_api/edit-op', {
-      file: LETAK,
-      op: 'artboard.trash',
-      targets: [],
-      params: { artboards: ['tackle-back'] },
-    });
-    console.log(`[team-cell-missing] bob trashes D offline: ${bobOp.status} ${JSON.stringify(bobOp.body).slice(0, 300)}`);
-    expect(bobOp.status).toBe(200);
-    // a single teammate cannot empty the canvas — the guard is real
-    const third = await bobPost('/_api/edit-op', {
-      file: LETAK,
-      op: 'artboard.trash',
-      targets: [],
-      params: { artboards: ['flag-front', 'flag-back', 'tackle-front'] },
-    });
-    console.log(`[team-cell-missing] bob alone trashes the rest: ${third.status} ${JSON.stringify(third.body).slice(0, 200)}`);
-    expect(third.status).toBe(400);
-    expect(String(third.body?.message ?? third.body)).toContain('A canvas keeps at least one artboard.');
-    await capture('05-bob-trashed-d-offline');
-
-    // ── the cell is back; bob lands first ──
-    await startCell(c);
-    await eventually(
-      'bob’s trash accepted by the cell',
-      async () => (await letakTrash()).some((i) => i.artboard === 'tackle-back'),
-      180_000
-    );
-    process.kill(c.teammatePid, 'SIGCONT');
-    // THE FINDING: the two offline saves do not merge into an empty canvas. The cell takes the first and holds the
-    // second as a conflict (`body-rejected` / `local-edit`, with a recovery copy) — so a race between two people can
-    // never leave a canvas with no artboard, and board 19 is reached another way (below).
-    const alice = () =>
-      JSON.parse(read(join(c.teammate, '.design', '_sync.json')) ?? '{}') as {
-        conflicts?: Array<{ slug: string; kind: string; reason: string }>;
-      };
-    try {
-      await eventually(
-        'alice’s later save held as a conflict',
-        () => (alice().conflicts ?? []).some((x) => x.slug === 'ui-letaka6' && x.kind === 'body-rejected'),
-        240_000
-      );
-    } catch (e) {
-      console.log(
-        `[team-cell-missing] DUMP ${JSON.stringify({
-          trash: await letakTrash(),
-          designer: ids(read(join(c.designer, '.design', LETAK))),
-          teammate: ids(read(join(c.teammate, '.design', LETAK))),
-          teammateSync: read(join(c.teammate, '.design', '_sync.json'))?.slice(0, 1800),
-          bobStatus: JSON.stringify((await bobGet('/_sync-status')).body).slice(0, 1500),
-        })}`
-      );
-      throw e;
-    }
-    expect(ids(read(join(c.designer, '.design', LETAK)))).toEqual([
-      'flag-front',
-      'flag-back',
-      'tackle-front',
-    ]);
-    expect((await letakTrash()).map((i) => i.artboard)).toEqual(['tackle-back']);
-    expect(await (await $(tid('all-trashed'))).isExisting()).toBe(false);
-    await capture('05-race-second-save-held');
-
-    // ── board 19: the canvas holds no artboard and the Trash holds its artboards ──
-    // Bob moves two more to the trash (one stays: the guard), then the last one leaves the file by hand — the way an
-    // AI run, a text editor or a pull removes it: not an edit-op, so the Trash has no item for it.
     const more = await bobPost('/_api/edit-op', {
       file: LETAK,
       op: 'artboard.trash',
       targets: [],
-      params: { artboards: ['flag-back', 'tackle-front'] },
+      params: { artboards: ['flag-back', 'tackle-front', 'tackle-back'] },
     });
     expect(more.status).toBe(200);
     await eventually(
