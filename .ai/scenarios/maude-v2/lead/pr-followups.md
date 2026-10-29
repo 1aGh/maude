@@ -221,3 +221,10 @@ Any commit outside `.ai/` makes V2-8.1/8.2/8.3/8.18 stale. Fold these into the n
 - Neither the plugin README nor the site describes the post-edit gate's "only findings the edit introduced" rule
   (p8-gate-introduced). Nothing there is wrong; one sentence in `plugins/design/README.md` § files are the API would
   help agents.
+
+## From the V2-8.16 live journeys at the freeze (2026-10-29), 19/22, no product FAIL
+- Allow the read-only help forms in the auto tier (`maude --help`, `maude design --help`, `maude design <verb> --help`).
+  Today only `Bash(maude design help:*)` matches. In S11 terminal, two `--help` denials made the agent decide all `maude`
+  commands needed approval, and it never ran the allowed verbs. S6 terminal opened with the same denials.
+- Make the journey text grader whitespace-tolerant (`>\s*All saved\s*<`). S2 acp wrote the text on its own line.
+- Evidence: `.ai/plans/notes/v2-evidence/V2-8.16-journeys/2026-10-29-freeze/VERDICT.md`.
