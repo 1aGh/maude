@@ -40,10 +40,15 @@ test('the replayed chords are exactly the canvas actions with only a key handler
     'edit.paste-properties',
     'inspect.edit', // S3.11 — the Inspect panel's Edit button replays ↵
     'mode.preview',
+    // p8-sweep-static — ⌘K rows that posted a run-action no canvas listener answered
+    'object.duplicate',
+    'object.remove',
+    'object.select-parent',
     'select.all',
     'ui.step-back', // S3.14 — esc with the shell focused: the canvas climbs its own ladder first
+    'view.jump-artboard',
   ]);
-  expect(replayActionKey('object.remove')).toBe(false);
+  expect(replayActionKey('object.enter')).toBe(false);
   expect(replayActionKey(undefined)).toBe(false);
   expect(replayActionKey('constructor')).toBe(false);
 });
@@ -87,7 +92,7 @@ test('run-action select.all / copy-properties / paste-properties replay the chor
     expect(pressed).toEqual([]);
     for (const id of ids) await send(window.parent, { dgn: 'run-action', v: 1, id });
     expect(pressed).toEqual(['⌘a', '⌥⌘c', '⌥⌘v']);
-    await send(window.parent, { dgn: 'run-action', v: 1, id: 'object.remove' });
+    await send(window.parent, { dgn: 'run-action', v: 1, id: 'object.enter' });
     expect(pressed.length).toBe(3);
   } finally {
     document.removeEventListener('keydown', onKey);

@@ -19,6 +19,13 @@ export const REPLAY_KEYS: Readonly<Record<string, KeyboardEventInit>> = Object.f
   // S3.14 (G6) — esc pressed with the shell focused: the canvas climbs ITS ladder (the armed tool, the
   // selection, a stroke — bridge/esc-ladder.ts) and only then asks the shell to step the mode back.
   'ui.step-back': { key: 'Escape', code: 'Escape' },
+  // p8-sweep-static — ⌘K rows whose only implementation is a canvas key handler: ⌘D duplicates, ⌫ removes and
+  // ⇧↵ selects the parent (use-keyboard-discipline.tsx); ⌥⌘1 goes to the first artboard (canvas-lib's viewport
+  // keydown). Without these the row posted a run-action nothing answered.
+  'object.duplicate': { key: 'd', code: 'KeyD', metaKey: true },
+  'object.remove': { key: 'Backspace', code: 'Backspace' },
+  'object.select-parent': { key: 'Enter', code: 'Enter', shiftKey: true },
+  'view.jump-artboard': { key: '1', code: 'Digit1', metaKey: true, altKey: true },
 });
 
 /** A toolbar key (V2-4.5b, `tool.<id>` from MODE_TOOLS): one letter, optionally ⇧. */
