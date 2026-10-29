@@ -12,6 +12,7 @@
 // No DOM; every function takes its `fetch`.
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import { SYSTEM_TAB } from '../../../shell/constants.js';
 import { MUSIC_WORDS } from './music-model.js';
 
 const keyOf = (canvas, artboardId) => `${canvas}\u0000${artboardId ?? ''}`;
@@ -48,7 +49,8 @@ export function musicEntry(canvas, artboardId, stableId) {
 
 /** Fetch and keep the media of one video artboard. Resolves the answer, or null (never throws). */
 export async function loadCompMedia(canvas, artboardId, fetchImpl = globalThis.fetch) {
-  if (!canvas) return null;
+  // the Design system tab is a view, never a comp (asking for it is a 400 — p8-sweep-leftovers)
+  if (!canvas || canvas === SYSTEM_TAB) return null;
   try {
     const r = await fetchImpl(compMediaUrl(canvas, artboardId));
     if (!r.ok) throw new Error(String(r.status));
