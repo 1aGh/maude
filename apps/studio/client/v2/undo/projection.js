@@ -18,6 +18,7 @@
 // added (a new entry — your AI run landing included — clears redo). A fully conflicting undo marks the
 // entry `stale`: it is skipped from then on, with one toast naming who changed it.
 
+import { textSessionOfTransaction } from '../../../annotations/ui/text-session.ts';
 import { promptOfRun } from '../../../history/run-label.ts';
 
 export const MAX_ENTRIES = 100;
@@ -34,10 +35,26 @@ const STOPPED = ' — stopped';
  *    `tx` — S2.20c: the transaction it was proposed under; `pendingVia` — the inverse still waiting
  *    behind an AI run that undid it) */
 
-/** @param {{ canvas: string, openedAt: number, you?: string|null }} o */
+/**
+ * `foldSessions` (p8-hub-drafts): the rows of one text session (drafts + commit, named by the
+ * transaction id — annotations/ui/text-session.ts) are ONE entry, undone with `actionIds`. Only
+ * where the home can undo several actions as one (`chatUndoReady`); a 1.x hub keeps a row per entry.
+ * @param {{ canvas: string, openedAt: number, you?: string|null, foldSessions?: boolean }} o
+ */
 export function initialState(o) {
-  return { canvas: o.canvas, openedAt: o.openedAt, you: o.you ?? null, entries: [], seq: 0 };
+  return {
+    canvas: o.canvas,
+    openedAt: o.openedAt,
+    you: o.you ?? null,
+    entries: [],
+    seq: 0,
+    ...(o.foldSessions === true ? { foldSessions: true } : {}),
+  };
 }
+
+/** Every action id an entry stands for (a folded text session holds several). */
+export const idsOf = (e) =>
+  Array.isArray(e?.actionIds) && e.actionIds.length ? e.actionIds : e?.actionId ? [e.actionId] : [];
 
 const byOrder = (a, b) => a.madeAt - b.madeAt || (a.revision ?? 0) - (b.revision ?? 0);
 const undoesOf = (u) => (Array.isArray(u) ? u : typeof u === 'string' ? [u] : []);
@@ -60,7 +77,7 @@ function setState(state, ids, patch) {
   const want = new Set(ids);
   let hit = false;
   const entries = state.entries.map((e) => {
-    if (!e.actionId || !want.has(e.actionId)) return e;
+    if (!idsOf(e).some((id) => want.has(id))) return e;
     hit = true;
     return { ...e, ...patch };
   });
@@ -163,7 +180,7 @@ function onAction(state, a) {
     return setState(state, back, { state: 'done', undoneAt: undefined, undoneVia: undefined });
   }
   if (!Array.isArray(a.canvases) || !a.canvases.includes(state.canvas)) return state;
-  if (state.entries.some((e) => e.actionId === a.actionId)) return state;
+  if (state.entries.some((e) => idsOf(e).includes(a.actionId))) return state;
   const madeAt = Number.isFinite(a.madeAt)
     ? a.madeAt
     : Number.isFinite(a.committedAt)
@@ -182,6 +199,21 @@ function onAction(state, a) {
   }
   const artboards =
     a.artboards && typeof a.artboards === 'object' ? (a.artboards[state.canvas] ?? []) : [];
+  // p8-hub-drafts — the next row of the text session the newest entry is: the same entry, one more id.
+  const sid = !isUndo && state.foldSessions ? textSessionOfTransaction(a.transactionId) : null;
+  const last = state.entries[state.entries.length - 1];
+  if (sid && last && last.session === sid && last.state === 'done' && last.actionId) {
+    const entries = state.entries.slice();
+    entries[entries.length - 1] = {
+      ...last,
+      actionIds: [...idsOf(last), a.actionId],
+      ...(Number.isFinite(a.revision) ? { revision: a.revision } : {}),
+      artboards: [
+        ...new Set([...(last.artboards ?? []), ...(Array.isArray(artboards) ? artboards : [])]),
+      ],
+    };
+    return { ...state, entries, seq: state.seq + 1 };
+  }
   return withEntry(state, {
     actionId: a.actionId,
     who: a.kind === 'ai' ? 'ai' : 'you',
@@ -196,6 +228,7 @@ function onAction(state, a) {
     ...(a.partial ? { partial: true } : {}),
     ...(isUndo ? { undoes: undoesOf(a.undoes) } : {}),
     ...(typeof a.transactionId === 'string' ? { tx: a.transactionId } : {}),
+    ...(sid ? { session: sid } : {}),
     state: 'done',
   });
 }

@@ -30,6 +30,8 @@ export interface TextSession {
   kind: SlotKind;
   base: string;
   lastSent: string;
+  /** p8-hub-drafts — the session's id on its writes (`draftWriteId` / `sessionWriteId`). */
+  sid?: string;
 }
 
 /** Where an element keeps its editable text, or null (no text slot). */
@@ -51,7 +53,7 @@ export function openSession(el: AnnotationElement): TextSession | null {
   const kind = slotKindOf(el);
   if (!kind) return null;
   const t = slotText(el, kind);
-  return { id: el.id, kind, base: t, lastSent: t };
+  return { id: el.id, kind, base: t, lastSent: t, sid: newTextSessionId() };
 }
 
 function setOf(kind: SlotKind, current: AnnotationElement | undefined, text: string) {
@@ -78,8 +80,51 @@ function expectOf(kind: SlotKind, text: string) {
  */
 export const DRAFT_WRITE_PREFIX = 'draft-';
 
-export function draftWriteId(): string {
-  return `${DRAFT_WRITE_PREFIX}${crypto.randomUUID()}`;
+/**
+ * p8-hub-drafts — the text session's id rides on every write it makes: `draft-<sid>-<uuid>` for an
+ * idle draft, `ts-<sid>-<uuid>` for its commit. A hub-linked project sends each draft as its own
+ * action (DDR-242 AD7: peers see typing within ~1 s), so the session id goes on to the proposal's
+ * transaction id (`tx_ts<sid>_…`, which the hub keeps on the history row) and the ⌘Z stack folds
+ * one session's rows into one entry (client/v2/undo/projection.js). Echo metadata only, never
+ * authorization: a forged session id only folds the forger's own rows together.
+ */
+const SID_RE = /^[0-9a-f]{16}$/;
+export const SESSION_WRITE_PREFIX = 'ts-';
+
+/** A fresh text-session id: 16 lowercase hex. */
+export function newTextSessionId(): string {
+  return crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+}
+
+export function draftWriteId(sid?: string): string {
+  const s = typeof sid === 'string' && SID_RE.test(sid) ? `${sid}-` : '';
+  return `${DRAFT_WRITE_PREFIX}${s}${crypto.randomUUID()}`;
+}
+
+/** The write id of a session's commit (and of any other non-draft write it makes). */
+export function sessionWriteId(sid: string | undefined): string {
+  return typeof sid === 'string' && SID_RE.test(sid)
+    ? `${SESSION_WRITE_PREFIX}${sid}-${crypto.randomUUID()}`
+    : crypto.randomUUID();
+}
+
+/** The text session a write id names, or null (a v1 `draft-<uuid>` names none). */
+export function textSessionOfWriteId(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const m = /^(?:draft|ts)-([0-9a-f]{16})-/.exec(v);
+  return m ? (m[1] as string) : null;
+}
+
+/** The transaction id a session's proposal goes out under (kernel TX_ID: `[A-Za-z0-9_-]{8,128}`). */
+export function textSessionTransactionId(sid: string): string {
+  return `tx_ts${sid}_${crypto.randomUUID().replace(/-/g, '')}`;
+}
+
+/** The text session a history row's transaction id names, or null. */
+export function textSessionOfTransaction(tx: unknown): string | null {
+  if (typeof tx !== 'string') return null;
+  const m = /^tx_ts([0-9a-f]{16})_[0-9a-f]{32}$/.exec(tx);
+  return m ? (m[1] as string) : null;
 }
 
 export function isDraftWriteId(v: unknown): boolean {

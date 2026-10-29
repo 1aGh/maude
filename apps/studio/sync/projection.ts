@@ -28,6 +28,7 @@ import { existsSync, readFileSync } from 'node:fs';
 
 import type * as Y from 'yjs';
 
+import { textSessionOfWriteId, textSessionTransactionId } from '../annotations/ui/text-session.ts';
 import { atomicWrite } from './atomic-write.ts';
 import {
   applyAnnotationsToDoc,
@@ -974,7 +975,10 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
   ): Promise<ProposalOutcome> {
     const link = opts.accepted as AcceptedLaneLink;
     const prior = pending.get(lane);
-    const transactionId = link.newTransactionId();
+    // p8-hub-drafts — a text session's writes go out under transaction ids that name the session, so
+    // the hub's history row carries it and the ⌘Z stack folds the session into one step.
+    const session = lane === 'annotations' ? textSessionOfWriteId(writeId) : null;
+    const transactionId = session ? textSessionTransactionId(session) : link.newTransactionId();
     if (SYNC_DEBUG) {
       console.log(
         `[projection/${slug}] propose ${lane} tx=${transactionId.slice(0, 11)} value=${hashBytes(value).slice(0, 8)} base=${hashBytes(baseContent).slice(0, 8)} doc=${hashBytes(readLaneFromDoc(doc, lane)).slice(0, 8)} last=${lastHtml === null ? '-' : hashBytes(lastHtml).slice(0, 8)} via=${new Error().stack?.split('\n')[3]?.trim().slice(0, 60)}`

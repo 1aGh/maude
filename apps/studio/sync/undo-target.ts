@@ -100,9 +100,11 @@ export function chatActionIds(
  * (client/v2/undo/projection.js `KEY_LABELS`); a panel's undo is labelled by
  * what it undid, and IS an entry ⌘Z can take back.
  */
-export function undoLabel(t: UndoTarget, redo: boolean, via: 'keys' | 'panel' = 'keys'): string {
+export function undoLabel(t: UndoTarget, redo: boolean, via?: 'keys' | 'panel'): string {
   if ('chatId' in t) return 'Undo this chat';
-  if ('actionIds' in t && t.actionIds.length > 1) return `Undo ${t.actionIds.length} changes`;
+  // p8-hub-drafts — ⌘Z of a folded text session names several ids and is still a flip ("Undo").
+  if ('actionIds' in t && t.actionIds.length > 1 && via !== 'keys')
+    return `Undo ${t.actionIds.length} changes`;
   if (via === 'panel') return redo ? 'Redo one change' : 'Undo one change';
   return redo ? 'Redo' : 'Undo';
 }
