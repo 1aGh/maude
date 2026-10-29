@@ -2213,4 +2213,40 @@ describe('p8-secfix-hook D1 — nobody but the hooks writes the run state', () =
       await hook('pre-bash', bash(project, 'd1', 'dc', 'cat .design/_runs/d1/touched.json'))
     ).toMatchObject({ status: 0, stdout: '' });
   });
+
+  // p8-secfix-hook-2 N4 — the run folder itself was refused as a destination, so `cp x "$RUN"` /
+  // `mv x "$RUN"` (a file landing beside the hooks' state, not in it) were `not-a-writer`. A copy
+  // or move INTO the existing folder is judged by where each source lands; removing or moving the
+  // folder away (it holds touched.json) and anything landing on the named state stay refused.
+  test('N4 — a file copied or moved into the run folder lands; its named state stays guarded', async () => {
+    for (const cmd of [
+      'cp shot.png .design/_runs/d1',
+      'mv /tmp/shot.png .design/_runs/d1',
+      'cp -R /tmp/screens .design/_runs/d1',
+      'cp a.png b.png .design/_runs/d1/',
+      'mkdir -p .design/_runs/d1/screens && cp x.png .design/_runs/d1/screens/x.png',
+    ])
+      expect(`${cmd} ${(await hook('pre-bash', bash(project, 'd1', 'dn', cmd))).stdout}`).toBe(
+        `${cmd} `
+      );
+    expect(await hook('pre-edit', write('_runs/d1/screens/x.png'))).toMatchObject({
+      status: 0,
+      stdout: '',
+    });
+    expect(isDeny(await hook('pre-edit', write('_runs/d1/base/x')), 'not-a-writer')).toBe(true);
+    for (const cmd of [
+      'cp -R /tmp/base .design/_runs/d1', // lands as base/
+      'cp /tmp/touched.json .design/_runs/d1',
+      'mv /tmp/x/stop-last.json .design/_runs/d1',
+      'cp -R /tmp/evil/ .design/_runs/d1', // a trailing / copies the folder's contents
+      'cp -R /tmp/evil/. .design/_runs/d1',
+      'ditto /tmp/evil .design/_runs/d1', // ditto always copies contents
+      'cp -T /tmp/evil .design/_runs/d1',
+      'rm -rf .design/_runs/d1',
+      'mv .design/_runs/d1 /tmp/away',
+    ])
+      expect(
+        `${cmd} ${isDeny(await hook('pre-bash', bash(project, 'd1', 'dn', cmd)), 'not-a-writer')}`
+      ).toBe(`${cmd} true`);
+  });
 });
