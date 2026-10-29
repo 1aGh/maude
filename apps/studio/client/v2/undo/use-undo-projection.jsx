@@ -266,9 +266,25 @@ export function createUndoProjection(o = {}) {
         announce(undoWords.undone(e.label), redoAction(repoRel));
         return { handled: true, ok: true, pending: true, pendingTx: r.body.pendingTx ?? null };
       }
-      const r = await request('POST', UNDO_ROUTE, { actionId: e.actionId, via: 'keys' }).catch(
-        () => null
-      );
+      // p8-hub-drafts — a folded text session is ONE ⌘Z of all its rows (one kernel action). A hub
+      // that cannot undo several as one (1.x: `needs-hub-update`) takes the newest row alone.
+      const ids = Array.isArray(e.actionIds) && e.actionIds.length > 1 ? e.actionIds : null;
+      let r = await request(
+        'POST',
+        UNDO_ROUTE,
+        ids ? { actionIds: ids, via: 'keys' } : { actionId: e.actionId, via: 'keys' }
+      ).catch(() => null);
+      if (ids && !r?.body?.ok && r?.body?.reason === 'needs-hub-update') {
+        r = await request('POST', UNDO_ROUTE, { actionId: ids[ids.length - 1], via: 'keys' }).catch(
+          () => null
+        );
+        if (r?.body?.ok) {
+          // only that row went back: the next read shows the rest as entries again
+          await refreshNow(d);
+          announce(undoWords.undone(e.label), redoAction(repoRel));
+          return { handled: true, ok: true, actionId: r.body.actionId, undid: ids[ids.length - 1] };
+        }
+      }
       if (!r?.body?.ok) return onRejected(d, e, r);
       patch(d, e.actionId, {
         state: 'undone',

@@ -3450,6 +3450,19 @@
     "v2": "stable"
   },
   {
+    "hook": "sync-assets-stay",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Sync details › Needs you: \"This team server can't store media, so pictures and videos stay on this Mac.\" with the next step; not a failure.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "AssetsStayCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "sync-files",
     "kind": "testid",
     "pattern": false,
@@ -7568,13 +7581,15 @@
     "hook": "share-cluster-<action>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "The one action beside a failed status; `<action>` ∈ retry, show-in-finder. Retry runs the Sync panel's Resync.",
+    "meaning": "The one action beside a failed status; `<action>` ∈ retry, show-in-finder, compare. Retry runs the Sync panel's Resync; Compare (Not saved while a held source conflict waits) runs `sync.compare` — Diagnostics › Sync details at that conflict, `diag-sync-compare-lines-<slug>` open.",
     "producer": {
       "file": "apps/studio/client/v2/shell/share-cluster.jsx",
       "symbol": "ShareCluster"
     },
     "region": "other",
-    "consumers": [],
+    "consumers": [
+      "test:v2-held-conflict-status"
+    ],
     "v2": "new"
   },
   {
@@ -11630,6 +11645,71 @@
     "region": "sidebar/tree",
     "consumers": [],
     "v2": "stable"
+  },
+  {
+    "hook": "assets-add-link",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The link icon in the Assets tab head: Assets › Add from a link… (`assets.add-link`) opens the link field; `aria-pressed` while it is open (hidden for a viewer).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-link",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Add from a link… field row in the Assets tab (12 · ia-edges F): paste an https link, ↵ brings a copy in, Esc closes.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-link-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The link input inside `assets-link`.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-link-host",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The site of the link in the Add from a link… field, in full (\"From alligators.cz\"), shown before ↵ — also when a dropped link filled the field.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-link-preparing",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The status line while a link comes in: \"Preparing <name> — keeps working in the background.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
   },
   {
     "hook": "assets-from-mac",
@@ -36271,6 +36351,58 @@
     "kind": "testid",
     "pattern": false,
     "meaning": "The Generate ask: Generate — off until a quote and the words are there; hands the single-use quote back.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/generate-ask.jsx",
+      "symbol": "GenerateAsk"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-key-sheet",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Connect a Google key?\" (12 ia-edges H): the dialog Generate answers with when no image key is connected. Role dialog.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/connect-key-sheet.jsx",
+      "symbol": "ConnectKeySheet"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-key-connect",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Connect a Google key?\": Connect — opens Settings › Connections; the waiting prompt runs when the key lands.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/connect-key-sheet.jsx",
+      "symbol": "ConnectKeySheet"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-key-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Connect a Google key?\": Cancel — drops it, nothing runs.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/connect-key-sheet.jsx",
+      "symbol": "ConnectKeySheet"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-ask-waiting",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Generate ask: the line shown while the prompt waits for a Google key to be connected (role status).",
     "producer": {
       "file": "apps/studio/client/v2/assets/generate-ask.jsx",
       "symbol": "GenerateAsk"

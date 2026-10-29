@@ -20,7 +20,8 @@ export function answerOf(result) {
 }
 
 /**
- * @param {Array<{ name?: string, result: object }>} entries  each file as the person knows it, with what the upload said
+ * @param {Array<{ name?: string, result: object, fromLink?: boolean, host?: string }>} entries  each file as the person
+ *   knows it, with what the upload said (`fromLink`/`host`: it came from a link, from that site)
  * @param {{ offline?: boolean }} [opts]
  * @returns {{ tone: 'info' | 'warn', text: string } | null}
  */
@@ -31,7 +32,7 @@ export function arrivalNote(entries, { offline = false } = {}) {
     const answer = answerOf(e?.result);
     if (!answer) continue;
     if (answer.ok) landed += 1;
-    const line = importLine(answer, { name: e.name });
+    const line = importLine(answer, { name: e.name, fromLink: e.fromLink, host: e.host });
     if (line) lines.push(line);
   }
   const waits = offline && landed > 0;

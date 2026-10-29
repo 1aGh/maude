@@ -39,6 +39,7 @@ async function readCell(url) {
       const v = body?.v2Convert;
       if (!v) last = 'no v2Convert on /health (an image without the conversion)';
       else if (v.state === 'gated') return { url, gated: v.reason ?? 'unknown' };
+      else if (v.state === 'disabled') return { url, disabled: v.by ?? 'CELL_V2_CONVERT' };
       else if (v.state === 'done') return { url, counts: v };
       else last = `state ${v.state}`;
     } catch (err) {
@@ -53,11 +54,15 @@ const total = { converted: 0, skipped: 0, failed: 0 };
 const out = [];
 let reported = 0;
 let unreported = 0;
+let disabled = 0;
 for (const r of await Promise.all(urls.map(readCell))) {
   if (r.counts) {
     reported += 1;
     for (const k of Object.keys(total)) total[k] += Number(r.counts[k]) || 0;
     out.push(`${line(r.counts, ` ${r.url}`)}`);
+  } else if (r.disabled) {
+    disabled += 1;
+    out.push(`[v2-convert] ${r.url} disabled (${r.disabled}) — the kill switch was honoured`);
   } else if (r.gated) {
     unreported += 1;
     out.push(`[v2-convert] ${r.url} gated (${r.gated}) — this image does not convert`);
@@ -66,7 +71,9 @@ for (const r of await Promise.all(urls.map(readCell))) {
     out.push(`[v2-convert] ${r.url} unreported: ${r.unreported}`);
   }
 }
-out.push(`${line(total, ' fleet')} cells=${reported} unreported=${unreported}`);
+out.push(
+  `${line(total, ' fleet')} cells=${reported} unreported=${unreported} disabled=${disabled}`
+);
 for (const l of out) console.log(l);
 if (total.failed > 0)
   console.log(

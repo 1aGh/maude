@@ -114,6 +114,67 @@ export async function importAsset(
   }
 }
 
+/** F2 — this server's page key for the link import (`GET /_api/import-link/key`), asked once per page. */
+let linkKey: Promise<string | null> | null = null;
+function linkKeyOf(doFetch: typeof fetch, fresh = false): Promise<string | null> {
+  if (!linkKey || fresh)
+    linkKey = doFetch('/_api/import-link/key', { headers: { Accept: 'application/json' } })
+      .then(async (r) => {
+        const j = r.ok ? ((await r.json()) as { key?: unknown }) : {};
+        return typeof j.key === 'string' ? j.key : null;
+      })
+      .catch(() => null);
+  return linkKey;
+}
+
+/**
+ * p8-import-link (12 · ia-edges F) — Assets › Add from a link…: the SERVER fetches the https link (public addresses only,
+ * capped, the type from the bytes — link-import.ts) and lands it in Assets; the page only names the link. `name` and
+ * `host` are for the one line, never a path. The page key (F2) rides in `X-Maude-Link-Key`.
+ */
+export async function importFromLink(
+  url: string,
+  opts: { fetchImpl?: typeof fetch } = {}
+): Promise<UploadResult & { name?: string; host?: string }> {
+  const doFetch = opts.fetchImpl ?? fetch;
+  const post = async (key: string | null) =>
+    doFetch('/_api/import-link', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(key ? { 'X-Maude-Link-Key': key } : {}),
+      },
+      body: JSON.stringify({ url }),
+    });
+  try {
+    let res = await post(await linkKeyOf(doFetch));
+    // a restarted server mints its own key: ask for it once more
+    if (res.status === 403) {
+      const again = await linkKeyOf(doFetch, true);
+      if (again) res = await post(again);
+    }
+    let j: Record<string, unknown> = {};
+    try {
+      j = (await res.json()) as Record<string, unknown>;
+    } catch {
+      /* non-JSON answer */
+    }
+    const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
+    if (!res.ok || j.ok !== true || typeof j.path !== 'string') {
+      const reason = str(j.reason);
+      return {
+        error: str(j.error) ?? `link import failed (${res.status})`,
+        ...(reason ? { reason } : {}),
+      };
+    }
+    const name = str(j.name);
+    const host = str(j.host);
+    return { path: j.path, ...(name ? { name } : {}), ...(host ? { host } : {}) };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'network error' };
+  }
+}
+
 /**
  * Above this, video/audio goes through chunk sessions. A client constant on
  * purpose — the server's one-shot cap is env-configurable and unknown here; the

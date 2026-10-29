@@ -176,6 +176,8 @@ export const WS_FRAME_CLASSES = Object.freeze({
   'fs:json': 'canvas',
   comments: 'canvas',
   'ai-activity': 'canvas',
+  // p8-a1-save-hold — a save waits behind an AI call / landed: its `file`, a state and the words
+  'save-hold': 'canvas',
   active: 'canvas',
   activity: 'canvas',
   'canvas-hmr': 'filtered',

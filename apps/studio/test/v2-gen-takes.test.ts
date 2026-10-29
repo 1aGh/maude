@@ -257,6 +257,7 @@ describe('the ask — client/v2/assets/generate-ask.jsx', () => {
     expect(await askQuote(target, { n: 4 }, { fetch: none })).toEqual({
       ok: false,
       message: 'No image provider is ready. Add a key in Settings › Connections.',
+      noProvider: true, // p8-ia-edges: the ask answers this with "Connect a Google key?", not a red line
     });
   });
 

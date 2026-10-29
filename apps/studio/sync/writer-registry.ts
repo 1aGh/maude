@@ -372,6 +372,9 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   // a picture a canvas uses is refused, so no reference changes (asset-rename.ts)
   '/_api/assets/rename': { class: 'file-plane', rows: 'S27 (rename = delete + create)' },
   '/_api/import-asset': { class: 'file-plane', rows: 'S28/I08' },
+  // p8-import-link — Add from a link…: the bytes land through the same Assets writer (assets/<sha8>.<ext>)
+  '/_api/import-link': { class: 'file-plane', rows: 'S28/I08' },
+  '/_api/import-link/key': { class: 'read' }, // F2 — the shell page's key for the link import, no effect
   '/_api/import-brand': { class: 'file-plane', rows: 'S28/I07' },
   '/_api/figma/import': { class: 'file-plane', rows: 'I04/I05 (canvases join by cold start)' },
   '/_api/figma/explode': { class: 'file-plane', rows: 'I04/I05 (canvases join by cold start)' },
@@ -538,6 +541,8 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/sync/link/confirm': { class: 'local', rows: 'X16' },
   // S11.17 — Retry lands the canvas writes a full disk held; each then travels like any studio write
   '/_api/diagnostics/disk-retry': { class: 'local' },
+  // p8-a1-save-hold — the closing page lands the saves held behind an AI call; each then travels like any studio write
+  '/_api/diagnostics/save-hold-flush': { class: 'local' },
   '/_api/diagnostics/disk': { class: 'read' },
   '/_api/diagnostics/last-work': { class: 'read' },
   '/_api/sync/offline': { class: 'local', rows: 'T19 (pull the whole file plane now)' },

@@ -49,15 +49,28 @@ export function canvasNamesBySlug(groups) {
   return out;
 }
 
-/** The canvases with a held source conflict (the runtime's `source-conflict-<slug>` notices). */
-export function conflictSlugs(status) {
+/** A canvas slug the runtime can name (no path, no traversal) — the same rule the bus applies. */
+export const SAFE_SLUG = /^[A-Za-z0-9_.-]{1,200}$/;
+
+/**
+ * The held source conflicts (the runtime's `source-conflict-<slug>` notices, sync/status.ts), each with the
+ * time the runtime raised it: `{ slug, at }`. `at` tells one conflict from a later one on the same canvas
+ * (a resolved conflict's notice is cleared; a new one is a new notice), so the one-time toast keys on both.
+ */
+export function heldConflicts(status) {
   const out = [];
   for (const n of Array.isArray(status?.notices) ? status.notices : []) {
     if (!n || typeof n.id !== 'string' || !n.id.startsWith(CONFLICT_PREFIX)) continue;
     const slug = n.id.slice(CONFLICT_PREFIX.length);
-    if (/^[A-Za-z0-9_.-]{1,200}$/.test(slug) && !out.includes(slug)) out.push(slug);
+    if (!SAFE_SLUG.test(slug) || out.some((c) => c.slug === slug)) continue;
+    out.push({ slug, at: Number.isFinite(n.at) ? n.at : 0 });
   }
   return out;
+}
+
+/** The canvases with a held source conflict (the runtime's `source-conflict-<slug>` notices). */
+export function conflictSlugs(status) {
+  return heldConflicts(status).map((c) => c.slug);
 }
 
 function readAssets(raw) {
@@ -119,6 +132,8 @@ export function syncDetailsModel(
       })),
     });
   }
+  // p8-ia-edges — a team server with no media checkout: not a failure, one calm card (words: ia-edges, Michal 2026-10-29)
+  if (assets && assets.refused === 'no-checkout') needs.push({ kind: 'assets-stay' });
   const moving =
     assets && !assets.finished && assets.total > 0
       ? {

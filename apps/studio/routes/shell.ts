@@ -25,6 +25,7 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import type { ChatActivity } from '../acp/running.ts';
 import { activitySnapshot } from '../acp/running.ts';
 import type { AgentRuns } from '../agent-runs.ts';
+import { saveHold } from '../ai/save-hold.ts';
 import type { Outbox } from '../outbox/index.ts';
 import { FINAL_STATES } from '../outbox/types.ts';
 import { resolveMaudeVersion } from '../whats-new.ts';
@@ -52,6 +53,8 @@ export interface ShellRouteDeps {
   /** injected in tests; default: `MAUDE_SHELL_TOKEN`, read per request */
   token?: () => string | undefined;
   version?: () => string;
+  /** injected in tests; default: the studio's save hold (ai/save-hold.ts) */
+  heldSaves?: () => number;
 }
 
 const json = (status: number, body: unknown) =>
@@ -88,11 +91,14 @@ export function shellStatus(deps: ShellRouteDeps): ShellStatus {
       running: chats.filter((c) => c.state === 'running').length + terminalRuns,
       awaiting: chats.filter((c) => c.state === 'awaiting-input').length,
     },
-    unsent: count(
-      () =>
-        deps.outbox.content().pending +
-        deps.outbox.store.list().filter((r) => !FINAL_STATES.includes(r.state)).length
-    ),
+    // p8-a1-save-hold — a person's save held behind an AI call is unsent too: the shell must not rest
+    // or reap the server mid-hold, and the close confirm counts it
+    unsent:
+      count(
+        () =>
+          deps.outbox.content().pending +
+          deps.outbox.store.list().filter((r) => !FINAL_STATES.includes(r.state)).length
+      ) + count(() => (deps.heldSaves ?? (() => saveHold().size()))()),
     jobs: count(
       () =>
         [...deps.exportJobs.list(), ...deps.generateJobs.list()].filter((j) =>

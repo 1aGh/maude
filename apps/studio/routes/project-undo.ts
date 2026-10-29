@@ -368,7 +368,12 @@ export function createProjectUndoRoutes(deps: ProjectUndoDeps): RouteSpec[] {
         const waiting = runtime.pendingEdits?.(repoRel) ?? [];
         // The SAME reducer the shell runs (client/v2/undo/projection.js), over history oldest first.
         const state = fold(
-          initialState({ canvas, openedAt: Number.isFinite(since) && since > 0 ? since : 0 }),
+          initialState({
+            canvas,
+            openedAt: Number.isFinite(since) && since > 0 ? since : 0,
+            // p8-hub-drafts — one text session = one entry, where several ids undo as one action
+            foldSessions: runtime.chatUndoReady?.() === true,
+          }),
           withPendingEvents(
             [...(rows as AcceptedHistoryRow[])]
               .sort((a, b) => a.revision - b.revision)

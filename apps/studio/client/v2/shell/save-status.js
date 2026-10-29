@@ -1,7 +1,8 @@
 // client/v2/shell/save-status.js — V2-4.3a: what the Share cluster says, as pure functions.
 //
 // CONTRACT §6 gives the slot next to the faces ONE word: Saved · Syncing… · Offline — kept on this Mac ·
-// Local project, plus Not saved only while a write has actually failed (action: Retry). A person without
+// Local project, plus Not saved only while a write has actually failed (action: Retry) or a held source
+// conflict waits (action: Compare). A person without
 // edit rights sees an access word in the same slot (Can view / Can comment) and Ask to edit as the one
 // action. Everything the cluster shows is derived here, with no DOM and no React, so every word and every
 // precedence is a plain test.
@@ -9,7 +10,11 @@
 // PRECEDENCE (first match wins)
 //   1. Not saved      — a write failed and nothing is holding it (`writeFailed`), or the hub refused the
 //                       documents outright (phase `refused`: the bytes sit in recovery slots, nothing
-//                       retries them by itself). Outranks everything: it is the only word that asks for you.
+//                       retries them by itself), or a held SOURCE conflict waits (`held`: this Mac kept its
+//                       copy, the project's version sits in `_history/<slug>/sync-recovery/` — the canvas on
+//                       this Mac is not the project's, so "Saved" would be a lie; p8-held-conflict-status).
+//                       A held conflict's action is Compare (Diagnostics › Sync details at that conflict);
+//                       a failed write's is Retry. Outranks everything: it is the only word that asks for you.
 //   2. Local project  — nothing is linked, so nothing can be offline or syncing.
 //   3. Offline        — no network (`online === false`), or the link is `offline` / `stalled`. Edits are
 //                       kept on this Mac, which is exactly the claim; it also outranks Syncing… because
@@ -45,6 +50,9 @@ export const WORDS = Object.freeze({
 
 export const ACCESS_WORDS = Object.freeze({ view: 'Can view', comment: 'Can comment' });
 
+/** A held source conflict's one action (CONTRACT §6): the two versions side by side in Sync details. */
+export const COMPARE = Object.freeze({ id: 'compare', label: 'Compare' });
+
 export const DISK_FULL_DETAIL = "This Mac is out of space — changes wait here until there's room.";
 
 const ICONS = {
@@ -67,7 +75,9 @@ const count = (n) => (Number.isFinite(n) && n > 0 ? n : 0);
  * @param in.phase       SyncPhase from syncPresentation, or null
  * @param in.pending     edits waiting to leave this Mac
  * @param in.writeFailed null | { kind: 'failed' | 'disk-full' }
- * @returns {{ kind, word, icon, tone, detail?, actions }} actions: [{ id: 'retry' | 'show-in-finder', label }]
+ * @param in.held        slugs of the canvases with a held source conflict (sync-details-model `heldConflicts`)
+ * @returns {{ kind, word, icon, tone, detail?, conflict?, actions }}
+ *   actions: [{ id: 'retry' | 'show-in-finder' | 'compare', label }]; `conflict` = the slug Compare opens
  */
 export function saveStatus(input) {
   const {
@@ -76,6 +86,7 @@ export function saveStatus(input) {
     phase = null,
     pending = 0,
     writeFailed = null,
+    held = [],
   } = input ?? {};
   const make = (kind, extra = {}) => ({
     kind,
@@ -85,16 +96,24 @@ export function saveStatus(input) {
     actions: [],
     ...extra,
   });
-  if (writeFailed || phase === 'refused') {
+  const conflicts = Array.isArray(held) ? held.filter((h) => typeof h === 'string' && h) : [];
+  const failed = !!writeFailed || phase === 'refused';
+  if (failed || conflicts.length) {
     const disk = writeFailed?.kind === 'disk-full';
-    return make('not-saved', {
-      detail: disk ? DISK_FULL_DETAIL : undefined,
-      actions: disk
+    const actions = !failed
+      ? []
+      : disk
         ? [
             { id: 'retry', label: 'Retry' },
             { id: 'show-in-finder', label: 'Show in Finder' },
           ]
-        : [{ id: 'retry', label: 'Retry' }],
+        : [{ id: 'retry', label: 'Retry' }];
+    if (conflicts.length) actions.push({ ...COMPARE });
+    return make('not-saved', {
+      detail: disk ? DISK_FULL_DETAIL : undefined,
+      actions,
+      // the canvas Compare opens (the first held conflict; Sync details lists every one)
+      ...(conflicts.length ? { conflict: conflicts[0] } : {}),
     });
   }
   if (!linked) return make('local');

@@ -319,6 +319,12 @@ export function createMenuHandlers(d) {
       panelLayout.show();
       d.toggleRightPanel('assets');
     },
+    // p8-import-link — Assets › Add from a link…: the field lives in the Assets tab, so the tab is shown first
+    'assets.add-link': () => {
+      if (runAssetsAction('assets.add-link')) return;
+      panelLayout.show();
+      d.toggleRightPanel('assets');
+    },
     // S8.20 — Search in pictures: the sheet lives in the Assets tab, so the tab is shown first
     'assets.describe': () => {
       if (runAssetsAction('assets.describe')) return;
@@ -563,7 +569,9 @@ export function createMenuHandlers(d) {
     'sync.connect-link': () => d.onShare(),
     // S9.21 — Ask to edit (the Viewing button, ⌘K) and the owner's answer (the request block's buttons)
     ...createAccessHandlers(d),
-    'settings.open': () => d.setSettingsOpen(true),
+    // `{ tab }` lands on that section ("Connect a Google key?" → connections); the sheet resolves a name it lacks
+    'settings.open': (params) =>
+      d.setSettingsOpen(typeof params?.tab === 'string' ? params.tab : true),
     'canvas.reload': () => d.onReload(),
     // ── Diagnostics (V2-4.7b) ──
     ...createDiagnosticsHandlers(d),

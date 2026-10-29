@@ -15,6 +15,8 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { saveHold } from '../ai/save-hold.ts';
+
 import { type CanvasState, checkCanvas } from './canvas-check.ts';
 import { canvasContext, listCanvases } from './canvas-cli.ts';
 import { type DsEngine, withLock } from './engine.ts';
@@ -395,8 +397,10 @@ export function createDsSwitch(engine: DsEngine) {
         )
       );
     let keys: string[];
+    let touched: string[];
     try {
       const r = review(inp);
+      touched = r.canvases.map((c) => path.join(designRoot, c.path));
       const names = new Set([
         r.to,
         ...r.canvases.map((c) => c.from).filter((x): x is string => !!x),
@@ -411,7 +415,9 @@ export function createDsSwitch(engine: DsEngine) {
     }
     const run = (i: number): Promise<SwitchReview> =>
       i >= keys.length ? applyLocked(inp) : withLock(keys[i], () => run(i + 1));
-    return run(0);
+    // p8-a1-save-hold — while a running interpreter call names one of these canvases the switch waits
+    // until it is done (+ settle), then reads and switches them as they are
+    return saveHold().defer(touched, () => run(0));
   }
 
   return { review, apply };

@@ -36,6 +36,7 @@ import path from 'node:path';
 import MagicString from 'magic-string';
 import { parseSync } from 'oxc-parser';
 import { fileText } from '../../cli/lib/finding-text.mjs';
+import { saveHold } from './ai/save-hold.ts';
 import { formatLinkTarget, type LinkTarget, parseLinkTarget } from './bridge/link-target.ts';
 import {
   attrRemovalSpan,
@@ -316,10 +317,18 @@ export interface EditResult {
  * (sync/write-hold.ts), else the file. An edit made while the disk is full builds on the last one.
  */
 async function readCanvasSource(file: { text(): Promise<string> }, abs: string): Promise<string> {
+  // p8-a1-save-hold — a person's save held behind an AI interpreter call is what the file WILL hold
+  const waiting = saveHold().read(abs);
+  if (waiting !== undefined) return waiting;
   const held = sourceHold().read(abs);
   if (held !== undefined) return typeof held === 'string' ? held : new TextDecoder().decode(held);
-  return file.text();
+  const text = await file.text();
+  readBase.set(abs, text);
+  return text;
 }
+
+/** p8-a1-save-hold — the disk bytes each canvas's last edit was made on (a held save's merge base). */
+const readBase = new Map<string, string>();
 
 /**
  * Every write here: tmp + rename in the same folder (a reader never sees half a file). On a full
@@ -327,6 +336,15 @@ async function readCanvasSource(file: { text(): Promise<string> }, abs: string):
  */
 async function writeCanvasSource(abs: string, source: string): Promise<void> {
   const say = writeSaying.getStore();
+  // p8-a1-save-hold — a person's save to a file a running interpreter call names waits until the call is
+  // done (+ settle), then lands as theirs (ai/save-hold.ts). Nothing is said now: the landing says it.
+  if (saveHold().holds(abs)) {
+    const base = readBase.get(abs) ?? source;
+    readBase.delete(abs);
+    saveHold().hold(abs, source, { base, ...(say?.label ? { label: say.label } : {}) });
+    return;
+  }
+  readBase.delete(abs);
   say?.writing(abs, source);
   try {
     await sourceHold().put(abs, source);
@@ -340,6 +358,8 @@ async function writeCanvasSource(abs: string, source: string): Promise<void> {
 export interface CanvasWriteSaying {
   writing(abs: string, source: string): void;
   failed(abs: string, source: string): void;
+  /** the history line the write says (a held save's landing says it) */
+  label?: string;
 }
 const writeSaying = new AsyncLocalStorage<CanvasWriteSaying>();
 

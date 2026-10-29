@@ -342,10 +342,15 @@ const PROJECT = [
   '/_api/sync/link',
   '/_api/sync/link/confirm',
   '/_api/diagnostics/disk-retry',
+  // p8-a1-save-hold — the closing page lands its held saves (canvas files): a project write
+  '/_api/diagnostics/save-hold-flush',
   '/_api/sync/cancel-assets',
   '/_api/fs-move',
   '/_api/fs-mkdir',
   '/_api/import-brand',
+  // p8-import-link — Add from a link… lands a file in the project's Assets: Can edit on the project, never canvas-only
+  '/_api/import-link',
+  '/_api/import-link/key',
   '/_api/git/branch',
   '/_api/git/checkout',
   '/_api/git/fold',

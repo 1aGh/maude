@@ -81,7 +81,7 @@ test('two cells, one failed: the fleet line says failed=1 converted=1, and the d
       const r = await run(urls);
       assert.equal(r.code, 0);
       const fleet = r.stdout.split('\n').find((l) => l.includes(' fleet '));
-      assert.match(fleet, /cells=2 unreported=0$/);
+      assert.match(fleet, /cells=2 unreported=0 disabled=0$/);
       assert.deepEqual(parseReportLine(fleet), { converted: 1, skipped: 0, failed: 1 });
       assert.match(r.stdout, /::warning::1 cloud project\(s\) did not convert/);
       assert.match(r.summary, /### Maude 2 cloud conversion/);
@@ -120,6 +120,22 @@ test('a cell that never reports (an image without the conversion, a gated rc) is
       assert.match(r.stdout, /gated \(prerelease\)/);
       assert.match(r.stdout, /fleet converted=0 skipped=0 failed=0 cells=0 unreported=2/);
       assert.match(r.stdout, /::warning::2 cell\(s\) did not report/);
+    }
+  );
+});
+
+test('a cell whose kill switch is off is named as disabled, neither counted nor unreported', async () => {
+  await withCells(
+    [[{ ok: true, v2Convert: { state: 'disabled', by: 'CELL_V2_CONVERT=0' } }]],
+    async (urls) => {
+      const r = await run(urls);
+      assert.equal(r.code, 0);
+      assert.match(r.stdout, /disabled \(CELL_V2_CONVERT=0\) — the kill switch was honoured/);
+      assert.match(
+        r.stdout,
+        /fleet converted=0 skipped=0 failed=0 cells=0 unreported=0 disabled=1/
+      );
+      assert.doesNotMatch(r.stdout, /::warning::/);
     }
   );
 });

@@ -434,6 +434,113 @@ describe('projection in accepted-revisions mode', () => {
     expect(r.disk()).toBe(src('C'));
   });
 
+  // p8-fix-c2 #2 — an edit-op's source lane rides a larger action the caller sends itself.
+  test('proposeVia: the caller’s own file write is an echo, and a LATE refusal holds the conflict', async () => {
+    const r = rig(src('A'));
+    const vias: Array<{
+      tx: { transactionId: string; dependsOn?: string[] };
+      answer: (o: ProposalOutcome) => void;
+    }> = [];
+    const out = r.projection.proposeVia('html', src('B'), src('A'), (tx) => {
+      return new Promise<ProposalOutcome>((answer) => vias.push({ tx, answer }));
+    });
+    expect(out).not.toBeNull();
+    expect(vias).toHaveLength(1);
+    // The route answered "queued" and wrote its bytes; its `source-written` reaches the projection.
+    writeFileSync(r.paths.html, src('B'));
+    r.projection.applyFromFs({
+      path: r.paths.html,
+      bytes: enc(src('B')),
+      hash: hashBytes(src('B')),
+    });
+    expect(r.sent).toHaveLength(0); // no second proposal of the same bytes
+    // A later hand edit depends on the queued action.
+    expect(r.edit(src('C'))).toBe(true);
+    expect(r.sent.at(-1)?.p.dependsOn).toEqual([vias[0]?.tx.transactionId]);
+    expect(r.sent.at(-1)?.p.baseContent).toBe(src('B'));
+    // Long after, the hub refuses the queued action: held, both versions kept.
+    r.publish(src('Theirs'));
+    vias[0]?.answer({ status: 'rejected', code: 'base-conflict', head: laneHash(src('Theirs')) });
+    await r.settle();
+    expect(r.conflicts).toHaveLength(1);
+    expect(r.disk()).toBe(src('C'));
+    const incoming = join(dir, '_history', 'ui-home', 'sync-recovery', 'incoming.tsx');
+    expect(readFileSync(incoming, 'utf8')).toBe(src('Theirs'));
+    expect(r.localWrites()).toBe(0);
+  });
+
+  test('proposeVia accepted before the bytes land: the write is not proposed again', async () => {
+    const r = rig(src('A'));
+    let answer!: (o: ProposalOutcome) => void;
+    void r.projection.proposeVia(
+      'html',
+      src('B'),
+      src('A'),
+      () => new Promise((a) => (answer = a))
+    );
+    answer({ status: 'accepted', actionId: 'act_1' });
+    await r.settle();
+    // the publication has not reached this replica yet when the route writes and announces
+    writeFileSync(r.paths.html, src('B'));
+    r.projection.applyFromFs({
+      path: r.paths.html,
+      bytes: enc(src('B')),
+      hash: hashBytes(src('B')),
+    });
+    expect(r.sent).toHaveLength(0);
+    r.publish(src('B'));
+    await r.settle();
+    expect(r.conflicts).toHaveLength(0);
+    expect(r.edit(src('C'))).toBe(true);
+    expect(r.sent.at(-1)?.p.baseContent).toBe(src('B'));
+  });
+
+  // The F14 shape through proposeVia: the route arms its base (`activity:suppress`) before the
+  // bytes land; the bytes are an echo of the pending (or just-accepted) value, and that base must
+  // go with them — or the next HAND edit is proposed from the version before the trash and refused.
+  // p8-fix-c3 — `published`: the hub's publication of the action reached this replica BEFORE its
+  // answer (the rig's restore run on the mini, every time): `settle` then makes the action's value
+  // the agreed body, and the route's own bytes were dropped as "a redelivered projection" with
+  // the announced base still set.
+  for (const [answeredFirst, published] of [
+    [false, false],
+    [true, false],
+    [true, true],
+  ] as const) {
+    test(`proposeVia + an announced write (${answeredFirst ? 'answered before' : 'queued while'} the bytes land${published ? ', published before the answer' : ''}): the next hand edit is based on the action`, async () => {
+      const r = rig(src('A'));
+      let answer!: (o: ProposalOutcome) => void;
+      r.projection.noteLocalWrite();
+      void r.projection.proposeVia(
+        'html',
+        src('B'),
+        src('A'),
+        () => new Promise((a) => (answer = a))
+      );
+      if (published) r.publish(src('B'));
+      if (answeredFirst) {
+        answer({ status: 'accepted', actionId: 'act_1' });
+        await r.settle();
+      }
+      writeFileSync(r.paths.html, src('B'));
+      r.projection.applyFromFs({
+        path: r.paths.html,
+        bytes: enc(src('B')),
+        hash: hashBytes(src('B')),
+      });
+      expect(r.sent).toHaveLength(0);
+      if (!answeredFirst) {
+        answer({ status: 'accepted', actionId: 'act_1' });
+        await r.settle();
+      }
+      r.publish(src('B'));
+      await r.settle();
+      expect(r.edit(src('C'))).toBe(true);
+      expect(r.sent.at(-1)?.p.baseContent).toBe(src('B'));
+      expect(r.conflicts).toHaveLength(0);
+    });
+  }
+
   test('file events before the cold start decided are proposed once it has', () => {
     const paths = {
       html: join(dir, 'ui', 'late.tsx'),

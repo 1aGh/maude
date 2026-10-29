@@ -17,6 +17,8 @@ import {
 } from '../src/v2-convert.mjs';
 
 const CELL = { MAUDE_TENANT_ID: 'acme' };
+/** A self-hosted workspace hub (`maude hub workspace-up`): workspace mode, no tenant. */
+const SELF_HOSTED = { HUB_WORKSPACE_MODE: '1' };
 const quiet = { log() {}, error() {} };
 
 /** A coordinator double: the store state + a call log. */
@@ -95,7 +97,7 @@ describe('the version gate — only a stable ≥ 2.0.0 image converts', () => {
       'v1'
     );
   });
-  test('an unreadable version, or a process that is not a cell, never converts', () => {
+  test('an unreadable version, or a hub with no project (not a cell, not workspace mode), never converts', () => {
     assert.equal(
       conversionGate({ hubVersion: '0.0.0x', releaseVersion: '2.0.0', env: CELL }).reason,
       'unknown-version'
@@ -106,7 +108,7 @@ describe('the version gate — only a stable ≥ 2.0.0 image converts', () => {
     );
     assert.equal(
       conversionGate({ hubVersion: '2.0.0', releaseVersion: '2.0.0', env: {} }).reason,
-      'not-a-cell'
+      'not-a-project-hub'
     );
     assert.equal(
       conversionGate({
@@ -114,7 +116,83 @@ describe('the version gate — only a stable ≥ 2.0.0 image converts', () => {
         releaseVersion: '2.0.0',
         env: { MAUDE_TENANT_ID: '../x' },
       }).reason,
-      'not-a-cell'
+      'not-a-project-hub'
+    );
+    assert.equal(
+      conversionGate({
+        hubVersion: '2.0.0',
+        releaseVersion: '2.0.0',
+        env: { ...SELF_HOSTED, MAUDE_TENANT_ID: '../x' },
+      }).reason,
+      'invalid-tenant',
+      'a workspace hub that names a tenant it cannot be is not a self-hosted hub either'
+    );
+  });
+  test('a self-hosted workspace hub is gated exactly like a cell (p8-selfhost-convert)', () => {
+    for (const env of [SELF_HOSTED, { MAUDE_WORKSPACE_MODE: '1' }]) {
+      assert.deepEqual(conversionGate({ hubVersion: '2.0.0', releaseVersion: '2.0.0', env }), {
+        run: true,
+      });
+      assert.equal(
+        conversionGate({ hubVersion: '2.0.0-rc.1', releaseVersion: '2.0.0-rc.1', env }).reason,
+        'prerelease'
+      );
+      assert.equal(
+        conversionGate({ hubVersion: '1.10.0', releaseVersion: '1.10.0', env }).reason,
+        'v1'
+      );
+    }
+    // The flag can also come from the hub itself (server.mjs passes its own workspaceMode).
+    assert.equal(
+      conversionGate({ hubVersion: '2.0.0', releaseVersion: '2.0.0', env: {}, workspaceMode: true })
+        .run,
+      true
+    );
+    assert.equal(
+      conversionGate({
+        hubVersion: '2.0.0',
+        releaseVersion: '2.0.0',
+        env: { HUB_WORKSPACE_MODE: '0' },
+      }).reason,
+      'not-a-project-hub'
+    );
+  });
+  test('the kill switch CELL_V2_CONVERT=0 stops a cell and a self-hosted hub alike', () => {
+    for (const env of [CELL, SELF_HOSTED]) {
+      assert.deepEqual(
+        conversionGate({
+          hubVersion: '2.0.0',
+          releaseVersion: '2.0.0',
+          env: { ...env, CELL_V2_CONVERT: '0' },
+        }),
+        { run: false, reason: 'disabled', switchValue: '0' }
+      );
+      for (const on of [undefined, '', '1']) {
+        const e = { ...env };
+        if (on !== undefined) e.CELL_V2_CONVERT = on;
+        assert.equal(
+          conversionGate({ hubVersion: '2.0.0', releaseVersion: '2.0.0', env: e }).run,
+          true,
+          `CELL_V2_CONVERT=${on} converts`
+        );
+      }
+      // A switch typed wrong fails closed: only unset or 1 converts.
+      const wrong = conversionGate({
+        hubVersion: '2.0.0',
+        releaseVersion: '2.0.0',
+        env: { ...env, CELL_V2_CONVERT: 'false' },
+      });
+      assert.equal(wrong.reason, 'disabled');
+      assert.equal(wrong.switchValue, 'false');
+    }
+    // A hub that would never convert anyway does not grow a report because of the switch.
+    assert.equal(
+      conversionGate({
+        hubVersion: '2.0.0',
+        releaseVersion: '2.0.0',
+        env: { CELL_V2_CONVERT: '0' },
+      }).reason,
+      'not-a-project-hub'
     );
   });
   test('parseStableVersion refuses everything but X.Y.Z', () => {
@@ -274,9 +352,36 @@ describe('the hub handle', () => {
     assert.equal(await h.run(), null);
     assert.deepEqual(h.health(), { state: 'gated', reason: 'prerelease' });
   });
-  test('not a cell: nothing on /health at all', () => {
+  test('disabled by the kill switch: never runs, one log line, and /health says disabled', async () => {
+    const lines = [];
     const h = createV2Conversion({
-      gate: { run: false, reason: 'not-a-cell' },
+      gate: { run: false, reason: 'disabled', switchValue: '0' },
+      projects: () => {
+        throw new Error('must not be asked');
+      },
+      log: { log: (l) => lines.push(l), error: (l) => lines.push(l) },
+    });
+    assert.deepEqual(h.health(), { state: 'disabled', by: 'CELL_V2_CONVERT=0' });
+    assert.equal(await h.run(), null);
+    await h.run();
+    assert.deepEqual(lines, ['[v2-convert] disabled by CELL_V2_CONVERT=0']);
+    assert.equal(parseReportLine(lines[0]), null, 'not a count line the deploy would sum');
+    assert.deepEqual(h.health(), { state: 'disabled', by: 'CELL_V2_CONVERT=0' });
+  });
+  test('a switch value that is not a plain token is never echoed into the log', async () => {
+    const lines = [];
+    const h = createV2Conversion({
+      gate: { run: false, reason: 'disabled', switchValue: 'x\n[v2-convert] converted=9' },
+      projects: () => [],
+      log: { log: (l) => lines.push(l), error: (l) => lines.push(l) },
+    });
+    await h.run();
+    assert.deepEqual(lines, ['[v2-convert] disabled by CELL_V2_CONVERT=(invalid)']);
+    assert.equal(h.health().by, 'CELL_V2_CONVERT=(invalid)');
+  });
+  test('not a project hub: nothing on /health at all', () => {
+    const h = createV2Conversion({
+      gate: { run: false, reason: 'not-a-project-hub' },
       projects: () => [],
     });
     assert.equal(h.health(), null);

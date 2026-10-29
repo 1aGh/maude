@@ -9,7 +9,7 @@
 // is picked AND keyboard focus is inside the tab. A tile still picked while focus moved to the canvas or a toolbar
 // button must leave ↵ to whatever has focus.
 
-/** @type {{ place: () => void, details: () => void, trash: () => void, generate?: () => void, describe?: () => void, describeStop?: () => void, tileSelected: () => boolean } | null} */
+/** @type {{ place: () => void, details: () => void, trash: () => void, generate?: () => void, addLink?: () => void, describe?: () => void, describeStop?: () => void, tileSelected: () => boolean } | null} */
 let bound = null;
 
 /** The panel binds itself on mount. @returns the unbind. */
@@ -49,6 +49,16 @@ export function takeDescribeRequest() {
   return w;
 }
 
+/** p8-import-link — `assets.add-link` asked while no Assets tab was mounted: the tab opens the link field on mount. */
+let wantsAddLink = false;
+
+/** The panel, on mount: was Add from a link… asked for before it was there? (read once) */
+export function takeAddLinkRequest() {
+  const w = wantsAddLink;
+  wantsAddLink = false;
+  return w;
+}
+
 /**
  * Run `assets.place` / `assets.details` / `assets.trash` on the picked tile, or `assets.generate` (the ask).
  * @returns whether a mounted panel took it. `assets.generate` with no panel mounted is held for the next mount.
@@ -60,6 +70,14 @@ export function runAssetsAction(id) {
       return true;
     }
     wantsGenerate = true;
+    return false;
+  }
+  if (id === 'assets.add-link') {
+    if (bound?.addLink) {
+      bound.addLink();
+      return true;
+    }
+    wantsAddLink = true;
     return false;
   }
   if (id === 'assets.describe') {

@@ -12,6 +12,10 @@
 //   --scenario race      F15: the cell goes away, alice trashes A-C, bob trashes D, the cell comes
 //                        back. The two Macs must end EQUAL, or one of them shows a conflict.
 //
+//   --scenario first     p8-fix-c2 #1: only the boot — both copies start on an EMPTY project, then
+//                        one (--first-by alice|bob) makes the first canvas; the other must get it
+//                        without a restart. Every scenario boots this way.
+//
 //   node scripts/dev/trash-sync-repro.mjs --scenario restore --runs 20 [--restorer bob|alice] [--keep]
 //
 // Nothing here touches a real hub, a real ~/.config, the person's index or the keychain: HOME,
@@ -33,6 +37,9 @@ import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { startLocalHub } from '../../apps/desktop/e2e/fixtures/local-hub.mjs';
+import { heldConflicts } from '../../apps/studio/client/v2/diagnostics/sync-details/sync-details-model.js';
+import { saveStatus } from '../../apps/studio/client/v2/shell/save-status.js';
+import { syncPresentation } from '../../apps/studio/sync/presentation.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const argv = process.argv.slice(2);
@@ -47,6 +54,8 @@ const KEEP = argv.includes('--keep');
 const SETTLE_MS = Number(arg('settle', '0'));
 // --legacy: a hub with no accepted-revisions store (the shared-document mode a 1.x hub speaks)
 const LEGACY = argv.includes('--legacy');
+// who makes the project's first canvas after both copies booted empty (p8-fix-c2 #1)
+const FIRST_BY = arg('first-by', 'alice');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const ids = (src) =>
@@ -124,7 +133,10 @@ const meta = (title) =>
 const scratch = mkdtempSync(join(tmpdir(), 'maude-trash-repro-'));
 const children = [];
 let hub = null;
+let cleaned = false;
 function cleanup() {
+  if (cleaned) return;
+  cleaned = true;
   for (const c of children) {
     try {
       c.kill('SIGCONT');
@@ -140,6 +152,9 @@ process.on('SIGINT', () => {
   cleanup();
   process.exit(130);
 });
+// A boot step that times out rejects the top-level await: the children (two studios, the hub)
+// must not outlive the rig as orphans on a machine-wide test lane.
+process.on('exit', cleanup);
 
 function projectConfig(root, hubUrl) {
   mkdirSync(join(root, '.design', 'ui'), { recursive: true });
@@ -258,22 +273,35 @@ const aliceRoot = join(scratch, 'alice');
 const bobRoot = join(scratch, 'bob');
 projectConfig(aliceRoot, hub.http);
 projectConfig(bobRoot, hub.http);
-// alice is already at work (a canvas on the hub) before bob's copy boots — as the team-cell lane
-// has it: a copy that boots onto a project with no canvas yet does not start its sync.
-writeFileSync(
-  join(aliceRoot, '.design', 'ui', 'welcome.tsx'),
-  SOURCE.replace('Leták A6', 'Welcome')
-);
+// p8-fix-c2 #1 — BOTH copies boot onto a project with no canvas anywhere ("linked … but 0
+// syncable canvases"), and only then does one of them make the project's first canvas. The other
+// must get it without a restart (this rig used to seed a canvas before bob booted to hide that).
 const alice = await startStudio(
   'alice',
   aliceRoot,
   credentials(join(scratch, 'alice-cfg'), hub.http, hub.tokens.alice, aliceRoot)
 );
+const bob = await startStudio(
+  'bob',
+  bobRoot,
+  credentials(join(scratch, 'bob-cfg'), hub.http, hub.tokens.bob, bobRoot)
+);
+await until(
+  'both copies linked with nothing to sync',
+  () => [alice, bob].every((p) => /0 syncable canvases/.test(p.log())),
+  60_000
+);
+const firstBy = FIRST_BY === 'bob' ? bob : alice;
+const firstTo = firstBy === bob ? alice : bob;
+writeFileSync(
+  join(firstBy.root, '.design', 'ui', 'welcome.tsx'),
+  SOURCE.replace('Leták A6', 'Welcome')
+);
 await until(
   'welcome on the hub',
   async () => {
-    // a legacy hub has no accepted-revisions bootstrap: alice saying it is synced is the signal
-    if (LEGACY) return /1\/1 synced/.test(alice.log());
+    // a legacy hub has no accepted-revisions bootstrap: the author saying it is synced is the signal
+    if (LEGACY) return /1\/1 synced/.test(firstBy.log());
     const r = await fetch(`${hub.http}/api/projects/current/v1/bootstrap`, {
       headers: { authorization: `Bearer ${hub.tokens.owner}` },
     });
@@ -282,16 +310,28 @@ await until(
   },
   120_000
 );
-const bob = await startStudio(
-  'bob',
-  bobRoot,
-  credentials(join(scratch, 'bob-cfg'), hub.http, hub.tokens.bob, bobRoot)
-);
+const firstAt = Date.now();
 await until(
-  'welcome on bob’s disk',
-  () => read(join(bobRoot, '.design', 'ui', 'welcome.tsx')) !== null,
+  `the first canvas on ${firstTo.name}’s disk, no restart`,
+  () => read(join(firstTo.root, '.design', 'ui', 'welcome.tsx')) !== null,
   180_000
 );
+const firstReachedS = Number(((Date.now() - firstAt) / 1000).toFixed(1));
+console.log(`[rig] ${firstBy.name}’s first canvas reached ${firstTo.name} in ${firstReachedS}s`);
+/** What `--scenario first` asserts: it IS the boot above, so its verdict is read from the boot. */
+const firstVerdict = () => {
+  // the arrival must be the empty copy's hub poll (p8-fix-c2 #1), not a process restart or a seed
+  const viaPoll = /first canvas arrived from the hub/.test(firstTo.log());
+  const bootedEmpty = [alice, bob].every((p) => /0 syncable canvases/.test(p.log()));
+  return {
+    ok: viaPoll && bootedEmpty,
+    firstBy: firstBy.name,
+    firstTo: firstTo.name,
+    reachedInS: firstReachedS,
+    viaPoll,
+    bootedEmpty,
+  };
+};
 const peers = { alice, bob };
 const disk = (p, rel) => read(join(p.root, '.design', rel));
 const syncStatus = async (p) => (await p.call('GET', '/_sync-status')).body;
@@ -433,6 +473,32 @@ async function raceRun(n) {
     aliceOp: a.status,
     bobOp: b.status,
   };
+  // p8-held-conflict-status — the refused Mac's real /_sync-status through the Share cluster's own status
+  // machine: a held conflict must read Not saved · Compare, never Saved. --status-out <file> keeps that
+  // payload (tokens / scratch paths scrubbed) for test/fixtures/held-conflict-sync-status.json.
+  for (const [who, st] of [
+    ['alice', sa],
+    ['bob', sb],
+  ]) {
+    const held = heldConflicts(st).map((c) => c.slug);
+    if (!held.length) continue;
+    const word = saveStatus({
+      linked: true,
+      online: true,
+      phase: syncPresentation(st)?.phase ?? null,
+      pending: Number(st?.queuedOps) || 0,
+      held,
+    });
+    final[`${who}Status`] = `${word.word} · ${word.actions.map((x) => x.label).join(' · ')}`;
+    const out = arg('status-out', '');
+    if (out) {
+      const scrub = JSON.stringify(st, null, 2)
+        .replaceAll(scratch, '<scratch>')
+        .replace(/http:\/\/127\.0\.0\.1:\d+/g, 'http://127.0.0.1:<port>')
+        .replace(/"(token|key|secret)[^"]*":\s*"[^"]*"/gi, '"$1":"<scrubbed>"');
+      writeFileSync(out, `${scrub}\n`);
+    }
+  }
   if (!converged && argv.includes('--dump')) {
     console.log('alice /_sync-status', JSON.stringify(await syncStatus(alice)).slice(0, 3000));
     console.log('bob /_sync-status', JSON.stringify(await syncStatus(bob)).slice(0, 3000));
@@ -451,13 +517,30 @@ try {
     const t0 = Date.now();
     // a run that cannot reach its next step is a FAIL of that run, not the end of the series (each run
     // works on its own fresh canvas) — so the rate is honest
-    const r = await (SCENARIO === 'race' ? raceRun(n) : restoreRun(n)).catch((e) => ({
+    const r = await (SCENARIO === 'first'
+      ? Promise.resolve(firstVerdict())
+      : SCENARIO === 'race'
+        ? raceRun(n)
+        : restoreRun(n)
+    ).catch((e) => ({
       ok: false,
       error: String(e?.message ?? e),
     }));
     if (r.ok) pass++;
+    else if (argv.includes('--dump') || SCENARIO === 'restore') {
+      // the sync lines of both studios, so a failed run says why without --keep + a shell on the box
+      const pick = (log) =>
+        log
+          .split('\n')
+          .filter((l) => /\[(sync|projection)|refus|blocked|conflict|held/i.test(l))
+          .slice(-40)
+          .join('\n');
+      console.log(
+        `--- bob (sync lines) ---\n${pick(bob.log())}\n--- alice (sync lines) ---\n${pick(alice.log())}`
+      );
+    }
     console.log(
-      `[${SCENARIO} ${n}/${RUNS}] ${r.ok ? 'PASS' : 'FAIL'} ${((Date.now() - t0) / 1000).toFixed(1)}s ${JSON.stringify(r)}`
+      `[${SCENARIO} ${n}/${RUNS}] ${r.ok ? 'PASS' : 'FAIL'} ${SCENARIO === 'first' ? `${firstReachedS}s (the boot)` : `${((Date.now() - t0) / 1000).toFixed(1)}s`} ${JSON.stringify(r)}`
     );
   }
 } catch (e) {

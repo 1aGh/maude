@@ -14,12 +14,16 @@ import { StIcon } from '../../shell/icons.jsx';
 import { placeAsset } from './place-asset.js';
 import { primeTakes } from './takes.js';
 import { reasonProps } from '../access/disabled-reason.js';
+import ConnectKeySheet, { KEY_WORDS } from './connect-key-sheet.jsx';
 
 const NUMBER = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'];
 export const COUNTS = Object.freeze([1, 2, 3, 4]);
 export const COUNT_DEFAULT = 4;
 const POLL_MS = 1500;
 const POLL_LIMIT_MS = 10 * 60 * 1000;
+// p8-ia-edges — while a prompt waits for the key the ask looks at which keys are connected this often, for this long
+const KEY_POLL_MS = 2000;
+const KEY_WAIT_LIMIT_MS = 10 * 60 * 1000;
 
 export const ASK_WORDS = {
   title: 'Generate an image',
@@ -71,7 +75,9 @@ const post = async (get, url, body) => {
 };
 
 /**
- * Ask the studio for the consent quote. @returns {Promise<{ ok: true, quote: object } | { ok: false, message: string }>}
+ * Ask the studio for the consent quote.
+ * `noProvider` marks the one refusal that is a question for the person, not an error: no image key is connected.
+ * @returns {Promise<{ ok: true, quote: object } | { ok: false, message: string, noProvider?: true }>}
  */
 export async function askQuote(target, { n, provider, model } = {}, opts = {}) {
   const get = opts.fetch ?? globalThis.fetch;
@@ -82,7 +88,7 @@ export async function askQuote(target, { n, provider, model } = {}, opts = {}) {
     if (model) body.model = model;
     const { status, j } = await post(get, '/_api/generate-takes/quote', body);
     if (status === 409 && j?.reason === 'no-provider')
-      return { ok: false, message: ASK_WORDS.noProvider };
+      return { ok: false, message: ASK_WORDS.noProvider, noProvider: true };
     if (!j?.ok || typeof j.quote !== 'string')
       return { ok: false, message: j?.message ?? ASK_WORDS.failed };
     return { ok: true, quote: j };
@@ -163,9 +169,11 @@ export const SUGGESTIONS = Object.freeze(['Use our photos as a style', 'Daylight
 
 /**
  * The ask, in the Assets tab.
+ * `onConnectKey` opens the one key flow (Settings › Connections); `keyPollMs` is the wait between looks at the
+ * connected keys while a prompt waits for one (tests).
  * @param {{ target: object | null, where: string | null, onClose: () => void, onRecord?: (p: object) => void,
  *   onSelect?: (created: { artboard: string, element: string }) => void, onDone?: (line: string) => void,
- *   onOther?: () => void, fetchImpl?: typeof fetch }} p
+ *   onOther?: () => void, onConnectKey?: () => void, keyPollMs?: number, fetchImpl?: typeof fetch }} p
  */
 export function GenerateAsk({
   target,
@@ -175,6 +183,8 @@ export function GenerateAsk({
   onSelect,
   onDone,
   onOther,
+  onConnectKey,
+  keyPollMs = KEY_POLL_MS,
   fetchImpl,
 }) {
   const [prompt, setPrompt] = useState('');
@@ -183,6 +193,11 @@ export function GenerateAsk({
   const [quote, setQuote] = useState(null);
   const [err, setErr] = useState('');
   const [making, setMaking] = useState(0);
+  // p8-ia-edges (ia-edges H): no image key → Generate asks "Connect a Google key?" and the prompt waits for it.
+  // needsKey: the last quote was refused for want of a key · keyStep: idle | ask (the sheet) | waiting (key flow open)
+  const [needsKey, setNeedsKey] = useState(false);
+  const [keyStep, setKeyStep] = useState('idle');
+  const waitingPrompt = useRef('');
   const alive = useRef(true);
   const seq = useRef(0);
   useEffect(() => {
@@ -197,6 +212,7 @@ export function GenerateAsk({
   const requote = async () => {
     const mine = ++seq.current;
     setQuote(null);
+    setNeedsKey(false);
     if (!canvas || !artboard) {
       // 12 · ia-gen-ask — nothing is wrong yet: the line below the prompt says what sets the shape, calmly
       setErr('');
@@ -211,7 +227,12 @@ export function GenerateAsk({
     if (r.ok) {
       setQuote(r.quote);
       setErr('');
+    } else if (r.noProvider) {
+      // not an error: Generate answers with the key sheet (ia-edges H)
+      setNeedsKey(true);
+      setErr('');
     } else setErr(r.message);
+    return r;
   };
   // a fresh quote for every shape, count and model: the line the person reads is the one that is sent
   // biome-ignore lint/correctness/useExhaustiveDependencies: requote reads the same inputs
@@ -220,13 +241,24 @@ export function GenerateAsk({
   }, [canvas, artboard, n, model]);
 
   const generate = async () => {
-    if (!quote || !prompt.trim() || making > 0) return;
-    const used = quote;
+    if (!prompt.trim() || making > 0 || keyStep !== 'idle') return;
+    if (!quote) {
+      // no key connected: ask, once per press, with the person's words kept for the key (never a silent no-op)
+      if (needsKey) {
+        waitingPrompt.current = prompt.trim();
+        setKeyStep('ask');
+      }
+      return;
+    }
+    await run(quote, prompt.trim());
+  };
+
+  const run = async (used, words) => {
     setMaking(used.n || n);
     setErr('');
     setQuote(null); // a quote is single-use
     const r = await runGenerate(
-      { target, quote: used, prompt: prompt.trim(), where },
+      { target, quote: used, prompt: words, where },
       { fetch: fetchImpl, record: onRecord, select: onSelect }
     );
     if (!alive.current) return;
@@ -239,6 +271,54 @@ export function GenerateAsk({
     setErr(r.message);
     void requote();
   };
+
+  // The key flow is open and the prompt is waiting: look at the connected keys; when they change, ask for a quote
+  // again — and when one comes, run the waiting prompt, once. Closing the ask (unmount) or Cancel stops the looking.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the loop reads the inputs it was started with
+  useEffect(() => {
+    if (keyStep !== 'waiting') return undefined;
+    let stop = false;
+    const get = fetchImpl ?? globalThis.fetch;
+    const connected = async () => {
+      try {
+        const r = await get('/_api/generate/keys', { cache: 'no-store' });
+        const j = await r.json().catch(() => null);
+        return Array.isArray(j?.configured) ? [...j.configured].sort().join(',') : null;
+      } catch {
+        return null;
+      }
+    };
+    (async () => {
+      let seen = await connected();
+      const until = Date.now() + KEY_WAIT_LIMIT_MS;
+      while (!stop && Date.now() < until) {
+        await new Promise((r) => setTimeout(r, keyPollMs));
+        if (stop) return;
+        const now = await connected();
+        if (stop || now === null || now === seen) continue;
+        seen = now;
+        const q = await askQuote(target, { n, model: model ?? undefined }, { fetch: fetchImpl });
+        if (stop || !alive.current) return;
+        if (q.ok) {
+          setKeyStep('idle');
+          setNeedsKey(false);
+          await run(q.quote, waitingPrompt.current);
+          return;
+        }
+        if (!q.noProvider) {
+          // a different refusal: say it, and stop waiting
+          setKeyStep('idle');
+          setErr(q.message);
+          return;
+        }
+        // a key arrived, but not one that makes images — keep waiting
+      }
+      if (!stop && alive.current) setKeyStep('idle'); // gave up waiting; the prompt is still in the box
+    })();
+    return () => {
+      stop = true;
+    };
+  }, [keyStep]);
 
   const aspect = quote?.aspect ?? null;
   return (
@@ -350,6 +430,20 @@ export function GenerateAsk({
           {err}
         </p>
       ) : null}
+      {keyStep === 'waiting' ? (
+        <p className="v2-gen-time" role="status" data-testid="generate-ask-waiting">
+          {KEY_WORDS.waiting}
+        </p>
+      ) : null}
+      {keyStep === 'ask' ? (
+        <ConnectKeySheet
+          onCancel={() => setKeyStep('idle')}
+          onConnect={() => {
+            setKeyStep('waiting');
+            onConnectKey?.();
+          }}
+        />
+      ) : null}
       {making > 0 ? (
         <p className="v2-gen-time" role="status" data-testid="generate-ask-making">
           {ASK_WORDS.making(making)}
@@ -363,8 +457,8 @@ export function GenerateAsk({
           type="button"
           className="btn btn--primary btn--sm"
           data-testid="generate-ask-go"
-          disabled={!quote || !prompt.trim() || making > 0}
-          {...reasonProps(!quote && !!err, err)}
+          disabled={(!quote && !needsKey) || !prompt.trim() || making > 0 || keyStep === 'waiting'}
+          {...reasonProps(!quote && !needsKey && !!err, err)}
           onClick={() => void generate()}
         >
           {ASK_WORDS.generate}

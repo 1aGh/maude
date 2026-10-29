@@ -2621,7 +2621,8 @@ export function createHub(config = {}) {
   };
   // p8-v1-drop-cloud — the boot conversion's gate, its backup and its handle. A test may hand in
   // the two versions, or `v2Convert: false` (createHub is never configured from env, so nothing
-  // in a fleet can).
+  // in a fleet can). p8-selfhost-convert: a cell OR a self-hosted workspace hub converts, and the
+  // env's `CELL_V2_CONVERT=0` (the operator's kill switch, for both) stops it.
   const v2Conversion = createV2Conversion({
     gate:
       config.v2Convert === false
@@ -2629,18 +2630,21 @@ export function createHub(config = {}) {
         : conversionGate({
             hubVersion: config.v2Convert?.versions?.hub ?? HUB_VERSION,
             releaseVersion: config.v2Convert?.versions?.release ?? releaseVersion(),
+            workspaceMode,
           }),
     projects: () => [
       {
-        id: process.env.MAUDE_TENANT_ID,
+        // A self-hosted hub has no tenant: its one project is `local`, as everywhere else here.
+        id: process.env.MAUDE_TENANT_ID || 'local',
         coordinator: accepted,
         backup: config.v2Convert?.backup ?? (() => backupBeforeConversion()),
       },
     ],
   });
-  // The pre-conversion generation: the documents AND the checkout, in the cell's durable backup
-  // keyspace under `v2-convert/` (its own keyspace, so the regular schedule never prunes it). A
-  // hub with no backup target keeps it in its data dir — unless that disk is disposable, when
+  // The pre-conversion generation: the documents AND the checkout, in the hub's configured backup
+  // target (a cell's bucket prefix, a self-hosted hub's MAUDE_BACKUP_TARGET / MAUDE_S3_*) under
+  // `v2-convert/` (its own keyspace, so the regular schedule never prunes it). A hub with no
+  // backup target keeps it in `<dataDir>/v2-convert/` — unless that disk is disposable, when
   // there is nowhere durable to put it and the project is not converted.
   async function backupBeforeConversion() {
     let target;

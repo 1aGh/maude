@@ -110,6 +110,7 @@ import {
   openSession,
   remotelyEdited,
   restoreOp,
+  sessionWriteId,
   type TextSession,
 } from './annotations/ui/text-session.ts';
 import { TEXT_LAYER_CSS } from './annotations/ui/text-style.ts';
@@ -1474,11 +1475,12 @@ export function AnnotationsLayer() {
    * stays pending (re-applied over replica snapshots) until its echo arrives.
    */
   const sendOps = useCallback(
-    (ops: readonly AnnotationOp[], local = false, draft = false): Promise<void> => {
+    (ops: readonly AnnotationOp[], local = false, draft = false, sid?: string): Promise<void> => {
       const file = fileRef.current;
       if (!file || !ops.length) return putChainRef.current;
       // p8-fix-d F13 — a draft's id says so: the home records it with the session's commit, one step.
-      const actionId = draft ? draftWriteId() : crypto.randomUUID();
+      // p8-hub-drafts — and every write of a text session names it (a hub's ⌘Z stack folds them).
+      const actionId = draft ? draftWriteId(sid) : sid ? sessionWriteId(sid) : crypto.randomUUID();
       const pending = pendingRef.current;
       if (local) {
         pending.push({ actionId, ops });
@@ -1530,11 +1532,11 @@ export function AnnotationsLayer() {
 
   /** Apply a batch here (optimistic) and send it. Returns what undoes it. */
   const applyOpsLocal = useCallback(
-    (ops: readonly AnnotationOp[]): AnnotationOp[] => {
+    (ops: readonly AnnotationOp[], sid?: string): AnnotationOp[] => {
       if (!ops.length) return [];
       annotationsChangedRef.current = true;
       const r = board.apply(ops);
-      void sendOps(ops, true);
+      void sendOps(ops, true, false, sid);
       return r.inverse;
     },
     [board, sendOps]
@@ -1602,7 +1604,7 @@ export function AnnotationsLayer() {
       if (session) {
         commitSessionRef.current = null;
         sessionCommittedRef.current = true;
-        applyOpsLocal(aimCommitOps(ops, session));
+        applyOpsLocal(aimCommitOps(ops, session), session.sid);
         const baseMap = strokesToElementMap(persist(withSlotText(prev, session)), committed);
         const redo = guardLockedOps(baseMap, diffToOps(baseMap, nextMap)).ops;
         if (!redo.length) return;
@@ -3991,7 +3993,7 @@ export function AnnotationsLayer() {
       if (!session) return;
       const op = draftOp(session, board.committed.get(id), text);
       if (!op) return;
-      void sendOps([op], false, true);
+      void sendOps([op], false, true, session.sid);
       textSessionRef.current = markSent(session, text);
     },
     [sessionFor, sendOps]
@@ -4018,15 +4020,18 @@ export function AnnotationsLayer() {
         if (!session || !lastKnown || !stored.trim()) return;
         const parentExists = !!lastKnown.parent && board.committed.has(lastKnown.parent);
         const bb = strokeBBox(editTargetStroke(target));
-        applyOpsLocal([
-          restoreOp(
-            session,
-            lastKnown,
-            stored,
-            parentExists,
-            bb ? { x: bb.x, y: bb.y } : undefined
-          ),
-        ]);
+        applyOpsLocal(
+          [
+            restoreOp(
+              session,
+              lastKnown,
+              stored,
+              parentExists,
+              bb ? { x: bb.x, y: bb.y } : undefined
+            ),
+          ],
+          session.sid
+        );
         return;
       }
       commitSessionRef.current = session;
@@ -4047,7 +4052,7 @@ export function AnnotationsLayer() {
       // back to the text the element keeps (no undo step: nothing changed).
       if (session && !sessionCommittedRef.current) {
         const op = draftOp(session, board.committed.get(id), stored);
-        if (op) applyOpsLocal([op]);
+        if (op) applyOpsLocal([op], session.sid);
       }
       textSessionRef.current = null;
     },

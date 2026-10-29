@@ -36,6 +36,7 @@ import { artboardSpans } from './agent-runs.ts';
 import { createLocalLeaseHome, selectLeaseHome } from './ai/lease-home.ts';
 import { createRunProgress } from './ai/run-progress.ts';
 import { createRunRegistry } from './ai/runs.ts';
+import { saveHold, withSaveRequest } from './ai/save-hold.ts';
 import { migrateAnnotationsV2 } from './annotations/migrate-boot.ts';
 import { runContext, runTagOf, stageRunAnnotations } from './annotations/run-tag.ts';
 import { ASSET_MAX_VIDEO_BYTES, createApi } from './api.ts';
@@ -479,10 +480,12 @@ function withSession<T extends unknown[]>(
 ): (req: Request, ...rest: T) => Response | Promise<Response> {
   // S9.9 — and WHAT it may do: the request's Access (V2-1.7 §5.4) in AsyncLocalStorage,
   // so a leaf asks `currentAccess()` instead of re-deriving a role.
+  // p8-a1-save-hold — and WHO saves: a write from the studio page (a browser) is a person's save, which
+  // waits while a running interpreter call names its file (ai/save-hold.ts); a terminal verb never does.
   return (req, ...rest) =>
     runWithAccess(http.accessOf(req), () =>
       runInSession(WORKSPACE ? normalizeSessionKey(req.headers.get(SESSION_HEADER)) : '', () =>
-        handler(req, ...rest)
+        withSaveRequest(req, () => handler(req, ...rest))
       )
     );
 }
@@ -1228,6 +1231,13 @@ async function shutdown() {
   }, SHUTDOWN_WATCHDOG_MS).unref();
   // Test seam (V2-2.8 B4 regression test only): simulate a teardown that never settles.
   if (process.env.MAUDE_TEST_HANG_SHUTDOWN === '1') await new Promise(() => {});
+  // p8-a1-save-hold — closing the app during a hold finishes the save: a person's save waiting behind an
+  // AI call lands now, as theirs, before the watcher and the sync runtime stop
+  try {
+    await saveHold().flushAll();
+  } catch {
+    /* each landing logs its own failure; the process is exiting either way */
+  }
   void stopDiagnostics();
   // live run records stay on disk: the next boot ends them `interrupted` (R11)
   runRegistry.close();

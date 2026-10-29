@@ -104,6 +104,7 @@ import { loadJournal, type SyncJournal } from './journal.ts';
 import { hasAnnotationsV2, hasLedger, hubHealth } from './journal-client.ts';
 import type { RestoreOptions } from './local-kernel.ts';
 import { isLoopbackHost } from './loopback.ts';
+import { createMediaGate, MEDIA_STAYS_LINE, readServerSignature } from './media-gate.ts';
 import { migrateFlatFallback } from './migrate-flat-fallback.ts';
 import { migrateSeed } from './migrate-seed.ts';
 import { ORIGINS } from './origins.ts';
@@ -1564,10 +1565,24 @@ export function createSyncRuntime(
   let legacyLane: boolean | null = null;
   /** A pass was owed before the lane was decided — run it on the verdict. */
   let legacyBootPush: string | null = null;
+  /**
+   * p8-ia-edges — a hub without a media checkout answers every upload 405. The first refusal ends the pass and closes
+   * this gate (one human message in the Sync panel, via the progress' `refused`); no file change, boot or poll tick
+   * sends another PUT until the server's `/health` signature changes (`tick`, on the 20 s remote poll).
+   */
+  let mediaHubUrl: string | null = null;
+  const mediaGate = createMediaGate({
+    probe: () => (mediaHubUrl ? readServerSignature(mediaHubUrl, hubFetch) : Promise.resolve(null)),
+    onNotice: (n) => {
+      if (n) console.warn(`[sync/assets] ${MEDIA_STAYS_LINE}`);
+    },
+  });
 
   /** Run the legacy push now — single-flight with a trailing re-run. */
   function runLegacyPush(hubUrl: string): void {
     if (stopped || cellPairing || legacyLane !== true) return; // the cell never pushes
+    if (!mediaGate.allowed()) return; // the hub has no media checkout; asks again when the server changes
+    mediaHubUrl = hubUrl;
     if (legacyPushRunning) {
       legacyPushAgain = true;
       return;
@@ -1590,6 +1605,7 @@ export function createSyncRuntime(
         if (!stopped) statusStore?.updateAssets?.(p);
       },
     })
+      .then((res) => mediaGate.noteResult(res))
       .catch(() => {
         /* pushAssets never throws; this is a belt for the promise chain */
       })
@@ -1621,6 +1637,7 @@ export function createSyncRuntime(
       return;
     }
     if (legacyLane === false) return; // the plane owns pushes on this hub
+    if (!mediaGate.allowed()) return; // no media checkout on this hub — see `mediaGate`
     if (legacyPushRunning) {
       legacyPushAgain = true;
       return;
@@ -3092,6 +3109,15 @@ export function createSyncRuntime(
       // state to preserve, and one is exactly what a first canvas needs. The
       // supervisor owns cycling (it holds the serialization), so this asks
       // rather than acts — see `server.ts`.
+      // One ask per runtime: the supervisor's cycle replaces this runtime, and a
+      // second ask while it does would only queue a second, pointless cycle.
+      let askedForCycle = false;
+      const askForCycle = (why: string): void => {
+        if (askedForCycle || stopped) return;
+        askedForCycle = true;
+        console.log(`[sync] ${why} — starting sync.`);
+        ctx.bus.emit('sync:needs-restart');
+      };
       const watchForFirst = createRescanScheduler({
         debounceMs: DISCOVERY_DEBOUNCE_MS,
         onError: (err) => console.error('[sync] first-canvas watch failed:', err),
@@ -3100,12 +3126,53 @@ export function createSyncRuntime(
           const again = await scanCanvases(ctx);
           if (admitCanvases(again.canvases, useSharedDoc, { docNameOf: docNameFor }).length === 0)
             return;
-          console.log('[sync] the project has its first syncable canvas — starting sync.');
-          ctx.bus.emit('sync:needs-restart');
+          askForCycle('the project has its first syncable canvas');
         },
       });
       discoveryRescan = watchForFirst;
       discoveryUnsub = ctx.bus.on('canvas-list-update', () => watchForFirst.schedule());
+      // THE OTHER HALF: A TEAMMATE'S FIRST CANVAS (p8-fix-c2 #1). The watch above
+      // reads this disk only, so a copy that booted onto a project with no canvas
+      // anywhere never asked the hub again — a teammate's first canvas (or the
+      // cloud's, or a desktop's for a cell that booted empty) reached it only on a
+      // restart. So the hub is asked on the same 20 s poll (and on the control
+      // channel's documents-changed doorbell) a running copy uses, and a document
+      // it did not list at boot asks for the same cycle.
+      //
+      // ONLY A NEW NAME. What the hub listed at boot was offered to this boot's
+      // pull and refused (the sandbox gate, an opt-out, a bad path) — it is still
+      // refused after a cycle, and cycling on it again would restart the runtime
+      // every poll. A deleted canvas (tombstoned) is not a canvas either.
+      if (!opts.canvases) {
+        const offeredAtBoot = new Set((remoteListing?.documents ?? []).map((d) => d.name));
+        const pollForFirst = async (): Promise<void> => {
+          if (stopped || askedForCycle) return;
+          const raw = await fetchRemoteListing(linkedHub.url, token);
+          if (acceptedLink) await acceptedLink.refresh().catch(() => null);
+          const listing = withAcceptedDocs(raw);
+          if (stopped || listing === null) return;
+          const gone = new Set(
+            (listing.tombstones ?? []).map((t) => t.name).concat([...tombstoned].map(docNameFor))
+          );
+          const fresh = diffRemoteDocs([], listing.documents).hubOnly.filter(
+            (d) => !offeredAtBoot.has(d.name) && !gone.has(d.name)
+          );
+          if (fresh.length === 0) return;
+          askForCycle(`the project's first canvas arrived from the hub (${fresh[0]?.name})`);
+        };
+        remotePull = pollForFirst;
+        documentDiscoveryUnsub = ctx.bus.on('sync:documents-changed', () => {
+          void pollForFirst().catch((err) =>
+            console.error('[sync] first-canvas poll failed:', err)
+          );
+        });
+        remotePollTimer = setInterval(() => {
+          void pollForFirst().catch((err) =>
+            console.error('[sync] first-canvas poll failed:', err)
+          );
+        }, REMOTE_POLL_MS);
+        remotePollTimer.unref?.();
+      }
       return;
     }
 
@@ -5323,6 +5390,13 @@ export function createSyncRuntime(
     documentDiscoveryUnsub = ctx.bus.on('sync:documents-changed', () => discovery.schedule());
     const pollRemote = (): void => {
       if (parkedNow) return;
+      // p8-ia-edges — a hub that could not store media gets one look per tick; a changed server reopens the lane.
+      void mediaGate
+        .tick()
+        .then((reopened) => {
+          if (reopened && mediaHubUrl && !stopped) scheduleLegacyPush(mediaHubUrl);
+        })
+        .catch(() => {});
       void discovery
         .flush()
         .then(() => pullFilesOnce())
@@ -6066,7 +6140,30 @@ export function createSyncRuntime(
         if (content === null || baseContent === null) return null;
         out.push({ lane: l.lane, content, baseContent });
       }
-      return acceptedLink.lanesEdit(slug, out, o).then((r) => ({
+      // p8-fix-c2 #2 — THE SOURCE LANE BELONGS TO ITS PROJECTION, even inside a larger action.
+      // Sent straight to the link, the projection knew nothing of it: the route's own write of
+      // those bytes (`source-written`) was proposed AGAIN as a file edit, and when the hub refused
+      // an action the route had long answered "queued" (an offline trash, somebody else's edit
+      // first) nobody heard — the held conflict appeared only because the duplicate was refused
+      // too. Through `proposeVia` the action goes out ONCE, under the projection's transaction id;
+      // its file write is an echo of a pending value; and its answer settles there like any of
+      // the projection's own: refused → held, both versions kept, whenever that answer comes.
+      const html = out.find((l) => l.lane === 'html');
+      const projection = html ? projections.get(slug) : undefined;
+      const link = acceptedLink;
+      const send = (tx?: { transactionId: string; dependsOn?: string[] }) =>
+        link.lanesEdit(slug, out, {
+          ...o,
+          ...(tx?.transactionId ? { transactionId: tx.transactionId } : {}),
+          // A dependency an AI run still holds is not on the hub yet; the action never waited
+          // behind a run before, and does not start here.
+          ...(tx?.dependsOn?.length && !link.stage.holdsDependency(tx.dependsOn)
+            ? { dependsOn: tx.dependsOn }
+            : {}),
+        });
+      const answer =
+        (html && projection?.proposeVia('html', html.content, html.baseContent, send)) || send();
+      return answer.then((r) => ({
         status: r.status,
         ...(r.code ? { code: r.code } : {}),
         ...(r.actionId ? { actionId: r.actionId } : {}),

@@ -189,6 +189,8 @@ const ROWS: Row[] = [
   },
   { family: 'assets', method: 'POST', path: '/_api/import-asset', viewer: 'refused', editor: true },
   { family: 'assets', method: 'POST', path: '/_api/import-brand', viewer: 'refused' },
+  // p8-import-link — not `editor`: an editor's row reaches the handler, and the handler goes to the network
+  { family: 'assets', method: 'POST', path: '/_api/import-link', viewer: 'refused' },
   { family: 'assets', method: 'POST', path: '/_api/photo-edit', viewer: 'refused', editor: true },
   // ── export (Can comment holds export, V2-1.7 §5.2) ──
   { family: 'export', method: 'POST', path: '/_api/export', viewer: 'allowed', editor: true },
@@ -247,6 +249,7 @@ const ROWS: Row[] = [
   // ── sync ──
   { family: 'sync', method: 'POST', path: '/_api/sync/resync', viewer: 'refused' },
   { family: 'sync', method: 'POST', path: '/_api/diagnostics/disk-retry', viewer: 'refused' },
+  { family: 'sync', method: 'POST', path: '/_api/diagnostics/save-hold-flush', viewer: 'refused' },
   { family: 'sync', method: 'POST', path: '/_api/sync/settings', viewer: 'refused' },
   { family: 'sync', method: 'POST', path: '/_api/sync/ownership', viewer: 'refused' },
   { family: 'sync', method: 'POST', path: '/_api/sync/cancel-assets', viewer: 'refused' },
@@ -409,7 +412,12 @@ describe('cell child — the proxy vouches the role per request', () => {
       base,
       { 'x-maude-role': 'viewer' },
       // S11.17 — `/_api/diagnostics*` is pruned in a cell (workspace-mode FORBIDDEN_ROUTE_PREFIXES)
-      new Set(['/_api/design/init', '/_api/generate/prefs', '/_api/diagnostics/disk-retry'])
+      new Set([
+        '/_api/design/init',
+        '/_api/generate/prefs',
+        '/_api/diagnostics/disk-retry',
+        '/_api/diagnostics/save-hold-flush',
+      ])
     );
   }, 60000);
   // S9.9 — Can view (`observer`) arrives: the viewer's refusals PLUS comment and export
@@ -430,6 +438,7 @@ describe('cell child — the proxy vouches the role per request', () => {
       '/_api/generate/prefs',
       '/_api/export',
       '/_api/diagnostics/disk-retry',
+      '/_api/diagnostics/save-hold-flush',
     ]);
     const wrong: string[] = [];
     for (const row of ROWS) {

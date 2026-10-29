@@ -11,6 +11,9 @@
 //   · access words  ← `cfg.readOnly` + `readOnlyReason` + the cloud role
 // Retry runs the Sync panel's own Resync (`POST /_api/sync/resync`); while a full disk holds writes
 // (S11.17, recovery-store.js) it tries the held writes instead, and Show in Finder opens the design folder.
+// While a held source conflict waits (the `source-conflict-<slug>` notices on syncStatus) the word is Not
+// saved and Compare runs `sync.compare` — Sync details at that conflict — and a one-time toast says
+// "<canvas> differs from the project" with the same Compare (held-conflict.js; p8-held-conflict-status).
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { syncPresentation } from '../../../sync/presentation.ts';
@@ -36,6 +39,11 @@ import { menuCtx } from './project-menu-model.js';
 import { nativeDoors } from './native-doors.js';
 import { useDiskHold } from './recovery-store.js';
 import { accessStatus, exportsRing, facesOf, outboxPending, saveStatus } from './save-status.js';
+import { useHeldConflictToast } from './held-conflict.js';
+import {
+  canvasNamesBySlug,
+  heldConflicts,
+} from '../diagnostics/sync-details/sync-details-model.js';
 import { ShareCluster } from './share-cluster.jsx';
 import { AccountChip } from './account-card.jsx';
 import { accountCard, accountChip } from './account-card-model.js';
@@ -103,6 +111,7 @@ export function ShellShareCluster() {
       commentsPanelOpen,
       exportCenter,
       gitUser,
+      groups,
       iframesRef,
       project,
       selected,
@@ -146,12 +155,18 @@ export function ShellShareCluster() {
   // S11.17 — a full disk holds writes: Not saved + "This Mac is out of space — …" until they land.
   const disk = useDiskHold();
   const doors = useMemo(() => nativeDoors(), []);
+  // p8-held-conflict-status — a held source conflict: this Mac's canvas is not the project's (Not saved · Compare)
+  const held = useMemo(() => heldConflicts(syncStatus), [syncStatus]);
+  const compare = useCallback((slug) => menuRunner.run('sync.compare', { slug }), []);
+  const conflictNames = useMemo(() => canvasNamesBySlug(groups), [groups]);
+  useHeldConflictToast({ held, names: conflictNames, onCompare: compare, toast: notify });
   const status = saveStatus({
     linked,
     online,
     phase,
     pending,
     writeFailed: disk.full ? { kind: 'disk-full' } : null,
+    held: held.map((c) => c.slug),
   });
   // Show in Finder is the desktop app's door (S11.16); a browser tab has no Finder.
   const shown = doors.available
@@ -326,6 +341,7 @@ export function ShellShareCluster() {
         run={(id) => menuRunner.run(id)}
         onStatusAction={(id) => {
           if (id === 'retry') retry();
+          else if (id === 'compare') compare(status.conflict);
           else if (id === 'show-in-finder') void doors.revealPath(cfg?.designRel || '.design');
         }}
         // S3.12 — Viewing's one way out. The flow is S9.21's (outbox kind `share.ask-to-edit`): the button runs

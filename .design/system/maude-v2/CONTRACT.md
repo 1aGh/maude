@@ -99,6 +99,7 @@ Menu
 | Linked library — view only | Can view (for a library) | the state of a design system linked from a team library [C18]. "Can view" is a people permission only |
 | <who> invited you here — their comment is on <canvas>. | her / his comment, "Opened from <who>'s link" (for an invite) | the invite-landing toast (S6.11, corrected 2026-10-28: the app knows nobody's gender, so they/them — "their" says whose comment it is) |
 | Untitled canvas | New canvas 1, Canvas | a new canvas's name (+ " 2", " 3") [C4]; Home names it from the prompt with a non-AI heuristic, offline create too |
+| Your Figma account can't open this file. Ask its owner to share it with you, then paste the link again. | Figma doesn't have that file, or this token can't read it. | the Figma import's `not_found` (ia-edges G, Michal 2026-10-29); nothing imports until it opens, and the link stays in the sheet |
 | View only | Read only, Locked, Read-only mode | a project this build does not edit — its file format is older or newer [A17]. Distinct from *Can view* (a people permission) |
 
 ## 4 · Voice rules
@@ -128,7 +129,7 @@ Menu
 - **Share sheet:** primary button **Invite**; "Copy link" is a secondary button in the link row. It is the ONE Share surface everywhere [C11]; a local project's state ("Move to cloud…") lives inside it.
 - **Project tabs** [A1, amended 2026-10-14]: Maude's own tab strip — Home pinned first, the project square + name + one state mark per tab, the tab menu on right-click (no drag-out / merge in v2.0); "Sign in as another account…" in the project pill menu.
 - **Accounts** [C6]: Settings › General lists every account on this Mac; each project tab is bound to one.
-- **Save status:** one word next to the faces in the Share cluster — *Saved* · *Syncing…* · *Offline — kept on this Mac* · *Local project*. No dot on the project pill. A failed, un-queued write shows a fifth word, **Not saved**, only while it is true, with one action (**Retry**) [C2].
+- **Save status:** one word next to the faces in the Share cluster — *Saved* · *Syncing…* · *Offline — kept on this Mac* · *Local project*. No dot on the project pill. A failed, un-queued write shows a fifth word, **Not saved**, only while it is true, with one action (**Retry**) [C2]. A held source conflict (this Mac kept its copy, the project has another) is also **Not saved**, with the action **Compare** — both versions side by side in Diagnostics › Sync details — and one toast per conflict: "<canvas> differs from the project" + Compare.
 - **Errors & recovery** [C37]: after a crash the relaunch shows one line, "Maude quit unexpectedly. Your work up to 14:05 is here." + Report a bug…; a full disk shows *Not saved* + "This Mac is out of space — changes wait here until there's room." + Show in Finder.
 - **Access status** (people without edit rights, same slot): *Can view* (look only) · *Can comment* (look, comment and download) — with *Ask to edit* (a request to the owner) as the one action. No AI chat panel for Can view / Can comment [C30].
 - **Search results count:** "N results". Key names lower-case in running copy: esc, ↵, tab.

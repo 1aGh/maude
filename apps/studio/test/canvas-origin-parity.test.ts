@@ -62,6 +62,9 @@ const PRIVILEGED = [
   '/_api/thumbs/want',
   '/_api/index',
   '/_api/ui-prefs',
+  // p8-import-link — the studio fetches a URL the caller names: a canvas reaching it would be SSRF from the person's Mac
+  '/_api/import-link',
+  '/_api/import-link/key',
 ];
 
 describe('CANVAS_SAFE_API ↔ the canvas server routes map (V2-2.5)', () => {
@@ -101,6 +104,10 @@ describe('CANVAS_SAFE_API ↔ the canvas server routes map (V2-2.5)', () => {
 
   test('privileged routes and every main-origin table route are in neither list', () => {
     const main = SPECS.filter((s) => s.origin === 'main').map((s) => s.path);
+    // p8-import-link — the link import is a table route, and a main-origin one
+    expect(SPECS.filter((s) => s.path === '/_api/import-link').map((s) => s.origin)).toEqual([
+      'main',
+    ]);
     expect(main.length).toBeGreaterThan(0);
     const keys = new Set(Object.keys(canvasMap()));
     for (const p of [...PRIVILEGED, ...main]) {

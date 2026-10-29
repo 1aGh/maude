@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "63b2777e17af",
+  "manifestVersion": "e8a66e17ea3e",
   "actions": [
     {
       "id": "search.open",
@@ -1997,6 +1997,23 @@
       "effect": "project",
       "minRole": "edit",
       "undo": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design import-asset <file>"
+      }
+    },
+    {
+      "id": "assets.add-link",
+      "label": "Add from a link…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "minRole": "edit",
+      "undo": "none",
+      "server": {
+        "route": "/_api/import-link",
+        "method": "POST"
+      },
       "agent": {
         "path": "cli",
         "verb": "maude design import-asset <file>"
@@ -6150,6 +6167,17 @@
       "agent": {
         "path": "cli",
         "verb": "maude design curl-local -X POST http://127.0.0.1:<port>/_api/project/conflict -d '{\"file\":\"<slug>\",\"choice\":\"keep-both\"}'"
+      }
+    },
+    {
+      "id": "sync.compare",
+      "label": "Compare",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design curl-local \"http://127.0.0.1:<port>/_api/project/conflict?file=<slug>\""
       }
     },
     {
