@@ -498,8 +498,16 @@ describe('projection in accepted-revisions mode', () => {
   // The F14 shape through proposeVia: the route arms its base (`activity:suppress`) before the
   // bytes land; the bytes are an echo of the pending (or just-accepted) value, and that base must
   // go with them — or the next HAND edit is proposed from the version before the trash and refused.
-  for (const answeredFirst of [false, true]) {
-    test(`proposeVia + an announced write (${answeredFirst ? 'answered before' : 'queued while'} the bytes land): the next hand edit is based on the action`, async () => {
+  // p8-fix-c3 — `published`: the hub's publication of the action reached this replica BEFORE its
+  // answer (the rig's restore run on the mini, every time): `settle` then makes the action's value
+  // the agreed body, and the route's own bytes were dropped as "a redelivered projection" with
+  // the announced base still set.
+  for (const [answeredFirst, published] of [
+    [false, false],
+    [true, false],
+    [true, true],
+  ] as const) {
+    test(`proposeVia + an announced write (${answeredFirst ? 'answered before' : 'queued while'} the bytes land${published ? ', published before the answer' : ''}): the next hand edit is based on the action`, async () => {
       const r = rig(src('A'));
       let answer!: (o: ProposalOutcome) => void;
       r.projection.noteLocalWrite();
@@ -509,6 +517,7 @@ describe('projection in accepted-revisions mode', () => {
         src('A'),
         () => new Promise((a) => (answer = a))
       );
+      if (published) r.publish(src('B'));
       if (answeredFirst) {
         answer({ status: 'accepted', actionId: 'act_1' });
         await r.settle();
