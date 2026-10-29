@@ -41,3 +41,14 @@ checkout plus whatever other sessions hold.
   again, and annotations-ui ran 40/40 twice. The hub-linked runtime does not refuse yet (pr-followups).
 - Next, after the reset (Fri 09:00): run `e2e:team-cell-missing` once alone on a fresh debug build → freeze →
   chain4 → re-attests → ledger + pr-soak → .app → PR.
+
+## Update ~07:35 — weekly 84 %, stopped until the reset
+- **p8-hub-undo-collision (b82b82f6c).** In a hub-linked project, ⌘Z on a text is refused only when it would collide
+  with a collaborator's change (studio-only, 1.x hubs unchanged). Run twice on a loopback hub, green both times.
+- **Legacy undo: not fixed (Michal).** The mitigation is p8-update-to-accepted (75df7c36f). Update project now also
+  switches a legacy project to accepted revisions: as the last step, on a re-read epoch. `--reverse` keeps the mode.
+  A cloud tab points to the dashboard. The loopback legacy-hub run shows both studios picking up the switch live,
+  with nothing lost.
+- Every fix is merged and pushed. tsc and the boot check are green on da2e7b22c.
+- **Next, after the reset:** `e2e:team-cell-missing` alone on a fresh debug build → freeze → chain4 → re-attests →
+  ledger + pr-soak → .app → PR.
