@@ -38,7 +38,7 @@ import { type AskQueue, noteRateLimit, promptLabel } from './ask-queue.ts';
 import { createHubWriteAudience, type WriteAudienceSource } from './audience.ts';
 import { buildStudioBrief } from './bootstrap-brief.ts';
 import { AcpBridge, type BridgeUsage } from './bridge.ts';
-import { shellOpensWindow } from './design-write-verb.ts';
+import { shellOpensWindow, shellOutlivesCall } from './design-write-verb.ts';
 import { type AiMay, parseMay } from './may-scope.ts';
 import { isNativePluginContext, resolveSessionPlugins } from './plugin-bootstrap.ts';
 import { probeAcpAvailability } from './probe.ts';
@@ -363,6 +363,8 @@ export function createAgentActivityTracker(
   const shellOpen = new Set<string>();
   const shellCard = new Set<string>();
   const shellSeen = new Set<string>();
+  /** p8-secfix-hook F2 — calls that leave a process running: their window shuts at the turn's end. */
+  const shellOutlives = new Set<string>();
   /** S5.5b — the registry run of the current turn (null: a pre-S5.6 direct turn). */
   let turnRun: string | null = null;
 
@@ -468,6 +470,9 @@ export function createAgentActivityTracker(
       const command = (u.rawInput as { command?: unknown } | null | undefined)?.command;
       if (!shellSeen.has(id) && shellOpensWindow(command)) {
         shellSeen.add(id);
+        // p8-secfix-hook F2 — `nohup python3 w.py &` / `run_in_background` returns at once and
+        // writes later: its window stays open until the turn ends (endTurn), not return + settle
+        if (shellOutlivesCall(u.rawInput)) shellOutlives.add(id);
         shellWindow(id, true);
       }
       if (
@@ -476,7 +481,7 @@ export function createAgentActivityTracker(
         (u.status === 'completed' || u.status === 'failed')
       ) {
         shellCard.delete(id);
-        if (shellOpen.has(id)) shellWindow(id, false);
+        if (shellOpen.has(id) && !shellOutlives.has(id)) shellWindow(id, false);
       }
       return;
     }
@@ -519,6 +524,7 @@ export function createAgentActivityTracker(
     for (const call of [...shellOpen]) shellWindow(call, false);
     shellCard.clear();
     shellSeen.clear();
+    shellOutlives.clear();
     if (actionOpen) {
       actionOpen = false;
       editOpened = false;

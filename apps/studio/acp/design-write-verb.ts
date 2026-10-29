@@ -12,7 +12,7 @@
 // (acp/audience.ts `designCalls`): a verb only named in text (`echo maude design export`) opens nothing,
 // one run through `bash -c`, `$(which maude)`, an absolute path or `maude-safe` does.
 
-import { bashMayWrite } from '../../../cli/lib/bash-guard.mjs';
+import { bashBackgrounds, bashMayWrite } from '../../../cli/lib/bash-guard.mjs';
 import { MAUDE_VERBS } from '../actions/verbs.ts';
 import { designCalls } from './audience.ts';
 
@@ -48,4 +48,16 @@ const VERB_TABLE = MAUDE_VERBS.filter((v) => v.scope === 'design').map((v) => ({
  */
 export function shellOpensWindow(command: unknown): boolean {
   return runsDesignWriteVerb(command) || bashMayWrite(command, VERB_TABLE);
+}
+
+/**
+ * p8-secfix-hook (V2-8.9 final delta F2) — does the call leave a process writing after it returns?
+ * A trailing `&`, `nohup`, `setsid`, `disown` … (`bashBackgrounds`) or Claude Code's
+ * `run_in_background`. Its window then stays open until the turn ends, not the call's return +
+ * SHELL_SETTLE_MS: `nohup python3 w.py &` returns at once and writes later.
+ */
+export function shellOutlivesCall(rawInput: unknown): boolean {
+  const input = rawInput as { command?: unknown; run_in_background?: unknown } | null | undefined;
+  if (!input || typeof input !== 'object') return false;
+  return input.run_in_background === true || bashBackgrounds(input.command);
 }

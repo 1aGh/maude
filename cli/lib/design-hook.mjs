@@ -24,12 +24,16 @@
 //
 // State per Claude Code session in <designRoot>/_runs/<session>/ (runtime, DDR-115):
 //   snap/<tool_use_id>       bytes before that edit (`.new` marker: the file did not exist)
-//   base/<sha(path)>         bytes before the run first touched the file (stop-tier `against`)
+//   base/<sha(path)>         bytes before the run first touched the file (stop-tier `against`);
+//                            `.bash`: an AI shell call wrote it first — no base, Stop checks it whole
+// Only the hooks write base/, snap/, bash/, touched.json and stop-last* — main agent included (D1).
 //   touched.json             files this run changed ({at, by, via, artboards}: artboards the
 //                            studio mapped the edits to; null = unknown → any capture of the canvas)
 //   shots.jsonl              captures `maude design screenshot` made under this session (Stop's
 //                            screenshot gate; <designRoot>/_runs/shots.jsonl when no session is known)
-//   bash/<tool_use_id>.json  a write verb's start ({at, snaps}) — post-bash binds what changed since
+//   bash/<tool_use_id>.json  a write verb's start ({at, snaps}) — post-bash binds what changed since;
+//                            a call that leaves a process running ({bg, by, seen}) keeps it until
+//                            the run ends, and every Stop binds what changed since `seen`
 //   stop-last.json           the last Stop block (so a re-stop with the same list lets it end)
 //   agents.json              sub-agent starts: agent_id → {type, at, handoffs: [{rel, sha}]}
 //                            (SubagentStart records each hand-off with its content hash; the
@@ -61,6 +65,7 @@ import {
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import {
+  bashBackgrounds,
   bashMayWrite,
   classifyBash,
   designVerbOf,
@@ -513,6 +518,9 @@ const HARNESS_RE = /^_(?:draw\/[^/]+\.proof|photo\/[^/]+\.bgremove)\.tsx$/;
 /** Run-folder files (and the dirs that hold them) only the hooks and the main agent write. */
 const RUN_CONTROL_RE =
   /^_runs(?:\/[^/]+)?(?:\/handoff)?\/?$|^_runs\/(?:[^/]+\/)*(?:agents\.json[^/]*|handoff\/[^/]+\.in\.json)$/;
+/** The hooks' own state under a run folder — nobody else writes it (D1). */
+const HOOK_STATE_RE =
+  /^_runs(?:\/[^/]+)?\/?$|^_runs\/[^/]+\/(?:(?:base|snap|bash)(?:\/.*)?|touched\.json|stop-last[^/]*)$/;
 
 /**
  * The guard for a runtime (`_*`) design path a tool would write: `{ code, reason }` or null.
@@ -530,6 +538,15 @@ function runtimeGuard(input, rel, fenceOf) {
       reason: `not-a-writer: ${shownRel(rel)} is a local harness \`maude design ${verb}\` generates — it is never written by hand or by Bash. Run \`maude design ${verb}\` instead.`,
     };
   }
+  // p8-secfix-hook D1 — the hooks' own run state (the run base Stop checks against, the snapshots,
+  // the bash marks, touched.json, the last Stop block) and the folders that hold it are written by
+  // the hooks alone, main agent included: a planted base equal to the bad file made every error
+  // "pre-existing" at Stop; an emptied touched.json leaves nothing for Stop to check.
+  if (HOOK_STATE_RE.test(lc))
+    return {
+      code: 'not-a-writer',
+      reason: `not-a-writer: ${shownRel(rel)} is the design hooks' own run state (the run base, snapshots, touched files) — only the hooks write it. Edit the design file itself.`,
+    };
   if (!isSubagent(input) || !(lc === '_runs' || lc.startsWith('_runs/'))) return null;
   const f = fenceOf();
   if (f.error) return { code: 'out-of-scope', reason: fenceReason(input, f.error) };
@@ -770,6 +787,50 @@ function saveSnapshot(ctx, rel, cur) {
   if (cur === null) writeAt(`${abs}.new`, '');
   else writeAt(abs, cur);
 }
+/**
+ * p8-secfix-hook F4 — the run base is the file as it was before the run first wrote it. A shell
+ * call the hook can't read (a python heredoc, `nohup … &`) writes without a snapshot, so the next
+ * edit's first sight of the file would be AFTER that write and every finding the shell call planted
+ * would read as "pre-existing". Such a file gets a `.bash` marker instead of a base: no base is
+ * ever saved for it in this run, and Stop checks it with none (every finding counts as the run's).
+ */
+const shellMarkAbs = (ctx, rel) => join(ctx.designRoot, `${baseRel(ctx, rel)}.bash`);
+const shellWrote = (ctx, rel) => existsSync(shellMarkAbs(ctx, rel));
+
+/** Did an AI shell call still in flight (or left running) possibly write `rel` since it began? */
+function shellMayHaveWritten(ctx, rel) {
+  let mtime;
+  try {
+    mtime = statSync(join(ctx.designRoot, rel)).mtimeMs;
+  } catch {
+    return false;
+  }
+  let names = [];
+  try {
+    names = readdirSync(join(ctx.run, 'bash'));
+  } catch {
+    return false;
+  }
+  return names.some((n) => {
+    const m = readJson(join(ctx.run, 'bash', n), null);
+    return typeof m?.at === 'number' && mtime >= m.at;
+  });
+}
+
+/** Save the run's base of `rel` (= `cur`) unless it has one, or a shell call wrote it first. */
+function ensureBase(ctx, rel, cur) {
+  const base = baseRel(ctx, rel);
+  if (loadSnapshot(ctx, base) || shellWrote(ctx, rel)) return;
+  if (shellMayHaveWritten(ctx, rel)) writeAt(shellMarkAbs(ctx, rel), '');
+  else saveSnapshot(ctx, base, cur);
+}
+
+/** A shell call wrote `rel` before the run had a base of it: mark it (see ensureBase). */
+function markShellWrite(ctx, rel) {
+  if (!loadSnapshot(ctx, baseRel(ctx, rel)) && !shellWrote(ctx, rel))
+    writeAt(shellMarkAbs(ctx, rel), '');
+}
+
 /** { existed, content } of a saved snapshot, or null when there is none. */
 function loadSnapshot(ctx, rel) {
   const abs = join(ctx.designRoot, rel);
@@ -964,10 +1025,10 @@ async function preEdit(ctx, input) {
   const ti = input.tool_input ?? {};
   const cur = readOr(t.abs);
   const toolUseId = hookKey(input.tool_use_id);
-  // 1. snapshots (no studio needed): this edit's, and the run's first sight of the file
+  // 1. snapshots (no studio needed): this edit's, and the run's first sight of the file — never
+  //    after an AI shell write it could not snapshot (F4, ensureBase)
   if (toolUseId) saveSnapshot(ctx, snapRel(ctx, toolUseId), cur);
-  const base = baseRel(ctx, t.rel);
-  if (!loadSnapshot(ctx, base)) saveSnapshot(ctx, base, cur);
+  ensureBase(ctx, t.rel, cur);
   // 2. the lazy whole-file rewrite
   if (input.tool_name === 'Write' && cur !== null && CANVAS_RE.test(t.rel)) {
     const lines = cur.split('\n').length;
@@ -1008,13 +1069,13 @@ async function preEdit(ctx, input) {
 }
 
 /** touched.json: the latest touch of `rel`, its artboards unioned (null = unknown, sticky). */
-function recordTouch(ctx, rel, { by, via, artboards }) {
+function recordTouch(ctx, rel, { by, via, artboards, at = Date.now() }) {
   const p = join(ctx.run, 'touched.json');
   const touched = readJson(p, {});
   const prev = touched[rel];
   const known = prev && prev.artboards === null ? null : artboards;
   touched[rel] = {
-    at: Date.now(),
+    at: Math.max(at, prev?.at ?? 0),
     by,
     via,
     artboards: known === null ? null : [...new Set([...(prev?.artboards ?? []), ...(known ?? [])])],
@@ -1075,7 +1136,7 @@ async function postEdit(ctx, input, self) {
   const snap = toolUseId ? loadSnapshot(ctx, snapRel(ctx, toolUseId)) : null;
   const studio = await locateStudio(ctx.root, { timeoutMs: LOCATE_MS });
   const res = await check(ctx, studio, t.rel, 'fast', snap, self);
-  const had = alreadyThere(res?.existing);
+  const had = alreadyThere(res?.existing, { shell: shellWrote(ctx, t.rel) });
   if (res && !res.ok) {
     // roll back ONLY if the file still holds exactly what the tool wrote
     let restored = false;
@@ -1126,9 +1187,20 @@ const EXISTING_SHOWN = 5;
  * The errors a file already had before this write, for the agent: `full` (pre-existing only — the
  * edit is kept; additionalContext) and `brief` (beside a block, one line). Null when there are none.
  */
-function alreadyThere(existing) {
+function alreadyThere(existing, { shell = false } = {}) {
   if (!Array.isArray(existing) || !existing.length) return null;
   const n = existing.length;
+  if (shell) {
+    // F4 — this run wrote the file through the shell before any copy of it was kept: what was
+    // there before THIS edit may be the run's own, so it is never called pre-existing
+    const lines = existing.slice(0, EXISTING_SHOWN).map((f) => findingLine(f, 'error'));
+    if (n > EXISTING_SHOWN) lines.push(`… and ${n - EXISTING_SHOWN} more`);
+    const what = n === 1 ? 'This finding is' : `These ${n} findings are`;
+    return {
+      full: `${what} in the file, which this run changed through the shell. This edit did not add ${n === 1 ? 'it' : 'them'}, so it is kept, but ${n === 1 ? 'it counts' : 'they count'} as this run's: fix ${n === 1 ? 'it' : 'them'} before you finish (Stop checks the file):\n${lines.join('\n')}`,
+      brief: `${n === 1 ? 'One more finding is' : `${n} more findings are`} in the file this run changed through the shell; fix ${n === 1 ? 'it' : 'them'} before you finish (${[...new Set(existing.map((f) => cleanFinding(f).code))].join(', ')}).`,
+    };
+  }
   const lines = existing.slice(0, EXISTING_SHOWN).map((f) => findingLine(f, 'pre-existing'));
   if (n > EXISTING_SHOWN) lines.push(`… and ${n - EXISTING_SHOWN} more`);
   return {
@@ -1237,12 +1309,20 @@ function preBash(ctx, input) {
       if (cur === null || cur.length > SNAP_MAX_BYTES) continue;
       const name = `${toolUseId}.${sha(rel).slice(0, 16)}`;
       saveSnapshot(ctx, `_runs/${ctx.session}/snap/${name}`, cur);
-      const base = baseRel(ctx, rel);
-      if (!loadSnapshot(ctx, base)) saveSnapshot(ctx, base, cur);
+      ensureBase(ctx, rel, cur);
       snaps[rel] = name;
     }
   }
-  writeAt(join(ctx.run, 'bash', `${toolUseId}.json`), JSON.stringify({ at: Date.now(), snaps }));
+  // p8-secfix-hook F2 — a call that leaves a process running (`nohup … &`, `run_in_background`)
+  // keeps its mark until the turn ends: Stop binds what that process wrote after the call returned
+  const bg =
+    input.tool_input?.run_in_background === true || bashBackgrounds(command)
+      ? { bg: true, by: input.agent_type ?? 'main' }
+      : {};
+  writeAt(
+    join(ctx.run, 'bash', `${toolUseId}.json`),
+    JSON.stringify({ at: Date.now(), snaps, ...bg })
+  );
   return null;
 }
 
@@ -1307,21 +1387,62 @@ async function postBash(ctx, input) {
   const markP = join(ctx.run, 'bash', `${toolUseId}.json`);
   const mark = readJson(markP, null);
   if (!mark || typeof mark.at !== 'number') return null; // not a write verb
-  const files = designWritesSince(ctx.designRoot, mark.at);
-  if (files.length) {
-    for (const rel of files)
-      recordTouch(ctx, rel, { by: input.agent_type ?? 'main', via: 'bash', artboards: null });
-    const studio = await locateStudio(ctx.root, { timeoutMs: LOCATE_MS });
-    if (studio)
-      await postStudio(
-        studio,
-        '/_api/agent/edit/touched',
-        { ...runKey(ctx), toolUseId, via: 'bash', since: mark.at },
-        { timeoutMs: 900 }
-      );
-  }
-  rmSync(markP, { force: true });
+  await bindBashWrites(ctx, toolUseId, mark, input.agent_type ?? 'main', mark.at);
+  if (mark.bg) writeAt(markP, JSON.stringify({ ...mark, seen: Date.now() }));
+  else rmSync(markP, { force: true });
   return null;
+}
+
+/**
+ * Bind the design files changed since `since` to the run: touched.json (`via: 'bash'`) and the
+ * studio's `edit/touched` for the call's window (from `mark.at`).
+ */
+async function bindBashWrites(ctx, toolUseId, mark, by, since) {
+  const files = designWritesSince(ctx.designRoot, since);
+  if (!files.length) return;
+  for (const rel of files) {
+    let at;
+    try {
+      at = statSync(join(ctx.designRoot, rel)).mtimeMs;
+    } catch {
+      /* gone again */
+    }
+    recordTouch(ctx, rel, { by, via: 'bash', artboards: null, at });
+    markShellWrite(ctx, rel); // F4 — no base taken after this write
+  }
+  const studio = await locateStudio(ctx.root, { timeoutMs: LOCATE_MS });
+  if (studio)
+    await postStudio(
+      studio,
+      '/_api/agent/edit/touched',
+      { ...runKey(ctx), toolUseId, via: 'bash', since: mark.at },
+      { timeoutMs: 900 }
+    );
+}
+
+/**
+ * p8-secfix-hook F2 — at the turn's end (Stop / SubagentStop), what every still-running background
+ * call (`bg` mark) wrote since it was last looked at. The marks stay until the run folder goes, so
+ * a blocked Stop looks again at the next one.
+ */
+async function drainBackground(ctx) {
+  const dir = join(ctx.run, 'bash');
+  let names = [];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return;
+  }
+  for (const n of names) {
+    const toolUseId = n.endsWith('.json') ? hookKey(n.slice(0, -5)) : null;
+    if (!toolUseId) continue;
+    const mark = readJson(join(dir, n), null);
+    if (!mark?.bg || typeof mark.at !== 'number') continue;
+    const since = typeof mark.seen === 'number' ? mark.seen : mark.at;
+    const by = typeof mark.by === 'string' ? mark.by : 'main';
+    await bindBashWrites(ctx, toolUseId, mark, by, since);
+    writeAt(join(dir, n), JSON.stringify({ ...mark, seen: Date.now() }));
+  }
 }
 
 /** SubagentStop: the hand-off result, then the stop-tier check of the run's files it owns. */
@@ -1372,6 +1493,7 @@ async function subagentStop(ctx, input, self) {
 }
 
 async function stop(ctx, input, self) {
+  await drainBackground(ctx);
   if (input.hook_event_name === 'SubagentStop') return subagentStop(ctx, input, self);
   const touched = readJson(join(ctx.run, 'touched.json'), {});
   const studio = await locateStudio(ctx.root, { timeoutMs: LOCATE_MS });
