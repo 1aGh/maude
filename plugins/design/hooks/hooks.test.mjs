@@ -1909,6 +1909,25 @@ describe('p8-secfix-hook F2 — a background call binds what its process writes 
     }
   });
 
+  test('F2 → F4: an edit after the background process wrote never takes the run base from it', async () => {
+    writeFileSync(canvasPath(project), CANVAS);
+    const sh = bash(project, 'bg3', 't4', 'nohup python3 w.py &');
+    await hook('pre-bash', sh);
+    await hook('post-bash', sh); // returned before the process wrote
+    await Bun.sleep(10);
+    const planted = CANVAS.replace('id="pricing"', 'id="hero"');
+    writeFileSync(canvasPath(project), planted); // the process plants a duplicate id
+    const e = edit(project, 'bg3', 'e4', '<p>x</p>', '<p>y</p>');
+    expect(await hook('pre-edit', e)).toMatchObject({ status: 0, stdout: '' });
+    writeFileSync(canvasPath(project), planted.replace('<p>x</p>', '<p>y</p>'));
+    const post = await hook('post-edit', e);
+    expect(post.json?.decision).toBeUndefined();
+    expect(contextOf(post)).not.toContain('already in the file before this edit');
+    const r = await hook('stop', { session_id: 'bg3', cwd: project, stop_hook_active: false });
+    expect(r.json?.decision).toBe('block');
+    expect(r.json.reason).toContain('[artboard-duplicate]');
+  });
+
   test('a call that waits for its process: post-bash binds and drops its mark', async () => {
     writeFileSync(canvasPath(project), CANVAS);
     const input = bash(project, 'fg1', 't3', 'python3 w.py');
@@ -1954,6 +1973,7 @@ for (const lane of ['no studio (local check)', 'with a studio (warm validator)']
   describe(`post-edit blocks only findings the edit introduced — ${lane}`, () => {
     let project;
     let server;
+    const ended = [];
     const mPath = () => join(project, '.design', 'ui', 'M.tsx');
     const editM = (session, id, old, neu) => ({
       ...edit(project, session, id, old, neu),
@@ -1977,7 +1997,11 @@ for (const lane of ['no studio (local check)', 'with a studio (warm validator)']
           designRel: '.design',
           shells: () => 1,
           emit: () => {},
-          bracket: { begin: () => {}, touch: () => {}, end: () => {} },
+          bracket: {
+            begin: () => {},
+            touch: () => {},
+            end: (r, o) => ended.push(`${r.session} ${o}`),
+          },
         })
       );
       server = Bun.serve({
@@ -2083,5 +2107,110 @@ for (const lane of ['no studio (local check)', 'with a studio (warm validator)']
       expect(r.json?.reason ?? '').not.toContain('artboard-id-expression');
       expect(r.json?.reason ?? '').not.toContain("don't pass the check");
     });
+
+    // p8-secfix-hook F4 — a Bash write the hook could not snapshot (a python heredoc) plants a
+    // mapped artboard id; a trivial Edit follows. Before: that Edit's pre-edit saved the run base
+    // AFTER the plant, so post-edit called the plant pre-existing and Stop let the run end `done`.
+    test('F4 — a Bash-planted finding is never laundered into the run base by a later edit', async () => {
+      const pPath = join(project, '.design', 'ui', 'P.tsx');
+      writeFileSync(pPath, MAPPED.replace(MAP_BLOCK, '')); // clean: no finding
+      const sh = {
+        ...bash(project, 'f4', 'f4b', "cd .design/ui && python3 - <<'EOF'\nopen('P.tsx','w')\nEOF"),
+      };
+      expect(await hook('pre-bash', sh)).toMatchObject({ status: 0, stdout: '' });
+      await Bun.sleep(10);
+      writeFileSync(pPath, MAPPED); // the heredoc writes the map in
+      await hook('post-bash', sh);
+      // a trivial edit elsewhere in the file
+      const e = {
+        ...edit(project, 'f4', 'f4e', '<h1>Hi</h1>', '<h1>Hello</h1>'),
+        tool_input: { file_path: pPath, old_string: '<h1>Hi</h1>', new_string: '<h1>Hello</h1>' },
+      };
+      expect(await hook('pre-edit', e)).toMatchObject({ status: 0, stdout: '' });
+      writeFileSync(pPath, MAPPED.replace('<h1>Hi</h1>', '<h1>Hello</h1>'));
+      const post = await hook('post-edit', e);
+      expect(post.json?.decision).toBeUndefined(); // the edit itself added nothing
+      const note = contextOf(post);
+      expect(note).toContain('[artboard-id-expression]');
+      expect(note).toContain("counts as this run's");
+      expect(note).not.toContain('already in the file before this edit');
+      expect(note).not.toContain('pre-existing');
+      expect(note).not.toContain('fix them only if the task asks');
+      // Stop holds the run to it: blocked once, then the run ends with warnings
+      const stop = { session_id: 'f4', cwd: project, stop_hook_active: false };
+      const r1 = await hook('stop', stop);
+      expect(r1.json?.decision).toBe('block');
+      expect(r1.json.reason).toContain('[artboard-id-expression]');
+      expect(await hook('stop', { ...stop, stop_hook_active: true })).toMatchObject({
+        status: 0,
+        stdout: '',
+      });
+      if (server) expect(ended).toContain('f4 warnings');
+      rmSync(pPath, { force: true });
+    });
   });
 }
+
+// p8-secfix-hook (V2-8.9 final delta D1) — the run base Stop checks against lives at a path anyone
+// can compute (`_runs/<session>/base/<sha(rel)[:16]>`). A planted base equal to the bad file made
+// every error "pre-existing". The hooks' own run state is written by the hooks alone, main agent
+// included — Edit/Write and every Bash writer the guard can see.
+describe('p8-secfix-hook D1 — nobody but the hooks writes the run state', () => {
+  let project;
+  beforeAll(() => {
+    project = makeProject('maude-hook-runstate-');
+    mkdirSync(join(project, '.design', '_runs', 'd1', 'base'), { recursive: true });
+  });
+  afterAll(() => rmSync(project, { recursive: true, force: true }));
+  const write = (rel, content = 'x', extra = {}) => ({
+    session_id: 'd1',
+    tool_use_id: 'dw',
+    cwd: project,
+    tool_name: 'Write',
+    tool_input: { file_path: join(project, '.design', rel), content },
+    ...extra,
+  });
+
+  test('Write / Edit of the base, a snapshot, a bash mark, touched.json, stop-last: refused', async () => {
+    for (const rel of [
+      '_runs/d1/base/0123456789abcdef',
+      '_runs/d1/base/0123456789abcdef.new',
+      '_runs/d1/snap/toolu_1',
+      '_runs/d1/bash/toolu_1.json',
+      '_runs/d1/touched.json',
+      '_runs/d1/stop-last.json',
+      '_RUNS/D1/BASE/x', // a case alias on APFS
+    ])
+      expect(`${rel} ${isDeny(await hook('pre-edit', write(rel)), 'not-a-writer')}`).toBe(
+        `${rel} true`
+      );
+    // a sub-agent too
+    const sub = { agent_id: 'a1', agent_type: 'design:drafter' };
+    expect(isDeny(await hook('pre-edit', write('_runs/d1/base/x', 'x', sub)), 'not-a-writer')).toBe(
+      true
+    );
+  });
+
+  test('Bash redirects, cp / mv into it and rm of the run folder: refused', async () => {
+    for (const cmd of [
+      'cp .design/ui/C.tsx .design/_runs/d1/base/0123456789abcdef',
+      'echo x > .design/_runs/d1/base/0123456789abcdef',
+      "echo '{}' > .design/_runs/d1/touched.json",
+      'mv /tmp/x .design/_runs/d1/snap/toolu_1',
+      'rm -rf .design/_runs/d1',
+      'rm .design/_runs/d1/touched.json',
+      `node -e "require('fs').writeFileSync('.design/_runs/d1/base/abc','')"`,
+    ])
+      expect(
+        `${cmd} ${isDeny(await hook('pre-bash', bash(project, 'd1', 'db', cmd)), 'not-a-writer')}`
+      ).toBe(`${cmd} true`);
+  });
+
+  test('the main agent keeps writing its hand-offs and run outputs', async () => {
+    for (const rel of ['_runs/d1/handoff/drafter-0.in.json', '_runs/d1/critique/design-0.md'])
+      expect(await hook('pre-edit', write(rel, '{}'))).toMatchObject({ status: 0, stdout: '' });
+    expect(
+      await hook('pre-bash', bash(project, 'd1', 'dc', 'cat .design/_runs/d1/touched.json'))
+    ).toMatchObject({ status: 0, stdout: '' });
+  });
+});
