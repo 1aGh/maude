@@ -591,6 +591,20 @@ describe('team-cell-missing (native-desktop)', () => {
           .join(' | ')
       )} · trash=${JSON.stringify(await letakTrash())} · file=${JSON.stringify(ids(read(join(c.designer, '.design', LETAK))))}`
     );
+    {
+      const items = (await bobGet('/_api/trash')).body?.items ?? [];
+      const first = items.find((i: { kind?: string }) => i.kind === 'artboard');
+      const t0 = Date.now();
+      const r = await fetch(`${origin}/_api/trash/restore`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: first?.id }),
+        signal: AbortSignal.timeout(45_000),
+      })
+        .then(async (x) => `${x.status} ${(await x.text()).slice(0, 400)}`)
+        .catch((e) => `ERR ${String(e)}`);
+      console.log(`[team-cell-missing] direct restore ${first?.id}: ${r} after ${Date.now() - t0} ms`);
+    }
     await capture('05-es-all-trashed-after-restore');
     await card.waitForExist({ reverse: true, timeout: 60_000 });
     await eventually(
