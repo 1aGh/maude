@@ -101,7 +101,14 @@ import {
   handleUserAdminRoutes,
   permissiveDevAuthDisabled,
 } from './auth-routes.mjs';
-import { scheduleBackups, targetFromConfig, targetFromEnv } from './backup.mjs';
+import {
+  fileTarget,
+  prefixedTarget,
+  runBackup,
+  scheduleBackups,
+  targetFromConfig,
+  targetFromEnv,
+} from './backup.mjs';
 import { maybeIssueOnBoot, verifyAndConsume } from './bootstrap.mjs';
 import {
   BROWSER_SESSION_COOKIE,
@@ -197,6 +204,7 @@ import {
 } from './project-transactions/hub-integration.mjs';
 import { openRemoteProjectStore } from './project-transactions/store-remote.mjs';
 import { openSqliteProjectStore } from './project-transactions/store-sqlite.mjs';
+import { BACKUP_PREFIX, conversionGate, createV2Conversion } from './v2-convert.mjs';
 import { createRateStore } from './rate-store.mjs';
 import { canvasTokenTtlMs, mintRenderToken, verifyRenderToken } from './render-token.mjs';
 import { isRevoked } from './revocations.mjs';
@@ -1335,6 +1343,9 @@ export function createHub(config = {}) {
         // roles, scopes, links, requests): the Share sheet's posture. A
         // protocol marker, not customer data, so it rides the public half.
         health.access = accessService.posture();
+        // The boot conversion's counts (v2-convert.mjs) — collected by cells-deploy.yml.
+        const converted = v2Conversion?.health();
+        if (converted) health.v2Convert = converted;
         // 503, not 200-with-ok-false. A router reads the STATUS; a payload it
         // has to parse to learn the truth is a payload it will not parse.
         respondJson(response, health.ok ? 200 : 503, health);
@@ -2608,6 +2619,43 @@ export function createHub(config = {}) {
       if (fd >= 0) closeSync(fd);
     }
   };
+  // p8-v1-drop-cloud — the boot conversion's gate, its backup and its handle. A test may hand in
+  // the two versions, or `v2Convert: false` (createHub is never configured from env, so nothing
+  // in a fleet can).
+  const v2Conversion = createV2Conversion({
+    gate:
+      config.v2Convert === false
+        ? { run: false, reason: 'off' }
+        : conversionGate({
+            hubVersion: config.v2Convert?.versions?.hub ?? HUB_VERSION,
+            releaseVersion: config.v2Convert?.versions?.release ?? releaseVersion(),
+          }),
+    projects: () => [
+      {
+        id: process.env.MAUDE_TENANT_ID,
+        coordinator: accepted,
+        backup: config.v2Convert?.backup ?? (() => backupBeforeConversion()),
+      },
+    ],
+  });
+  // The pre-conversion generation: the documents AND the checkout, in the cell's durable backup
+  // keyspace under `v2-convert/` (its own keyspace, so the regular schedule never prunes it). A
+  // hub with no backup target keeps it in its data dir — unless that disk is disposable, when
+  // there is nowhere durable to put it and the project is not converted.
+  async function backupBeforeConversion() {
+    let target;
+    if (bootTarget) target = prefixedTarget(await backupTarget(), BACKUP_PREFIX);
+    else if (process.env.MAUDE_DATA_EPHEMERAL !== '1')
+      target = fileTarget(join(dataDir, BACKUP_PREFIX));
+    else throw Object.assign(new Error('no durable backup target'), { code: 'no-durable-backup' });
+    const out = await runBackup({
+      dataDir,
+      target,
+      repoDir: process.env.MAUDE_REPO_DIR || null,
+      run: process.env.MAUDE_REPO_DIR ? createGitRunner() : null,
+    });
+    return `${target.describe} ${out.prefix}`;
+  }
   const acceptedReady = accepted
     .refresh()
     // V2-1.12 §5.2 — a hub with a checkout (a cell, a workspace hub) seeds the
@@ -2626,7 +2674,10 @@ export function createHub(config = {}) {
     // A brand-new project may start in accepted revisions (G3a).
     .then(() => accepted.adoptNewProjectMode(process.env.MAUDE_NEW_PROJECT_MODE))
     .then(() => accepted.reconcile())
-    .catch((err) => console.error(`[transactions] startup reconcile failed: ${err.message}`));
+    .catch((err) => console.error(`[transactions] startup reconcile failed: ${err.message}`))
+    // The stable 2.0.0 cloud converts every project (decision maude/v2-michal-drop-v1-auto-convert,
+    // v2-convert.mjs) — after the store was read, never on an rc or a 1.x image, never throwing.
+    .then(() => v2Conversion.run());
 
   return {
     server,

@@ -52,7 +52,7 @@ export function canvasOnlyToken(dataDir, label, grants) {
 }
 
 /** Boot a workspace hub over the fixture; returns { http, tokens, designRoot, dataDir, stop }. */
-export async function bootAclHub(prefix, { files, studioChild = false } = {}) {
+export async function bootAclHub(prefix, { files, studioChild = false, v2Convert } = {}) {
   resetFileAccessCaches();
   const dataDir = mkdtempSync(join(tmpdir(), `${prefix}-data-`));
   const repoDir = mkdtempSync(join(tmpdir(), `${prefix}-repo-`));
@@ -82,7 +82,13 @@ export async function bootAclHub(prefix, { files, studioChild = false } = {}) {
     canvasA: canvasOnlyToken(dataDir, 'canvas-a', [{ c: 'ui/a.tsx', r: 'member' }]),
     canvasAViewer: canvasOnlyToken(dataDir, 'canvas-a-viewer', [{ c: 'ui/a.tsx', r: 'viewer' }]),
   };
-  const built = createHub({ port: 0, dataDir, secret: 'test-secret', verbose: false });
+  const built = createHub({
+    port: 0,
+    dataDir,
+    secret: 'test-secret',
+    verbose: false,
+    ...(v2Convert === undefined ? {} : { v2Convert }),
+  });
   await built.server.listen();
   await built.acceptedReady;
   // Journal the checkout now (the boot walk-import), so every file has a row.

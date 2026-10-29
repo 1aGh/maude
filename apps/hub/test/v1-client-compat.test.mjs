@@ -143,6 +143,10 @@ beforeEach(async () => {
     secret: SECRET,
     publicUrl: `https://hub.example.com:${PORT}`,
     verbose: false,
+    // This file pins the doors for a FORMAT-1 project; from the stable 2.0.0 on, a cell converts
+    // its project at boot (v2-convert.mjs), so the frozen client is pinned against a hub that
+    // does not (a self-hosted hub still serves format-1 projects).
+    v2Convert: false,
   }).server;
   await hub.listen();
 });
@@ -309,7 +313,8 @@ const V1_FILE_PLANE_READS = [
 describe('S9.4 — the canvas-scoped file plane: a 1.9.1 desktop sees the whole project', () => {
   for (const role of ['owner', 'member', 'viewer']) {
     test(`${role}: journal, manifest, bytes, presence and probe answer as today`, async () => {
-      const acl = await bootAclHub(`maude-v1-s94-${role}`);
+      // A format-1 project, unconverted (see the `v2Convert: false` note above).
+      const acl = await bootAclHub(`maude-v1-s94-${role}`, { v2Convert: false });
       try {
         const res = await fetch(`${acl.http}/auth/login`, {
           method: 'POST',
