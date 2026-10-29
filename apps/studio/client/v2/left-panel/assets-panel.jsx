@@ -843,6 +843,8 @@ export function AssetsPanel({
             toast?.(line, true, { label: 'Undo', onClick: () => menuRunner.run('edit.undo') });
           }}
           onOther={() => menuRunner.run('ai.generate')}
+          // ia-edges H — Connect on "Connect a Google key?" is the one key flow: Settings › Connections
+          onConnectKey={() => menuRunner.run('settings.open', { tab: 'connections' })}
         />
       ) : null}
       {detailed ? (

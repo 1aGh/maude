@@ -563,7 +563,9 @@ export function createMenuHandlers(d) {
     'sync.connect-link': () => d.onShare(),
     // S9.21 — Ask to edit (the Viewing button, ⌘K) and the owner's answer (the request block's buttons)
     ...createAccessHandlers(d),
-    'settings.open': () => d.setSettingsOpen(true),
+    // `{ tab }` lands on that section ("Connect a Google key?" → connections); the sheet resolves a name it lacks
+    'settings.open': (params) =>
+      d.setSettingsOpen(typeof params?.tab === 'string' ? params.tab : true),
     'canvas.reload': () => d.onReload(),
     // ── Diagnostics (V2-4.7b) ──
     ...createDiagnosticsHandlers(d),
