@@ -185,6 +185,7 @@ export const STUDIO_ROUTES = Object.freeze({
   // p8-import-link — a link is fetched on a Mac only: a cell's network is the provider's (the studio answers
   // link-not-on-mac in a cell too), so the hub refuses it before it reaches the child.
   '/_api/import-link': REFUSED,
+  '/_api/import-link/key': REFUSED,
   '/_api/import-brand': { safe: null, unsafe: 'edit' },
   '/_api/edit-attr': { safe: null, unsafe: 'edit' },
   '/_api/edit-css': { safe: null, unsafe: 'edit' },

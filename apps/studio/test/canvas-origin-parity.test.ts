@@ -64,6 +64,7 @@ const PRIVILEGED = [
   '/_api/ui-prefs',
   // p8-import-link — the studio fetches a URL the caller names: a canvas reaching it would be SSRF from the person's Mac
   '/_api/import-link',
+  '/_api/import-link/key',
 ];
 
 describe('CANVAS_SAFE_API ↔ the canvas server routes map (V2-2.5)', () => {

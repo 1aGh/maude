@@ -354,6 +354,7 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
         '/_api/import-brand',
         // p8-import-link — the studio fetches a URL the caller names (SSRF if a canvas could reach it); MAIN-ORIGIN ONLY.
         '/_api/import-link',
+        '/_api/import-link/key',
         // V2-2.4b (contract V2-1.11 §5.4, §5.8 invariant 5) — the agent routes drive the user's
         // window (`maude design open`) and the run bracket; MAIN-ORIGIN ONLY, in neither allowlist
         // (test/agent-routes-origin.test.ts pins the tables). A GET here 403s at the gate.

@@ -374,6 +374,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/import-asset': { class: 'file-plane', rows: 'S28/I08' },
   // p8-import-link — Add from a link…: the bytes land through the same Assets writer (assets/<sha8>.<ext>)
   '/_api/import-link': { class: 'file-plane', rows: 'S28/I08' },
+  '/_api/import-link/key': { class: 'read' }, // F2 — the shell page's key for the link import, no effect
   '/_api/import-brand': { class: 'file-plane', rows: 'S28/I07' },
   '/_api/figma/import': { class: 'file-plane', rows: 'I04/I05 (canvases join by cold start)' },
   '/_api/figma/explode': { class: 'file-plane', rows: 'I04/I05 (canvases join by cold start)' },

@@ -53,6 +53,8 @@ export type LinkReason =
   | 'link-redirects' // more redirects than the cap, or one without a target
   | 'link-not-media' // the bytes are not a picture, clip or sound (HTML renamed .png)
   | 'link-svg' // an SVG — active content, refused from a link
+  | 'link-encoded' // a compressed answer (Content-Encoding other than identity) — never inflated (H1)
+  | 'link-proxy' // this machine routes https through a proxy (HTTPS_PROXY / ALL_PROXY / …) — refused (L1)
   | 'too-large'
   | 'timeout'
   | 'link-failed'; // the Assets writer refused for another reason (budget, disk)
@@ -196,6 +198,8 @@ export interface LinkAnswer {
   status: number;
   location: string | null;
   contentLength: number | null;
+  /** The answer's Content-Encoding, lower-cased; null when absent. Anything but identity is refused. */
+  contentEncoding?: string | null;
   body: ReadableStream<Uint8Array> | null;
 }
 export type LinkTransport = (hop: LinkHop) => Promise<LinkAnswer>;
@@ -216,6 +220,9 @@ export function bunTransport(opts: { ca?: string } = {}): LinkTransport {
     const res = await fetch(`https://${pinned}${port}${url.pathname}${url.search}`, {
       method: 'GET',
       redirect: 'manual',
+      // H1 — Bun inflates gzip/br whole, despite `Accept-Encoding: identity`, before the cap could count
+      // a byte (1.6 KB of brotli → ~1 GB). Never: the body is read as sent, and an encoded one is refused.
+      decompress: false,
       signal,
       headers: {
         Host: url.host,
@@ -224,6 +231,8 @@ export function bunTransport(opts: { ca?: string } = {}): LinkTransport {
         'User-Agent': UA,
       },
       tls: {
+        // L1 — explicit, so NODE_TLS_REJECT_UNAUTHORIZED=0 in the environment cannot switch the check off
+        rejectUnauthorized: true,
         ...(isIP(host) ? {} : { serverName: host }),
         ...(opts.ca ? { ca: opts.ca } : {}),
       },
@@ -234,6 +243,7 @@ export function bunTransport(opts: { ca?: string } = {}): LinkTransport {
       location: res.headers.get('location'),
       contentLength:
         Number.isFinite(len) && len >= 0 && res.headers.has('content-length') ? len : null,
+      contentEncoding: res.headers.get('content-encoding')?.trim().toLowerCase() || null,
       body: res.body as ReadableStream<Uint8Array> | null,
     };
   };
@@ -241,8 +251,31 @@ export function bunTransport(opts: { ca?: string } = {}): LinkTransport {
 
 export const REDIRECTS = new Set([301, 302, 303, 307, 308]);
 
+/** L1 — the variables Bun's fetch would route an https request through (it honours them per request). */
+export const PROXY_ENV = [
+  'HTTPS_PROXY',
+  'https_proxy',
+  'ALL_PROXY',
+  'all_proxy',
+  'HTTP_PROXY',
+  'http_proxy',
+] as const;
+
+/** A proxy would get the checked address but decide on its own where to connect: refused, not bypassed. */
+export function proxyInEnv(env: Record<string, string | undefined>): boolean {
+  return PROXY_ENV.some((k) => typeof env[k] === 'string' && env[k]?.trim() !== '');
+}
+
 export interface LinkImportDeps {
   saveAsset: (stream: ReadableStream<Uint8Array>) => Promise<SaveAssetResult>;
+  /** The environment the proxy check reads (default `process.env`). */
+  env?: Record<string, string | undefined>;
+  /**
+   * L4 — every DNS lookup this import starts, handed over as it starts. A lookup has no signal: one
+   * that outlives the deadline keeps running after the answer, and the route keeps its one slot until
+   * each settles, so a resolver that never answers cannot stack lookups.
+   */
+  track?: (pending: Promise<unknown>) => void;
   lookup?: LinkLookup;
   transport?: LinkTransport;
   limits?: Partial<LinkLimits>;
@@ -272,7 +305,77 @@ const looksLikeSvg = (head: Uint8Array) => {
   return s.startsWith('<svg') || (s.startsWith('<?xml') && s.includes('<svg'));
 };
 
-const SNIFF_BYTES = 16;
+/** Enough head for the strict type checks (two MP3 frames at the largest Layer III frame size). */
+const SNIFF_BYTES = 4096;
+
+const MP3_KBPS = {
+  1: [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320],
+  2: [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160],
+} as const;
+const MP3_RATES = {
+  3: [44100, 48000, 32000],
+  2: [22050, 24000, 16000],
+  0: [11025, 12000, 8000],
+} as const;
+
+/** One MPEG audio Layer III frame header at `o`: its length and shape, or null. */
+function mp3Frame(b: Uint8Array, o: number): { len: number; key: number } | null {
+  if (o + 4 > b.length) return null;
+  const [b0, b1, b2] = [b[o] ?? 0, b[o + 1] ?? 0, b[o + 2] ?? 0];
+  if (b0 !== 0xff || (b1 & 0xe0) !== 0xe0) return null;
+  const version = (b1 >> 3) & 3; // 3 = MPEG1, 2 = MPEG2, 0 = MPEG2.5, 1 reserved
+  const layer = (b1 >> 1) & 3; // 1 = Layer III
+  if (version === 1 || layer !== 1) return null;
+  const bi = (b2 >> 4) & 0xf;
+  const si = (b2 >> 2) & 3;
+  if (bi === 0 || bi === 15 || si === 3) return null;
+  const kbps = (version === 3 ? MP3_KBPS[1] : MP3_KBPS[2])[bi] as number;
+  const rate = MP3_RATES[version as 3 | 2 | 0][si] as number;
+  const pad = (b2 >> 1) & 1;
+  const len = Math.floor(((version === 3 ? 144 : 72) * kbps * 1000) / rate) + pad;
+  return len > 4 ? { len, key: (b1 << 8) | (b2 & 0x0c) } : null;
+}
+
+/**
+ * L2/F5 — the type of a LINKED file. `sniffAssetType` (the Assets writer's) accepts weak prefixes: an
+ * MP3 on two bytes, a JPEG on three, an mp4 on four letters at offset 4. Bytes from the web are an
+ * attacker's choice, so a weak signature must also parse: an ID3v2 header that is one, or two MP3 frames
+ * back to back; a JPEG marker after SOI; an `ftyp` box with a sane size and a printable brand; an EBML
+ * header with a valid size byte. A polyglot that merely starts right is refused.
+ */
+export function linkTypeOf(head: Uint8Array): ReturnType<typeof sniffAssetType> {
+  const info = sniffAssetType(head);
+  if (!info) return null;
+  const b = head;
+  if (info.ext === 'mp3') {
+    if (b[0] === 0x49 && b[1] === 0x44 && b[2] === 0x33) {
+      // ID3v2: version 2–4, revision < 0xff, a synchsafe size (each byte < 0x80)
+      const ok =
+        b.length >= 10 &&
+        (b[3] ?? 0) >= 2 &&
+        (b[3] ?? 0) <= 4 &&
+        (b[4] ?? 0xff) < 0xff &&
+        [6, 7, 8, 9].every((i) => (b[i] ?? 0x80) < 0x80);
+      return ok ? info : null;
+    }
+    const first = mp3Frame(b, 0);
+    const second = first ? mp3Frame(b, first.len) : null;
+    return first && second && second.key === first.key ? info : null;
+  }
+  if (info.ext === 'jpg') {
+    const m = b[3] ?? 0;
+    return (m >= 0xe0 && m <= 0xef) || [0xdb, 0xfe, 0xc0, 0xc2, 0xc4].includes(m) ? info : null;
+  }
+  if (info.ext === 'mp4' || info.ext === 'mov' || info.ext === 'm4a' || info.ext === 'm4v') {
+    const size =
+      (((b[0] ?? 0) << 24) | ((b[1] ?? 0) << 16) | ((b[2] ?? 0) << 8) | (b[3] ?? 0)) >>> 0;
+    const brand = b.subarray(8, 12);
+    const printable = brand.length === 4 && [...brand].every((c) => c >= 0x20 && c <= 0x7e);
+    return size >= 16 && size <= 1024 && printable ? info : null;
+  }
+  if (info.ext === 'webm') return (b[4] ?? 0) !== 0 ? info : null;
+  return info;
+}
 
 /**
  * Fetch `rawUrl` under every gate above and land it in Assets. Never throws: a refusal is
@@ -283,7 +386,12 @@ export async function importFromLink(
   deps: LinkImportDeps
 ): Promise<LinkImportResult> {
   const limits: LinkLimits = { ...LINK_LIMITS, ...(deps.limits ?? {}) };
-  const lookup = deps.lookup ?? bunLookup;
+  const baseLookup = deps.lookup ?? bunLookup;
+  const lookup: LinkLookup = (h) => {
+    const p = baseLookup(h);
+    deps.track?.(p.catch(() => undefined));
+    return p;
+  };
   const transport = deps.transport ?? bunTransport();
   const whole = new AbortController();
   let timedOut = false;
@@ -303,6 +411,7 @@ export async function importFromLink(
   let host: string | undefined;
   try {
     let current = checkLinkUrl(rawUrl);
+    if (proxyInEnv(deps.env ?? process.env)) throw new LinkRefusal('link-proxy', 'a proxy is set');
     // the line names the link the person pasted, never a redirect target the site chose
     const asked = current;
     for (let hop = 0; ; hop += 1) {
@@ -342,7 +451,13 @@ export async function importFromLink(
       }
       if (res.status !== 200 || !res.body) {
         await res.body?.cancel().catch(() => undefined);
-        throw new LinkRefusal('link-http', `the site answered ${Number(res.status) || 0}`);
+        // F4 — a fixed phrase: no remote status number reaches the answer
+        throw new LinkRefusal('link-http', 'the site did not send the file');
+      }
+      // H1 — an encoded body is never read (it would be inflated, or stored compressed)
+      if (res.contentEncoding && res.contentEncoding !== 'identity') {
+        await res.body.cancel().catch(() => undefined);
+        throw new LinkRefusal('link-encoded', 'a compressed answer');
       }
       if (res.contentLength !== null && res.contentLength > limits.maxBytes) {
         await res.body.cancel().catch(() => undefined);
@@ -438,7 +553,7 @@ async function land(
   }
   const headBytes = Buffer.concat(head);
   if (!headBytes.length) throw new LinkRefusal('link-http', 'an empty answer');
-  const info = sniffAssetType(headBytes);
+  const info = linkTypeOf(headBytes);
   if (!info) {
     await cancel();
     throw new LinkRefusal(

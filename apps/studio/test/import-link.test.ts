@@ -9,6 +9,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createBrotliCompress, createGzip, constants as zc } from 'node:zlib';
 
 import { resolveAccess } from '../access/scope.ts';
 import { sniffAssetType } from '../api.ts';
@@ -21,6 +22,7 @@ import {
   type LinkLookup,
   type LinkTransport,
   linkAddressRefusal,
+  linkTypeOf,
 } from '../link-import.ts';
 import { createImportLinkRoutes } from '../routes/import-link.ts';
 
@@ -280,19 +282,19 @@ describe('limits and the type', () => {
 
   test('the size cap is counted while streaming, not trusted from Content-Length', async () => {
     const s = fakeSaver();
-    // no Content-Length, 3 chunks of 40 bytes against a 100-byte cap → refused mid-stream, nothing kept
-    const chunk = Buffer.alloc(40, 1);
+    // no Content-Length; past the 4 KB head the body streams on, and the third 4 KB chunk crosses a 10 KB cap
+    const chunk = Buffer.alloc(4100, 1);
     const { transport } = wire(() => ({
       status: 200,
       location: null,
       contentLength: null,
-      body: streamOf(PNG.subarray(0, 40), chunk, chunk),
+      body: streamOf(PNG.subarray(0, 40), chunk, chunk, chunk),
     }));
     const r = await importFromLink('https://media.example/big.png', {
       saveAsset: s.saveAsset,
       lookup,
       transport,
-      limits: { maxBytes: 100 },
+      limits: { maxBytes: 10_000 },
     });
     expect(r.ok ? 'ok' : r.reason).toBe('too-large');
     expect(s.saved).toEqual([]);
@@ -301,13 +303,13 @@ describe('limits and the type', () => {
       status: 200,
       location: null,
       contentLength: 10,
-      body: streamOf(PNG.subarray(0, 40), chunk, chunk),
+      body: streamOf(PNG.subarray(0, 40), chunk, chunk, chunk),
     }));
     const r2 = await importFromLink('https://media.example/big.png', {
       saveAsset: s.saveAsset,
       lookup,
       transport: lying.transport,
-      limits: { maxBytes: 100 },
+      limits: { maxBytes: 10_000 },
     });
     expect(r2.ok ? 'ok' : r2.reason).toBe('too-large');
     // an honest oversize Content-Length is refused before the body is read
@@ -416,30 +418,154 @@ describe('limits and the type', () => {
   });
 });
 
+describe('H1 and L2: compressed answers and polyglots', () => {
+  const { lookup } = table({ 'media.example': [PUBLIC] });
+  const untouchable = () =>
+    new ReadableStream<Uint8Array>({
+      pull() {
+        throw new Error('the body was read');
+      },
+    });
+
+  test('H1: an encoded answer (gzip, br, deflate…) is refused before a byte of it is read', async () => {
+    for (const enc of ['gzip', 'br', 'deflate', 'zstd', 'gzip, br']) {
+      const s = fakeSaver();
+      const { transport } = wire(() => ({
+        status: 200,
+        location: null,
+        contentLength: 1600,
+        contentEncoding: enc,
+        body: untouchable(),
+      }));
+      const r = await importFromLink('https://media.example/a.png', {
+        saveAsset: s.saveAsset,
+        lookup,
+        transport,
+      });
+      expect({ enc, r: r.ok ? 'ok' : r.reason }).toEqual({ enc, r: 'link-encoded' });
+      expect(s.saved).toEqual([]);
+    }
+    const plain = await importFromLink('https://media.example/a.png', {
+      saveAsset: fakeSaver().saveAsset,
+      lookup,
+      transport: wire(() => ok(PNG, { contentEncoding: 'identity' })).transport,
+    });
+    expect(plain.ok).toBe(true);
+  });
+
+  /** Two MPEG-1 Layer III frames, 128 kb/s, 44.1 kHz: 417 bytes each. */
+  const mp3 = () => {
+    const frame = Buffer.alloc(417);
+    frame.set([0xff, 0xfb, 0x90, 0x00]);
+    return Buffer.concat([frame, frame, Buffer.alloc(64)]);
+  };
+
+  test('L2: a weak signature must parse — an MP3 needs ID3 or two real frames, a JPEG a marker, an mp4 a sane box', () => {
+    expect(linkTypeOf(mp3())?.ext).toBe('mp3');
+    const id3 = Buffer.concat([
+      Buffer.from('ID3'),
+      Buffer.from([3, 0, 0, 0, 0, 0x10, 0x7f]),
+      Buffer.alloc(32),
+    ]);
+    expect(linkTypeOf(id3)?.ext).toBe('mp3');
+    expect(
+      linkTypeOf(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]))?.ext
+    ).toBe('png');
+    expect(linkTypeOf(Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10]))?.ext).toBe('jpg');
+    const mp4 = Buffer.concat([
+      Buffer.from([0, 0, 0, 0x20]),
+      Buffer.from('ftypisom'),
+      Buffer.alloc(32),
+    ]);
+    expect(linkTypeOf(mp4)?.ext).toBe('mp4');
+    for (const [what, bytes] of [
+      [
+        'frame-sync + HTML',
+        Buffer.concat([Buffer.from([0xff, 0xfb]), Buffer.from('<html><script>x</script>')]),
+      ],
+      [
+        'one MP3 frame then HTML',
+        Buffer.concat([mp3().subarray(0, 417), Buffer.from('<html><script>')]),
+      ],
+      ['ID3 + HTML', Buffer.from('ID3<html><script>alert(1)</script>')],
+      ['SOI + HTML', Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.from('<html>')])],
+      [
+        'ftyp with a junk size',
+        Buffer.concat([Buffer.from('<htm'), Buffer.from('ftyp<scr'), Buffer.alloc(16)]),
+      ],
+    ] as const) {
+      expect({ what, t: linkTypeOf(bytes)?.ext ?? null }).toEqual({ what, t: null });
+      // the Assets writer's own sniff would have taken it: the link gate is the stricter one
+      expect({ what, weak: sniffAssetType(bytes)?.ext ?? null }).not.toEqual({ what, weak: null });
+    }
+  });
+
+  test('L2: a polyglot from a link is refused, never handed to the writer', async () => {
+    const s = fakeSaver();
+    const r = await importFromLink('https://media.example/song.mp3', {
+      saveAsset: s.saveAsset,
+      lookup,
+      transport: wire(() =>
+        ok(Buffer.concat([Buffer.from([0xff, 0xfb]), Buffer.from('<html><script>x</script>')]))
+      ).transport,
+    });
+    expect(r.ok ? 'ok' : r.reason).toBe('link-not-media');
+    expect(s.saved).toEqual([]);
+    const good = await importFromLink('https://media.example/song.mp3', {
+      saveAsset: s.saveAsset,
+      lookup,
+      transport: wire(() => ok(mp3())).transport,
+    });
+    expect(good.ok && good.kind).toBe('mp3');
+  });
+});
+
 describe('the route', () => {
   const role = (r: 'owner' | 'member' | 'viewer' | 'observer') => resolveAccess({ v: 1, role: r });
+  type Spec = { path: string; handle: (r: Request, p: Record<string, string>) => unknown };
+  const KEY = 'page-key-for-tests';
+  const routes = (over: Partial<Parameters<typeof createImportLinkRoutes>[0]> = {}) => {
+    const all = createImportLinkRoutes({
+      access: () => role('member'),
+      saveAsset: fakeSaver().saveAsset,
+      pageKey: KEY,
+      env: {},
+      ...over,
+    }) as unknown as Spec[];
+    return {
+      key: all.find((x) => x.path === '/_api/import-link/key') as Spec,
+      link: all.find((x) => x.path === '/_api/import-link') as Spec,
+    };
+  };
   const post = (
-    spec: { handle: (r: Request, p: Record<string, string>) => unknown },
-    body: unknown
+    spec: Spec,
+    body: unknown,
+    headers: Record<string, string> = { 'x-maude-link-key': KEY }
   ) =>
     spec.handle(
       new Request('http://127.0.0.1/_api/import-link', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...headers },
         body: JSON.stringify(body),
       }),
       {}
     ) as Promise<Response>;
+  const getKey = (spec: Spec, headers: Record<string, string> = {}) =>
+    spec.handle(
+      new Request('http://127.0.0.1/_api/import-link/key', { headers }),
+      {}
+    ) as Promise<Response>;
 
   test('main origin only, refused for a read-only session', () => {
-    const [spec] = createImportLinkRoutes({
+    const all = createImportLinkRoutes({
       access: () => role('member'),
       saveAsset: fakeSaver().saveAsset,
     });
-    expect(spec?.path).toBe('/_api/import-link');
-    expect(spec?.method).toBe('POST');
-    expect(spec?.origin).toBe('main');
-    expect(spec?.readOnly).toBe('refused');
+    expect(all.map((x) => [x.method, x.path, x.origin])).toEqual([
+      ['GET', '/_api/import-link/key', 'main'],
+      ['POST', '/_api/import-link', 'main'],
+    ]);
+    expect(all.find((x) => x.method === 'POST')?.readOnly).toBe('refused');
   });
 
   test('Can view, Can comment and a canvas-only editor are refused; nothing is fetched or kept', async () => {
@@ -451,42 +577,162 @@ describe('the route', () => {
       const s = fakeSaver();
       const { lookup, asked } = table({ 'media.example': [PUBLIC] });
       const { transport, hops } = wire(() => ok(PNG));
-      const [spec] = createImportLinkRoutes({
-        access: () => access,
-        saveAsset: s.saveAsset,
-        lookup,
-        transport,
-      });
-      const res = await post(spec as never, { url: 'https://media.example/a.png' });
+      const r = routes({ access: () => access, saveAsset: s.saveAsset, lookup, transport });
+      const res = await post(r.link, { url: 'https://media.example/a.png' });
       expect(res.status).toBe(403);
       expect(((await res.json()) as { reason: string }).reason).toBe('forbidden');
+      expect((await getKey(r.key)).status).toBe(403);
       expect(asked).toEqual([]);
       expect(hops).toEqual([]);
       expect(s.saved).toEqual([]);
     }
   });
 
-  test('a cell refuses; the happy path lands one asset and answers its path, kind and name', async () => {
-    const { lookup } = table({ 'media.example': [PUBLIC] });
-    const cell = createImportLinkRoutes({
-      access: () => role('member'),
-      saveAsset: fakeSaver().saveAsset,
-      inCell: true,
-      lookup,
-      transport: wire(() => ok(PNG)).transport,
-    })[0];
-    expect((await post(cell as never, { url: 'https://media.example/a.png' })).status).toBe(409);
-
+  test('F2: only the shell page may ask — no key, a wrong key or an AI chat header is refused; the key route keeps the key from a chat', async () => {
+    const { lookup, asked } = table({ 'media.example': [PUBLIC] });
     const s = fakeSaver();
-    const [spec] = createImportLinkRoutes({
+    const r = routes({ saveAsset: s.saveAsset, lookup, transport: wire(() => ok(PNG)).transport });
+    const url = { url: 'https://media.example/a.png' };
+    for (const headers of [
+      {},
+      { 'x-maude-link-key': 'guess' },
+      { 'x-maude-link-key': `${KEY}x` },
+      { 'x-maude-link-key': KEY, 'x-maude-chat': 'chat_1' },
+    ]) {
+      const res = await post(r.link, url, headers);
+      expect({
+        headers,
+        status: res.status,
+        reason: ((await res.json()) as { reason: string }).reason,
+      }).toEqual({
+        headers,
+        status: 403,
+        reason: 'not-from-shell',
+      });
+    }
+    expect(asked).toEqual([]);
+    // the key: the shell's page gets it; a request an AI chat made does not
+    expect((await getKey(r.key, { 'x-maude-chat': 'chat_1' })).status).toBe(403);
+    const k = await getKey(r.key);
+    expect(k.status).toBe(200);
+    const { key } = (await k.json()) as { key: string };
+    expect(key).toBe(KEY);
+    // the shell path: the key it was handed, no chat header
+    expect((await post(r.link, url, { 'x-maude-link-key': key })).status).toBe(201);
+    expect(s.saved.length).toBe(1);
+    // a server mints its own key when none is given
+    const minted = createImportLinkRoutes({
       access: () => role('member'),
       saveAsset: s.saveAsset,
-      lookup,
+    }) as unknown as Spec[];
+    const got = (await (await getKey(minted[0] as Spec)).json()) as { key: string };
+    expect(got.key.length).toBeGreaterThanOrEqual(40);
+    expect(got.key).not.toBe(KEY);
+  });
+
+  test('F3/F4: private, no DNS answer and no connection answer the same; no remote status in the answer', async () => {
+    const answers: string[] = [];
+    for (const [url, transport] of [
+      ['https://10.0.0.1/a.png', wire(() => ok(PNG)).transport],
+      ['https://inside.example/a.png', wire(() => ok(PNG)).transport],
+      ['https://nowhere.example/a.png', wire(() => ok(PNG)).transport],
+      [
+        'https://media.example/a.png',
+        wire(() => {
+          throw new Error('ECONNREFUSED');
+        }).transport,
+      ],
+    ] as const) {
+      const r = routes({
+        lookup: table({ 'inside.example': ['192.168.1.9'], 'media.example': [PUBLIC] }).lookup,
+        transport,
+      });
+      const res = await post(r.link, { url });
+      answers.push(`${res.status} ${await res.text()}`);
+    }
+    expect(new Set(answers).size).toBe(1);
+    expect(answers[0]).toBe(
+      '502 {"ok":false,"reason":"link-unreachable","error":"the link cannot be reached from here"}'
+    );
+    const r404 = routes({
+      lookup: table({ 'media.example': [PUBLIC] }).lookup,
+      transport: wire(() => ({
+        status: 404,
+        location: null,
+        contentLength: null,
+        body: streamOf(HTML),
+      })).transport,
+    });
+    const res = await post(r404.link, { url: 'https://media.example/a.png' });
+    const text = await res.text();
+    expect(text).toBe('{"ok":false,"reason":"link-http","error":"the site did not send the file"}');
+    expect(text).not.toContain('404');
+  });
+
+  test('L1: a proxy in the environment refuses the import before any lookup', async () => {
+    for (const k of [
+      'HTTPS_PROXY',
+      'https_proxy',
+      'ALL_PROXY',
+      'all_proxy',
+      'HTTP_PROXY',
+      'http_proxy',
+    ]) {
+      const { lookup, asked } = table({ 'media.example': [PUBLIC] });
+      const r = routes({
+        lookup,
+        transport: wire(() => ok(PNG)).transport,
+        env: { [k]: 'http://proxy.example:3128' },
+      });
+      const res = await post(r.link, { url: 'https://media.example/a.png' });
+      expect({
+        k,
+        status: res.status,
+        reason: ((await res.json()) as { reason: string }).reason,
+      }).toEqual({
+        k,
+        status: 409,
+        reason: 'link-proxy',
+      });
+      expect(asked).toEqual([]);
+    }
+    // an empty value is no proxy
+    const r = routes({
+      lookup: table({ 'media.example': [PUBLIC] }).lookup,
       transport: wire(() => ok(PNG)).transport,
+      env: { HTTPS_PROXY: '' },
     });
-    const res = await post(spec as never, {
-      url: 'https://media.example/foto/combine-2025-12.png#x',
-    });
+    expect((await post(r.link, { url: 'https://media.example/a.png' })).status).toBe(201);
+  });
+
+  test('L4: a lookup that outlives the deadline keeps the one slot until it settles', async () => {
+    let answer: ((v: Array<{ address: string }>) => void) | null = null;
+    let calls = 0;
+    const lookup: LinkLookup = (h) => {
+      calls += 1;
+      if (calls === 1) return new Promise((res) => (answer = res));
+      return table({ 'media.example': [PUBLIC] }).lookup(h);
+    };
+    const r = routes({ lookup, transport: wire(() => ok(PNG)).transport, limits: { totalMs: 60 } });
+    const first = await post(r.link, { url: 'https://media.example/a.png' });
+    expect(first.status).toBe(504);
+    await Bun.sleep(5);
+    // the deadline answered, but the lookup still runs: the slot is still taken
+    expect((await post(r.link, { url: 'https://media.example/a.png' })).status).toBe(429);
+    expect(calls).toBe(1);
+    (answer as unknown as (v: Array<{ address: string }>) => void)([{ address: PUBLIC }]);
+    await Bun.sleep(5);
+    expect((await post(r.link, { url: 'https://media.example/a.png' })).status).toBe(201);
+  });
+
+  test('a cell refuses; the happy path lands one asset and answers its path, kind and name', async () => {
+    const { lookup } = table({ 'media.example': [PUBLIC] });
+    const cell = routes({ inCell: true, lookup, transport: wire(() => ok(PNG)).transport });
+    expect((await post(cell.link, { url: 'https://media.example/a.png' })).status).toBe(409);
+
+    const s = fakeSaver();
+    const r = routes({ saveAsset: s.saveAsset, lookup, transport: wire(() => ok(PNG)).transport });
+    const res = await post(r.link, { url: 'https://media.example/foto/combine-2025-12.png#x' });
     expect(res.status).toBe(201);
     const j = (await res.json()) as Record<string, unknown>;
     expect(j).toMatchObject({
@@ -500,7 +746,7 @@ describe('the route', () => {
     expect(s.saved.length).toBe(1);
     expect(Buffer.compare(s.saved[0] as Buffer, PNG)).toBe(0);
     // a refusal carries the reason word and no remote text
-    const bad = await post(spec as never, { url: 'http://media.example/a.png' });
+    const bad = await post(r.link, { url: 'http://media.example/a.png' });
     expect(bad.status).toBe(400);
     expect(await bad.json()).toEqual({
       ok: false,
@@ -515,6 +761,32 @@ describe('the real transport: Bun fetch pinned to the checked address (local HTT
   let cert = '';
   let server: ReturnType<typeof Bun.serve> | null = null;
   const seen: Array<{ host: string | null; path: string }> = [];
+  const bombs = { gz: Buffer.alloc(0), br: Buffer.alloc(0) };
+  /** `mb` MiB of zeros through a compressor, streamed (never held inflated). */
+  const squeeze = (z: NodeJS.ReadWriteStream, mb: number) =>
+    new Promise<Buffer>((resolve, reject) => {
+      const out: Buffer[] = [];
+      z.on('data', (c: Buffer) => out.push(c));
+      z.on('end', () => resolve(Buffer.concat(out)));
+      z.on('error', reject);
+      const zero = Buffer.alloc(1024 * 1024);
+      let left = mb;
+      const pump = () => {
+        while (left > 0) {
+          left -= 1;
+          if (!z.write(zero)) return void z.once('drain', pump);
+        }
+        z.end();
+      };
+      pump();
+    });
+  beforeAll(async () => {
+    bombs.gz = await squeeze(createGzip({ level: 9 }), 512);
+    bombs.br = await squeeze(
+      createBrotliCompress({ params: { [zc.BROTLI_PARAM_QUALITY]: 5 } }),
+      512
+    );
+  }, 60_000);
   beforeAll(() => {
     dir = mkdtempSync(join(tmpdir(), 'maude-import-link-tls-'));
     execFileSync(
@@ -548,6 +820,14 @@ describe('the real transport: Bun fetch pinned to the checked address (local HTT
         seen.push({ host: req.headers.get('host'), path: u.pathname });
         if (u.pathname === '/go')
           return new Response(null, { status: 302, headers: { location: '/a.png' } });
+        if (u.pathname === '/bomb.gz')
+          return new Response(bombs.gz, {
+            headers: { 'content-type': 'image/png', 'content-encoding': 'gzip' },
+          });
+        if (u.pathname === '/bomb.br')
+          return new Response(bombs.br, {
+            headers: { 'content-type': 'image/png', 'content-encoding': 'br' },
+          });
         return new Response(PNG, { headers: { 'content-type': 'text/html' } });
       },
     });
@@ -586,5 +866,49 @@ describe('the real transport: Bun fetch pinned to the checked address (local HTT
         signal: new AbortController().signal,
       })
     ).rejects.toBeDefined();
+  });
+
+  test('H1: a gzip or brotli bomb is read as sent (never inflated) and memory stays bounded', async () => {
+    const port = server?.port as number;
+    const t = bunTransport({ ca: cert });
+    for (const [path, packed] of [
+      ['/bomb.gz', bombs.gz],
+      ['/bomb.br', bombs.br],
+    ] as const) {
+      Bun.gc(true);
+      const before = process.memoryUsage().rss;
+      const r = await t({
+        url: new URL(`https://media.test:${port}${path}`),
+        ip: '127.0.0.1',
+        signal: new AbortController().signal,
+      });
+      expect(r.contentEncoding).toBe(path.endsWith('gz') ? 'gzip' : 'br');
+      let read = 0;
+      for await (const c of r.body as unknown as AsyncIterable<Uint8Array>) read += c.length;
+      const grew = process.memoryUsage().rss - before;
+      // 512 MiB inflated; what arrives is the compressed size, and the process does not grow by the bomb
+      expect({ path, read }).toEqual({ path, read: packed.length });
+      expect(packed.length).toBeLessThan(2 * 1024 * 1024);
+      expect(grew).toBeLessThan(128 * 1024 * 1024);
+    }
+  }, 30_000);
+
+  test('L1: NODE_TLS_REJECT_UNAUTHORIZED=0 does not switch the certificate check off', async () => {
+    const port = server?.port as number;
+    const was = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    try {
+      // no `ca`: the self-signed certificate is not trusted, whatever the environment says
+      await expect(
+        bunTransport()({
+          url: new URL(`https://media.test:${port}/a.png`),
+          ip: '127.0.0.1',
+          signal: new AbortController().signal,
+        })
+      ).rejects.toBeDefined();
+    } finally {
+      if (was === undefined) delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+      else process.env.NODE_TLS_REJECT_UNAUTHORIZED = was;
+    }
   });
 });
