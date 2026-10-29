@@ -202,3 +202,9 @@ Not built, either because no CONTRACT line names them or because the weekly budg
   - A script run from a file (`python3 w.py` that forks) is not read for detaching.
   - Hub reads already in flight after the ⌘Z deadline run to their own 20 s transport timeout. An abort signal on
     `link.blob` / `link.laneHead` would end them sooner.
+- **After p8-secfix-hook-2 (merged b55561072), still open:**
+  - R2: keep the run base and snap hashes outside the design root, so an interpreter write after a `cd` can't plant a
+    base.
+  - R3: the ⌘Z collision check has a deadline, but the hub reads under it can't be aborted and their size isn't
+    capped while they stream in. It needs an abort signal on the read and a byte cap at the transport.
+  - R4: add the element label to the id-finding key.
