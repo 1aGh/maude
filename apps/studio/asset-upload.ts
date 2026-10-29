@@ -115,6 +115,45 @@ export async function importAsset(
 }
 
 /**
+ * p8-import-link (12 · ia-edges F) — Assets › Add from a link…: the SERVER fetches the https link (public addresses only,
+ * capped, the type from the bytes — link-import.ts) and lands it in Assets; the page only names the link. `name` and
+ * `host` are for the one line, never a path.
+ */
+export async function importFromLink(
+  url: string,
+  opts: { fetchImpl?: typeof fetch } = {}
+): Promise<UploadResult & { name?: string; host?: string }> {
+  const doFetch = opts.fetchImpl ?? fetch;
+  try {
+    const res = await doFetch('/_api/import-link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    let j: Record<string, unknown> = {};
+    try {
+      j = (await res.json()) as Record<string, unknown>;
+    } catch {
+      /* non-JSON answer */
+    }
+    const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
+    if (!res.ok || j.ok !== true || typeof j.path !== 'string') {
+      return {
+        error: str(j.error) ?? `link import failed (${res.status})`,
+        ...(str(j.reason) ? { reason: str(j.reason) } : {}),
+      };
+    }
+    return {
+      path: j.path,
+      ...(str(j.name) ? { name: str(j.name) } : {}),
+      ...(str(j.host) ? { host: str(j.host) } : {}),
+    };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'network error' };
+  }
+}
+
+/**
  * Above this, video/audio goes through chunk sessions. A client constant on
  * purpose — the server's one-shot cap is env-configurable and unknown here; the
  * chunk SIZE comes from the server's chunk-start answer.

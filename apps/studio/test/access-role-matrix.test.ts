@@ -189,6 +189,8 @@ const ROWS: Row[] = [
   },
   { family: 'assets', method: 'POST', path: '/_api/import-asset', viewer: 'refused', editor: true },
   { family: 'assets', method: 'POST', path: '/_api/import-brand', viewer: 'refused' },
+  // p8-import-link — not `editor`: an editor's row reaches the handler, and the handler goes to the network
+  { family: 'assets', method: 'POST', path: '/_api/import-link', viewer: 'refused' },
   { family: 'assets', method: 'POST', path: '/_api/photo-edit', viewer: 'refused', editor: true },
   // ── export (Can comment holds export, V2-1.7 §5.2) ──
   { family: 'export', method: 'POST', path: '/_api/export', viewer: 'allowed', editor: true },

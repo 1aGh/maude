@@ -144,6 +144,19 @@ export const VIEW_ACTIONS: ActionDef[] = [
     search: { hidden: true },
   },
   {
+    // p8-import-link (12 · ia-edges F "A link instead of a file") — Assets › Add from a link… (the link icon in the
+    // tab head, or a link dropped on the tab): the studio fetches the https link — public addresses only, capped, the
+    // type from its bytes (link-import.ts) — and saves a copy in Assets. The tab opens first when it is not showing.
+    // A write that reaches a third-party site: Can edit and up, and the server refuses everyone else.
+    id: 'assets.add-link',
+    label: 'Add from a link…',
+    kind: 'command',
+    icon: 'link',
+    exec: 'shell',
+    enabled: { minRole: 'edit' },
+    search: { keywords: ['link', 'url', 'web', 'download', 'import', 'picture', 'video'] },
+  },
+  {
     // S8.16 (ia-gen-ask) — Assets › Generate: say the picture, the selected artboard sets the shape; before anything is
     // sent one line says how long and whose account pays, one line the licence. The best take lands in the frame. A
     // paid call to a provider: Can edit and up, and the server refuses a run without its single-use quote.
