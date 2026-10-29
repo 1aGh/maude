@@ -338,6 +338,38 @@ describe('the host (a canvas with no artboards left)', () => {
     await act(async () => again.root.unmount());
   });
 
+  // P8 missing-a (the Restore hang): the shell mounts the card with NO fetchImpl, so the default `fetch.bind` was a new
+  // function on every render, every effect that lists it re-ran, and each answer re-rendered the card — an endless
+  // read/render loop that starved the window the moment the card showed (WebContent at 100 % in the desktop lane).
+  test('mounted the way the shell mounts it (no fetchImpl), the card asks the Trash and the canvas source a bounded number of times', async () => {
+    const f = studio('edit');
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = f.impl;
+    try {
+      const { host, root } = await mount({
+        activePath: '.design/ui/LetakA6.tsx',
+        designRel: '.design',
+        artboardCount: 0,
+        ready: true,
+        canEdit: true,
+        now: () => NOW,
+        lane: { set() {}, stop() {} },
+        toast: () => {},
+      });
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 300));
+      });
+      expect(host.querySelector('[data-testid="all-trashed"]')).not.toBeNull();
+      const trashReads = f.calls.filter((c) => c.url.startsWith('/_api/trash')).length;
+      const sourceReads = f.calls.filter((c) => c.url.startsWith('/_api/project/source')).length;
+      expect(trashReads).toBeLessThanOrEqual(2);
+      expect(sourceReads).toBeLessThanOrEqual(4); // one meta + one html read per trash action
+      await act(async () => root.unmount());
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
   test('renders the card from the Trash; a canvas that still has artboards does not even ask', async () => {
     const f = studio('edit');
     const { host, root } = await mount(baseProps(f));

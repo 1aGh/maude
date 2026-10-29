@@ -322,6 +322,43 @@ const indentOf = (text: string): number | string => {
   return m ? (m[1].includes('\t') ? '\t' : m[1].length) : 2;
 };
 
+/**
+ * Where an artboard goes in a canvas that holds none: as the first child of the `<DCSection>` it stood in
+ * (matched by id), else the first `<DCSection>` that has a closing tag, else `<DesignCanvas>`. A self-closing
+ * container has no inside — refused by the caller.
+ */
+function emptyCanvasPlace(
+  now: string,
+  old: string,
+  oldStart: number
+): { at: number; pad: string } | null {
+  const idOfSection = (() => {
+    const opens = [...old.slice(0, oldStart).matchAll(/<DCSection\b[^>]*?\bid=["']([^"']+)["']/g)];
+    return opens.at(-1)?.[1] ?? null;
+  })();
+  const closeOf = (tag: string, from: number): number => {
+    const i = now.indexOf(`</${tag}>`, from);
+    return i;
+  };
+  const candidates: Array<{ tag: string; from: number }> = [];
+  if (idOfSection) {
+    const m = new RegExp(`<DCSection\\b[^>]*?\\bid=["']${idOfSection.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["'][^>]*?(?<!/)>`).exec(now);
+    if (m) candidates.push({ tag: 'DCSection', from: m.index + m[0].length });
+  }
+  const anySection = /<DCSection\b[^>]*?(?<!\/)>/.exec(now);
+  if (anySection) candidates.push({ tag: 'DCSection', from: anySection.index + anySection[0].length });
+  const canvas = /<DesignCanvas\b[^>]*?(?<!\/)>/.exec(now);
+  if (canvas) candidates.push({ tag: 'DesignCanvas', from: canvas.index + canvas[0].length });
+  for (const { tag, from } of candidates) {
+    if (closeOf(tag, from) < 0) continue;
+    // first child of the container, one level deeper than the line its opening tag sits on
+    const lineStart = now.lastIndexOf('\n', from) + 1;
+    const lead = /^[ \t]*/.exec(now.slice(lineStart))?.[0] ?? '';
+    return { at: from, pad: `${lead}  ` };
+  }
+  return null;
+}
+
 /** Replace (or drop, or append) the entry of `list` whose `id` is `id` with A's. */
 function spliceById(now: unknown, old: unknown, id: string): unknown[] | undefined {
   const n = Array.isArray(now) ? now : undefined;
@@ -466,7 +503,14 @@ export function restoreArtboard(
       edits.push({ start: next.node.start, end: next.node.start, text: `${oldText}\n${pad}` });
       placed = true;
     }
-    if (!placed) return refuse('invalid-result', label);
+    // No neighbour left in Now — the canvas holds no artboard (every one was moved to the trash; 05 · es-all-trashed).
+    // Put it where it was: inside the section it was in, else the first section, else the canvas itself.
+    if (!placed) {
+      const at = emptyCanvasPlace(src, old.html, aOld.node.start);
+      if (!at) return refuse('invalid-result', label);
+      edits.push({ start: at.at, end: at.at, text: `\n${at.pad}${oldText}` });
+      placed = true;
+    }
   }
 
   // 2. declarations the artboard reaches, and the imports they need
