@@ -57,6 +57,15 @@ test('every plugins/ test file is run by a quality.yml step', () => {
   const runs = [...text.matchAll(/bun test ([^\n)&|;]+)/g)].flatMap((m) =>
     m[1].trim().split(/\s+/)
   );
+  // `pnpm test` runs package.json's `test` script, whose `node --test` globs reach plugins/ too
+  // (plugins/flow/hooks since the flow refactor): a glob counts as its directory.
+  if (/run: pnpm test\s*$/m.test(text)) {
+    const script = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).scripts?.test ?? '';
+    for (const m of script.matchAll(/node --test ([^&|;]+)/g))
+      for (const arg of m[1].trim().split(/\s+/))
+        if (arg.startsWith('plugins/'))
+          runs.push(arg.includes('*') ? arg.slice(0, arg.lastIndexOf('/')) : arg);
+  }
   const unrun = files.filter(
     (f) =>
       !runs.some((r) => !r.startsWith('-') && (f === r || f.startsWith(`${r.replace(/\/$/, '')}/`)))

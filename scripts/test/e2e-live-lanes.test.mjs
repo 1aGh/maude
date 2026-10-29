@@ -161,7 +161,8 @@ test('the two-Mac AI runs lane sits on a local hub and throwaway projects, never
   assert.match(conf, /process\.env\.MAUDE_PROJECT_ROOT = mac1Root/);
   assert.match(conf, /HUBS_CONFIG_PATH/);
   assert.match(conf, /MAUDE_APP_BOUND_HUB/);
-  assert.match(conf, /useStubClaude\(\)/);
+  // a stub `claude` first on PATH: useStubClaude(), or useFakeAi(), which installs its own stub (fake-ai.ts)
+  assert.match(conf, /useStubClaude\(\)|useFakeAi\(\)/);
   const spec = read('multiplayer/ai-runs.e2e.ts');
   assert.doesNotMatch(
     spec,
