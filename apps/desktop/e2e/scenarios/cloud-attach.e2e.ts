@@ -400,19 +400,27 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     // `Not reachable: <project>.` is the offline sentence `presentation.ts` actually writes; the lowercase
     // `unreachable` only ever appears as a SUFFIX on the refusal case (the plain offline outcome — the one this stub
     // always produces — could never match it, and the step timed out on a state that was already terminal)
+    // p8-fix-e (F9): a failed media upload is a FAIL, never an accepted terminal state. It used to be accepted
+    // ("3 media uploads failed" in 3 of 3 V2-8.3 runs): the lane's cell had no checkout, so it refused every
+    // upload. The cell is cell-shaped now (fixtures/local-hub.mjs `startCloudLaneCell`), so a failed upload is a
+    // real defect — the wait stops on it at once instead of passing.
+    const uploadsFailed = /media uploads? failed|uploads? failed/i;
     const terminal = async () => {
       said = await note.getText().catch(() => said);
+      if (uploadsFailed.test(said)) throw new Error(`media uploads failed on the cloud lane: "${said}"`);
       // …and the attention phase (presentation.ts `attention`: "A change needs / N changes need your attention in …"),
-      // which waits for the person — terminal too (r5 full run: "3 media uploads failed" against the local hub)
+      // which waits for the person — terminal, for every cause but a failed upload (above)
       return /Synced with|Not reachable|unreachable|were refused by|nothing to sync yet|needs? your attention in/.test(
         said
       );
     };
-    await browser.waitUntil(terminal, { timeout: 60_000 }).catch(() => {
+    await browser.waitUntil(terminal, { timeout: 60_000 }).catch((err: Error) => {
+      if (uploadsFailed.test(said)) throw err;
       throw new Error(`the connect note never reached a terminal state (it said "${said}")`);
     });
     const text = await note.getText();
     expect(text).not.toContain('Connecting to');
+    expect(text).not.toMatch(uploadsFailed);
 
     // And the terminal state names the move. `title` carries it (the rail
     // truncates), so an empty one means the person was told a state and left to

@@ -18,13 +18,13 @@
  * OS-level scheme registration itself is a bundled-.app smoke item (DDR-177).
  */
 
-import { cpSync, mkdirSync, mkdtempSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { mintProjectToken, startLocalHub } from './fixtures/local-hub.mjs';
+import { mintProjectToken, startCloudLaneCell } from './fixtures/local-hub.mjs';
 import { useStubClaude } from './helpers/fake-ai';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -164,12 +164,20 @@ function startStub(): Promise<{ port: number; close: () => void }> {
 // WDIO evaluates this file in the launcher AND in each worker: the launcher starts the hub once (the app it launches
 // inherits the env); a worker finds the env set and only runs its own stub for the spec's deep-link code.
 useStubClaude();
-let hub: Awaited<ReturnType<typeof startLocalHub>> | null = null;
+let hub: Awaited<ReturnType<typeof startCloudLaneCell>> | null = null;
 const scratch = mkdtempSync(join(tmpdir(), 'maude-e2e-cloud-'));
 mkdirSync(scratch, { recursive: true });
 if (!process.env.MAUDE_E2E_CLOUD_HUB) {
   process.env.MAUDE_E2E_CLOUD_KEY = `e2e-cloud-${Math.random().toString(36).slice(2)}-${Date.now()}`;
-  hub = await startLocalHub({ dir: join(scratch, 'hub'), cloudKey: cloudKey() });
+  // p8-fix-e (F9): a cell-shaped hub — its own checkout holding the project's config — so the project's media
+  // has somewhere to land (a hub with no checkout refused every upload: "3 media uploads failed").
+  hub = await startCloudLaneCell({
+    dir: join(scratch, 'cell'),
+    cloudKey: cloudKey(),
+    projectConfig: JSON.parse(
+      readFileSync(join(HERE, 'fixtures', 'project', '.design', 'config.json'), 'utf8')
+    ),
+  });
   process.env.MAUDE_E2E_CLOUD_HUB = hub.http;
 }
 const stub = await startStub();

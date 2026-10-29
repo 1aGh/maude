@@ -42,6 +42,7 @@ import { filterKind, GROUP_CAP, libraryFootWords } from '../assets/library-foot.
 import { runMeta, runTitle, splitGenerated, useGenerated } from '../assets/generated.js';
 import { splitJustAdded } from '../assets/just-added.js';
 import { placeAsset, placedWords, SELECT_ARTBOARD_LINE } from '../assets/place-asset.js';
+import { addingLine } from '../assets/import-lines.js';
 import { toastArrivals } from '../assets/import-toast.js';
 import { SeenLine } from '../assets/search-marks.jsx';
 import { AssetTile } from '../assets/tile.jsx';
@@ -85,8 +86,12 @@ export function groupAssets(assets, { justAdded = false, now, generated = [] } =
 }
 
 // S8.22b — each result carries the file's name, so the one toast can say which file a line is about
+// p8-fix-e (F16 · A) — the progress callback learns WHICH file moved, so a huge one can say it is preparing
 const uploadNamed = (f, onProgress) =>
-  uploadAsset(f, { onProgress, name: f.name }).then((r) => ({ ...r, name: f.name }));
+  uploadAsset(f, { onProgress: (p) => onProgress?.(p, f), name: f.name }).then((r) => ({
+    ...r,
+    name: f.name,
+  }));
 
 async function addFilesNative(onProgress) {
   const picked = await pickMediaFiles();
@@ -166,6 +171,24 @@ export function AssetsPanel({
   const [box, setBox] = useState(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(null);
+  // F16 · A — every file in flight (when it started, how far it is); the line speaks for the largest one
+  const inflight = useRef(new Map());
+  const noteProgress = useCallback((p, f) => {
+    const now = Date.now();
+    const m = inflight.current;
+    const e = m.get(f) ?? { started: now, progress: 0 };
+    e.progress = p;
+    m.set(f, e);
+    let big = null;
+    for (const [file, v] of m)
+      if (!big || (file?.size ?? 0) > (big.file?.size ?? 0)) big = { file, v };
+    setProgress({
+      progress: big.v.progress,
+      name: big.file?.name,
+      bytes: big.file?.size,
+      elapsedMs: now - big.v.started,
+    });
+  }, []);
   const [err, setErr] = useState('');
   const [dropping, setDropping] = useState(false);
   const [asking, setAsking] = useState(() => !readOnly && takeGenerateRequest());
@@ -199,12 +222,13 @@ export function AssetsPanel({
     } catch (e) {
       setErr(e?.message || 'Could not add files.');
     }
+    inflight.current.clear();
     setProgress(null);
     setBusy(false);
     return results;
   };
   const pickFiles = () =>
-    isNativeApp() ? addFilesNative(setProgress) : addFilesBrowser(setProgress);
+    isNativeApp() ? addFilesNative(noteProgress) : addFilesBrowser(noteProgress);
   const add = () => upload(pickFiles);
   // 12 · ia-placed — "Placed 6 photos in Fotky ze zápasu. They're in Assets too." with Undo, the same pill a drop says
   const announcePlaced = useCallback(
@@ -707,7 +731,8 @@ export function AssetsPanel({
     e.preventDefault();
     setDropping(false);
     const files = Array.from(e.dataTransfer.files || []);
-    if (files.length) void upload(() => Promise.all(files.map((f) => uploadNamed(f, setProgress))));
+    if (files.length)
+      void upload(() => Promise.all(files.map((f) => uploadNamed(f, noteProgress))));
   };
 
   return (
@@ -789,7 +814,7 @@ export function AssetsPanel({
       )}
       {busy ? (
         <p className="lp-note" role="status">
-          {progress == null ? 'Adding…' : `Adding… ${Math.round(progress * 100)}%`}
+          {addingLine(progress)}
         </p>
       ) : null}
       {note}

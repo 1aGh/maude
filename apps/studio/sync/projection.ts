@@ -105,6 +105,8 @@ export interface BodyRejection {
    */
   reason: 'invalid-source' | 'local-edit' | 'history-failed' | 'merge-budget' | 'offline-overlap';
   snapshotFailed: boolean;
+  /** p8-fix-e (F8a) — the refused text is the sibling stylesheet, not the body. Absent: the body. */
+  file?: 'css';
 }
 
 export interface DocProjectionOptions {
@@ -372,6 +374,11 @@ export interface DocProjection {
   readonly importOrigin: object;
 }
 
+/** The stylesheet text the overlap check guards ('' when the doc carries none). */
+function cssText(doc: Y.Doc): string {
+  return cssFromDoc(doc) ?? '';
+}
+
 export function createDocProjection(opts: DocProjectionOptions): DocProjection {
   const { slug, doc, paths } = opts;
   const flushMs = opts.flushMs ?? PROJECT_FLUSH_MS;
@@ -389,6 +396,14 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
   const overlap = opts.isRemoteOrigin ? createOverlapWatch() : null;
   /** V2-8.17 — an offline overlap is held on disk until a save or a pick resolves it. */
   let overlapHeld = false;
+  /**
+   * p8-fix-e (F8a) — the same check for the sibling stylesheet: two people who
+   * changed the same rule while apart got the same character-level merge, and
+   * nobody was told. Same episode rule, same answer (the project keeps theirs,
+   * this disk keeps ours, both versions saved).
+   */
+  const cssOverlap = opts.isRemoteOrigin && paths.css ? createOverlapWatch(cssText) : null;
+  let cssOverlapHeld = false;
   let validationCache: { body: string; error: string | null } | null = null;
 
   function recovered(): void {
@@ -463,7 +478,13 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       snapshotFailed = true;
     }
     console.warn(`[projection/${slug}] source sync blocked (${reason}); local file kept.`);
-    opts.onConflict?.({ slug, kind: 'body-rejected', reason, snapshotFailed });
+    opts.onConflict?.({
+      slug,
+      kind: 'body-rejected',
+      reason,
+      snapshotFailed,
+      ...(paths.css && file === paths.css ? { file: 'css' as const } : {}),
+    });
   }
 
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -498,6 +519,10 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       if (overlap?.open && opts.isRemoteOrigin?.(origin)) {
         const hit = overlap.check();
         if (hit) surfaceOverlap(hit.base, hit.theirs);
+      }
+      if (cssOverlap?.open && opts.isRemoteOrigin?.(origin)) {
+        const hit = cssOverlap.check();
+        if (hit) surfaceCssOverlap(hit.base, hit.theirs);
       }
       repairSeedDuplication(doc, ORIGINS.DISK_PROJECTION);
     }
@@ -536,6 +561,27 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       `[projection/${slug}] a teammate changed the same part of this canvas while apart; the project kept theirs, this disk keeps yours.`
     );
     reject('offline-overlap', disk, theirs, paths.html, base);
+  }
+
+  /** F8a — `surfaceOverlap` for the sibling stylesheet. */
+  function surfaceCssOverlap(base: string, theirs: string): void {
+    if (!paths.css) return;
+    const disk = readLocal(paths.css);
+    try {
+      doc.transact(() => {
+        applyCssToDoc(doc, theirs, importOrigin);
+      }, importOrigin);
+    } catch {
+      /* the hold below still stops this disk from taking the merge */
+    }
+    lastCss = theirs;
+    cssOverlapHeld = true;
+    // A restart re-derives the divergence: the journal names the shared base.
+    opts.journal?.record(slug, { cssHash: hashBytes(base) });
+    console.warn(
+      `[projection/${slug}] a teammate changed the same part of this canvas's stylesheet while apart; the project kept theirs, this disk keeps yours.`
+    );
+    reject('offline-overlap', disk, theirs, paths.css, base);
   }
 
   function scheduleFlush(): void {
@@ -685,6 +731,8 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
   function writeCssIfChanged(): void {
     if (!paths.css) return;
     if (pending.has('css') || held.has('css')) return;
+    // F8a — an offline overlap keeps OUR stylesheet on this disk until a save resolves it.
+    if (cssOverlapHeld) return;
     let next = cssFromDoc(doc);
     if (next !== null && !acceptedOn()) {
       const repeated = collapseRepeatedText(next);
@@ -1263,6 +1311,9 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     }
     if (paths.css && evt.path === paths.css) {
       let changed: boolean;
+      // F8a — until the hub acknowledges this edit, a remote change to the same
+      // rule is a teammate's offline edit (offline-overlap.ts).
+      if (str !== cssText(doc)) cssOverlap?.beforeLocal(doc);
       try {
         changed = applyCssToDoc(doc, str, importOrigin);
       } catch {
@@ -1273,7 +1324,17 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       clearStrike(evt.path);
       if (changed) {
         lastCss = str;
+        cssOverlap?.afterLocal(cssText(doc));
         opts.journal?.record(slug, { cssHash: evt.hash }); // DDR-102 checkpoint
+      }
+      if (cssOverlapHeld) {
+        // The save after the notice is authored on top of the project's version
+        // (the one the conflict shows): it resolves the hold, as for the body.
+        cssOverlapHeld = false;
+        if (rejectedKey?.startsWith(`${paths.css}:`)) {
+          rejectedKey = null;
+          opts.onRecovered?.();
+        }
       }
       return changed;
     }
@@ -1462,13 +1523,17 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       scheduleFlush();
     },
     noteRemoteUpdate(update: Uint8Array) {
-      if (!stopped && !acceptedOn()) overlap?.remote(update);
+      if (stopped || acceptedOn()) return;
+      overlap?.remote(update);
+      cssOverlap?.remote(update);
     },
     noteConfirmed() {
       overlap?.confirmed();
+      cssOverlap?.confirmed();
     },
     noteConnection(connected: boolean) {
       overlap?.connection(connected);
+      cssOverlap?.connection(connected);
     },
     retryDeferred() {
       if (stopped || heldWhileReadOnly.size === 0) return;
