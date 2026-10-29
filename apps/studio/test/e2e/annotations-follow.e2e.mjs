@@ -268,6 +268,22 @@ const centerOfPage = async (sel) => {
   return [b.x + b.width / 2, b.y + b.height / 2];
 };
 
+/**
+ * A page point ON an arrow's stroke (its midpoint by length). A new arrow is Curved (S4.11), so the centre of its
+ * path's box is not on the line: a click or double-click there lands on empty canvas.
+ */
+async function strokeMid(sel) {
+  const p = await c.frame.evaluate((q) => {
+    const path = document.querySelector(q);
+    if (!path) return null;
+    const m = path.getScreenCTM();
+    const pt = path.getPointAtLength(path.getTotalLength() / 2);
+    return { x: m.a * pt.x + m.c * pt.y + m.e, y: m.b * pt.x + m.d * pt.y + m.f };
+  }, sel);
+  assert.ok(p, `${sel} on screen`);
+  return c.toPage(p.x, p.y);
+}
+
 async function drawArrow(from, to, mid) {
   await reset();
   await c.page.keyboard.press('a'); // Arrow
@@ -340,7 +356,7 @@ describe('F7 — double-click an arrow writes on it', () => {
     await reset();
     const arrow = [...disk().values()].find((e) => e.type === 'arrow' && e.id !== 'arw');
     assert.ok(arrow, 'an arrow from F6');
-    const [x, y] = await centerOfPage(`[data-id="${arrow.id}"] path`);
+    const [x, y] = await strokeMid(`.dc-annot-scene [data-id="${arrow.id}"] path`);
     await c.page.mouse.dblclick(x, y);
     const input = c.frame.locator('[data-testid="annot-arrow-label-input"]');
     assert.equal(await input.count(), 1);
@@ -360,7 +376,7 @@ describe('F8 — rewritten stays bound; gone is dangling; restore re-attaches', 
     await sleep(2500);
     await reset();
     const arrow = [...disk().values()].find((e) => e.endHost?.ref === 'el:desktop/see-the-work');
-    const [x, y] = await centerOfPage(`[data-id="${arrow.id}"] path`);
+    const [x, y] = await strokeMid(`.dc-annot-scene [data-id="${arrow.id}"] path`);
     await c.click(x, y);
     await sleep(400);
     assert.match(
@@ -375,7 +391,7 @@ describe('F8 — rewritten stays bound; gone is dangling; restore re-attaches', 
     await sleep(2500);
     const arrow = [...disk().values()].find((e) => e.endHost?.ref === 'el:desktop/see-the-work');
     assert.ok(arrow, 'the bind is still on the board');
-    const [x, y] = await centerOfPage(`[data-id="${arrow.id}"] path`);
+    const [x, y] = await strokeMid(`.dc-annot-scene [data-id="${arrow.id}"] path`);
     await c.click(x, y);
     await sleep(400);
     assert.ok((await c.frame.locator('[data-testid="annot-dangling-mark"]').count()) >= 1);
