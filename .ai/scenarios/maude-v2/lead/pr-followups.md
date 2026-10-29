@@ -104,7 +104,11 @@ Not built, either because no CONTRACT line names them or because the weekly budg
       - **Any other commit touching a text slot** (paste, AI/programmatic). The inverse is strict (`ops.ts:154,338`).
         A mismatch is skipped as `stale`, so the peer's text is kept. But it is **silent**: only a console.warn
         (`annotations-layer.tsx:1508`), and `use-undo-stack` has no stale notice.
-      - **Possible fix.** (1) Make the session inverse refuse on collision, ~20-40 lines. (2) Surface `rejected/stale`
+      - **Not fixed by decision (Michal 2026-10-29). Mitigation: the update offer.** Update project switches a
+        legacy project to accepted revisions (p8-update-to-accepted, kg
+        `maude/v2-michal-update-project-switches-legacy-to-accepted`). A browser on a cell switches through the
+        cloud dashboard.
+      - **Possible fix, if ever needed.** (1) Make the session inverse refuse on collision, ~20-40 lines. (2) Surface `rejected/stale`
         to the undo stack and the existing notice, ~40-80 lines. Unverified: `sync/source-merge.ts` returning
         `ok:false` on overlap, and whether legacy hub ops go through the studio's `api.ts` or the hub's own merge
         mirror.
