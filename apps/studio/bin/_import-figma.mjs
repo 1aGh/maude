@@ -43,14 +43,16 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { join, posix, resolve, sep } from 'node:path';
+import { dirname, join, posix, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readBoardFile, writeBoardFileAtomic } from '../annotations/board-io.ts';
 import { MAX_BOARD_BYTES } from '../annotations/constants.ts';
 import { applyOps } from '../annotations/ops.ts';
 import '../annotations/ops-merge.ts';
+import { DESIGN_REL, findProjectRoot } from '../../../cli/lib/studio-locate.mjs';
 import { Scene } from '../annotations/scene.ts';
 import { serializeBoard } from '../annotations/schema.ts';
+import { claimWritesSync } from './_write-claim.mjs';
 
 /**
  * Translated strokes → canonical v2 board text (DDR-242): straight to
@@ -224,6 +226,24 @@ function makeStagingDir() {
 }
 
 /**
+ * p8-a1-claims — inside a Maude chat, a canvas lane file (`.tsx`, `.meta.json`, `.annotations.json`)
+ * is claimed for the chat's live run with its exact staged bytes BEFORE the rename lands it
+ * (bin/_write-claim.mjs). Outside a chat it returns at once. Never throws.
+ */
+function claimPromotion(src, dest) {
+  if (!process.env.MAUDE_CHAT_ID || !/\.(?:tsx|meta\.json|annotations\.json)$/i.test(dest)) return;
+  try {
+    const root = findProjectRoot(dirname(dest));
+    if (!root) return;
+    const rel = relative(join(root, DESIGN_REL), dest).split(sep).join('/');
+    if (!rel || rel.startsWith('..')) return;
+    claimWritesSync(root, [{ rel, content: readFileSync(src, 'utf8') }]);
+  } catch {
+    /* a claim never blocks the import */
+  }
+}
+
+/**
  * Promote one staged file into the project tree.
  *
  * A bare `renameSync` is atomic — and SAME-FILESYSTEM ONLY. Staging lives under
@@ -242,6 +262,7 @@ function makeStagingDir() {
  * file is still a single atomic rename.
  */
 function promoteFile(src, dest) {
+  claimPromotion(src, dest);
   try {
     renameSync(src, dest);
     return;
@@ -921,7 +942,14 @@ export async function importBoardInto(args) {
   let via = 'file';
   let res = null;
   try {
-    res = await postOps(designRoot, `${designRootRel}/${canvas}`, ops, `figjam-import-${section}`);
+    // p8-a1-claims — inside a Maude chat the batch is the chat's live run's (`run:<id>`, postOps'
+    // defaultActionId), so it joins that run and undoes with it; elsewhere one import action
+    res = await postOps(
+      designRoot,
+      `${designRootRel}/${canvas}`,
+      ops,
+      process.env.MAUDE_CHAT_ID ? undefined : `figjam-import-${section}`
+    );
   } catch (err) {
     if (err instanceof PostOpsError) throw new ImportFigmaError(6, err.message);
     throw err;

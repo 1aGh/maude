@@ -34,6 +34,7 @@ import path from 'node:path';
 import type { Awareness } from 'y-protocols/awareness';
 import * as Y from 'yjs';
 import { resolveAccess } from '../access/scope.ts';
+import { claimHashOf, currentWriteClaim, recordClaim } from '../ai/write-claim.ts';
 import { migrateAnnotationsV2 } from '../annotations/migrate-boot.ts';
 import { REPLICA_TYPE, replicaBoardText } from '../annotations/replica.ts';
 import { attributeArtboards } from '../attribute-artboards.ts';
@@ -805,7 +806,9 @@ export interface SyncRuntime {
       chatId?: string;
       actor?: string;
       /** V2-8.9 round B A1 — a shell verb call's window (sync/action-stage.ts `claimOnly`). */
-      shell?: { call: string; open: boolean };
+      shell?: { call: string; open: boolean; files?: string[] };
+      /** p8-a1-claims — begun by a claim: takes only claimed writes (sync/action-stage.ts). */
+      claimOnly?: boolean;
     }
   ): void;
   /** `done` publishes; `stopped` publishes partial; `failed` holds. */
@@ -822,6 +825,8 @@ export interface SyncRuntime {
   } | null>;
   /** S5.5 — a tool reported writing `hash` (sha256) to canvas `repoRel` for run `key`. */
   claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
+  /** p8-a1-claims (F17) — run `key` is about to delete canvas `repoRel`: the delete joins the run. */
+  claimAiDelete?(key: string, repoRel: string): void;
   /** S5.11b — a canvas's accepted source under the staged runs; null = the disk is accepted. */
   acceptedCanvas?(repoRel: string): string | null;
   /**
@@ -3205,6 +3210,9 @@ export function createSyncRuntime(
       return undefined;
     };
     const unsubSuppress = ctx.bus.on('activity:suppress', (rel: unknown) => {
+      // p8-a1-claims — a route an AI verb called (X-Maude-Chat) is not the person's UI edit: the write
+      // stays stageable, and `source-written` below claims its bytes for the run
+      if (currentWriteClaim()) return;
       if (acceptedOn()) projectionForRel(rel)?.noteLocalWrite();
     });
     // T24 — the UI operation behind that write (sync/source-ops).
@@ -3221,6 +3229,22 @@ export function createSyncRuntime(
       if (!acceptedOn() || typeof p?.content !== 'string') return;
       const proj = projectionForRel(p.rel);
       if (!proj) return;
+      // p8-a1-claims — claimed for the AI run BEFORE the projection proposes these bytes
+      const run = currentWriteClaim();
+      if (run && typeof p.rel === 'string') {
+        const posix = p.rel.replace(/\\/g, '/').replace(/^\/+/, '');
+        const repoRel = `${ctx.paths.designRel}/${posix}`;
+        const slug = slugForRepoRel(repoRel);
+        if (slug && acceptedLink) {
+          acceptedLink.stage.begin(`run:${run.runId}`, run.label, {
+            runId: run.runId,
+            chatId: run.chatId,
+            claimOnly: true,
+          });
+          acceptedLink.stage.claim(run.runId, slug, claimHashOf(repoRel, p.content));
+        }
+        recordClaim(run.chatId, posix);
+      }
       proj.applyFromFs({
         path: path.join(ctx.paths.designRoot, p.rel as string),
         bytes: new TextEncoder().encode(p.content),
@@ -6442,7 +6466,15 @@ export function createSyncRuntime(
     },
     beginAiAction: (key, label, meta) => {
       if (!acceptedOn() || !acceptedLink) return;
-      acceptedLink.stage.begin(key, label, meta);
+      const { shell, ...rest } = meta ?? {};
+      // p8-a1-claims — a window names its canvases repo-relative; a sidecar names its canvas
+      const slugs = (shell?.files ?? [])
+        .map((f) => slugForRepoRel(String(f).replace(/\.(?:meta|annotations)\.json$/i, '.tsx')))
+        .filter((c): c is string => !!c);
+      acceptedLink.stage.begin(key, label, {
+        ...rest,
+        ...(shell ? { shell: { call: shell.call, open: shell.open, slugs } } : {}),
+      });
     },
     endAiAction: async (key, outcome, o) => {
       if (!acceptedLink) return null;
@@ -6464,6 +6496,10 @@ export function createSyncRuntime(
     claimAiWrite: (key, repoRel, hash) => {
       const slug = slugForRepoRel(repoRel);
       if (slug && acceptedLink) acceptedLink.stage.claim(key, slug, hash ?? null);
+    },
+    claimAiDelete: (key, repoRel) => {
+      const slug = slugForRepoRel(repoRel);
+      if (slug && acceptedLink) acceptedLink.stage.claimDelete(key, slug);
     },
     // S5.11b — Run on a copy builds the copy from this, never from a busy run's staged bytes
     acceptedCanvas: (repoRel) => {

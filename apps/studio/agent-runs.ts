@@ -53,6 +53,10 @@ export interface AgentRun {
 export interface RunBracket {
   begin?(run: AgentRun): void;
   touch?(run: AgentRun, path: string): void;
+  /** p8-a1-claims — edit/check replayed these exact bytes for `path`: the run's, before they land */
+  claim?(run: AgentRun, path: string, after: string): void;
+  /** p8-a1-claims — a Bash call that cannot claim opens/closes its window for the files it names */
+  window?(run: AgentRun, call: string, open: boolean, files: readonly string[]): void;
   end?(run: AgentRun, outcome: RunOutcome): void;
 }
 

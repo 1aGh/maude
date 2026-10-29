@@ -71,6 +71,7 @@ import {
   designVerbOf,
   designWritesSince,
   maudeWords,
+  namedDesignFiles,
   parseBash,
 } from './bash-guard.mjs';
 import { realpathDeep } from './confine-out.mjs';
@@ -739,6 +740,20 @@ function manifestVerbs(ctx) {
 }
 
 /**
+ * p8-a1-claims — the same table with every `design` verb read as writing nothing unclaimed: each one
+ * claims its own canvas writes before they land (apps/studio/ai/write-claim.ts). What is left writing
+ * is the part of a call that cannot claim (the S7 interpreter fallback: python, node -e, sed -i …).
+ */
+function claimingVerbs(ctx) {
+  const verbs = manifestVerbs(ctx);
+  return verbs
+    ? verbs.map((v) =>
+        typeof v?.verb === 'string' && v.verb.startsWith('design ') ? { ...v, effect: 'none' } : v
+      )
+    : null;
+}
+
+/**
  * The `maude design` verbs in `command` that write (effect other than `none`). An unknown table
  * counts every design verb as a writer: binding finds nothing when nothing changed.
  */
@@ -1089,16 +1104,20 @@ async function preEdit(ctx, input) {
   if (!toolUseId) return null;
   const studio = await locateStudio(ctx.root, { timeoutMs: LOCATE_MS });
   if (!studio) return null;
+  // p8-a1-claims — a MultiEdit is replayed here (the studio replays Edit itself): the exact bytes
+  const multi = input.tool_name === 'MultiEdit' ? replayEdit('MultiEdit', ti, cur) : null;
   const edit =
     input.tool_name === 'Write'
       ? { content: String(ti.content ?? '') }
-      : input.tool_name === 'Edit' && typeof ti.old_string === 'string'
-        ? {
-            old: ti.old_string,
-            new: String(ti.new_string ?? ''),
-            replaceAll: ti.replace_all === true,
-          }
-        : undefined;
+      : typeof multi === 'string'
+        ? { content: multi }
+        : input.tool_name === 'Edit' && typeof ti.old_string === 'string'
+          ? {
+              old: ti.old_string,
+              new: String(ti.new_string ?? ''),
+              replaceAll: ti.replace_all === true,
+            }
+          : undefined;
   const r = await postStudio(
     studio,
     '/_api/agent/edit/check',
@@ -1313,7 +1332,7 @@ function syncedBoardHint(ctx, rel) {
   return `${rel} is a board this project syncs with collaborators. For board changes prefer \`maude design annotate <canvas> --ops <ops.json>\`: it applies them as element ops that merge with other people's edits.`;
 }
 
-function preBash(ctx, input) {
+async function preBash(ctx, input) {
   if (input.tool_name !== 'Bash') return null;
   if (isUntrustedReader(input))
     return deny(
@@ -1367,11 +1386,35 @@ function preBash(ctx, input) {
     input.tool_input?.run_in_background === true || bashBackgrounds(command, { unparsed: false })
       ? { bg: true, by: input.agent_type ?? 'main' }
       : {};
+  // p8-a1-claims — `interp`: something in the call writes without claiming (no table: assume so).
+  // A terminal-lane verb cannot claim either (no MAUDE_CHAT_ID names a chat).
+  const interp = !claimingVerbs(ctx) || bashMayWrite(command, claimingVerbs(ctx)) || !hookChat();
+  // Such a call gets a time window for the canvases its command NAMES only (bash-guard
+  // `namedDesignFiles`): a person's save to any other canvas during it stays theirs.
+  const files = interp ? namedDesignFiles(ctx.designRoot, command) : [];
   writeAt(
     join(ctx.run, 'bash', `${toolUseId}.json`),
-    JSON.stringify({ at: Date.now(), snaps, ...bg })
+    JSON.stringify({
+      at: Date.now(),
+      snaps,
+      ...bg,
+      ...(interp ? { interp: true, files } : {}),
+    })
   );
+  if (files.length) await bashWindow(ctx, toolUseId, true, files);
   return null;
+}
+
+/** p8-a1-claims — open / close a no-claim call's window in the studio (fail-open). */
+async function bashWindow(ctx, toolUseId, open, files) {
+  const studio = await locateStudio(ctx.root, { timeoutMs: LOCATE_MS });
+  if (!studio) return;
+  await postStudio(
+    studio,
+    '/_api/agent/bash/window',
+    { ...runKey(ctx), toolUseId, open, files },
+    { timeoutMs: 600 }
+  );
 }
 
 /** Does `words` (after `maude`) run one of `allowed` (`check`, or `ds convert`)? */
@@ -1435,6 +1478,9 @@ async function postBash(ctx, input) {
   const markP = join(ctx.run, 'bash', `${toolUseId}.json`);
   const mark = readJson(markP, null);
   if (!mark || typeof mark.at !== 'number') return null; // not a write verb
+  // p8-a1-claims — the call returned: its window shuts (the studio keeps it SHELL_SETTLE_MS more)
+  const files = Array.isArray(mark.files) ? mark.files.filter((f) => typeof f === 'string') : [];
+  if (files.length && !mark.bg) await bashWindow(ctx, toolUseId, false, files);
   await bindBashWrites(ctx, toolUseId, mark, input.agent_type ?? 'main', mark.at);
   if (mark.bg) writeAt(markP, JSON.stringify({ ...mark, seen: Date.now() }));
   else rmSync(markP, { force: true });
@@ -1463,7 +1509,17 @@ async function bindBashWrites(ctx, toolUseId, mark, by, since) {
     await postStudio(
       studio,
       '/_api/agent/edit/touched',
-      { ...runKey(ctx), toolUseId, via: 'bash', since: mark.at },
+      {
+        ...runKey(ctx),
+        toolUseId,
+        via: 'bash',
+        since: mark.at,
+        // p8-a1-claims — only claiming verbs wrote: the studio binds what they claimed, nothing else;
+        // a call that cannot claim binds only the canvases its command named
+        ...(mark.interp
+          ? { files: Array.isArray(mark.files) ? mark.files : [] }
+          : { claimedOnly: true }),
+      },
       { timeoutMs: 900 }
     );
 }
@@ -1520,7 +1576,13 @@ async function drainBackground(ctx, studio) {
     await postStudio(
       studio,
       '/_api/agent/edit/touched',
-      { ...runKey(ctx), toolUseId: oldest.toolUseId, via: 'bash', since: oldest.m.at },
+      {
+        ...runKey(ctx),
+        toolUseId: oldest.toolUseId,
+        via: 'bash',
+        since: oldest.m.at,
+        ...(marks.every((x) => !x.m.interp) ? { claimedOnly: true } : {}),
+      },
       { timeoutMs: 900 }
     );
   }

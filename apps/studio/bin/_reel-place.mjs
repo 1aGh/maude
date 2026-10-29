@@ -33,6 +33,7 @@ import {
   UsageError,
 } from './_studio-verb.mjs';
 import { target } from './_video-verbs.mjs';
+import { claimWrites } from './_write-claim.mjs';
 
 export const USAGE = `usage: maude design reel-place <edl-slug> --next [--canvas <canvas>#<artboard>] [--json] [--root <project>]
   Places the next shot of the cut <designRoot>/<edl-slug>.edl.json on the video: the first shot the video
@@ -108,23 +109,28 @@ export async function reelPlace(words, { out = process.stdout, err = process.std
 
   let result;
   try {
-    result = await applyOnDisk(abs, (source) => {
-      const r = placeNext(abs, source, edl, t.artboard);
-      if (r.status !== 'placed') return { source, r };
-      // the fast check before anything is written (V2-1.11 fast tier)
-      const check = checkFile(rel, r.source, { tier: 'fast' });
-      if (!check.ok) {
-        const first = check.errors
-          .slice(0, 3)
-          .map((e) => `${e.code}: ${e.what}`)
-          .join('; ');
-        throw new CanvasEditError(`the video would not pass the check (${first})`, {
-          canvas: abs,
-          id: '',
-        });
-      }
-      return { source: r.source, r };
-    });
+    result = await applyOnDisk(
+      abs,
+      (source) => {
+        const r = placeNext(abs, source, edl, t.artboard);
+        if (r.status !== 'placed') return { source, r };
+        // the fast check before anything is written (V2-1.11 fast tier)
+        const check = checkFile(rel, r.source, { tier: 'fast' });
+        if (!check.ok) {
+          const first = check.errors
+            .slice(0, 3)
+            .map((e) => `${e.code}: ${e.what}`)
+            .join('; ');
+          throw new CanvasEditError(`the video would not pass the check (${first})`, {
+            canvas: abs,
+            id: '',
+          });
+        }
+        return { source: r.source, r };
+      },
+      // p8-a1-claims — inside a Maude chat the shot's bytes are claimed for its run before they land
+      { beforeWrite: (next) => claimWrites(root, [{ rel, content: next }]) }
+    );
   } catch (e) {
     err.write(`maude design reel-place: ${field(e?.message ?? e, 400)}\n`);
     return 1;

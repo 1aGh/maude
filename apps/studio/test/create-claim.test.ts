@@ -26,6 +26,7 @@ import { chatHeaderFor, parseRequestArgv } from '../bin/_curl-local.mjs';
 import type { AiActivity } from '../collab/ai-activity.ts';
 import { type Context, createBus } from '../context.ts';
 import { runStageHooks } from '../routes/project-undo.ts';
+import { hashBytes } from '../sync/echo-guard.ts';
 import { type LocalHome, openLocalHome } from '../sync/local-kernel.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
@@ -35,14 +36,16 @@ describe('curl-local names its chat on the one request that creates a canvas', (
   const url = 'http://127.0.0.1:4399/_api/canvas';
   const parse = (args: string[]) => parseRequestArgv(args);
 
-  test('POST /_api/canvas inside a chat carries X-Maude-Chat; nothing else does', () => {
+  // p8-a1-claims — every WRITE to a studio /_api/ route names the chat now (a write that names none is
+  // the person's); a read and any other path still say nothing
+  test('a write to /_api/ inside a chat carries X-Maude-Chat; a read or another path does not', () => {
     const env = { MAUDE_CHAT_ID: 'chat-a_1' };
     expect(chatHeaderFor(parse([url, '--method', 'POST']), env)).toBe('X-Maude-Chat: chat-a_1');
     expect(chatHeaderFor(parse([url]), env)).toBeNull(); // a GET
-    expect(chatHeaderFor(parse([url, '--method', 'DELETE']), env)).toBeNull();
+    expect(chatHeaderFor(parse([url, '--method', 'DELETE']), env)).toBe('X-Maude-Chat: chat-a_1');
     expect(
       chatHeaderFor(parse(['http://127.0.0.1:4399/_api/fs-move', '--method', 'POST']), env)
-    ).toBeNull();
+    ).toBe('X-Maude-Chat: chat-a_1');
     expect(
       chatHeaderFor(parse(['http://127.0.0.1:3000/other', '--method', 'POST']), env)
     ).toBeNull();
@@ -207,8 +210,14 @@ describe('a canvas created inside a run lands as that run’s ai version', () =>
     });
     h.observe('ui/landing.tsx');
     await h.flush();
-    // the AI fills it in with an Edit, which lands as a change to the canvas the run created
+    // the AI fills it in with an Edit, which lands as a change to the canvas the run created — claimed
+    // by its bytes like every AI write (p8-a1-claims: an unclaimed write is the person's)
     writeFileSync(file, canvas('Landing, filled in'));
+    h.runtime.claimAiWrite(
+      'r_fold1',
+      '.design/ui/landing.tsx',
+      hashBytes(canvas('Landing, filled in'))
+    );
     h.observe('ui/landing.tsx');
     await h.flush();
     await stage.publish(

@@ -62,9 +62,16 @@ const ai: AiActivity = {
 const upd = (u: Record<string, unknown>): SessionUpdate => u as unknown as SessionUpdate;
 const FILE = join(DESIGN, 'ui', 'k.tsx');
 
+// p8-a1-claims — the Write's bytes are claimed at its tool_call, BEFORE they land (never read back after)
 function editTurn(t: ReturnType<typeof createAgentActivityTracker>, body: string) {
   t.onUpdate(
-    upd({ sessionUpdate: 'tool_call', toolCallId: 't1', kind: 'edit', locations: [{ path: FILE }] })
+    upd({
+      sessionUpdate: 'tool_call',
+      toolCallId: 't1',
+      kind: 'edit',
+      locations: [{ path: FILE }],
+      rawInput: { file_path: FILE, content: body },
+    })
   );
   writeFileSync(FILE, body);
   t.onUpdate(
@@ -78,14 +85,14 @@ function editTurn(t: ReturnType<typeof createAgentActivityTracker>, body: string
 }
 
 describe('acp / a registry run is one stage, ended by the registry', () => {
-  test('begin carries the run id + chat; a completed edit claims its content hash; endTurn ends nothing', () => {
+  test('begin carries the run id + chat; an edit claims its bytes before they land; endTurn ends nothing', () => {
     const calls: Call[] = [];
     const t = createAgentActivityTracker(mkCtx(calls), ai, 'c1');
     t.beginTurn?.('restyle the footer', 'r_abc');
     editTurn(t, 'export default () => <p>x</p>;\n');
     t.endTurn('failed');
     expect(calls).toEqual([
-      ['begin', 'acp:c1', 'restyle the footer', { runId: 'r_abc', chatId: 'c1' }],
+      ['begin', 'acp:c1', 'restyle the footer', { runId: 'r_abc', chatId: 'c1', claimOnly: true }],
       ['claim', 'r_abc', '.design/ui/k.tsx', hashBytes('export default () => <p>x</p>;\n')],
     ]);
   });
@@ -97,7 +104,7 @@ describe('acp / a registry run is one stage, ended by the registry', () => {
     editTurn(t, 'export default () => <p>y</p>;\n');
     t.endTurn('done');
     expect(calls.map((c) => c[0])).toEqual(['begin', 'claim', 'end']);
-    expect(calls[0][3]).toEqual({ chatId: 'c2' });
+    expect(calls[0][3]).toEqual({ chatId: 'c2', claimOnly: true });
     expect(calls[2]).toEqual(['end', 'acp:c2', 'done']);
   });
 });
@@ -123,7 +130,7 @@ describe('acp / the agent reports REAL paths; the project may sit behind a symli
       'begin',
       'acp:c3',
       'make it greener',
-      { runId: 'r_link', chatId: 'c3' },
+      { runId: 'r_link', chatId: 'c3', claimOnly: true },
     ]);
     expect(calls[1][2]).toBe('.design/ui/k.tsx');
   });

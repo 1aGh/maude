@@ -6199,7 +6199,14 @@ if (import.meta.main) {
     try {
       const { abs: canvas, rel } = resolveCliCanvas(arg);
       const before = await Bun.file(canvas).text();
-      assertCliEditUnlocked(rel, before, applyEdit(canvas, before, id, attr, value).source);
+      const after = applyEdit(canvas, before, id, attr, value).source;
+      assertCliEditUnlocked(rel, before, after);
+      // p8-a1-claims — inside a Maude chat these bytes are claimed for its run before they land
+      // (bin/_write-claim.mjs); a person's own save meanwhile is different bytes and stays theirs
+      if (after !== before) {
+        const { claimWrites } = await import('./bin/_write-claim.mjs');
+        await claimWrites(path.dirname(canvas), [{ rel, content: after }]);
+      }
       const r = await editAttribute(canvas, id, attr, value);
       console.log(JSON.stringify({ canvas, id, delta: r.delta }));
       process.exit(0);

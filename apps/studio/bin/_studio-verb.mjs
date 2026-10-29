@@ -69,12 +69,26 @@ export function canvasRepoRel(root, canvas) {
 /** The studio serving `root`, or null. */
 export const studioFor = (root) => locateStudio(root, { timeoutMs: 1500 });
 
+/**
+ * p8-a1-claims — a write names the chat this shell is (`MAUDE_CHAT_ID`, set per chat by the ACP spawn):
+ * the studio claims what the route writes for that chat's live run (ai/write-claim.ts), so the write joins
+ * the run without any time window. A read names nothing. The header only NAMES a chat: the studio decides.
+ */
+export function chatWriteHeaders(method, env = process.env) {
+  if (method === 'GET' || method === 'HEAD') return {};
+  const id = env.MAUDE_CHAT_ID;
+  return typeof id === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(id) ? { 'x-maude-chat': id } : {};
+}
+
 /** One request to a located studio. `{ status, body, text }`, or null on a transport failure. */
 export async function call(studio, route, { method = 'GET', json, timeoutMs = 5000 } = {}) {
   try {
     const res = await fetch(`${studio.base}${route}`, {
       method,
-      headers: json === undefined ? {} : { 'content-type': 'application/json' },
+      headers: {
+        ...(json === undefined ? {} : { 'content-type': 'application/json' }),
+        ...chatWriteHeaders(method),
+      },
       body: json === undefined ? undefined : JSON.stringify(json),
       signal: AbortSignal.timeout(timeoutMs),
     });

@@ -7,7 +7,7 @@
 // rows and no `ai` row.)
 
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -21,6 +21,9 @@ import { type Context, createBus } from '../context.ts';
 const ROOT = mkdtempSync(join(tmpdir(), 'acp-shell-stage-'));
 const DESIGN = join(ROOT, '.design');
 mkdirSync(join(DESIGN, 'ui'), { recursive: true });
+// p8-a1-claims — a window names the canvases its command names, so they exist on disk here
+for (const f of ['V.tsx', 'W.tsx', 'C.tsx', 'Alligators Cinematic Cut.tsx'])
+  writeFileSync(join(DESIGN, 'ui', f), 'export default () => null;\n');
 afterAll(() => rmSync(ROOT, { recursive: true, force: true }));
 
 type Call = [string, ...unknown[]];
@@ -79,8 +82,11 @@ const done = (t: ReturnType<typeof createAgentActivityTracker>, id: string) =>
     status: 'completed',
   } as unknown as SessionUpdate);
 
-describe('acp / a shell write verb opens the run stage', () => {
-  test('`maude design reel-place …` begins the stage under the run id, one window per call; the registry ends it', () => {
+// p8-a1-claims (Michal 2026-10-29) — a verb claims its own writes (ai/write-claim.ts), so a verb call no longer
+// opens a window: a person's outside save during it is never folded into the run. Only a call that may write
+// WITHOUT claiming (the S7 interpreter fallback below) keeps the per-call window.
+describe('acp / a shell write verb opens no window — it claims its own writes', () => {
+  test('`maude design reel-place …` opens nothing: its writes are claimed by bytes, not by time', () => {
     const calls: Call[] = [];
     const t = createAgentActivityTracker(mkCtx(calls), ai, 'c3');
     t.beginTurn?.('make a recap', 'r_cut');
@@ -88,34 +94,37 @@ describe('acp / a shell write verb opens the run stage', () => {
     done(t, 'b1');
     shell(t, 'cd /tmp && maude design reel-place recap --next --canvas ui/V.tsx#recap', 'b2');
     done(t, 'b2');
+    shell(t, 'maude design export ui/V.tsx --png', 'b3');
+    done(t, 'b3');
     t.endTurn('done');
-    const meta = (call: string, open: boolean) => ({
-      runId: 'r_cut',
-      chatId: 'c3',
-      shell: { call, open },
-    });
-    expect(calls).toEqual([
-      ['begin', 'acp:c3', 'make a recap', meta('b1', true)],
-      ['begin', 'acp:c3', 'make a recap', meta('b1', false)],
-      ['begin', 'acp:c3', 'make a recap', meta('b2', true)],
-      ['begin', 'acp:c3', 'make a recap', meta('b2', false)],
-    ]); // no `end`: the registry ends a registry run
+    expect(calls).toEqual([]); // no window, no `end`: the registry ends a registry run
   });
 
-  test('A1 — a call that waits on a card is shut until a grant; a denied one stays shut', () => {
+  test('A1 — an interpreter call that waits on a card is shut until a grant; a denied one stays shut', () => {
     const calls: Call[] = [];
     const t = createAgentActivityTracker(mkCtx(calls), ai, 'c5');
-    t.beginTurn?.('export it', 'r_card');
-    shell(t, 'maude design export ui/V.tsx --png', 'b1');
+    t.beginTurn?.('cut it', 'r_card');
+    shell(t, 'python3 cut.py ui/V.tsx', 'b1');
     t.onPermission?.('b1');
     t.onPermission?.('b1', { granted: true });
     done(t, 'b1');
-    shell(t, 'maude design export ui/W.tsx --png', 'b2');
+    shell(t, 'python3 cut.py ui/W.tsx', 'b2');
     t.onPermission?.('b2');
     t.onPermission?.('b2', { granted: false });
     done(t, 'b2');
     t.endTurn('done');
-    const windows = calls.map((c) => (c[3] as { shell: { call: string; open: boolean } }).shell);
+    const meta = (call: string, open: boolean) => ({
+      runId: 'r_card',
+      chatId: 'c5',
+      claimOnly: true,
+      shell: { call, open, files: ['.design/ui/V.tsx'] },
+    });
+    expect(calls[0]).toEqual(['begin', 'acp:c5', 'cut it', meta('b1', true)]);
+    const windows = calls.map((c) =>
+      ((s) => ({ call: s.call, open: s.open }))(
+        (c[3] as { shell: { call: string; open: boolean } }).shell
+      )
+    );
     expect(windows).toEqual([
       { call: 'b1', open: true },
       { call: 'b1', open: false }, // the card waits
@@ -126,14 +135,19 @@ describe('acp / a shell write verb opens the run stage', () => {
     ]);
   });
 
-  test('A1 — the window opens for every way of running the verb, never for text that names it', () => {
+  test('A1 — text that names a verb opens nothing; `bash -c` can run anything, so it keeps the fallback', () => {
     const calls: Call[] = [];
     const t = createAgentActivityTracker(mkCtx(calls), ai, 'c6');
     t.beginTurn?.('x', 'r_x');
     shell(t, 'echo maude design export', 'e1');
     shell(t, 'grep "maude design annotate" docs', 'e2');
-    shell(t, 'bash -c "maude design reel-place recap --next"', 's1');
+    // p8-a1-claims — the fallback window covers only the canvases the command names: none, nothing
+    shell(t, 'bash -c "maude design reel-place recap --next"', 's0');
+    shell(t, 'bash -c "maude design reel-place recap --next --canvas ui/V.tsx"', 's1');
     expect(calls.length).toBe(1);
+    expect((calls[0][3] as { shell: { files: string[] } }).shell.files).toEqual([
+      '.design/ui/V.tsx',
+    ]);
   });
 
   test('a read verb, a plain shell command and a look-alike open nothing', () => {
@@ -166,12 +180,17 @@ describe('acp / any Bash call that may write opens a claim-only window', () => {
     for (const cmd of ['node -e "x"', 'perl -pi -e s/a/b/ ui/C.tsx', 'cat x > ui/C.tsx'])
       shell(t, cmd, cmd);
     t.endTurn('done');
-    const windows = calls.map((c) => (c[3] as { shell: { call: string; open: boolean } }).shell);
+    const windows = calls.map((c) =>
+      ((s) => ({ call: s.call, open: s.open }))(
+        (c[3] as { shell: { call: string; open: boolean } }).shell
+      )
+    );
     expect(windows.slice(0, 2)).toEqual([
       { call: 'p1', open: true },
       { call: 'p1', open: false },
     ]);
-    expect(windows.filter((w) => w.open).length).toBe(4);
+    // p8-a1-claims — `node -e "x"` names no canvas: no window (perl and the redirect name ui/C.tsx)
+    expect(windows.filter((w) => w.open).length).toBe(3);
   });
   test('a read-only call still opens nothing (a person’s save is never folded in by `ls`)', () => {
     const calls: Call[] = [];
@@ -189,14 +208,18 @@ describe('acp / any Bash call that may write opens a claim-only window', () => {
 // the turn ends, so those writes land in the run, not as the person's "changed outside the app".
 describe('acp / a call that outlives itself keeps its window until the turn ends', () => {
   const windowsOf = (calls: Call[]) =>
-    calls.map((c) => (c[3] as { shell: { call: string; open: boolean } }).shell);
+    calls.map((c) =>
+      ((s) => ({ call: s.call, open: s.open }))(
+        (c[3] as { shell: { call: string; open: boolean } }).shell
+      )
+    );
   test('a background job, nohup / setsid / disown and run_in_background', () => {
     for (const [id, rawInput] of [
-      ['g1', { command: 'nohup python3 w.py &' }],
+      ['g1', { command: 'nohup python3 w.py ui/C.tsx &' }],
       ['g2', { command: `(sleep 2; node -e 'require("fs").writeFileSync("ui/C.tsx","")') &` }],
-      ['g3', { command: 'setsid python3 w.py' }],
-      ['g4', { command: 'python3 w.py & disown' }],
-      ['g5', { command: 'python3 w.py', run_in_background: true }],
+      ['g3', { command: 'setsid python3 w.py ui/C.tsx' }],
+      ['g4', { command: 'python3 w.py ui/C.tsx & disown' }],
+      ['g5', { command: 'python3 w.py ui/C.tsx', run_in_background: true }],
     ] as const) {
       const calls: Call[] = [];
       const t = createAgentActivityTracker(mkCtx(calls), ai, `c-${id}`);
@@ -222,7 +245,7 @@ describe('acp / a call that outlives itself keeps its window until the turn ends
     const calls: Call[] = [];
     const t = createAgentActivityTracker(mkCtx(calls), ai, 'c-fg');
     t.beginTurn?.('cut it', 'r_fg');
-    shell(t, 'python3 w.py && echo done', 'f1');
+    shell(t, 'python3 w.py ui/C.tsx && echo done', 'f1');
     done(t, 'f1');
     expect(windowsOf(calls)).toEqual([
       { call: 'f1', open: true },

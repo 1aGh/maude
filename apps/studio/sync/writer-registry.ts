@@ -445,6 +445,8 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/agent/check': { class: 'local' }, // V2-2.4b the design plugin's hooks (V2-1.11 §5.4)
   '/_api/agent/edit/touched': { class: 'local' }, // V2-2.4b the design plugin's hooks (V2-1.11 §5.4)
   '/_api/agent/run/end': { class: 'local' }, // V2-2.4b the design plugin's hooks (V2-1.11 §5.4)
+  '/_api/agent/write/claim': { class: 'local' }, // p8-a1-claims — a disk-writing verb claims its bytes for its run
+  '/_api/agent/bash/window': { class: 'local' }, // p8-a1-claims — a Bash call that cannot claim names its files
   // --- this machine only
   '/_api/acp/activity': { class: 'local' },
   '/_api/acp/attachment': { class: 'local' },

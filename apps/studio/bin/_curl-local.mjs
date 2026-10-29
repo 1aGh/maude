@@ -355,15 +355,18 @@ export function parseRequestArgv(argv) {
 }
 
 /**
- * S12.16 — the chat this shell is (`MAUDE_CHAT_ID`, set per chat by the ACP spawn), named on the one
- * request that creates a canvas so the studio can claim the new file for the chat's live run
- * (ai/create-claim.ts). `POST /_api/canvas` only: no other loopback service sees the header. Pure;
- * null = send nothing.
+ * S12.16 — the chat this shell is (`MAUDE_CHAT_ID`, set per chat by the ACP spawn), named on a request
+ * so the studio can claim what it writes for the chat's live run (ai/create-claim.ts, ai/write-claim.ts).
+ * p8-a1-claims: every WRITE to a studio `/_api/` route (any method but GET/HEAD) carries it — a write
+ * that names no chat is the person's, with no time window. A read and any other path send nothing.
+ * Pure; null = send nothing.
  */
 export function chatHeaderFor(req, env = process.env) {
   const id = env.MAUDE_CHAT_ID;
   if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) return null;
-  if (req.method !== 'POST' || req.parsedUrl.pathname !== '/_api/canvas') return null;
+  const method = String(req.method || 'GET').toUpperCase();
+  if (method === 'GET' || method === 'HEAD') return null;
+  if (!req.parsedUrl.pathname.startsWith('/_api/')) return null;
   return `X-Maude-Chat: ${id}`;
 }
 

@@ -32,6 +32,7 @@ import {
 } from '../agent-runs.ts';
 import type { RunRecord } from '../ai/run-lifecycle.ts';
 import type { RunRegistry } from '../ai/runs.ts';
+import { claimedSince } from '../ai/write-claim.ts';
 import { artboardIdsOfSource, checkFile, checkIntroduced, type Finding } from '../check/index.ts';
 import { checkIds, walkIdElements } from '../element-ids.ts';
 import type { RouteSpec } from './table.ts';
@@ -67,7 +68,21 @@ export interface AgentRouteDeps {
   personHolds?: (canvas?: string) => PersonHold[];
   /** A member's display name for a lease home `actor` (the project's members), else null. */
   memberName?: (actor: string) => string | null;
+  /**
+   * p8-a1-claims — claim the bytes a disk-writing verb is about to write for `chat`'s LIVE run
+   * (ai/write-claim.ts). `rel` is design-root-relative. null = no live run of that chat: nothing claimed.
+   */
+  claimWrites?: (
+    chat: string,
+    writes: Array<{ rel: string; content: string }>
+  ) => { runId: string } | null;
 }
+
+/** POST /_api/agent/write/claim — at most this many files per call, this many bytes in all. */
+export const CLAIM_MAX_FILES = 32;
+export const CLAIM_MAX_BYTES = 16 * 1024 * 1024;
+/** The canvas lanes a claim may name: a canvas source, its sidecar, its board. */
+const CLAIM_LANE_RE = /\.(?:tsx|meta\.json|annotations\.json)$/i;
 
 const json = (status: number, body: unknown) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -584,7 +599,20 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
    * call's window (mtime ≥ `since`, which pre-bash recorded) to the session's run — else to the
    * single open AI run on the project, else to no run (the artboards are still reported).
    */
-  function bindBashWrites(session: string, toolUseId: string, since: unknown, chat: string | null) {
+  function bindBashWrites(
+    session: string,
+    toolUseId: string,
+    since: unknown,
+    chat: string | null,
+    /**
+     * p8-a1-claims — the call's only writers were claiming `maude design` verbs: bind only the files
+     * this chat's verbs claimed since the call began, never whatever else changed meanwhile (a person's
+     * own save). Absent = the S7 interpreter fallback (a python heredoc cannot claim).
+     */
+    claimedOnly = false,
+    /** p8-a1-claims — the canvases the call's command names: only those are bound (null = any) */
+    named: Set<string> | null = null
+  ) {
     const out = { artboards: [] as string[], lostIds: [] as string[], trashed: [] as string[] };
     const now = Date.now();
     if (
@@ -604,7 +632,10 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
     } catch {
       /* no snapshots: every artboard of a changed canvas */
     }
+    const mine = claimedOnly && chat ? claimedSince(chat, since) : null;
     for (const rel of designWritesSince(designRoot, since)) {
+      if (mine && !mine.has(rel)) continue;
+      if (named && !named.has(rel) && !(mine && mine.has(rel))) continue;
       let artboards: string[] = [];
       let elements: Array<{ artboard: string; element: string }> = [];
       if (CANVAS_RE.test(rel)) {
@@ -667,7 +698,25 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
           reason:
             'read-only: this project is open view-only here, so nothing in it can be edited. Ask its owner for edit access, or describe the change instead.',
         });
-      if (!CANVAS_RE.test(rel) || isRuntimeRel(rel)) return json(200, NONE);
+      // p8-a1-claims — the edit is allowed: claim the exact bytes it will write for the session's
+      // run, BEFORE the tool writes them (the hook blocks the tool until this answers). A denied
+      // edit claims nothing; bytes we cannot replay are not claimed and land as the person's.
+      const allow = (after: string | null) => {
+        const self = after !== null ? runs.get(session, chat) : null;
+        if (self && after !== null) {
+          try {
+            deps.bracket?.claim?.(self, rel, after);
+          } catch {
+            /* a claim never blocks the edit */
+          }
+        }
+        return json(200, NONE);
+      };
+      if (isRuntimeRel(rel)) return json(200, NONE);
+      if (!CANVAS_RE.test(rel))
+        return CLAIM_LANE_RE.test(rel)
+          ? allow(applyToolEdit(readDesignFile(deps, rel), b.edit))
+          : json(200, NONE);
       // §5.9.4 / §5.6: this turn's run lost its leases — nothing more of the turn is written
       const gone = runs.lost(session, chat);
       if (gone)
@@ -683,7 +732,7 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
       const after = applyToolEdit(before, b.edit);
       // V2-1.15 §4 #9: an import-only addition needs no lease (and is inside every scope)
       if (before !== null && after !== null && importOnlyAddition(before, after))
-        return json(200, NONE);
+        return allow(after);
       // an edit we can't replay (MultiEdit, old text not found) on an existing canvas reaches the file
       const reach =
         after !== null
@@ -691,7 +740,7 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
           : before !== null
             ? { scope: 'file' as const, artboards: [] }
             : null;
-      if (!reach) return json(200, NONE);
+      if (!reach) return allow(after);
       // an artboard whose id is not an id can't be named in a claim: the change claims the canvas
       const target =
         reach.scope === 'file' || validIds(reach.artboards).length < reach.artboards.length
@@ -779,7 +828,7 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
           });
         }
       }
-      if (target !== '*' && target.length === 0) return json(200, NONE);
+      if (target !== '*' && target.length === 0) return allow(after);
       const c = runs.conflict(session, rel, target, chat);
       if (c) {
         runs.noteBusy(session, rel, c.artboard, chat);
@@ -797,7 +846,7 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
         });
       }
       runs.claim(session, rel, target, chat);
-      return json(200, NONE);
+      return allow(after);
     }),
     spec({ path: '/_api/agent/check' }, (b) => {
       const rel = designPathRel(b.path);
@@ -836,7 +885,20 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
       if (chat === undefined) return bad(BAD_CHAT);
       if (b.via !== 'tool' && b.via !== 'bash') return bad('via is tool | bash');
       const empty = { artboards: [] as string[], lostIds: [] as string[], trashed: [] as string[] };
-      if (b.via === 'bash') return json(200, bindBashWrites(session, toolUseId, b.since, chat));
+      if (b.via === 'bash')
+        return json(
+          200,
+          bindBashWrites(
+            session,
+            toolUseId,
+            b.since,
+            chat,
+            b.claimedOnly === true,
+            Array.isArray(b.files)
+              ? new Set(b.files.map((f) => designPathRel(f)).filter((f): f is string => f !== null))
+              : null
+          )
+        );
       const rel = designPathRel(b.path);
       if (!rel) return bad('path is a file inside the design root');
       if (isRuntimeRel(rel)) return json(200, empty);
@@ -845,6 +907,61 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
         : { ...empty, elements: [] };
       runs.touch(session, rel, artboards, chat, elements);
       return json(200, { artboards, lostIds, trashed });
+    }),
+    // p8-a1-claims — a Bash call that cannot claim its writes (S7 interpreter, a terminal-lane verb)
+    // opens / closes its window, for the canvases its command names (cli/lib/bash-guard.mjs
+    // `namedDesignFiles`). Only those canvases' unclaimed writes join the run while it is open.
+    spec({ path: '/_api/agent/bash/window' }, (b) => {
+      const session = key(b, 'session');
+      const toolUseId = key(b, 'toolUseId');
+      if (!session || !toolUseId) return bad('session and toolUseId are hook keys');
+      const chat = chatOf(b);
+      if (chat === undefined) return bad(BAD_CHAT);
+      if (typeof b.open !== 'boolean') return bad('open is a boolean');
+      const raw = Array.isArray(b.files) ? b.files : [];
+      if (raw.length > CLAIM_MAX_FILES) return bad(`files is at most ${CLAIM_MAX_FILES} paths`);
+      const files: string[] = [];
+      for (const f of raw) {
+        const rel = designPathRel(f);
+        if (!rel || !CLAIM_LANE_RE.test(rel) || isRuntimeRel(rel))
+          return bad(
+            'files are canvases, their .meta.json or .annotations.json in the design root'
+          );
+        files.push(rel);
+      }
+      const self = runs.get(session, chat);
+      if (!self) return json(200, { window: false });
+      deps.bracket?.window?.(self, toolUseId, b.open, files);
+      return json(200, { window: true });
+    }),
+    // p8-a1-claims — a disk-writing verb (reel-place, canvas-edit, ds-check --fix, import-figma) claims
+    // the bytes it is about to write for its chat's live run, BEFORE they land (bin/_write-claim.mjs).
+    // A hook route: non-browser only (`hookBody`), main origin only, never in a canvas allowlist.
+    spec({ path: '/_api/agent/write/claim' }, (b) => {
+      const chat = key(b, 'chat');
+      if (!chat) return bad(BAD_CHAT);
+      if (!Array.isArray(b.writes) || !b.writes.length || b.writes.length > CLAIM_MAX_FILES)
+        return bad(`writes is 1–${CLAIM_MAX_FILES} {path, content}`);
+      const writes: Array<{ rel: string; content: string }> = [];
+      let bytes = 0;
+      for (const w of b.writes as Array<Record<string, unknown>>) {
+        const rel = w && typeof w === 'object' ? designPathRel(w.path) : null;
+        if (!rel || !CLAIM_LANE_RE.test(rel) || isRuntimeRel(rel))
+          return bad(
+            'path is a canvas, its .meta.json or its .annotations.json in the design root'
+          );
+        if (typeof w.content !== 'string') return bad('content is the text about to be written');
+        bytes += w.content.length;
+        if (bytes > CLAIM_MAX_BYTES) return bad('writes are too large to claim');
+        writes.push({ rel, content: w.content });
+      }
+      const r = deps.claimWrites?.(chat, writes) ?? null;
+      if (!r)
+        return json(409, {
+          error: 'no live AI run of this chat: the write is not claimed',
+          code: 'no-live-run',
+        });
+      return json(200, { claimed: writes.length, run: r.runId });
     }),
     spec({ path: '/_api/agent/run/end' }, (b) => {
       const session = key(b, 'session');

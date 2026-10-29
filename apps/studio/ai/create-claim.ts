@@ -62,7 +62,7 @@ export function claimCreatedCanvas(
         beginAiAction?(
           key: string,
           label: string,
-          meta?: { runId?: string; chatId?: string; actor?: string }
+          meta?: { runId?: string; chatId?: string; actor?: string; claimOnly?: boolean }
         ): void;
         claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
       }
@@ -70,7 +70,12 @@ export function claimCreatedCanvas(
     | undefined,
   w: { runId: string; chatId: string; label: string; repoRel: string; abs: string }
 ): void {
-  control?.beginAiAction?.(`run:${w.runId}`, w.label, { runId: w.runId, chatId: w.chatId });
+  // p8-a1-claims — claim-only: the run takes what was claimed for it, never a person's unclaimed save
+  control?.beginAiAction?.(`run:${w.runId}`, w.label, {
+    runId: w.runId,
+    chatId: w.chatId,
+    claimOnly: true,
+  });
   let hash: string | null = null;
   if (/\.tsx$/i.test(w.repoRel)) {
     try {

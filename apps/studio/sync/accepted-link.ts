@@ -642,6 +642,10 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       ]);
     },
     deleteDoc(slug: string, waitMs = 8_000): Promise<StructuralOutcome> {
+      // p8-a1-claims (F17) — an AI run claimed this delete (`maude design trash move` named its chat
+      // on `DELETE /_api/canvas`): it joins that run's one action, and the run's undo brings it back.
+      if (stage.stagesDelete(slug, opts.docNameFor(slug)))
+        return Promise.resolve({ status: 'accepted', queued: true });
       return structural(
         'Delete canvas',
         'canvas.delete',

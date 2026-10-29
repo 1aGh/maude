@@ -12,6 +12,8 @@ import type {
   SessionUpdate,
 } from '@agentclientprotocol/sdk';
 import type { ServerWebSocket } from 'bun';
+import { namedDesignFiles } from '../../../cli/lib/bash-guard.mjs';
+import { replayEdit } from '../../../cli/lib/design-hook.mjs';
 import { projectVisibility } from '../access/filters.ts';
 import { knownCanvasesFor } from '../access/known-canvases.ts';
 import { resolveAccess } from '../access/scope.ts';
@@ -25,13 +27,13 @@ import {
   type RunScope,
 } from '../ai/run-lifecycle.ts';
 import type { RunRegistry } from '../ai/runs.ts';
+import { claimHashOf } from '../ai/write-claim.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import type { AiActivity } from '../collab/ai-activity.ts';
 import type { Context } from '../context.ts';
 import { runWriteScope } from '../handoff/write-scopes.ts';
 import { listCanvases } from '../routes/canvas-source.ts';
 import { isCanvasSource, isUnderscoreModuleRel } from '../skip-dirs.ts';
-import { hashBytes } from '../sync/echo-guard.ts';
 import { getHubRecord } from '../sync/hubs-config.ts';
 import type { WsData } from '../ws.ts';
 import { type AskQueue, noteRateLimit, promptLabel } from './ask-queue.ts';
@@ -357,9 +359,11 @@ export function createAgentActivityTracker(
   const actionKey = `acp:${chatId}`;
   let turnLabel = 'Claude edit';
   let actionOpen = false;
-  /** A1 — an edit tool opened the stage this turn (the v1 fallback applies to the run). */
-  let editOpened = false;
-  /** A1 — shell write-verb calls whose window is open, waiting on a card, or finished. */
+  /** p8-a1-claims — `${toolCallId}|${key}` whose bytes were claimed (once per call and canvas). */
+  const claimedCalls = new Set<string>();
+  /** A1 — the repo-relative canvases each windowed call names (its window takes only those). */
+  const shellFiles = new Map<string, string[]>();
+  /** A1 — interpreter calls whose window is open, waiting on a card, or finished. */
   const shellOpen = new Set<string>();
   const shellCard = new Set<string>();
   const shellSeen = new Set<string>();
@@ -368,17 +372,38 @@ export function createAgentActivityTracker(
   /** S5.5b — the registry run of the current turn (null: a pre-S5.6 direct turn). */
   let turnRun: string | null = null;
 
-  /** S5.5b — a completed edit tool names the content it wrote: the stage claims it by hash. */
-  function claimWrite(key: string): void {
+  /**
+   * p8-a1-claims (Michal 2026-10-29) — an edit tool claims the EXACT bytes it is about to write, as soon
+   * as its input is known: a Write's content, an Edit/MultiEdit replayed on the file's current bytes
+   * (cli/lib/design-hook.mjs `replayEdit`, the same replay the PreToolUse hook makes — the hook's claim
+   * is the one that is sure to come first; this one is the backup when no hook runs). Nothing is ever
+   * claimed from what the disk holds AFTER the call: those could be a person's bytes. A write whose
+   * bytes cannot be told (an Edit whose text is gone) is not claimed and lands as the person's.
+   */
+  function claimToolBytes(toolCallId: string, key: string, raw: unknown): void {
+    if (claimedCalls.has(`${toolCallId}|${key}`) || !raw || typeof raw !== 'object') return;
+    const ti = raw as Record<string, unknown>;
+    const tool =
+      typeof ti.content === 'string'
+        ? 'Write'
+        : Array.isArray(ti.edits)
+          ? 'MultiEdit'
+          : typeof ti.old_string === 'string'
+            ? 'Edit'
+            : null;
+    if (!tool) return;
     const posix = key.slice(ctx.paths.designRel.length + 1);
-    let hash: string | null = null;
-    if (/\.tsx$/i.test(posix)) {
-      try {
-        hash = hashBytes(readFileSync(join(ctx.paths.designRoot, posix), 'utf8'));
-      } catch {
-        hash = null; // deleted or unreadable: the canvas is still this run's
-      }
+    let cur: string | null = null;
+    try {
+      cur = readFileSync(join(ctx.paths.designRoot, posix), 'utf8');
+    } catch {
+      cur = null; // a new file: a Write's content is all of it
     }
+    const after = replayEdit(tool, ti, cur);
+    const hash = typeof after === 'string' ? claimHashOf(key, after) : null;
+    if (!hash) return;
+    claimedCalls.add(`${toolCallId}|${key}`);
+    openAction();
     ctx.syncControl?.current?.()?.claimAiWrite?.(turnRun ?? actionKey, key, hash);
   }
 
@@ -415,13 +440,16 @@ export function createAgentActivityTracker(
     return `${ctx.paths.designRel}/${posix}`;
   }
 
-  /** Open the turn's project action (its run stage); `shell` = one verb call's window (A1). */
-  function openAction(shell?: { call: string; open: boolean }): void {
+  /**
+   * Open the turn's project action (its run stage, always claim-only); `shell` = the window of one
+   * call that cannot claim, for the canvases its command names (A1, S7).
+   */
+  function openAction(shell?: { call: string; open: boolean; files: string[] }): void {
     actionOpen = true;
-    if (!shell) editOpened = true;
     ctx.syncControl?.current?.()?.beginAiAction?.(actionKey, turnLabel, {
       ...(turnRun ? { runId: turnRun } : {}),
       ...(STAGE_ID.test(chatId) ? { chatId } : {}),
+      claimOnly: true,
       ...(shell ? { shell } : {}),
     });
   }
@@ -429,7 +457,7 @@ export function createAgentActivityTracker(
   function shellWindow(call: string, open: boolean): void {
     if (open) shellOpen.add(call);
     else shellOpen.delete(call);
-    openAction({ call, open });
+    openAction({ call, open, files: shellFiles.get(call) ?? [] });
   }
 
   function onPermission(toolCallId: string | undefined, decided?: { granted: boolean }): void {
@@ -465,11 +493,24 @@ export function createAgentActivityTracker(
       // or after the verb's calls is never folded into the AI run or its Undo.
       // V2-8.16 S7 — not only a verb: every call that is not provably a read gets that window (a python
       // heredoc cut the shot and nothing attributed it). See design-write-verb.ts `shellOpensWindow`.
+      // p8-a1-claims (Michal 2026-10-29) — and no longer a verb at all: a `maude design` verb claims its
+      // own bytes before they land (ai/write-claim.ts), so a call whose only writers are verbs opens
+      // NOTHING. The window is the named fallback for what cannot claim (python, node -e, sed -i, bash -c).
       const id = u.toolCallId;
       if (!id) return;
       const command = (u.rawInput as { command?: unknown } | null | undefined)?.command;
-      if (!shellSeen.has(id) && shellOpensWindow(command)) {
+      // p8-a1-claims — and only for the canvases the command NAMES (cli/lib/bash-guard.mjs
+      // `namedDesignFiles`): a person's save to any other canvas during the call stays theirs. A call
+      // that names none takes nothing, so it opens no window at all.
+      const named =
+        !shellSeen.has(id) && shellOpensWindow(command)
+          ? namedDesignFiles(ctx.paths.designRoot, command).map(
+              (rel: string) => `${ctx.paths.designRel}/${rel}`
+            )
+          : [];
+      if (named.length) {
         shellSeen.add(id);
+        shellFiles.set(id, named);
         // p8-secfix-hook F2 — `nohup python3 w.py &` / `run_in_background` returns at once and
         // writes later: its window stays open until the turn ends (endTurn), not return + settle
         if (shellOutlivesCall(u.rawInput)) shellOutlives.add(id);
@@ -502,9 +543,9 @@ export function createAgentActivityTracker(
     }
     if (u.toolCallId && keys.size) keysByToolCall.set(u.toolCallId, keys);
     for (const key of keys) {
-      // T16 — the turn's first canvas edit opens its project action.
-      if (!editOpened) openAction();
-      if (u.sessionUpdate === 'tool_call_update' && u.status === 'completed') claimWrite(key);
+      // p8-a1-claims — the bytes are claimed BEFORE they land; the run stays claim-only (an edit tool
+      // no longer lifts it for the rest of the turn, so a person's save after it stays theirs)
+      if (u.toolCallId) claimToolBytes(u.toolCallId, key, u.rawInput);
       const last = lastBeat.get(key);
       if (last == null) {
         ai.start(key, AGENT_AUTHOR);
@@ -524,10 +565,11 @@ export function createAgentActivityTracker(
     for (const call of [...shellOpen]) shellWindow(call, false);
     shellCard.clear();
     shellSeen.clear();
+    shellFiles.clear();
+    claimedCalls.clear();
     shellOutlives.clear();
     if (actionOpen) {
       actionOpen = false;
-      editOpened = false;
       // A registry run's stage is the registry's to end (publish / partial / hold).
       if (!turnRun) {
         void ctx.syncControl

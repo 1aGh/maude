@@ -32,22 +32,30 @@ export function runsDesignWriteVerb(command: unknown): boolean {
   return false;
 }
 
-/** The design verbs in the hook manifest's shape (`design <verb>`), for `bashMayWrite`. */
-const VERB_TABLE = MAUDE_VERBS.filter((v) => v.scope === 'design').map((v) => ({
+/**
+ * p8-a1-claims — every `maude design` verb CLAIMS its own canvas writes before they land (ai/write-claim.ts:
+ * a route write names its chat with X-Maude-Chat, a disk write posts its bytes to /_api/agent/write/claim),
+ * so for this check every design verb reads as one that writes nothing unclaimed.
+ */
+export const CLAIMING_VERB_TABLE = MAUDE_VERBS.filter((v) => v.scope === 'design').map((v) => ({
   verb: `design ${v.verb}`,
-  effect: v.effect,
+  effect: 'none',
 }));
 
 /**
- * V2-8.16 S7 — does this shell call open the run's claim-only window? A write verb does (above); so
- * does ANY call that is not provably a read (`bashMayWrite`, cli/lib/bash-guard.mjs — the design
- * hook's own reader): the agent cut a shot with `python3 - <<'EOF' … open(p,'w') … EOF`, which no
- * guard rule names, and the change landed outside the run. The window is the call's own (tool_call →
- * completed, shut while its card waits), so the A1 bound holds: only an outside-the-app save made
- * WHILE an AI call runs can fold into the run; a save in the Maude window is never stageable.
+ * Does this shell call open the run's claim-only window — may it write something that cannot claim?
+ *
+ * Michal 2026-10-29 (A1): attribution by time window is no longer how an AI write is recognized. A call
+ * whose only writers are `maude design` verbs opens NOTHING: each verb claims its own bytes, and a write
+ * nobody claimed in those seconds is the person's (their outside save never joins the AI run or its Undo).
+ *
+ * The one named fallback — V2-8.16 S7 interpreter writes: a call that is not provably a read apart from
+ * those verbs (`python3 - <<'EOF' … open(p,'w')`, `node -e`, `sed -i`, `bash -c "…"`) cannot claim, so it
+ * keeps the per-call window (tool_call → completed, shut while its card waits). Only that call's seconds
+ * are attributed by time; `bashMayWrite` (cli/lib/bash-guard.mjs) is the design hook's own reader.
  */
 export function shellOpensWindow(command: unknown): boolean {
-  return runsDesignWriteVerb(command) || bashMayWrite(command, VERB_TABLE);
+  return bashMayWrite(command, CLAIMING_VERB_TABLE);
 }
 
 /**

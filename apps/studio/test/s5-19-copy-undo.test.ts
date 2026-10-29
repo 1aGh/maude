@@ -11,6 +11,7 @@ import path from 'node:path';
 import { artboardRects, metaWithCopy, placeBeside } from '../ai/copy-meta.ts';
 import { createLocalLeaseHome } from '../ai/lease-home.ts';
 import { createRunRegistry } from '../ai/runs.ts';
+import { claimHashOf } from '../ai/write-claim.ts';
 import { createAiRoutes } from '../routes/ai.ts';
 import { matchRoute } from '../routes/table.ts';
 import { hashBytes } from '../sync/echo-guard.ts';
@@ -181,7 +182,14 @@ describe('the sidecar write belongs to the run’s action', () => {
       copyId: 'P-copy-abc123',
       label: 'Post 1:1 · copy',
     });
-    writeFileSync(meta, `${JSON.stringify(next, null, 2)}\n`); // a plain disk write: no proposeLane note
+    // p8-a1-claims — the route claims the sidecar's exact bytes for the run before they land
+    const metaText = `${JSON.stringify(next, null, 2)}\n`;
+    h.runtime.claimAiWrite(
+      'r_copy',
+      '.design/ui/C.meta.json',
+      claimHashOf('.design/ui/C.meta.json', metaText)
+    );
+    writeFileSync(meta, metaText); // a plain disk write: no proposeLane note
     h.observe('ui/C.tsx');
     await h.flush();
     await h.runtime.endAiAction('r_copy', 'done');

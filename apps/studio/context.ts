@@ -389,7 +389,9 @@ export interface Context {
           chatId?: string;
           actor?: string;
           /** V2-8.9 round B A1 — a shell verb call's window (sync/action-stage.ts `claimOnly`). */
-          shell?: { call: string; open: boolean };
+          shell?: { call: string; open: boolean; files?: string[] };
+          /** p8-a1-claims — begun by a claim: takes only claimed writes (sync/action-stage.ts). */
+          claimOnly?: boolean;
         }
       ): void;
       endAiAction?(
@@ -410,6 +412,8 @@ export interface Context {
       } | null>;
       /** S5.5 — a tool reported writing `hash` (sha256) to canvas `repoRel` for run `key`. */
       claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
+      /** p8-a1-claims (F17) — run `key` is about to delete canvas `repoRel`: the delete joins the run. */
+      claimAiDelete?(key: string, repoRel: string): void;
       /** S5.11b — a canvas's accepted source under the staged runs; null = the disk is accepted. */
       acceptedCanvas?(repoRel: string): string | null;
       resolveAiAction?(
