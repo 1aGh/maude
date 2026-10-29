@@ -19,6 +19,7 @@ import { applyEdit } from '../canvas-edit.ts';
 import type { EditOp } from '../edit-ops/types.ts';
 import { createEditRoutes } from '../routes/edit.ts';
 import { attachLocalHome, type LocalHome, OUTSIDE_KIND } from '../sync/local-kernel.ts';
+import { sourceHold, type WriteHold } from '../sync/write-hold.ts';
 
 const SRC = `import { DCArtboard, DesignCanvas } from '@maude/canvas-lib';
 export default function Home() {
@@ -50,7 +51,7 @@ afterAll(() => {
   for (const d of dirs) rmSync(d, { recursive: true, force: true });
 });
 
-function rig() {
+function rig(o: { hold?: WriteHold } = {}) {
   const root = mkdtempSync(path.join(tmpdir(), 'maude-note-before-bytes-'));
   dirs.push(root);
   const designRoot = path.join(root, '.design');
@@ -85,6 +86,7 @@ function rig() {
       if (inGap) await inGap();
     },
     ops: [paint('red'), paint('blue')],
+    ...(o.hold ? { hold: o.hold } : {}),
   });
   const editOp = async (op: string) => {
     const r = await spec.handle(
@@ -168,5 +170,31 @@ describe('S2.20b — the edit-op notes its bytes before they land', () => {
     await r.home.flush();
     const rows = await r.home.runtime.acceptedHistory({ path: REPO_REL, limit: 10 });
     expect(rows.slice(0, 3).map((x) => x.kind)).toEqual([OUTSIDE_KIND, OUTSIDE_KIND, 'edit']);
+  });
+
+  test('F5 — a write that throws withdraws its early note: the same bytes written from outside stay outside', async () => {
+    // the disk refuses the edit (not a full disk — that holds the bytes): the route throws
+    const real = sourceHold();
+    let refused: string | null = null;
+    const hold: WriteHold = {
+      ...real,
+      read: (k) => real.read(k),
+      put: async (_k, bytes) => {
+        refused = typeof bytes === 'string' ? bytes : new TextDecoder().decode(bytes);
+        throw Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' });
+      },
+    };
+    const r = rig({ hold });
+    await r.home.ready();
+    // the route lets the write's error out (the server answers 500)
+    await expect(r.editOp('test.paint-red')).rejects.toThrow('EACCES');
+    expect(refused).toContain("color: 'red'");
+    expect(r.read()).toBe(SRC);
+    // within the note window an outside editor writes exactly those bytes: not the person's edit
+    writeFileSync(r.abs, refused as unknown as string);
+    r.bus.emit('fs:any', REL);
+    await r.home.flush();
+    const rows = await r.home.runtime.acceptedHistory({ path: REPO_REL, limit: 10 });
+    expect(rows[0]?.kind).toBe(OUTSIDE_KIND);
   });
 });

@@ -398,9 +398,12 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
     const prev = chains.get(key) ?? Promise.resolve();
     const next = prev.catch(() => {}).then(run);
     chains.set(key, next);
-    void next.finally(() => {
-      if (chains.get(key) === next) chains.delete(key);
-    });
+    // the caller gets the write's error; this bookkeeping branch must not leave it unhandled (F5)
+    next
+      .finally(() => {
+        if (chains.get(key) === next) chains.delete(key);
+      })
+      .catch(() => {});
     return next;
   };
 
