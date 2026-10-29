@@ -506,11 +506,24 @@ describe('team-cell-missing (native-desktop)', () => {
       JSON.parse(read(join(c.teammate, '.design', '_sync.json')) ?? '{}') as {
         conflicts?: Array<{ slug: string; kind: string; reason: string }>;
       };
-    await eventually(
-      'alice’s later save held as a conflict',
-      () => (alice().conflicts ?? []).some((x) => x.slug === 'ui-letaka6' && x.kind === 'body-rejected'),
-      240_000
-    );
+    try {
+      await eventually(
+        'alice’s later save held as a conflict',
+        () => (alice().conflicts ?? []).some((x) => x.slug === 'ui-letaka6' && x.kind === 'body-rejected'),
+        240_000
+      );
+    } catch (e) {
+      console.log(
+        `[team-cell-missing] DUMP ${JSON.stringify({
+          trash: await letakTrash(),
+          designer: ids(read(join(c.designer, '.design', LETAK))),
+          teammate: ids(read(join(c.teammate, '.design', LETAK))),
+          teammateSync: read(join(c.teammate, '.design', '_sync.json'))?.slice(0, 1800),
+          bobStatus: JSON.stringify((await bobGet('/_sync-status')).body).slice(0, 1500),
+        })}`
+      );
+      throw e;
+    }
     expect(ids(read(join(c.designer, '.design', LETAK)))).toEqual([
       'flag-front',
       'flag-back',
