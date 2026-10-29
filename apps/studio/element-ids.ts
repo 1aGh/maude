@@ -693,6 +693,12 @@ export interface IdFinding {
   line: number;
   col: number;
   element: { tag: string; label: string; artboard: string | null };
+  /**
+   * p8-secfix-hook I1 — the offending `data-cd-id` attribute in `source` (id-expression,
+   * id-format, id-duplicate's first copy): what tells two findings of one code apart when
+   * where/what do not (check/index.ts digests it into `Finding.key`; never printed).
+   */
+  span?: Span;
 }
 
 export interface CheckIdsOptions {
@@ -818,7 +824,8 @@ export function checkIds(source: string, opts: CheckIdsOptions = {}): CheckIdsRe
     fix: string,
     id?: string,
     where = at(e),
-    severity: IdFinding['severity'] = 'error'
+    severity: IdFinding['severity'] = 'error',
+    span: Span | null = null
   ) =>
     findings.push({
       code,
@@ -830,6 +837,7 @@ export function checkIds(source: string, opts: CheckIdsOptions = {}): CheckIdsRe
       line: e.line,
       col: e.col,
       element: element(e),
+      ...(span ? { span: { start: span.start, end: span.end } } : {}),
     });
 
   // one-sided: expression, format, duplicate
@@ -840,7 +848,11 @@ export function checkIds(source: string, opts: CheckIdsOptions = {}): CheckIdsRe
         'id-expression',
         e,
         `data-cd-id must be a plain string ("…"), line ${e.line}.`,
-        'Write the id as a quoted string literal, or remove the attribute.'
+        'Write the id as a quoted string literal, or remove the attribute.',
+        undefined,
+        at(e),
+        'error',
+        e.idAttr
       );
       continue;
     }
@@ -851,7 +863,10 @@ export function checkIds(source: string, opts: CheckIdsOptions = {}): CheckIdsRe
         e,
         `${idAttr(e.id)} (line ${e.line}) is not a valid element id.`,
         'Use lowercase words joined by "-" (at most 48 characters, never 8 hex characters).',
-        e.id
+        e.id,
+        at(e),
+        'error',
+        e.idAttr
       );
     }
     const list = byId.get(e.id);
@@ -911,7 +926,10 @@ export function checkIds(source: string, opts: CheckIdsOptions = {}): CheckIdsRe
       first,
       `${idAttr(id)} is on ${n} elements (lines ${list.map((e) => e.line).join(', ')}).`,
       'Give the copy a new id or drop it — an id names one element.',
-      id
+      id,
+      at(first),
+      'error',
+      first.idAttr
     );
   }
 

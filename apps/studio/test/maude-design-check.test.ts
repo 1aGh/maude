@@ -318,6 +318,49 @@ describe('checkIntroduced — introduced vs pre-existing', () => {
     const s = splitIntroduced([at(4)], [at(9), at(12)]);
     expect([s.existing.length, s.introduced.length]).toEqual([1, 1]);
   });
+
+  // p8-secfix-hook (V2-8.9 final delta I1) — id findings' identity
+  test('a pre-existing id-duplicate whose lines moved is existing, not introduced', () => {
+    const dup = CANVAS.replace('<p>x</p>', '<p data-cd-id="title">x</p>');
+    const moved = dup.replace('    <DesignCanvas>', '    <DesignCanvas>\n\n\n');
+    const r = checkIntroduced('ui/C.tsx', moved, { against: dup, strict: true });
+    expect(r.existing.map((f) => f.code)).toEqual(['id-duplicate']);
+    expect(r.errors).toEqual([]);
+    // the plural "lines N, M" is line-free too
+    const f = (lines: string) => ({
+      code: 'id-duplicate',
+      where: 'ui/C.tsx:5:7',
+      what: `x (lines ${lines}).`,
+      fix: 'y',
+    });
+    expect(findingKey(f('3, 7'))).toBe(findingKey(f('13, 17')));
+  });
+
+  test('fixing one old id-expression while adding a different one is introduced', () => {
+    const expr = (name: string) => `<span data-cd-id={${name}}>s</span>`;
+    const before = CANVAS.replace('<p>x</p>', `<p>x</p>${expr('a')}`);
+    const after = CANVAS.replace('<p>x</p>', `<p>x</p>${expr('b')}`);
+    const r = checkIntroduced('ui/C.tsx', after, { against: before, strict: true });
+    expect(r.errors.map((e) => e.code)).toEqual(['id-expression']);
+    expect(r.existing).toEqual([]);
+    // the same expression, moved: existing
+    const movedSame = CANVAS.replace(
+      '<h1 data-cd-id="title">Hi</h1>',
+      `${expr('a')}<h1 data-cd-id="title">Hi</h1>`
+    );
+    const m = checkIntroduced('ui/C.tsx', movedSame, { against: before, strict: true });
+    expect(m.errors).toEqual([]);
+    expect(m.existing.map((e) => e.code)).toEqual(['id-expression']);
+    // the key is a digest: no file text rides the finding
+    expect(JSON.stringify(r)).not.toContain('data-cd-id={b}');
+  });
+
+  test('fixing one invalid id while adding another is introduced (id-format)', () => {
+    const before = CANVAS.replace('<p>x</p>', '<p data-cd-id="Bad_One">x</p>');
+    const after = CANVAS.replace('<p>x</p>', '<p data-cd-id="Other_Bad">x</p>');
+    const r = checkIntroduced('ui/C.tsx', after, { against: before, strict: true });
+    expect(r.errors.map((e) => e.code)).toContain('id-format');
+  });
 });
 
 describe('`maude design check` (the verb)', () => {

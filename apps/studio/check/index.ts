@@ -305,6 +305,9 @@ function checkCanvasTsx(rel: string, text: string, opts: CheckOptions, r: CheckR
       line: f.line,
     };
     if (f.element) out.element = f.element;
+    // p8-secfix-hook I1 — identity only: a digest of the id attribute's source, as an artboard
+    // finding has, so a fixed old mapped id and a new different one never cancel out
+    if (f.span) out.key = sourceKey(text.slice(f.span.start, f.span.end));
     (f.severity === 'error' ? r.errors : f.severity === 'warning' ? r.warnings : r.infos).push(out);
   }
 }
@@ -517,7 +520,8 @@ export function findingKey(f: Finding): string {
   return [
     f.code,
     f.where.replace(/:\d+(?::\d+)?(?=$|[\s#›])/g, ''),
-    f.what.replace(/\bline \d+/g, 'line'),
+    // `line N`, and `lines N, M` (id-duplicate) — p8-secfix-hook I1
+    f.what.replace(/\blines? \d+(?:, \d+)*/g, 'line'),
     f.key ?? '',
   ].join('\u0000');
 }
