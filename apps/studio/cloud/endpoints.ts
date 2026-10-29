@@ -27,7 +27,7 @@ import {
 } from 'node:fs';
 import { basename, dirname, join, relative, sep } from 'node:path';
 import { browserDoorOf } from '../client/v2/cloud/browser-door.js';
-import { asFormat, projectFormat } from '../format.ts';
+import { asFormat, formatToKeep } from '../format.ts';
 import { deleteHubCredential, saveHubCredential } from '../sync/hub-link.ts';
 import { getHubToken, normalizeUrl } from '../sync/hubs-config.ts';
 import { deleteProjectLink, linksPath, recordProjectLink } from '../sync/link-consent.ts';
@@ -674,11 +674,14 @@ export function createCloudEndpoints(ctx: Ctx) {
         // pulled from, or raised through, a hub can hold its format ONLY in the
         // per-hub mirror; dropping the link would then read it back as format
         // 1 (view only, never auto-migrated). Carry the hub's value into the
-        // config in the same write — raise only, via projectFormat, never lower.
-        const kept = projectFormat({
+        // config in the same write — raise only, never lower. Clamped to this
+        // build's format (formatToKeep → persistableFormat, p8-secfix-studio
+        // F5/D4): /health is unauthenticated, and a hostile hub's 2^53-1 must
+        // not lock the person's own project view only after they leave it.
+        const kept = formatToKeep({
           cfg: { formatVersion: cfg.formatVersion, linkedHub: url ? { url } : null },
           paths: { designRoot: ctx.paths.designRoot },
-        }).value;
+        });
         if (kept > asFormat(cfg.formatVersion)) cfg.formatVersion = kept;
         delete cfg.linkedHub;
         // Temp + rename (security review 2026-08-10, F5) — config.json is the

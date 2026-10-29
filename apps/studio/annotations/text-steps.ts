@@ -141,22 +141,55 @@ export interface TextStep {
 /** How many recorded steps are kept (the ⌘Z stack reads at most 200 rows). */
 export const MAX_TEXT_STEPS = 500;
 
+/**
+ * How much text the ledger holds in all (p8-secfix-studio, V2-8.9 D6). The step
+ * count alone let 500 steps of a 4 MiB board pin ~2 GiB. 32 MiB is a few
+ * board-sized steps, and thousands of ordinary ones (a typing step is tens of
+ * bytes), so the cap is never felt in normal use. Measured as JS strings are
+ * held (2 bytes per UTF-16 unit). The oldest steps go first; an evicted step
+ * answers "no conflict" and the kernel keeps its rule, exactly like a step past
+ * MAX_TEXT_STEPS. The newest step is always kept, so the worst case is the cap
+ * plus one board.
+ */
+export const MAX_TEXT_STEP_BYTES = 32 * 1024 * 1024;
+
+/** The in-memory size of one step's strings (UTF-16: 2 bytes a unit). */
+function stepBytes(step: TextStep): number {
+  let units = step.slug.length;
+  for (const [id, left] of step.slots) units += id.length + (left?.length ?? 0);
+  for (const id of step.contested) units += id.length;
+  return units * 2;
+}
+
 /** The home's half: what each recorded step left in the text slots it touched. */
-export function createTextStepLedger(max = MAX_TEXT_STEPS) {
-  const steps = new Map<string, TextStep>();
+export function createTextStepLedger(max = MAX_TEXT_STEPS, maxBytes = MAX_TEXT_STEP_BYTES) {
+  const steps = new Map<string, { step: TextStep; bytes: number }>();
+  let total = 0;
+  const drop = (actionId: string) => {
+    const had = steps.get(actionId);
+    if (!had) return;
+    total -= had.bytes;
+    steps.delete(actionId);
+  };
   return {
     note(actionId: string, step: TextStep): void {
       if (!step.slots.size && !step.contested.length) return;
-      steps.delete(actionId);
-      steps.set(actionId, step);
-      while (steps.size > max) {
+      drop(actionId);
+      const bytes = stepBytes(step);
+      steps.set(actionId, { step, bytes });
+      total += bytes;
+      while (steps.size > 1 && (steps.size > max || total > maxBytes)) {
         const oldest = steps.keys().next().value;
         if (oldest === undefined) break;
-        steps.delete(oldest);
+        drop(oldest);
       }
     },
     get(actionId: string): TextStep | undefined {
-      return steps.get(actionId);
+      return steps.get(actionId)?.step;
+    },
+    /** The strings held, in bytes (what `maxBytes` caps). */
+    bytes(): number {
+      return total;
     },
     /**
      * Would undoing `ids` drop a collaborator's text? One target (⌘Z): contested, or a slot that no
@@ -170,7 +203,7 @@ export function createTextStepLedger(max = MAX_TEXT_STEPS) {
     ): boolean {
       const boards = new Map<string, Map<string, string> | null>();
       for (const id of ids) {
-        const step = steps.get(id);
+        const step = steps.get(id)?.step;
         if (!step) continue;
         if (step.contested.length) return true;
         if (ids.length > 1) continue;

@@ -269,6 +269,20 @@ for (const [what, arrange] of [
   });
 }
 
+// p8-secfix-studio (V2-8.9 F5/D4): /health is unauthenticated, so a hostile hub
+// can put any number in the mirror. What reaches the versioned config is clamped
+// to the format this build edits, or the project stays view only for good.
+for (const verb of ['unlink', 'detach']) {
+  test(`${verb} from a hub reporting 9007199254740991 writes at most format 2`, async () => {
+    await runCli(['design', 'link', URL, '--token', 'mau_test']);
+    writeMirror(Number.MAX_SAFE_INTEGER);
+    const res = await runCli(['design', verb, ...(verb === 'detach' ? ['--yes'] : [])]);
+    assert.equal(res.status, 0, res.stderr);
+    assert.equal(readCfg().formatVersion, 2);
+    cleanup();
+  });
+}
+
 test('unlink never lowers a config already at 2', async () => {
   await runCli(['design', 'link', URL, '--token', 'mau_test']);
   const cfg = readCfg();

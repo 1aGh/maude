@@ -41,7 +41,7 @@ import { renewHubCredential } from '../cloud/renew.ts';
 import { Y_TYPES } from '../collab/persistence.ts';
 import type { Context, LinkedHub } from '../context.ts';
 import { PROJECT_CONFIG_CACHE_REL, reloadConfig, sanitizeProjectConfig } from '../context.ts';
-import { projectFormat, SUPPORTED_FORMAT } from '../format.ts';
+import { persistableFormat, projectFormat, SUPPORTED_FORMAT } from '../format.ts';
 import type { TrashListing, TrashOutcome } from '../history/trash.ts';
 import { createHistory } from '../history.ts';
 import { SYNTHETIC_FS_DELAY_MS } from '../hmr-broadcast.ts';
@@ -6967,7 +6967,8 @@ function designConfigPath(ctx: Context): string {
  * A hub at format 2 or higher stamps `formatVersion` (decision 2A): the
  * pulled project is a format-N project, and without the stamp a later detach
  * or relink would read it back as format 1 (view only). A 1.x hub stamps
- * nothing — absent already means 1.
+ * nothing — absent already means 1. The stamp is capped at SUPPORTED_FORMAT
+ * (`persistableFormat`); exported for test/p8-secfix-format-clamp.test.ts.
  *
  * ADDITIVE AND ONE-SHOT. It refuses outright if a config already exists — a
  * user's own declaration is never edited by the sync runtime, and the caller's
@@ -6975,12 +6976,15 @@ function designConfigPath(ctx: Context): string {
  * Best-effort: a read-only design root costs the project its tidiness, never
  * its sync.
  */
-function seedProjectConfig(
+export function seedProjectConfig(
   ctx: Context,
   learnedGroups: ReadonlySet<string>,
   owned: boolean,
   hubFormat = 1
 ): boolean {
+  // The hub's format reached us over an unauthenticated /health; the versioned
+  // config never records more than this build edits (p8-secfix-studio F5/D4).
+  const keep = persistableFormat(hubFormat);
   const file = designConfigPath(ctx);
   if (existsSync(file) && !owned) return false;
   const declared = (ctx.cfg.canvasGroups ?? []).map((g) => g.path);
@@ -6993,7 +6997,7 @@ function seedProjectConfig(
           name: ctx.cfg.name,
           designRoot: ctx.paths.designRel,
           canvasGroups: groups.map((p) => ({ label: p, path: p })),
-          ...(hubFormat >= 2 ? { formatVersion: hubFormat } : {}),
+          ...(keep >= 2 ? { formatVersion: keep } : {}),
         },
         null,
         2

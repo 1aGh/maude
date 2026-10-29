@@ -825,7 +825,9 @@ function readDesignConfig(path) {
  * hub's format). A project pulled from, or raised through, a hub can hold its
  * format ONLY in the per-hub mirror (`<designRoot>/_state/hub-format.json`,
  * apps/studio/format.ts `readHubFormatCache`); dropping the link without it
- * reads the person's own project back as format 1 — view only. RAISE ONLY.
+ * reads the person's own project back as format 1 — view only. RAISE ONLY,
+ * and never above CLI_SUPPORTED_FORMAT (a build never persists a format it
+ * cannot open).
  *
  * This is the CLI copy of the studio's `detach()` rule
  * (apps/studio/cloud/endpoints.ts, which calls `projectFormat`). The CLI is
@@ -845,9 +847,18 @@ export function hubFormatToCarry(cfg, designRoot) {
     return null;
   }
   if (typeof mirror?.hub !== 'string' || norm(mirror.hub) !== norm(url)) return null;
-  const hub = asFormat(mirror.formatVersion);
+  // Clamped to the format this build edits (studio `persistableFormat`,
+  // p8-secfix-studio F5/D4): the mirror is fed by the unauthenticated /health,
+  // and a hostile hub's 2^53-1 must not lock the project view only for good.
+  const hub = Math.min(asFormat(mirror.formatVersion), CLI_SUPPORTED_FORMAT);
   return hub > asFormat(cfg.formatVersion) ? hub : null;
 }
+
+/**
+ * The CLI's restatement of apps/studio/format.ts `SUPPORTED_FORMAT` (Node can't
+ * import the TypeScript). test/p8-secfix-format-clamp.test.ts pins the two.
+ */
+export const CLI_SUPPORTED_FORMAT = 2;
 
 /** Write the config without its link, keeping the project's format (see above). */
 function dropLinkedHub(cfg, designConfigPath) {
