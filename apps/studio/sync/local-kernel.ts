@@ -50,6 +50,11 @@ import { createKernel, EMPTY_HASH, PROTOCOL } from '../../hub/src/project-transa
 import { laneHash, mergeLane } from '../../hub/src/project-transactions/lanes.mjs';
 import { createStoreCore } from '../../hub/src/project-transactions/store-core.mjs';
 import { serializeBoard } from '../annotations/schema.ts';
+import {
+  boardTextSlots,
+  changedTextSlots,
+  createTextStepLedger,
+} from '../annotations/text-steps.ts';
 import { attributeArtboards } from '../attribute-artboards.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import { bumpTrashSeq, type TrashListing } from '../history/trash.ts';
@@ -571,8 +576,20 @@ export interface LocalRuntime {
      * `stageable` (S4.20 G3): a run-tagged board batch (annotations/run-tag.ts `stageRunAnnotations`)
      * joins the run's stage when the stage claims it, so the run lands as ONE `ai` action.
      */
-    opts?: { baseText?: string; writeId?: string; stageable?: boolean }
+    opts?: {
+      baseText?: string;
+      writeId?: string;
+      stageable?: boolean;
+      /** p8-undo-collab-refuse — texts a collaborator changed during this stroke (collab room). */
+      contested?: readonly string[];
+    }
   ): null;
+  /**
+   * p8-undo-collab-refuse (Michal option b2) — would this undo drop a collaborator's text? True for
+   * a board step a collaborator typed into while it was made, or (one target) whose text no longer
+   * holds what the step left; routes/project-undo.ts then answers 409 `undo-conflict`. Redo: false.
+   */
+  textUndoConflict(target: string | UndoTarget, redo?: boolean): Promise<boolean>;
   endAiAction(
     key: string,
     outcome: 'done' | 'failed' | 'stopped',
@@ -1629,10 +1646,18 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
    */
   const strokes = new Set<Promise<unknown>>();
   const lastStroke = new Map<string, string>();
+  // p8-undo-collab-refuse — what each recorded stroke left in the text slots it changed, and the
+  // texts a collaborator changed during it (annotations/text-steps.ts). Session scope, like ⌘Z.
+  const textSteps = createTextStepLedger();
   /** The one dedupe key of a stroke — `proposeStroke` and `stageStroke` must agree on it. */
   const strokeKey = (text: string, baseText: string | undefined) =>
     `${baseText ?? '\u0000none'}\u0000${text}`;
-  function proposeStroke(slug: string, text: string, baseText: string | undefined): void {
+  function proposeStroke(
+    slug: string,
+    text: string,
+    baseText: string | undefined,
+    contested: readonly string[] = []
+  ): void {
     // A room's projection repeats the board the PUT just proposed: the same bytes ON THE SAME BASE are
     // one stroke. sec-a L1: the base is part of the key — the same bytes over a base the last stroke
     // didn't name (an outside write in between) go on to proposeLanesNow, which keeps its outside row.
@@ -1651,6 +1676,14 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
             [{ lane: 'annotations', text, baseText: baseText ?? null }],
             { kind: 'edit', label: STUDIO_LANE_LABEL.annotations }
           );
+          if (r.status === 'accepted' && r.actionId) {
+            textSteps.note(r.actionId, {
+              slug,
+              // an unknown base (null) records no slots: only the contest is known then
+              slots: baseText === undefined ? new Map() : changedTextSlots(baseText, text),
+              contested: [...contested],
+            });
+          }
           return r;
         })
       )
@@ -2087,6 +2120,21 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         })
       );
     },
+    async textUndoConflict(raw, redo = false) {
+      if (redo) return false;
+      await settled();
+      const target = asTarget(raw);
+      const ids =
+        'actionId' in target ? [target.actionId] : 'actionIds' in target ? target.actionIds : [];
+      return textSteps.conflict(ids, (slug) => {
+        if (!/^[a-z0-9][a-z0-9._-]*$/i.test(slug) || slug.includes('..')) return null;
+        try {
+          return boardTextSlots(readFileSync(abs(`${slug}.annotations.json`), 'utf8'));
+        } catch {
+          return new Map();
+        }
+      });
+    },
     async acceptedUndo(raw, redo = false, o) {
       await settled();
       if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
@@ -2202,7 +2250,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       if (!lock || closed) return null;
       if (lane === 'annotations') {
         if (!(o?.stageable === true && stageStroke(slug, text, o.baseText, o.writeId)))
-          proposeStroke(slug, text, o?.baseText);
+          proposeStroke(slug, text, o?.baseText, o?.contested);
       } else noteLane(slug, lane, text);
       return null;
     },
@@ -2455,28 +2503,35 @@ export function attachLocalHome<S extends SupervisorLike>(
     }
   );
   // S2.20b (U20) — a collab room projecting its board (collab/index.ts): the person's strokes.
-  ctx.bus.on('annotations-projected', (p: { slug?: unknown; board?: unknown } | null) => {
-    if (!isLocal() || typeof p?.slug !== 'string' || typeof p.board !== 'string') return;
-    // Emitted BEFORE the room's flush writes: the file still holds the board this stroke replaces.
-    const safe = /^[a-z0-9][a-z0-9._-]*$/i.test(p.slug) && !p.slug.includes('..');
-    let before: string | undefined;
-    if (safe) {
-      try {
-        before = readFileSync(
-          path.join(ctx.paths.designRoot, `${p.slug}.annotations.json`),
-          'utf8'
-        );
-      } catch {
-        before = undefined;
+  ctx.bus.on(
+    'annotations-projected',
+    (p: { slug?: unknown; board?: unknown; contested?: unknown } | null) => {
+      if (!isLocal() || typeof p?.slug !== 'string' || typeof p.board !== 'string') return;
+      // Emitted BEFORE the room's flush writes: the file still holds the board this stroke replaces.
+      const safe = /^[a-z0-9][a-z0-9._-]*$/i.test(p.slug) && !p.slug.includes('..');
+      let before: string | undefined;
+      if (safe) {
+        try {
+          before = readFileSync(
+            path.join(ctx.paths.designRoot, `${p.slug}.annotations.json`),
+            'utf8'
+          );
+        } catch {
+          before = undefined;
+        }
       }
+      get()?.runtime.proposeLane(p.slug, 'annotations', p.board, {
+        ...(before === undefined ? {} : { baseText: before }),
+        ...(Array.isArray(p.contested)
+          ? {
+              contested: p.contested
+                .filter((x): x is string => typeof x === 'string')
+                .slice(0, 5000),
+            }
+          : {}),
+      });
     }
-    get()?.runtime.proposeLane(
-      p.slug,
-      'annotations',
-      p.board,
-      before === undefined ? {} : { baseText: before }
-    );
-  });
+  );
   // The studio announces a move BEFORE it renames the file (api.ts moveCanvas), so the watcher cannot
   // record the old path vanishing as a delete while the sidecars are still moving.
   ctx.bus.on('canvas-move-begin', (change: { rel?: string; fromRel?: string } | null) => {

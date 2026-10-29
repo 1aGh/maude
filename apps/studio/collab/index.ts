@@ -81,7 +81,10 @@ export function createCollab(ctx: Context, api: Api): Collab {
       diskBase.set(slug, board);
       // S2.20b (U20) — the room's board is about to land on disk: a local project's home records
       // it as the person's `edit` (sync/local-kernel.ts), never `outside`. Emitted before the write.
-      ctx.bus.emit('annotations-projected', { slug, board });
+      // `contested` (p8-undo-collab-refuse): texts a collaborator changed during this step — the
+      // home refuses its ⌘Z (annotations/text-steps.ts).
+      const contested = registryRef?.takeTextContest(slug) ?? [];
+      ctx.bus.emit('annotations-projected', { slug, board, contested });
     },
     onAnnotationsSeeded: (slug, board) => {
       diskBase.set(slug, board);
