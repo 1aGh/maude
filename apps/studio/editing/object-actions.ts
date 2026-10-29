@@ -9,6 +9,7 @@
 import { useMemo, useRef } from 'react';
 
 import { showCanvasToast } from '../canvas-notifications.tsx';
+import { postToShell } from '../bridge/dgn-protocol.ts';
 import type { ContextTarget } from '../context-menu.tsx';
 import { hoverTargetToSelection, resolveSelectionEl } from '../dom-selection.ts';
 import { hasStyleToMatch, matchSignature } from '../edit-ops/select-matching.ts';
@@ -136,6 +137,15 @@ export function useObjectOps(clipboard?: Clipboard): ObjectOps {
             },
           }
         : {}),
+      // p8-dead-reasons — the object is selected first (the shell opens history only for an object the frame has
+      // shown it: object-history-ask.js), then the shell is asked; it runs `history.object`
+      history: (t) => {
+        const [el] = elementsFor(t);
+        const ref = el ? refOfElement(el) : null;
+        if (!el || !ref) return;
+        if (!selectedElements().includes(el)) live.current.selSet.replace([selectionOf(el)]);
+        postToShell(window, 'object-history', { artboard: ref.artboard, element: ref.element });
+      },
       selectMatching: (t) => {
         const found = t.el ? matchingElements(t.el) : [];
         if (found.length > 1) live.current.selSet.replace(found.map(selectionOf));

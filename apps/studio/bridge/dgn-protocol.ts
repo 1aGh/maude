@@ -147,6 +147,8 @@ export interface CanvasToShell {
   'annotation-toast': { v: 1; message: string; undo: boolean };
   // S4.12 — ⌘/ (or Ask AI about it) with annotations selected: open the AI chat with that scope.
   'annotation-ask-ai': { v: 1 };
+  /** p8-dead-reasons — "Version history of this object" from the object / sticky menu: one element or one annotation. */
+  'object-history': { artboard?: string; element?: string; annotation?: string };
   // S9.21b (10 co-ask-edit) — a read-only canvas saw a drag on the design go nowhere; the shell shows its own
   // "You can look at …, not change it." tip. No text, no element (DDR-054). Round 7: `x`/`y` — the pointer's
   // position inside the canvas frame (whole CSS px, 0–16384; numbers only) — so the tip sits beside the pointer
@@ -1289,6 +1291,19 @@ const c2s: C2S = {
     status: 'live',
     owner: 'annotations-layer (S4.12) → shell AI chat',
     parse: p({ v: lit(1) }),
+  },
+  // p8-dead-reasons (`history.object`) — the object menu / sticky menu row. The shell takes no path from it: the
+  // object must be one the active frame already showed (its selection, its layers tree, its annotation
+  // selection — client/v2/history/object-history-ask.js), and the panel opens through the registry action.
+  'object-history': {
+    gate: 'active',
+    status: 'live',
+    owner: 'editing/object-menu.tsx + annotations-layer (sticky menu) → shell history.object',
+    parse: p({
+      artboard: opt(linkArtboardIdV),
+      element: opt(shortStr(128)),
+      annotation: opt(annotationIdV),
+    }),
   },
   'view-only-gesture': {
     gate: 'active',
