@@ -500,14 +500,26 @@ describe('team-cell-missing (native-desktop)', () => {
       designer: ids(read(join(c.designer, '.design', RACE))),
       teammate: ids(read(join(c.teammate, '.design', RACE))),
     });
-    await eventually(
-      'both copies agree on one of the two outcomes',
-      () => {
-        const n = now();
-        return same(n.designer, n.teammate) && (same(n.designer, aliceWins) || same(n.designer, bobWins));
-      },
-      240_000
-    );
+    try {
+      await eventually(
+        'both copies agree on one of the two outcomes',
+        () => {
+          const n = now();
+          return same(n.designer, n.teammate) && (same(n.designer, aliceWins) || same(n.designer, bobWins));
+        },
+        240_000
+      );
+    } catch (e) {
+      console.log(
+        `[team-cell-missing] DUMP ${JSON.stringify({
+          now: now(),
+          cell: ids(read(join(c.cellRepo, '.design', RACE))),
+          alice: (read(join(c.teammate, '.design', '_sync.json')) ?? '').replace(/\s+/g, ' ').slice(0, 1200),
+          bob: JSON.stringify((await bobGet('/_sync-status')).body).slice(0, 1200),
+        })}`
+      );
+      throw e;
+    }
     const n = now();
     console.log(`[team-cell-missing] race outcome: ${same(n.designer, aliceWins) ? 'alice' : 'bob'} kept her trash: ${JSON.stringify(n.designer)}`);
     expect(n.designer.length).toBeGreaterThan(0);
@@ -542,6 +554,13 @@ describe('team-cell-missing (native-desktop)', () => {
       LETAK_SOURCE.replace(/ {8}<DCArtboard[\s\S]*<\/DCArtboard>\n/, '')
     );
     expect(ids(read(join(c.designer, '.design', LETAK)))).toEqual([]);
+    // the hand edit is accepted (it reaches alice) before anyone restores into it: a restore over a local edit the
+    // cell has not taken yet would be held, not applied
+    await eventually(
+      'the empty canvas at alice’s',
+      () => ids(read(join(c.teammate, '.design', LETAK))).length === 0,
+      120_000
+    );
 
     const card = await $(tid('all-trashed'));
     await card.waitForDisplayed({ timeout: 90_000 });
