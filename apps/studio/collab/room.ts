@@ -25,11 +25,14 @@ import {
   applySyncMessage,
   type CollabConn,
   encodeAwarenessFrame,
+  encodeEpochVerdict,
   encodeHandshake,
   encodeSyncUpdate,
   handleMessage,
   MESSAGE_AWARENESS,
+  MESSAGE_EPOCH,
   MESSAGE_SYNC,
+  readEpochClaim,
   readMessageType,
 } from './protocol.ts';
 import { EDITOR_ONLY_FIELDS, MEMBER_ONLY_FIELDS } from './timeline-awareness.ts';
@@ -135,7 +138,19 @@ export interface RoomCallbacks {
    * Awareness is unaffected. Optional; absent means false.
    */
   acceptedMode?: () => boolean;
+
+  /**
+   * p8-collab-epoch (decision `v2-p8-collab-epoch`) — this server instance's
+   * epoch. When set, a peer's sync writes are taken only once it has claimed
+   * this epoch (or '' — a doc that never synced): a doc synced under an earlier
+   * instance is never replayed into this room. Absent = no check (rooms built
+   * directly by tests, the pre-epoch behaviour).
+   */
+  epoch?: string;
 }
+
+/** Where a conn stands on the epoch check (only while `RoomCallbacks.epoch` is set). */
+type EpochStanding = 'unknown' | 'ok' | 'stale' | 'legacy';
 
 export interface Room {
   readonly slug: string;
@@ -165,6 +180,8 @@ export interface Room {
    * canvas script tried to write source — worth surfacing, never expected.
    */
   gateRefusals(): number;
+  /** Test/inspection: sync writes refused because the peer's doc is from an earlier instance. */
+  epochRefusals(): number;
 }
 
 const DEBOUNCE_MS = 800;
@@ -242,6 +259,8 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
     let forFollower: Uint8Array | null | undefined;
     for (const c of conns.values()) {
       if (except && c.id === except.id) continue;
+      // p8-collab-epoch — a stale peer is about to drop its doc; it hears nothing until it rejoins.
+      if (epochOf.get(c.id) === 'stale') continue;
       let out: Uint8Array | null = payload;
       if (c.follow === true) {
         if (forFollower === undefined) forFollower = toFollower(payload);
@@ -446,7 +465,14 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
   async function connect(conn: RoomConn): Promise<void> {
     await getOrStartSeed();
     conns.set(conn.id, conn);
-    const frames = encodeHandshake(doc, awareness);
+    // p8-collab-epoch — with the check on, this room asks for the peer's state
+    // (sync step 1) only after the peer claimed this epoch (`receiveClaim`), so
+    // a doc from an earlier instance is never asked for. Awareness goes now.
+    let frames = encodeHandshake(doc, awareness);
+    if (callbacks.epoch !== undefined) {
+      if (!epochOf.has(conn.id)) epochOf.set(conn.id, 'unknown');
+      frames = frames.filter((f) => readMessageType(f) !== MESSAGE_SYNC);
+    }
     for (const frame of frames) {
       const out = conn.follow === true ? toFollower(frame) : frame;
       if (out) conn.send(out);
@@ -455,6 +481,7 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
 
   function disconnect(conn: RoomConn): void {
     conns.delete(conn.id);
+    epochOf.delete(conn.id);
     // Remove the awareness states this conn published (tracked by update origin
     // in connByClient) so other peers' cursor renderers drop the avatar now,
     // not after the ~30s awareness timeout.
@@ -566,7 +593,91 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
     }
   }
 
+  // --- Handshake epoch (p8-collab-epoch) -----------------------------------
+  //
+  // A server restart builds a NEW room doc (from `.ydoc.bin`, or from the files
+  // when there is none — fresh items). A peer that stayed open still holds the
+  // previous instance's doc and answered the new room's sync step 1 with ALL of
+  // it: the old lineage merged in as new items — comments doubled, an element
+  // deleted while the studio was down came back, a body copied once per restart.
+  // So the room asks a peer for its state only under this instance's epoch.
+  const epochOf = new Map<string, EpochStanding>();
+  let epochRefusalCount = 0;
+
+  /** A claim frame: answer the verdict; on a match, ask for the peer's state. */
+  function receiveClaim(conn: RoomConn, claim: string | null): void {
+    const epoch = callbacks.epoch ?? '';
+    const accepted = claim !== null && (claim === epoch || claim === '');
+    epochOf.set(conn.id, accepted ? 'ok' : 'stale');
+    try {
+      conn.send(encodeEpochVerdict(epoch, accepted));
+    } catch {
+      /* close handler will clean up */
+    }
+    if (!accepted) return;
+    // The handshake connect() held back: sync step 1 (now the peer's state may
+    // come) and the room's presence again (a fresh join has a fresh awareness).
+    void getOrStartSeed().then(() => {
+      if (destroyed || epochOf.get(conn.id) !== 'ok') return;
+      for (const frame of encodeHandshake(doc, awareness)) {
+        const out = conn.follow === true ? toFollower(frame) : frame;
+        if (out) conn.send(out);
+      }
+    });
+  }
+
+  /**
+   * May this frame pass the epoch check? A stale peer (claimed an earlier epoch)
+   * is about to start a fresh doc: nothing from it applies. A peer that sent no
+   * claim at all (a 1.x client) is a legacy peer: it may read (its sync step 1
+   * is answered) and keep its presence, but its doc is never written into this
+   * room — the same as a mismatch, minus the reset it cannot do.
+   */
+  function epochAdmits(conn: RoomConn, payload: Uint8Array): boolean {
+    let standing = epochOf.get(conn.id) ?? 'unknown';
+    if (standing === 'unknown') {
+      standing = 'legacy';
+      epochOf.set(conn.id, standing);
+      try {
+        conn.send(encodeEpochVerdict(callbacks.epoch ?? '', false));
+      } catch {
+        /* close handler will clean up */
+      }
+    }
+    if (standing === 'ok') return true;
+    if (standing === 'stale') {
+      if (readMessageType(payload) === MESSAGE_SYNC) epochRefusalCount += 1;
+      return false;
+    }
+    // legacy
+    let type = -1;
+    let sub = -1;
+    try {
+      const dec = decoding.createDecoder(payload);
+      type = decoding.readVarUint(dec);
+      if (type === MESSAGE_SYNC) sub = decoding.readVarUint(dec);
+    } catch {
+      return false;
+    }
+    if (type !== MESSAGE_SYNC || sub === SYNC_STEP_1) return true;
+    epochRefusalCount += 1;
+    return false;
+  }
+
   function receive(conn: RoomConn, raw: Uint8Array): void {
+    if (callbacks.epoch !== undefined) {
+      let type = -1;
+      try {
+        type = readMessageType(raw);
+      } catch {
+        return;
+      }
+      if (type === MESSAGE_EPOCH) {
+        receiveClaim(conn, readEpochClaim(raw));
+        return;
+      }
+      if (!epochAdmits(conn, raw)) return;
+    }
     const payload = ownAwareness(conn, raw);
     if (!payload) return;
     if (conn.follow === true) {
@@ -637,6 +748,7 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
     destroy,
     size: () => conns.size,
     gateRefusals: () => gateRefusalCount,
+    epochRefusals: () => epochRefusalCount,
   };
 }
 

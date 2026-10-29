@@ -100,7 +100,8 @@ test('the fake-AI helper refuses a config home that is not a throwaway', () => {
 
 test('cloud and team-project lanes sit on the local hub, never a real one', () => {
   const cloud = read('wdio.cloud.conf.ts');
-  assert.match(cloud, /startLocalHub/);
+  // p8-fix-e: the cloud lane's hub owns a checkout like a real cell (startCloudLaneCell, same local-hub fixture)
+  assert.match(cloud, /startLocalHub|startCloudLaneCell/);
   assert.match(cloud, /mintProjectToken/);
   assert.match(
     cloud,

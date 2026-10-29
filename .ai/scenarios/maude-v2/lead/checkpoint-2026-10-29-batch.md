@@ -84,3 +84,22 @@ for Michal. The ledger / Progress log: the new done lines and the gate records a
   5. Figma not_found words + the hub-without-checkout message/stop-retry.
 - The re-entry item (DS convert / Update project) is folded into p8-v1-drop-desktop: ds-upgrade is always reachable,
   and project update is automatic.
+
+## Update ~20:00
+- Merged and pushed to feat `c7a51a7c7`: dead-reasons, fix-c, the dynamic sweep, collab-epoch, v1-drop-cloud, plus the
+  cloud-lane pin fix.
+- Running:
+  - A1 part 2 (Edit/Write claims) `a6c2d80c…`
+  - v1-drop-desktop part 2 (deleting the legacy lanes, DS auto + ⌘K ds.upgrade, loopback test) `a7c70936…`
+  - sweep-leftovers `a2f8587a…`
+  - fix-c2 `af7cbeee…`
+  - port-gc `a08b0775…`
+  - held-conflict-status "Not saved" + Compare + toast `a5fa1305…`
+- Queue:
+  1. **Self-hosted hubs convert at 2.0.0 too + kill switch `CELL_V2_CONVERT=0`** (cells + self-hosted, default on;
+     documented in the release guide + self-host docs `design:self-host` / site; test: at 0 nothing converts and
+     `/health` says so). kg maude/v2-michal-selfhost-convert-killswitch-held-conflict.
+  2. Hub-linked drafts as one ⌘Z step.
+  3. Import from a link (+ security pair).
+  4. The Google key sheet.
+  5. Figma not_found + the hub-without-checkout message.

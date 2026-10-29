@@ -272,7 +272,33 @@ The split is the tag filters (stable workflows: `['v*.*.*', '!v*.*.*-*']`; the t
 
 **Verify an rc:** `gh release view vX.Y.Z-rc.N --json isPrerelease` → `true`; `npm view @1agh/maude dist-tags` → `next` is the rc, `latest` unchanged; no `hub-image` / `cells-deploy` / `render-deploy` / `selfhost-images` run exists for the tag's SHA (`gh run list --workflow cells-deploy.yml --limit 3`). Nothing to verify in the fleet — it was not touched.
 
-**Promote:** `scripts/bump-version.sh promote` → the stable release, through every step above as an ordinary release (it rolls the fleet, moves `latest`, stamps What's New). rc installs pick it up through the feed; `next` can stay where it is (`npm dist-tag add @1agh/maude@X.Y.Z next` if you want `@next` to stop lagging).
+**Promote:** `scripts/bump-version.sh promote` → the stable release, through every step above as an ordinary release (it rolls the fleet, moves `latest`, stamps What's New). rc installs pick it up through the feed; `next` can stay where it is (`npm dist-tag add @1agh/maude@X.Y.Z next` if you want `@next` to stop lagging). **The 2.0.0 promote also converts every cloud project** — verify it with the section below.
+
+### Verify the cloud converted every project (the 2.0.0 promote)
+
+**The stable 2.0.0 deploy converts every cloud project** (decision `maude/v2-michal-drop-v1-auto-convert`). Each cell does it on its first start under the new image, inside its hub (`apps/hub/src/v2-convert.mjs`, after the project store is read): a full backup generation first, then format 2, then accepted revisions, as the service (`cell:self`), never a person. It runs only when the image's own version is a stable release ≥ 2.0.0 (hub and studio layers both) — **an rc or a 1.x image never converts.** A running cell converts when the rollout restarts it; a sleeping one when it next wakes. A second start converts nothing.
+
+Before you promote, keep `CELL_PROJECT_STORE` and `CELL_LIVE_PAIRING` at `"*"` in `apps/cells/wrangler.toml`: a cell without a durable store or a paired studio refuses the save-mode switch, and its project is left as it was (`store-not-durable` / `browser-not-paired`).
+
+What to look at:
+
+```bash
+# 1. The cells-deploy run: its last step "Report the Maude 2 cloud conversion" (log + run summary):
+#      [v2-convert] fleet converted=N skipped=N failed=N cells=M unreported=K
+#    It reads /health of the probe cell (CELL_CONVERT_HEALTH_URLS, space-separated, for more).
+# 2. Any cell, any time after its first 2.0.0 start:
+curl -s https://<tenant>.cloud.maude.sh/health | jq .v2Convert
+#      {"state":"done","converted":1,"skipped":0,"failed":0,"at":"…"}
+# 3. The cell's own log (Cloudflare dashboard › Containers › maude-cells › the instance's logs):
+#      [v2-convert] converted=1 skipped=0 failed=0
+#      [v2-convert] <tenant>: FAILED (<reason>) — left as it was        ← only on a failure
+```
+
+**Expected:** on the cell's first 2.0.0 start `converted=1` (a v1 project) or `skipped=1` (already format 2 in accepted revisions), `failed=0`; on every start after that `skipped=1`. `"state":"gated"` on a 2.0.0 cell means the image is not what it claims to be (`reason`: `prerelease`, `v1`, `unknown-version`) — treat it as the v0.57.0 failure in § "Verify the fleet actually rolled". A cell that reports nothing (`unreported`) is asleep or still starting.
+
+**`failed>0` does not fail the deploy and needs no rollback.** That project was left exactly as it was (a format flip whose switch then failed is flipped back) and is still served; rolling the fleet back would not convert it either. Read the reason in the cell's log, fix the cause, then restart that cell (§ "The fleet rolled but a cell still behaves like the OLD release" — the sanctioned `_cell/restart`, or let it idle-sleep): the restart converts it, and a converted project is never touched twice. The reasons: `store-not-durable` / `browser-not-paired` → the fleet vars above; `backup: …` → the bucket or its credentials (the conversion never runs without its backup); `store-unreadable` / anything else → the tenant's ProjectStore Durable Object.
+
+**The backup** is a full generation — the documents (`hub.db`), the journal and the checkout bundle, the same set a cold start restores — at `<bucket>/tenants/<tenant>/v2-convert/backups/<stamp>/`, a keyspace of its own that the regular six-hourly schedule never prunes. The format and the save mode live in the tenant's ProjectStore Durable Object, not in that backup: putting a project back means restoring the generation the way a cold start does (`apps/hub/src/rehydrate.mjs` against the `tenants/<tenant>/v2-convert` prefix) **and** setting the store back with the cell secret (`POST /api/project-format {"formatVersion":1}`, then `POST /api/projects/current/v1/mode {"mode":"legacy"}`).
 
 **Known gaps:** a Linux `.deb` built at `X.Y.Z-rc.N` sorts ABOVE `X.Y.Z` for dpkg (the part after `-` is a Debian revision) — the `.deb` does not self-update and a manual `dpkg -i` of the stable one only warns, but a future apt repo would need `X.Y.Z~rc.N`. A 1.x maintenance release while `main` is on an rc would have to be cut from a branch; there is no recipe for that yet.
 

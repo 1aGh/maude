@@ -103,6 +103,8 @@ export const EXPORT_ACTIONS: ActionDef[] = [
     exec: 'shell',
     // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
     visible: { minRole: 'comment' },
+    // the dynamic dead-control sweep: with no canvas open the row did nothing while the Share button greys out
+    enabled: { facts: ['canvasOpen'] },
     legacy: { menu: 'Share link…' },
   },
   {
