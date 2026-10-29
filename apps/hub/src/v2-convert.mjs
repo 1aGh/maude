@@ -1,7 +1,9 @@
 // The cloud's v1 → v2 conversion (Michal: decision `maude/v2-michal-drop-v1-auto-convert`) —
 // "With the deploy of the new cloud, all projects should be converted."
 //
-// WHERE IT RUNS: inside the cell's hub process, at boot, once the project store has been read —
+// WHERE IT RUNS (p8-selfhost-convert widened it): in a cell's hub AND in a self-hosted
+// workspace hub (`maude hub workspace-up`) — the same gate, backup and report; `CELL_V2_CONVERT=0`
+// stops both. Inside the hub process, at boot, once the project store has been read —
 // the same chain that already resumes a half-done switch and adopts a new project's mode
 // (`acceptedReady`, server.mjs). Not a separate step in `infra/cell/entrypoint.sh`: the format
 // and the save mode live in the project coordinator (`hub-integration.mjs` — the store, the
@@ -47,14 +49,43 @@ export function parseStableVersion(v) {
   return m ? { major: Number(m[1]), minor: Number(m[2]), patch: Number(m[3]) } : null;
 }
 
+/** The kill switch's name — the same for a cell (projected by apps/cells/cell-config.mjs) and a
+ *  self-hosted hub (its own env). */
+export const KILL_SWITCH = 'CELL_V2_CONVERT';
+
+/** Is a workspace-mode hub — the env server.mjs reads for `workspaceMode`. */
+function isWorkspaceEnv(env) {
+  return env.HUB_WORKSPACE_MODE === '1' || env.MAUDE_WORKSPACE_MODE === '1';
+}
+
 /**
  * May this process convert? `{ run: true }` or `{ run: false, reason }`.
- * Both version layers must be a stable release ≥ 2.0.0 — a disagreement between them is the
- * signal `/health` already treats as "this image was built wrong", so it never converts.
+ *
+ * WHO: a cell (a valid MAUDE_TENANT_ID) or a self-hosted workspace hub (`maude hub
+ * workspace-up`: workspace mode, no tenant) — the two hubs that hold one project's store
+ * (decision maude/v2-michal-selfhost-convert-killswitch-held-conflict). A plain sync relay has
+ * no project to convert: `not-a-project-hub`, and nothing on `/health`.
+ *
+ * THE KILL SWITCH: `CELL_V2_CONVERT` — unset, empty or `1` converts; `0` (or any other value: a
+ * kill switch typed wrong fails closed) is `disabled`.
+ *
+ * THE VERSIONS: both layers must be a stable release ≥ 2.0.0 — a disagreement between them is
+ * the signal `/health` already treats as "this image was built wrong", so it never converts.
  */
-export function conversionGate({ hubVersion, releaseVersion, env = process.env } = {}) {
-  if (!TENANT_RE.test(String(env.MAUDE_TENANT_ID ?? '')))
-    return { run: false, reason: 'not-a-cell' };
+export function conversionGate({
+  hubVersion,
+  releaseVersion,
+  env = process.env,
+  workspaceMode = isWorkspaceEnv(env),
+} = {}) {
+  const tenant = String(env.MAUDE_TENANT_ID ?? '');
+  const cell = TENANT_RE.test(tenant);
+  if (!cell && !workspaceMode) return { run: false, reason: 'not-a-project-hub' };
+  // A workspace hub naming a tenant it cannot be is neither a cell nor a plain self-hosted hub.
+  if (!cell && tenant !== '') return { run: false, reason: 'invalid-tenant' };
+  const sw = env[KILL_SWITCH];
+  if (sw !== undefined && sw !== '' && sw !== '1')
+    return { run: false, reason: 'disabled', switchValue: String(sw) };
   const versions = [hubVersion, releaseVersion];
   if (versions.some((v) => /-/.test(String(v ?? '')))) return { run: false, reason: 'prerelease' };
   const parsed = versions.map(parseStableVersion);
@@ -183,16 +214,29 @@ export async function convertAll(projects, { log = console } = {}) {
 
 /**
  * The hub's handle: `run()` once per boot (idempotent within the process), `health()` for
- * `/health` (null when this process is not a cell). Never throws into the boot.
+ * `/health` (null when this process holds no project). Never throws into the boot.
+ * `disabled` (the kill switch) logs one line on the first `run()` and reports
+ * `{ state: 'disabled', by: 'CELL_V2_CONVERT=0' }`.
  */
 export function createV2Conversion({ gate, projects, log = console, now = () => new Date() }) {
   let report = null;
+  // The switch's value as it may be echoed: a short plain token, never a line of its own.
+  const by =
+    gate.reason === 'disabled'
+      ? `${KILL_SWITCH}=${/^[A-Za-z0-9._-]{1,16}$/.test(String(gate.switchValue ?? '')) ? gate.switchValue : '(invalid)'}`
+      : null;
   if (gate.run) report = { state: 'pending' };
-  else if (gate.reason !== 'not-a-cell' && gate.reason !== 'off')
+  else if (gate.reason === 'disabled') report = { state: 'disabled', by };
+  else if (gate.reason !== 'not-a-project-hub' && gate.reason !== 'off')
     report = { state: 'gated', reason: gate.reason };
   let running = null;
+  let announced = false;
   return {
     run() {
+      if (gate.reason === 'disabled' && !announced) {
+        announced = true;
+        log.log?.(`${REPORT_TAG} disabled by ${by}`);
+      }
       if (!gate.run) return Promise.resolve(null);
       running ??= (async () => {
         report = { state: 'running' };

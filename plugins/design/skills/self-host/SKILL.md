@@ -141,6 +141,32 @@ now rather than discovering later:
   hypothesis
 - **remove `MAUDE_SEED_REPO` after the first successful boot**
 
+### 6b · The 2.0.0 image converts the project
+
+When a workspace hub first starts on the stable **2.0.0** image (or any later
+stable one), it converts its project to Maude 2 by itself: the file format goes
+to 2 and saving moves to accepted revisions. The cloud does the same at the same
+release. Tell the operator before they upgrade:
+
+- **A backup comes first.** One full copy (documents, project store, checkout)
+  goes to the hub's configured backup target under `v2-convert/`, or to
+  `<data dir>/v2-convert/` when no target is set. The regular backup schedule
+  never prunes it. With nowhere durable to put it (no target and a disposable
+  data disk), the project is not converted and stays as it was.
+- **Only a stable image converts.** A release candidate (`2.0.0-rc.N`) or a 1.x
+  image never does. A second start converts nothing.
+- **The kill switch:** set `CELL_V2_CONVERT=0` in the hub's `.env` and restart.
+  Nothing converts while it is set. Unset, or `1`, converts on the next start.
+  Any other value also stops it.
+- **How to check:** `curl -s https://<host>/health | jq .v2Convert` shows
+  `{"state":"done","converted":1,"skipped":0,"failed":0,…}` after a conversion,
+  `skipped=1` on every later start, `{"state":"disabled",…}` while the switch is
+  0, and `{"state":"gated","reason":…}` on an rc or 1.x image. The hub's log
+  carries the same counts on one `[v2-convert] converted=… skipped=… failed=…`
+  line, and `[v2-convert] disabled by CELL_V2_CONVERT=0` while switched off.
+- **`failed=1`** leaves the project as it was. The log line names the reason;
+  fix it and restart, and the next start converts it.
+
 ### 7 · Dry run, review, run
 
 ```sh

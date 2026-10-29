@@ -53,6 +53,25 @@ Re-running with the flag is also how you add it to an existing workspace — lik
 
 The sidecar is a **~3 GB image running Chromium**, so give it room: a 2 GB instance is tight for the hub plus a render, and swap or a larger instance is the cheaper answer than a killed container mid-export.
 
+## Upgrading to 2.0.0: the image converts your project
+
+The first time a workspace hub starts on the stable **2.0.0** image, or any later stable one, it converts its project to Maude 2 by itself: the file format goes to 2 and saving moves to accepted revisions. Maude Cloud does the same at the same release. Nobody has to press "Update project".
+
+- **A backup comes first.** One full copy (the documents, the project store and the checkout) goes to your configured backup target under `v2-convert/`, or to `<data dir>/v2-convert/` when you have not set one. The regular backup schedule never prunes it. If there is nowhere durable to put it (no backup target and a disposable data disk), the project is not converted and stays as it was.
+- **Only a stable image converts.** A release candidate (`2.0.0-rc.N`) and a 1.x image never do, and a second start converts nothing.
+- **The kill switch.** Put `CELL_V2_CONVERT=0` in the hub's `.env` and restart to hold the conversion back. Nothing converts while it is set. Remove it, or set it to `1`, and the next start converts. Any other value also holds it back, so a typo never converts by accident.
+- **How to check.** `/health` reports it as `v2Convert`:
+
+```bash
+curl -s https://design.acme.com/health | jq .v2Convert
+# {"state":"done","converted":1,"skipped":0,"failed":0,"at":"…"}   first 2.0.0 start
+# {"state":"done","converted":0,"skipped":1,"failed":0,"at":"…"}   every start after that
+# {"state":"disabled","by":"CELL_V2_CONVERT=0"}                     the kill switch is on
+# {"state":"gated","reason":"prerelease"}                            an rc or 1.x image
+```
+
+The hub's log carries the same counts on one line, `[v2-convert] converted=1 skipped=0 failed=0`, and says `[v2-convert] disabled by CELL_V2_CONVERT=0` while the switch is on. `failed=1` leaves the project exactly as it was; the line before it names the reason. Fix that and restart, and the next start converts it.
+
 ## What you are taking on
 
 The command scaffolds and verifies **once**. It does not operate the deployment, and it prints that list on every successful run rather than implying otherwise. In short:
