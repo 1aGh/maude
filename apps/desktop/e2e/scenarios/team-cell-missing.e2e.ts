@@ -473,13 +473,6 @@ describe('team-cell-missing (native-desktop)', () => {
       async () => (await letakTrash()).length === 3,
       120_000
     );
-    const acks = async () => {
-      const st = (await bobGet('/_sync-status')).body as {
-        accepted?: { pending?: number; ackMs?: { n?: number } };
-      };
-      return { n: st?.accepted?.ackMs?.n ?? 0, pending: st?.accepted?.pending ?? 0 };
-    };
-    const acksBefore = await acks();
     writeFileSync(
       join(c.designer, '.design', LETAK),
       LETAK_SOURCE.replace(/ {8}<DCArtboard[\s\S]*<\/DCArtboard>\n/, '')
@@ -487,15 +480,17 @@ describe('team-cell-missing (native-desktop)', () => {
     expect(ids(read(join(c.designer, '.design', LETAK)))).toEqual([]);
     // the hand edit is taken by the cell before anyone restores into it (a restore over a local edit the cell has not
     // taken yet would be held, not applied)
+    // Saved, and still Saved four seconds on (the word can read Saved for a beat before the watcher sees the file)
+    await browser.pause(2_000);
+    let stable = 0;
     await eventually(
-      'the cell takes the hand edit',
+      'the hand edit settled (Saved, held for four seconds)',
       async () => {
-        const a = await acks();
-        return a.n > acksBefore.n && a.pending === 0;
+        stable = (await statusWord())?.status === 'saved' ? stable + 1 : 0;
+        return stable >= 8;
       },
-      60_000
+      120_000
     );
-    await eventually('Saved', async () => (await statusWord())?.status === 'saved', 120_000);
 
     const card = await $(tid('all-trashed'));
     await card.waitForDisplayed({ timeout: 90_000 });
