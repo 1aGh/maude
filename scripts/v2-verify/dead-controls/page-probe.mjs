@@ -58,7 +58,7 @@ export const PAGE_PROBE = String.raw`(() => {
     clean(el.innerText || el.textContent) || clean(el.getAttribute('placeholder')) || clean(el.value);
   // a control's "family": the same control repeated per row (canvas-row-ui-a, canvas-row-ui-b …)
   const familyOf = (tid, role, el) => {
-    if (tid) return tid.replace(/-(ui|system|ds|assets?)[-/].*$/, '-*').replace(/[-_][0-9a-f]{6,}$/i, '-*').replace(/-\d+$/, '-*');
+    if (tid) return tid.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '*').replace(/-(ui|system|ds|assets?)[-/].*$/, '-*').replace(/[-_][0-9a-f]{6,}$/i, '-*').replace(/-\d+$/, '-*');
     if (role === 'option' || role === 'treeitem') return role + '@' + (el.closest('[role=listbox],[role=tree],[role=dialog],[role=menu]')?.getAttribute('aria-label') || '');
     return null;
   };

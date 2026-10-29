@@ -15,6 +15,7 @@
 //   node scripts/v2-verify/dead-controls.mjs --only home     # one shell (home | project)
 //   --out <md>   the report (default .ai/plans/notes/v2-evidence/V2-8-dead-controls-dynamic.md)
 //   --json <f>   the raw rows
+//   CRAWL_BUDGET_MIN=<n> per shell and mode (default 40); states past it are listed 'unreachable'
 //   --plant-dead the crawler's own red test: plants a no-op button in the shell, which must be DEAD (exit 1)
 //
 // Run it through the lane: scripts/v2-test-lane.sh --wait 3600 --max 3600 -- node scripts/v2-verify/dead-controls.mjs
@@ -156,7 +157,7 @@ async function crawlMode(mode, i) {
       readySel: run.ready,
       label: run.label,
       plantDead: argv.includes('--plant-dead'),
-      budgetMs: Number(process.env.CRAWL_BUDGET_MIN || 20) * 60_000,
+      budgetMs: Number(process.env.CRAWL_BUDGET_MIN || 40) * 60_000,
       onResult: (r) => r.effect === 'DEAD' && console.error(`  DEAD  ${r.surface} · ${r.control}`),
     });
     await c.open();

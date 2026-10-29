@@ -2,6 +2,8 @@
 
 const NOT_CLICKED = new Set([
   'current',
+  'covered',
+  'single-option',
   'disabled',
   'skipped-destructive',
   'skipped-file-picker',

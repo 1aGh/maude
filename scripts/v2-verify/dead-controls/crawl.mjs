@@ -449,6 +449,8 @@ export class Crawler {
       if (res.effect === 'DEAD' && c.current) {
         out.effect = 'current';
         out.note = 'already the selected/pressed choice — clicking it again is a no-op';
+      } else if (res.effect === 'DEAD' && raw.note === 'a select with one option') {
+        out.effect = 'single-option';
       } else if (res.effect === 'DEAD' && raw.note.startsWith('pointer blocked')) {
         // under an overlay (an armed tool's draw surface, a scrim): the person cannot reach it either —
         // listed on its own, not as a dead control
@@ -622,8 +624,10 @@ export class Crawler {
       aria.some((a) => a.startsWith('aria-expanded') || a.startsWith('aria-selected'));
     // a child state only when the click revealed a place of its own (a popup, a tab, a sheet), not
     // when it swapped one label for another (Pin → Unpin)
+    // …and not when it navigated (a new canvas, another place): a new root, not a sheet of this one
     const opens =
       raw.newIds.length > 0 &&
+      !raw.url &&
       (popup || c.role === 'tab' || !!c.haspopup || raw.newIds.length >= 3);
     return { effect: kinds.length ? kinds.join(' ') : 'DEAD', opens, popup: popup || !!c.haspopup };
   }
