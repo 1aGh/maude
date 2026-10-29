@@ -47,10 +47,17 @@ export function leftOutOf(path, cfg) {
       : null;
   if (typeof head !== 'string' || !REV_ID.test(head)) return null;
   if (typeof dsRev !== 'string' || !REV_ID.test(dsRev) || dsRev === head) return null;
+  // p8-dead-reasons — "Keep this version" declined THIS head: the card stays away until the system moves on
+  const keptMap = cfg?.canvasDsKept;
+  const kept =
+    keptMap && typeof keptMap === 'object'
+      ? (keptMap[rel] ?? keptMap[path] ?? keptMap[`${designRelOf(cfg)}/${rel}`])
+      : null;
   return {
     ds: ds.name,
     dsRev,
     head,
+    ...(kept === head ? { kept: true } : {}),
     folder: rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '',
   };
 }

@@ -221,7 +221,7 @@
     color: var(--fg-0);
     outline: none;
   }
-  .dsp-door[aria-disabled='true'] {
+  .dsp-door[aria-disabled="true"] {
     opacity: 0.5;
     cursor: default;
     background: transparent;

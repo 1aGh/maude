@@ -30,6 +30,7 @@ import {
   windowFractions,
   windowTag,
 } from './reframe-model.js';
+import { reasonProps } from '../access/disabled-reason.js';
 
 // ── the island's open state: a per-viewer UI fact, never stored ─────────────────────────────────────────────
 let openFor = null; // { stableId } | null
@@ -329,6 +330,7 @@ export function ReframeIsland({
           className="btn btn--ghost btn--sm"
           data-testid="reframe-reset"
           disabled={!canEdit || !framed}
+          {...reasonProps(!canEdit, 'viewer')}
           onClick={onReset}
         >
           Reset

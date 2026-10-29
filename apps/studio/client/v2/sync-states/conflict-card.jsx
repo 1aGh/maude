@@ -25,6 +25,7 @@ import { useCanvasIndex } from '../canvases/use-canvas-index.js';
 import { useOfflineFoot } from './offline-foot.jsx';
 import { useOutboxWords } from './row-words.js';
 import { conflictCard, conflictsFor, whenWords } from './sync-states-model.js';
+import { reasonProps } from '../access/disabled-reason.js';
 
 /** The shell opens the card from anywhere (the toast's Show, the mark, ⌘K-less row actions). */
 export const OPEN_EVENT = 'maude:sync-conflicts-open';
@@ -132,6 +133,7 @@ export function ConflictCard({
         data-testid={testid}
         data-action={actionId}
         disabled={busy || !canEdit}
+        {...reasonProps(!canEdit, 'viewer')}
         onClick={() => onPick?.(c, actionId)}
       >
         {glyph ? <Glyph name={glyph} size={13} /> : null}
@@ -200,6 +202,7 @@ export function ConflictCard({
               type="button"
               className="btn btn--ghost btn--sm"
               disabled={busy || !canEdit}
+              {...reasonProps(!canEdit, 'viewer')}
               onClick={() => onPick?.(c, actionId)}
             >
               Restore

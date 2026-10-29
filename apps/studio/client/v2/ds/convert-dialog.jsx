@@ -107,7 +107,8 @@ export function DsConvertDialog({ model, onConvert, onClose }) {
             ref={primaryRef}
             type="button"
             className="btn btn--primary"
-            disabled={busy || !model.canConvert}
+            // = !model.canConvert, spelled out: nothing to convert, or the refused rows above say why
+            disabled={busy || model.rows.length === 0 || model.refused.length > 0}
             data-testid="ds-convert-go"
             onClick={convert}
           >

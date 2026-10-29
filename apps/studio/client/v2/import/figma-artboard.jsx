@@ -15,6 +15,7 @@ import { artboardFacts } from '../inspector/kinds/artboard-model.js';
 import { registerSlot } from '../inspector/slots.js';
 import { getPaletteEnv } from '../search/search-env.js';
 import { FIGMA_WORDS as W, makeEditableWords } from './figma-model.js';
+import { editReason, reasonProps } from '../access/disabled-reason.js';
 
 /** Is `artboardId` a Figma picture on this canvas? (null while the meta is being read) */
 export function isFigmaPicture(meta, artboardId) {
@@ -76,6 +77,7 @@ export function FigmaPictureRows({ el, ctx }) {
         type="button"
         className="btn btn--sm fi-wide"
         disabled={state.busy || ctx?.editable === false}
+        {...reasonProps(ctx?.editable === false, editReason(ctx))}
         onClick={makeEditable}
         data-testid="figma-make-editable"
       >

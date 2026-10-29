@@ -227,24 +227,27 @@ function MusicAdvanced({ el, open, onToggle }) {
         </div>
         {hd ? (
           <div className="insp-chips">
-            <button
-              type="button"
-              className="insp-chip"
-              data-testid="insp-music-half"
-              disabled={hd.half == null}
-              onClick={() => hd.half != null && fix(hd.half)}
-            >
-              {MUSIC_WORDS.half}
-            </button>
-            <button
-              type="button"
-              className="insp-chip"
-              data-testid="insp-music-double"
-              disabled={hd.double == null}
-              onClick={() => hd.double != null && fix(hd.double)}
-            >
-              {MUSIC_WORDS.double}
-            </button>
+            {/* a tempo halved or doubled past the beat range is not offered (the bpm is shown above) */}
+            {hd.half != null ? (
+              <button
+                type="button"
+                className="insp-chip"
+                data-testid="insp-music-half"
+                onClick={() => fix(hd.half)}
+              >
+                {MUSIC_WORDS.half}
+              </button>
+            ) : null}
+            {hd.double != null ? (
+              <button
+                type="button"
+                className="insp-chip"
+                data-testid="insp-music-double"
+                onClick={() => fix(hd.double)}
+              >
+                {MUSIC_WORDS.double}
+              </button>
+            ) : null}
           </div>
         ) : null}
         <div className="insp-css" data-testid="insp-adv-music-duck">

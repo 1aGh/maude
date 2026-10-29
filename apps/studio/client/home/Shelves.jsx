@@ -8,6 +8,7 @@
 import { copy, Empty } from '../v2/empty/index.js';
 import { accountFace, rowSlug, sharedAside } from './home-model.js';
 import { HIcon, ProjectSquare } from './home-icons.jsx';
+import { reasonProps } from '../v2/access/disabled-reason.js';
 
 /** Three ghost cards: the shelf's shape before there is anything on it. */
 export function GhostCards({ n = 3 }) {
@@ -62,6 +63,7 @@ export function ProjectsEmpty({ signedIn, native, onOpenFolder }) {
                 data-testid="home-open-folder"
                 onClick={onOpenFolder}
                 disabled={!native}
+                {...reasonProps(!native, 'homeBrowser')}
               >
                 <HIcon name="folder" size={14} />
                 Open project…
@@ -108,6 +110,7 @@ function InviteRow({ row, canJoin, busy, onJoin, onLeave }) {
           className="btn btn--sm"
           data-testid={`home-invite-join-${slug}`}
           disabled={!canJoin || busy}
+          {...reasonProps(!canJoin, 'homeBrowser')}
           onClick={() => onJoin(row)}
         >
           Join
@@ -162,6 +165,7 @@ export function SharedWithYou({
               className="row-item home-shrow"
               data-testid={`home-shared-row-${r.projectId}-${r.canvasPath ? rowSlug(r.canvasPath) : 'project'}`}
               disabled={!canOpen}
+              {...reasonProps(!canOpen, 'homeBrowser')}
               onClick={() => onOpen(r)}
             >
               <ProjectSquare id={r.projectId} name={r.projectName} size="md" />

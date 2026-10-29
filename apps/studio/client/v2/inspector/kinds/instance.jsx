@@ -30,6 +30,7 @@ import { ColorControl } from '../sections/color-control.jsx';
 import { Quiet, Row } from '../sections/row.jsx';
 import { useDsFamilies } from '../token-chip.jsx';
 import { isArtboardSelection, registerKind, singleOf } from './index.js';
+import { editReason, reasonProps } from '../../access/disabled-reason.js';
 
 const refOf = (el) => (Array.isArray(el?.refs) ? el.refs[0] : null);
 
@@ -245,6 +246,7 @@ function ContentBody({ el, ctx }) {
             className="insp-line-act"
             data-testid="insp-instance-reset"
             disabled={!editable}
+            {...reasonProps(!editable && !info.repeats, editReason(ctx))}
             onClick={() => ask(ctx, 'component.reset', el)}
           >
             Reset
@@ -320,6 +322,7 @@ function MainBody({ el, ctx }) {
           className="insp-chip"
           data-testid="insp-instance-detach"
           disabled={!editable}
+          {...reasonProps(!editable && !info.repeats, editReason(ctx))}
           onClick={() => ask(ctx, 'component.detach', el)}
         >
           Detach

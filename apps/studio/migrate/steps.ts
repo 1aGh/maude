@@ -283,6 +283,7 @@ export const RESERVED_META_KEYS = [
   'artboardMeta',
   'links',
   'dsRev',
+  'dsKept',
   'dsPins',
   'dsPending',
   'dsPinned',

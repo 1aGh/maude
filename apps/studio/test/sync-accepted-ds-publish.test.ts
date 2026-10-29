@@ -471,4 +471,47 @@ describe.skipIf(!HUB_READY)('a design-system publish on a linked project — rea
     });
     expect(r).toMatchObject({ status: 'rejected', code: 'unknown-canvas' });
   });
+
+  // p8-dead-reasons part 3 — "Keep this version" (`ds.canvas-leave`) is versioned (`.meta.json` `dsRev` / `dsKept`),
+  // so it rides the meta lane: each direction is proven on the OTHER peer's disk.
+  test('Bob keeps Pricing on its version: dsKept on Carol’s disk, dsRev not moved', async () => {
+    const BOB = { kind: 'person', name: 'Bob' } as const;
+    const bobHead = readHead(join(bob.ctx.paths.designRoot, DS_PATH));
+    if (bobHead.state !== 'ok') throw new Error(`bob's head.json is ${bobHead.state}`);
+    expect(bob.meta('ui/Pricing.tsx').dsRev).toBe(R0); // left out by his publish
+    const r = await bob.engine.canvasLeave('ui/Pricing.tsx', { by: BOB });
+    expect(typeof r.actionId).toBe('string');
+    expect(bob.meta('ui/Pricing.tsx')).toMatchObject({ dsRev: R0, dsKept: bobHead.doc.head });
+    await waitFor(async () => {
+      await carol.runtime.pullRemoteNow();
+      return carol.meta('ui/Pricing.tsx').dsKept === bobHead.doc.head;
+    }, "bob's keep on carol's disk");
+    expect(carol.meta('ui/Pricing.tsx').dsRev).toBe(R0);
+    const [action] = await hubHistory();
+    expect(action).toMatchObject({ actionId: r.actionId, actor: 'bob@x.test' });
+  });
+
+  test('Carol keeps a following canvas: its pin lands on Bob’s disk', async () => {
+    expect(carol.meta('ui/Landing.tsx').dsRev).toBeUndefined();
+    const r = await carol.engine.canvasLeave('ui/Landing.tsx', { by: PERSON });
+    expect(typeof r.actionId).toBe('string');
+    expect(carol.meta('ui/Landing.tsx').dsRev).toBe(R0);
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return bob.meta('ui/Landing.tsx').dsRev === R0;
+    }, "carol's keep on bob's disk");
+    const [action] = await hubHistory();
+    expect(action).toMatchObject({ actionId: r.actionId, actor: 'carol@x.test' });
+  });
+
+  test('a later Update moves the pin on every peer: dsRev and dsKept go', async () => {
+    const BOB = { kind: 'person', name: 'Bob' } as const;
+    const u = await bob.engine.canvasUpdate('ui/Pricing.tsx', { by: BOB });
+    expect(typeof u.actionId).toBe('string');
+    await waitFor(async () => {
+      await carol.runtime.pullRemoteNow();
+      const m = carol.meta('ui/Pricing.tsx');
+      return m.dsRev === undefined && m.dsKept === undefined;
+    }, "bob's update on carol's disk");
+  });
 });

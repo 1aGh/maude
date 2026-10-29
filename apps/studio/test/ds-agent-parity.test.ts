@@ -18,6 +18,7 @@ import { runCheck } from '../client/v2/ds/advanced-host.jsx';
 import { convertSystems, restoreSystemFolder } from '../client/v2/ds/convert-model.js';
 import { setDefaultSystem } from '../client/v2/ds/default-write.js';
 import {
+  canvasLeaveNow,
   canvasUpdateNow,
   clearTokenNow,
   restoreTokenNow,
@@ -251,10 +252,8 @@ const trashRow = async (f: typeof fetch, css: string) => {
 
 /** Doors with no client writer. A gap is a finding (named in the hand-back), never silently passed. */
 const NO_CLIENT_WRITER: Record<string, string> = {
-  // S10.21b wired canvas-update (row menu), restore-token and clear-token (Trash) through door-write.js
-  'ds.canvas-leave':
-    'open question (S10.21b hand-back) — no canvas or contract row places a standalone "Keep this version"; ' +
-    'the review sheet’s untick (ds.publish --leave-out) is the person’s door today',
+  // S10.21b wired canvas-update (row menu), restore-token and clear-token (Trash) through door-write.js;
+  // p8-dead-reasons wired canvas-leave (the update card's Keep this version)
   'ds.draft': 'by design — the AI writes directions (S10.16a); the person picks one',
 };
 
@@ -379,7 +378,8 @@ const CASES: Record<string, Case> = {
   },
   'ds.canvas-leave': {
     setup: waitingAccent,
-    ui: async () => null,
+    // the update card's Keep this version (update-available.jsx) posts the design-root-relative path
+    ui: (f) => canvasLeaveNow({ canvas: 'ui/Home.tsx' }, f),
     verb: ['canvas', 'leave', 'ui/Home.tsx'],
   },
   'ds.trash-token': {
@@ -536,10 +536,6 @@ const CASES: Record<string, Case> = {
 
 /** The no-writer doors post the route body the registry's `server` names, built from the same words. */
 const ROUTE_BODY: Record<string, (w: World) => { route: string; body: unknown }> = {
-  'ds.canvas-leave': () => ({
-    route: '/_api/ds/canvas',
-    body: { canvas: 'ui/Home.tsx', action: 'leave' },
-  }),
   'ds.draft': () => ({
     route: '/_api/ds/make',
     body: { action: 'draft', ds: NOVA, direction: 'a', tokens: DIRECTION_A },

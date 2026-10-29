@@ -17,6 +17,7 @@ import { shellToast } from '../../shell/util.js';
 import { Spark } from '../ai/icons.jsx';
 import { swapParams, TAKES_WORDS, takesOf } from './other-takes-model.js';
 import { assetOfSrc, loadFootage } from './other-takes-store.js';
+import { reasonProps } from '../access/disabled-reason.js';
 
 // ── open state: a per-viewer UI fact, never stored ─────────────────────────────────────────────────────────
 let openFor = null; // { stableId } | null
@@ -136,6 +137,7 @@ export function OtherTakesPop({
             aria-pressed={t.current}
             aria-label={`${t.label}, ${t.len}${t.pick ? `, ${TAKES_WORDS.pick}` : ''}${t.current ? `, ${TAKES_WORDS.here}` : ''}`}
             disabled={busy || !canEdit || t.current}
+            {...reasonProps(!canEdit, 'viewer')}
             onClick={() => onPick(t)}
           >
             <span className="tl-take-pic" aria-hidden="true">

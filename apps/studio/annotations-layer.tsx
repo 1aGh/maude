@@ -4719,6 +4719,10 @@ export function AnnotationsLayer() {
         action === 'to-comment'
       ) {
         runAnnotationActionRef.current(`annotation.${action}`);
+      } else if (action === 'history') {
+        // the sticky menu shows for a sole sticky, so the shell already heard it in `annotation-selection`
+        // (object-history-ask.js checks that); the shell runs `history.object`
+        if (sel.length === 1) postToShell({ dgn: 'object-history', annotation: sel[0] });
       } else if (action === 'ask-ai') {
         askAiRef.current();
       } else if (action === 'replace') {
@@ -5868,6 +5872,8 @@ function AnnotationContextMenu({
           {item('to-comment', 'Turn into a comment')}
           {item('resolve', sticky.resolveWord)}
           {sticky.canFanOut ? item('fan-out', 'Fan out') : null}
+          {/* p8-dead-reasons — `history.object`: the shell opens Version history filtered to this sticky */}
+          {item('history', 'Version history of this object')}
           <div className="dc-menu-sep" aria-hidden="true" />
         </>
       ) : null}
