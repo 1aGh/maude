@@ -82,8 +82,16 @@ Not built, either because no CONTRACT line names them or because the weekly budg
 - (p8-undo-collab-refuse, merged 6e87df463) Michal's b2 is built for the local runtime. ⌘Z on an annotation text a
   collaborator changed meanwhile is refused with a 409 `undo-conflict`, using the existing "Can't undo … someone else
   changed it since" notice, and their text stays (R7 is a real test again). Still open:
-  - **The hub-linked runtime has no `textUndoConflict` yet** (`sync/index.ts`), so a hub project undoes as before.
-    It needs its own room contest and ledger.
+  - **Hub-linked projects (desktop ↔ hub, desktop ↔ cell, browser on a cell), traced by a scout 2026-10-29.**
+    - **A peer edit that lands during my session survives.** In accepted mode, `server.ts:204` skips the room, so
+      the peer's change is its own hub action and is already in my step's before (`kernel.mjs:351`).
+    - **A peer edit that lands after my step: ⌘Z keeps their text when the edits don't overlap and silently drops it
+      when they overlap.** `mergeLane('annotations')` always returns ok (`lanes.mjs:196`). `mergeText` lets "ours"
+      win (`ops.ts:117`). The kernel never refuses.
+    - **Possible studio-only fix (v1-compatible, no hub release):** add `textUndoConflict` to the hub-linked runtime
+      (`sync/index.ts` ~6246). It should refuse only when the 3-way merge would fail. It needs the hub's *accepted*
+      content per action, which is not verified yet.
+    - **Not traced:** projects still in legacy (non-accepted) mode use the canvas strict-inverse stack.
   - Merge text on undo (option 1).
   - The same refusal on the legacy canvas stack (`annotations-layer.tsx` `commitStrokes`).
   - Group draft writes into the commit step on the op log. Today each draft write is its own ⌘Z step.
