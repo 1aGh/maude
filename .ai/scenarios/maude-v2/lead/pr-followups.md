@@ -208,3 +208,16 @@ Not built, either because no CONTRACT line names them or because the weekly budg
   - R3: the ⌘Z collision check has a deadline, but the hub reads under it can't be aborted and their size isn't
     capped while they stream in. It needs an abort signal on the read and a byte cap at the transport.
   - R4: add the element label to the id-finding key.
+
+## Docs gaps found at the freeze (lead, 2026-10-29), held back so the command gates stay fresh
+Any commit outside `.ai/` makes V2-8.1/8.2/8.3/8.18 stale. Fold these into the next product commit, or into the rc.
+- `docs/MIGRATING-V1-TO-V2.md` (+ site `moving-from-1.mdx`): no mention of the save-mode line from p8-update-to-accepted
+  (*This project still saves the old way.* → **Update project**, the combined dialog paragraph, the toasts
+  `toastBoth`/`toastSwitched`/`toastImporting`, and the cloud tab pointing at the dashboard). The toast quoted on
+  line 37 is only the unlinked case. Source of truth: `SAVE_COPY` in `client/v2/shell/format-update.js`.
+- `site/content/docs/cli.mdx:102`: "falls back to a random free port if taken". In fact the server walks
+  4399–4408 and then stops with a message (`plugins/design/commands/browse.md:81` has it right). The app's own
+  range 46399–46408 is not a user-facing knob and does not need a docs line.
+- Neither the plugin README nor the site describes the post-edit gate's "only findings the edit introduced" rule
+  (p8-gate-introduced). Nothing there is wrong; one sentence in `plugins/design/README.md` § files are the API would
+  help agents.
