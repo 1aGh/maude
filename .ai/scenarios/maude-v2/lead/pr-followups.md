@@ -71,6 +71,14 @@ Not built, either because no CONTRACT line names them or because the weekly budg
 - 05 es-all-trashed (board 19): two offline trashes of one canvas are held as a conflict (the second save is
   rejected), and the UI refuses to remove the last artboard. So the empty-canvas card is reachable only through an
   external edit (an AI or a hand edit of the file). The e2e drives it that way.
+- (p8-t-missing-a, merged 478cc3b31) **es-all-trashed Restore on a synced copy: rc soak.** Two product bugs are
+  fixed fail-first: the card's endless read/render loop (unstable default `fetchImpl`) and Restore refusing a canvas
+  with no artboard left (`emptyCanvasPlace`). On a cell-linked copy the click answered ok in every run, but the file
+  stayed empty in 2 of 3 runs. The suspected cause, unconfirmed: the restore is held against the hand edit that
+  emptied the file, before the cell has taken that edit. The e2e now stops at the card and its button. The
+  click-through goes on the soak list. Also: in the race case the cell sometimes leaves the two Macs apart (bob 3,
+  alice 1, no conflict shown, still apart after 240 s). The spec pins only "never zero artboards". The silent
+  divergence needs its own look.
 - A remote peer's presence relayed through a hub is not role-stamped by the room (it arrives as the hub sent it).
 - cloud-attach 2b shot: after "Moved to the cloud — your canvases are going up now." the sheet also shows a red
   "Sharing is not available right now. Try again in a minute." line the board does not draw — most likely the cloud
