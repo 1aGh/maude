@@ -1169,7 +1169,15 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     const onDisk = readLocal(evt.path);
     if (onDisk !== null && onDisk !== str) return false;
     if (lane === 'html') {
-      if (str === lastHtml && !held.has('html')) return false; // a redelivered projection
+      if (str === lastHtml && !held.has('html')) {
+        // A redelivered projection — or an announced API write whose action was answered AND
+        // published before its bytes landed (an edit-op through `proposeVia`: `settle` already made
+        // its value the agreed body). Either way the disk is the agreed body, so an announced base
+        // is over: left set, the next hand edit is proposed from the version before the action and
+        // refused (p8-fix-c3, the restore run's "hand edit at alice"; the F14 shape again).
+        localWrite = null;
+        return false;
+      }
       if (!withinCap(paths.html, str, MAX_HTML_BYTES)) return false;
       if (validation(str) !== null) {
         strike(evt.path, evt.hash);
