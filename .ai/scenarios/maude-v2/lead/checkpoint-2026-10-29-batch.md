@@ -59,3 +59,28 @@ time window for the screen (~1.5 h) → chain4 (`$S/rec/chain4.sh`: 8.1 → 8.3 
 (8.4, 8.5, 8.8?, 8.9 + security pair over the whole batch!, 8.15, 8.16) → a new `.app` built with
 `MAUDE_NO_AUTO_UPDATE=1` + gates → PR.md / READY TO TRY / pr-followups (remove what's fixed) → a message to the keeper
 for Michal. The ledger / Progress log: the new done lines and the gate records at the new freeze.
+
+## Update ~18:30
+- **Merged and pushed:** fix group E (6297cf41f) and fix group B, F4/F5 (d6c6f4346).
+- **Merged in lead-merge-main, NOT pushed yet:**
+  - p8-sweep-dynamic (b72791174), including the `share.open enabled: canvasOpen` patch.
+  - Its tests are running in the background (bt4v5d2a8). After they pass: ff feat + push, remove the worktree
+    agent-a0b5ef06a5eb2b137.
+- **Ready to merge:** p8-dead-reasons (96→0 reasons, history.object row, Keep this version / dsKept, Choose another
+  folder hidden). Worktree agent-a16b6ad0877771ae1. Record decisions: one-helper, known-objects, ds-kept.
+- **Running:**
+  - fix-c (trash restore/race);
+  - A1 claims part 2 (Edit/Write claims at tool_call, ds-check/import-figma, interpreter window narrowed);
+  - collab epoch;
+  - **p8-v1-drop-desktop**;
+  - **p8-v1-drop-cloud**;
+  - **p8-sweep-leftovers** (timeline/generate dead controls, comp-media 400, compare without git, alert→toast, menu
+    Paste via shell bridge, CSP media-src data:, the webrtc directive).
+- **Queue still:**
+  1. port + index GC;
+  2. hub-linked drafts as one ⌘Z step;
+  3. import from a link (+ security pair);
+  4. the Google key sheet;
+  5. Figma not_found words + the hub-without-checkout message/stop-retry.
+- The re-entry item (DS convert / Update project) is folded into p8-v1-drop-desktop: ds-upgrade is always reachable,
+  and project update is automatic.
