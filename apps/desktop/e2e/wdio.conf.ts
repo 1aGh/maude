@@ -115,8 +115,6 @@ const DEDICATED: Record<string, string> = {
   'remember-folds.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:remember',
   // P8 test round missing-a: 05 es-all-trashed (alice and bob race), 12 ia-missing, 12 ia-edges D — the cell lane's world.
   'team-cell-missing.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:team-cell-missing',
-  // 05 es-all-trashed: the card for a canvas with no artboard left, on a local project copy; Restore puts them back.
-  'all-trashed.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:all-trashed',
 };
 
 // Drift tripwire. Adding a wdio.<name>.conf.ts without listing its spec above
