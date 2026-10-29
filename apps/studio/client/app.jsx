@@ -866,7 +866,7 @@ function ShellState({ children }) {
             noteAiRuns(m.seq);
           } else if (m.type === 'save-hold') {
             // p8-a1-save-hold — a save waits behind an AI call / landed: the notice (and the close flush)
-            noteSaveHold(m.payload);
+            noteSaveHold(m);
           } else if (m.type === 'project:action' && m.action) {
             // S2.20 — an accepted action: the ⌘Z projection of every open canvas it touched.
             // S5.15 — "Made by AI" (derived: an ai action marks its artboards, the next person's

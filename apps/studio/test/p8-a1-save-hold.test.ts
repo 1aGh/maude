@@ -28,6 +28,7 @@ import {
   setSaveHoldForTest,
 } from '../ai/save-hold.ts';
 import { hookClaims } from '../ai/write-claim.ts';
+import { serializeBoard } from '../annotations/schema.ts';
 import { createApi } from '../api.ts';
 import { applyEdit } from '../canvas-edit.ts';
 import {
@@ -553,7 +554,7 @@ describe('A1 hold — the layout and board lanes, and the notice', () => {
     expect(r.readOr(r.board)).not.toContain('s_mine'); // held, not written
     expect(r.boards).toEqual([]);
     // the interpreter writes its own sticky meanwhile
-    writeFileSync(r.board, `${JSON.stringify(sticky('s_ai', 900))}\n`);
+    writeFileSync(r.board, serializeBoard([sticky('s_ai', 900) as never]));
     r.hold.window('p1', false, []);
     expect((await done).ok).toBe(true);
     const now = r.readOr(r.board);
@@ -567,12 +568,12 @@ describe('A1 hold — the layout and board lanes, and the notice', () => {
     r.hold.window('p1', true, [r.board]);
     const first = r.api.projectAnnotations(
       repo(HOME),
-      `${JSON.stringify(sticky('s_one'))}\n`,
+      serializeBoard([sticky('s_one') as never]),
       () => false
     );
     const second = r.api.projectAnnotations(
       repo(HOME),
-      `${JSON.stringify(sticky('s_two'))}\n`,
+      serializeBoard([sticky('s_two') as never]),
       () => true
     );
     await sleep(200);
@@ -585,7 +586,7 @@ describe('A1 hold — the layout and board lanes, and the notice', () => {
 
   test('10. rider: an artboard move with its annotations waits as ONE action and lands both lanes', async () => {
     const r = apiRig();
-    writeFileSync(r.board, `${JSON.stringify(sticky('s_hero'))}\n`);
+    writeFileSync(r.board, serializeBoard([sticky('s_hero') as never]));
     r.hold.window('p1', true, [r.tsx]);
     const rider = {
       ops: [{ op: 'patch', id: 's_hero', set: { x: 400 }, expect: { x: 100 } }],

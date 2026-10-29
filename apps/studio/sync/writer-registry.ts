@@ -538,6 +538,8 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/sync/link/confirm': { class: 'local', rows: 'X16' },
   // S11.17 — Retry lands the canvas writes a full disk held; each then travels like any studio write
   '/_api/diagnostics/disk-retry': { class: 'local' },
+  // p8-a1-save-hold — the closing page lands the saves held behind an AI call; each then travels like any studio write
+  '/_api/diagnostics/save-hold-flush': { class: 'local' },
   '/_api/diagnostics/disk': { class: 'read' },
   '/_api/diagnostics/last-work': { class: 'read' },
   '/_api/sync/offline': { class: 'local', rows: 'T19 (pull the whole file plane now)' },

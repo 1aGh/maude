@@ -25,7 +25,7 @@ export default function Home() {
   );
 }
 `;
-const RED = "color: 'red'";
+const RED = 'color: "red"'; // editCss writes the value as a JSX string literal
 
 const procs: Subprocess[] = [];
 const dirs: string[] = [];
