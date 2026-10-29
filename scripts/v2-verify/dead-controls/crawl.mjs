@@ -1,0 +1,607 @@
+// The Node half of the dead-control crawler: a breadth-first walk over UI states.
+//
+// A STATE is a replayable list of steps from a fresh load (`[]` = the page as it loads). For each
+// state the crawler enumerates the controls that are NEW in it (not present in its parent state),
+// clicks each one for real (Playwright pointer events, across the canvas origin split) and judges
+// the click by its visible effect. A click that reveals new controls (a menu, a sheet, a tab) queues
+// a child state, so submenus, row ⋯ menus, settings tabs and sheets are reached without a
+// hand-kept list. Between clicks the state is restored: Escape, then — if the control set no
+// longer matches — a fresh load and a replay of the steps.
+//
+// Never clicked: a destructive control inside a confirm (it is listed `skipped-destructive`); a
+// first-level destructive control is clicked once, which must open that confirm.
+
+import { PAGE_PROBE } from './page-probe.mjs';
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const DESTRUCTIVE =
+  /(delete|remove|trash|discard|sign out|log ?out|revoke|reset|erase|wipe|forget|leave|uninstall|disconnect|unlink|restore|revert|roll ?back|empty|clear|overwrite|replace|buy|purchase|upgrade|subscribe|billing|checkout|pay\b|quit|close project)/i;
+// Controls that would end the crawl or reach real services; the first click is still judged when
+// it only opens a confirm (the matcher above), these are never clicked at all.
+const NEVER =
+  /(quit maude|report a bug|send report|delete forever|delete permanently|empty trash)/i;
+const SETTLE_MS = Number(process.env.CRAWL_SETTLE_MS || 750);
+const FAMILY_CAP = 2;
+const OPTION_CAP = 12;
+
+const isLoopback = (u) => {
+  try {
+    const h = new URL(u).hostname;
+    return h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h === '::1';
+  } catch {
+    return true; // data:, blob:, about:
+  }
+};
+
+export function tauriStub(homeSecret) {
+  return `(() => {
+  const calls = (window.__crawlInvokes = []);
+  window.__TAURI__ = {
+    core: { invoke: (cmd, args) => {
+      calls.push(String(cmd));
+      if (cmd === 'home_session') return Promise.resolve({ secret: ${JSON.stringify(homeSecret ?? '')} });
+      return Promise.reject(new Error('crawl-tauri-stub: ' + cmd));
+    } },
+    event: { listen: () => Promise.resolve(() => {}), emit: () => Promise.resolve() },
+    window: {}, path: {}, app: {},
+  };
+})();`;
+}
+
+// The crawler's own red test (`--plant-dead`): a visible button in the shell that does nothing.
+export const PLANT_DEAD = `(() => {
+  if (window.top !== window) return;
+  const add = () => {
+    if (!document.body || document.querySelector('[data-testid="crawl-planted-dead"]')) return;
+    const b = document.createElement('button');
+    b.dataset.testid = 'crawl-planted-dead';
+    b.textContent = 'Planted dead';
+    b.style.cssText = 'position:fixed;left:50%;top:8px;z-index:2147483647';
+    document.body.appendChild(b);
+  };
+  document.addEventListener('DOMContentLoaded', add);
+  setInterval(add, 500);
+})();`;
+
+export class Crawler {
+  constructor({
+    browser,
+    mode,
+    url,
+    homeSecret,
+    readySel,
+    label,
+    maxDepth = 4,
+    maxStates = 90,
+    budgetMs = 25 * 60_000,
+    log = (m) => console.error(m),
+    onResult = null,
+    plantDead = false,
+  }) {
+    Object.assign(this, {
+      browser,
+      mode,
+      url,
+      homeSecret,
+      readySel,
+      label,
+      maxDepth,
+      maxStates,
+      budgetMs,
+      log,
+      onResult,
+      plantDead,
+    });
+    this.results = [];
+    this.errors = [];
+    this.context = null;
+    this.page = null;
+    this.current = '<load>';
+    this.reqCount = 0;
+    this.bgPaths = new Set();
+    this.reqPaths = [];
+    this.external = [];
+    this.popups = [];
+    this.clicked = new Set(); // keys already judged (in any state) — each control judged once
+    this.queued = new Set();
+    this.prefixFp = new Map(); // steps signature → the control set that state showed
+  }
+
+  async open() {
+    this.context = await this.browser.newContext({ viewport: { width: 1440, height: 900 } });
+    if (this.mode === 'tauri') await this.context.addInitScript(tauriStub(this.homeSecret));
+    if (this.homeSecret)
+      await this.context.addInitScript(
+        `try { sessionStorage.setItem('maude-home-page-secret', ${JSON.stringify(this.homeSecret)}); } catch {}`
+      );
+    await this.context.addInitScript(PAGE_PROBE);
+    if (this.plantDead) await this.context.addInitScript(PLANT_DEAD);
+    await this.context.route('**/*', (route) => {
+      const u = route.request().url();
+      if (isLoopback(u)) return route.continue();
+      this.external.push({ control: this.current, url: u });
+      return route.abort('blockedbyclient');
+    });
+    this.page = await this.context.newPage();
+    this.context.on('page', async (p) => {
+      if (p === this.page) return;
+      this.popups.push({ control: this.current, url: p.url() });
+      await p.close().catch(() => {});
+    });
+    this.page.on('filechooser', (fc) => {
+      this.popups.push({
+        control: this.current,
+        url: `file chooser${fc.isMultiple() ? ' (multiple)' : ''}`,
+      });
+    });
+    this.page.on('dialog', (d) => {
+      this.popups.push({
+        control: this.current,
+        url: `native ${d.type()}: ${d.message().slice(0, 80)}`,
+      });
+      d.dismiss().catch(() => {});
+    });
+    this.page.on('pageerror', (e) => this.err('pageerror', String(e.stack || e).slice(0, 900)));
+    this.page.on('console', (m) => {
+      if (m.type() !== 'error') return;
+      const loc = m.location();
+      this.err(
+        'console.error',
+        `${m.text().slice(0, 900)}${loc?.url ? `\n    at ${loc.url}:${loc.lineNumber}` : ''}`
+      );
+    });
+    this.page.on('request', (r) => {
+      if (!isLoopback(r.url())) return;
+      this.reqCount++;
+      const p = new URL(r.url()).pathname;
+      this.reqPaths.push(p);
+    });
+    this.page.on('response', (r) => {
+      const u = r.url();
+      if (!isLoopback(u) || r.status() < 400) return;
+      this.err(
+        `http ${r.status()}`,
+        `${r.request().method()} ${new URL(u).pathname}${new URL(u).search.slice(0, 80)}`
+      );
+    });
+  }
+
+  err(kind, text) {
+    if (/crawl-tauri-stub/.test(text)) kind = `${kind} (native stub)`;
+    // the rig blocks every non-loopback request (web fonts …): its console line is the rig's, not the product's
+    else if (/ERR_BLOCKED_BY_CLIENT/.test(text)) kind = `${kind} (blocked external)`;
+    this.errors.push({ surface: this.label, mode: this.mode, control: this.current, kind, text });
+  }
+
+  async close() {
+    await this.context?.close().catch(() => {});
+  }
+
+  frames() {
+    return this.page.frames();
+  }
+
+  async evalAll(fn, arg) {
+    const out = [];
+    for (const f of this.frames()) {
+      try {
+        out.push({ frame: f, value: await f.evaluate(fn, arg) });
+      } catch {
+        /* detached / not ready */
+      }
+    }
+    return out;
+  }
+
+  frameTag(f) {
+    return f === this.page.mainFrame() ? 'shell' : 'canvas';
+  }
+
+  async controls() {
+    const all = [];
+    for (const { frame, value } of await this.evalAll(() => window.__crawl?.enumerate() ?? [])) {
+      const tag = this.frameTag(frame);
+      for (const c of value) all.push({ ...c, frame: tag, id: `${tag}|${c.key}|${c.occ}` });
+    }
+    return all;
+  }
+
+  fingerprint(ctrls) {
+    return ctrls
+      .map((c) => c.id)
+      .sort()
+      .join('\n');
+  }
+
+  async load() {
+    this.current = '<load>';
+    await this.page.goto(this.url, { waitUntil: 'load', timeout: 60_000 });
+    if (this.readySel)
+      await this.page.waitForSelector(this.readySel, { timeout: 30_000 }).catch(() => {});
+    await sleep(900);
+  }
+
+  frameOf(tag) {
+    return tag === 'shell'
+      ? this.page.mainFrame()
+      : (this.frames().find((f) => f !== this.page.mainFrame()) ?? null);
+  }
+
+  /** Perform one replay step. Returns false when the step's control is not there. */
+  async step(s) {
+    if (s.kind === 'key') {
+      await this.page.keyboard.press(s.key);
+    } else if (s.kind === 'select') {
+      const f = this.frameOf(s.frame);
+      if (!f) return false;
+      const ok = await f
+        .locator(s.selector)
+        .first()
+        .click({ timeout: 4000 })
+        .then(
+          () => true,
+          () => false
+        );
+      if (!ok) return false;
+    } else if (s.kind === 'click') {
+      const f = this.frameOf(s.frame);
+      if (!f) return false;
+      const ok = await f
+        .evaluate(([k, o]) => window.__crawl?.mark(k, o) ?? false, [s.key, s.occ])
+        .catch(() => false);
+      if (!ok) return false;
+      await f
+        .locator('[data-crawl-target]')
+        .first()
+        .click({ timeout: 2500 })
+        .catch(() => {});
+    }
+    await sleep(s.wait ?? 700);
+    return true;
+  }
+
+  /**
+   * Bring the page into the state `steps` describes. Soft first: Escape twice, then continue from
+   * the longest step prefix whose control set matches what is on screen; a fresh load otherwise.
+   */
+  async replay(steps) {
+    let from = -1;
+    if (this.prefixFp.size) {
+      await this.page.keyboard.press('Escape').catch(() => {});
+      await this.page.keyboard.press('Escape').catch(() => {});
+      await sleep(300);
+      const fp = this.fingerprint(await this.controls());
+      for (let i = steps.length; i >= 0; i--) {
+        if (this.prefixFp.get(this.stepsSig(steps.slice(0, i))) === fp) {
+          from = i;
+          break;
+        }
+      }
+    }
+    if (from < 0) {
+      await this.load();
+      from = 0;
+      this.prefixFp.set(this.stepsSig([]), this.fingerprint(await this.controls()));
+    }
+    for (let i = from; i < steps.length; i++) {
+      const s = steps[i];
+      this.current = `<open ${s.label ?? s.key}>`;
+      if (!(await this.step(s))) return false;
+      this.prefixFp.set(
+        this.stepsSig(steps.slice(0, i + 1)),
+        this.fingerprint(await this.controls())
+      );
+    }
+    await sleep(200);
+    return true;
+  }
+
+  stepsSig(steps) {
+    return steps
+      .map((s) => `${s.kind}:${s.frame ?? ''}:${s.key ?? s.selector}:${s.occ ?? ''}`)
+      .join('>');
+  }
+
+  /** Crawl from the given root states (each a list of steps). */
+  async run(roots) {
+    const queue = roots.map((r) => ({
+      steps: r.steps,
+      name: r.name,
+      parentIds: null,
+      depth: 0,
+      popup: false,
+    }));
+    const deadline = Date.now() + this.budgetMs;
+    let states = 0;
+    while (queue.length) {
+      const st = queue.shift();
+      if (Date.now() > deadline || states >= this.maxStates) {
+        for (const q of [st, ...queue])
+          this.results.push({
+            mode: this.mode,
+            surface: q.name,
+            control: '(surface)',
+            effect: 'unreachable',
+            note:
+              Date.now() > deadline ? 'time budget spent before this state' : 'state cap reached',
+          });
+        break;
+      }
+      states++;
+      this.log(
+        `[${this.mode}] ${this.label} · state ${states} (${queue.length} queued): ${st.name}`
+      );
+      await this.crawlState(st, queue);
+    }
+  }
+
+  async crawlState(st, queue) {
+    const surface = st.name;
+    if (!(await this.replay(st.steps))) {
+      this.results.push({
+        mode: this.mode,
+        surface,
+        control: '(surface)',
+        effect: 'unreachable',
+        note: 'a replay step was not found',
+      });
+      return;
+    }
+    const ctrls = await this.controls();
+    let fp = this.fingerprint(ctrls);
+    const parent = st.parentIds;
+    const fresh = ctrls.filter((c) => !parent?.has(c.id));
+    if (!fresh.some((c) => !this.clicked.has(`${c.frame}|${c.key}`))) return; // nothing new to judge here
+    // the noise floor of this state, per frame
+    const bgStart = this.reqPaths.length;
+    const idle = await this.evalAll(() => window.__crawl?.idle(700) ?? 0);
+    this.noiseFloor = Math.ceil(Math.max(0, ...idle.map((i) => i.value)) * 1.5) + 4;
+    for (const p of this.reqPaths.slice(bgStart)) this.bgPaths.add(p);
+    // a popup state (menu, sheet): what does merely CLOSING it look like? A menu row that only closes
+    // its menu is dead, so that signature is subtracted from every row's effect.
+    let closeSig = null;
+    if (st.popup) {
+      closeSig = await this.measure(null, async () => this.page.keyboard.press('Escape'));
+      await this.replay(st.steps);
+      fp = this.fingerprint(await this.controls());
+    }
+    const famCount = new Map();
+    // destructive first-level controls last, so a deletion cannot hide later controls
+    fresh.sort((a, b) => Number(DESTRUCTIVE.test(a.name)) - Number(DESTRUCTIVE.test(b.name)));
+    for (const c of fresh) {
+      const judgeKey = `${c.frame}|${c.key}`;
+      if (this.clicked.has(judgeKey)) continue;
+      const fam = c.family ? `${c.frame}|${c.family}` : null;
+      if (fam) {
+        const n = famCount.get(fam) ?? 0;
+        const cap = c.role === 'option' || c.role === 'treeitem' ? OPTION_CAP : FAMILY_CAP;
+        if (n >= cap) continue;
+        famCount.set(fam, n + 1);
+      }
+      this.clicked.add(judgeKey);
+      const row = {
+        mode: this.mode,
+        surface,
+        control: c.tid || c.name || c.key,
+        key: c.key,
+        frame: c.frame,
+        role: c.role || c.tag,
+      };
+      if (c.disabled) {
+        this.results.push({ ...row, effect: 'disabled', note: '' });
+        continue;
+      }
+      if (
+        NEVER.test(c.name) ||
+        (c.inDialog &&
+          DESTRUCTIVE.test(c.name) &&
+          !/^(cancel|close|keep|back|not now)/i.test(c.name))
+      ) {
+        this.results.push({
+          ...row,
+          effect: 'skipped-destructive',
+          note: c.inDialog ? 'confirm inside a dialog — not clicked' : 'never clicked',
+        });
+        continue;
+      }
+      if (c.tag === 'input' && /file/.test(c.key)) {
+        this.results.push({
+          ...row,
+          effect: 'skipped-file-picker',
+          note: 'opens the OS file picker',
+        });
+        continue;
+      }
+      // restore the state when it drifted
+      const now = await this.controls();
+      if (this.fingerprint(now) !== fp || !now.some((x) => x.id === c.id)) {
+        await this.replay(st.steps);
+        const again = await this.controls();
+        fp = this.fingerprint(again);
+        if (!again.some((x) => x.id === c.id)) {
+          this.results.push({
+            ...row,
+            effect: 'vanished',
+            note: 'not present after a replay of the state',
+          });
+          continue;
+        }
+      }
+      this.current = `${c.frame}:${c.tid || c.name || c.key}`;
+      const raw = await this.measure(c, null);
+      const res = this.classify(
+        raw,
+        /^(menuitem|menuitemcheckbox|menuitemradio|option)$/.test(c.role) ? closeSig : null,
+        c
+      );
+      this.current = '<idle>';
+      const destructive = DESTRUCTIVE.test(c.name);
+      const out = { ...row, effect: res.effect, note: raw.note };
+      if (res.effect === 'DEAD' && c.current) {
+        out.effect = 'current';
+        out.note = 'already the selected/pressed choice — clicking it again is a no-op';
+      }
+      if (destructive && res.effect !== 'DEAD') {
+        out.note = `destructive first click → ${res.effect}${raw.note ? `; ${raw.note}` : ''}`;
+        out.destructive = true;
+      }
+      this.results.push(out);
+      this.onResult?.(out);
+      // a click that revealed a place of its own → a child state
+      if (res.opens && st.depth < this.maxDepth && !destructive) {
+        const childSteps = [
+          ...st.steps,
+          { kind: 'click', frame: c.frame, key: c.key, occ: c.occ, label: c.tid || c.name },
+        ];
+        const sig = `${surface}>${c.key}`;
+        if (!this.queued.has(sig)) {
+          this.queued.add(sig);
+          queue.push({
+            steps: childSteps,
+            name: `${surface} › ${c.tid || c.name}`,
+            parentIds: new Set(ctrls.map((x) => x.id)),
+            depth: st.depth + 1,
+            popup: res.popup,
+          });
+        }
+      }
+      if (res.effect === 'DEAD') continue;
+      // restore: Escape; a toggle that hid part of the state (Hide panels) is clicked once more
+      await this.page.keyboard.press('Escape').catch(() => {});
+      await sleep(250);
+      const back = await this.controls();
+      const backIds = new Set(back.map((x) => x.id));
+      const lost = ctrls.filter((x) => !backIds.has(x.id)).length;
+      if (lost >= 3 && backIds.has(c.id) && !destructive && !c.inDialog) {
+        this.current = `<re-toggle ${c.tid || c.name}>`;
+        await this.step({ kind: 'click', frame: c.frame, key: c.key, occ: c.occ, wait: 600 });
+        await this.page.keyboard.press('Escape').catch(() => {});
+        await sleep(200);
+      }
+    }
+  }
+
+  /** One click (or `action`) inside an observation window; the raw signals it produced. */
+  async measure(c, action) {
+    const f = c ? this.frameOf(c.frame) : null;
+    const before = await this.controls();
+    const beforeIds = new Set(before.map((x) => x.id));
+    for (const fr of this.frames()) {
+      await fr
+        .evaluate(
+          ([k, o, mine]) => {
+            if (!window.__crawl) return false;
+            if (mine) window.__crawl.mark(k, o);
+            else window.__crawl.mark('\u0000', 0);
+            return window.__crawl.start();
+          },
+          [c?.key, c?.occ, !!c && fr === f]
+        )
+        .catch(() => {});
+    }
+    const invokes0 = await this.page
+      .evaluate(() => (window.__crawlInvokes ?? []).length)
+      .catch(() => 0);
+    const req0 = this.reqPaths.length;
+    const ext0 = this.external.length;
+    const pop0 = this.popups.length;
+    const url0 = this.page.url();
+    let note = '';
+    if (action) await action();
+    else {
+      try {
+        await f.locator('[data-crawl-target]').first().click({ timeout: 2500 });
+      } catch (e) {
+        // a covered control: say so and dispatch the click directly
+        note = `pointer blocked (${
+          String(e.message)
+            .split('\n')
+            .find((l) => /intercepts|not visible|outside|not stable/.test(l))
+            ?.trim()
+            .slice(0, 120) ?? 'timeout'
+        }); clicked via el.click()`;
+        await f
+          .evaluate(() => document.querySelector('[data-crawl-target]')?.click())
+          .catch(() => {});
+      }
+    }
+    await sleep(SETTLE_MS);
+    const stops = await this.evalAll(() => window.__crawl?.stop() ?? null);
+    const invokes = await this.page
+      .evaluate((n) => (window.__crawlInvokes ?? []).slice(n), invokes0)
+      .catch(() => []);
+    const reqs = [
+      ...new Set(
+        this.reqPaths
+          .slice(req0)
+          .filter((p) => !this.bgPaths.has(p) && !/^\/(_ws|_health|_events)/.test(p))
+      ),
+    ];
+    const after = await this.controls();
+    const afterIds = new Set(after.map((x) => x.id));
+    const raw = {
+      note,
+      newIds: after.filter((x) => !beforeIds.has(x.id)).map((x) => x.id),
+      removed: before.filter((x) => !afterIds.has(x.id)).length,
+      muts: 0,
+      aria: [],
+      popupsDelta: 0,
+      opens: [],
+      clips: [],
+      value: false,
+      url: this.page.url() !== url0,
+      focus: null,
+      reqs,
+      external: this.external.slice(ext0).map((e) => e.url),
+      windows: this.popups.slice(pop0).map((e) => e.url),
+      invokes,
+    };
+    for (const s of stops) {
+      const v = s.value;
+      if (!v) continue;
+      raw.muts += v.muts;
+      raw.aria.push(...v.aria);
+      raw.popupsDelta += v.popupsDelta;
+      raw.opens.push(...v.opens);
+      raw.clips.push(...(v.clips ?? []));
+      if (v.checkedChanged || v.valueChanged) raw.value = true;
+      if (v.urlChanged && s.frame === this.page.mainFrame()) raw.url = true;
+      if (v.focusMoved && (s.frame === f || !c)) raw.focus = v.focusRegion;
+    }
+    return raw;
+  }
+
+  /** Raw signals → effect kinds, minus what merely closing the state's popup produces. */
+  classify(raw, sig, c) {
+    const kinds = [];
+    const sigAria = new Set(sig?.aria ?? []);
+    const aria = raw.aria.filter((a) => !sigAria.has(a));
+    if (aria.length) kinds.push(`aria(${aria[0]})`);
+    if (raw.popupsDelta > 0) kinds.push('popup');
+    if (raw.opens.length) kinds.push(`window.open(${raw.opens[0].slice(0, 60)})`);
+    if (raw.value) kinds.push('value');
+    if (raw.clips.length) kinds.push(`clipboard(${raw.clips[0]})`);
+    if (raw.url && !sig?.url) kinds.push('url');
+    // inside a popup state focus always moves when the popup closes — not an effect on its own
+    if (raw.focus && !sig) kinds.push(`focus→${raw.focus}`);
+    if (raw.newIds.length) kinds.push(`+${raw.newIds.length} controls`);
+    if (raw.removed > (sig ? sig.removed : 0) + 1) kinds.push(`-${raw.removed} controls`);
+    const floor = Math.max(4, this.noiseFloor ?? 0) + (sig ? sig.muts : 0);
+    if (raw.muts > floor) kinds.push(`dom(${raw.muts})`);
+    const sigReqs = new Set(sig?.reqs ?? []);
+    const reqs = raw.reqs.filter((r) => !sigReqs.has(r));
+    if (reqs.length) kinds.push(`net(${reqs.slice(0, 2).join(',')})`);
+    if (raw.external.length) kinds.push(`external(${raw.external[0].slice(0, 60)})`);
+    if (raw.windows.length) kinds.push(`window(${raw.windows[0].slice(0, 60)})`);
+    if (raw.invokes.length) kinds.push(`native(${raw.invokes.slice(0, 2).join(',')})`);
+    const popup =
+      raw.popupsDelta > 0 ||
+      aria.some((a) => a.startsWith('aria-expanded') || a.startsWith('aria-selected'));
+    // a child state only when the click revealed a place of its own (a popup, a tab, a sheet), not
+    // when it swapped one label for another (Pin → Unpin)
+    const opens =
+      raw.newIds.length > 0 &&
+      (popup || c.role === 'tab' || !!c.haspopup || raw.newIds.length >= 3);
+    return { effect: kinds.length ? kinds.join(' ') : 'DEAD', opens, popup: popup || !!c.haspopup };
+  }
+}
