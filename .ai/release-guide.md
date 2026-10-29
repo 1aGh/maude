@@ -276,6 +276,10 @@ The split is the tag filters (stable workflows: `['v*.*.*', '!v*.*.*-*']`; the t
 
 **Known gaps:** a Linux `.deb` built at `X.Y.Z-rc.N` sorts ABOVE `X.Y.Z` for dpkg (the part after `-` is a Debian revision) — the `.deb` does not self-update and a manual `dpkg -i` of the stable one only warns, but a future apt repo would need `X.Y.Z~rc.N`. A 1.x maintenance release while `main` is on an rc would have to be cut from a branch; there is no recipe for that yet.
 
+## Local test builds (no silent auto-update)
+
+A release `.app` you build yourself to test (a freeze build, a branch) auto-updates like a shipped one: if its version is older than the stable release, the background check silently swaps it for that release (2026-10-29: the v2 freeze `.app` in `target/release/bundle/macos/` became the signed 1.10.0 within ~20 min, and was tested as v2). Build it with **`MAUDE_NO_AUTO_UPDATE=1`** in the environment (`MAUDE_NO_AUTO_UPDATE=1 pnpm build:desktop`): it is read at compile time (`updater.rs` `auto_update_off`) and turns off the background loop and the focus check, as in a debug build; Maude ▸ Check for Updates… still works. Release CI never sets it (`scripts/test/updater-no-auto-update.test.mjs`).
+
 ## When things break
 
 ### Tag pushed, `build-binaries.yml` matrix has 1+ failed cells
