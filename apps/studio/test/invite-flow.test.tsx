@@ -270,8 +270,9 @@ describe('a profile that holds the invite address', () => {
     expect(cmds('open_project').map((c) => c.args)).toEqual([
       {
         root: '/Users/x/Maude/alligators',
-        // S6.11 — the invite's landing says so (the project tab's toast names who invited you)
-        target: { canvas: 'ui/Combine-kampan.tsx', thread: 'th_01', via: 'invite' },
+        // S6.11 — the invite's landing says so (the project tab's toast names who invited you); V2-8.9
+        // round B A3 — the inviter's name rides as the cloud's peek gave it (the tab matches it to the thread)
+        target: { canvas: 'ui/Combine-kampan.tsx', thread: 'th_01', via: 'invite', from: 'Tereza' },
       },
     ]);
     expect(cmds('home_cloud_sign_in_prepare')).toEqual([]);
@@ -352,6 +353,7 @@ describe('another account on this Mac (ob-edge-accounts)', () => {
       canvas: 'ui/Combine-kampan.tsx',
       thread: 'th_01',
       via: 'invite',
+      from: 'Tereza',
     });
     // the personal profile is never written, re-signed or used for the invite
     for (const c of calls)
