@@ -134,16 +134,13 @@ export function importLine(answer, ctx = {}) {
         tone: 'warn',
         text: 'That link carries a password or an unusual port, so nothing was added.',
       };
-    case 'link-private':
-      return {
-        tone: 'warn',
-        text: 'That link points inside a private network, so nothing was added.',
-      };
+    // F3 — one answer for a private address, no DNS answer and no connection, so none can be told apart
     case 'link-unreachable':
+      return { tone: 'warn', text: 'That link can’t be reached from here, so nothing was added.' };
+    case 'link-proxy':
       return {
         tone: 'warn',
-        text: `${ctx.host || 'The site'} didn’t answer, so nothing was added.`,
-        verb: 'Try again',
+        text: 'This Mac sends web traffic through a proxy, so links don’t come in. Download the file and add it.',
       };
     case 'link-http':
       return {

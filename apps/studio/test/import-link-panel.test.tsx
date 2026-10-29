@@ -36,8 +36,8 @@ describe('the words', () => {
       'link-bad',
       'link-not-https',
       'link-refused',
-      'link-private',
       'link-unreachable',
+      'link-proxy',
       'link-http',
       'link-redirects',
       'link-not-media',
@@ -54,15 +54,12 @@ describe('the words', () => {
       expect(t).not.toMatch(/Maude|\/_api|HTTP|[0-9]{3}|!|Oops|\bwe\b|\bI\b/);
     }
     expect(new Set(texts).size).toBe(reasons.length);
-    expect(importLine({ ok: false, reason: 'link-private' }, {})?.text).toBe(
-      'That link points inside a private network, so nothing was added.'
-    );
+    // F3 — one line for private / no address / no connection, naming no site
     expect(
       importLine({ ok: false, reason: 'link-unreachable' }, { host: 'media.example' })
     ).toEqual({
       tone: 'warn',
-      text: 'media.example didn’t answer, so nothing was added.',
-      verb: 'Try again',
+      text: 'That link can’t be reached from here, so nothing was added.',
     });
   });
 });
@@ -72,6 +69,7 @@ describe('the Assets tab', () => {
   let answer: { status: number; body: Record<string, unknown> } = { status: 201, body: {} };
   let release: (() => void) | null = null;
   const posted: unknown[] = [];
+  const keys: Array<string | null> = [];
   beforeAll(() => {
     GlobalRegistrator.register();
     (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
@@ -81,8 +79,11 @@ describe('the Assets tab', () => {
         return new Response(JSON.stringify({ seq: 1, history: 'ready', assets: [] }), {
           status: 200,
         });
+      if (url === '/_api/import-link/key')
+        return new Response(JSON.stringify({ key: 'the-page-key' }), { status: 200 });
       if (url === '/_api/import-link') {
         posted.push(JSON.parse(String(init?.body)));
+        keys.push(new Headers(init?.headers).get('x-maude-link-key'));
         await new Promise<void>((r) => {
           release = r;
         });
@@ -100,7 +101,21 @@ describe('the Assets tab', () => {
     for (const r of roots.splice(0)) await act(async () => r.unmount());
     document.body.innerHTML = '';
     posted.length = 0;
+    keys.length = 0;
   });
+  // React's own handlers (happy-dom does not drive React's input tracking from a synthetic event)
+  const props = (el: HTMLElement) =>
+    (el as unknown as Record<string, Record<string, (e: unknown) => void>>)[
+      Object.getOwnPropertyNames(el).find((k) => k.startsWith('__reactProps')) as string
+    ] as Record<string, (e: unknown) => void>;
+  const enter = (host: HTMLElement) =>
+    act(async () => {
+      props(host.querySelector('[data-testid="assets-link-input"]') as HTMLElement).onKeyDown?.({
+        key: 'Enter',
+        preventDefault() {},
+        stopPropagation() {},
+      });
+    });
 
   async function mount(props: Record<string, unknown>) {
     const { AssetsPanel } = await import('../client/v2/left-panel/assets-panel.jsx');
@@ -132,25 +147,19 @@ describe('the Assets tab', () => {
     await act(async () => button.click());
     const input = host.querySelector('[data-testid="assets-link-input"]') as HTMLInputElement;
     expect(input).not.toBeNull();
-    // React's own handlers (happy-dom does not drive React's input tracking from a synthetic event)
-    const props = (el: HTMLElement) =>
-      (el as unknown as Record<string, Record<string, (e: unknown) => void>>)[
-        Object.getOwnPropertyNames(el).find((k) => k.startsWith('__reactProps')) as string
-      ] as Record<string, (e: unknown) => void>;
     await act(async () => {
       const set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
       set?.call(input, 'https://alligators.cz/foto/combine-2025-12.jpg');
       props(input).onChange?.({ target: input, currentTarget: input });
     });
-    await act(async () => {
-      props(host.querySelector('[data-testid="assets-link-input"]') as HTMLElement).onKeyDown?.({
-        key: 'Enter',
-        preventDefault() {},
-        stopPropagation() {},
-      });
-    });
+    expect(host.querySelector('[data-testid="assets-link-host"]')?.textContent).toBe(
+      'From alligators.cz'
+    );
+    await enter(host);
     await tick();
     expect(posted).toEqual([{ url: 'https://alligators.cz/foto/combine-2025-12.jpg' }]);
+    // F2 — the POST carries the page key the shell was handed
+    expect(keys).toEqual(['the-page-key']);
     expect(host.querySelector('[data-testid="assets-link"]')).toBeNull();
     expect(host.querySelector('[data-testid="assets-link-preparing"]')?.textContent).toBe(
       'Preparing combine-2025-12.jpg — keeps working in the background.'
@@ -163,10 +172,14 @@ describe('the Assets tab', () => {
     ]);
   });
 
-  test('a link dropped on the tab comes in the same way; a refusal says why', async () => {
+  test('F1: a dropped link only fills the field (its site in full) — nothing is fetched until ↵; a refusal says why', async () => {
     answer = {
-      status: 403,
-      body: { ok: false, reason: 'link-private', error: 'a private address' },
+      status: 502,
+      body: {
+        ok: false,
+        reason: 'link-unreachable',
+        error: 'the link cannot be reached from here',
+      },
     };
     const seen: Array<[string, boolean]> = [];
     const host = await mount({ toast: (m: string, ok: boolean) => seen.push([m, ok]) });
@@ -183,13 +196,21 @@ describe('the Assets tab', () => {
     await act(async () => {
       panel.dispatchEvent(ev);
     });
+    await tick(120);
+    // the drop made no request at all: the link waits in the field, with the site it would reach
+    expect(posted).toEqual([]);
+    expect(
+      (host.querySelector('[data-testid="assets-link-input"]') as HTMLInputElement).value
+    ).toBe('https://10.0.0.1/a.png');
+    expect(host.querySelector('[data-testid="assets-link-host"]')?.textContent).toBe(
+      'From 10.0.0.1'
+    );
+    await enter(host);
     await tick();
     expect(posted).toEqual([{ url: 'https://10.0.0.1/a.png' }]);
     await act(async () => release?.());
     await tick(80);
-    expect(seen).toEqual([
-      ['That link points inside a private network, so nothing was added.', false],
-    ]);
+    expect(seen).toEqual([['That link can’t be reached from here, so nothing was added.', false]]);
   });
 
   test('a viewer has no link button', async () => {

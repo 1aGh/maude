@@ -11671,6 +11671,19 @@
     "v2": "new"
   },
   {
+    "hook": "assets-link-host",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The site of the link in the Add from a link… field, in full (\"From alligators.cz\"), shown before ↵ — also when a dropped link filled the field.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "assets-link-preparing",
     "kind": "testid",
     "pattern": false,

@@ -774,7 +774,10 @@ export function AssetsPanel({
     if (!readOnly && hasLink(e)) {
       e.preventDefault();
       setDropping(false);
-      if (!busy) void addLink(droppedLink(e));
+      // F1 — a drag can come from a canvas (it sets text/uri-list itself): a dropped link only FILLS the field,
+      // with its site shown in full, and comes in on the person's ↵ — never on the drop
+      const url = droppedLink(e);
+      if (url) setLinking(url);
       return;
     }
     if (readOnly || !hasFiles(e)) return;
@@ -918,6 +921,12 @@ export function AssetsPanel({
               if (!linking.trim()) setLinking(null);
             }}
           />
+          {linkName(linking).host ? (
+            // F1 — the whole site, as the browser reads it (punycode for a look-alike name), before ↵
+            <span className="lp-rename-ext" data-testid="assets-link-host">
+              {`From ${linkName(linking).host}`}
+            </span>
+          ) : null}
         </div>
       ) : null}
       {note}
