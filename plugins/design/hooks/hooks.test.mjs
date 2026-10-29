@@ -140,6 +140,8 @@ describe('hooks.json wires `maude design hook <event>` (§5.4 table)', () => {
     ['PostToolUse', 'Edit|Write|MultiEdit|NotebookEdit', 'post-edit', 5],
     ['PreToolUse', 'Bash', 'pre-bash', 3],
     ['PostToolUse', 'Bash', 'post-bash', 3],
+    // p8-a1-save-hold — a failed / interrupted Bash call still closes its window (no PostToolUse then)
+    ['PostToolUseFailure', 'Bash', 'post-bash', 3],
     ['Stop', undefined, 'stop', 60],
     ['SubagentStart', undefined, 'subagent-start', 3],
     ['SessionStart', '', 'session-start', 8],

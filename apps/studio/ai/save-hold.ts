@@ -164,6 +164,15 @@ export function createSaveHold(opts: SaveHoldOptions = {}) {
   };
   const notice = (n: SaveHoldNotice) => emit('save-hold', n);
 
+  /** The cap fired for `abs`: every window over it stops holding it. */
+  const spend = (abs: string) => {
+    const k = keyOf(abs);
+    for (const w of windows.values()) {
+      if (!w.files.has(k)) continue;
+      w.spent ??= new Set();
+      w.spent.add(k);
+    }
+  };
   const live = (w: Window) => now() - w.openedAt <= staleMs;
   /** A window over a canvas covers its layout lane too (as the run stage's window does): one key. */
   const keyOf = (abs: string) => abs.replace(/\.meta\.json$/i, '.tsx');
@@ -204,10 +213,7 @@ export function createSaveHold(opts: SaveHoldOptions = {}) {
     if (p.landing) return p.landing;
     if (p.timer !== undefined) timers.clear(p.timer);
     p.timer = undefined;
-    if (why === 'cap') {
-      const k = keyOf(p.abs);
-      for (const w of windows.values()) if (w.files.has(k)) (w.spent ??= new Set()).add(k);
-    }
+    if (why === 'cap') spend(p.abs);
     // Rebased synchronously, before any await: an edit read through the hold meanwhile sees what lands.
     const disk = readDisk(p.abs);
     let overlap = false;
@@ -263,6 +269,67 @@ export function createSaveHold(opts: SaveHoldOptions = {}) {
     return p.landing;
   }
 
+  /**
+   * A person's save that is an ACTION, not bytes (a board op batch, an artboard move with its riders, a
+   * conversion, a revert, a design-system switch): the whole action waits and then runs on what the files
+   * hold then, so its ops compose in order on the AI's bytes (each its own action / undo step).
+   */
+  interface Deferred {
+    files: string[];
+    heldAt: number;
+    timer?: unknown;
+    go?: Promise<void>;
+    run: () => Promise<void>;
+  }
+  const deferred = new Set<Deferred>();
+
+  function scheduleDeferred(d: Deferred): void {
+    if (d.timer !== undefined) timers.clear(d.timer);
+    d.timer = undefined;
+    if (d.go) return;
+    const free = Math.max(0, ...d.files.map(blockedFor));
+    const cap = Math.max(0, d.heldAt + capMs - now());
+    d.timer = timers.set(
+      () => {
+        d.timer = undefined;
+        void release(d, d.files.some((f) => blockedFor(f) > 0) ? 'cap' : 'free');
+      },
+      Math.min(free, cap)
+    );
+  }
+
+  function release(d: Deferred, why: 'free' | 'cap' | 'flush'): Promise<void> {
+    if (d.go) return d.go;
+    if (d.timer !== undefined) timers.clear(d.timer);
+    d.timer = undefined;
+    if (why === 'cap') for (const f of d.files) spend(f);
+    d.go = (async () => {
+      // never held again: what runs now is the release (the action's own writes go straight through)
+      await saver.run('tool', d.run);
+      for (const f of d.files) {
+        const text = readDisk(f);
+        if (text !== null) landed.set(f, { hash: hashBytes(text), at: now() });
+      }
+      deferred.delete(d);
+      for (const f of d.files) {
+        if ([...deferred].some((o) => o.files.includes(f)) || pending.has(f)) continue;
+        notice({
+          file: rel(f),
+          state: 'landed',
+          ...(why === 'cap' ? { warning: 'cap' as const } : {}),
+          text: why === 'cap' ? CAP_WARNING : '',
+        });
+      }
+    })();
+    return d.go;
+  }
+
+  const releaseWhere = (match: (abs: string) => boolean, why: 'flush') =>
+    Promise.all([
+      ...[...pending.values()].filter((p) => match(p.abs)).map((p) => land(p, why)),
+      ...[...deferred].filter((d) => d.files.some(match)).map((d) => release(d, why)),
+    ]);
+
   return {
     /** Wire the bus the landing announces on (api.ts `createApi`). */
     attach(b: { emit: (ev: string, p: unknown) => void; designRoot: string }): void {
@@ -291,6 +358,31 @@ export function createSaveHold(opts: SaveHoldOptions = {}) {
       const t = now();
       for (const f of w.files) closedAt.set(f, t);
       for (const p of pending.values()) if (w.files.has(keyOf(p.abs))) schedule(p);
+      for (const d of deferred) if (d.files.some((f) => w.files.has(keyOf(f)))) scheduleDeferred(d);
+    },
+
+    /**
+     * Run the person's save ACTION `fn` over `files` (absolute) now — or, while a window covers one of
+     * them, once it is free (+ settle), at the cap, or on a flush. Resolves with what `fn` resolves.
+     */
+    defer<T>(files: readonly string[], fn: () => Promise<T>): Promise<T> {
+      if (!isPersonSave() || !files.some((f) => blockedFor(f) > 0)) return fn();
+      return new Promise<T>((resolve, reject) => {
+        const d: Deferred = {
+          files: [...files],
+          heldAt: now(),
+          run: async () => {
+            try {
+              resolve(await fn());
+            } catch (e) {
+              reject(e);
+            }
+          },
+        };
+        deferred.add(d);
+        for (const f of files) notice({ file: rel(f), state: 'held', text: HOLD_NOTICE });
+        scheduleDeferred(d);
+      });
     },
 
     /** Every window `owner` still has open closes (a run ended, a session went away). */
@@ -361,19 +453,28 @@ export function createSaveHold(opts: SaveHoldOptions = {}) {
 
     /** Land every held save now (shutdown, the tab or the app closing). Resolves to how many landed. */
     async flushAll(): Promise<number> {
-      const all = [...pending.values()];
-      await Promise.all(all.map((p) => land(p, 'flush')));
-      return all.length - pending.size;
+      const n = pending.size + deferred.size;
+      await releaseWhere(() => true, 'flush');
+      return n - pending.size - deferred.size;
     },
 
-    /** How many files have a held save (the shell's close confirm counts them as unsent). */
+    /** Land the held saves of these design-root-relative files now (the page that made them is closing). */
+    async flushFiles(rels: readonly string[]): Promise<number> {
+      const want = new Set(rels);
+      const n = pending.size + deferred.size;
+      await releaseWhere((abs) => want.has(rel(abs)), 'flush');
+      return n - pending.size - deferred.size;
+    },
+
+    /** How many saves are held (the shell's close confirm counts them as unsent). */
     size(): number {
-      return pending.size;
+      return pending.size + deferred.size;
     },
 
     /** The held files, design-root-relative. */
     files(): string[] {
-      return [...pending.keys()].map(rel).sort();
+      const all = new Set([...pending.keys(), ...[...deferred].flatMap((d) => d.files)]);
+      return [...all].map(rel).sort();
     },
 
     /** Did a held person save land exactly `content` at `abs` within `withinMs`? (post-bash skips it) */
@@ -383,6 +484,7 @@ export function createSaveHold(opts: SaveHoldOptions = {}) {
     },
 
     close(): void {
+      for (const d of deferred) if (d.timer !== undefined) timers.clear(d.timer);
       for (const p of pending.values()) if (p.timer !== undefined) timers.clear(p.timer);
     },
   };

@@ -269,6 +269,7 @@ import { SystemView } from './system/system-view.jsx';
 import { Viewport } from './shell/viewport.jsx';
 import { CommentsPanel } from './shell/comments-panel.jsx';
 import { ShellCallouts } from './v2/shell/callouts-host.jsx';
+import { noteSaveHold } from './v2/shell/save-hold-notice.js';
 import { ShellMentionCallouts, useCommentsShell } from './v2/comments/use-comments-shell.jsx';
 import { commentFocusMessage, wantReplyFocus } from './v2/comments/reply-focus.js';
 import { noteMadeByAi } from './v2/ai/made-by-ai.js';
@@ -863,6 +864,9 @@ function ShellState({ children }) {
             // S5.11 (V2-1.15 §5.4) — the run registry moved: the shell's run store re-reads it.
             // S5.13's needs-you store hears the same window event (`maude:ai-runs`): one dispatch.
             noteAiRuns(m.seq);
+          } else if (m.type === 'save-hold') {
+            // p8-a1-save-hold — a save waits behind an AI call / landed: the notice (and the close flush)
+            noteSaveHold(m.payload);
           } else if (m.type === 'project:action' && m.action) {
             // S2.20 — an accepted action: the ⌘Z projection of every open canvas it touched.
             // S5.15 — "Made by AI" (derived: an ai action marks its artboards, the next person's

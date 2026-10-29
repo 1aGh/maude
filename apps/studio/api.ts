@@ -22,7 +22,7 @@ import {
 } from './access/filters.ts';
 import { currentFrameKey } from './access/frame.ts';
 import { currentAccess, toDesignRel } from './access/request.ts';
-import { saveHold } from './ai/save-hold.ts';
+import { asPersonSave, saveHold } from './ai/save-hold.ts';
 import { canonicalAnnotations } from './annotations/board-text.ts';
 import {
   type Op as AnnotationOp,
@@ -2761,6 +2761,24 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return next;
   }
 
+  /**
+   * p8-a1-save-hold — run a person's board / layout ACTION now, or — while a running interpreter call names
+   * one of these files — once the call is done (+ settle), at the cap, or on a flush (ai/save-hold.ts
+   * `defer`): it then runs on what the files hold, so its ops land on top of the AI's bytes, as theirs.
+   */
+  function deferSave<T>(files: Array<() => string | null>, fn: () => Promise<T>): Promise<T> {
+    const abs: string[] = [];
+    for (const f of files) {
+      try {
+        const a = f();
+        if (a) abs.push(a);
+      } catch {
+        /* not a canvas path: the action refuses it itself */
+      }
+    }
+    return saveHold().defer(abs, fn);
+  }
+
   async function writeBoardFile(file: string, text: string): Promise<void> {
     await Bun.write(annotationsPath(file), text);
     // Annotations reach OTHER VIEWERS over the collab room, but the file is also
@@ -2787,39 +2805,41 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       typeof base === 'string' && base.length <= MAX_ANNOTATIONS_BYTES
         ? (canonicalAnnotations(base) ?? undefined)
         : undefined;
-    return onAnnotationChain(file, async () => {
-      // Never overwrite a board we can't read — it may hold work (review H2).
-      const read = await readBoard(file);
-      if (!read.ok) return false;
-      let next = clean;
-      if (cleanBase !== undefined) {
-        // With a base, the write is "what changed since base", merged onto the
-        // current board — a whole-board PUT no longer erases concurrent edits
-        // (code review M5). Same one merge rule as the op path.
-        const byId = (t: string) => new Map(parseBoard(t).elements.map((e) => [e.id, e]));
-        const ops = diffToOps(byId(cleanBase), byId(clean));
-        // sec-a M1 — a whole-board write never touches a vote or a ballot (the vote door does).
-        const live = hooks.applyAnnotationOpsLive?.(file, ops, writeId, voteDoorOnly) ?? null;
-        if (live === 'too-large' || live === 'refused') return false;
-        if (live) return true;
-        const current = read.text ?? serializeBoard([]);
-        const currentMap = byId(current);
-        const merged = applyAnnotationOpsPure(currentMap, ops).state;
-        if (voteDoorOnly(currentMap, merged) !== null) return false;
-        next = serializeBoard([...merged.values()]);
-        if (next.length > MAX_ANNOTATIONS_BYTES) return false;
-        if (next === current) return true;
-      }
-      if (cleanBase === undefined) {
-        // A replace: every vote and ballot must be exactly the stored ones (sec-a M1).
-        const byId = (t: string | null) =>
-          new Map((t ? parseBoard(t).elements : []).map((e) => [e.id, e]));
-        if (voteDoorOnly(byId(read.text), byId(next)) !== null) return false;
-      }
-      await writeBoardFile(file, next);
-      onAnnotationsChanged?.(file, next, writeId, cleanBase);
-      return true;
-    });
+    return onAnnotationChain(file, () =>
+      deferSave([() => annotationsPath(file)], async () => {
+        // Never overwrite a board we can't read — it may hold work (review H2).
+        const read = await readBoard(file);
+        if (!read.ok) return false;
+        let next = clean;
+        if (cleanBase !== undefined) {
+          // With a base, the write is "what changed since base", merged onto the
+          // current board — a whole-board PUT no longer erases concurrent edits
+          // (code review M5). Same one merge rule as the op path.
+          const byId = (t: string) => new Map(parseBoard(t).elements.map((e) => [e.id, e]));
+          const ops = diffToOps(byId(cleanBase), byId(clean));
+          // sec-a M1 — a whole-board write never touches a vote or a ballot (the vote door does).
+          const live = hooks.applyAnnotationOpsLive?.(file, ops, writeId, voteDoorOnly) ?? null;
+          if (live === 'too-large' || live === 'refused') return false;
+          if (live) return true;
+          const current = read.text ?? serializeBoard([]);
+          const currentMap = byId(current);
+          const merged = applyAnnotationOpsPure(currentMap, ops).state;
+          if (voteDoorOnly(currentMap, merged) !== null) return false;
+          next = serializeBoard([...merged.values()]);
+          if (next.length > MAX_ANNOTATIONS_BYTES) return false;
+          if (next === current) return true;
+        }
+        if (cleanBase === undefined) {
+          // A replace: every vote and ballot must be exactly the stored ones (sec-a M1).
+          const byId = (t: string | null) =>
+            new Map((t ? parseBoard(t).elements : []).map((e) => [e.id, e]));
+          if (voteDoorOnly(byId(read.text), byId(next)) !== null) return false;
+        }
+        await writeBoardFile(file, next);
+        onAnnotationsChanged?.(file, next, writeId, cleanBase);
+        return true;
+      })
+    );
   }
 
   /**
@@ -2863,25 +2883,27 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         return { ok: false, changed: false, rejected: [], error: 'board exceeds the size cap' };
       }
       if (live) return { ok: true, changed: live.touched.size > 0, rejected: rejectedOf(live) };
-      const read = await readBoard(file);
-      if (!read.ok) {
-        return { ok: false, changed: false, rejected: [], error: read.error, unreadable: true };
-      }
-      const before = read.text ? parseBoard(read.text).elements : [];
-      const beforeText = serializeBoard(before);
-      const beforeMap = new Map(before.map((e) => [e.id, e]));
-      const r = applyAnnotationOpsPure(beforeMap, ops);
-      const hit = guard?.(beforeMap, r.state) ?? null;
-      if (hit !== null) return refusedResult(hit);
-      const rejected = rejectedOf(r);
-      if (!r.touched.size) return { ok: true, changed: false, rejected };
-      const text = serializeBoard([...r.state.values()]);
-      if (text.length > MAX_ANNOTATIONS_BYTES) {
-        return { ok: false, changed: false, rejected, error: 'board exceeds the size cap' };
-      }
-      await writeBoardFile(file, text);
-      if (withHooks) onAnnotationsChanged?.(file, text, actionId, beforeText);
-      return { ok: true, changed: true, rejected };
+      return deferSave([() => annotationsPath(file)], async (): Promise<AnnotationOpsResult> => {
+        const read = await readBoard(file);
+        if (!read.ok) {
+          return { ok: false, changed: false, rejected: [], error: read.error, unreadable: true };
+        }
+        const before = read.text ? parseBoard(read.text).elements : [];
+        const beforeText = serializeBoard(before);
+        const beforeMap = new Map(before.map((e) => [e.id, e]));
+        const r = applyAnnotationOpsPure(beforeMap, ops);
+        const hit = guard?.(beforeMap, r.state) ?? null;
+        if (hit !== null) return refusedResult(hit);
+        const rejected = rejectedOf(r);
+        if (!r.touched.size) return { ok: true, changed: false, rejected };
+        const text = serializeBoard([...r.state.values()]);
+        if (text.length > MAX_ANNOTATIONS_BYTES) {
+          return { ok: false, changed: false, rejected, error: 'board exceeds the size cap' };
+        }
+        await writeBoardFile(file, text);
+        if (withHooks) onAnnotationsChanged?.(file, text, actionId, beforeText);
+        return { ok: true, changed: true, rejected };
+      });
     });
   }
 
@@ -2900,6 +2922,21 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
     const clean = canonicalAnnotations(text);
     if (clean === null) return false;
+    // p8-a1-save-hold — the room's flush IS the person's strokes (an AI run's batch never takes the live
+    // room): while a running interpreter call names the board it waits; a newer flush supersedes it
+    // (`isCurrent`), so the last one lands
+    return asPersonSave(() =>
+      saveHold().defer([dest], () => projectBoard(file, dest, clean, isCurrent))
+    );
+  }
+
+  async function projectBoard(
+    file: string,
+    dest: string,
+    clean: string,
+    isCurrent: () => boolean
+  ): Promise<boolean> {
+    if (!isCurrent()) return false;
     // Runtime scratch stays out of the file plane. The async IO must not touch
     // the serving file until we recheck the document; another edit may have
     // arrived while Bun.write was pending. Check + rename have no await gap.
@@ -2939,63 +2976,69 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     change: ConvertChange<T>,
     proposer: LanesProposer | null
   ): Promise<ConvertResult<T>> {
-    return onAnnotationChain(file, async () => {
-      const read = await readBoard(file);
-      if (!read.ok) return { ok: false, status: 409, body: { ok: false, reason: 'unreadable' } };
-      const elements = read.text ? parseBoard(read.text).elements : [];
-      const boardBefore = read.text ?? '';
-      const comments = await loadCommentsForFile(file);
-      const commentsBefore = structuredClone(comments);
-      const c = change({ board: elements, comments: structuredClone(comments) });
-      if (!c.ok) return c;
-      const r = applyAnnotationOpsPure(new Map(elements.map((e) => [e.id, e])), c.ops);
-      if (r.rejected.length) {
-        return { ok: false, status: 409, body: { ok: false, reason: 'stale' } };
-      }
-      const boardAfter = serializeBoard([...r.state.values()]);
-      if (boardAfter.length > MAX_ANNOTATIONS_BYTES) {
-        return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
-      }
-      const commentsAfter = dedupeCommentsById(c.comments);
-      const lanes: LaneChange[] = [
-        { lane: 'annotations', text: boardAfter, baseText: boardBefore },
-        {
-          lane: 'comments',
-          text: JSON.stringify(commentsAfter),
-          baseText: JSON.stringify(commentsBefore),
-        },
-      ];
-      const snapshot: ConvertSnapshot = {
-        file,
-        boardBefore,
-        boardAfter,
-        commentsBefore,
-        commentsAfter,
-      };
-      if (proposer?.accepted) {
-        // The project decides first: a refused conversion leaves both files as they are.
-        const answer = await proposer.send(lanes);
-        if (answer.status !== 'accepted') {
-          return { ok: false, status: 409, body: { ok: false, reason: answer.code ?? 'rejected' } };
+    return onAnnotationChain(file, () =>
+      deferSave([() => annotationsPath(file)], async (): Promise<ConvertResult<T>> => {
+        const read = await readBoard(file);
+        if (!read.ok) return { ok: false, status: 409, body: { ok: false, reason: 'unreadable' } };
+        const elements = read.text ? parseBoard(read.text).elements : [];
+        const boardBefore = read.text ?? '';
+        const comments = await loadCommentsForFile(file);
+        const commentsBefore = structuredClone(comments);
+        const c = change({ board: elements, comments: structuredClone(comments) });
+        if (!c.ok) return c;
+        const r = applyAnnotationOpsPure(new Map(elements.map((e) => [e.id, e])), c.ops);
+        if (r.rejected.length) {
+          return { ok: false, status: 409, body: { ok: false, reason: 'stale' } };
         }
-        await writeBoardFile(file, boardAfter);
-        await saveCommentsForFile(file, commentsAfter);
-        ctx.bus.emit('comments', { file, comments: commentsAfter });
+        const boardAfter = serializeBoard([...r.state.values()]);
+        if (boardAfter.length > MAX_ANNOTATIONS_BYTES) {
+          return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
+        }
+        const commentsAfter = dedupeCommentsById(c.comments);
+        const lanes: LaneChange[] = [
+          { lane: 'annotations', text: boardAfter, baseText: boardBefore },
+          {
+            lane: 'comments',
+            text: JSON.stringify(commentsAfter),
+            baseText: JSON.stringify(commentsBefore),
+          },
+        ];
+        const snapshot: ConvertSnapshot = {
+          file,
+          boardBefore,
+          boardAfter,
+          commentsBefore,
+          commentsAfter,
+        };
+        if (proposer?.accepted) {
+          // The project decides first: a refused conversion leaves both files as they are.
+          const answer = await proposer.send(lanes);
+          if (answer.status !== 'accepted') {
+            return {
+              ok: false,
+              status: 409,
+              body: { ok: false, reason: answer.code ?? 'rejected' },
+            };
+          }
+          await writeBoardFile(file, boardAfter);
+          await saveCommentsForFile(file, commentsAfter);
+          ctx.bus.emit('comments', { file, comments: commentsAfter });
+          return { ok: true, result: c.result, snapshot, ...actionOf(answer) };
+        }
+        const live = hooks.applyAnnotationOpsLive?.(file, c.ops) ?? null;
+        if (live === 'too-large') {
+          return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
+        }
+        if (!live) {
+          await writeBoardFile(file, boardAfter);
+          onAnnotationsChanged?.(file, boardAfter, undefined, boardBefore, !!proposer);
+        }
+        await publishComments(file, commentsAfter, commentsBefore);
+        if (!proposer) return { ok: true, result: c.result, snapshot };
+        const answer = await proposer.send(lanes);
         return { ok: true, result: c.result, snapshot, ...actionOf(answer) };
-      }
-      const live = hooks.applyAnnotationOpsLive?.(file, c.ops) ?? null;
-      if (live === 'too-large') {
-        return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
-      }
-      if (!live) {
-        await writeBoardFile(file, boardAfter);
-        onAnnotationsChanged?.(file, boardAfter, undefined, boardBefore, !!proposer);
-      }
-      await publishComments(file, commentsAfter, commentsBefore);
-      if (!proposer) return { ok: true, result: c.result, snapshot };
-      const answer = await proposer.send(lanes);
-      return { ok: true, result: c.result, snapshot, ...actionOf(answer) };
-    });
+      })
+    );
   }
 
   const actionOf = (a: LanesOutcome): { actionId?: string; queued?: boolean } => ({
@@ -3030,69 +3073,79 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         : null;
     if (!raw || !artboards)
       return { ok: false, status: 400, body: { ok: false, reason: 'layout.artboards required' } };
-    return onAnnotationChain(file, async (): Promise<RiderMoveResult> => {
-      let currentText: string | null = null;
-      let current: Record<string, unknown> = {};
-      try {
-        currentText = await Bun.file(metaAbs).text();
-        const parsed = JSON.parse(currentText);
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed))
-          current = parsed as Record<string, unknown>;
-      } catch {
-        currentText = null;
-      }
-      const read = await readBoard(file);
-      if (!read.ok) return { ok: false, status: 409, body: { ok: false, reason: 'unreadable' } };
-      const elements = read.text ? parseBoard(read.text).elements : [];
-      const boardBefore = read.text ?? '';
-      const refused = rider.check(elements, current.layout);
-      if (refused) return { ok: false, ...refused };
-      const r = applyAnnotationOpsPure(new Map(elements.map((e) => [e.id, e])), rider.ops);
-      if (r.rejected.length)
-        return { ok: false, status: 409, body: { ok: false, reason: 'stale' } };
-      const boardAfter = r.touched.size ? serializeBoard([...r.state.values()]) : boardBefore;
-      if (boardAfter.length > MAX_ANNOTATIONS_BYTES)
-        return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
-      const next: Record<string, unknown> = { ...current, layout: { ...raw, artboards } };
-      next.viewport = undefined;
-      next.last_modified = new Date().toISOString();
-      const nextText = `${JSON.stringify(next, null, 2)}\n`;
-      const metaRel = path.relative(paths.designRoot, metaAbs);
-      const lanes: LaneChange[] = [
-        { lane: 'meta', text: nextText, baseText: currentText ?? '{}' },
-        ...(boardAfter !== boardBefore
-          ? [{ lane: 'annotations' as const, text: boardAfter, baseText: boardBefore }]
-          : []),
-      ];
-      if (proposer?.accepted) {
-        const answer = await proposer.send(lanes);
-        if (answer.status !== 'accepted')
-          return { ok: false, status: 409, body: { ok: false, reason: answer.code ?? 'rejected' } };
-        await Bun.write(metaAbs, nextText);
-        announceWritten(metaRel);
-        if (boardAfter !== boardBefore) await writeBoardFile(file, boardAfter);
-        return { ok: true, meta: (await loadCanvasMeta(file)) ?? {}, ...actionOf(answer) };
-      }
-      if (boardAfter !== boardBefore) {
-        const live = hooks.applyAnnotationOpsLive?.(file, rider.ops, rider.actionId) ?? null;
-        if (live === 'too-large')
-          return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
-        if (!live) {
-          await writeBoardFile(file, boardAfter);
-          onAnnotationsChanged?.(file, boardAfter, rider.actionId, boardBefore, !!proposer);
+    return onAnnotationChain(file, () =>
+      deferSave(
+        [() => metaAbs, () => annotationsPath(file)],
+        async (): Promise<RiderMoveResult> => {
+          let currentText: string | null = null;
+          let current: Record<string, unknown> = {};
+          try {
+            currentText = await Bun.file(metaAbs).text();
+            const parsed = JSON.parse(currentText);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed))
+              current = parsed as Record<string, unknown>;
+          } catch {
+            currentText = null;
+          }
+          const read = await readBoard(file);
+          if (!read.ok)
+            return { ok: false, status: 409, body: { ok: false, reason: 'unreadable' } };
+          const elements = read.text ? parseBoard(read.text).elements : [];
+          const boardBefore = read.text ?? '';
+          const refused = rider.check(elements, current.layout);
+          if (refused) return { ok: false, ...refused };
+          const r = applyAnnotationOpsPure(new Map(elements.map((e) => [e.id, e])), rider.ops);
+          if (r.rejected.length)
+            return { ok: false, status: 409, body: { ok: false, reason: 'stale' } };
+          const boardAfter = r.touched.size ? serializeBoard([...r.state.values()]) : boardBefore;
+          if (boardAfter.length > MAX_ANNOTATIONS_BYTES)
+            return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
+          const next: Record<string, unknown> = { ...current, layout: { ...raw, artboards } };
+          next.viewport = undefined;
+          next.last_modified = new Date().toISOString();
+          const nextText = `${JSON.stringify(next, null, 2)}\n`;
+          const metaRel = path.relative(paths.designRoot, metaAbs);
+          const lanes: LaneChange[] = [
+            { lane: 'meta', text: nextText, baseText: currentText ?? '{}' },
+            ...(boardAfter !== boardBefore
+              ? [{ lane: 'annotations' as const, text: boardAfter, baseText: boardBefore }]
+              : []),
+          ];
+          if (proposer?.accepted) {
+            const answer = await proposer.send(lanes);
+            if (answer.status !== 'accepted')
+              return {
+                ok: false,
+                status: 409,
+                body: { ok: false, reason: answer.code ?? 'rejected' },
+              };
+            await Bun.write(metaAbs, nextText);
+            announceWritten(metaRel);
+            if (boardAfter !== boardBefore) await writeBoardFile(file, boardAfter);
+            return { ok: true, meta: (await loadCanvasMeta(file)) ?? {}, ...actionOf(answer) };
+          }
+          if (boardAfter !== boardBefore) {
+            const live = hooks.applyAnnotationOpsLive?.(file, rider.ops, rider.actionId) ?? null;
+            if (live === 'too-large')
+              return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
+            if (!live) {
+              await writeBoardFile(file, boardAfter);
+              onAnnotationsChanged?.(file, boardAfter, rider.actionId, boardBefore, !!proposer);
+            }
+          }
+          await Bun.write(metaAbs, nextText);
+          hooks.onMetaChanged?.(
+            file,
+            nextText,
+            Object.keys(current).length ? JSON.stringify(current) : null
+          );
+          announceWritten(metaRel);
+          const meta = (await loadCanvasMeta(file)) ?? {};
+          if (!proposer) return { ok: true, meta };
+          return { ok: true, meta, ...actionOf(await proposer.send(lanes)) };
         }
-      }
-      await Bun.write(metaAbs, nextText);
-      hooks.onMetaChanged?.(
-        file,
-        nextText,
-        Object.keys(current).length ? JSON.stringify(current) : null
-      );
-      announceWritten(metaRel);
-      const meta = (await loadCanvasMeta(file)) ?? {};
-      if (!proposer) return { ok: true, meta };
-      return { ok: true, meta, ...actionOf(await proposer.send(lanes)) };
-    });
+      )
+    );
   }
 
   /**
@@ -3102,24 +3155,29 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
    * along with it.
    */
   async function restoreConversion(s: ConvertSnapshot): Promise<{ ok: boolean; reason?: string }> {
-    return onAnnotationChain(s.file, async () => {
-      const read = await readBoard(s.file);
-      if (!read.ok) return { ok: false, reason: 'unreadable' };
-      const comments = await loadCommentsForFile(s.file);
-      const sameComments = JSON.stringify(comments) === JSON.stringify(s.commentsAfter);
-      if ((read.text ?? '') !== s.boardAfter || !sameComments)
-        return { ok: false, reason: 'stale' };
-      const byId = (t: string) => new Map(parseBoard(t).elements.map((e) => [e.id, e]));
-      const ops = diffToOps(byId(s.boardAfter), byId(s.boardBefore || serializeBoard([])));
-      const live = hooks.applyAnnotationOpsLive?.(s.file, ops) ?? null;
-      if (live === 'too-large') return { ok: false, reason: 'too-large' };
-      if (!live) {
-        await writeBoardFile(s.file, s.boardBefore || serializeBoard([]));
-        onAnnotationsChanged?.(s.file, s.boardBefore, undefined, s.boardAfter);
-      }
-      await publishComments(s.file, s.commentsBefore, s.commentsAfter);
-      return { ok: true };
-    });
+    return onAnnotationChain(s.file, () =>
+      deferSave(
+        [() => annotationsPath(s.file)],
+        async (): Promise<{ ok: boolean; reason?: string }> => {
+          const read = await readBoard(s.file);
+          if (!read.ok) return { ok: false, reason: 'unreadable' };
+          const comments = await loadCommentsForFile(s.file);
+          const sameComments = JSON.stringify(comments) === JSON.stringify(s.commentsAfter);
+          if ((read.text ?? '') !== s.boardAfter || !sameComments)
+            return { ok: false, reason: 'stale' };
+          const byId = (t: string) => new Map(parseBoard(t).elements.map((e) => [e.id, e]));
+          const ops = diffToOps(byId(s.boardAfter), byId(s.boardBefore || serializeBoard([])));
+          const live = hooks.applyAnnotationOpsLive?.(s.file, ops) ?? null;
+          if (live === 'too-large') return { ok: false, reason: 'too-large' };
+          if (!live) {
+            await writeBoardFile(s.file, s.boardBefore || serializeBoard([]));
+            onAnnotationsChanged?.(s.file, s.boardBefore, undefined, s.boardAfter);
+          }
+          await publishComments(s.file, s.commentsBefore, s.commentsAfter);
+          return { ok: true };
+        }
+      )
+    );
   }
 
   // Phase 23 — content-addressed asset write. Reachable from the (potentially
@@ -7505,6 +7563,17 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         error: 'reorder not found (server restarted or log rotated)',
       };
     }
+    // p8-a1-save-hold — a revert to a canvas a running interpreter call names waits until the call is done
+    // (+ settle); it then checks the canvas as it is (an AI write meanwhile makes it an honest 409)
+    return saveHold().defer([r.abs], () => revertNow(r.abs, entry, dir));
+  }
+
+  async function revertNow(
+    abs: string,
+    entry: { abs: string; before: string; after: string; undoActionId?: string },
+    dir: 'undo' | 'redo'
+  ): Promise<ReorderRevertResult> {
+    const r = { abs };
     try {
       const current = await Bun.file(r.abs).text();
       const expect = dir === 'undo' ? entry.after : entry.before;

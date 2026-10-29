@@ -253,6 +253,8 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   { method: 'POST', route: '/_api/sync/link/confirm', refused: ['view', 'comment'] },
   // S11.17 — `save.retry-held`: Retry writes the canvas files a full disk held (`readOnly: 'refused'`).
   { method: 'POST', route: '/_api/diagnostics/disk-retry', refused: ['view', 'comment'] },
+  // p8-a1-save-hold — the closing page lands its held saves (canvas files): an edit
+  { method: 'POST', route: '/_api/diagnostics/save-hold-flush', refused: ['view', 'comment'] },
   // S11.12 — Sync details: a held source conflict's picks (Keep both writes a new canvas), the
   // unfinished AI edit's Publish / Discard, the transfer's ✕ and Get latest are all writes a read-only
   // session may not make (the local gate's default-deny; the cell refuses them outright).

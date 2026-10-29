@@ -30,12 +30,18 @@ import {
 import { hookClaims } from '../ai/write-claim.ts';
 import { createApi } from '../api.ts';
 import { applyEdit } from '../canvas-edit.ts';
-import { noteSaveHold } from '../client/v2/shell/save-hold-notice.js';
+import {
+  FLUSH_ROUTE,
+  flushHeldSaves,
+  noteSaveHold,
+  resetSaveHoldNoticeForTest,
+} from '../client/v2/shell/save-hold-notice.js';
 import type { AiActivity } from '../collab/ai-activity.ts';
 import { type Context, createBus } from '../context.ts';
 import type { EditOp } from '../edit-ops/types.ts';
 import { claimingTableRoute, guardTableRoute } from '../http.ts';
 import { agentRouteSpecs } from '../routes/agent.ts';
+import { createDiagnosticsRoutes } from '../routes/diagnostics.ts';
 import { createEditRoutes } from '../routes/edit.ts';
 import { runStageHooks } from '../routes/project-undo.ts';
 import { shellStatus } from '../routes/shell.ts';
@@ -457,64 +463,187 @@ describe('A1 hold — a person’s save inside an interpreter call’s window wa
   });
 });
 
-describe('A1 hold — the layout lane (an artboard drag) and the notice', () => {
+/** createApi over a fresh project (Home.tsx + its meta), with the hooks the home would get. */
+function apiRig() {
+  const root = mkdtempSync(path.join(tmpdir(), 'maude-a1-save-hold-api-'));
+  dirs.push(root);
+  const designRoot = path.join(root, '.design');
+  mkdirSync(path.join(designRoot, 'ui'), { recursive: true });
+  const tsx = path.join(designRoot, HOME);
+  const meta = tsx.replace(/\.tsx$/, '.meta.json');
+  writeFileSync(tsx, canvas('Home'));
+  writeFileSync(meta, `${JSON.stringify({ title: 'Home' }, null, 2)}\n`);
+  const hold = createSaveHold();
+  setSaveHoldForTest(hold);
+  const proposed: string[] = [];
+  const boards: string[] = [];
+  const api = createApi(
+    {
+      cfg: { designRoot: '.design', canvasGroups: [{ label: 'UI', path: 'ui' }] },
+      projectLabel: 'test',
+      paths: {
+        repoRoot: root,
+        designRel: '.design',
+        designRoot,
+        serverInfoFile: path.join(designRoot, '_server.json'),
+        activeFile: path.join(designRoot, '_active.json'),
+        commentsDir: path.join(designRoot, '_comments'),
+        canvasStateDir: path.join(designRoot, '_canvas-state'),
+        historyDir: path.join(designRoot, '_history'),
+        tokensUrlRel: '.design/system/colors.css',
+        systemDirRel: 'system',
+      },
+      bus: createBus(),
+    } as unknown as Context,
+    {
+      onCommentsChanged: () => {},
+      onMetaChanged: (_f, text) => void proposed.push(text),
+      onAnnotationsChanged: (_f, text) => void boards.push(text),
+    }
+  );
+  const board = path.join(designRoot, `${api.fileSlug(repo(HOME))}.annotations.json`);
+  const readOr = (f: string) => {
+    try {
+      return readFileSync(f, 'utf8');
+    } catch {
+      return '';
+    }
+  };
+  return { root, designRoot, tsx, meta, board, hold, api, proposed, boards, readOr };
+}
+
+const sticky = (id: string, x = 100) => ({
+  id,
+  type: 'sticky',
+  index: 'a0',
+  x,
+  y: 120,
+  w: 200,
+  h: 200,
+  text: 'Make the hero bigger',
+  parentArtboard: 'desktop',
+});
+
+describe('A1 hold — the layout and board lanes, and the notice', () => {
   test('7. a person’s artboard move to a canvas the call names waits, then lands through the same write + proposal', async () => {
-    const root = mkdtempSync(path.join(tmpdir(), 'maude-a1-save-hold-meta-'));
-    dirs.push(root);
-    const designRoot = path.join(root, '.design');
-    mkdirSync(path.join(designRoot, 'ui'), { recursive: true });
-    const tsx = path.join(designRoot, HOME);
-    const meta = tsx.replace(/\.tsx$/, '.meta.json');
-    writeFileSync(tsx, canvas('Home'));
-    writeFileSync(meta, `${JSON.stringify({ title: 'Home' }, null, 2)}\n`);
-    const hold = createSaveHold();
-    setSaveHoldForTest(hold);
-    const proposed: string[] = [];
-    const api = createApi(
-      {
-        cfg: { designRoot: '.design', canvasGroups: [{ label: 'UI', path: 'ui' }] },
-        projectLabel: 'test',
-        paths: {
-          repoRoot: root,
-          designRel: '.design',
-          designRoot,
-          serverInfoFile: path.join(designRoot, '_server.json'),
-          activeFile: path.join(designRoot, '_active.json'),
-          commentsDir: path.join(designRoot, '_comments'),
-          canvasStateDir: path.join(designRoot, '_canvas-state'),
-          historyDir: path.join(designRoot, '_history'),
-          tokensUrlRel: '.design/system/colors.css',
-          systemDirRel: 'system',
-        },
-        bus: createBus(),
-      } as unknown as Context,
-      {
-        onCommentsChanged: () => {},
-        onMetaChanged: (_f, text) => void proposed.push(text),
-        onAnnotationsChanged: () => {},
-      }
-    );
+    const r = apiRig();
     // the python call names the canvas: its layout lane is covered too
-    hold.window('p1', true, [tsx]);
+    r.hold.window('p1', true, [r.tsx]);
     const move = { layout: { artboards: [{ id: 'desktop', x: 300, y: 40 }] } };
-    const back = await asPersonSave(() => api.patchCanvasMeta(repo(HOME), move));
+    const back = await asPersonSave(() => r.api.patchCanvasMeta(repo(HOME), move));
     expect((back?.layout as { artboards?: unknown[] } | undefined)?.artboards).toEqual(
       move.layout.artboards
     );
-    expect(readFileSync(meta, 'utf8')).not.toContain('300');
-    expect(proposed).toEqual([]);
-    hold.window('p1', false, []);
+    expect(r.readOr(r.meta)).not.toContain('300');
+    expect(r.proposed).toEqual([]);
+    r.hold.window('p1', false, []);
     await sleep(SHELL_SETTLE_MS + 300);
-    expect(readFileSync(meta, 'utf8')).toContain('"x": 300');
-    expect(proposed).toHaveLength(1);
-    expect(proposed[0]).toContain('"x": 300');
+    expect(r.readOr(r.meta)).toContain('"x": 300');
+    expect(r.proposed).toHaveLength(1);
+    expect(r.proposed[0]).toContain('"x": 300');
+  });
+
+  test('9. board: a person’s op batch to a board the call names waits, then runs on the board as it is then', async () => {
+    const r = apiRig();
+    r.hold.window('p1', true, [r.board]);
+    const done = asPersonSave(() =>
+      r.api.applyAnnotationOps(repo(HOME), [{ op: 'put', el: sticky('s_mine') } as never])
+    );
+    await sleep(200);
+    expect(r.readOr(r.board)).not.toContain('s_mine'); // held, not written
+    expect(r.boards).toEqual([]);
+    // the interpreter writes its own sticky meanwhile
+    writeFileSync(r.board, `${JSON.stringify(sticky('s_ai', 900))}\n`);
+    r.hold.window('p1', false, []);
+    expect((await done).ok).toBe(true);
+    const now = r.readOr(r.board);
+    expect(now).toContain('s_mine');
+    expect(now).toContain('s_ai'); // composed on the AI's board, not over it
+    expect(r.boards).toHaveLength(1);
+  });
+
+  test('9b. board: the collab room’s flush (the person’s strokes) waits too, and the last flush lands', async () => {
+    const r = apiRig();
+    r.hold.window('p1', true, [r.board]);
+    const first = r.api.projectAnnotations(
+      repo(HOME),
+      `${JSON.stringify(sticky('s_one'))}\n`,
+      () => false
+    );
+    const second = r.api.projectAnnotations(
+      repo(HOME),
+      `${JSON.stringify(sticky('s_two'))}\n`,
+      () => true
+    );
+    await sleep(200);
+    expect(r.readOr(r.board)).toBe('');
+    r.hold.window('p1', false, []);
+    expect(await first).toBe(false); // superseded by the newer flush
+    expect(await second).toBe(true);
+    expect(r.readOr(r.board)).toContain('s_two');
+  });
+
+  test('10. rider: an artboard move with its annotations waits as ONE action and lands both lanes', async () => {
+    const r = apiRig();
+    writeFileSync(r.board, `${JSON.stringify(sticky('s_hero'))}\n`);
+    r.hold.window('p1', true, [r.tsx]);
+    const rider = {
+      ops: [{ op: 'patch', id: 's_hero', set: { x: 400 }, expect: { x: 100 } }],
+      check: () => null,
+    };
+    const moved = asPersonSave(() =>
+      r.api.moveArtboardsWithRider(
+        repo(HOME),
+        { artboards: [{ id: 'desktop', x: 300, y: 0 }] },
+        rider as never,
+        null
+      )
+    );
+    await sleep(200);
+    expect(r.readOr(r.meta)).not.toContain('300');
+    expect(r.readOr(r.board)).toContain('"x":100');
+    r.hold.window('p1', false, []);
+    expect((await moved).ok).toBe(true);
+    expect(r.readOr(r.meta)).toContain('"x": 300');
+    expect(r.readOr(r.board)).toContain('"x":400');
+  });
+
+  test('11. close: the closing page’s flush lands its held saves at once (the route behind the beacon)', async () => {
+    const r = apiRig();
+    r.hold.window('p1', true, [r.tsx]);
+    const move = { layout: { artboards: [{ id: 'desktop', x: 300, y: 40 }] } };
+    await asPersonSave(() => r.api.patchCanvasMeta(repo(HOME), move));
+    r.hold.window('p2', true, [r.board]);
+    const board = asPersonSave(() =>
+      r.api.applyAnnotationOps(repo(HOME), [{ op: 'put', el: sticky('s_mine') } as never])
+    );
+    await sleep(50);
+    expect(r.hold.size()).toBe(2);
+    const spec = createDiagnosticsRoutes({ control: () => null }).find(
+      (x) => x.path === '/_api/diagnostics/save-hold-flush'
+    ) as RouteSpec;
+    const res = await spec.handle(
+      new Request(`${ORIGIN}/_api/diagnostics/save-hold-flush`, {
+        method: 'POST',
+        headers: { 'content-type': 'text/plain', origin: ORIGIN },
+        body: JSON.stringify({ files: ['ui/Home.meta.json', path.basename(r.board)] }),
+      }),
+      {}
+    );
+    expect(await res.json()).toEqual({ landed: 2 });
+    expect((await board).ok).toBe(true);
+    expect(r.readOr(r.meta)).toContain('"x": 300');
+    expect(r.readOr(r.board)).toContain('s_mine');
+    expect(r.hold.size()).toBe(0);
   });
 
   test('8. the shell’s notice: shown while held, taken down when it lands, the warning line at the cap', () => {
+    resetSaveHoldNoticeForTest();
     const calls: Array<[string, unknown]> = [];
     const deps = {
       notify: (n: unknown) => void calls.push(['notify', n]),
       dismissNotice: (id: string) => void calls.push(['dismiss', id]),
+      win: null,
     };
     noteSaveHold({ file: HOME, state: 'held', text: HOLD_NOTICE }, deps);
     noteSaveHold({ file: HOME, state: 'landed', text: '' }, deps);
@@ -527,5 +656,30 @@ describe('A1 hold — the layout lane (an artboard drag) and the notice', () => 
       ['dismiss', `save-hold:${HOME}`],
       ['notify', expect.objectContaining({ kind: 'warning', title: CAP_WARNING })],
     ]);
+  });
+
+  test('8b. the page closing with a notice up beacons the held files; nothing held → nothing sent', async () => {
+    resetSaveHoldNoticeForTest();
+    let hide: (() => void) | null = null;
+    const win = {
+      addEventListener: (ev: string, fn: () => void) => {
+        if (ev === 'pagehide') hide = fn;
+      },
+    };
+    const deps = { notify: () => {}, dismissNotice: () => {}, win };
+    const sent: Array<Promise<[string, string]>> = [];
+    const nav = {
+      sendBeacon: (url: string, b: Blob) => {
+        sent.push(b.text().then((t) => [url, t] as [string, string]));
+        return true;
+      },
+    };
+    expect(flushHeldSaves(nav as never)).toBe(false);
+    noteSaveHold({ file: HOME, state: 'held', text: HOLD_NOTICE }, deps);
+    expect(hide).not.toBeNull();
+    expect(flushHeldSaves(nav as never)).toBe(true);
+    noteSaveHold({ file: HOME, state: 'landed', text: '' }, deps);
+    expect(flushHeldSaves(nav as never)).toBe(false);
+    expect(await Promise.all(sent)).toEqual([[FLUSH_ROUTE, JSON.stringify({ files: [HOME] })]]);
   });
 });
