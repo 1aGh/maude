@@ -166,7 +166,9 @@ waiting for that record.
    >   recovery and the respawn scenario rely on that); each user's per-origin web storage resets once.
    > - **B:** leave it.
 
-   Recommendation: A. Unanswered, it goes into the follow-ups below.
+   **Resolved 2026-10-29: Michal chose A.** App project servers use their own range, 46399–46408. It stays clear of
+   the CLI's 4399+, e2e's 47399+ and the harness's 48399+. A restart keeps the port, and a one-time reset of web
+   storage is accepted. This is built in p8-app-port-range; kg `maude/v2-michal-desktop-own-port-range`.
 4. **V2-8.14 open budgets** (numbers from the 2026-10-25 record; they may move before the final one):
    - Covers, 95 canvases, cold pass: 206–245 s against a 45 s budget.
    - First 12 covers cold: 3.5–4.2 s against 3 s.
@@ -201,7 +203,6 @@ waiting for that record.
   - L2: recovery writes follow a symlink at `_history/<slug>` (only a committed repo symlink can plant one).
   - L3: each remote update during an open overlap check runs a merge of up to about 100 ms, up to 512 per check, on the server event loop. Only when acks are delayed or withheld.
 - **`surface-frame-probe.test`** (sync-e2e harness) times out on the mini's headless Chromium (timer throttling). Green locally, so V2-8.1 is recorded on this Mac.
-- **Desktop port range** (item 3 above), if you do not answer.
 - **Legacy sync gaps after V2-8.17:** sibling `.css` text, the `MAUDE_SHARED_DOC=0` lane, and a 1.x peer taken second.
 - **Cloud lane media uploads** to the local hub fail intermittently. Worth a look.
 - **Case-variant credential Read** against Claude Code's matcher, and a **WKWebView DNS-prefetch check**. Both need a real Mac.
