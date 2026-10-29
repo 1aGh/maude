@@ -166,3 +166,16 @@ Not built, either because no CONTRACT line names them or because the weekly budg
 - S1: the design hook's SessionStart now names `maude design history restore <canvas> <ref>` when the studio is up
   (kg `maude/v2-p8-journey-s1-session-start-restore-line`).
 
+## From p8-update-to-accepted (merged 75df7c36f)
+- **When the hub can't switch yet** (store-not-durable, browser-not-paired), a format-1 Update still goes ahead and
+  says so in a note. A format-2 Update with nothing else to do is refused. The lead confirmed this: a blocked switch
+  must not keep a project in view-only.
+- **The owner's probe of a format-2 legacy project runs the hub's dry run**, which opens every document. A lighter
+  probe would help.
+- **`/_config.saveMode` reads `legacy` at first boot**, before the sync has heard the mode. The desktop's dry run
+  corrects the offer, but the cloud pointer has no probe.
+- **The cloud tab links to the dashboard root.** The client does not know the project id needed for
+  `/projects/<id>/saving`.
+- **E2E coverage.** The end-to-end run covered a project already at format 2 that still saved the old way, on a
+  loopback hub. The format-1 + legacy order is unit-tested only. The browser click-through was not driven.
+
