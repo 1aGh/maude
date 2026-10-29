@@ -100,6 +100,8 @@ const TOP_LEVEL_READ_RULES = [
   // lead answer (a), decision:maude/v2-2.4b-held-and-prompting-verbs
   'Bash(maude help:*)',
   'Bash(maude preflight:*)',
+  // flow refactor #159 (merged from main): token spend from this project's Claude Code session records, read-only
+  'Bash(maude flow usage:*)',
   // V2-8.16: the help FLAG forms, exact (no `:*`) — that one command line and nothing else
   'Bash(maude --help)',
   'Bash(maude design --help)',

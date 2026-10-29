@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "0ec9a0ec0b9c",
+  "manifestVersion": "63b2777e17af",
   "actions": [
     {
       "id": "search.open",
@@ -7634,6 +7634,12 @@
     {
       "scope": "top",
       "verb": "help",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "top",
+      "verb": "flow usage",
       "effect": "none",
       "tier": "auto"
     },

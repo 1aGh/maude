@@ -264,6 +264,9 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   t('kg check-upstream', 'external'),
   t('kg', 'shared', { note: 'any other kg sub-verb (scope, help, …)' }),
   t('help', 'none'),
+  t('flow usage', 'none', {
+    note: "reads this project's Claude Code session records for token spend (flow refactor #159); prints numbers, writes nothing",
+  }),
   t('preflight', 'none'),
   t('scenario-report', 'project', { hold: 'not tiered by the contract' }),
   t('migrate', 'destructive'),
