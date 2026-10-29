@@ -53,7 +53,6 @@ import { createAccessRelay } from './access-notices.ts';
 import type { RunFence } from './action-stage.ts';
 import { type CanvasSyncAgent, createCanvasSyncAgent } from './agent.ts';
 import { isPushableAssetRel, pushAssets } from './asset-push.ts';
-import { createMediaGate, MEDIA_STAYS_LINE, readServerSignature } from './media-gate.ts';
 import {
   askHubPresence,
   createHeldReporter,
@@ -105,6 +104,7 @@ import { loadJournal, type SyncJournal } from './journal.ts';
 import { hasAnnotationsV2, hasLedger, hubHealth } from './journal-client.ts';
 import type { RestoreOptions } from './local-kernel.ts';
 import { isLoopbackHost } from './loopback.ts';
+import { createMediaGate, MEDIA_STAYS_LINE, readServerSignature } from './media-gate.ts';
 import { migrateFlatFallback } from './migrate-flat-fallback.ts';
 import { migrateSeed } from './migrate-seed.ts';
 import { offlineOverlapNotice, syncUpdateFromMessage } from './offline-overlap.ts';

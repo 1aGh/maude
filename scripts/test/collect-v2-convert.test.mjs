@@ -131,7 +131,10 @@ test('a cell whose kill switch is off is named as disabled, neither counted nor 
       const r = await run(urls);
       assert.equal(r.code, 0);
       assert.match(r.stdout, /disabled \(CELL_V2_CONVERT=0\) — the kill switch was honoured/);
-      assert.match(r.stdout, /fleet converted=0 skipped=0 failed=0 cells=0 unreported=0 disabled=1/);
+      assert.match(
+        r.stdout,
+        /fleet converted=0 skipped=0 failed=0 cells=0 unreported=0 disabled=1/
+      );
       assert.doesNotMatch(r.stdout, /::warning::/);
     }
   );

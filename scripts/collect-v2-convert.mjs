@@ -71,7 +71,9 @@ for (const r of await Promise.all(urls.map(readCell))) {
     out.push(`[v2-convert] ${r.url} unreported: ${r.unreported}`);
   }
 }
-out.push(`${line(total, ' fleet')} cells=${reported} unreported=${unreported} disabled=${disabled}`);
+out.push(
+  `${line(total, ' fleet')} cells=${reported} unreported=${unreported} disabled=${disabled}`
+);
 for (const l of out) console.log(l);
 if (total.failed > 0)
   console.log(
