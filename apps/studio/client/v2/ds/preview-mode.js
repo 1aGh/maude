@@ -149,6 +149,9 @@ export const PREVIEW_WORDS = Object.freeze({
     Object.freeze({ id: 'make', label: 'Make a design system…', key: '' }),
     Object.freeze({ id: 'link', label: 'Link a team library…', key: '' }),
   ]),
+  // why a door is greyed (never a dead row): the person's role, or no runner for the action in this window
+  doorViewOnly: 'You can view this project. Ask a project owner for edit access.',
+  doorUnavailable: 'Not available here.',
   hint: '↑↓ to look · ↵ to switch · esc to stop',
   none: 'There is no other design system to preview.',
 });
