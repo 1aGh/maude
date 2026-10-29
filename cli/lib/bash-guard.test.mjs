@@ -600,7 +600,7 @@ test('V2-8.16 bashMayWrite — a command made only of readers writes nothing', (
     "cat <<'EOF'\nhello\nEOF",
     'find . -iname "*alligator*" -not -path "*/node_modules/*"',
     'head -c 1500 x.json 2>/dev/null; echo',
-    'rg -n huddle ui 2>&1 | wc -l',
+    'grep -rn huddle ui 2>&1 | wc -l', // p8-secfix-hook: rg is no reader any more (rg --pre)
     'maude design screenshot --canvas ui/C.tsx --out /tmp/x.png',
     'maude design not-a-verb', // the CLI refuses an unknown verb: it writes nothing
     'echo maude design reel-place',
@@ -612,4 +612,84 @@ test('V2-8.16 bashMayWrite — a command made only of readers writes nothing', (
 test('V2-8.16 bashMayWrite — without the verb table every maude design verb may write', () => {
   assert.equal(bashMayWrite('maude design screenshot --full', null), true);
   assert.equal(bashMayWrite(undefined, VERBS), false);
+});
+
+// p8-secfix-hook (V2-8.9 final delta F1 + D2) — a "reader" that writes or runs code must not keep
+// the claim-only window shut. Each bypass the attacker / defender named, fail-first.
+test('F1(a) a reader is a bare PATH-resolved name with no assignment in the call', () => {
+  for (const cmd of [
+    '/tmp/x/cat f', // the basename is `cat`, the program is not
+    './cat f',
+    'bin/ls -la',
+    'PATH=/tmp/x cat f', // a prefix assignment picks the program
+    'PATH=/tmp/x; cat f', // PATH is exported: a bare assignment changes it for every child
+    'PATH=/tmp/x && ls',
+    'PERL5OPT=-Mevil PERL5LIB=/tmp shasum f', // shasum is a perl script
+    'RIPGREP_CONFIG_PATH=/tmp/rc grep x f',
+    'BASH_ENV=/tmp/e ls',
+    'ENV=/tmp/e ls',
+    'GREP_OPTIONS=x grep a b', // any assignment at all
+    'f=ui/C.tsx; cat "$f"',
+  ])
+    assert.equal(bashMayWrite(cmd, VERBS), true, cmd);
+});
+test('F1(b)/(c) D2 — rg, tree and file are no readers (rg --pre runs a program, tree -o / file -C write)', () => {
+  for (const cmd of [
+    'rg --pre sh -e . /tmp/p.sh',
+    'rg --pre=sh x',
+    'rg --hostname-bin=/tmp/h -n x .',
+    'rg -n huddle ui',
+    'tree -o .design/ui/X.tsx',
+    'tree -R -H . .design',
+    'file -C -m /tmp/magic',
+    'file ui/C.tsx',
+  ])
+    assert.equal(bashMayWrite(cmd, VERBS), true, cmd);
+});
+test('F1(d) a printf -v re-pointed variable never makes a redirect into a canvas read as a sink', () => {
+  assert.equal(
+    bashMayWrite('f=/dev/null; printf -v f %s .design/ui/X.tsx; echo PAYLOAD > "$f"', VERBS),
+    true
+  );
+});
+// bindVars (the deny guard's variable follower): every builtin that assigns a name unbinds it, so the
+// redirect target is unseen (as before V2-8.16) instead of the stale literal.
+test('F1(d) bindVars unbinds a name every assigning builtin can change', () => {
+  const lastTarget = (src) => {
+    const cmds = parseBash(src);
+    const r = cmds.filter((c) => c.redirs.length).at(-1).redirs.at(-1);
+    return r.target;
+  };
+  for (const set of [
+    'printf -v f %s .design/ui/X.tsx',
+    'builtin printf -v f %s x',
+    'command printf -v f %s x',
+    'mapfile -t f < list',
+    'readarray f < list',
+    'getopts ab f',
+    'read -r f < list',
+    'IFS= read -r f < list',
+    'eval "f=.design/ui/X.tsx"',
+    'source ./vars.sh',
+    '. ./vars.sh',
+    'let f=1',
+  ]) {
+    const t = lastTarget(`f=/dev/null; ${set}; echo PAYLOAD > "$f"`);
+    assert.equal(t.literal, false, set);
+  }
+  // read / printf in a while or if head unbinds too (the reserved word goes first)
+  for (const src of [
+    'f=/dev/null; while read f; do echo PAYLOAD > "$f"; done < list',
+    'f=/dev/null; if printf -v f %s x; then echo PAYLOAD > "$f"; fi',
+  ])
+    assert.equal(lastTarget(src).literal, false, src);
+  // a nameref redirects every later assignment: nothing bound before or after it is trusted
+  for (const src of [
+    'g=/dev/null; declare -n f=g; f=.design/ui/X.tsx; echo PAYLOAD > "$g"',
+    'g=/dev/null; local -n f=g; f=x; echo PAYLOAD > "$g"',
+    'g=/dev/null; typeset -n f=g; f=x; echo PAYLOAD > "$g"',
+  ])
+    assert.equal(lastTarget(src).literal, false, src);
+  // a plain literal assignment still binds (the V2-8.16 behaviour)
+  assert.equal(lastTarget('f=ui/C.tsx; echo PAYLOAD > "$f"').text, 'ui/C.tsx');
 });

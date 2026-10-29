@@ -402,17 +402,70 @@ function bindVars(c, vars) {
   for (const a of c.assigns) fill(a);
   for (const w of c.words) fill(w);
   for (const r of c.redirs) fill(r.target);
-  const head = c.words[0]?.literal ? c.words[0].text : null;
+  if (vars.off) return;
+  // p8-secfix-hook F1(d) — the head after a reserved word (`while read f`, `if printf -v f …`) and
+  // `builtin` / `command`, which run the same builtin
+  let h = 0;
+  while (
+    h < c.words.length &&
+    c.words[h].literal &&
+    !c.words[h].quoted &&
+    (RESERVED_DROP.has(c.words[h].text) || HEAD_WRAPPERS.has(c.words[h].text))
+  )
+    h++;
+  const head = c.words[h]?.literal ? c.words[h].text : null;
+  const rest = c.words.slice(h + 1);
+  const unbindNames = () => {
+    for (const w of rest) {
+      // `-v f` / `-vf`: the name after the flag is assigned too
+      const name = w.literal ? w.text.replace(/^-[A-Za-z]*v/, '') : '';
+      if (VAR_NAME.test(name)) vars.delete(name);
+      if (w.literal && VAR_NAME.test(w.text)) vars.delete(w.text);
+      const a = w.literal ? ASSIGN_RE.exec(w.text) : null; // `let f=1`
+      if (a) vars.delete(a[1]);
+    }
+  };
   if (!c.words.length) for (const a of c.assigns) bind(a);
-  else if (DECLARE.has(head)) {
-    for (const w of c.words.slice(1)) if (!(w.literal && w.text.startsWith('-'))) bind(w);
-  } else if (head === 'unset' || head === 'read') {
-    for (const w of c.words.slice(1)) if (w.literal && VAR_NAME.test(w.text)) vars.delete(w.text);
-    if (head === 'read' && c.words.length === 1) vars.delete('REPLY');
-  } else if ((head === 'for' || head === 'select') && c.words[1]?.literal) {
-    vars.delete(c.words[1].text);
+  else if (
+    head === 'eval' ||
+    head === 'source' ||
+    head === '.' ||
+    (DECLARE.has(head) && rest.some((w) => !w.literal || /^[-+][A-Za-z]*n/.test(w.text)))
+  ) {
+    // anything may be assigned (eval, a sourced file), or a nameref re-points every later
+    // assignment (`declare -n f=g; f=x` sets g): nothing bound so far or from here on is trusted
+    vars.clear();
+    vars.off = true;
+  } else if (DECLARE.has(head)) {
+    for (const w of rest) if (!(w.literal && w.text.startsWith('-'))) bind(w);
+  } else if (ASSIGNING.has(head)) {
+    unbindNames();
+    if (head === 'read' && !rest.some((w) => w.literal && VAR_NAME.test(w.text)))
+      vars.delete('REPLY');
+    if (head === 'mapfile' || head === 'readarray') vars.delete('MAPFILE');
+    if (head === 'getopts') for (const n of ['OPTARG', 'OPTIND']) vars.delete(n);
+  } else if ((head === 'for' || head === 'select') && rest[0]?.literal) {
+    vars.delete(rest[0].text);
   }
 }
+/** Words that run the next word as the same builtin (`builtin printf -v f …`). */
+const HEAD_WRAPPERS = new Set(['builtin', 'command']);
+/**
+ * Builtins that assign a variable named by an operand (`printf -v f`, `read f`, `mapfile f`,
+ * `getopts opts f`, `let f=1`, `wait -p f`): every literal name among their words is unbound — an
+ * over-unbind only leaves a word unseen, which is the fail-open default.
+ */
+const ASSIGNING = new Set([
+  'unset',
+  'read',
+  'printf',
+  'mapfile',
+  'readarray',
+  'getopts',
+  'let',
+  'wait',
+  'coproc',
+]);
 
 /** Tokens → simple commands: { assigns, words, redirs }. */
 function commandsOf(tokens) {
@@ -433,7 +486,8 @@ function commandsOf(tokens) {
       c.words.shift();
     if (c.words.length && c.words[0].literal && RESERVED_SKIP.has(c.words[0].text)) return;
     if (c.words.length && c.words[0].text === '[[') return; // a test: its < > are comparisons
-    if (c.words.length || c.redirs.length) out.push(c);
+    // a bare assignment is a command too (p8-secfix-hook F1(a): `PATH=/tmp/x; cat f`)
+    if (c.words.length || c.redirs.length || c.assigns.length) out.push(c);
   };
   for (let k = 0; k < tokens.length; k++) {
     const tk = tokens[k];
@@ -733,6 +787,10 @@ export function designVerbOf(cmd, verbs) {
  * Commands that only read: no flag of theirs writes a file (`sort -o`, `uniq a b`, `xxd -r`, `sed`'s
  * `w`, `awk`'s `print >`, `git diff --output` are why those are NOT here). `find` is a reader unless an
  * action that runs or writes follows (FIND_WRITES).
+ * p8-secfix-hook (V2-8.9 final delta F1/D2): `rg` (`--pre CMD`, `--hostname-bin CMD` run a program),
+ * `tree` (`-o FILE`, `-R` writes 00Tree.html) and `file` (`-C -m M` writes M.mgc) are NOT here either:
+ * a flag denylist over tools that add flags per release is the class Claude Code's own read-only
+ * check lost to (CVE-2025-64755, CVE-2025-66032); leaving them out costs only a claim window.
  */
 const READERS = new Set([
   'ls',
@@ -743,13 +801,10 @@ const READERS = new Set([
   'grep',
   'egrep',
   'fgrep',
-  'rg',
   'pwd',
   'echo',
   'printf',
   'stat',
-  'file',
-  'tree',
   'which',
   'type',
   'true',
@@ -806,7 +861,12 @@ export function bashMayWrite(command, verbs = null) {
       if (t?.literal && DEV_SINKS.has(t.text)) continue;
       return true;
     }
-    if (!cmd.words.length) continue; // a bare assignment or redirection, judged above
+    // p8-secfix-hook F1(a) — any assignment, prefix (`PATH=/tmp/x cat f`, `PERL5OPT=… shasum`) or
+    // bare (`PATH=/tmp/x; cat f`: an exported name changes for every child), can pick the program a
+    // reader runs or what it loads (PATH, PERL5*, RIPGREP_CONFIG_PATH, BASH_ENV, ENV, DYLD_*, …).
+    // The guard can't know which names the inherited environment exports, so none is trusted.
+    if (cmd.assigns.length) return true;
+    if (!cmd.words.length) continue; // a bare redirection, judged above
     if (maudeWords(cmd)) {
       if (!verbs) return true;
       const v = designVerbOf(cmd, verbs);
@@ -817,6 +877,9 @@ export function bashMayWrite(command, verbs = null) {
     }
     const e = effective(cmd.words);
     if (!e || !READERS.has(e.name)) return true;
+    // F1(a) — a reader is a bare name the shell resolves through PATH: `/tmp/x/cat`, `./cat` only
+    // share the basename (nameOf) with it
+    if (e.raw.includes('/')) return true;
     if (cmd.words.length !== e.args.length + 1) return true; // a wrapper (`env`, `sudo`) runs it
     if (e.name === 'find' && e.args.some((a) => !a.literal || FIND_WRITES.test(a.text)))
       return true;
