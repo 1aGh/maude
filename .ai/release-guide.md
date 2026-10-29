@@ -284,7 +284,7 @@ What to look at:
 
 ```bash
 # 1. The cells-deploy run: its last step "Report the Maude 2 cloud conversion" (log + run summary):
-#      [v2-convert] fleet converted=N skipped=N failed=N cells=M unreported=K
+#      [v2-convert] fleet converted=N skipped=N failed=N cells=M unreported=K disabled=D
 #    It reads /health of the probe cell (CELL_CONVERT_HEALTH_URLS, space-separated, for more).
 # 2. Any cell, any time after its first 2.0.0 start:
 curl -s https://<tenant>.cloud.maude.sh/health | jq .v2Convert
@@ -302,7 +302,7 @@ curl -s https://<tenant>.cloud.maude.sh/health | jq .v2Convert
 
 **Self-hosted workspace hubs convert too** (decision `maude/v2-michal-selfhost-convert-killswitch-held-conflict`). A hub in workspace mode (`HUB_WORKSPACE_MODE=1` — what `maude hub workspace-up` writes) runs the same code on its first start under the stable 2.0.0 `maude-hub` image: the same version gate (both layers stable ≥ 2.0.0; an rc or a 1.x image never converts), the same backup-first order and the same `/health` `v2Convert` report and log line. The backup goes to the hub's configured backup target (`MAUDE_BACKUP_TARGET` / the `MAUDE_S3_*` bucket) under `v2-convert/`, else to `<dataDir>/v2-convert/`; with neither a target nor a durable data dir (`MAUDE_DATA_EPHEMERAL=1`) the project is not converted (`failed=1`, `no-durable-backup`). The log names the project `local`. Self-hosters upgrade on their own schedule, so there is nothing to collect: the release notes and `site/content/docs/hub/self-host.mdx` tell them, and `curl -s https://<host>/health | jq .v2Convert` is how they check.
 
-**The kill switch: `CELL_V2_CONVERT=0`** — one variable name for both. On by default (unset or `1` converts); `0`, or any other value, converts nothing, and the hub logs `[v2-convert] disabled by CELL_V2_CONVERT=0` and reports `{"state":"disabled","by":"CELL_V2_CONVERT=0"}` on `/health` (no count line, so the deploy summary counts that cell as `unreported`). The switch is read at hub start, like every env var.
+**The kill switch: `CELL_V2_CONVERT=0`** — one variable name for both. On by default (unset or `1` converts); `0`, or any other value, converts nothing, and the hub logs `[v2-convert] disabled by CELL_V2_CONVERT=0` and reports `{"state":"disabled","by":"CELL_V2_CONVERT=0"}` on `/health` (no count line; the deploy summary names that cell `disabled (CELL_V2_CONVERT=0) — the kill switch was honoured` and counts it under `disabled=`, never as `unreported`). The switch is read at hub start, like every env var.
 
 - **Cloud:** set `CELL_V2_CONVERT = "0"` under `[vars]` in `apps/cells/wrangler.toml` BEFORE the promote tag (or `workflow_dispatch` `cells-deploy.yml` with it) — `cellEnv` (`apps/cells/cell-config.mjs`) projects it into every cell as `CELL_V2_CONVERT` (`1` when unset). It reaches a cell at its next container start, so a cell already converted stays converted; the switch stops further conversions, it does not undo one. To release it, remove the var and roll (or restart the cells you want converted).
 - **Self-hosted:** `CELL_V2_CONVERT=0` in the workspace's `.env`, then restart the hub container.
