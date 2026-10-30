@@ -116,3 +116,36 @@ for Michal. The ledger / Progress log: the new done lines and the gate records a
   the last; cap ~10 s → saves as the person with a warning, never dropped; tab/app close finishes the save;
   fail-first: attribution, merge, cap, interpreter crash/kill. Opus builder `p8-a1-save-hold`, off feat after the
   A1 push, at the first free slot (before import-from-link).
+
+## Update ~22:30
+- Pushed: A1 claims (679aba03d), port-gc (34f79beef; Rust 304 pass after linking binaries/ + resources/ from the main
+  checkout — a fresh worktree has neither, so `cargo check` fails in build.rs before any test runs).
+- Merged in lead-merge-main, NOT pushed: p8-v1-drop-desktop (8a5dda839) + the dgn undo-mode patch + rebuilt bundles
+  (73748a289). Full studio + node suites running (bha7jy0i1). kg: 5 v2-p8-v1-drop-* decisions recorded.
+- **Still owed for v1-drop-desktop:** a solo desktop run of the rewritten `format-update.e2e.ts`, plus the
+  sync/security review → fold into the post-freeze security pair over the whole batch.
+- Hub drafts: answered (b) fold, not hold (kg maude/v2-p8-hub-drafts-fold-not-hold).
+- Spawned p8-a1-save-hold (Opus).
+- Running: sweep-leftovers, fix-c2, held-conflict-status, selfhost-convert, hub-drafts, a1-save-hold.
+
+## Michal via keeper ~22:45
+- The Mac stays open and unlocked; continue until done. **No need to announce the chain4 screen window** — start it right at
+  the freeze. Arc/Blender are off and system sleep is off, but the display may sleep: wrap 8.3 in `caffeinate -dimsu` for the
+  whole run and watch the probe log (lock / cover / display sleep). If the screen locks: stop, tell the keeper, never retry
+  on a locked screen (memory maude-webkit-locked-screen-invalid). Then the whole batch → freeze → chain4 → re-attests →
+  .app without auto-update → PR.md / READY TO TRY → PR (draft). Weekly cap 85 % (~24 % now).
+- Full studio suite on the v1-drop merge: 497/20635 fail, almost all 5 s timeouts; a sample of 3 failing files passes 36/36
+  alone → suspected suite-level interference. Re-run with a full log: bxdom9lwj → scratchpad/full-suite-v1drop.log.
+
+## Update ~00:00 (10-30)
+- **CI on feat has been red all batch:** biome (8 errors, fixed in 851f8ae86) + Studio suite 12 fails on Linux (679aba03d).
+  Those 12 must be fixed before the PR (Michal: nothing fails). Baseline full suite of feat on mini: b77sx9kup →
+  scratchpad/mini-full-feat.txt.
+- **v1-drop-desktop NOT pushed:** 18 real regressions (gesture tests expecting legacy undo records) + a full-suite
+  cascade (~470 timeouts that vanish when the files run alone). Sent back to builder a7c70936. It stays merged only in
+  lead-merge-main.
+- **New integration worktree `lead-merge-2`** (off feat, without v1-drop): lint cherry-pick + fix-c2 + held-conflict +
+  hub-drafts merged, bundle rebuilt, tsc/gens/biome/boot green (6e3f1537a). Sync/undo/rig on mini: b4f0l4uur →
+  scratchpad/mini-merge2.txt. If green → ff feat + push, and rebase lead-merge-main onto it later.
+- import-link: security pair done (blocker H1 decompression bomb; F1 drop, F2 agent egress; lows) → sent back to
+  builder a07afcef. kg maude/v2-p8-import-link-shell-only-no-decompress. Michal's question about cells is with the keeper.
