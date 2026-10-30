@@ -16,8 +16,10 @@ import type { EditOpResult, ElementRef } from '../edit-ops/types.ts';
 import type { CommandRecord } from '../undo-stack.ts';
 import type { Selection } from '../use-selection-set.tsx';
 import { type EditOpAsk, editOpRecord, runEditOp } from './edit-op.ts';
+import { lockedName, lockLine } from './lock-badge.tsx';
 import { refOfElement } from './object-actions.ts';
 import { refsOf, refusalLine } from './object-ops.ts';
+import { isLockedDom } from './selection.tsx';
 import { declaredTypeValues, langIn, probeTextInfo } from './type-role.ts';
 
 export const TEXT_OPS = {
@@ -154,6 +156,15 @@ export const textOpDeps: { current: TextOpDeps } = {
 
 // ── the caret's commit ────────────────────────────────────────────────────────────────────
 
+/**
+ * p8-lock-reasons — why the caret must not open on `el`: a shared-locked text (`data-cd-locked`, the attribute the
+ * shell's isLockedSelection reads) refuses `text.set` with 409 `locked`, so the editor says the lock badge's line
+ * instead of opening ("Logo is locked · ⇧⌘L unlocks"). null = it may open. The per-user padlock never stops it.
+ */
+export function lockedTextLine(el: Element): string | null {
+  return isLockedDom(el) ? lockLine(lockedName(el)) : null;
+}
+
 export interface TextCommit {
   el: HTMLElement;
   text: string;
@@ -180,7 +191,9 @@ export async function commitTextInPlace(
   });
   if (!r.ok) {
     if (r.code === 'invalid' && r.message === UNKNOWN_OP_MESSAGE) return false;
-    deps.toast?.(refusalLine(r), 'error');
+    // p8-lock-reasons — the lock landed while the caret was open: the text goes back and the lock line is a notice
+    // (as every other locked gesture says it), not an error
+    deps.toast?.(refusalLine(r), r.code === 'locked' ? 'info' : 'error');
     deps.revert?.();
     return true;
   }

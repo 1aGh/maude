@@ -11,7 +11,7 @@
 import { createHash } from 'node:crypto';
 
 import { CanvasEditError, ensureStamped } from '../canvas-edit.ts';
-import { walkIdElements } from '../element-ids.ts';
+import { type IdElement, walkIdElements } from '../element-ids.ts';
 import { alignOps } from './align.ts';
 import { artboardResize } from './artboard-resize.ts';
 import { artboardTrash } from './artboard-trash.ts';
@@ -229,6 +229,23 @@ const refuse = (code: EditOpCode, message: string): EditOpResult => ({ ok: false
 const said = (id: string) =>
   /^[a-z][a-z0-9-]*$/.test(id) && !/^[0-9a-f]{8}$/.test(id) ? id : 'This object';
 
+/**
+ * The lock lookup (S2-edit-ops §3 rule 6): the first of `ids` whose element carries the SHARED lock
+ * (`data-cd-locked` in the source) refuses the write with 409 `locked`, else null. The one check every
+ * element write asks — this dispatcher and `POST /_api/edit-css` (p8-lock-reasons). A per-user padlock
+ * (view.json) is not in the source and never refuses here.
+ */
+export function lockedRefusal(
+  elements: readonly IdElement[],
+  ids: readonly string[]
+): (EditOpResult & { ok: false }) | null {
+  for (const id of ids) {
+    if (elements.find((x) => x.id === id)?.locked)
+      return { ok: false, code: 'locked', message: `${said(id)} is locked · ⇧⌘L unlocks` };
+  }
+  return null;
+}
+
 export const STALE_MESSAGE = 'The canvas changed underneath; try again.';
 export const REVERT_STALE_MESSAGE = 'Someone changed this since — undo skipped.';
 
@@ -377,10 +394,11 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
   if (board?.locked && (op as EditOp).locked !== 'allow')
     return refuse('locked', `${said(ab as string)} is locked · ⇧⌘L unlocks`);
   if ((op as EditOp).locked !== 'allow') {
-    for (const r of refs) {
-      if (walk.elements.find((x) => x.id === r.element)?.locked)
-        return refuse('locked', `${said(r.element)} is locked · ⇧⌘L unlocks`);
-    }
+    const lock = lockedRefusal(
+      walk.elements,
+      refs.map((r) => r.element)
+    );
+    if (lock) return lock;
   }
   let out: EditOpOutput;
   try {

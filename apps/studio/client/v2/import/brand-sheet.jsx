@@ -20,6 +20,7 @@ import { menuRunner } from '../shell/menu-runner.js';
 import { useModalFocus } from '../shell/modal-focus.js';
 import BrandResult from './brand-result.jsx';
 import { coloursWords, handOff, mergeBrand, siteReason, typedHost } from './brand-model.js';
+import { reasonProps } from '../access/disabled-reason.js';
 
 async function postJSON(path, body) {
   const res = await fetch(path, {
@@ -394,6 +395,7 @@ export default function BrandSheet({ open, onClose }) {
               className="btn btn--sm btn--primary"
               data-testid="brand-import"
               disabled={!logoFile && !wantsSite}
+              {...reasonProps(!logoFile && !wantsSite, 'Drop a logo or type a website first.')}
               onClick={start}
             >
               Import

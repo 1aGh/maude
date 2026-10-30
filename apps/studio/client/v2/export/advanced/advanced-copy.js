@@ -44,6 +44,8 @@ export const BITRATE = 'Bitrate';
 export const BITRATE_AUTO = 'Automatic';
 export const CODEC = 'Codec';
 export const GIF_COLOURS = 'GIF colours';
+// p8-lock-reasons — why GIF colours is off: no GIF among the formats
+export const GIF_ONLY = 'Only a GIF uses this. Add GIF first.';
 export const LONG_VIDEOS = 'Long videos';
 export const LONG_VIDEOS_WORDS = (cap) => `Up to ${Number(cap).toLocaleString('en-US')} frames`;
 export const PAPER = 'Paper';

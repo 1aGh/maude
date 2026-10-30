@@ -134,6 +134,9 @@ export const PAGE_PROBE = String.raw`(() => {
     add(el.getAttribute('aria-description'), 'aria-description');
     add(el.getAttribute('data-reason'), 'data-reason');
     for (const id of (el.getAttribute('aria-describedby') || '').split(/\s+/)) if (id) add(document.getElementById(id)?.textContent, 'describedby');
+    // a control a disabled fieldset turns off (the inspector's view-mode / lock switch) says why on the fieldset
+    const fs = el.closest('fieldset[disabled]');
+    if (fs) { add(fs.getAttribute('title'), 'fieldset'); add(fs.getAttribute('aria-description'), 'fieldset'); }
     const own = clean(el.innerText || el.textContent);
     const status = el.querySelector('[data-testid^="project-menu-status-"],[class*="status"],[class*="hint"],small');
     if (status) add(status.textContent, 'status');
@@ -164,7 +167,7 @@ export const PAGE_PROBE = String.raw`(() => {
       const key = tid ? 'tid:' + tid : (role || el.tagName.toLowerCase()) + ':' + name;
       const occ = seen.get(key) || 0;
       seen.set(key, occ + 1);
-      const disabled = el.disabled === true || el.getAttribute('aria-disabled') === 'true';
+      const disabled = el.disabled === true || el.getAttribute('aria-disabled') === 'true' || !!el.closest('fieldset[disabled]');
       out.push({
         key, occ, tid, role, tag: el.tagName.toLowerCase(), name, disabled,
         current: el.getAttribute('aria-selected') === 'true' || el.getAttribute('aria-pressed') === 'true' || el.getAttribute('aria-checked') === 'true' || el.getAttribute('aria-current') === 'page' || el.getAttribute('aria-current') === 'true',

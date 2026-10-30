@@ -50,6 +50,7 @@ import {
   useHubDetails,
   useProviderKeys,
 } from './use-connections.js';
+import { reasonProps } from '../access/disabled-reason.js';
 
 const btn = 'btn btn--sm';
 
@@ -224,7 +225,7 @@ function HubFields({ url, hub, replace, credentialed }) {
   );
 }
 
-function FigmaToken({ f }) {
+export function FigmaToken({ f }) {
   const [value, setValue] = useState('');
   const configured = !!f.status?.configured;
   const save = async () => {
@@ -267,6 +268,7 @@ function FigmaToken({ f }) {
           type="button"
           className={btn}
           disabled={f.busy || !value.trim()}
+          {...reasonProps(f.busy || !value.trim(), f.busy ? 'Saving…' : 'Paste the token first.')}
           onClick={save}
           data-testid="figma-connect-save"
         >

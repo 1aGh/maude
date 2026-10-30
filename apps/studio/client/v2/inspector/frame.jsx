@@ -12,6 +12,7 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { AssetAbsentBox } from '../assets/missing-frame.jsx';
+import { disabledReason, reasonProps } from '../access/disabled-reason.js';
 import { activeDsNameFor } from '../../inspector/ds-tokens.js';
 import { isConfiguredSystem, UsesLink } from '../ds/uses-link.jsx';
 import { advancedAccess, copyText, InspectorAdvanced, useAdvancedOpen } from './advanced.jsx';
@@ -202,14 +203,22 @@ export function InspectorFrame({
     onSetArtboardTheme,
     onDuplicateArtboard,
   };
+  // p8-lock-reasons — a locked object (the SHARED lock, `data-cd-locked`; never the per-user padlock) refuses
+  // every write but the lock (S2-edit-ops §3 rule 6, and /_api/edit-css answers 409 `locked` too): the inspector
+  // is the view-mode switch for it — every value readable, no field opens — with the lock line on screen
+  const locked = isLockedSelection(selected, layersTree);
+  const lockOff = locked && !readOnly && !hold.view;
+  const line = lockOff
+    ? { tone: 'lock', text: disabledReason('locked'), comment: false }
+    : hold.line;
   const ctx = {
     canvasFile,
     cfg,
-    editable: !!el.id && !readOnly,
+    editable: !!el.id && !readOnly && !locked,
     // the access alone, for a kind whose writes are not element edits (a ds direction's pick, direction-bar.jsx)
     readOnly: !!readOnly,
     // p8-sweep-errors — a locked object refuses every edit-op but the lock (409): an ask is off and says why
-    locked: isLockedSelection(selected, layersTree),
+    locked,
     // V2-8.5 c6 (14 ed-obj-enter): "In Services · Set by Services · 2 of 3"
     placement: placementOf(layersTree, Array.isArray(selected) ? null : el),
     // 14 ed-lay-free: the object's own name, for the sentence "Post places things freely … keep Datum 64 from …"
@@ -259,9 +268,14 @@ export function InspectorFrame({
       ) : null}
       {/* S8.19c — a picture that is Waiting for someone's Mac or Missing says so, and offers Relink… */}
       <AssetAbsentBox el={el1} canvas={canvasFile} onReplace={onReplaceMedia} />
-      <HoldLine line={hold.line} />
-      {/* view mode: every value stays readable, no field opens (a disabled fieldset is the one switch) */}
-      <fieldset className="ed-insp-fields" disabled={hold.view || readOnly}>
+      <HoldLine line={line} />
+      {/* view mode: every value stays readable, no field opens (a disabled fieldset is the one switch); a locked
+          object's fieldset says why on itself too, so each control under it does (p8-lock-reasons) */}
+      <fieldset
+        className="ed-insp-fields"
+        disabled={hold.view || readOnly || locked}
+        {...reasonProps(lockOff, 'locked')}
+      >
         {/* S2.17 — what only this kind has (an instance: Component · Content), above the ten sections */}
         {blocksFor(kind.id, 'top').map(({ id, Body }) => (
           <Body key={id} el={el} selection={selected} kind={kind.id} ctx={ctx} />

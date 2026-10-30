@@ -3,15 +3,17 @@
 // the real thing; the look is the sheet's own. Presentational — the fold owns every decision.
 
 import { useEffect, useId, useState } from 'react';
+import { reasonProps } from '../../access/disabled-reason.js';
 
 /** A native select. `options` = [[value, label], …]; the value is compared as text. */
-export function Select({ value, options, onChange, label, testid, disabled = false }) {
+export function Select({ value, options, onChange, label, testid, disabled = false, reason = '' }) {
   return (
     <select
       className="ex-select"
       aria-label={label}
       data-testid={testid}
       disabled={disabled || undefined}
+      {...reasonProps(disabled, reason)}
       value={String(value ?? '')}
       onChange={(e) => onChange(e.target.value)}
     >

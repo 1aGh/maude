@@ -12,6 +12,7 @@ import {
   FRAME_RATE,
   FRAME_RATE_MADE,
   GIF_COLOURS as GIF_COLOURS_LABEL,
+  GIF_ONLY,
   LONG_VIDEOS,
   LONG_VIDEOS_WORDS,
   VIDEO_NOTE,
@@ -59,6 +60,7 @@ export function VideoPart({ spec, formats, setAdv, cap = 3600 }) {
           testid="export-adv-gif-colours"
           value={video.gifColors ?? 256}
           disabled={!formats.includes('gif')}
+          reason={GIF_ONLY}
           options={GIF_COLOURS.map((n) => [n, String(n)])}
           onChange={(v) => setAdv({ gifColors: Number(v) })}
         />
