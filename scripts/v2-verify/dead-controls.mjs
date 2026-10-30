@@ -19,6 +19,15 @@
 //   --replay <path>[|<path>…]  judge only the states on those paths (' › '-joined state names, the first is a
 //                root name: 'shell', 'canvas Landing' …). Every path but the last is only walked (it sets the
 //                fixture up, e.g. creates an artboard); the last path's state is judged. Reproduces one report row.
+//   --resume <json>[,<json>…]  continue from earlier shards (their --json files): what they judged is a twin here,
+//                the states they listed 'not reached' are walked to and crawled (and the child states those open),
+//                until CRAWL_BUDGET_MIN. Run it on a clean tree of the same commit; the new --json merges with the old
+//                ones (--merge drops a not-reached row once any shard entered that state).
+//   --redo       with --resume: also judge again the states the shards judged on an older build (a disabled row with no
+//                reason, a DEAD row, a row that drew a 4xx/5xx); --merge then replaces those states' rows and errors
+//   --seed-from <json>[,…]  with --resume: seed only the states THOSE shards left unreached (the rest of --resume still
+//                counts as judged/entered)
+//   --seed-shard <i>/<n>  with --resume: take every n-th seed (shallowest first) — n shards run side by side
 //   --plant-dead the crawler's own red test: plants a no-op button in the shell, which must be DEAD (exit 1)
 //   --plant-noise (with --plant-dead) also fires an unrelated status message every 200 ms in a far corner: the
 //                 button must still be DEAD (an announcement counts only inside the control's own area)
@@ -30,12 +39,13 @@
 // Exit 0 = no dead control and no error; 1 = dead controls or errors (the report lists them);
 // 2 = the rig could not run.
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, relative } from 'node:path';
 import { Crawler, tagErrorKind } from './dead-controls/crawl.mjs';
 import { registryMenu } from './dead-controls/registry.mjs';
 import { collapseTwins, renderReport, summarize } from './dead-controls/report.mjs';
+import { mergeShards, planResume } from './dead-controls/resume.mjs';
 import { bootRig, REPO, STUDIO } from './dead-controls/rig.mjs';
 
 const argv = process.argv.slice(2);
@@ -51,6 +61,14 @@ const REPLAY = arg('--replay', null)?.split('|');
 const ROOTS = arg('--roots', null)?.split('|');
 const MERGE = arg('--merge', null)?.split(',');
 const NOTE = arg('--note', null);
+const RESUME = arg('--resume', null)?.split(',');
+const REDO = argv.includes('--redo');
+const SEED_FROM = arg('--seed-from', null)?.split(',');
+const SEED_SHARD = arg('--seed-shard', null)?.split('/').map(Number) ?? null;
+if (SEED_SHARD && !(SEED_SHARD[0] >= 1 && SEED_SHARD[0] <= SEED_SHARD[1])) {
+  console.error('dead-controls: --seed-shard wants <i>/<n> with 1 <= i <= n');
+  process.exit(2);
+}
 const OUT = arg(
   '--out',
   // a replay judges a handful of states: never let it overwrite the full report
@@ -61,10 +79,8 @@ const OUT = arg(
 const JSON_OUT = arg('--json', null);
 
 if (MERGE) {
-  const { readFileSync } = await import('node:fs');
   const parts = MERGE.map((f) => JSON.parse(readFileSync(f, 'utf8')));
-  const merged = { results: [], errors: [], external: [], popups: [], unreachable: [] };
-  for (const p of parts) for (const k of Object.keys(merged)) merged[k].push(...(p[k] ?? []));
+  const merged = mergeShards(parts);
   merged.results = collapseTwins(merged.results);
   // shards that ran under older rules: the rig-only tags are applied again (a tagged error keeps its tag)
   merged.errors = merged.errors.map((e) => ({ ...e, kind: tagErrorKind(e.kind, e.text) }));
@@ -177,7 +193,16 @@ async function seed(browser, url) {
   return r;
 }
 
-const all = { results: [], errors: [], external: [], popups: [], unreachable: [] };
+const all = {
+  results: [],
+  errors: [],
+  external: [],
+  popups: [],
+  unreachable: [],
+  statesDone: [],
+  redone: [],
+};
+const PRIOR = RESUME?.map((f) => JSON.parse(readFileSync(f, 'utf8'))) ?? [];
 const t0 = Date.now();
 let browser;
 try {
@@ -249,7 +274,22 @@ async function crawlMode(mode, i) {
     await c.open();
     try {
       if (REPLAY) await c.runPaths(run.roots, REPLAY);
-      else await c.run(run.roots);
+      else if (RESUME) {
+        const plan = planResume(PRIOR, {
+          mode,
+          shell: run.label,
+          shard: SEED_SHARD,
+          redo: REDO,
+          seedFrom: SEED_FROM ? PRIOR.filter((_, i) => SEED_FROM.includes(RESUME[i])) : null,
+          accept: (surface) =>
+            run.roots.some((r) => surface === r.name || surface.startsWith(`${r.name} › `)),
+        });
+        console.log(
+          `[${mode}] ${run.label}: resuming ${plan.seeds.length} unreached states (${plan.judged.size} controls already judged)`
+        );
+        c.resume(plan);
+        await c.runSeeds(run.roots, plan.seeds);
+      } else await c.run(run.roots);
     } catch (e) {
       all.unreachable.push({
         mode,
@@ -259,6 +299,8 @@ async function crawlMode(mode, i) {
     }
     await c.close();
     for (const r of c.results) all.results.push({ shell: run.label, ...r });
+    all.statesDone.push(...c.statesDone.map((d) => ({ shell: run.label, ...d })));
+    all.redone.push(...c.redone.map((d) => ({ shell: run.label, ...d })));
     all.errors.push(...c.errors.map((e) => ({ shell: run.label, ...e })));
     all.external.push(...c.external.map((e) => ({ shell: run.label, mode, ...e })));
     all.popups.push(...c.popups.map((e) => ({ shell: run.label, mode, ...e })));

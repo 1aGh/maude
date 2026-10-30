@@ -21,6 +21,12 @@ const FAMILIES = [
     why: 'the action button of an export-finished toast: its id carries that export job’s per-run id, and the toast is up only while the job’s notice is; a fresh project has no export job',
   },
   {
+    match: /^export-job-(again|more)-[0-9a-f-]{20,}$/,
+    family: /^export-job-/,
+    twinOptional: true,
+    why: 'a row of the exports list: its id carries that export job’s per-run id, and the job exists only while the exports list holds the export the crawl itself ran; a fresh project has none',
+  },
+  {
     match: /^(M|I) .* N ago$/,
     family: /^(M|I) .* N ago$/,
     why: 'a comment row named by its relative time',

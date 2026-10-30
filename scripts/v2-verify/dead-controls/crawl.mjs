@@ -12,6 +12,7 @@
 // first-level destructive control is clicked once, which must open that confirm.
 
 import { PAGE_PROBE } from './page-probe.mjs';
+import { judgeKey } from './resume.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const DESTRUCTIVE =
@@ -123,6 +124,14 @@ export function tagErrorKind(kind, text) {
   // the tree is read while the server restarts under a reset
   else if (/failed to load tree/i.test(text) && /Failed to fetch/.test(text))
     kind = `${kind} (server restarting)`;
+  // what a reset or a replay's page reload cuts off: an aborted fetch, a reset / empty / half-sent response, a
+  // module or a list the restarting server could not serve (p8-sweep-finish)
+  else if (
+    /failed to load tree.*Abort|failed to load (comments|tree).*Failed to fetch/is.test(text) ||
+    /net::ERR_(EMPTY_RESPONSE|CONNECTION_RESET|CONTENT_LENGTH_MISMATCH)/.test(text) ||
+    /Failed to fetch dynamically imported module/.test(text)
+  )
+    kind = `${kind} (server restarting)`;
   // the fixture's video canvases name media files the fixture does not ship (assets/aaaa1111.mp4, song.mp3):
   // the server refuses them and the player throws — the rig's gap, not a control's
   else if (
@@ -188,6 +197,17 @@ export class Crawler {
     this.clicked = new Map(); // keys already judged (in any state) → where — each control judged once
     this.queued = new Set();
     this.prefixFp = new Map(); // steps signature → the control set that state showed
+    this.redone = []; // the stale states this run judged again
+    this.statesDone = []; // the states this run entered (a state with nothing new to judge writes no row)
+  }
+
+  /** Continue from earlier shards (`planResume`): what they judged is a twin here, their child states are known. */
+  resume({ judged, queued, seeds = [], redone = [] }) {
+    this.seedNames = new Set(seeds); // a seed that is also a child of another seed is crawled once
+    this.enteredSeeds = new Set();
+    this.redone = redone.map((surface) => ({ mode: this.mode, surface }));
+    for (const [k, where] of judged) if (!this.clicked.has(k)) this.clicked.set(k, where);
+    for (const q of queued) this.queued.add(q);
   }
 
   async open() {
@@ -424,8 +444,7 @@ export class Crawler {
    * judged hides the other two, and every row inside them is never reached.
    */
   judgeKeyOf(c, surface) {
-    const scoped = /^tid:project-menu-row-sub-/.test(c.key) ? `|${surface}` : '';
-    return `${c.frame}|${c.key}${scoped}`;
+    return judgeKey(c.frame, c.key, surface);
   }
 
   /** The click step of `st` that is this control, if any. */
@@ -449,6 +468,11 @@ export class Crawler {
       popup: false,
       quiet: !!r.quiet,
     }));
+    await this.drain(queue);
+  }
+
+  /** Crawl the queued states in order until the queue, the time budget or the state cap runs out. */
+  async drain(queue) {
     const deadline = Date.now() + this.budgetMs;
     let states = 0;
     while (queue.length) {
@@ -474,61 +498,104 @@ export class Crawler {
   }
 
   /**
+   * `--resume`: crawl the states earlier shards never entered (`seeds` = their ' › '-joined paths), then the child
+   * states those open. A seed that cannot be walked to again is listed unreachable with the reason.
+   */
+  async runSeeds(roots, seeds) {
+    const queue = [];
+    for (const path of seeds) {
+      try {
+        let st;
+        try {
+          st = await this.walkPath(roots, path, true);
+        } catch {
+          // a slow machine: the canvas list or a menu row lands late. A fresh project and one more try before giving up
+          await this.replay([], true).catch(() => {});
+          await sleep(3000);
+          st = await this.walkPath(roots, path, true);
+        }
+        queue.push(st);
+      } catch (e) {
+        this.results.push({
+          mode: this.mode,
+          surface: path,
+          control: '(surface)',
+          effect: 'unreachable',
+          note: `a resumed state could not be walked to again: ${String(e.message).slice(0, 300)}`,
+        });
+      }
+    }
+    await this.drain(queue);
+  }
+
+  /**
+   * A state path (' › '-joined names, as the report prints them) → the queued state it names: its steps, name, the
+   * controls of the state it was opened from, depth and popup flag. A path's first segment names a root; each later
+   * segment is the control clicked in the state before. `probe` reads the popup flag the way the crawl did (one real
+   * click, classified) instead of guessing it from the control's role.
+   */
+  async walkPath(roots, path, probe = false) {
+    // a root's own name may hold ' › ' ('canvas Landing › element selected'): the longest root name that
+    // opens the path is the root, the rest are control names
+    const root = roots
+      .filter((r) => path === r.name || path.startsWith(`${r.name} › `))
+      .sort((a, b) => b.name.length - a.name.length)[0];
+    if (!root) throw new Error(`--replay: no root named by "${path}"`);
+    const rootName = root.name;
+    const segs = path
+      .slice(rootName.length)
+      .split(' › ')
+      .map((x) => x.trim())
+      .filter(Boolean);
+    let steps = [...root.steps];
+    let name = rootName;
+    let parentIds = null;
+    // a root that only adds a fixture condition: what the plain page already shows is not judged again
+    if (root.quiet && !segs.length) {
+      await this.replay([]);
+      parentIds = new Set((await this.controls()).map((x) => x.id));
+    }
+    let popup = false;
+    for (const [i, seg] of segs.entries()) {
+      if (!(await this.replay(steps))) throw new Error(`--replay: could not reach "${name}"`);
+      const here = await this.controls();
+      const c = here.find((x) => (x.tid || x.name) === seg);
+      if (!c)
+        throw new Error(
+          `--replay: "${seg}" is not in the state "${name}" (there: ${here
+            .map((x) => x.tid || x.name)
+            .slice(0, 400)
+            .join(' | ')})`
+        );
+      parentIds = new Set(here.map((x) => x.id));
+      steps = [
+        ...steps,
+        { kind: 'click', frame: c.frame, key: c.key, occ: c.occ, label: c.tid || c.name },
+      ];
+      name = `${name} › ${seg}`;
+      popup = !!c.haspopup || /^menuitem/.test(c.role);
+      if (probe && i === segs.length - 1) {
+        this.current = `<probe ${seg}>`;
+        popup = this.classify(await this.measure(c, null), null, c).popup;
+        this.current = '<idle>';
+      }
+    }
+    return { steps, name, parentIds, depth: segs.length, popup, quiet: !!root.quiet };
+  }
+
+  /**
    * `--replay`: walk the given state paths (' › '-joined names, as the report prints them) and judge only the
    * last one. A path's first segment names a root; each later segment is the control clicked in the state before.
    */
   async runPaths(roots, paths) {
-    const walk = async (path) => {
-      // a root's own name may hold ' › ' ('canvas Landing › element selected'): the longest root name that
-      // opens the path is the root, the rest are control names
-      const root = roots
-        .filter((r) => path === r.name || path.startsWith(`${r.name} › `))
-        .sort((a, b) => b.name.length - a.name.length)[0];
-      if (!root) throw new Error(`--replay: no root named by "${path}"`);
-      const rootName = root.name;
-      const segs = path
-        .slice(rootName.length)
-        .split(' › ')
-        .map((x) => x.trim())
-        .filter(Boolean);
-      let steps = [...root.steps];
-      let name = rootName;
-      let parentIds = null;
-      // a root that only adds a fixture condition: what the plain page already shows is not judged again
-      if (root.quiet && !segs.length) {
-        await this.replay([]);
-        parentIds = new Set((await this.controls()).map((x) => x.id));
-      }
-      let popup = false;
-      for (const seg of segs) {
-        if (!(await this.replay(steps))) throw new Error(`--replay: could not reach "${name}"`);
-        const here = await this.controls();
-        const c = here.find((x) => (x.tid || x.name) === seg);
-        if (!c)
-          throw new Error(
-            `--replay: "${seg}" is not in the state "${name}" (there: ${here
-              .map((x) => x.tid || x.name)
-              .slice(0, 400)
-              .join(' | ')})`
-          );
-        parentIds = new Set(here.map((x) => x.id));
-        steps = [
-          ...steps,
-          { kind: 'click', frame: c.frame, key: c.key, occ: c.occ, label: c.tid || c.name },
-        ];
-        name = `${name} › ${seg}`;
-        popup = !!c.haspopup || /^menuitem/.test(c.role);
-      }
-      return { steps, name, parentIds, depth: segs.length, popup };
-    };
     // the judged state's parent is read FIRST, before any setup path changes the fixture: a control a setup
     // path creates (the Desktop artboard) is then new in the judged state, as it is in a full crawl
     // setup paths change the fixture on purpose; a reset would undo them
     if (paths.length > 1) this.resetEnabled = false;
-    const last = await walk(paths[paths.length - 1]);
+    const last = await this.walkPath(roots, paths[paths.length - 1]);
     for (const p of paths.slice(0, -1)) {
       // reaching a state executes its clicks, so a setup path (create an artboard) takes effect right here
-      const st = await walk(p);
+      const st = await this.walkPath(roots, p);
       await this.replay(st.steps);
     }
     this.log(`[${this.mode}] ${this.label} · replay: ${last.name}`);
@@ -560,6 +627,10 @@ export class Crawler {
 
   async crawlState(st, queue) {
     const surface = st.name;
+    if (this.seedNames?.has(surface)) {
+      if (this.enteredSeeds.has(surface)) return;
+      this.enteredSeeds.add(surface);
+    }
     if (!(await this.replay(st.steps, !!this.reset)) && !(await this.replay(st.steps, true))) {
       this.results.push({
         mode: this.mode,
@@ -570,6 +641,7 @@ export class Crawler {
       });
       return;
     }
+    this.statesDone.push({ mode: this.mode, surface });
     const ctrls = await this.controls();
     let fp = this.fingerprint(ctrls);
     const parent = st.parentIds;
