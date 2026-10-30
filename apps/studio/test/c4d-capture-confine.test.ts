@@ -265,6 +265,10 @@ describe('gate-b-c4d — the finding, end to end: canvas A exported cannot read 
             options: {
               canvasFile: '.design/ui/a.tsx',
               ...(scope === 'artboard' ? { artboardId: 'a' } : {}),
+              // canvas A spends ~4.4 s at module evaluation by design (it polls its popup for 4 s, then
+              // waits 400 ms), so the png/html shims' 8 s default leaves a cold first render on a slower Mac
+              // no room; this pins confinement, not render speed
+              timeoutSec: 30,
             },
           }),
         });
