@@ -67,6 +67,7 @@ import { canvasOriginRoutes } from './routes/canvas-origin.ts';
 import { runStageHooks } from './routes/index.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
 import { writeShellInfoFile } from './shell/info-file.ts';
+import { exitWithParent } from './shell/parent-watch.ts';
 import { createActionFeed } from './sync/action-feed.ts';
 import { accessFor, getHubRecord, watchHubsConfig } from './sync/hubs-config.ts';
 import { hubHealth } from './sync/journal-client.ts';
@@ -1220,7 +1221,11 @@ if (!process.env.NO_OPEN && !WORKSPACE) {
 
 const SHUTDOWN_WATCHDOG_MS = Number(process.env.MAUDE_SHUTDOWN_WATCHDOG_MS) || 5000;
 
+let shuttingDown = false;
 async function shutdown() {
+  // a signal and the parent watch (below) can both ask; the teardown runs once
+  if (shuttingDown) return;
+  shuttingDown = true;
   console.log('\n  Stopping…');
   // V2-2.8 B4: a teardown step that never settles (syncRuntime.stop, a collab flush) must not
   // keep the process alive after a signal — 26 CI runs hung in figma-routes this way. Logged,
@@ -1330,3 +1335,8 @@ async function shutdown() {
 
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
+// p8-orphan-sidecars — a server the desktop shell spawned (or a harness opted in) stops the same way
+// once its parent is gone: a force-quit or crashed app runs none of its own cleanup. A server started
+// from a terminal (`maude design serve`, server-up.sh's nohup respawn) is meant to outlive that
+// terminal and is left alone (shell/parent-watch.ts says who is who).
+exitWithParent(() => void shutdown(), 'server');

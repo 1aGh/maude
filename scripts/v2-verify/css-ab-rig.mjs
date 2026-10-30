@@ -106,6 +106,8 @@ const baseEnv = {
   MAUDE_CLOUD_CONFIG: join(home, '.config/maude/cloud.json'),
   MAUDE_CLOUD_URL: 'http://127.0.0.1:9',
   NO_OPEN: '1',
+  // p8-orphan-sidecars — the server ends by itself if this script is SIGKILLed
+  MAUDE_EXIT_WITH_PARENT: '1',
   MAUDE_NO_AUTOBUILD: '1',
   MAUDE_MACHINE_FILE: join(scratch, 'machine.json'),
   ...stubClaudeEnv(home),

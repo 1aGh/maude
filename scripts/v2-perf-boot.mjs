@@ -36,6 +36,8 @@ const env = {
   XDG_CONFIG_HOME: join(home, '.config'),
   ...stubClaudeEnv(home),
   NO_OPEN: '1',
+  // p8-orphan-sidecars — the server ends by itself if this script is SIGKILLed
+  MAUDE_EXIT_WITH_PARENT: '1',
   MAUDE_PORT_BASE: process.env.MAUDE_PORT_BASE ?? '48399', // never the person's 4399–4408 (port.ts)
   MAUDE_NO_AUTOBUILD: '1',
   MAUDE_INDEX_DIR: join(home, 'index'),

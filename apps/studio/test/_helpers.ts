@@ -97,6 +97,9 @@ export async function bootServer(
       ...process.env,
       NO_OPEN: '1',
       NODE_ENV: 'test',
+      // p8-orphan-sidecars — a test server ends by itself when the test process is SIGKILLed (a
+      // lane timeout, a killed run), instead of living on under launchd (shell/parent-watch.ts)
+      MAUDE_EXIT_WITH_PARENT: '1',
       // S5.1b — an unlinked project's boot stamps this install's machine id; a test boot keeps it
       // inside the sandbox (never ~/.config/maude/machine.json). One file per root, so a re-boot of
       // the same project is the same machine and its store is not moved aside (C1).

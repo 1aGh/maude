@@ -164,7 +164,14 @@ const server = Bun.spawn(
   ],
   {
     cwd: path.join(import.meta.dir, '..', 'apps', 'studio'),
-    env: { ...process.env, NO_OPEN: '1', MAUDE_NO_AUTOBUILD: '1', ...stubClaudeEnv(scratch) },
+    env: {
+      ...process.env,
+      NO_OPEN: '1',
+      MAUDE_NO_AUTOBUILD: '1',
+      // p8-orphan-sidecars — the server ends by itself if this bench is SIGKILLed
+      MAUDE_EXIT_WITH_PARENT: '1',
+      ...stubClaudeEnv(scratch),
+    },
     stdout: 'ignore',
     stderr: 'ignore',
   }
