@@ -236,3 +236,24 @@ Any commit outside `.ai/` makes V2-8.1/8.2/8.3/8.18 stale. Fold these into the n
   `V2-8.4-tip-v2fmt/report.md`. Fix: wrap the config in `v2Config(...)` (`scripts/dev/v2-config.mjs`). Then rerun the
   desktop lanes whose fixtures use it (`e2e/fixtures/local-hub.mjs`, `share-roles-cell.mjs`, invite-landing), because they
   passed V2-8.3 on the format-1 project and may assert view-only behaviour without saying so.
+
+## From the 2026-10-30 batch (orphans, CI Linux, the control sweep, locks)
+- **Product question for Michal: Hide on a locked layer.** The contract (S2-edit-ops §3 rule 6) says only the lock op
+  touches a locked object, so the eye of a shared-locked layer is greyed with "This object is locked; unlock it first."
+  Figma allows hiding a locked layer. Switching to that is `locked: 'allow'` on `object.hide` in `edit-ops/hide.ts`, a
+  contract edit, and dropping the `hideRefused` prop (kg `v2-p8-sweep-errors-locked-asks-off`).
+- **Legacy artboard/clip routes ignore an artboard lock.** These are `resize-artboard`, `set-artboard-*`,
+  `delete-artboard`, the `/_api/*-sequence` routes and `toggle-hide`. The dispatcher refuses artboard-wide ops on a
+  locked artboard, but the UI offers no artboard lock, so nobody reaches this today. If an artboard lock ever ships, wire
+  these routes to `lockedRefusal` the same way the object routes do (kg `v2-p8-lock-reasons-direct-writes-one-lookup`).
+- **One-off CI hang in `test/draw-proof-harness.test.ts`** on f64071a18. The slug-refusal test sat ~43 min until the job
+  timed out. It never reproduced: green on the next three runs and locally in 0.7 s. The suspect is `spawnSync` waiting on
+  a pipe that a grandchild holds open, which neither bun's test timeout nor `spawnSync`'s timeout can break. If it
+  recurs, give `runProof` `stdio: ['ignore','pipe','pipe']` plus a `killSignal`, or switch it to async `Bun.spawn` with a
+  kill.
+- **Timeline "Add title" 422** (`/_api/insert-sequence`) came from a dead-control shard run on the pre-reset rig. It
+  never reproduced on a reset fixture, and the crawler now records the response body, so a recurrence names its own
+  cause.
+- **Why CI kept finding "new" failures all batch:** each Quality step stops the job, so every later step went unrun
+  (containment pin, scripts/test Node 24, the surface catalogue). Before a freeze, run the whole `quality.yml` step list
+  locally. The checklist is in `lead/checkpoint-2026-10-30.md` "Update ~09:50".
