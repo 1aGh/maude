@@ -27,8 +27,27 @@ const attempts = Number(process.env.V2_CONVERT_ATTEMPTS ?? 30);
 const sleepMs = Number(process.env.V2_CONVERT_SLEEP ?? 10) * 1000;
 const timeoutMs = Number(process.env.V2_CONVERT_TIMEOUT ?? 20) * 1000;
 
+// A cell's /health text is data, never log markup (B2-5): a value with a newline and a workflow command
+// (`::add-mask::`, `::stop-commands::`) would be READ by the runner. Counts are numbers; a reason / state /
+// name is [a-z0-9-] only; a free error message loses everything but plain word characters.
+const count = (v) => (Number.isFinite(Number(v)) ? Math.max(0, Math.trunc(Number(v))) : 0);
+const tag = (v) =>
+  String(v ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '')
+    .slice(0, 40) || 'unknown';
+// the kill-switch name the cell reports (`CELL_V2_CONVERT=0`): word characters, `=` and `.` only
+const by = (v) =>
+  String(v ?? '')
+    .replace(/[^A-Za-z0-9_=.-]/g, '')
+    .slice(0, 60) || 'CELL_V2_CONVERT';
+const plain = (v) =>
+  String(v ?? '')
+    .replace(/[^A-Za-z0-9 .,()_-]/g, ' ')
+    .slice(0, 200);
+
 const line = (c, extra = '') =>
-  `[v2-convert]${extra} converted=${c.converted} skipped=${c.skipped} failed=${c.failed}`;
+  `[v2-convert]${extra} converted=${count(c.converted)} skipped=${count(c.skipped)} failed=${count(c.failed)}`;
 
 async function readCell(url) {
   let last = 'no response';
@@ -38,12 +57,12 @@ async function readCell(url) {
       const body = await res.json().catch(() => null);
       const v = body?.v2Convert;
       if (!v) last = 'no v2Convert on /health (an image without the conversion)';
-      else if (v.state === 'gated') return { url, gated: v.reason ?? 'unknown' };
-      else if (v.state === 'disabled') return { url, disabled: v.by ?? 'CELL_V2_CONVERT' };
+      else if (v.state === 'gated') return { url, gated: tag(v.reason) };
+      else if (v.state === 'disabled') return { url, disabled: by(v.by) };
       else if (v.state === 'done') return { url, counts: v };
-      else last = `state ${v.state}`;
+      else last = `state ${tag(v.state)}`;
     } catch (err) {
-      last = err?.message ?? String(err);
+      last = plain(err?.message ?? String(err));
     }
     if (i < attempts) await new Promise((r) => setTimeout(r, sleepMs));
   }
@@ -58,7 +77,7 @@ let disabled = 0;
 for (const r of await Promise.all(urls.map(readCell))) {
   if (r.counts) {
     reported += 1;
-    for (const k of Object.keys(total)) total[k] += Number(r.counts[k]) || 0;
+    for (const k of Object.keys(total)) total[k] += count(r.counts[k]);
     out.push(`${line(r.counts, ` ${r.url}`)}`);
   } else if (r.disabled) {
     disabled += 1;
