@@ -208,7 +208,9 @@ export function InspectorFrame({
   // is the view-mode switch for it — every value readable, no field opens — with the lock line on screen
   const locked = isLockedSelection(selected, layersTree);
   const lockOff = locked && !readOnly && !hold.view;
-  const line = lockOff ? { tone: 'lock', text: disabledReason('locked'), comment: false } : hold.line;
+  const line = lockOff
+    ? { tone: 'lock', text: disabledReason('locked'), comment: false }
+    : hold.line;
   const ctx = {
     canvasFile,
     cfg,
