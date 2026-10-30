@@ -15,3 +15,13 @@ Running builders:
 Open with Michal (via keeper): link import in cloud cells (A refuse = default built; B allow).
 Owed in chain4: solo desktop e2e `format-update.e2e.ts`. Security pair over the whole batch after the freeze.
 Michal: screen window needs no announcement; caffeinate -dimsu around 8.3; stop + tell keeper if the screen locks.
+
+## Update ~03:30
+- **p8-suite-green merged + pushed (f583ddc5c).** Full studio suite on the mini as CI runs it: 20935 pass / 0 fail
+  (`bun test --isolate`). The 490-fail cascade was plain `bun test` without `--isolate`; the preload now stops such a
+  run with one line. The 12 CI Linux fails fixed (one real bug: the annotations converter called you "You" instead of
+  localAuthor). kg: 4 v2-p8-suite-green-* decisions. CI Quality on f583ddc5c is running — check it; items 4 (ab-park
+  race: read the printed skip reason) and 11 (compare-view theme, not reproduced) are proven only on CI.
+- Still running: p8-sweep-advanced (a96ea76e…) — every one of the 1107 controls in one class, 3 destructive unit
+  tests, the 14 Advanced rows. On hand-back: merge, then send Michal the completed sweep summary via the keeper.
+- Then freeze → chain4 (no announcement, caffeinate around 8.3) → re-attests → .app → PR.md.
