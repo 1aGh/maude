@@ -3900,6 +3900,8 @@ export function createHttp(
         // p8-a1-claims (F17) — `maude design trash move` names its chat (X-Maude-Chat): the delete is that
         // chat's live run's, claimed BEFORE the file leaves, so the run publishes it and its undo restores it.
         const mine = runForCreate(req, runs);
+        // p8-sec2-lows I1 — the claim must not outlive a delete that did not happen.
+        let release: (() => void) | null = null;
         if (mine && typeof file === 'string' && /\.tsx$/i.test(file)) {
           const rel = file.replace(/^\/+/, '');
           const repoRel = rel.startsWith(`${ctx.paths.designRel}/`)
@@ -3912,9 +3914,17 @@ export function createHttp(
             claimOnly: true,
           });
           control?.claimAiDelete?.(mine.runId, repoRel);
+          release = () => control?.unclaimAiDelete?.(mine.runId, repoRel);
         }
-        const result = await api.deleteCanvas({ file });
+        let result: Awaited<ReturnType<typeof api.deleteCanvas>>;
+        try {
+          result = await api.deleteCanvas({ file });
+        } catch (err) {
+          release?.();
+          throw err;
+        }
         if (!result.ok) {
+          release?.();
           return Response.json(
             { ok: false, error: result.error },
             { status: result.status, headers: { 'Cache-Control': 'no-store' } }
