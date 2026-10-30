@@ -537,6 +537,8 @@ describe('the route', () => {
       link: all.find((x) => x.path === '/_api/import-link') as Spec,
     };
   };
+  // B2-6: a browser page of the studio itself sends this on its own; curl-local and a terminal do not
+  const FROM_SHELL = { 'sec-fetch-site': 'same-origin' };
   const post = (
     spec: Spec,
     body: unknown,
@@ -545,16 +547,40 @@ describe('the route', () => {
     spec.handle(
       new Request('http://127.0.0.1/_api/import-link', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', ...headers },
+        headers: { 'content-type': 'application/json', ...FROM_SHELL, ...headers },
         body: JSON.stringify(body),
       }),
       {}
     ) as Promise<Response>;
   const getKey = (spec: Spec, headers: Record<string, string> = {}) =>
     spec.handle(
-      new Request('http://127.0.0.1/_api/import-link/key', { headers }),
+      new Request('http://127.0.0.1/_api/import-link/key', {
+        headers: { ...FROM_SHELL, ...headers },
+      }),
       {}
     ) as Promise<Response>;
+
+  test('B2-6: the key and the link need Sec-Fetch-Site: same-origin — curl-local and a terminal get neither', async () => {
+    const r = routes();
+    const bare = (path: string, init: RequestInit = {}) =>
+      new Request(`http://127.0.0.1${path}`, init);
+    for (const site of [undefined, 'none', 'same-site', 'cross-site']) {
+      const h: Record<string, string> = site ? { 'sec-fetch-site': site } : {};
+      const k = (await r.key.handle(bare('/_api/import-link/key', { headers: h }), {})) as Response;
+      expect({ site, status: k.status }).toEqual({ site, status: 403 });
+      expect(await k.text()).not.toContain(KEY);
+      const l = (await r.link.handle(
+        bare('/_api/import-link', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-maude-link-key': KEY, ...h },
+          body: JSON.stringify({ url: 'https://media.example/a.png' }),
+        }),
+        {}
+      )) as Response;
+      expect({ site, status: l.status }).toEqual({ site, status: 403 });
+    }
+    expect((await getKey(r.key)).status).toBe(200); // the studio page itself
+  });
 
   test('main origin only, refused for a read-only session', () => {
     const all = createImportLinkRoutes({

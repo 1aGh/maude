@@ -32,6 +32,9 @@ describe('p8-import-link on a booted studio', () => {
     const proc = await bootServer(root, port, { MAUDE_NO_AUTOBUILD: '1' });
     try {
       const at = (p: string, init?: RequestInit) => fetch(`http://localhost:${port}${p}`, init);
+      // a browser page of the studio sends this by itself (B2-6); the test stands in for that page
+      const page = (p: string, init: RequestInit = {}) =>
+        at(p, { ...init, headers: { 'Sec-Fetch-Site': 'same-origin', ...(init.headers ?? {}) } });
       for (const [name, type] of [
         ['0000abcd.png', 'image/png'],
         ['0000abcd.jpg', 'image/jpeg'],
@@ -48,14 +51,18 @@ describe('p8-import-link on a booted studio', () => {
       }
 
       // F2 — the key: a chat's request is refused, the shell's (no chat header) gets it
-      const chatKey = await at('/_api/import-link/key', { headers: { 'X-Maude-Chat': 'chat_1' } });
+      const chatKey = await page('/_api/import-link/key', {
+        headers: { 'X-Maude-Chat': 'chat_1' },
+      });
       expect(chatKey.status).toBe(403);
-      const keyRes = await at('/_api/import-link/key');
+      const bare = await at('/_api/import-link/key'); // curl-local / a terminal
+      expect(bare.status).toBe(403);
+      const keyRes = await page('/_api/import-link/key');
       expect(keyRes.status).toBe(200);
       const { key } = (await keyRes.json()) as { key: string };
       expect(typeof key).toBe('string');
       const post = (headers: Record<string, string>) =>
-        at('/_api/import-link', {
+        page('/_api/import-link', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...headers },
           // an http link: a request that gets past the gates is refused by the URL check, before any network

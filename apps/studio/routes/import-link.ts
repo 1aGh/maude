@@ -122,6 +122,10 @@ export function createImportLinkRoutes(deps: ImportLinkRouteDeps): RouteSpec[] {
     if (access.canvasOnly || !access.can('edit', null))
       return json(403, { ok: false, reason: 'forbidden', error: 'You can view this project.' });
     if (req.headers.has('x-maude-chat')) return NOT_FROM_SHELL();
+    // B2-6 — only a browser page of the studio itself: curl-local adds X-Maude-Chat to writes only, so the
+    // chat header alone left the key readable by a GET from the AI or a terminal. A browser sets
+    // Sec-Fetch-Site on its own and a script cannot forge it; curl-local refuses to send `sec-fetch-*`.
+    if (req.headers.get('sec-fetch-site') !== 'same-origin') return NOT_FROM_SHELL();
     return null;
   };
   return [
