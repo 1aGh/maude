@@ -54,5 +54,28 @@ test('every row lands in exactly one class, and the classes add up to the rows f
     rows.length
   );
   assert.equal(classOf({ effect: 'twin' }), 'twin');
-  assert.equal(summarize(rows, []).notReached, 2);
+  // only an unreachable state without a named reason is 'not reached'; a vanished control is 'gone' (with its reason)
+  assert.equal(summarize(rows, []).notReached, 1);
+  assert.equal(classOf({ effect: 'vanished' }), 'gone');
+});
+
+test('an unreachable row is accepted only with a named reason and a clicked twin', () => {
+  const row = {
+    mode: 'tauri',
+    effect: 'unreachable',
+    surface: 'shell › New canvas › canvas-jump-toggle-ui-videomusic',
+    control: '(surface)',
+  };
+  const twin = {
+    mode: 'tauri',
+    effect: 'popup',
+    surface: 'canvas Landing',
+    control: 'canvas-jump-toggle-ui-landing',
+  };
+  assert.equal(classOf(row, [row]), 'not reached');
+  assert.equal(classOf(row, [row, twin]), 'gone');
+  assert.equal(summarize([row, twin], []).notReached, 0);
+  assert.equal(summarize([row], []).notReached, 1);
+  const other = { ...row, surface: 'shell › something-else', control: '(surface)' };
+  assert.equal(classOf(other, [other, twin]), 'not reached');
 });

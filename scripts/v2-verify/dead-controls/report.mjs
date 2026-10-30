@@ -1,5 +1,6 @@
 // The dead-control crawler's report: totals, the control → effect table, the dead list, the errors.
 import { DESTRUCTIVE_PINS } from './destructive-pins.mjs';
+import { explain } from './explained.mjs';
 
 /**
  * The same control seen again in other states is one twin row, not hundreds: one row per (mode, shell, control,
@@ -25,7 +26,7 @@ export function collapseTwins(results) {
 }
 
 /** Every control found ends in exactly one class. */
-export function classOf(r) {
+export function classOf(r, results = null) {
   switch (r.effect) {
     case 'twin':
       return 'twin';
@@ -44,7 +45,8 @@ export function classOf(r) {
     case 'vanished':
       return 'gone';
     case 'unreachable':
-      return 'not reached';
+      // a state whose replay needs a row a fresh project does not show: accepted only with a named reason + twin
+      return results && explain(r, results) ? 'gone' : 'not reached';
     default:
       return 'clicked, effect';
   }
@@ -118,7 +120,7 @@ export function summarize(results, errors) {
     unpinned: results.filter(
       (r) => r.effect === 'skipped-destructive' && !DESTRUCTIVE_PINS[r.control]
     ).length,
-    notReached: results.filter((r) => r.effect === 'unreachable').length,
+    notReached: results.filter((r) => r.effect === 'unreachable' && !explain(r, results)).length,
   };
 }
 
@@ -148,7 +150,10 @@ export function renderReport(all, { modes, minutes }) {
   );
   lines.push('');
   const byClass = new Map();
-  for (const r of all.results) byClass.set(classOf(r), (byClass.get(classOf(r)) ?? 0) + 1);
+  for (const r of all.results) {
+    const k = classOf(r, all.results);
+    byClass.set(k, (byClass.get(k) ?? 0) + 1);
+  }
   lines.push('## Totals by class');
   lines.push('');
   lines.push('| class | what it means | count |');
@@ -271,7 +276,7 @@ export function renderReport(all, { modes, minutes }) {
   lines.push('| mode | shell | surface | control | role | class | evidence |');
   lines.push('|---|---|---|---|---|---|---|');
   for (const r of all.results) {
-    const cls = classOf(r);
+    const cls = classOf(r, all.results);
     let ev = '';
     if (cls === 'twin')
       ev = `twin of \`${cell(r.twin)}\` — ${r.note}${r.states > 1 ? ` (seen in ${r.states} states)` : ''}`;
@@ -280,7 +285,10 @@ export function renderReport(all, { modes, minutes }) {
       const p = DESTRUCTIVE_PINS[r.control];
       ev = p ? `unit test ${p.file} › "${p.test}"` : 'NO UNIT PIN';
     } else if (cls === 'clicked, effect') ev = `${r.effect}${r.note ? ` (${r.note})` : ''}`;
-    else ev = `${r.effect}${r.note ? ` — ${r.note}` : ''}`;
+    else if (cls === 'gone') {
+      const ex = explain(r, all.results);
+      ev = `${r.effect}: ${r.note ?? ''}${ex ? ` — WHY: ${ex.why}. Twin clicked: \`${cell(ex.twin)}\`` : ''}`;
+    } else ev = `${r.effect}${r.note ? ` — ${r.note}` : ''}`;
     lines.push(
       `| ${r.mode} | ${r.shell} | ${cell(r.surface)} | \`${cell(r.control)}\` | ${r.role ?? ''} | ${cls} | ${cell(ev)} |`
     );
