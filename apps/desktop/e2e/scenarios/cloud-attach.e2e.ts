@@ -60,6 +60,8 @@ const FIXTURE_CONFIG = join(
   'config.json'
 );
 const STUB_CODE = `mhc_${'a'.repeat(64)}`;
+/** An attach note that reports an outcome (sync/presentation.ts): in flight, connected, or already in step. */
+const ATTACH_NOTE = /Connecting to|Syncing with|Connected to|Synced with/;
 
 const fixtures = createFixtureGuard('cloud-attach', [FIXTURE_CONFIG]);
 
@@ -247,12 +249,15 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     // never "restart the studio server" — a task naming something a desktop
     // user cannot see. Which arm fires depends on what the fixture has to sync,
     // so assert the shape: this project, and a state we told the truth about.
+    // `Synced with` too: the lane's cell holds a checkout now (p8-fix-e), so a
+    // 10-canvas fixture can be all in step before the first poll — the outcome
+    // step 7 already counts as terminal (presentation.ts), not a missing note.
     let seen = '';
     await browser
       .waitUntil(
         async () => {
           seen = await (await $(tid('cloud-bar'))).getText();
-          return /Connecting to|Syncing with|Connected to/.test(seen);
+          return ATTACH_NOTE.test(seen);
         },
         { timeout: 20_000 }
       )
@@ -305,7 +310,7 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
       .waitUntil(
         async () => {
           seen = await cloudText();
-          return /Connecting to|Syncing with|Connected to/.test(seen);
+          return ATTACH_NOTE.test(seen);
         },
         { timeout: 20_000 }
       )
