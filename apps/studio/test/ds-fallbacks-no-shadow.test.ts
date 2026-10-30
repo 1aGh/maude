@@ -96,9 +96,11 @@ async function measure(sys: { model: SystemModel; css: string; comps: string }, 
           .join('')}</div></div>`
     )
     .join('');
-  // the shell's order: fallbacks BEFORE the system's stylesheets
+  // the shell's order: fallbacks BEFORE the system's stylesheets. Transitions off: the stylesheets land after
+  // the page, and toggling the fallback block restyles everything, so a component's `transition` on
+  // background-color / box-shadow was read mid-flight (2 of 5 runs red, the property compared at a random frame)
   await page.setContent(
-    `<!doctype html><html><head><style id="fb"></style><style id="tok"></style><style id="cmp"></style></head><body>${body}</body></html>`
+    `<!doctype html><html><head><style>*,*::before,*::after{transition:none!important;animation:none!important}</style><style id="fb"></style><style id="tok"></style><style id="cmp"></style></head><body>${body}</body></html>`
   );
   await page.evaluate(
     ({ fb, tok, cmp }: { fb: string; tok: string; cmp: string }) => {
