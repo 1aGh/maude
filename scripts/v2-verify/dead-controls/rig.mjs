@@ -200,7 +200,8 @@ export async function bootRig({ portBase = Number(process.env.MAUDE_PORT_BASE ||
       rig.logs.project = proj.log;
       const again = await waitJson(join(fx.designRoot, '_server.json'), 60_000, proj.child);
       if (!again?.url) throw new Error('project server did not come back after a reset');
-      if (again.url !== sj.url) throw new Error(`project server moved: ${sj.url} → ${again.url}`);
+      rig.projectUrl = again.url; // a restart may take the next free port
+      return again.url;
     },
     projectUrl: sj.url,
     homeUrl: hi?.url ?? null,

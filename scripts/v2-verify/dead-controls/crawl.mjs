@@ -197,6 +197,13 @@ export class Crawler {
     // the rig blocks every non-loopback request (web fonts …): its console line is the rig's, not the product's
     else if (/ERR_BLOCKED_BY_CLIENT/.test(text)) kind = `${kind} (blocked external)`;
     // the rig's cloud is a dead loopback port and nobody is signed in: a cloud route answering 401/502 is the rig
+    // the fixture's video canvases name media files the fixture does not ship (assets/aaaa1111.mp4, song.mp3):
+    // the server refuses them and the player throws — the rig's gap, not a control's
+    else if (
+      /\/assets\/[\w.-]+\.(mp4|mp3|webm|wav|m4a)/.test(text) ||
+      /MediaPlaybackError|MediaError/.test(text)
+    )
+      kind = `${kind} (fixture media)`;
     // the hub-link state hands the shell a status message, but the rig's server has no hub: Resync / Download all
     // reach their real routes and the server answers 409 "not linked"
     else if (/\/_api\/sync\/(offline|resync)/.test(text) && /409/.test(`${kind} ${text}`))
@@ -331,7 +338,8 @@ export class Crawler {
     }
     if (from < 0) {
       // a hard replay starts from the frozen project, not from whatever the clicks so far left behind
-      if (hard && this.reset && this.resetEnabled !== false) await this.reset();
+      if (hard && this.reset && this.resetEnabled !== false)
+        this.url = (await this.reset()) ?? this.url;
       await this.load();
       from = 0;
       this.prefixFp.set(this.stepsSig([]), this.fingerprint(await this.controls()));
