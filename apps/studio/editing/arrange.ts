@@ -304,6 +304,22 @@ export function arrangeArtboards(
   return true;
 }
 
+/**
+ * `arrangeArtboards`, and when the boards already sit as asked (nothing to move) say so — a click on Align top over
+ * boards that share their top edge must not look like a button that does nothing. `say` gets the line.
+ */
+export function arrangeBoardsOrSay(
+  action: ArrangeAction,
+  rects: readonly BoardRect[],
+  bus: CommitBus,
+  say: (line: string) => void
+): boolean {
+  const moved = arrangeArtboards(action, rects, bus);
+  if (!moved && rects.length >= minimumFor(action))
+    say((ARRANGE[action] as ArrangeSpec).align ? 'Already aligned.' : 'Already evenly spaced.');
+  return moved;
+}
+
 // ── Tidy up (S2.9) ────────────────────────────────────────────────────────────────────────────
 
 /** Registry id: the align bar's "Tidy up" over 2+ artboards (and ⌘K). One commit, one ⌘Z. */

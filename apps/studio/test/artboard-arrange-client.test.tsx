@@ -10,6 +10,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { ACTIONS_BY_ID } from '../actions/index.ts';
 import { AlignBarView, boardsMixKinds } from '../editing/align-bar.tsx';
 import {
+  arrangeBoardsOrSay,
   type BoardRect,
   TIDY_ACTION,
   TIDY_TIP,
@@ -237,5 +238,52 @@ describe('MultiArtboardToolbar is retired (D7, S2.9)', () => {
       /GROUP_TICK_CLASSES = \[\.\.\.TICK_CLASSES, 'tick-t', 'tick-r', 'tick-b', 'tick-l'\]/
     );
     expect(shell).toMatch(/\{GROUP_TICK_CLASSES\.map/);
+  });
+});
+
+// p8-sweep-advanced — Align top / middles / bottom over boards that already share the edge changed nothing and said
+// nothing (the dead-control crawl clicked all three): the click now says so, the way Tidy up does.
+describe('Align / Distribute over artboards that need no move', () => {
+  const ROW: BoardRect[] = [
+    { id: 'a', x: 0, y: 0, w: 640, h: 400 },
+    { id: 'b', x: 700, y: 0, w: 640, h: 400 },
+  ];
+  const run = (action: string, rects: BoardRect[]) => {
+    const said: string[] = [];
+    const commits: unknown[] = [];
+    const moved = arrangeBoardsOrSay(
+      action as never,
+      rects,
+      { commitPositions: (m) => commits.push(m) },
+      (line) => said.push(line)
+    );
+    return { moved, said, commits };
+  };
+
+  test('boards already level: Align top says so and commits nothing', () => {
+    for (const action of ['align.top', 'align.vmiddle', 'align.bottom']) {
+      const r = run(action, ROW);
+      expect(r.moved, action).toBe(false);
+      expect(r.commits, action).toEqual([]);
+      expect(r.said, action).toEqual(['Already aligned.']);
+    }
+  });
+
+  test('boards that do need to move: one commit, nothing said', () => {
+    const r = run('align.left', ROW);
+    expect(r.moved).toBe(true);
+    expect(r.commits).toHaveLength(1);
+    expect(r.said).toEqual([]);
+  });
+
+  test('evenly spaced boards: Distribute says so', () => {
+    const three: BoardRect[] = [
+      { id: 'a', x: 0, y: 0, w: 100, h: 100 },
+      { id: 'b', x: 200, y: 0, w: 100, h: 100 },
+      { id: 'c', x: 400, y: 0, w: 100, h: 100 },
+    ];
+    const r = run('distribute.h', three);
+    expect(r.moved).toBe(false);
+    expect(r.said).toEqual(['Already evenly spaced.']);
   });
 });
