@@ -22,7 +22,7 @@
     },
     {
       "path": "apps/studio/annotations-context-toolbar.tsx",
-      "sha256": "470119b7a94996031fd03bda1b3132667de7b2256463c5397424788b5bb1a72b"
+      "sha256": "bf3afd61f3adfe4a144ac1746a73826c43f3cccec688e4826ed1c2230a4bfbc0"
     },
     {
       "path": "apps/studio/client/photo-knobs.jsx",
