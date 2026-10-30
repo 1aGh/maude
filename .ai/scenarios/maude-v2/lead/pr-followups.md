@@ -250,6 +250,11 @@ Any commit outside `.ai/` makes V2-8.1/8.2/8.3/8.18 stale. Fold these into the n
   1.x plugin in a plain terminal against a v2 studio would therefore get its writes attributed to the person. Decide
   whether to retire the route, or keep it for leases only and say so in its comment (kg
   `v2-p8-ai-runs-spec-plays-hook-claim`).
+- **A canvas frame sometimes first lays out at the iframe default 300×150.** Seen in about 1 of 52 desktop specs per
+  lane (`edit-multi`, `edit-shapes`, `kinds-picker`, `video-present`, `edit-artboards`). Not reproduced in ~50
+  instrumented relaunches. The canvas now refits its own first view when the frame changes size, until the camera has
+  moved (kg `v2-p8-edit-multi-boot-fit-follows-host`), so a person no longer sees a thumbnail-sized canvas. The cause
+  of the first small layout is still unknown.
 - **Legacy artboard/clip routes ignore an artboard lock.** These are `resize-artboard`, `set-artboard-*`,
   `delete-artboard`, the `/_api/*-sequence` routes and `toggle-hide`. The dispatcher refuses artboard-wide ops on a
   locked artboard, but the UI offers no artboard lock, so nobody reaches this today. If an artboard lock ever ships, wire
