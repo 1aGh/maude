@@ -238,10 +238,12 @@ Any commit outside `.ai/` makes V2-8.1/8.2/8.3/8.18 stale. Fold these into the n
   passed V2-8.3 on the format-1 project and may assert view-only behaviour without saying so.
 
 ## From the 2026-10-30 batch (orphans, CI Linux, the control sweep, locks)
-- **Product question for Michal: Hide on a locked layer.** The contract (S2-edit-ops §3 rule 6) says only the lock op
-  touches a locked object, so the eye of a shared-locked layer is greyed with "This object is locked; unlock it first."
-  Figma allows hiding a locked layer. Switching to that is `locked: 'allow'` on `object.hide` in `edit-ops/hide.ts`, a
-  contract edit, and dropping the `hideRefused` prop (kg `v2-p8-sweep-errors-locked-asks-off`).
+- **Resolved (Michal 2026-10-30): Hide on a locked layer stays refused.** The current contract stays as it is
+  (S2-edit-ops §3 rule 6: only the lock op touches a locked object). The eye of a shared-locked layer stays greyed with
+  "This object is locked; unlock it first." No `locked: 'allow'` on `object.hide` (kg
+  `v2-michal-hide-on-locked-stays-refused`).
+- **Resolved (Michal 2026-10-30): import from a link in a cloud cell = A, refuse.** The answer stays "works on the Mac".
+  Leave it as built (kg `v2-michal-link-import-cell-refuse`, `v2-p8-import-link-shell-only-no-decompress`).
 - **Legacy artboard/clip routes ignore an artboard lock.** These are `resize-artboard`, `set-artboard-*`,
   `delete-artboard`, the `/_api/*-sequence` routes and `toggle-hide`. The dispatcher refuses artboard-wide ops on a
   locked artboard, but the UI offers no artboard lock, so nobody reaches this today. If an artboard lock ever ships, wire
