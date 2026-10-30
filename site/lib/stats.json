@@ -6,7 +6,7 @@
   "plugins": {
     "design": {
       "commands": 31,
-      "skills": 42,
+      "skills": 43,
       "agents": 22
     },
     "flow": {
