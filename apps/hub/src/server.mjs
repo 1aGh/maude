@@ -566,6 +566,12 @@ export function createHub(config = {}) {
   /** Per-IP rate limit buckets (admin API): ip → { count, windowStart } */
   const rateBuckets = new Map();
 
+  /** Per-IP buckets for `GET /api/file-limits` alone: ip → { count, windowStart }. Its OWN map
+   *  (and its own `file-limits:` keyspace in the rate store): every linked desktop asks once per sync
+   *  start WITH a valid token, and on the shared map above those reads spent the address's
+   *  sign-in allowance — the next `/auth/login` from that Mac was a 429 (p8-cloud-attach-regress). */
+  const fileLimitsBuckets = new Map();
+
   /** Per-token rate limit buckets (valid WS auth): label → { count, windowStart } */
   const connBuckets = new Map();
 
@@ -1837,8 +1843,15 @@ export function createHub(config = {}) {
             // unauthenticated caller must not be able to drive that path at
             // will. Every neighbouring route threads this; the first version of
             // this one did not (found in the security review of this change).
+            // ITS OWN per-IP bucket (`fileLimitsBuckets`), never the sign-in one: a valid
+            // desktop's reads must not leave its next `/auth/login` refused.
             checkRateLimit: rateLimit
-              ? (req) => checkRateLimit(rateBuckets, req, { store: rateStore, ip: clientIp(req) })
+              ? (req) =>
+                  checkRateLimit(fileLimitsBuckets, req, {
+                    store: rateStore,
+                    ip: clientIp(req),
+                    keyspace: 'file-limits',
+                  })
               : undefined,
           })
         ) {
@@ -4014,12 +4027,16 @@ function deleteDocumentRow(sqlitePath, name) {
  * X-Forwarded-For intentionally not trusted in v1.1 — operators behind a
  * proper reverse proxy get accurate buckets in Task 6 when trustProxy lands.
  */
-function checkRateLimit(buckets, request, { store = null, ip: resolvedIp } = {}) {
+function checkRateLimit(
+  buckets,
+  request,
+  { store = null, ip: resolvedIp, keyspace = 'http' } = {}
+) {
   const ip = resolvedIp ?? request.socket?.remoteAddress ?? '0.0.0.0';
   // When a persistent store is wired, it IS the limiter — the in-memory bucket
   // below stays only as the fallback path (and for the pure-unit tests that
   // call this without a store).
-  if (store) return store.check(`http:${ip}`, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS);
+  if (store) return store.check(`${keyspace}:${ip}`, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS);
   const now = Date.now();
   // Opportunistic eviction (~1% of calls) so a long-running hub doesn't
   // accumulate entries for one-shot IPs (botnet / IPv6 rotation). Cheap.
