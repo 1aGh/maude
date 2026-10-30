@@ -244,16 +244,26 @@ export class Crawler {
     this.page.on('response', (r) => {
       const u = r.url();
       if (!isLoopback(u) || r.status() < 400) return;
-      this.err(
+      const e = this.err(
         `http ${r.status()}`,
         `${r.request().method()} ${new URL(u).pathname}${new URL(u).search.slice(0, 80)}`
       );
+      // p8-sweep-errors — the studio's own words for the refusal, on a second line (errors group by the first),
+      // so a 4xx the crawl meets names its cause instead of needing a replay to find it
+      r.text()
+        .then((b) => {
+          const said = String(b).replace(/\s+/g, ' ').trim().slice(0, 300);
+          if (said) e.text += `\n  answer: ${said}`;
+        })
+        .catch(() => {});
     });
   }
 
   err(kind, text) {
     kind = tagErrorKind(kind, text);
-    this.errors.push({ surface: this.label, mode: this.mode, control: this.current, kind, text });
+    const e = { surface: this.label, mode: this.mode, control: this.current, kind, text };
+    this.errors.push(e);
+    return e;
   }
 
   async close() {
