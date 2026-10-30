@@ -224,7 +224,7 @@ COPY plugins/design/templates /build/plugins/design/templates
 COPY cli/lib/design-ownership.mjs /build/cli/lib/design-ownership.mjs
 # V2-8.18 — the v2 studio reaches more than that: the hub's transactions kernel + lanes (sync/local-kernel.ts,
 # canvas-edit.ts, element-ids.ts), hub-held votes (annotations/votes-local.ts) and the cli/lib guards
-# (routes/agent.ts, ai/lease-home.ts). Unstaged, `docker build` failed with `Could not resolve`. The test
+# (routes/agent.ts, ai/lease-home.ts; acp/index.ts replays an Edit through cli/lib/design-hook.mjs `replayEdit`). Unstaged, `docker build` failed with `Could not resolve`. The test
 # `dockerfile-bundler-copies.test.mjs` walks the studio's import graph against this stage's COPY list.
 COPY apps/hub/src/project-transactions/baseline.mjs \
      apps/hub/src/project-transactions/kernel.mjs \
@@ -235,7 +235,7 @@ COPY apps/hub/src/project-transactions/baseline.mjs \
 COPY apps/hub/src/votes.mjs /build/apps/hub/src/votes.mjs
 COPY cli/lib/bash-guard.mjs cli/lib/finding-text.mjs cli/lib/confine-out.mjs \
      cli/lib/confine-root.mjs cli/lib/studio-locate.mjs cli/lib/handoff.mjs \
-     cli/lib/json-schema-lite.mjs cli/lib/pkg-root.mjs /build/cli/lib/
+     cli/lib/json-schema-lite.mjs cli/lib/pkg-root.mjs cli/lib/design-hook.mjs /build/cli/lib/
 # The client bundle + stylesheet are COMMITTED artifacts (see CLAUDE.md: what
 # you commit is what ships) — MAUDE_SKIP_RUNTIME_BUILD keeps the runtime bundles
 # verbatim for the same reason. The E1 seal below records what came out of here.

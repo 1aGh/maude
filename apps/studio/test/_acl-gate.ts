@@ -785,7 +785,10 @@ export const normalize = (t: string, cell: GateCell, across = false) => {
       .replace(/"pid":\d+/g, '"pid":<pid>')
       // render timings (/_health) and the index's mtime-derived hash differ per boot
       .replace(/("[A-Za-z0-9]*Ms[A-Za-z]*"):\d+(\.\d+)?/g, '$1:<ms>')
-      .replace(/"hash":"[0-9a-f]{16,64}"/g, '"hash":"<hash>"');
+      .replace(/"hash":"[0-9a-f]{16,64}"/g, '"hash":"<hash>"')
+      // the index writer's per-boot write counter, and the per-boot import-link page key (p8-import-link)
+      .replace(/("at":<n>,)"seq":\d+/g, '$1"seq":<seq>')
+      .replace(/"key":"[A-Za-z0-9_-]{32,}"/g, '"key":"<key>"');
   return out;
 };
 
