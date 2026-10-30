@@ -64,14 +64,23 @@ async function storeWith(body: Record<string, unknown>) {
   return { store, posts };
 }
 
+// Each test's tree is unmounted before the next mounts: a ring layer left mounted keeps its message listener, its
+// MutationObserver on the body and its settle timer, and answers the next test's posts and landings with it.
+let mounted: { unmount(): void } | null = null;
 async function mount(node: unknown) {
   const { createRoot } = await import('react-dom/client');
   const { act } = await import('react');
+  if (mounted) {
+    const prev = mounted;
+    mounted = null;
+    await act(async () => prev.unmount());
+  }
   document.body.innerHTML = '';
   const host = document.createElement('div');
   document.body.append(host);
   const root = createRoot(host);
   await act(async () => root.render(node as never));
+  mounted = root;
   return { act, root, host };
 }
 
