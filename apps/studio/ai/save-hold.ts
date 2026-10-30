@@ -37,7 +37,7 @@ import { SHELL_SETTLE_MS } from '../sync/action-stage.ts';
 import { hashBytes } from '../sync/echo-guard.ts';
 import { mergeSource } from '../sync/source-merge.ts';
 import { sourceHold } from '../sync/write-hold.ts';
-import { currentWriteClaim } from './write-claim-scope.ts';
+import { currentWriteClaim, noWriteClaim } from './write-claim-scope.ts';
 
 /** A hold lasts at most this long (or until the call ends, whichever comes first). */
 export const SAVE_HOLD_CAP_MS = 10_000;
@@ -125,13 +125,20 @@ export function createSaveHold(opts: SaveHoldOptions = {}) {
   const settleMs = opts.settleMs ?? SHELL_SETTLE_MS;
   const capMs = opts.capMs ?? SAVE_HOLD_CAP_MS;
   const staleMs = opts.staleMs ?? WINDOW_STALE_MS;
-  const timers = opts.timers ?? {
+  const baseTimers = opts.timers ?? {
     set: (fn: () => void, ms: number) => {
       const t = setTimeout(fn, ms);
       (t as { unref?: () => void }).unref?.();
       return t;
     },
     clear: (h: unknown) => clearTimeout(h as ReturnType<typeof setTimeout>),
+  };
+  // p8-sec2-attrib A2 — a landing is the PERSON's, whatever request set its timer: AsyncLocalStorage
+  // carries the setter's store into the callback (an AI chat's write claim, `withWriteClaim`), so every
+  // callback leaves it.
+  const timers = {
+    set: (fn: () => void, ms: number) => baseTimers.set(() => noWriteClaim(fn), ms),
+    clear: (h: unknown) => baseTimers.clear(h),
   };
   const write = opts.write ?? ((abs: string, bytes: string) => sourceHold().put(abs, bytes));
   const readDisk =
@@ -208,7 +215,15 @@ export function createSaveHold(opts: SaveHoldOptions = {}) {
     }, wait);
   }
 
-  async function land(p: Pending, why: 'free' | 'cap' | 'flush'): Promise<void> {
+  /**
+   * p8-sec2-attrib A2 — the person's held bytes land as theirs whoever sets the landing off (a flush POST
+   * with `X-Maude-Chat`, a window closed inside a claimed request): no claim, saver person.
+   */
+  function land(p: Pending, why: 'free' | 'cap' | 'flush'): Promise<void> {
+    return noWriteClaim(() => saver.run('person', () => landNow(p, why)));
+  }
+
+  async function landNow(p: Pending, why: 'free' | 'cap' | 'flush'): Promise<void> {
     if (pending.get(p.abs) !== p) return;
     if (p.landing) return p.landing;
     if (p.timer !== undefined) timers.clear(p.timer);
@@ -298,13 +313,19 @@ export function createSaveHold(opts: SaveHoldOptions = {}) {
     );
   }
 
+  /** p8-sec2-attrib A2 — like `land`: the person's action runs with no claim, whoever releases it. */
   function release(d: Deferred, why: 'free' | 'cap' | 'flush'): Promise<void> {
+    return noWriteClaim(() => releaseNow(d, why));
+  }
+
+  function releaseNow(d: Deferred, why: 'free' | 'cap' | 'flush'): Promise<void> {
     if (d.go) return d.go;
     if (d.timer !== undefined) timers.clear(d.timer);
     d.timer = undefined;
     if (why === 'cap') for (const f of d.files) spend(f);
     d.go = (async () => {
-      // never held again: what runs now is the release (the action's own writes go straight through)
+      // never held again: what runs now is the release (the action's own writes go straight through;
+      // 'tool' only skips the hold — with no claim the home still records them as the person's)
       await saver.run('tool', d.run);
       for (const f of d.files) {
         const text = readDisk(f);

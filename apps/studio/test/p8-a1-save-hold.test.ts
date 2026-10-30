@@ -27,7 +27,8 @@ import {
   type SaveHoldNotice,
   setSaveHoldForTest,
 } from '../ai/save-hold.ts';
-import { hookClaims } from '../ai/write-claim.ts';
+import { currentWriteClaim, hookClaims, withWriteClaim } from '../ai/write-claim.ts';
+import { noWriteClaim } from '../ai/write-claim-scope.ts';
 import { serializeBoard } from '../annotations/schema.ts';
 import { createApi } from '../api.ts';
 import { applyEdit } from '../canvas-edit.ts';
@@ -682,5 +683,76 @@ describe('A1 hold — the layout and board lanes, and the notice', () => {
     noteSaveHold({ file: HOME, state: 'landed', text: '' }, deps);
     expect(flushHeldSaves(nav as never)).toBe(false);
     expect(await Promise.all(sent)).toEqual([[FLUSH_ROUTE, JSON.stringify({ files: [HOME] })]]);
+  });
+});
+
+// p8-sec2-attrib A2 / B2-2 — a held save lands as the PERSON's whatever request sets the landing off.
+// AsyncLocalStorage carries into setTimeout, and `withWriteClaim(null, fn)` could not leave an outer
+// claim: a flush POST carrying `X-Maude-Chat` (curl-local adds it to every `/_api/` write), or a window
+// closed inside a claimed request, claimed the person's held bytes for the AI run (its Discard / Undo
+// would then drop their edit).
+describe('A2 — a held save never lands under the AI’s write claim', () => {
+  const homeKinds = async (r: Rig) =>
+    (await r.rows()).filter((x) => x.canvases.includes(HOME)).map((x) => x.kind);
+
+  test('the closing page’s flush, sent with the chat’s header while its run is live, lands as the person’s', async () => {
+    const r = await rig({ capMs: 5_000 });
+    const { runId, end } = await pythonTurn(r);
+    await r.save(HOME, 'footer', 'style.color=red');
+    expect(r.read(HOME)).not.toContain(RED);
+    const spec = createDiagnosticsRoutes({ control: () => null }).find(
+      (x) => x.path === '/_api/diagnostics/save-hold-flush'
+    ) as RouteSpec;
+    const flush = claimingTableRoute(guardTableRoute(spec), r.reg);
+    const res = await flush.handle(
+      new Request(`${ORIGIN}/_api/diagnostics/save-hold-flush`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          host: '127.0.0.1:4399',
+          'X-Maude-Chat': 'c1',
+        },
+        body: JSON.stringify({ files: [HOME] }),
+      }),
+      {}
+    );
+    expect(await res.json()).toEqual({ landed: 1 });
+    expect(r.read(HOME)).toContain(RED);
+    await r.deliver(HOME);
+    end('completed');
+    await r.publish(runId);
+    await r.home.flush();
+    expect(await homeKinds(r)).toEqual(['edit']);
+  });
+
+  test('a window closed inside a claimed request: the landing timer runs with no claim', async () => {
+    const r = await rig({ capMs: 5_000 });
+    const { runId, end } = await pythonTurn(r);
+    await r.save(HOME, 'footer', 'style.color=red');
+    expect(r.read(HOME)).not.toContain(RED);
+    withWriteClaim({ runId, chatId: 'c1', label: 'Retitle' }, () => end('completed'));
+    await sleep(SHELL_SETTLE_MS + 300);
+    expect(r.read(HOME)).toContain(RED);
+    await r.deliver(HOME);
+    await r.publish(runId);
+    await r.home.flush();
+    expect(await homeKinds(r)).toEqual(['edit']);
+  });
+
+  test('`withWriteClaim(null)` and `noWriteClaim` leave an outer claim', () => {
+    const run = { runId: 'R', chatId: 'c1', label: 'x' };
+    withWriteClaim(run, () => {
+      expect(currentWriteClaim()).toEqual(run);
+      expect(withWriteClaim(null, () => currentWriteClaim())).toBeNull();
+      expect(noWriteClaim(() => currentWriteClaim())).toBeNull();
+    });
+  });
+
+  test('the hook routes and the flush never answer inside a chat’s claim', () => {
+    const reg = { resolve: () => null } as never;
+    for (const p of ['/_api/agent/bash/window', '/_api/diagnostics/save-hold-flush']) {
+      const spec = { path: p, method: 'POST', origin: 'main', handle: () => new Response('') };
+      expect(claimingTableRoute(spec as unknown as RouteSpec, reg)).toBe(spec as never);
+    }
   });
 });

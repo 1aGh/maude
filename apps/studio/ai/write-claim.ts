@@ -25,9 +25,14 @@ import { laneValueFromFile } from '../sync/codec.ts';
 import { hashBytes } from '../sync/echo-guard.ts';
 import { CHAT_HEADER, type CreateClaimRuns, runForCreate } from './create-claim.ts';
 
-import { currentWriteClaim, type WriteClaimRun, withWriteClaim } from './write-claim-scope.ts';
+import {
+  currentWriteClaim,
+  noWriteClaim,
+  type WriteClaimRun,
+  withWriteClaim,
+} from './write-claim-scope.ts';
 
-export { currentWriteClaim, type WriteClaimRun, withWriteClaim };
+export { currentWriteClaim, noWriteClaim, type WriteClaimRun, withWriteClaim };
 
 /** The LIVE run of chat `chat` on this Mac (not ended, not queued behind another run of it), or null. */
 export function runForChat(
