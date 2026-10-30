@@ -38,6 +38,7 @@ Footer: emit `"opt_out_applied": "<scope>"` and `"ds_blockers_downgraded": N`.
 1. Read canvas + tokens CSS (for legal scale ratios).
 2. **Capture screenshot if missing** — visual review without rendered evidence is worthless. If `agent-browser` is unavailable, fail loud.
 3. Read project tokens to learn the legal type scale, spacing scale, and radii ladder. Off-ladder values are flagged in `design-critic`'s pass; here you focus on whether the *use* of the legal values is composed well.
+4. Read the `ux-patterns` skill (`${CLAUDE_PLUGIN_ROOT}/skills/ux-patterns/SKILL.md`) — your sections: `UX-HIER-*`, `UX-ACT-2/4/6/8`, `UX-SHAPE-1`, `UX-TOK-3/4`. The project DS overrides it; cite the rule ID in findings.
 
 ## Review axes
 

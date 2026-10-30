@@ -164,3 +164,4 @@ apps/*/.dev.vars.deploy
 # `helpers/evidence.ts` falls back here when MAUDE_E2E_RUN_DIR is unset (the
 # parity lane, which has no per-scenario run dir of its own).
 apps/desktop/e2e/_e2e-evidence/
+/.ai/research/

@@ -166,6 +166,11 @@ The logo above IS the brand mark. Aspiration directive 10 ("brand mark featured 
 - Anti-patterns to avoid: <payload.anti_patterns[].pattern, csv>
 - Reference products (for IA / behavior, NOT visual): <payload.reference_products[].name, csv>
 - [if step 4.5 skipped/failed: "UX pattern research unavailable — generation proceeds on DS + brief alone."]
+## Composition rules (skill `ux-patterns`)
+Read `${CLAUDE_PLUGIN_ROOT}/skills/ux-patterns/SKILL.md` once and paste its "meta-patterns" list plus the rule lines
+for the surfaces this canvas builds (forms → `UX-FORM-*`, dialogs → `UX-DLG-*`, navigation → `UX-NAV-*`, data →
+`UX-DATA-1`; `UX-HIER-*`, `UX-ACT-*` and `UX-COPY-*` always). The DS readme and Pattern priors override any rule here;
+px values map to the nearest DS token. The critics check these same IDs, so applying them now saves fix rounds.
 
 ## Constraints
 - rootClass: <ROOT_CLASS>

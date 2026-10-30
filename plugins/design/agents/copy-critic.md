@@ -19,7 +19,8 @@ Standard contract (see `design-critic.md`).
 2. Read project's voice / tone rules:
    - `<designRoot>/system/<project>/README.md` "Content fundamentals" or "Voice" sections.
    - Any `<project>-voice` or `<project>-microcopy-rules` skill if present.
-3. Note the project's documented voice POV (e.g. "studio-grade pro tool", "warm guided onboarding", "playful confident") — every finding must respect it.
+3. Read the `ux-patterns` skill (`${CLAUDE_PLUGIN_ROOT}/skills/ux-patterns/SKILL.md`) — your sections: `UX-COPY-*`, `UX-FORM-2`, `UX-DLG-*`. The project voice overrides it; cite the rule ID in findings.
+4. Note the project's documented voice POV (e.g. "studio-grade pro tool", "warm guided onboarding", "playful confident") — every finding must respect it.
 
 ## Review axes
 

@@ -8,4 +8,6 @@ Read the canvas file. **If selection is valid**, build a scoped prompt (selector
 - The Babel/UMD React mount pattern (if present)
 - All existing tokens (`var(--*)` references)
 
+**Compose by the `ux-patterns` rules.** When the edit adds or rearranges UI (not a pure copy or token tweak), read `${CLAUDE_PLUGIN_ROOT}/skills/ux-patterns/SKILL.md` and apply the rules for what you are touching (one primary action, labels on inputs, white space over borders, one alignment anchor, …). The DS overrides them; the critics in step 8 check the same rule IDs.
+
 **Touch the paired `.tsx` after editing a sibling `.css` (D-2 — highest-ROI fix).** For `css_mode` canvases that carry a sibling `<slug>.css` (NOT Tailwind / inline modes), the dev-server's canvas-build **inlines the CSS at module init and the bundle cache keys on the `.tsx` mtime** — so a CSS-only edit is invisible until something bumps the `.tsx` mtime (or a server restart). After editing any `<slug>.css`, `touch <slug>.tsx` so the canvas-build re-inlines the CSS. Without this, the confirmation screenshot in step 7 reflects the *pre-edit* CSS — studyfi burned 5 identical "nothing changed" screenshots on exactly this. (Tailwind/inline-mode canvases have no sibling `.css`, so this does not apply to them.)
