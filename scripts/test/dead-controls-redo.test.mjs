@@ -53,15 +53,12 @@ const old = {
 };
 
 test('staleStates names the states with a reasonless disabled row, a DEAD row or a row that drew a real error', () => {
-  assert.deepEqual(
-    [...staleStates([old])].sort(),
-    [
-      'browser|project|s › hist',
-      'browser|project|s › menu',
-      'browser|project|s › ok',
-      'browser|project|s › sheet',
-    ]
-  );
+  assert.deepEqual([...staleStates([old])].sort(), [
+    'browser|project|s › hist',
+    'browser|project|s › menu',
+    'browser|project|s › ok',
+    'browser|project|s › sheet',
+  ]);
 });
 
 test('planResume with redo seeds the stale states again and does not count their rows as judged', () => {
@@ -72,7 +69,10 @@ test('planResume with redo seeds the stale states again and does not count their
     'the state whose row drew the 409 is stale too'
   );
   assert.ok(!p.judged.has('shell|tid:Hide Frame'));
-  assert.ok(!p.judged.has('shell|tid:fine'), 'the whole state is judged again, not only its stale row');
+  assert.ok(
+    !p.judged.has('shell|tid:fine'),
+    'the whole state is judged again, not only its stale row'
+  );
   assert.deepEqual(planResume([old], { mode: 'browser', shell: 'project' }).seeds, []);
 });
 

@@ -16,7 +16,8 @@ export function judgeKey(frame, key, surface) {
 
 const isSurfaceRow = (r) => r.effect === 'unreachable' && r.control === '(surface)';
 // rows that were not judged in their state: a twin was never clicked, a vanished/unreachable row was not found
-const notJudged = (r) => r.effect === 'twin' || r.effect === 'vanished' || r.effect === 'unreachable';
+const notJudged = (r) =>
+  r.effect === 'twin' || r.effect === 'vanished' || r.effect === 'unreachable';
 
 /** `mode|shell|surface` of every state some shard entered (it listed a row, or recorded it in `statesDone`). */
 export function reachedStates(parts) {
@@ -43,13 +44,18 @@ const realError = (e) => !isRigError(e) && /http (409|422|404|5\d\d)/.test(e.kin
 export function staleStates(parts) {
   const stale = new Set();
   for (const p of parts) {
-    const names = new Set((p.errors ?? []).filter(realError).map((e) => `${e.mode}|${e.shell}|${errorName(e.control)}`));
+    const names = new Set(
+      (p.errors ?? []).filter(realError).map((e) => `${e.mode}|${e.shell}|${errorName(e.control)}`)
+    );
     for (const r of p.results ?? []) {
       if (r.effect === 'unreachable') continue;
       const named =
         names.has(`${r.mode}|${r.shell}|${r.control}`) ||
-        r.surface.split(' › ').some((seg) => names.has(`${r.mode}|${r.shell}|${seg}`) && seg === r.control);
-      if ((r.effect === 'disabled' && !r.note) || r.effect === 'DEAD' || named) stale.add(stateKey(r));
+        r.surface
+          .split(' › ')
+          .some((seg) => names.has(`${r.mode}|${r.shell}|${seg}`) && seg === r.control);
+      if ((r.effect === 'disabled' && !r.note) || r.effect === 'DEAD' || named)
+        stale.add(stateKey(r));
     }
   }
   return stale;
@@ -61,7 +67,10 @@ export function staleStates(parts) {
  *                seedFrom (members of `parts`) limits the unreached-state seeds to what those shards left behind
  * @returns { judged: Map<judgeKey, where>, queued: Set<sig>, seeds: string[] }  seeds = state paths, shallowest first
  */
-export function planResume(allParts, { mode, shell, accept = () => true, shard = null, redo = false, seedFrom = null }) {
+export function planResume(
+  allParts,
+  { mode, shell, accept = () => true, shard = null, redo = false, seedFrom = null }
+) {
   const parts = supersede(allParts);
   const judged = new Map();
   const queued = new Set();
@@ -90,7 +99,11 @@ export function planResume(allParts, { mode, shell, accept = () => true, shard =
     if (seedFrom && !seedFrom.includes(allParts[pi])) continue;
     for (const r of p.results ?? []) {
       if (!isSurfaceRow(r) || r.mode !== mode || r.shell !== shell) continue;
-      if ((reached.has(stateKey(r)) && !stale.has(stateKey(r))) || seen.has(r.surface) || !accept(r.surface))
+      if (
+        (reached.has(stateKey(r)) && !stale.has(stateKey(r))) ||
+        seen.has(r.surface) ||
+        !accept(r.surface)
+      )
         continue;
       seen.add(r.surface);
       seeds.push(r.surface);
@@ -141,7 +154,14 @@ export function supersede(parts) {
  */
 export function mergeShards(parts) {
   const kept = supersede(parts);
-  const merged = { results: [], errors: [], external: [], popups: [], unreachable: [], statesDone: [] };
+  const merged = {
+    results: [],
+    errors: [],
+    external: [],
+    popups: [],
+    unreachable: [],
+    statesDone: [],
+  };
   for (const p of kept) for (const k of Object.keys(merged)) merged[k].push(...(p[k] ?? []));
   const reached = reachedStates(kept);
   const last = new Map();
