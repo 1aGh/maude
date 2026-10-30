@@ -22,6 +22,7 @@ import {
   openLocalProject,
   pickDirectory,
 } from '../github.js';
+import { reasonProps } from '../v2/access/disabled-reason.js';
 
 function Icon({ name, size = 16 }) {
   const p = {
@@ -291,6 +292,7 @@ function NewView({ identity, signedIn, onClose }) {
           className="btn btn--primary"
           onClick={submit}
           disabled={busy || !slug}
+          {...reasonProps(!busy && !slug, 'Type a name first.')}
         >
           <Icon name="plus" size={15} />{' '}
           {busy ? step || 'Creating…' : local ? 'Create local project' : 'Create project'}

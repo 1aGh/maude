@@ -28,6 +28,7 @@ import {
   managedProjectsList,
   openTeamProject,
 } from '../github.js';
+import { reasonProps } from '../v2/access/disabled-reason.js';
 
 const api = async (path, init) => {
   try {
@@ -543,6 +544,10 @@ export default function TeamProjects({ variant = 'door', initialServer = '', ser
               type="submit"
               className="btn btn--primary"
               disabled={!canHub || !!busy}
+              {...reasonProps(
+                !canHub || !!busy,
+                busy ? 'Opening…' : 'Fill in the address, email and password first.'
+              )}
               data-testid="team-hub-open"
             >
               {busy === 'hub' ? (

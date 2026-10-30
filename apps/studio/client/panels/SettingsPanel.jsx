@@ -152,6 +152,10 @@ export function ProviderCard({ provider, onChanged }) {
             type="button"
             className="sh-btn"
             disabled={busy || !keyInput.trim()}
+            {...reasonProps(
+              busy || !keyInput.trim(),
+              busy ? 'Saving…' : 'Paste the API key first.'
+            )}
             onClick={save}
           >
             <Icon name="key" size={13} /> Save
@@ -994,6 +998,7 @@ export function FigmaConnectCard() {
           type="button"
           className="sh-btn"
           disabled={busy || !tokenInput.trim()}
+          {...reasonProps(busy || !tokenInput.trim(), busy ? 'Saving…' : 'Paste the token first.')}
           onClick={connect}
           data-testid="figma-connect-save"
         >

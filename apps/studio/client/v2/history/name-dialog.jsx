@@ -7,6 +7,7 @@
 import { useRef, useState } from 'react';
 import { useModalFocus } from '../shell/modal-focus.js';
 import { HISTORY_WORDS } from './use-versions.js';
+import { reasonProps } from '../access/disabled-reason.js';
 
 export const NAME_MAX = 80;
 // biome-ignore lint/suspicious/noControlCharactersInRegex: a name may not carry control characters
@@ -93,6 +94,10 @@ export function NameDialog({ canvasLabel, initial = '', onSubmit, onClose }) {
             type="submit"
             className="btn btn--primary"
             disabled={busy || !verdict.ok}
+            {...reasonProps(
+              busy || !verdict.ok,
+              busy ? 'Saving…' : verdict.error || 'Type a name first.'
+            )}
             data-testid="vh-name-save"
           >
             {HISTORY_WORDS.nameSave}

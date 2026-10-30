@@ -39,12 +39,27 @@ export const ASK_WORDS = {
   busy: 'AI is busy with other pictures. Try again in a moment.',
   failed: 'No take came back. Try again, or change the words.',
   making: (n) => (n > 1 ? `Making ${n} takes…` : 'Making the picture…'),
+  // p8-lock-reasons — Generate's reason while the price is being worked out, and before any words
+  quoting: 'Working out the price…',
+  noWords: 'Describe the picture first.',
   generate: 'Generate',
   cancel: 'Cancel',
   advanced: 'Advanced',
   model: 'Model',
   other: 'Video or sound…',
 };
+
+/**
+ * p8-lock-reasons — why Generate is off, in the line the person is shown: what it is waiting for first (a picture
+ * being made, the key being connected), then what the quote lacks (an artboard, the price), then the words.
+ */
+export function goReason({ quote, needsKey, err, target, prompt, making, keyStep }) {
+  if (making > 0) return ASK_WORDS.making(making);
+  if (keyStep === 'waiting') return KEY_WORDS.waiting;
+  if (!quote && !needsKey) return err || (target ? ASK_WORDS.quoting : ASK_WORDS.noTarget);
+  if (!String(prompt ?? '').trim()) return ASK_WORDS.noWords;
+  return '';
+}
 
 /** "4 variants" — the count chip (ia-gen-ask). */
 export const countLabel = (n) => (n === 1 ? '1 variant' : `${n} variants`);
@@ -458,7 +473,18 @@ export function GenerateAsk({
           className="btn btn--primary btn--sm"
           data-testid="generate-ask-go"
           disabled={(!quote && !needsKey) || !prompt.trim() || making > 0 || keyStep === 'waiting'}
-          {...reasonProps(!quote && !needsKey && !!err, err)}
+          {...reasonProps(
+            (!quote && !needsKey) || !prompt.trim() || making > 0 || keyStep === 'waiting',
+            goReason({
+              quote,
+              needsKey,
+              err,
+              target: !!(canvas && artboard),
+              prompt,
+              making,
+              keyStep,
+            })
+          )}
           onClick={() => void generate()}
         >
           {ASK_WORDS.generate}

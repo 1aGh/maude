@@ -43,6 +43,7 @@ import {
   importVerb,
   normalizeLink,
 } from './figma-model.js';
+import { reasonProps } from '../access/disabled-reason.js';
 
 // The imported frame's inspector rows (Make editable) ride with the sheet's module: app.jsx loads it at boot.
 registerFigmaArtboardSlots();
@@ -506,6 +507,10 @@ export default function FigmaSheet({ open, onClose, onImported, activePath = nul
                   className="btn btn--sm btn--primary"
                   data-testid="figma-import-preview"
                   disabled={busy || kind === 'none'}
+                  {...reasonProps(
+                    busy || kind === 'none',
+                    busy ? W.reading : 'Paste a Figma link first.'
+                  )}
                   onClick={read}
                 >
                   {W.import}

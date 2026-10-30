@@ -206,6 +206,7 @@ export function AlignBarView({
                 data-tip={tip}
                 aria-label={ARRANGE[a]?.label}
                 disabled={short}
+                aria-description={short ? NOT_ENOUGH_LINE : undefined}
                 onClick={() => onAction(a)}
               >
                 <svg

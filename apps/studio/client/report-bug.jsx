@@ -23,6 +23,7 @@ import {
 } from './github.js';
 import { reportLogsConsent, reportLogsPolicy } from './v2/settings/settings-model.js';
 import { crashLogsTicked, takeReportEntry } from './v2/shell/recovery-store.js';
+import { reasonProps } from './v2/access/disabled-reason.js';
 
 // Two of these are auto-captured (window + artboard), so the ceiling leaves
 // room for the user to still attach their own.
@@ -495,6 +496,7 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                   className="sh-btn rb-primary"
                   data-testid="report-bug-preview"
                   disabled={!canPreview}
+                  {...reasonProps(!canPreview, 'Describe what happened first.')}
                   onClick={() => setStep('preview')}
                 >
                   Review &amp; attach
