@@ -4877,7 +4877,13 @@ export function createHttp(
       const result = await api.editCss(body);
       if (!result.ok) {
         return Response.json(
-          { ok: false, error: result.error, ...(result.conflict ? { conflict: true } : {}) },
+          {
+            ok: false,
+            error: result.error,
+            ...(result.conflict ? { conflict: true } : {}),
+            // p8-lock-reasons — a locked target answers the edit-op's 409 shape (code + message)
+            ...(result.code ? { code: result.code, message: result.error } : {}),
+          },
           { status: result.status, headers: { 'Cache-Control': 'no-store' } }
         );
       }

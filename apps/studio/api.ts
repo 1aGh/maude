@@ -128,6 +128,8 @@ import {
   setArtboardStyle,
   toggleClipHidden,
 } from './canvas-edit.ts';
+import { lockedRefusal } from './edit-ops/dispatch.ts';
+import { walkIdElements } from './element-ids.ts';
 import {
   applyFitTotalToContent,
   applyOnDisk,
@@ -461,8 +463,9 @@ export type EditOpResult =
   /** `previous` — what a css/attr write replaced (`null` = was unset); absent
    *  when it was an expression no literal undo can restore. */
   | { ok: true; delta: number; seq?: number; previous?: string | null }
-  /** `conflict` = the target no longer held the caller's expected value. */
-  | { ok: false; status: number; error: string; conflict?: true };
+  /** `conflict` = the target no longer held the caller's expected value; `code: 'locked'` = the target carries
+   *  the shared lock (409, the edit-op's own refusal — p8-lock-reasons). */
+  | { ok: false; status: number; error: string; conflict?: true; code?: 'locked' };
 
 /**
  * Optional expected-current value for a css/attr write (audit 2026-09-13 P1
@@ -5767,6 +5770,24 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
   }
 
+  /** p8-lock-reasons — the edit-op's 409 `locked` for a shared-locked `id` in the canvas at `abs`, else null. */
+  async function lockedCssTarget(
+    abs: string,
+    id: string
+  ): Promise<{ ok: false; status: 409; error: string; code: 'locked' } | null> {
+    let source: string;
+    try {
+      source = await Bun.file(abs).text();
+    } catch {
+      return null; // a missing canvas is the writer's own 404
+    }
+    const walk = walkIdElements(source, abs);
+    const lock = walk.ok ? lockedRefusal(walk.elements, [id]) : null;
+    return lock && lock.code === 'locked'
+      ? { ok: false, status: 409, error: lock.message, code: 'locked' }
+      : null;
+  }
+
   async function editCss(input: {
     canvas?: unknown;
     id?: unknown;
@@ -5786,6 +5807,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (!pre.ok) return { ok: false, status: 400, error: 'invalid expected value' };
     const id = typeof input.id === 'string' ? input.id.trim() : '';
     if (!CD_ID_RE.test(id)) return { ok: false, status: 400, error: 'invalid data-cd-id' };
+    // p8-lock-reasons — only the lock op may touch a locked object (S2-edit-ops §3 rule 6): the dispatcher's
+    // own lookup, so a style control on a locked object hears the edit-op's 409 `locked`, not a write
+    const locked = await lockedCssTarget(r.abs, id);
+    if (locked) return locked;
     const said = typeof input.label === 'string' ? input.label.trim().slice(0, 120) : '';
     // Stage H3 — optional DOM-occurrence index. Present only for a whole-instance
     // move/resize (reposition/resize-request); routes the write to the dragged
