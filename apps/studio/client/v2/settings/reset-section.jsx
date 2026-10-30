@@ -99,6 +99,7 @@ function ConfirmResetAll({ onCancel, onConfirm }) {
 
 export default function ResetSection({ live = {} }) {
   const [layoutDone, setLayoutDone] = useState(false);
+  const [foldsDone, setFoldsDone] = useState(false);
   const [asking, setAsking] = useState(false);
   const [done, setDone] = useState(false);
   // 06 ad-settings › Reset: ONE wrapping row of three buttons (the third in the warning colour) and a hint —
@@ -126,9 +127,12 @@ export default function ResetSection({ live = {} }) {
             className="btn btn--sm"
             data-testid="settings-reset-folds-btn"
             title="Fold every panel’s Advanced section."
-            onClick={() => foldStore.closeAll()}
+            onClick={() => {
+              foldStore.closeAll();
+              setFoldsDone(true);
+            }}
           >
-            Close all Advanced sections
+            {foldsDone ? 'Closed' : 'Close all Advanced sections'}
           </button>
         </span>
         <span data-testid="settings-reset-all">

@@ -2149,7 +2149,8 @@ export default function TimelinePanel({
                     type="button"
                     className="icon-btn k-icon-sm tl-zoom-step"
                     aria-label="Zoom out"
-                    title="Zoom out · ⌘−"
+                    title={zoomPxf == null ? 'The whole video already fits' : 'Zoom out · ⌘−'}
+                    disabled={zoomPxf == null}
                     onClick={() => zoomTo(pxf / ZOOM_STEP)}
                   >
                     <TGlyph name="minus" size={12} />
@@ -2179,7 +2180,10 @@ export default function TimelinePanel({
                   type="button"
                   className="btn btn--ghost btn--sm tl-fit"
                   data-testid="timeline-zoom-fit"
-                  title="Fit the whole video · 0"
+                  title={
+                    zoomPxf == null ? 'The whole video already fits' : 'Fit the whole video · 0'
+                  }
+                  disabled={zoomPxf == null}
                   onClick={() => setZoomPxf(null)}
                 >
                   Fit

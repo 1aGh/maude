@@ -171,6 +171,20 @@ describe('the header is the board’s', () => {
     expect(q('[data-testid="timeline-size"]')?.textContent).toBe('Compact');
   });
 
+  // p8-sweep-advanced — at fit there is nothing to zoom out to or fit: both buttons are greyed and say so
+  // (the dead-control crawl clicked both on a freshly opened timeline and nothing happened)
+  test('at Fit, Zoom out and Fit are greyed with the reason; Zoom in stays live', () => {
+    mount({ island: { size: 'full', onToggleSize: () => {} } });
+    const out = head().querySelector('[aria-label="Zoom out"]') as HTMLButtonElement;
+    const fit = head().querySelector('[data-testid="timeline-zoom-fit"]') as HTMLButtonElement;
+    const zin = head().querySelector('[aria-label="Zoom in"]') as HTMLButtonElement;
+    expect(out.disabled).toBe(true);
+    expect(fit.disabled).toBe(true);
+    expect(out.title).toBe('The whole video already fits');
+    expect(fit.title).toBe('The whole video already fits');
+    expect(zin.disabled).toBe(false);
+  });
+
   test('while it plays with sound the header says “Sound on”; the button mutes', () => {
     let muted = 0;
     mount({ playing: true, extra: { onToggleMute: () => muted++ } });
