@@ -36,7 +36,7 @@ export function listGeneratedGroups(designRoot: string): GeneratedGroup[] {
   const dir = path.join(designRoot, 'assets');
   let names: string[];
   try {
-    names = readdirSync(dir);
+    names = readdirSync(dir).sort(); // a run's takes and its label never depend on readdir order
   } catch {
     return [];
   }

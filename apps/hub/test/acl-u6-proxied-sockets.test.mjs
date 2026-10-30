@@ -130,6 +130,12 @@ test('a refused upgrade is never tracked', () => {
 
 test('endSessions — the graced narrowed / ended notice — closes the proxied sockets', async () => {
   const dataDir = mkdtempSync(join(tmpdir(), 'maude-u6-proxied-'));
+  // The graced kick runs on an UNREF'D timer (notices.mjs: a closing hub is never held up by a
+  // pending notice), so `await ended` needs something else to keep the process alive — in a live
+  // hub, its listening server. This file has none: on Node 22 nothing held the loop, the process
+  // ended mid-await ("Promise resolution is still pending but the event loop has already
+  // resolved", CI 40990963284) and the next test was cancelled with it. Hold it like the server.
+  const alive = setInterval(() => {}, 60_000);
   try {
     addToken(dataDir, { label: 'browser-max', owner: 'max@x.test', role: 'member' });
     const { proxy } = makeProxy();
@@ -158,6 +164,7 @@ test('endSessions — the graced narrowed / ended notice — closes the proxied 
     assert.deepEqual([inspector.destroyed, hmr.destroyed, olga.destroyed], [true, true, false]);
     assert.deepEqual(kicked, ['browser-max'], 'his token labels were kicked too');
   } finally {
+    clearInterval(alive);
     rmSync(dataDir, { recursive: true, force: true });
   }
 });
